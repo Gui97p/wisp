@@ -1,0 +1,34 @@
+# Secrets / config
+.env
+.env.*
+!.env.example
+
+# Go build artifacts
+/bin/
+/dist/
+/tmp/
+*.exe
+*.test
+*.out
+lia-server
+lia-admin
+
+# Go tooling
+*.o
+*.a
+
+# Coverage
+coverage.out
+coverage.html
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
