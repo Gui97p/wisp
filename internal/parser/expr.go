@@ -36,6 +36,8 @@ func (p *Parser) parsePrefix() ast.Expression {
 		return &ast.FloatLiteral{Value: f}
 	case lexer.TOKEN_TRUE, lexer.TOKEN_FALSE:
 		return &ast.BoolLiteral{Value: p.current.Type == lexer.TOKEN_TRUE}
+	case lexer.TOKEN_IDENT:
+		return &ast.IdentLiteral{Value: p.current.Literal}
 
 	case lexer.TOKEN_MINUS:
 		return p.parseUnaryExpression()

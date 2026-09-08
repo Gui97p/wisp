@@ -1,5 +1,11 @@
 package ast
 
+type IdentLiteral struct {
+	Value string
+}
+
+func (*IdentLiteral) expr() {}
+
 type IntLiteral struct {
 	Value int64
 }
