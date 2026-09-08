@@ -25,7 +25,7 @@ func main() {
 		l := lexer.NewLexer(buffer)
 		token := l.NextToken()
 		for token.Type != lexer.TOKEN_EOF {
-			fmt.Printf("[%s] %s\n", token.Type.String(), token.Literal)
+			fmt.Printf("%s(%s)\n", token.Type.String(), token.Literal)
 			token = l.NextToken()
 		}
 	default:
