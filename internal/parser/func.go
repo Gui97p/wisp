@@ -9,7 +9,7 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 	decl := &ast.FuncDecl{}
 
 	if !p.expect(lexer.TOKEN_IDENT) {
-		p.errors = append(p.errors, "expected function name in declaration")
+		p.error(p.current, "expected function name in declaration")
 		return nil
 	}
 	decl.Name = p.current.Literal
@@ -22,7 +22,7 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 	if !p.expect(lexer.TOKEN_RPAREN) {
 		return nil
 	}
-	decl.ReturnTypes = nil //p.parseReturnTypes()
+	decl.ReturnTypes = p.parseReturnTypes()
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
@@ -42,20 +42,20 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 	if p.peek.Type == lexer.TOKEN_RPAREN {
 		return params
 	}
-	p.advance()
 
 	var currentType string
 
 	for p.peek.Type != lexer.TOKEN_RPAREN && p.peek.Type != lexer.TOKEN_EOF {
+		p.advance()
 		if !p.isStartType() {
-			p.errors = append(p.errors, "expected valid type")
+			p.errorType(p.current.Type, p.current)
 			return params
 		}
 		currentType = p.current.Literal
 		p.advance()
 
 		if p.current.Type != lexer.TOKEN_IDENT {
-			p.errors = append(p.errors, "expected identifier")
+			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type, p.current)
 			return params
 		}
 
@@ -73,7 +73,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			}
 
 			if p.current.Type != lexer.TOKEN_IDENT {
-				p.errors = append(p.errors, "expected identifier")
+				p.errorExpected(lexer.TOKEN_IDENT, p.current.Type, p.current)
 				return params
 			}
 
@@ -85,4 +85,42 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 	}
 
 	return params
+}
+
+func (p *Parser) parseReturnTypes() []string {
+	returnTypes := []string{}
+
+	if p.peek.Type == lexer.TOKEN_LBRACE {
+		return returnTypes
+	}
+	p.advance()
+
+	if p.current.Type == lexer.TOKEN_LPAREN {
+		for {
+			p.advance()
+
+			if !p.isStartType() {
+				p.errorType(p.current.Type, p.current)
+				return returnTypes
+			}
+
+			returnTypes = append(returnTypes, p.current.Literal)
+
+			if p.peek.Type == lexer.TOKEN_RPAREN {
+				p.advance()
+				return returnTypes
+			}
+
+			if !p.expect(lexer.TOKEN_COMMA) {
+				p.errorExpected(lexer.TOKEN_COMMA, p.current.Type, p.current)
+				return returnTypes
+			}
+		}
+	} else if p.isStartType() {
+		returnTypes = append(returnTypes, p.current.Literal)
+		return returnTypes
+	} else {
+		p.errorType(p.current.Type, p.current)
+		return returnTypes
+	}
 }

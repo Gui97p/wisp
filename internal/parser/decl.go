@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
@@ -12,7 +14,7 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 	case lexer.TOKEN_STRUCT:
 		return p.parseStructDeclaration()
 	default:
-		p.errors = append(p.errors, "expected declaration")
+		p.error(p.current, fmt.Sprintf("expected declaration, got %s", p.current.Type))
 		p.advance()
 		return nil
 	}
