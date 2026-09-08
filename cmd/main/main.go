@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/Gui97p/wisp/internal/lexer"
+	"github.com/Gui97p/wisp/internal/parser"
 )
 
 func main() {
@@ -28,8 +30,15 @@ func main() {
 			fmt.Printf("%s(%s)\n", token.Type.String(), token.Literal)
 			token = l.NextToken()
 		}
+	case "parser":
+		p := parser.NewParser(lexer.NewLexer(buffer))
+		program := p.ParseProgram()
+		b, _ := json.MarshalIndent(program, "", "	")
+		fmt.Println(string(b))
+		fmt.Println("\nparsing errors:")
+		p.ShowErrors()
 	default:
-		fmt.Println("invalid module.\nAvaiable: tokens")
+		fmt.Println("invalid module.\nAvaiable: tokens parser")
 		os.Exit(1)
 	}
 }
