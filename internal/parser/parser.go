@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
@@ -19,42 +21,14 @@ func NewParser(l *lexer.Lexer) *Parser {
 
 	p.advance()
 	p.advance()
-	p.advance()
 
 	return p
 }
 
-func (p *Parser) advance() {
-	p.current = p.peek
-	p.peek = p.l.NextToken()
-}
-
-func (p *Parser) expect(t lexer.TokenType) bool {
-	if p.current.Type != t {
-		p.errors = append(p.errors, "unexpected token")
-		return false
-	}
-
-	p.advance()
-	return true
-}
-
-func (p *Parser) isPrimitiveType() bool {
-	switch p.current.Type {
-	case lexer.TOKEN_INT_LITERAL, lexer.TOKEN_STRING_LITERAL, lexer.TOKEN_FLOAT_LITERAL, lexer.TOKEN_CHAR_LITERAL, lexer.TOKEN_BOOL:
-		return true
-	}
-	return false
-}
-
-func (p *Parser) isStartType() bool {
-	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT
-}
-
-func (p *Parser) parseProgram() *ast.Program {
+func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 
-	for p.current.Type != lexer.TOKEN_EOF {
+	for p.peek.Type != lexer.TOKEN_EOF {
 		decl := p.parseDeclaration()
 
 		if decl != nil {
@@ -63,4 +37,33 @@ func (p *Parser) parseProgram() *ast.Program {
 	}
 
 	return program
+}
+
+func (p *Parser) ShowErrors() {
+	for _, e := range p.errors {
+		fmt.Println(e)
+	}
+}
+
+func (p *Parser) advance() {
+	p.current = p.peek
+	p.peek = p.l.NextToken()
+}
+
+func (p *Parser) expect(t lexer.TokenType) bool {
+	if p.peek.Type != t {
+		p.errorExpected(t, p.peek.Type, p.peek)
+		return false
+	}
+
+	p.advance()
+	return true
+}
+
+func (p *Parser) isPrimitiveType() bool {
+	return p.current.Type >= lexer.TOKEN_INT && p.current.Type <= lexer.TOKEN_STRING
+}
+
+func (p *Parser) isStartType() bool {
+	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT
 }
