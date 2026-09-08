@@ -1,0 +1,6 @@
+struct Point {
+    int x, y
+    bool visible
+}
+
+func makePoint(int a, b) Point {}
