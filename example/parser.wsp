@@ -1,6 +1,7 @@
 struct Point {
     int x, y
     bool visible
+    Point *parent
 }
 
-func makePoint(int a, b) Point {}
+func makePoint(int a, b, Point *parent) *Point {}
