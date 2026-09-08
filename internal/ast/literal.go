@@ -25,7 +25,7 @@ type CharLiteral struct {
 func (*CharLiteral) expr() {}
 
 type BoolLiteral struct {
-	Value int64
+	Value bool
 }
 
 func (*BoolLiteral) expr() {}
