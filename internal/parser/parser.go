@@ -28,12 +28,13 @@ func NewParser(l *lexer.Lexer) *Parser {
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 
-	for p.peek.Type != lexer.TOKEN_EOF {
+	for p.current.Type != lexer.TOKEN_EOF {
 		decl := p.parseDeclaration()
 
 		if decl != nil {
 			program.Declarations = append(program.Declarations, decl)
 		}
+		p.advance()
 	}
 
 	return program
