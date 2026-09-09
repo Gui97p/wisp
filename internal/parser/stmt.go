@@ -64,10 +64,10 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseForStatement()
 	// case lexer.TOKEN_LOOP:
 	// 	return p.parseLoopStatement()
-	// case lexer.TOKEN_BREAK:
-	// 	return p.parseBreakStatement()
-	// case lexer.TOKEN_CONTINUE:
-	// 	return p.parseContinueStatement()
+	case lexer.TOKEN_BREAK:
+		return p.parseBreakStatement()
+	case lexer.TOKEN_CONTINUE:
+		return p.parseContinueStatement()
 	// case lexer.TOKEN_COLON:
 	// 	return p.parseLabeledStatement()
 	default:
@@ -189,7 +189,6 @@ func (p *Parser) parseIfStatement() ast.Statement {
 			p.error("expected statement after else")
 			return nil
 		}
-
 	}
 
 	return stmt
@@ -240,6 +239,36 @@ func (p *Parser) parseForStatement() ast.Statement {
 	stmt.Body = p.parseBlockStatement()
 
 	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseBreakStatement() ast.Statement {
+	stmt := &ast.BreakStmt{}
+
+	if p.peek.Type == lexer.TOKEN_IDENT {
+		p.advance()
+		stmt.Label = p.current.Literal
+	}
+
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseContinueStatement() ast.Statement {
+	stmt := &ast.ContinueStmt{}
+
+	if p.peek.Type == lexer.TOKEN_IDENT {
+		p.advance()
+		stmt.Label = p.current.Literal
+	}
+
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
 	}
 
