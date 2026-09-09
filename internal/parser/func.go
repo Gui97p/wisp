@@ -27,7 +27,7 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
 	}
-	decl.Body = nil //p.parseBlockStatement()
+	decl.Body = p.parseBlockStatement()
 
 	if !p.expect(lexer.TOKEN_RBRACE) {
 		return nil

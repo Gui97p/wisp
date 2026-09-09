@@ -14,7 +14,7 @@ func (p *Parser) parseExpression() ast.Expression {
 func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 	left := p.parsePrefix()
 
-	for precedence < p.peekPrecedence() {
+	for p.peek.Type != lexer.TOKEN_EOF && precedence < p.peekPrecedence() {
 		p.advance()
 		left = p.parseInfix(left)
 	}
