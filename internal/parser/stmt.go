@@ -44,13 +44,13 @@ func (p *Parser) parseStatement() ast.Statement {
 		switch p.peek.Type {
 		case lexer.TOKEN_IDENT:
 			return p.parseVarStatement()
-		// case lexer.TOKEN_ASSIGN,
-		// 	lexer.TOKEN_PLUS_ASSIGN,
-		// 	lexer.TOKEN_MINUS_ASSIGN,
-		// 	lexer.TOKEN_STAR_ASSIGN,
-		// 	lexer.TOKEN_SLASH_ASSIGN,
-		// 	lexer.TOKEN_PERCENT_ASSIGN:
-		// 	return p.parseAssignStatement()
+		case lexer.TOKEN_ASSIGN,
+			lexer.TOKEN_PLUS_ASSIGN,
+			lexer.TOKEN_MINUS_ASSIGN,
+			lexer.TOKEN_STAR_ASSIGN,
+			lexer.TOKEN_SLASH_ASSIGN,
+			lexer.TOKEN_PERCENT_ASSIGN:
+			return p.parseAssignStatement()
 		default:
 			return p.parseExpressionStatement()
 		}
@@ -98,6 +98,23 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	if !p.expect(lexer.TOKEN_ASSIGN) {
 		return nil
 	}
+
+	p.advance()
+	stmt.Value = p.parseExpression()
+
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseAssignStatement() ast.Statement {
+	stmt := &ast.AssignStmt{}
+	stmt.Name = p.current.Literal
+
+	p.advance()
+	stmt.Op = p.current.Literal
 
 	p.advance()
 	stmt.Value = p.parseExpression()
