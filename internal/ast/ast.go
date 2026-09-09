@@ -1,6 +1,10 @@
 package ast
 
-type Node interface{}
+import "strings"
+
+type Node interface {
+	Tree(indent string) string
+}
 
 type Declaration interface {
 	Node
@@ -19,4 +23,20 @@ type Expression interface {
 
 type Program struct {
 	Declarations []Declaration
+}
+
+func (p *Program) Tree(indent string) string {
+	var b strings.Builder
+
+	b.WriteString("Program\n")
+
+	for i, decl := range p.Declarations {
+		if i == len(p.Declarations)-1 {
+			b.WriteString(decl.Tree("└─ "))
+		} else {
+			b.WriteString(decl.Tree("├─ "))
+		}
+	}
+
+	return b.String()
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 
@@ -33,8 +32,7 @@ func main() {
 	case "parser":
 		p := parser.NewParser(lexer.NewLexer(buffer))
 		program := p.ParseProgram()
-		b, _ := json.MarshalIndent(program, "", "	")
-		fmt.Println(string(b))
+		fmt.Println(program.Tree(""))
 		fmt.Println("\nparsing errors:")
 		p.ShowErrors()
 	default:
