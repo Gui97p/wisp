@@ -39,10 +39,9 @@ func (p *Parser) parsePrefix() ast.Expression {
 	case lexer.TOKEN_IDENT:
 		return &ast.IdentLiteral{Value: p.current.Literal}
 
-	case lexer.TOKEN_MINUS:
-		return p.parseUnaryExpression()
-
-	case lexer.TOKEN_NOT:
+	case lexer.TOKEN_MINUS,
+		lexer.TOKEN_NOT,
+		lexer.TOKEN_AMP:
 		return p.parseUnaryExpression()
 
 	case lexer.TOKEN_LPAREN:

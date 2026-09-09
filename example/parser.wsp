@@ -9,5 +9,5 @@ func makePoint(int a, b, Point *parent) *Point {
 
     a = 3;
 
-    return a, 3;
+    return &a, 3 * 3 + a * a;
 }
