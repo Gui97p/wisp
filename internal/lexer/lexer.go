@@ -146,7 +146,7 @@ func (l *Lexer) NextToken() Token {
 			l.advance()
 			t = l.token(TOKEN_AND, "&&")
 		} else {
-			t = l.token(TOKEN_ILLEGAL, "&")
+			t = l.token(TOKEN_AMP, "&")
 		}
 	case '|':
 		if l.peek() == '|' {

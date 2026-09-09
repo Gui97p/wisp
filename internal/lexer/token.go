@@ -60,6 +60,7 @@ const (
 	TOKEN_STAR    // *
 	TOKEN_SLASH   // /
 	TOKEN_PERCENT // %
+	TOKEN_AMP     // &
 
 	TOKEN_PLUS_ASSIGN    // +=
 	TOKEN_MINUS_ASSIGN   // -=
