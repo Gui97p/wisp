@@ -53,7 +53,7 @@ func (p *Parser) advance() {
 
 func (p *Parser) expect(t lexer.TokenType) bool {
 	if p.peek.Type != t {
-		p.errorExpected(t, p.peek.Type, p.peek)
+		p.errorExpected(t, p.peek.Type)
 		return false
 	}
 

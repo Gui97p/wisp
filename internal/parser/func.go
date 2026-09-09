@@ -9,7 +9,7 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 	decl := &ast.FuncDecl{}
 
 	if !p.expect(lexer.TOKEN_IDENT) {
-		p.error(p.current, "expected function name in declaration")
+		p.error("expected function name in declaration")
 		return nil
 	}
 	decl.Name = p.current.Literal
@@ -48,7 +48,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 	p.advance()
 	for p.peek.Type != lexer.TOKEN_RPAREN && p.peek.Type != lexer.TOKEN_EOF {
 		if !p.isStartType() {
-			p.errorType(p.current.Type, p.current)
+			p.errorType(p.current.Type)
 			return params
 		}
 		currentType = p.current.Literal
@@ -61,7 +61,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 		}
 
 		if p.current.Type != lexer.TOKEN_IDENT {
-			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type, p.current)
+			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 			return params
 		}
 
@@ -86,7 +86,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			}
 
 			if p.current.Type != lexer.TOKEN_IDENT {
-				p.errorExpected(lexer.TOKEN_IDENT, p.current.Type, p.current)
+				p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 				return params
 			}
 
@@ -120,7 +120,7 @@ func (p *Parser) parseReturnTypes() []ast.ReturnType {
 			}
 
 			if !p.isStartType() {
-				p.errorType(p.current.Type, p.current)
+				p.errorType(p.current.Type)
 				return returnTypes
 			}
 
@@ -135,7 +135,7 @@ func (p *Parser) parseReturnTypes() []ast.ReturnType {
 			}
 
 			if !p.expect(lexer.TOKEN_COMMA) {
-				p.errorExpected(lexer.TOKEN_COMMA, p.current.Type, p.current)
+				p.errorExpected(lexer.TOKEN_COMMA, p.current.Type)
 				return returnTypes
 			}
 		}
@@ -151,7 +151,7 @@ func (p *Parser) parseReturnTypes() []ast.ReturnType {
 		})
 		return returnTypes
 	} else {
-		p.errorType(p.current.Type, p.current)
+		p.errorType(p.current.Type)
 		return returnTypes
 	}
 }

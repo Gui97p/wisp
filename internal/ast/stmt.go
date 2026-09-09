@@ -29,8 +29,8 @@ func (*ReturnStmt) stmt() {}
 
 type IfStmt struct {
 	Condition Expression
-	Then      BlockStmt
-	Else      *BlockStmt
+	Then      *BlockStmt
+	Else      Statement
 }
 
 func (*IfStmt) stmt() {}

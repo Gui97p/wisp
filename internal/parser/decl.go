@@ -14,7 +14,7 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 	case lexer.TOKEN_STRUCT:
 		return p.parseStructDeclaration()
 	default:
-		p.error(p.current, fmt.Sprintf("expected declaration, got %s", p.current.Type))
+		p.error(fmt.Sprintf("expected declaration, got %s", p.current.Type))
 		p.advance()
 		return nil
 	}

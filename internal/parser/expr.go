@@ -48,7 +48,7 @@ func (p *Parser) parsePrefix() ast.Expression {
 		return p.parseGroupedExpression()
 	}
 
-	p.error(p.current, "expected expression")
+	p.error("expected expression")
 	return nil
 }
 
@@ -107,7 +107,7 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	expr := p.parseExpression()
 
 	if !p.expect(lexer.TOKEN_RPAREN) {
-		p.errorExpected(lexer.TOKEN_RPAREN, p.current.Type, p.current)
+		p.errorExpected(lexer.TOKEN_RPAREN, p.current.Type)
 		return nil
 	}
 

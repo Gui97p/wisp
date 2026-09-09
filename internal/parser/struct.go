@@ -9,7 +9,7 @@ func (p *Parser) parseStructDeclaration() *ast.StructDecl {
 	decl := &ast.StructDecl{}
 
 	if !p.expect(lexer.TOKEN_IDENT) {
-		p.error(p.current, "expected struct name in declaration")
+		p.error("expected struct name in declaration")
 		return nil
 	}
 	decl.Name = p.current.Literal
@@ -36,7 +36,7 @@ func (p *Parser) parseStructParamList() []ast.Param {
 	for p.peek.Type != lexer.TOKEN_RBRACE && p.peek.Type != lexer.TOKEN_EOF {
 		p.advance()
 		if !p.isStartType() {
-			p.errorType(p.current.Type, p.current)
+			p.errorType(p.current.Type)
 			return params
 		}
 		currentType := p.current.Literal
@@ -49,7 +49,7 @@ func (p *Parser) parseStructParamList() []ast.Param {
 		}
 
 		if p.current.Type != lexer.TOKEN_IDENT {
-			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type, p.current)
+			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 			return params
 		}
 
@@ -70,7 +70,7 @@ func (p *Parser) parseStructParamList() []ast.Param {
 			}
 
 			if p.current.Type != lexer.TOKEN_IDENT {
-				p.errorExpected(lexer.TOKEN_IDENT, p.current.Type, p.current)
+				p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 				return params
 			}
 
