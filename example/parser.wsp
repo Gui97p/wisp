@@ -8,4 +8,6 @@ func makePoint(int a, b, Point *parent) *Point {
     uint a = 5 + 3 * 2;
 
     a = 3;
+
+    return a, 3;
 }
