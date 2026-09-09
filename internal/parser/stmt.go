@@ -68,8 +68,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseBreakStatement()
 	case lexer.TOKEN_CONTINUE:
 		return p.parseContinueStatement()
-	// case lexer.TOKEN_COLON:
-	// 	return p.parseLabeledStatement()
+	case lexer.TOKEN_COLON:
+		return p.parseLabeledStatement()
 	default:
 		return p.parseExpressionStatement()
 	}
@@ -208,7 +208,7 @@ func (p *Parser) parseIncDecStatement() ast.Statement {
 	return stmt
 }
 
-func (p *Parser) parseForStatement() ast.Statement {
+func (p *Parser) parseForStatement() *ast.ForStmt {
 	stmt := &ast.ForStmt{}
 	p.advance()
 
@@ -273,4 +273,27 @@ func (p *Parser) parseContinueStatement() ast.Statement {
 	}
 
 	return stmt
+}
+
+func (p *Parser) parseLabeledStatement() ast.Statement {
+	if !p.expect(lexer.TOKEN_IDENT) {
+		return nil
+	}
+
+	label := p.current.Literal
+	p.advance()
+
+	switch p.current.Type {
+	case lexer.TOKEN_FOR:
+		stmt := p.parseForStatement()
+		stmt.Label = label
+		return stmt
+	// case lexer.TOKEN_LOOP:
+	// 	stmt = p.parseLoopStatement()
+	//  stmt.Label = label
+	//  return stmt
+	default:
+		p.error("expected for or loop after label")
+		return nil
+	}
 }
