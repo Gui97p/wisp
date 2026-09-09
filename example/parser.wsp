@@ -15,5 +15,9 @@ func makePoint(int a, b, Point *parent) *Point {
         a = 3;
     }
 
+    for i = 1..10:2 {
+
+    }
+
     return &a, 3 * 3 + a * a;
 }

@@ -73,3 +73,10 @@ type AssignStmt struct {
 }
 
 func (*AssignStmt) stmt() {}
+
+type IncDecStmt struct {
+	Name string
+	Op   string
+}
+
+func (*IncDecStmt) stmt() {}

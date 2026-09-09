@@ -51,6 +51,8 @@ func (p *Parser) parseStatement() ast.Statement {
 			lexer.TOKEN_SLASH_ASSIGN,
 			lexer.TOKEN_PERCENT_ASSIGN:
 			return p.parseAssignStatement()
+		case lexer.TOKEN_INCREMENT, lexer.TOKEN_DECREMENT:
+			return p.parseIncDecStatement()
 		default:
 			return p.parseExpressionStatement()
 		}
@@ -58,8 +60,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		return p.parseReturnStatement()
 	case lexer.TOKEN_IF:
 		return p.parseIfStatement()
-	// case lexer.TOKEN_FOR:
-	// 	return p.parseForStatement()
+	case lexer.TOKEN_FOR:
+		return p.parseForStatement()
 	// case lexer.TOKEN_LOOP:
 	// 	return p.parseLoopStatement()
 	// case lexer.TOKEN_BREAK:
@@ -188,6 +190,57 @@ func (p *Parser) parseIfStatement() ast.Statement {
 			return nil
 		}
 
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseIncDecStatement() ast.Statement {
+	stmt := &ast.IncDecStmt{}
+	stmt.Name = p.current.Literal
+
+	p.advance()
+	stmt.Op = p.current.Literal
+
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseForStatement() ast.Statement {
+	stmt := &ast.ForStmt{}
+	p.advance()
+
+	if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_ASSIGN {
+		stmt.Var = p.current.Literal
+		p.advance()
+		p.advance()
+
+		stmt.Start = p.parseExpression()
+		if !p.expect(lexer.TOKEN_RANGE) {
+			return nil
+		}
+		p.advance()
+		stmt.End = p.parseExpression()
+
+		if p.peek.Type == lexer.TOKEN_COLON {
+			p.advance()
+			p.advance()
+			stmt.Step = p.parseExpression()
+		}
+	} else {
+		stmt.End = p.parseExpression()
+	}
+
+	if !p.expect(lexer.TOKEN_LBRACE) {
+		return nil
+	}
+	stmt.Body = p.parseBlockStatement()
+
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
 	}
 
 	return stmt

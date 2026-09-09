@@ -13,7 +13,6 @@ const (
 	AND                   // &&
 	EQUALITY              // == !=
 	COMPARISON            // < <= > >=
-	RANGE                 // ..
 	SUM                   // + -
 	PRODUCT               // * / %
 	PREFIX                // -x !x
@@ -41,8 +40,6 @@ var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_LTE: COMPARISON,
 	lexer.TOKEN_GT:  COMPARISON,
 	lexer.TOKEN_GTE: COMPARISON,
-
-	lexer.TOKEN_RANGE: RANGE,
 
 	lexer.TOKEN_PLUS:  SUM,
 	lexer.TOKEN_MINUS: SUM,
