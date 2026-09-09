@@ -56,8 +56,8 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 	case lexer.TOKEN_RETURN:
 		return p.parseReturnStatement()
-	// case lexer.TOKEN_IF:
-	// 	return p.parseIfStatement()
+	case lexer.TOKEN_IF:
+		return p.parseIfStatement()
 	// case lexer.TOKEN_FOR:
 	// 	return p.parseForStatement()
 	// case lexer.TOKEN_LOOP:
@@ -150,6 +150,44 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseIfStatement() ast.Statement {
+	stmt := &ast.IfStmt{}
+
+	p.advance()
+	stmt.Condition = p.parseExpression()
+
+	if !p.expect(lexer.TOKEN_LBRACE) {
+		return nil
+	}
+	stmt.Then = p.parseBlockStatement()
+
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+
+	if p.peek.Type == lexer.TOKEN_ELSE {
+		p.advance()
+
+		switch p.peek.Type {
+		case lexer.TOKEN_LBRACE:
+			p.advance()
+			stmt.Else = p.parseBlockStatement()
+			if !p.expect(lexer.TOKEN_RBRACE) {
+				return nil
+			}
+		case lexer.TOKEN_IF:
+			p.advance()
+			stmt.Else = p.parseIfStatement()
+		default:
+			p.error("expected statement after else")
+			return nil
+		}
+
 	}
 
 	return stmt
