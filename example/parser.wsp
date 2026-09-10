@@ -7,20 +7,5 @@ struct Point {
 func add(int a, b) int => a + b;
 
 func makePoint(int a, b, Point *parent) *Point {
-    uint a = 5 + 3 * 2;
-
-    :myLoop loop a == 2 + 1 {
-        a += 2;
-        continue myLoop;
-    }
-
-    loop {
-        a -= 3;
-    }
-
-    loop {
-        a = a % 2;
-    } until a <= 1;
-
-    return &a, 3 * 3 + a * a;
+    let a = b.abc;
 }

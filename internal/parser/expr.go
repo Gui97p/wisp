@@ -81,6 +81,8 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		lexer.TOKEN_AND,
 		lexer.TOKEN_OR:
 		return p.parseBinaryExpression(left)
+	case lexer.TOKEN_DOT:
+		return p.parseMemberExpression(left)
 	}
 
 	return left
@@ -112,4 +114,12 @@ func (p *Parser) parseGroupedExpression() ast.Expression {
 	}
 
 	return expr
+}
+
+func (p *Parser) parseMemberExpression(object ast.Expression) ast.Expression {
+	if !p.expect(lexer.TOKEN_IDENT) {
+		return nil
+	}
+
+	return &ast.MemberExpr{Object: object, Field: p.current.Literal}
 }

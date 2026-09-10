@@ -128,9 +128,16 @@ func (p *Parser) parseStatement() ast.Statement {
 }
 
 func (p *Parser) parseExpressionStatement() ast.Statement {
-	return &ast.ExpressionStmt{
-		Expr: p.parseExpression(),
+	expr := p.parseExpression()
+
+	if p.peek.Type == lexer.TOKEN_SEMICOLON {
+		p.advance()
+	} else if p.peek.Type != lexer.TOKEN_RBRACE {
+		p.errorExpected(lexer.TOKEN_SEMICOLON, p.peek.Type)
+		return nil
 	}
+
+	return &ast.ExpressionStmt{Expr: expr}
 }
 
 func (p *Parser) parseVarStatement() ast.Statement {

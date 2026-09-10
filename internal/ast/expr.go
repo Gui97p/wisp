@@ -49,3 +49,27 @@ func (u *UnaryExpr) Tree(indent string) string {
 
 	return sb.String()
 }
+
+type MemberExpr struct {
+	Object Expression
+	Field  string
+}
+
+func (*MemberExpr) expr() {}
+func (m *MemberExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sMemberExpr\n", indent)
+
+	b.WriteString(indent)
+	b.WriteString("├─ Object\n")
+	b.WriteString(m.Object.Tree(indent + "│  "))
+
+	b.WriteString(indent)
+	b.WriteString("└─ Field\n")
+	b.WriteString(indent)
+	b.WriteString("   ")
+	b.WriteString(m.Field)
+
+	return b.String()
+}
