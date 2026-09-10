@@ -8,7 +8,6 @@ type Precedence int
 
 const (
 	LOWEST     Precedence = iota
-	ASSIGN                // = += -= *= /= %=
 	OR                    // ||
 	AND                   // &&
 	EQUALITY              // == !=
@@ -23,13 +22,6 @@ const (
 )
 
 var precedences = map[lexer.TokenType]Precedence{
-	lexer.TOKEN_ASSIGN:         ASSIGN,
-	lexer.TOKEN_PLUS_ASSIGN:    ASSIGN,
-	lexer.TOKEN_MINUS_ASSIGN:   ASSIGN,
-	lexer.TOKEN_STAR_ASSIGN:    ASSIGN,
-	lexer.TOKEN_SLASH_ASSIGN:   ASSIGN,
-	lexer.TOKEN_PERCENT_ASSIGN: ASSIGN,
-
 	lexer.TOKEN_OR:  OR,
 	lexer.TOKEN_AND: AND,
 

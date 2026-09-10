@@ -51,7 +51,7 @@ func (*VarStmt) stmt() {}
 func (v *VarStmt) Tree(indent string) string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "%sVarStmt(%s ", indent, v.Name)
+	fmt.Fprintf(&b, "%sVarStmt(%s)\n", indent, v.Name)
 
 	b.WriteString(v.Type.Tree(indent + "├─ "))
 
@@ -227,16 +227,20 @@ func (c *ContinueStmt) Tree(indent string) string {
 }
 
 type AssignStmt struct {
-	Name  string
-	Op    string
-	Value Expression
+	Target Expression
+	Op     string
+	Value  Expression
 }
 
 func (*AssignStmt) stmt() {}
 func (a *AssignStmt) Tree(indent string) string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "%sAssignStmt(%s %s)\n", indent, a.Name, a.Op)
+	fmt.Fprintf(&b, "%sAssignStmt(%s)\n", indent, a.Op)
+
+	if a.Target != nil {
+		b.WriteString(a.Target.Tree(indent + "├─ "))
+	}
 
 	if a.Value != nil {
 		b.WriteString(a.Value.Tree(indent + "└─ "))
@@ -246,11 +250,19 @@ func (a *AssignStmt) Tree(indent string) string {
 }
 
 type IncDecStmt struct {
-	Name string
-	Op   string
+	Target Expression
+	Op     string
 }
 
 func (*IncDecStmt) stmt() {}
 func (i *IncDecStmt) Tree(indent string) string {
-	return fmt.Sprintf("%sIncDecStmt(%s %s)\n", indent, i.Name, i.Op)
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sIncDecStmt(%s)\n", indent, i.Op)
+
+	if i.Target != nil {
+		b.WriteString(i.Target.Tree(indent + "├─ "))
+	}
+
+	return b.String()
 }

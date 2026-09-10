@@ -45,37 +45,18 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		return stmt
 	case lexer.TOKEN_IDENT:
-		switch p.peek.Type {
-		case lexer.TOKEN_IDENT:
+		if p.peek.Type == lexer.TOKEN_IDENT {
 			stmt := p.parseVarStatement()
 			if stmt == nil {
 				return nil
 			}
 			return stmt
-		case lexer.TOKEN_ASSIGN,
-			lexer.TOKEN_PLUS_ASSIGN,
-			lexer.TOKEN_MINUS_ASSIGN,
-			lexer.TOKEN_STAR_ASSIGN,
-			lexer.TOKEN_SLASH_ASSIGN,
-			lexer.TOKEN_PERCENT_ASSIGN:
-			stmt := p.parseAssignStatement()
-			if stmt == nil {
-				return nil
-			}
-			return stmt
-		case lexer.TOKEN_INCREMENT, lexer.TOKEN_DECREMENT:
-			stmt := p.parseIncDecStatement()
-			if stmt == nil {
-				return nil
-			}
-			return stmt
-		default:
-			stmt := p.parseExpressionStatement()
-			if stmt == nil {
-				return nil
-			}
-			return stmt
 		}
+		stmt := p.parseSimpleStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
 	case lexer.TOKEN_RETURN:
 		stmt := p.parseReturnStatement()
 		if stmt == nil {
@@ -119,7 +100,7 @@ func (p *Parser) parseStatement() ast.Statement {
 		}
 		return stmt
 	default:
-		stmt := p.parseExpressionStatement()
+		stmt := p.parseSimpleStatement()
 		if stmt == nil {
 			return nil
 		}
@@ -127,9 +108,37 @@ func (p *Parser) parseStatement() ast.Statement {
 	}
 }
 
-func (p *Parser) parseExpressionStatement() ast.Statement {
+func (p *Parser) parseSimpleStatement() ast.Statement {
 	expr := p.parseExpression()
 
+	switch p.peek.Type {
+	case lexer.TOKEN_ASSIGN,
+		lexer.TOKEN_PLUS_ASSIGN,
+		lexer.TOKEN_MINUS_ASSIGN,
+		lexer.TOKEN_STAR_ASSIGN,
+		lexer.TOKEN_SLASH_ASSIGN,
+		lexer.TOKEN_PERCENT_ASSIGN:
+		stmt := p.parseAssignStatement(expr)
+		if stmt == nil {
+			return nil
+		}
+		return stmt
+	case lexer.TOKEN_INCREMENT, lexer.TOKEN_DECREMENT:
+		stmt := p.parseIncDecStatement(expr)
+		if stmt == nil {
+			return nil
+		}
+		return stmt
+	default:
+		stmt := p.finishExpressionStatement(expr)
+		if stmt == nil {
+			return nil
+		}
+		return stmt
+	}
+}
+
+func (p *Parser) finishExpressionStatement(expr ast.Expression) ast.Statement {
 	if p.peek.Type == lexer.TOKEN_SEMICOLON {
 		p.advance()
 	} else if p.peek.Type != lexer.TOKEN_RBRACE {
@@ -176,9 +185,8 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	return stmt
 }
 
-func (p *Parser) parseAssignStatement() ast.Statement {
-	stmt := &ast.AssignStmt{}
-	stmt.Name = p.current.Literal
+func (p *Parser) parseAssignStatement(target ast.Expression) ast.Statement {
+	stmt := &ast.AssignStmt{Target: target}
 
 	p.advance()
 	stmt.Op = p.current.Literal
@@ -259,9 +267,8 @@ func (p *Parser) parseIfStatement() ast.Statement {
 	return stmt
 }
 
-func (p *Parser) parseIncDecStatement() ast.Statement {
-	stmt := &ast.IncDecStmt{}
-	stmt.Name = p.current.Literal
+func (p *Parser) parseIncDecStatement(target ast.Expression) ast.Statement {
+	stmt := &ast.IncDecStmt{Target: target}
 
 	p.advance()
 	stmt.Op = p.current.Literal

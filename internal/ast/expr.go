@@ -113,10 +113,11 @@ func (m *MemberExpr) Tree(indent string) string {
 	b.WriteString(m.Object.Tree(indent + "│  "))
 
 	b.WriteString(indent)
-	b.WriteString("└─ Field\n")
+	b.WriteString("├─ Field\n")
 	b.WriteString(indent)
 	b.WriteString("│  ")
 	b.WriteString(m.Field)
+	b.WriteRune('\n')
 
 	return b.String()
 }
