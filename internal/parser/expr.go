@@ -15,6 +15,11 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 	left := p.parsePrefix()
 
 	for p.peek.Type != lexer.TOKEN_EOF && precedence < p.peekPrecedence() {
+		if p.peek.Type == lexer.TOKEN_LPAREN {
+			p.advance()
+			left = p.parseCallExpression(left)
+			continue
+		}
 		p.advance()
 		left = p.parseInfix(left)
 	}
@@ -122,4 +127,32 @@ func (p *Parser) parseMemberExpression(object ast.Expression) ast.Expression {
 	}
 
 	return &ast.MemberExpr{Object: object, Field: p.current.Literal}
+}
+
+func (p *Parser) parseCallExpression(name ast.Expression) ast.Expression {
+	return &ast.CallExpr{Name: name, Args: p.parseCallArgs()}
+}
+
+func (p *Parser) parseCallArgs() []ast.Expression {
+	args := []ast.Expression{}
+
+	if p.peek.Type == lexer.TOKEN_RPAREN {
+		p.advance()
+		return args
+	}
+
+	p.advance()
+	args = append(args, p.parseExpression())
+
+	for p.peek.Type == lexer.TOKEN_COMMA {
+		p.advance()
+		p.advance()
+		args = append(args, p.parseExpression())
+	}
+
+	if !p.expect(lexer.TOKEN_RPAREN) {
+		return nil
+	}
+
+	return args
 }

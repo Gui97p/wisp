@@ -50,6 +50,31 @@ func (u *UnaryExpr) Tree(indent string) string {
 	return sb.String()
 }
 
+type CallExpr struct {
+	Name Expression
+	Args []Expression
+}
+
+func (*CallExpr) expr() {}
+func (c *CallExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sCallExpr\n", indent)
+
+	b.WriteString(indent)
+	b.WriteString("├─ Name\n")
+	b.WriteString(c.Name.Tree(indent + "│  "))
+
+	b.WriteString(indent)
+	b.WriteString("├─ Args\n")
+
+	for _, a := range c.Args {
+		b.WriteString(a.Tree(indent + "│  "))
+	}
+
+	return b.String()
+}
+
 type MemberExpr struct {
 	Object Expression
 	Field  string
