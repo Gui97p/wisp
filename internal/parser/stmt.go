@@ -39,39 +39,91 @@ func (p *Parser) parseStatement() ast.Statement {
 		lexer.TOKEN_STRING,
 		lexer.TOKEN_BOOL,
 		lexer.TOKEN_CHAR:
-		return p.parseVarStatement()
+		stmt := p.parseVarStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
 	case lexer.TOKEN_IDENT:
 		switch p.peek.Type {
 		case lexer.TOKEN_IDENT:
-			return p.parseVarStatement()
+			stmt := p.parseVarStatement()
+			if stmt == nil {
+				return nil
+			}
+			return stmt
 		case lexer.TOKEN_ASSIGN,
 			lexer.TOKEN_PLUS_ASSIGN,
 			lexer.TOKEN_MINUS_ASSIGN,
 			lexer.TOKEN_STAR_ASSIGN,
 			lexer.TOKEN_SLASH_ASSIGN,
 			lexer.TOKEN_PERCENT_ASSIGN:
-			return p.parseAssignStatement()
+			stmt := p.parseAssignStatement()
+			if stmt == nil {
+				return nil
+			}
+			return stmt
 		case lexer.TOKEN_INCREMENT, lexer.TOKEN_DECREMENT:
-			return p.parseIncDecStatement()
+			stmt := p.parseIncDecStatement()
+			if stmt == nil {
+				return nil
+			}
+			return stmt
 		default:
-			return p.parseExpressionStatement()
+			stmt := p.parseExpressionStatement()
+			if stmt == nil {
+				return nil
+			}
+			return stmt
 		}
 	case lexer.TOKEN_RETURN:
-		return p.parseReturnStatement()
+		stmt := p.parseReturnStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
 	case lexer.TOKEN_IF:
-		return p.parseIfStatement()
+		stmt := p.parseIfStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
 	case lexer.TOKEN_FOR:
-		return p.parseForStatement()
-	// case lexer.TOKEN_LOOP:
-	// 	return p.parseLoopStatement()
+		stmt := p.parseForStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
+	case lexer.TOKEN_LOOP:
+		stmt := p.parseLoopStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
 	case lexer.TOKEN_BREAK:
-		return p.parseBreakStatement()
+		stmt := p.parseBreakStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
 	case lexer.TOKEN_CONTINUE:
-		return p.parseContinueStatement()
+		stmt := p.parseContinueStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
 	case lexer.TOKEN_COLON:
-		return p.parseLabeledStatement()
+		stmt := p.parseLabeledStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
 	default:
-		return p.parseExpressionStatement()
+		stmt := p.parseExpressionStatement()
+		if stmt == nil {
+			return nil
+		}
+		return stmt
 	}
 }
 
@@ -245,6 +297,36 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 	return stmt
 }
 
+func (p *Parser) parseLoopStatement() *ast.LoopStmt {
+	stmt := &ast.LoopStmt{}
+
+	if p.peek.Type != lexer.TOKEN_LBRACE {
+		p.advance()
+		stmt.Condition = p.parseExpression()
+	}
+
+	if !p.expect(lexer.TOKEN_LBRACE) {
+		return nil
+	}
+	stmt.Body = p.parseBlockStatement()
+
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+
+	if p.peek.Type == lexer.TOKEN_UNTIL {
+		p.advance()
+		p.advance()
+		stmt.UntilCondition = p.parseExpression()
+
+		if !p.expect(lexer.TOKEN_SEMICOLON) {
+			return nil
+		}
+	}
+
+	return stmt
+}
+
 func (p *Parser) parseBreakStatement() ast.Statement {
 	stmt := &ast.BreakStmt{}
 
@@ -288,10 +370,10 @@ func (p *Parser) parseLabeledStatement() ast.Statement {
 		stmt := p.parseForStatement()
 		stmt.Label = label
 		return stmt
-	// case lexer.TOKEN_LOOP:
-	// 	stmt = p.parseLoopStatement()
-	//  stmt.Label = label
-	//  return stmt
+	case lexer.TOKEN_LOOP:
+		stmt := p.parseLoopStatement()
+		stmt.Label = label
+		return stmt
 	default:
 		p.error("expected for or loop after label")
 		return nil

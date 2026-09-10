@@ -7,10 +7,18 @@ struct Point {
 func makePoint(int a, b, Point *parent) *Point {
     uint a = 5 + 3 * 2;
 
-    :myFor for i = 1..10:2 {
-        continue;
-        break myFor;
+    :myLoop loop a == 2 + 1 {
+        a += 2;
+        continue myLoop;
     }
+
+    loop {
+        a -= 3;
+    }
+
+    loop {
+        a = a % 2;
+    } until a <= 1;
 
     return &a, 3 * 3 + a * a;
 }

@@ -168,9 +168,10 @@ func (f *ForStmt) Tree(indent string) string {
 }
 
 type LoopStmt struct {
-	Condition Expression
-	Body      *BlockStmt
-	Value     Expression
+	Label          string
+	Condition      Expression
+	Body           *BlockStmt
+	UntilCondition Expression
 }
 
 func (*LoopStmt) stmt() {}
@@ -180,16 +181,20 @@ func (l *LoopStmt) Tree(indent string) string {
 	b.WriteString(indent)
 	b.WriteString("LoopStmt\n")
 
+	if l.Label != "" {
+		fmt.Fprintf(&b, "%s├─ Label(%s)\n", indent, l.Label)
+	}
+
 	if l.Condition != nil {
 		b.WriteString(indent)
 		b.WriteString("├─ Condition\n")
 		b.WriteString(l.Condition.Tree(indent + "│  "))
 	}
 
-	if l.Value != nil {
+	if l.UntilCondition != nil {
 		b.WriteString(indent)
 		b.WriteString("├─ Until\n")
-		b.WriteString(l.Value.Tree(indent + "│  "))
+		b.WriteString(l.UntilCondition.Tree(indent + "│  "))
 	}
 
 	if l.Body != nil {
