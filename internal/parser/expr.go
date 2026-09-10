@@ -52,7 +52,8 @@ func (p *Parser) parsePrefix() ast.Expression {
 
 	case lexer.TOKEN_MINUS,
 		lexer.TOKEN_NOT,
-		lexer.TOKEN_AMP:
+		lexer.TOKEN_AMP,
+		lexer.TOKEN_STAR:
 		return p.parseUnaryExpression()
 
 	case lexer.TOKEN_LPAREN:
