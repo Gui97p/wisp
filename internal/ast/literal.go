@@ -1,6 +1,9 @@
 package ast
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type IdentLiteral struct {
 	Value string
@@ -9,6 +12,27 @@ type IdentLiteral struct {
 func (*IdentLiteral) expr() {}
 func (i *IdentLiteral) Tree(indent string) string {
 	return indent + fmt.Sprintf("IdentLiteral(%s)\n", i.Value)
+}
+
+type ArrayLiteral struct {
+	Elements []Expression
+}
+
+func (*ArrayLiteral) expr() {}
+func (a *ArrayLiteral) Tree(indent string) string {
+	var b strings.Builder
+
+	b.WriteString(indent)
+	b.WriteString("ArrayLiteral\n")
+
+	b.WriteString(indent)
+	b.WriteString("├─ Args\n")
+
+	for _, e := range a.Elements {
+		b.WriteString(e.Tree(indent + "│  "))
+	}
+
+	return b.String()
 }
 
 type IntLiteral struct {

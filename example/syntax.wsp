@@ -6,7 +6,7 @@ func addVerbose(int a, b) int { // The second int (before b) is optional, it use
 
 // Struct declarations
 struct Point {
-  int x, y;
+  int x, y
 }
 
 /*
@@ -49,7 +49,7 @@ func main() {
 
   :outer loop { // labels!
     loop {
-      if random() == 0.3 {
+      if random() == .3 {
         break outer;
       }
       continue; // continue accepts labels too

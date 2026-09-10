@@ -46,6 +46,8 @@ type VarStmt struct {
 	Type      string
 	Value     Expression
 	IsPointer bool
+	IsArray   bool
+	ArraySize int64
 }
 
 func (*VarStmt) stmt() {}

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strconv"
+
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
@@ -155,6 +157,26 @@ func (p *Parser) parseVarStatement() ast.Statement {
 		return nil
 	}
 	stmt.Name = p.current.Literal
+
+	if p.peek.Type == lexer.TOKEN_LBRACKET {
+		p.advance()
+		if !p.expect(lexer.TOKEN_INT_LITERAL) {
+			return nil
+		}
+
+		size, err := strconv.ParseInt(p.current.Literal, 10, 64)
+		if err != nil {
+			p.error("invalid array size: " + p.current.Literal)
+			return nil
+		}
+
+		stmt.IsArray = true
+		stmt.ArraySize = size
+
+		if !p.expect(lexer.TOKEN_RBRACKET) {
+			return nil
+		}
+	}
 
 	if !p.expect(lexer.TOKEN_ASSIGN) {
 		return nil

@@ -80,6 +80,28 @@ type MemberExpr struct {
 	Field  string
 }
 
+type IndexExpr struct {
+	Array Expression
+	Index Expression
+}
+
+func (*IndexExpr) expr() {}
+func (i *IndexExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sIndexExpr\n", indent)
+
+	b.WriteString(indent)
+	b.WriteString("├─ Array\n")
+	b.WriteString(i.Array.Tree(indent + "│  "))
+
+	b.WriteString(indent)
+	b.WriteString("├─ Index\n")
+	b.WriteString(i.Index.Tree(indent + "│  "))
+
+	return b.String()
+}
+
 func (*MemberExpr) expr() {}
 func (m *MemberExpr) Tree(indent string) string {
 	var b strings.Builder
@@ -93,7 +115,7 @@ func (m *MemberExpr) Tree(indent string) string {
 	b.WriteString(indent)
 	b.WriteString("└─ Field\n")
 	b.WriteString(indent)
-	b.WriteString("   ")
+	b.WriteString("│  ")
 	b.WriteString(m.Field)
 
 	return b.String()

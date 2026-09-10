@@ -15,13 +15,17 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 	left := p.parsePrefix()
 
 	for p.peek.Type != lexer.TOKEN_EOF && precedence < p.peekPrecedence() {
-		if p.peek.Type == lexer.TOKEN_LPAREN {
+		switch p.peek.Type {
+		case lexer.TOKEN_LPAREN:
 			p.advance()
 			left = p.parseCallExpression(left)
-			continue
+		case lexer.TOKEN_LBRACKET:
+			p.advance()
+			left = p.parseIndexExpression(left)
+		default:
+			p.advance()
+			left = p.parseInfix(left)
 		}
-		p.advance()
-		left = p.parseInfix(left)
 	}
 
 	return left
@@ -43,6 +47,8 @@ func (p *Parser) parsePrefix() ast.Expression {
 		return &ast.BoolLiteral{Value: p.current.Type == lexer.TOKEN_TRUE}
 	case lexer.TOKEN_IDENT:
 		return &ast.IdentLiteral{Value: p.current.Literal}
+	case lexer.TOKEN_LBRACKET:
+		return p.parseArrayLiteral()
 
 	case lexer.TOKEN_MINUS,
 		lexer.TOKEN_NOT,
@@ -155,4 +161,39 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 	}
 
 	return args
+}
+
+func (p *Parser) parseIndexExpression(array ast.Expression) ast.Expression {
+	p.advance()
+	index := p.parseExpression()
+
+	if !p.expect(lexer.TOKEN_RBRACKET) {
+		return nil
+	}
+
+	return &ast.IndexExpr{Array: array, Index: index}
+}
+
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	arr := &ast.ArrayLiteral{}
+
+	if p.peek.Type == lexer.TOKEN_RBRACKET {
+		p.advance()
+		return arr
+	}
+
+	p.advance()
+	arr.Elements = append(arr.Elements, p.parseExpression())
+
+	for p.peek.Type == lexer.TOKEN_COMMA {
+		p.advance()
+		p.advance()
+		arr.Elements = append(arr.Elements, p.parseExpression())
+	}
+
+	if !p.expect(lexer.TOKEN_RBRACKET) {
+		return nil
+	}
+
+	return arr
 }
