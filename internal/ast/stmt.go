@@ -42,12 +42,9 @@ func (b *BlockStmt) Tree(indent string) string {
 }
 
 type VarStmt struct {
-	Name      string
-	Type      string
-	Value     Expression
-	IsPointer bool
-	IsArray   bool
-	ArraySize int64
+	Name  string
+	Type  TypeRef
+	Value Expression
 }
 
 func (*VarStmt) stmt() {}
@@ -56,12 +53,7 @@ func (v *VarStmt) Tree(indent string) string {
 
 	fmt.Fprintf(&b, "%sVarStmt(%s ", indent, v.Name)
 
-	if v.IsPointer {
-		b.WriteRune('*')
-	}
-
-	b.WriteString(v.Type)
-	b.WriteString(")\n")
+	b.WriteString(v.Type.Tree(indent + "├─ "))
 
 	if v.Value != nil {
 		b.WriteString(v.Value.Tree(indent + "└─ "))

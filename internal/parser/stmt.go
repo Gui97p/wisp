@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strconv"
-
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
@@ -143,40 +141,26 @@ func (p *Parser) parseExpressionStatement() ast.Statement {
 }
 
 func (p *Parser) parseVarStatement() ast.Statement {
-	stmt := &ast.VarStmt{IsPointer: false}
+	stmt := &ast.VarStmt{}
 	if p.current.Type != lexer.TOKEN_LET {
-		stmt.Type = p.current.Literal
-	}
-
-	if p.peek.Type == lexer.TOKEN_STAR {
+		name, depth := p.parseTypePrefix()
+		stmt.Type.Name = name
+		stmt.Type.PointerDepth = depth
+	} else {
 		p.advance()
-		stmt.IsPointer = true
 	}
 
-	if !p.expect(lexer.TOKEN_IDENT) {
+	if p.current.Type != lexer.TOKEN_IDENT {
 		return nil
 	}
 	stmt.Name = p.current.Literal
 
-	if p.peek.Type == lexer.TOKEN_LBRACKET {
-		p.advance()
-		if !p.expect(lexer.TOKEN_INT_LITERAL) {
-			return nil
-		}
-
-		size, err := strconv.ParseInt(p.current.Literal, 10, 64)
-		if err != nil {
-			p.error("invalid array size: " + p.current.Literal)
-			return nil
-		}
-
-		stmt.IsArray = true
-		stmt.ArraySize = size
-
-		if !p.expect(lexer.TOKEN_RBRACKET) {
-			return nil
-		}
+	isArray, size, ok := p.parseArraySuffix()
+	if !ok {
+		return nil
 	}
+	stmt.Type.IsArray = isArray
+	stmt.Type.ArraySize = size
 
 	if !p.expect(lexer.TOKEN_ASSIGN) {
 		return nil

@@ -63,4 +63,18 @@ func main() {
   let p2 = Point(nums[3], 2);
 
   emitf("p: x=%d y=%d", p.x, p.y);
+
+  // Pointers, including multiple levels of indirection
+  int x = 42;
+  int *px = &x;      // pointer to int
+  int **ppx = &px;   // pointer to pointer to int
+
+  emitf("x=%d *px=%d **ppx=%d", x, *px, **ppx);
+
+  /* pointer to a struct; explicit "Point *pp" isn't valid syntax
+     (ambiguous with multiplication for custom type names), so
+     pointer-to-struct locals always go through inferred `let`
+  */
+  let pp = &p;    
+  emitf("pp.x=%d pp.y=%d", pp.x, pp.y);
 }

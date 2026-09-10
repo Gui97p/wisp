@@ -52,7 +52,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 		return params
 	}
 
-	var currentType string
+	var currentType ast.TypeRef
 
 	p.advance()
 	for p.peek.Type != lexer.TOKEN_RPAREN && p.peek.Type != lexer.TOKEN_EOF {
@@ -60,24 +60,26 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.errorType(p.current.Type)
 			return params
 		}
-		currentType = p.current.Literal
-		p.advance()
-
-		isPointer := false
-		if p.current.Type == lexer.TOKEN_STAR {
-			p.advance()
-			isPointer = true
-		}
+		name, depth := p.parseTypePrefix()
+		currentType.Name = name
+		currentType.PointerDepth = depth
 
 		if p.current.Type != lexer.TOKEN_IDENT {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 			return params
 		}
+		name = p.current.Literal
+
+		isArray, size, ok := p.parseArraySuffix()
+		if !ok {
+			return nil
+		}
+		currentType.IsArray = isArray
+		currentType.ArraySize = size
 
 		params = append(params, ast.Param{
-			Name:      p.current.Literal,
-			Type:      currentType,
-			IsPointer: isPointer,
+			Name: name,
+			Type: currentType,
 		})
 
 		for p.peek.Type == lexer.TOKEN_COMMA {
@@ -88,21 +90,24 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 				break
 			}
 
-			isPointer := false
-			if p.current.Type == lexer.TOKEN_STAR {
-				p.advance()
-				isPointer = true
-			}
+			currentType.PointerDepth = p.parsePointerDepth()
 
 			if p.current.Type != lexer.TOKEN_IDENT {
 				p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 				return params
 			}
+			name := p.current.Literal
+
+			isArray, size, ok := p.parseArraySuffix()
+			if !ok {
+				return nil
+			}
+			currentType.IsArray = isArray
+			currentType.ArraySize = size
 
 			params = append(params, ast.Param{
-				Name:      p.current.Literal,
-				Type:      currentType,
-				IsPointer: isPointer,
+				Name: name,
+				Type: currentType,
 			})
 		}
 	}
@@ -110,8 +115,8 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 	return params
 }
 
-func (p *Parser) parseReturnTypes() []ast.ReturnType {
-	returnTypes := []ast.ReturnType{}
+func (p *Parser) parseReturnTypes() []ast.TypeRef {
+	returnTypes := []ast.TypeRef{}
 
 	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW {
 		return returnTypes
@@ -122,42 +127,54 @@ func (p *Parser) parseReturnTypes() []ast.ReturnType {
 		for {
 			p.advance()
 
-			isPointer := false
-			if p.current.Type == lexer.TOKEN_STAR {
-				p.advance()
-				isPointer = true
-			}
+			rType := ast.TypeRef{}
+			rType.PointerDepth = p.parsePointerDepth()
 
 			if !p.isStartType() {
 				p.errorType(p.current.Type)
-				return returnTypes
+				return nil
 			}
 
-			returnTypes = append(returnTypes, ast.ReturnType{
-				Type:      p.current.Literal,
-				IsPointer: isPointer,
-			})
+			rType.Name = p.current.Literal
 
-			if p.peek.Type == lexer.TOKEN_RPAREN {
+			isArray, size, ok := p.parseArraySuffix()
+			if !ok {
+				return nil
+			}
+			rType.IsArray = isArray
+			rType.ArraySize = size
+
+			returnTypes = append(returnTypes, rType)
+
+			if p.peek.Type == lexer.TOKEN_COMMA {
 				p.advance()
-				return returnTypes
+				continue
 			}
 
-			if !p.expect(lexer.TOKEN_COMMA) {
-				p.errorExpected(lexer.TOKEN_COMMA, p.current.Type)
-				return returnTypes
+			if !p.expect(lexer.TOKEN_RPAREN) {
+				return nil
 			}
+
+			return returnTypes
 		}
 	} else if p.isStartType() || p.current.Type == lexer.TOKEN_STAR {
-		isPointer := false
-		if p.current.Type == lexer.TOKEN_STAR {
-			p.advance()
-			isPointer = true
+		rType := ast.TypeRef{}
+		rType.PointerDepth = p.parsePointerDepth()
+
+		if !p.isStartType() {
+			p.errorType(p.current.Type)
+			return nil
 		}
-		returnTypes = append(returnTypes, ast.ReturnType{
-			Type:      p.current.Literal,
-			IsPointer: isPointer,
-		})
+		rType.Name = p.current.Literal
+
+		isArray, size, ok := p.parseArraySuffix()
+		if !ok {
+			return nil
+		}
+		rType.IsArray = isArray
+		rType.ArraySize = size
+
+		returnTypes = append(returnTypes, rType)
 		return returnTypes
 	} else {
 		p.errorType(p.current.Type)

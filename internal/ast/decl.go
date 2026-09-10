@@ -5,46 +5,11 @@ import (
 	"strings"
 )
 
-type Param struct {
-	Name      string
-	Type      string
-	IsPointer bool
-}
-
-func (p *Param) Tree(indent string) string {
-	var b strings.Builder
-
-	b.WriteString(p.Type)
-	b.WriteString(" ")
-	if p.IsPointer {
-		b.WriteRune('*')
-	}
-	b.WriteString(p.Name)
-
-	return indent + b.String()
-}
-
-type ReturnType struct {
-	Type      string
-	IsPointer bool
-}
-
-func (r *ReturnType) Tree(indent string) string {
-	var b strings.Builder
-
-	if r.IsPointer {
-		b.WriteRune('*')
-	}
-	b.WriteString(r.Type)
-
-	return indent + b.String()
-}
-
 type FuncDecl struct {
 	Name        string
 	Params      []Param
 	Body        *BlockStmt
-	ReturnTypes []ReturnType
+	ReturnTypes []TypeRef
 }
 
 func (*FuncDecl) decl() {}
