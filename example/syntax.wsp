@@ -1,7 +1,7 @@
 func add(int a, b) int => a + b;
 
-func addVerbose(int a, b) int { // The second int (before b) is optional, it uses the same as a
-  return a + b;
+func addVerbose(int a, b) (int, ok) { // The second int (before b) is optional, it uses the same as a
+  return a + b, true;
 }
 
 // Struct declarations
@@ -65,7 +65,7 @@ func main() {
   emitf("p: x=%d y=%d", p.x, p.y);
 
   // Pointers, including multiple levels of indirection
-  int x = 42;
+  int x = if (1 > 2) 42 else 21;
   int *px = &x;      // pointer to int
   int **ppx = &px;   // pointer to pointer to int
 
@@ -77,4 +77,7 @@ func main() {
   */
   let pp = &p;    
   emitf("pp.x=%d pp.y=%d", pp.x, pp.y);
+
+  let a, b = 1, 2;
+  let sum, ok = addVerbose(a, b);
 }

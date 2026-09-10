@@ -157,6 +157,9 @@ func (p *Parser) parseVarStatement() ast.Statement {
 		stmt.Type.PointerDepth = depth
 	} else {
 		p.advance()
+		if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_COMMA {
+			return p.parseMultiVarStatement()
+		}
 	}
 
 	if p.current.Type != lexer.TOKEN_IDENT {
@@ -177,6 +180,39 @@ func (p *Parser) parseVarStatement() ast.Statement {
 
 	p.advance()
 	stmt.Value = p.parseExpression()
+
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseMultiVarStatement() ast.Statement {
+	stmt := &ast.MultiVarStmt{}
+	stmt.Names = append(stmt.Names, p.current.Literal)
+
+	for p.peek.Type == lexer.TOKEN_COMMA {
+		p.advance()
+		p.advance()
+		if p.current.Type != lexer.TOKEN_IDENT {
+			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
+			return nil
+		}
+		stmt.Names = append(stmt.Names, p.current.Literal)
+	}
+
+	if !p.expect(lexer.TOKEN_ASSIGN) {
+		return nil
+	}
+	p.advance()
+	stmt.Values = append(stmt.Values, p.parseExpression())
+
+	for p.peek.Type == lexer.TOKEN_COMMA {
+		p.advance()
+		p.advance()
+		stmt.Values = append(stmt.Values, p.parseExpression())
+	}
 
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
