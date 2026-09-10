@@ -49,6 +49,8 @@ func (p *Parser) parsePrefix() ast.Expression {
 		return &ast.IdentLiteral{Value: p.current.Literal}
 	case lexer.TOKEN_LBRACKET:
 		return p.parseArrayLiteral()
+	case lexer.TOKEN_IF:
+		return p.parseIfElseExpr()
 
 	case lexer.TOKEN_MINUS,
 		lexer.TOKEN_NOT,
@@ -197,4 +199,28 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	}
 
 	return arr
+}
+
+func (p *Parser) parseIfElseExpr() ast.Expression {
+	expr := &ast.IfElseExpr{}
+
+	if !p.expect(lexer.TOKEN_LPAREN) {
+		return nil
+	}
+	p.advance()
+	expr.Condition = p.parseExpression()
+
+	if !p.expect(lexer.TOKEN_RPAREN) {
+		return nil
+	}
+	p.advance()
+	expr.Then = p.parseExpression()
+
+	if !p.expect(lexer.TOKEN_ELSE) {
+		return nil
+	}
+	p.advance()
+	expr.Else = p.parseExpression()
+
+	return expr
 }

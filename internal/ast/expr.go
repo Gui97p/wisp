@@ -121,3 +121,30 @@ func (m *MemberExpr) Tree(indent string) string {
 
 	return b.String()
 }
+
+type IfElseExpr struct {
+	Condition Expression
+	Then      Expression
+	Else      Expression
+}
+
+func (*IfElseExpr) expr() {}
+func (i *IfElseExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sIfElseExpr\n", indent)
+
+	b.WriteString(indent)
+	b.WriteString("├─ Condition\n")
+	b.WriteString(i.Condition.Tree(indent + "│  "))
+
+	b.WriteString(indent)
+	b.WriteString("├─ Then\n")
+	b.WriteString(i.Then.Tree(indent + "│  "))
+
+	b.WriteString(indent)
+	b.WriteString("├─ Else\n")
+	b.WriteString(i.Else.Tree(indent + "│  "))
+
+	return b.String()
+}
