@@ -4,6 +4,8 @@ struct Point {
     Point *parent
 }
 
+func add(int a, b) int => a + b;
+
 func makePoint(int a, b, Point *parent) *Point {
     uint a = 5 + 3 * 2;
 

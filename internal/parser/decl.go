@@ -10,9 +10,17 @@ import (
 func (p *Parser) parseDeclaration() ast.Declaration {
 	switch p.current.Type {
 	case lexer.TOKEN_FUNC:
-		return p.parseFuncDeclaration()
+		decl := p.parseFuncDeclaration()
+		if decl == nil {
+			return nil
+		}
+		return decl
 	case lexer.TOKEN_STRUCT:
-		return p.parseStructDeclaration()
+		decl := p.parseStructDeclaration()
+		if decl == nil {
+			return nil
+		}
+		return decl
 	default:
 		p.error(fmt.Sprintf("expected declaration, got %s", p.current.Type))
 		p.advance()

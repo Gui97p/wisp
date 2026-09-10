@@ -24,13 +24,22 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 	}
 	decl.ReturnTypes = p.parseReturnTypes()
 
-	if !p.expect(lexer.TOKEN_LBRACE) {
-		return nil
-	}
-	decl.Body = p.parseBlockStatement()
+	if p.peek.Type == lexer.TOKEN_ARROW {
+		p.advance()
 
-	if !p.expect(lexer.TOKEN_RBRACE) {
-		return nil
+		stmt := p.parseReturnStatement()
+		if stmt != nil {
+			decl.Body = &ast.BlockStmt{Statements: []ast.Statement{stmt}}
+		}
+	} else {
+		if !p.expect(lexer.TOKEN_LBRACE) {
+			return nil
+		}
+		decl.Body = p.parseBlockStatement()
+
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
 	}
 
 	return decl
@@ -104,7 +113,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 func (p *Parser) parseReturnTypes() []ast.ReturnType {
 	returnTypes := []ast.ReturnType{}
 
-	if p.peek.Type == lexer.TOKEN_LBRACE {
+	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW {
 		return returnTypes
 	}
 	p.advance()
