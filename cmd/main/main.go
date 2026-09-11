@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/lexer"
 	"github.com/Gui97p/wisp/internal/parser"
 )
@@ -22,7 +23,7 @@ func main() {
 	}
 
 	switch args[1] {
-	case "tokens":
+	case "lexer":
 		l := lexer.NewLexer(buffer)
 		token := l.NextToken()
 		for token.Type != lexer.TOKEN_EOF {
@@ -35,8 +36,17 @@ func main() {
 		fmt.Println(program.Tree(""))
 		fmt.Println("\nparsing errors:")
 		p.ShowErrors()
+	case "analyzer":
+		p := parser.NewParser(lexer.NewLexer(buffer))
+		program := p.ParseProgram()
+		fmt.Println("\nparsing errors:")
+		p.ShowErrors()
+		a := analyser.NewAnalyzer()
+		_, errors := a.Analyze(program)
+		fmt.Println("\nanalyzing errors:")
+		fmt.Println(errors)
 	default:
-		fmt.Println("invalid module.\nAvaiable: tokens parser")
+		fmt.Println("invalid module.\nAvaiable: lexer parser analyzer")
 		os.Exit(1)
 	}
 }
