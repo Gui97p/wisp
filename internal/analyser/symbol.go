@@ -20,6 +20,13 @@ type Scope struct {
 	symbols map[string]*Symbol
 }
 
+func NewScope(parent *Scope) *Scope {
+	return &Scope{
+		parent:  parent,
+		symbols: make(map[string]*Symbol),
+	}
+}
+
 func (s *Scope) Define(symbol *Symbol) bool {
 	if _, ok := s.symbols[symbol.Name]; ok {
 		return false
