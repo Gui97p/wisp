@@ -7,5 +7,5 @@ func (a *Analyser) error(e string) {
 }
 
 func (a *Analyser) errorf(e string, args ...any) {
-	a.error(fmt.Sprintf(e, args))
+	a.error(fmt.Sprintf(e, args...))
 }
