@@ -1,6 +1,6 @@
 func add(int a, b) int => a + b;
 
-func addVerbose(int a, b) (int, ok) { // The second int (before b) is optional, it uses the same as a
+func addVerbose(int a, b) (int, bool) { // The second int (before b) is optional, it uses the same as a
   return a + b, true;
 }
 

@@ -42,9 +42,9 @@ func main() {
 		fmt.Println("\nparsing errors:")
 		p.ShowErrors()
 		a := analyser.NewAnalyzer(program)
-		_, errors := a.Analyze()
+		a.Analyze()
 		fmt.Println("\nanalyzing errors:")
-		fmt.Println(errors)
+		a.ShowErrors()
 	default:
 		fmt.Println("invalid module.\nAvaiable: lexer parser analyzer")
 		os.Exit(1)
