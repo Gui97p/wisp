@@ -86,9 +86,10 @@ const (
 	TOKEN_ARROW // =>
 
 	// Delimiters
-	TOKEN_COMMA     // ,
-	TOKEN_SEMICOLON // ;
-	TOKEN_COLON     // :
+	TOKEN_COMMA         // ,
+	TOKEN_SEMICOLON     // ;
+	TOKEN_COLON         // :
+	TOKEN_QUESTION_MARK // ?
 
 	TOKEN_DOT   // .
 	TOKEN_RANGE // ..
