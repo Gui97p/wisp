@@ -10,6 +10,16 @@ type Type interface {
 	Equals(Type) bool
 }
 
+type InvalidType struct{}
+
+func (InvalidType) String() string {
+	return "<invalid>"
+}
+
+func (InvalidType) Equals(other Type) bool {
+	return true
+}
+
 type PrimitiveType struct {
 	Name string
 }
