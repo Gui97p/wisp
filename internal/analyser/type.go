@@ -159,3 +159,17 @@ var primitives = map[string]bool{
 	"char": true, "string": true,
 	"bool": true,
 }
+
+func isNumeric(t Type) bool {
+	p, ok := t.(PrimitiveType)
+	if !ok {
+		return false
+	}
+	switch p.Name {
+	case "int", "int8", "int16", "int32", "int64",
+		"uint", "uint8", "uint16", "uint32", "uint64",
+		"float32", "float64":
+		return true
+	}
+	return false
+}
