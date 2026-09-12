@@ -1,6 +1,10 @@
 package analyser
 
-import "github.com/Gui97p/wisp/internal/ast"
+import (
+	"slices"
+
+	"github.com/Gui97p/wisp/internal/ast"
+)
 
 func (a *Analyser) checkBlock(block *ast.BlockStmt) {
 	a.info.Scopes[block] = a.scope
@@ -34,7 +38,10 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 	// a.checkForStmt(s)
 	// case *ast.LoopStmt:
 	// a.checkLoopStmt(s)
-	// case *ast.BreakStmt, *ast.ContinueStmt:
+	case *ast.BreakStmt:
+		a.checkBreakContinue(s.Label, "break")
+	case *ast.ContinueStmt:
+		a.checkBreakContinue(s.Label, "continue")
 	case *ast.BlockStmt:
 		a.enterScope()
 		a.checkBlock(s)
@@ -161,4 +168,21 @@ func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 	if !isNumeric(t) {
 		a.errorf("operator %s invalid for %s", s.Op, t.String())
 	}
+}
+
+func (a *Analyser) checkBreakContinue(label, kind string) {
+	if len(a.loopLabels) == 0 {
+		a.errorf("%s outside a loop", kind)
+		return
+	}
+
+	if label == "" {
+		return
+	}
+
+	if slices.Contains(a.loopLabels, label) {
+		return
+	}
+
+	a.errorf("unknown label: %s", label)
 }
