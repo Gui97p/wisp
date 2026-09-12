@@ -2,6 +2,11 @@ package analyser
 
 import "github.com/Gui97p/wisp/internal/ast"
 
+func isDerefTarget(expr ast.Expression) bool {
+	u, ok := expr.(*ast.UnaryExpr)
+	return ok && u.Operator == "*"
+}
+
 func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	var t Type
 

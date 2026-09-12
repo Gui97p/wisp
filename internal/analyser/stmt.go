@@ -24,8 +24,8 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.checkVarStmt(s)
 	case *ast.MultiVarStmt:
 		a.checkMultiVarStmt(s)
-	// case *ast.AssignStmt:
-	// a.checkAssignStmt(s)
+	case *ast.AssignStmt:
+		a.checkAssignStmt(s)
 	// case *ast.IncDecStmt:
 	// a.checkIncDecStmt(s)
 	// case *ast.IfStmt:
@@ -119,4 +119,31 @@ func (a *Analyser) checkVarStmt(stmt *ast.VarStmt) {
 	if !a.scope.Define(symbol) {
 		a.errorf("variable %s already declared in this scope", stmt.Name)
 	}
+}
+
+func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
+	if !isAddressable(s.Target) && !isDerefTarget(s.Target) {
+		a.errorf("expression not assignable")
+		return
+	}
+
+	targetType := a.checkExpr(s.Target)
+	valueType := a.checkExpr(s.Value)
+
+	if _, ok := targetType.(InvalidType); ok {
+		return
+	}
+	if _, ok := valueType.(InvalidType); ok {
+		return
+	}
+
+	if s.Op == "=" {
+		if !valueType.Equals(targetType) {
+			a.errorf("assign expected %s, got %s", targetType.String(), valueType.String())
+		}
+		return
+	}
+
+	baseOp := s.Op[:len(s.Op)-1]
+	a.checkArithmetic(baseOp, targetType, valueType)
 }
