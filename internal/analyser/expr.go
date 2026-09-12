@@ -29,6 +29,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkBinaryExpr(e)
 	case *ast.UnaryExpr:
 		t = a.checkUnaryExpr(e)
+	case *ast.CallExpr:
+		t = a.checkCallExprValue(e)
 	default:
 		t = InvalidType{}
 	}
@@ -90,6 +92,62 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 	default:
 		a.errorf("invalid unary operator: %s", expr.Operator)
 		return InvalidType{}
+	}
+}
+
+func (a *Analyser) checkCallExprValue(e *ast.CallExpr) Type {
+	returns := a.checkCallExpr(e)
+
+	switch len(returns) {
+	case 0:
+		a.errorf("function with no returns can't be used as value")
+		return InvalidType{}
+	case 1:
+		return returns[0]
+	default:
+		a.errorf("functions returns %d values, expected 1 in this context", len(returns))
+		return InvalidType{}
+	}
+}
+
+func (a *Analyser) checkCallExpr(e *ast.CallExpr) []Type {
+	nameType := a.checkExpr(e.Name)
+
+	ft, ok := nameType.(*FuncType)
+	if !ok {
+		if _, invalid := nameType.(InvalidType); !invalid {
+			a.errorf("%s is not a function", nameType.String())
+		}
+		a.checkCallArgs(e, nil)
+		return nil
+	}
+
+	a.checkCallArgs(e, ft)
+	return ft.Returns
+}
+
+func (a *Analyser) checkCallArgs(e *ast.CallExpr, ft *FuncType) {
+	argTypes := make([]Type, len(e.Args))
+	for i, arg := range e.Args {
+		argTypes[i] = a.checkExpr(arg)
+	}
+
+	if ft == nil {
+		return
+	}
+
+	if len(argTypes) != len(ft.Params) {
+		a.errorf("function %s expects %d args, got %d", ft.Name, len(ft.Params), len(argTypes))
+		return
+	}
+
+	for i, at := range argTypes {
+		if _, ok := at.(InvalidType); ok {
+			continue
+		}
+		if !at.Equals(ft.Params[i]) {
+			a.errorf("arg %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String())
+		}
 	}
 }
 
