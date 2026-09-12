@@ -42,6 +42,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkMemberExpr(e)
 	case *ast.IndexExpr:
 		t = a.checkIndexExpr(e)
+	case *ast.TernaryExpr:
+		t = a.checkTernaryExpr(e)
 	default:
 		t = InvalidType{}
 	}
@@ -307,4 +309,26 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 	a.requireNumeric(idxType, "array index")
 
 	return at.Element
+}
+
+func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
+	condType := a.checkExpr(expr.Condition)
+	a.requireBool(condType, "ternary condition")
+
+	thenType := a.checkExpr(expr.Then)
+	elseType := a.checkExpr(expr.Else)
+
+	if _, ok := thenType.(InvalidType); ok {
+		return elseType
+	}
+	if _, ok := elseType.(InvalidType); ok {
+		return thenType
+	}
+
+	if !thenType.Equals(elseType) {
+		a.errorf("incompatible ternary types (%s & %s)", thenType.String(), elseType.String())
+		return InvalidType{}
+	}
+
+	return thenType
 }
