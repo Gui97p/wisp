@@ -32,8 +32,8 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.checkAssignStmt(s)
 	case *ast.IncDecStmt:
 		a.checkIncDecStmt(s)
-	// case *ast.IfStmt:
-	// a.checkIfStmt(s)
+	case *ast.IfStmt:
+		a.checkIfStmt(s)
 	// case *ast.ForStmt:
 	// a.checkForStmt(s)
 	// case *ast.LoopStmt:
@@ -64,6 +64,19 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 		if !t.Equals(a.currentReturns[i]) {
 			a.errorf("return %d: expected %s, got %s", i+1, a.currentReturns[i].String(), t.String())
 		}
+	}
+}
+
+func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
+	condType := a.checkExpr(stmt.Condition)
+	a.requireBool(condType, "if condition")
+
+	a.enterScope()
+	a.checkBlock(stmt.Then)
+	a.exitScope()
+
+	if stmt.Else != nil {
+		a.checkStmt(stmt.Else)
 	}
 }
 
