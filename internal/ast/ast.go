@@ -91,8 +91,9 @@ func (t *TypeRef) Tree(indent string) string {
 }
 
 type Param struct {
-	Name string
-	Type TypeRef
+	Name     string
+	Type     TypeRef
+	Variadic bool
 }
 
 func (p *Param) Tree(indent string) string {
