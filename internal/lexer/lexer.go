@@ -161,6 +161,8 @@ func (l *Lexer) NextToken() Token {
 		t = l.token(TOKEN_SEMICOLON, ";")
 	case ':':
 		t = l.token(TOKEN_COLON, ":")
+	case '?':
+		t = l.token(TOKEN_QUESTION_MARK, "?")
 	case '.':
 		if l.peek() == '.' {
 			l.advance()
