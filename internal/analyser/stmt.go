@@ -37,10 +37,7 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 }
 
 func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
-	types := make([]Type, len(stmt.Values))
-	for i, v := range stmt.Values {
-		types[i] = a.checkExpr(v)
-	}
+	types := a.checkExprList(stmt.Values)
 
 	if len(types) != len(a.currentReturns) {
 		a.errorf("expected %d return values, got %d", len(a.currentReturns), len(types))
@@ -58,20 +55,7 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 }
 
 func (a *Analyser) checkMultiVarStmt(stmt *ast.MultiVarStmt) {
-	var types []Type
-
-	if len(stmt.Values) == 1 {
-		if call, ok := stmt.Values[0].(*ast.CallExpr); ok {
-			types = a.checkCallExpr(call)
-		} else {
-			types = []Type{a.checkExpr(stmt.Values[0])}
-		}
-	} else {
-		types = make([]Type, len(stmt.Values))
-		for i, v := range stmt.Values {
-			types[i] = a.checkExpr(v)
-		}
-	}
+	types := a.checkExprList(stmt.Values)
 
 	if len(types) != len(stmt.Names) {
 		a.errorf("expected %d values, got %d", len(stmt.Names), len(types))

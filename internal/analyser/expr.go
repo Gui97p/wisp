@@ -151,6 +151,26 @@ func (a *Analyser) checkCallArgs(e *ast.CallExpr, ft *FuncType) {
 	}
 }
 
+func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
+	var types []Type
+
+	for _, e := range exprs {
+		if call, ok := e.(*ast.CallExpr); ok {
+			returns := a.checkCallExpr(call)
+			if len(returns) == 0 {
+				a.errorf("function doesn't expect any return")
+				types = append(types, InvalidType{})
+				continue
+			}
+			types = append(types, returns...)
+		} else {
+			types = append(types, a.checkExpr(e))
+		}
+	}
+
+	return types
+}
+
 func (a *Analyser) checkArithmetic(op string, left, right Type) Type {
 	if _, ok := left.(InvalidType); ok {
 		return InvalidType{}
