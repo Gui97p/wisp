@@ -26,8 +26,8 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.checkMultiVarStmt(s)
 	case *ast.AssignStmt:
 		a.checkAssignStmt(s)
-	// case *ast.IncDecStmt:
-	// a.checkIncDecStmt(s)
+	case *ast.IncDecStmt:
+		a.checkIncDecStmt(s)
 	// case *ast.IfStmt:
 	// a.checkIfStmt(s)
 	// case *ast.ForStmt:
@@ -146,4 +146,19 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 
 	baseOp := s.Op[:len(s.Op)-1]
 	a.checkArithmetic(baseOp, targetType, valueType)
+}
+
+func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
+	if !isAddressable(s.Target) && !isDerefTarget(s.Target) {
+		a.errorf("expression not incrementable")
+		return
+	}
+
+	t := a.checkExpr(s.Target)
+	if _, ok := t.(InvalidType); ok {
+		return
+	}
+	if !isNumeric(t) {
+		a.errorf("operator %s invalid for %s", s.Op, t.String())
+	}
 }
