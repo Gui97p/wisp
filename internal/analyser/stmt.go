@@ -18,8 +18,9 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		} else {
 			a.checkExpr(s.Expr)
 		}
+	case *ast.ReturnStmt:
+		a.checkReturnStmt(s)
 	// case *ast.VarStmt:
-	// case *ast.ReturnStmt:
 	// case *ast.IfStmt:
 	// case *ast.ForStmt:
 	// case *ast.LoopStmt:
@@ -32,6 +33,27 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.enterScope()
 		a.checkBlock(s)
 		a.exitScope()
+	}
+}
+
+func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
+	types := make([]Type, len(stmt.Values))
+	for i, v := range stmt.Values {
+		types[i] = a.checkExpr(v)
+	}
+
+	if len(types) != len(a.currentReturns) {
+		a.errorf("expected %d return values, got %d", len(a.currentReturns), len(types))
+		return
+	}
+
+	for i, t := range types {
+		if _, ok := t.(InvalidType); ok {
+			continue
+		}
+		if !t.Equals(a.currentReturns[i]) {
+			a.errorf("return %d: expected %s, got %s", i+1, a.currentReturns[i].String(), t.String())
+		}
 	}
 }
 
