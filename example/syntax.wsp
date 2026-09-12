@@ -65,7 +65,7 @@ func main() {
   emitf("p: x=%d y=%d", p.x, p.y);
 
   // Pointers, including multiple levels of indirection
-  int x = if (1 > 2) 42 else 21;
+  int x = 1 > 2 ? 42 : 21;
   int *px = &x;      // pointer to int
   int **ppx = &px;   // pointer to pointer to int
 
