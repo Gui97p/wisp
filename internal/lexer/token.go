@@ -91,8 +91,9 @@ const (
 	TOKEN_COLON         // :
 	TOKEN_QUESTION_MARK // ?
 
-	TOKEN_DOT   // .
-	TOKEN_RANGE // ..
+	TOKEN_DOT      // .
+	TOKEN_RANGE    // ..
+	TOKEN_VARIADIC // ...
 
 	TOKEN_LPAREN // (
 	TOKEN_RPAREN // )

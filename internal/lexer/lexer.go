@@ -166,7 +166,12 @@ func (l *Lexer) NextToken() Token {
 	case '.':
 		if l.peek() == '.' {
 			l.advance()
-			t = l.token(TOKEN_RANGE, "..")
+			if l.peek() == '.' {
+				l.advance()
+				t = l.token(TOKEN_VARIADIC, "...")
+			} else {
+				t = l.token(TOKEN_RANGE, "..")
+			}
 		} else if isNumeric(l.peek()) {
 			var builder strings.Builder
 			builder.WriteString("0.")
