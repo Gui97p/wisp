@@ -30,6 +30,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		}
 		a.info.Idents[e] = symbol
 		t = symbol.Type
+	case *ast.ArrayLiteral:
+		t = a.checkArrayLiteral(e)
 	case *ast.BinaryExpr:
 		t = a.checkBinaryExpr(e)
 	case *ast.UnaryExpr:
@@ -38,12 +40,42 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkCallExprValue(e)
 	case *ast.MemberExpr:
 		t = a.checkMemberExpr(e)
+	case *ast.IndexExpr:
+		t = a.checkIndexExpr(e)
 	default:
 		t = InvalidType{}
 	}
 
 	a.info.Types[expr] = t
 	return t
+}
+
+func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
+	if len(expr.Elements) == 0 {
+		a.errorf("impossible to infer type of a empty array")
+	}
+
+	elemTypes := make([]Type, len(expr.Elements))
+	for i, el := range expr.Elements {
+		elemTypes[i] = a.checkExpr(el)
+	}
+
+	first := elemTypes[0]
+	if _, ok := first.(InvalidType); ok {
+		return InvalidType{}
+	}
+
+	for i := 1; i < len(elemTypes); i++ {
+		t := elemTypes[i]
+		if _, ok := t.(InvalidType); ok {
+			continue
+		}
+		if !t.Equals(first) {
+			a.errorf("array index %d expected %s, got %s", i+1, first.String(), t.String())
+		}
+	}
+
+	return ArrayType{Element: first, Size: int64(len(expr.Elements))}
 }
 
 func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
@@ -256,4 +288,23 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 	}
 
 	return fieldType
+}
+
+func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
+	arrType := a.checkExpr(expr.Array)
+	idxType := a.checkExpr(expr.Index)
+
+	if _, ok := arrType.(InvalidType); ok {
+		return InvalidType{}
+	}
+
+	at, ok := arrType.(ArrayType)
+	if !ok {
+		a.errorf("%s can't be indexed", arrType.String())
+		return InvalidType{}
+	}
+
+	a.requireNumeric(idxType, "array index")
+
+	return at.Element
 }
