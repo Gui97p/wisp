@@ -3,23 +3,28 @@ package analyser
 import "github.com/Gui97p/wisp/internal/ast"
 
 type Analyser struct {
+	program *ast.Program
+
 	info  *Info
 	scope *Scope
+
+	currentReturns []Type
 
 	errors []string
 }
 
-func NewAnalyzer() *Analyser {
+func NewAnalyzer(program *ast.Program) *Analyser {
 	return &Analyser{
-		info:  NewInfo(),
-		scope: NewScope(nil),
+		program: program,
+		info:    NewInfo(),
+		scope:   NewScope(nil),
 	}
 }
 
-func (a *Analyser) Analyze(program *ast.Program) (*Info, []string) {
-	a.registerStructNames(program)
-	a.registerStructFields(program)
-	a.registerFuncSignatures(program)
+func (a *Analyser) Analyze() (*Info, []string) {
+	a.registerStructNames()
+	a.registerStructFields()
+	a.registerFuncSignatures()
 
 	return a.info, a.errors
 }
@@ -50,4 +55,13 @@ func (a *Analyser) resolveTypeRef(scope *Scope, ref ast.TypeRef) Type {
 	}
 
 	return result
+}
+
+func (a *Analyser) enterScope() *Scope {
+	a.scope = NewScope(a.scope)
+	return a.scope
+}
+
+func (a *Analyser) exitScope() {
+	a.scope = a.scope.parent
 }

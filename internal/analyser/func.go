@@ -2,8 +2,8 @@ package analyser
 
 import "github.com/Gui97p/wisp/internal/ast"
 
-func (a *Analyser) registerFuncSignatures(program *ast.Program) {
-	for _, d := range program.Declarations {
+func (a *Analyser) registerFuncSignatures() {
+	for _, d := range a.program.Declarations {
 		fd, ok := d.(*ast.FuncDecl)
 		if !ok {
 			continue

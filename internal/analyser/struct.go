@@ -2,8 +2,8 @@ package analyser
 
 import "github.com/Gui97p/wisp/internal/ast"
 
-func (a *Analyser) registerStructNames(program *ast.Program) {
-	for _, d := range program.Declarations {
+func (a *Analyser) registerStructNames() {
+	for _, d := range a.program.Declarations {
 		sd, ok := d.(*ast.StructDecl)
 		if !ok {
 			continue
@@ -23,8 +23,8 @@ func (a *Analyser) registerStructNames(program *ast.Program) {
 	}
 }
 
-func (a *Analyser) registerStructFields(program *ast.Program) {
-	for _, d := range program.Declarations {
+func (a *Analyser) registerStructFields() {
+	for _, d := range a.program.Declarations {
 		sd, ok := d.(*ast.StructDecl)
 		if !ok {
 			continue

@@ -41,8 +41,8 @@ func main() {
 		program := p.ParseProgram()
 		fmt.Println("\nparsing errors:")
 		p.ShowErrors()
-		a := analyser.NewAnalyzer()
-		_, errors := a.Analyze(program)
+		a := analyser.NewAnalyzer(program)
+		_, errors := a.Analyze()
 		fmt.Println("\nanalyzing errors:")
 		fmt.Println(errors)
 	default:
