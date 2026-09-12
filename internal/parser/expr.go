@@ -49,8 +49,6 @@ func (p *Parser) parsePrefix() ast.Expression {
 		return &ast.IdentLiteral{Value: p.current.Literal}
 	case lexer.TOKEN_LBRACKET:
 		return p.parseArrayLiteral()
-	case lexer.TOKEN_IF:
-		return p.parseIfElseExpr()
 
 	case lexer.TOKEN_MINUS,
 		lexer.TOKEN_NOT,
@@ -97,6 +95,8 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		return p.parseBinaryExpression(left)
 	case lexer.TOKEN_DOT:
 		return p.parseMemberExpression(left)
+	case lexer.TOKEN_QUESTION_MARK:
+		return p.parseTernaryExpr(left)
 	}
 
 	return left
@@ -201,26 +201,16 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	return arr
 }
 
-func (p *Parser) parseIfElseExpr() ast.Expression {
-	expr := &ast.IfElseExpr{}
-
-	if !p.expect(lexer.TOKEN_LPAREN) {
-		return nil
-	}
-	p.advance()
-	expr.Condition = p.parseExpression()
-
-	if !p.expect(lexer.TOKEN_RPAREN) {
-		return nil
-	}
+func (p *Parser) parseTernaryExpr(left ast.Expression) ast.Expression {
+	expr := &ast.TernaryExpr{Condition: left}
 	p.advance()
 	expr.Then = p.parseExpression()
 
-	if !p.expect(lexer.TOKEN_ELSE) {
+	if !p.expect(lexer.TOKEN_COLON) {
 		return nil
 	}
 	p.advance()
-	expr.Else = p.parseExpression()
+	expr.Else = p.parseExpressionPratt(TERNARY)
 
 	return expr
 }

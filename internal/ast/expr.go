@@ -122,17 +122,17 @@ func (m *MemberExpr) Tree(indent string) string {
 	return b.String()
 }
 
-type IfElseExpr struct {
+type TernaryExpr struct {
 	Condition Expression
 	Then      Expression
 	Else      Expression
 }
 
-func (*IfElseExpr) expr() {}
-func (i *IfElseExpr) Tree(indent string) string {
+func (*TernaryExpr) expr() {}
+func (i *TernaryExpr) Tree(indent string) string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "%sIfElseExpr\n", indent)
+	fmt.Fprintf(&b, "%sTernaryExpr\n", indent)
 
 	b.WriteString(indent)
 	b.WriteString("├─ Condition\n")
