@@ -1,6 +1,8 @@
 package analyser
 
-import "github.com/Gui97p/wisp/internal/ast"
+import (
+	"github.com/Gui97p/wisp/internal/ast"
+)
 
 type Analyser struct {
 	program *ast.Program
@@ -9,6 +11,7 @@ type Analyser struct {
 	scope *Scope
 
 	currentReturns []Type
+	loopLabels     []string
 
 	errors []string
 }
@@ -64,4 +67,30 @@ func (a *Analyser) enterScope() *Scope {
 
 func (a *Analyser) exitScope() {
 	a.scope = a.scope.parent
+}
+
+func (a *Analyser) requireBool(t Type, context string) {
+	if _, ok := t.(InvalidType); ok {
+		return
+	}
+	if !t.Equals(PrimitiveType{Name: "bool"}) {
+		a.errorf("%s must be bool, got %s", context, t.String())
+	}
+}
+
+func (a *Analyser) requireNumeric(t Type, context string) {
+	if _, ok := t.(InvalidType); ok {
+		return
+	}
+	if !isNumeric(t) {
+		a.errorf("%s must be numeric, got %s", context, t.String())
+	}
+}
+
+func (a *Analyser) pushLoop(label string) {
+	a.loopLabels = append(a.loopLabels, label)
+}
+
+func (a *Analyser) popLoop() {
+	a.loopLabels = a.loopLabels[:len(a.loopLabels)-1]
 }
