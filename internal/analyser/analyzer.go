@@ -28,6 +28,7 @@ func (a *Analyser) Analyze() (*Info, []string) {
 	a.registerStructNames()
 	a.registerStructFields()
 	a.registerFuncSignatures()
+	a.checkFuncBodies()
 
 	return a.info, a.errors
 }

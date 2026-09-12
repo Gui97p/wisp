@@ -49,3 +49,24 @@ func (a *Analyser) registerStructFields() {
 		}
 	}
 }
+
+func (a *Analyser) checkStructConstruction(expr *ast.CallExpr, st *StructType) []Type {
+	argTypes := a.evalArgTypes(expr)
+
+	if len(argTypes) != len(st.Order) {
+		a.errorf("struct %s expects %d fields, got %d", st.Name, len(st.Order), len(argTypes))
+	}
+
+	for i, at := range argTypes {
+		if _, ok := at.(InvalidType); ok {
+			continue
+		}
+		fieldName := st.Order[i]
+		fieldType := st.Fields[fieldName]
+		if !at.Equals(fieldType) {
+			a.errorf("field %d (%s) from %s expected %s, got %s", i+1, fieldName, st.Name, fieldType.String(), at.String())
+		}
+	}
+
+	return []Type{st}
+}

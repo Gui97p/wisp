@@ -36,6 +36,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkUnaryExpr(e)
 	case *ast.CallExpr:
 		t = a.checkCallExprValue(e)
+	case *ast.MemberExpr:
+		t = a.checkMemberExpr(e)
 	default:
 		t = InvalidType{}
 	}
@@ -115,31 +117,27 @@ func (a *Analyser) checkCallExprValue(e *ast.CallExpr) Type {
 	}
 }
 
-func (a *Analyser) checkCallExpr(e *ast.CallExpr) []Type {
-	nameType := a.checkExpr(e.Name)
+func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
+	nameType := a.checkExpr(expr.Name)
 
-	ft, ok := nameType.(*FuncType)
-	if !ok {
-		if _, invalid := nameType.(InvalidType); !invalid {
-			a.errorf("%s is not a function", nameType.String())
-		}
-		a.checkCallArgs(e, nil)
+	switch ct := nameType.(type) {
+	case *FuncType:
+		a.checkCallArgs(expr, ct)
+		return ct.Returns
+	case *StructType:
+		return a.checkStructConstruction(expr, ct)
+	case *InvalidType:
+		a.evalArgTypes(expr)
+		return nil
+	default:
+		a.errorf("%s is not a function or struct", nameType.String())
+		a.evalArgTypes(expr)
 		return nil
 	}
-
-	a.checkCallArgs(e, ft)
-	return ft.Returns
 }
 
-func (a *Analyser) checkCallArgs(e *ast.CallExpr, ft *FuncType) {
-	argTypes := make([]Type, len(e.Args))
-	for i, arg := range e.Args {
-		argTypes[i] = a.checkExpr(arg)
-	}
-
-	if ft == nil {
-		return
-	}
+func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
+	argTypes := a.evalArgTypes(expr)
 
 	if len(argTypes) != len(ft.Params) {
 		a.errorf("function %s expects %d args, got %d", ft.Name, len(ft.Params), len(argTypes))
@@ -173,6 +171,14 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 		}
 	}
 
+	return types
+}
+
+func (a *Analyser) evalArgTypes(expr *ast.CallExpr) []Type {
+	types := make([]Type, len(expr.Args))
+	for i, arg := range expr.Args {
+		types[i] = a.checkExpr(arg)
+	}
 	return types
 }
 
@@ -224,4 +230,30 @@ func (a *Analyser) checkLogical(op string, left, right Type) Type {
 	}
 
 	return boolType
+}
+
+func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
+	objType := a.checkExpr(expr.Object)
+
+	if _, ok := objType.(InvalidType); ok {
+		return InvalidType{}
+	}
+
+	if ptr, ok := objType.(PointerType); ok {
+		objType = ptr.Element
+	}
+
+	st, ok := objType.(*StructType)
+	if !ok {
+		a.errorf("%s is not a struct", objType.String())
+		return InvalidType{}
+	}
+
+	fieldType, ok := st.Fields[expr.Field]
+	if !ok {
+		a.errorf("invalid field %s in struct %s", expr.Field, st.Name)
+		return InvalidType{}
+	}
+
+	return fieldType
 }
