@@ -36,8 +36,8 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.checkIfStmt(s)
 	// case *ast.ForStmt:
 	// a.checkForStmt(s)
-	// case *ast.LoopStmt:
-	// a.checkLoopStmt(s)
+	case *ast.LoopStmt:
+		a.checkLoopStmt(s)
 	case *ast.BreakStmt:
 		a.checkBreakContinue(s.Label, "break")
 	case *ast.ContinueStmt:
@@ -78,6 +78,24 @@ func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
 	if stmt.Else != nil {
 		a.checkStmt(stmt.Else)
 	}
+}
+
+func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {
+	if stmt.Condition != nil {
+		t := a.checkExpr(stmt.Condition)
+		a.requireBool(t, "loop condition")
+	}
+
+	if stmt.UntilCondition != nil {
+		t := a.checkExpr(stmt.UntilCondition)
+		a.requireBool(t, "loop until condition")
+	}
+
+	a.pushLoop(stmt.Label)
+	a.enterScope()
+	a.checkBlock(stmt.Body)
+	a.exitScope()
+	a.popLoop()
 }
 
 func (a *Analyser) checkMultiVarStmt(stmt *ast.MultiVarStmt) {
