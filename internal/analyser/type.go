@@ -3,6 +3,8 @@ package analyser
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Gui97p/wisp/internal/ast"
 )
 
 type Type interface {
@@ -172,4 +174,13 @@ func isNumeric(t Type) bool {
 		return true
 	}
 	return false
+}
+
+func isAddressable(expr ast.Expression) bool {
+	switch expr.(type) {
+	case *ast.IdentLiteral, *ast.MemberExpr, *ast.IndexExpr:
+		return true
+	default:
+		return false
+	}
 }

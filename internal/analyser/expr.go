@@ -27,6 +27,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = symbol.Type
 	case *ast.BinaryExpr:
 		t = a.checkBinaryExpr(e)
+	case *ast.UnaryExpr:
+		t = a.checkUnaryExpr(e)
 	default:
 		t = InvalidType{}
 	}
@@ -48,6 +50,45 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 		return a.checkLogical(expr.Operator, left, right)
 	default:
 		a.errorf("unknown operator %s", expr.Operator)
+		return InvalidType{}
+	}
+}
+
+func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
+	value := a.checkExpr(expr.Value)
+
+	if _, ok := value.(InvalidType); ok {
+		return InvalidType{}
+	}
+
+	switch expr.Operator {
+	case "-":
+		if !isNumeric(value) {
+			a.errorf("invalid operator %s for %s", expr.Operator, value.String())
+			return InvalidType{}
+		}
+		return value
+	case "!":
+		boolType := PrimitiveType{Name: "bool"}
+		if !value.Equals(boolType) {
+			a.errorf("expected bool for !, got %s", value.String())
+		}
+		return boolType
+	case "&":
+		if !isAddressable(expr.Value) {
+			a.errorf("not possible to obtain address from a temporary expression")
+			return InvalidType{}
+		}
+		return PointerType{Element: value}
+	case "*":
+		ptr, ok := value.(PointerType)
+		if !ok {
+			a.errorf("expected pointer for *, got %s", value.String())
+			return InvalidType{}
+		}
+		return ptr.Element
+	default:
+		a.errorf("invalid unary operator: %s", expr.Operator)
 		return InvalidType{}
 	}
 }
