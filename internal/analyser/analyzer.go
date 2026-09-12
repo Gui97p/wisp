@@ -19,6 +19,7 @@ func NewAnalyzer() *Analyser {
 func (a *Analyser) Analyze(program *ast.Program) (*Info, []string) {
 	a.registerStructNames(program)
 	a.registerStructFields(program)
+	a.registerFuncSignatures(program)
 
 	return a.info, a.errors
 }

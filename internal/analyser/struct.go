@@ -18,7 +18,7 @@ func (a *Analyser) registerStructNames(program *ast.Program) {
 		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st}
 
 		if !a.scope.Define(symbol) {
-			a.errorf("%s already defined in this scope", sd.Name)
+			a.errorf("%s struct already defined in this scope", sd.Name)
 		}
 	}
 }
