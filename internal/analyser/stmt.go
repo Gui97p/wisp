@@ -34,8 +34,8 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.checkIncDecStmt(s)
 	case *ast.IfStmt:
 		a.checkIfStmt(s)
-	// case *ast.ForStmt:
-	// a.checkForStmt(s)
+	case *ast.ForStmt:
+		a.checkForStmt(s)
 	case *ast.LoopStmt:
 		a.checkLoopStmt(s)
 	case *ast.BreakStmt:
@@ -78,6 +78,39 @@ func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
 	if stmt.Else != nil {
 		a.checkStmt(stmt.Else)
 	}
+}
+
+func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
+	if stmt.Var == "" {
+		if stmt.End != nil {
+			t := a.checkExpr(stmt.End)
+			a.requireNumeric(t, "for iteration count")
+		}
+
+		a.pushLoop(stmt.Label)
+		a.enterScope()
+		a.checkBlock(stmt.Body)
+		a.exitScope()
+		a.popLoop()
+		return
+	}
+
+	if stmt.Start != nil {
+		a.requireNumeric(a.checkExpr(stmt.Start), "for start")
+	}
+	if stmt.End != nil {
+		a.requireNumeric(a.checkExpr(stmt.End), "for end")
+	}
+	if stmt.Step != nil {
+		a.requireNumeric(a.checkExpr(stmt.Step), "for step")
+	}
+
+	a.pushLoop(stmt.Label)
+	a.enterScope()
+	a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}})
+	a.checkBlock(stmt.Body)
+	a.exitScope()
+	a.popLoop()
 }
 
 func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {
