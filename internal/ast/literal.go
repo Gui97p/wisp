@@ -83,3 +83,10 @@ func (b *BoolLiteral) Tree(indent string) string {
 
 	return indent + "BoolLiteral(false)"
 }
+
+type NullLiteral struct{}
+
+func (*NullLiteral) expr() {}
+func (*NullLiteral) Tree(indent string) string {
+	return indent + "NullLiteral(null)"
+}
