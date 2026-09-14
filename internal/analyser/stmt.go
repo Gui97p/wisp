@@ -26,8 +26,6 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.checkReturnStmt(s)
 	case *ast.VarStmt:
 		a.checkVarStmt(s)
-	case *ast.MultiVarStmt:
-		a.checkMultiVarStmt(s)
 	case *ast.AssignStmt:
 		a.checkAssignStmt(s)
 	case *ast.IncDecStmt:
@@ -131,66 +129,57 @@ func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {
 	a.popLoop()
 }
 
-func (a *Analyser) checkMultiVarStmt(stmt *ast.MultiVarStmt) {
-	types := a.checkExprList(stmt.Values)
-
-	if len(types) != len(stmt.Names) {
-		a.errorf("expected %d values, got %d", len(stmt.Names), len(types))
-	}
-
-	for i, name := range stmt.Names {
-		var t Type
-		if i < len(types) {
-			t = types[i]
-		} else {
-			t = InvalidType{}
-		}
-
-		sym := &Symbol{Name: name, Kind: VAR, Type: t}
-		if !a.scope.Define(sym) {
-			a.errorf("variable already declared: %s", name)
-		}
-	}
-}
-
 func (a *Analyser) checkVarStmt(stmt *ast.VarStmt) {
-	var declaredType Type
-	hasExplicitType := stmt.Type.Name != ""
+	hasExplicitType := stmt.Vars[0].Type.Name != ""
 
-	if hasExplicitType {
-		declaredType = a.resolveTypeRef(a.scope, stmt.Type)
-	}
-
-	var valueType Type
-	if stmt.Value != nil {
-		valueType = a.checkExpr(stmt.Value)
-	}
-
-	var finalType Type
-	switch {
-	case hasExplicitType && stmt.Value == nil:
-		finalType = declaredType
-	case hasExplicitType && stmt.Value != nil:
-		if declaredType != nil {
-			if _, invalid := valueType.(InvalidType); !invalid && !valueType.Equals(declaredType) {
-				a.errorf("variable %s declared as %s, got %s", stmt.Name, declaredType.String(), valueType.String())
+	if len(stmt.Values) == 0 {
+		for _, v := range stmt.Vars {
+			t := a.resolveTypeRef(a.scope, v.Type)
+			if t == nil {
+				t = InvalidType{}
+			}
+			sym := &Symbol{Name: v.Name, Kind: VAR, Type: t}
+			if !a.scope.Define(sym) {
+				a.errorf("variable %s already declared in this scope", v.Name)
 			}
 		}
-		finalType = declaredType
-	case !hasExplicitType && stmt.Value != nil:
-		finalType = valueType
-	default:
-		a.errorf("variable %s doesn't have a type or value", stmt.Name)
-		finalType = InvalidType{}
+		return
 	}
 
-	if finalType == nil {
-		finalType = InvalidType{}
+	valueTypes := a.checkExprList(stmt.Values)
+
+	if len(valueTypes) != len(stmt.Vars) {
+		a.errorf("expected %d values, got %d", len(stmt.Vars), len(valueTypes))
 	}
 
-	symbol := &Symbol{Name: stmt.Name, Kind: VAR, Type: finalType}
-	if !a.scope.Define(symbol) {
-		a.errorf("variable %s already declared in this scope", stmt.Name)
+	for i, v := range stmt.Vars {
+		var valueType Type
+		if i < len(valueTypes) {
+			valueType = valueTypes[i]
+		} else {
+			valueType = InvalidType{}
+		}
+
+		var finalType Type
+		if hasExplicitType {
+			declaredType := a.resolveTypeRef(a.scope, v.Type)
+			if declaredType == nil {
+				declaredType = InvalidType{}
+			}
+			if _, invalid := valueType.(InvalidType); !invalid {
+				if _, declInvalid := declaredType.(InvalidType); !declInvalid && !valueType.Equals(declaredType) {
+					a.errorf("Variable %s declared as %s, got %s", v.Name, declaredType.String(), valueType.String())
+				}
+			}
+			finalType = declaredType
+		} else {
+			finalType = valueType
+		}
+
+		sym := &Symbol{Name: v.Name, Kind: VAR, Type: finalType}
+		if !a.scope.Define(sym) {
+			a.errorf("variable %s already declared in this scope", v.Name)
+		}
 	}
 }
 
