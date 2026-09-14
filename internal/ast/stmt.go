@@ -42,21 +42,22 @@ func (b *BlockStmt) Tree(indent string) string {
 }
 
 type VarStmt struct {
-	Name  string
-	Type  TypeRef
-	Value Expression
+	Vars   []Param
+	Values []Expression
 }
 
 func (*VarStmt) stmt() {}
 func (v *VarStmt) Tree(indent string) string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "%sVarStmt(%s)\n", indent, v.Name)
+	fmt.Fprintf(&b, "%sVarStmt\n", indent)
 
-	b.WriteString(v.Type.Tree(indent + "├─ "))
+	for _, value := range v.Vars {
+		b.WriteString(value.Tree(indent + "├─ "))
+	}
 
-	if v.Value != nil {
-		b.WriteString(v.Value.Tree(indent + "└─ "))
+	for _, value := range v.Values {
+		b.WriteString(value.Tree(indent + "├─ "))
 	}
 
 	return b.String()
@@ -262,24 +263,6 @@ func (i *IncDecStmt) Tree(indent string) string {
 
 	if i.Target != nil {
 		b.WriteString(i.Target.Tree(indent + "├─ "))
-	}
-
-	return b.String()
-}
-
-type MultiVarStmt struct {
-	Names  []string
-	Values []Expression
-}
-
-func (*MultiVarStmt) stmt() {}
-func (m *MultiVarStmt) Tree(indent string) string {
-	var b strings.Builder
-
-	fmt.Fprintf(&b, "%sMultiVarStmt(%s)\n", indent, strings.Join(m.Names, ", "))
-
-	for _, value := range m.Values {
-		b.WriteString(value.Tree(indent + "├─ "))
 	}
 
 	return b.String()
