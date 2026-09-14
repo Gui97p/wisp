@@ -177,6 +177,8 @@ func (a *Analyser) checkVarStmt(stmt *ast.VarStmt) {
 			}
 		}
 		finalType = declaredType
+	case !hasExplicitType && stmt.Value != nil:
+		finalType = valueType
 	default:
 		a.errorf("variable %s doesn't have a type or value", stmt.Name)
 		finalType = InvalidType{}

@@ -56,18 +56,6 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 
 	p.advance()
 	for p.peek.Type != lexer.TOKEN_RPAREN && p.peek.Type != lexer.TOKEN_EOF {
-		if p.current.Type == lexer.TOKEN_VARIADIC {
-			if !p.expect(lexer.TOKEN_IDENT) {
-				return nil
-			}
-
-			params = append(params, ast.Param{
-				Name:     p.current.Literal,
-				Variadic: true,
-			})
-			return params
-		}
-
 		if !p.isStartType() {
 			p.errorType(p.current.Type)
 			return params
@@ -75,6 +63,19 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 		name, depth := p.parseTypePrefix()
 		currentType.Name = name
 		currentType.PointerDepth = depth
+
+		if p.current.Type == lexer.TOKEN_VARIADIC {
+			if !p.expect(lexer.TOKEN_IDENT) {
+				return nil
+			}
+
+			params = append(params, ast.Param{
+				Name:     p.current.Literal,
+				Type:     currentType,
+				Variadic: true,
+			})
+			return params
+		}
 
 		if p.current.Type != lexer.TOKEN_IDENT {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
@@ -98,6 +99,12 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.advance()
 			p.advance()
 
+			if p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC) {
+				break
+			}
+
+			currentType.PointerDepth = p.parsePointerDepth()
+
 			if p.current.Type == lexer.TOKEN_VARIADIC {
 				if !p.expect(lexer.TOKEN_IDENT) {
 					return nil
@@ -105,16 +112,11 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 
 				params = append(params, ast.Param{
 					Name:     p.current.Literal,
+					Type:     currentType,
 					Variadic: true,
 				})
 				return params
 			}
-
-			if p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR) {
-				break
-			}
-
-			currentType.PointerDepth = p.parsePointerDepth()
 
 			if p.current.Type != lexer.TOKEN_IDENT {
 				p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
