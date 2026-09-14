@@ -151,60 +151,56 @@ func (p *Parser) finishExpressionStatement(expr ast.Expression) ast.Statement {
 
 func (p *Parser) parseVarStatement() ast.Statement {
 	stmt := &ast.VarStmt{}
+
+	var currentType ast.TypeRef
 	if p.current.Type != lexer.TOKEN_LET {
 		name, depth := p.parseTypePrefix()
-		stmt.Type.Name = name
-		stmt.Type.PointerDepth = depth
+		currentType.Name = name
+		currentType.PointerDepth = depth
 	} else {
 		p.advance()
-		if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_COMMA {
-			return p.parseMultiVarStatement()
-		}
 	}
 
 	if p.current.Type != lexer.TOKEN_IDENT {
 		return nil
 	}
-	stmt.Name = p.current.Literal
+	name := p.current.Literal
 
 	isArray, size, ok := p.parseArraySuffix()
 	if !ok {
 		return nil
 	}
-	stmt.Type.IsArray = isArray
-	stmt.Type.ArraySize = size
+	currentType.IsArray = isArray
+	currentType.ArraySize = size
 
-	if !p.expect(lexer.TOKEN_ASSIGN) {
-		return nil
-	}
-
-	p.advance()
-	stmt.Value = p.parseExpression()
-
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
-
-	return stmt
-}
-
-func (p *Parser) parseMultiVarStatement() ast.Statement {
-	stmt := &ast.MultiVarStmt{}
-	stmt.Names = append(stmt.Names, p.current.Literal)
+	stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
 		p.advance()
+
+		currentType.PointerDepth = p.parsePointerDepth()
+
 		if p.current.Type != lexer.TOKEN_IDENT {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 			return nil
 		}
-		stmt.Names = append(stmt.Names, p.current.Literal)
+		name := p.current.Literal
+
+		isArray, size, ok := p.parseArraySuffix()
+		if !ok {
+			return nil
+		}
+		currentType.IsArray = isArray
+		currentType.ArraySize = size
+
+		stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
 	}
 
 	if !p.expect(lexer.TOKEN_ASSIGN) {
 		return nil
 	}
+
 	p.advance()
 	stmt.Values = append(stmt.Values, p.parseExpression())
 
