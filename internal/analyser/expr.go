@@ -30,6 +30,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		}
 		a.info.Idents[e] = symbol
 		t = symbol.Type
+	case *ast.NullLiteral:
+		t = NullType{}
 	case *ast.ArrayLiteral:
 		t = a.checkArrayLiteral(e)
 	case *ast.BinaryExpr:

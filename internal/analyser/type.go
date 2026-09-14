@@ -47,11 +47,25 @@ func (p PointerType) String() string {
 }
 
 func (p PointerType) Equals(other Type) bool {
+	if _, ok := other.(NullType); ok {
+		return true
+	}
 	o, ok := other.(PointerType)
 	if !ok {
 		return false
 	}
 	return p.Element.Equals(o.Element)
+}
+
+type NullType struct{}
+
+func (NullType) String() string {
+	return "null"
+}
+
+func (NullType) Equals(other Type) bool {
+	_, ok := other.(PointerType)
+	return ok
 }
 
 type ArrayType struct {
