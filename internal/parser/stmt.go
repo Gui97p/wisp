@@ -197,6 +197,15 @@ func (p *Parser) parseVarStatement() ast.Statement {
 		stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
 	}
 
+	if p.peek.Type == lexer.TOKEN_SEMICOLON {
+		if stmt.Vars[0].Type.Name == "" {
+			p.error("variable declaration needs a type or a value")
+			return nil
+		}
+		p.advance()
+		return stmt
+	}
+
 	if !p.expect(lexer.TOKEN_ASSIGN) {
 		return nil
 	}
