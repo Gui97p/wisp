@@ -33,6 +33,7 @@ const (
 	TOKEN_BOOL
 	TOKEN_CHAR
 	TOKEN_STRING
+	TOKEN_NULL
 
 	// Keywords
 	TOKEN_LET
@@ -134,6 +135,7 @@ var keywords = map[string]TokenType{
 	"bool":    TOKEN_BOOL,
 	"char":    TOKEN_CHAR,
 	"string":  TOKEN_STRING,
+	"null":    TOKEN_NULL,
 
 	"true":  TOKEN_TRUE,
 	"false": TOKEN_FALSE,
