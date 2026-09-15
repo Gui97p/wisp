@@ -148,3 +148,18 @@ func (i *TernaryExpr) Tree(indent string) string {
 
 	return b.String()
 }
+
+type CastExpr struct {
+	Value Expression
+	Type  TypeRef
+}
+
+func (*CastExpr) expr() {}
+func (c *CastExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sCastExpr(as %s)\n", indent, c.Type.Name)
+	b.WriteString(c.Value.Tree(indent + "	"))
+
+	return b.String()
+}

@@ -16,6 +16,7 @@ const (
 	SUM                   // + -
 	PRODUCT               // * / %
 	PREFIX                // -x !x
+	CAST                  // as x
 	CALL                  // fn(...)
 	INDEX                 // x[0]
 	MEMBER                // x.field
@@ -42,6 +43,7 @@ var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_SLASH:   PRODUCT,
 	lexer.TOKEN_PERCENT: PRODUCT,
 
+	lexer.TOKEN_AS:       CAST,
 	lexer.TOKEN_LPAREN:   CALL,
 	lexer.TOKEN_LBRACKET: INDEX,
 	lexer.TOKEN_DOT:      MEMBER,

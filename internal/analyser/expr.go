@@ -12,9 +12,9 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 
 	switch e := expr.(type) {
 	case *ast.IntLiteral:
-		t = PrimitiveType{Name: "int"}
+		t = UntypedIntType{}
 	case *ast.FloatLiteral:
-		t = PrimitiveType{Name: "float64"}
+		t = UntypedFloatType{}
 	case *ast.StringLiteral:
 		t = PrimitiveType{Name: "string"}
 	case *ast.CharLiteral:
@@ -48,6 +48,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkIndexExpr(e)
 	case *ast.TernaryExpr:
 		t = a.checkTernaryExpr(e)
+	case *ast.CastExpr:
+		t = a.checkCastExpr(e)
 	default:
 		t = InvalidType{}
 	}
@@ -404,4 +406,28 @@ func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 	}
 
 	return thenType
+}
+
+func (a *Analyser) checkCastExpr(expr *ast.CastExpr) Type {
+	valueType := a.checkExpr(expr.Value)
+	targetType := a.resolveTypeRef(a.scope, expr.Type)
+	if targetType == nil {
+		return InvalidType{}
+	}
+	if _, ok := valueType.(InvalidType); ok {
+		return targetType
+	}
+
+	if isNumeric(valueType) && isNumeric(targetType) {
+		return targetType
+	}
+
+	if _, srcOk := valueType.(PointerType); srcOk {
+		if _, dstOk := targetType.(PointerType); dstOk {
+			return targetType
+		}
+	}
+
+	a.errorf("cannot cast %s to %s", valueType.String(), targetType.String())
+	return InvalidType{}
 }

@@ -101,6 +101,8 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		return p.parseMemberExpression(left)
 	case lexer.TOKEN_QUESTION_MARK:
 		return p.parseTernaryExpr(left)
+	case lexer.TOKEN_AS:
+		return p.parseCastExpr(left)
 	}
 
 	return left
@@ -256,4 +258,14 @@ func (p *Parser) parseTernaryExpr(left ast.Expression) ast.Expression {
 	expr.Else = p.parseExpressionPratt(TERNARY)
 
 	return expr
+}
+
+func (p *Parser) parseCastExpr(left ast.Expression) ast.Expression {
+	p.advance()
+	ref := p.parseTypeDefinitionPrefix()
+	if ref == nil {
+		return nil
+	}
+
+	return &ast.CastExpr{Value: left, Type: *ref}
 }

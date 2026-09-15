@@ -31,6 +31,12 @@ func (p PrimitiveType) String() string {
 }
 
 func (p PrimitiveType) Equals(other Type) bool {
+	if _, ok := other.(UntypedIntType); ok {
+		return isNumeric(p)
+	}
+	if _, ok := other.(UntypedFloatType); ok {
+		return p.Name == "float32" || p.Name == "float64"
+	}
 	o, ok := other.(PrimitiveType)
 	if !ok {
 		return false
@@ -71,6 +77,28 @@ func (AnyType) String() string {
 
 func (AnyType) Equals(other Type) bool {
 	return true
+}
+
+type UntypedIntType struct{}
+
+func (UntypedIntType) String() string {
+	return "untyped int"
+}
+func (UntypedIntType) Equals(other Type) bool {
+	return isNumeric(other)
+}
+
+type UntypedFloatType struct{}
+
+func (UntypedFloatType) String() string {
+	return "untyped float"
+}
+func (UntypedFloatType) Equals(other Type) bool {
+	p, ok := other.(PrimitiveType)
+	if !ok {
+		return false
+	}
+	return p.Name == "float32" || p.Name == "float64"
 }
 
 type NullType struct{}
@@ -237,6 +265,10 @@ var primitives = map[string]bool{
 }
 
 func isNumeric(t Type) bool {
+	switch t.(type) {
+	case UntypedIntType, UntypedFloatType:
+		return true
+	}
 	p, ok := t.(PrimitiveType)
 	if !ok {
 		return false
