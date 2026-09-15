@@ -35,7 +35,7 @@ func main() {
     emit("less than");
   }
 
-  for i = 1..10:2 { // :2 is optional here, step definition
+  for i in 1..10:2 { // :2 is optional here, step definition
     emitf("n: %d", i);
   }
 
@@ -116,4 +116,24 @@ func main() {
   let sum2, ok = addVerbose(a, b);
 
   emitf("variadic sum=%d", sum(1, 2, 3));
+
+  // iterating: same "in" for numeric ranges (above) and any collection
+  for i, v in nums {
+    emitf("nums[%d]=%d", i, v);
+  }
+
+  for k, v in scores {
+    emitf("scores[%s]=%d", k, v);
+  }
+
+  emitf("spanSum=%d", spanSum(1, 2, 3));
+}
+
+// a variadic parameter is a real Span[] inside the body, indexable and iterable
+func spanSum(int ...values) int {
+  int total;
+  for i, v in values {
+    total += v;
+  }
+  return total;
 }
