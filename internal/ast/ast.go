@@ -92,6 +92,26 @@ func (t *TypeRef) Tree(indent string) string {
 		b.WriteString("false\n")
 	}
 
+	b.WriteString(indent)
+	b.WriteString("└─ IsMap\n")
+	b.WriteString(indent)
+	b.WriteString("│  ")
+	if t.IsMap {
+		b.WriteString("true\n")
+
+		b.WriteString(indent)
+		b.WriteString("└─ MapKey\n")
+		b.WriteString(t.MapKey.Tree(indent + "│  "))
+		b.WriteRune('\n')
+
+		b.WriteString(indent)
+		b.WriteString("└─ MapValue\n")
+		b.WriteString(t.MapValue.Tree(indent + "│  "))
+		b.WriteRune('\n')
+	} else {
+		b.WriteString("false\n")
+	}
+
 	return b.String()
 }
 
