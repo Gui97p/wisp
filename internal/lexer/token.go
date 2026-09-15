@@ -38,6 +38,7 @@ const (
 
 	// Keywords
 	TOKEN_LET
+	TOKEN_CONST
 	TOKEN_FUNC
 	TOKEN_STRUCT
 
@@ -114,6 +115,7 @@ const (
 
 var keywords = map[string]TokenType{
 	"let":      TOKEN_LET,
+	"const":    TOKEN_CONST,
 	"func":     TOKEN_FUNC,
 	"struct":   TOKEN_STRUCT,
 	"if":       TOKEN_IF,
