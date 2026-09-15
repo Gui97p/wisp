@@ -370,6 +370,9 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 	case ArrayType:
 		a.requireNumeric(idxType, "array index")
 		return t.Element
+	case SpanType:
+		a.requireNumeric(idxType, "span index")
+		return t.Element
 	case *MapType:
 		if _, invalid := idxType.(InvalidType); !invalid && !idxType.Equals(t.Key) {
 			a.errorf("map index expected %s, got %s", t.Key.String(), idxType.String())

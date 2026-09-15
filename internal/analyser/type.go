@@ -111,6 +111,22 @@ func (a ArrayType) Equals(other Type) bool {
 	return a.Size == o.Size && a.Element.Equals(o.Element)
 }
 
+type SpanType struct {
+	Element Type
+}
+
+func (s SpanType) String() string {
+	return s.Element.String() + "[]"
+}
+
+func (s SpanType) Equals(other Type) bool {
+	o, ok := other.(SpanType)
+	if !ok {
+		return false
+	}
+	return s.Element.Equals(o.Element)
+}
+
 type MapType struct {
 	Key   Type
 	Value Type
