@@ -10,12 +10,17 @@ func (a *Analyser) registerFuncSignatures() {
 		}
 
 		params := make([]Type, 0, len(fd.Params))
+		variadic := false
+
 		for _, p := range fd.Params {
 			t := a.resolveTypeRef(a.scope, p.Type)
 			if t == nil {
 				continue
 			}
 			params = append(params, t)
+			if p.Variadic {
+				variadic = true
+			}
 		}
 
 		returns := make([]Type, 0, len(fd.ReturnTypes))
@@ -27,7 +32,7 @@ func (a *Analyser) registerFuncSignatures() {
 			returns = append(returns, t)
 		}
 
-		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns}
+		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
 		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft}
 
 		if !a.scope.Define(symbol) {

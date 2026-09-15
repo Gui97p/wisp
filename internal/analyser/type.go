@@ -63,6 +63,16 @@ func (p PointerType) Equals(other Type) bool {
 	return p.Element.Equals(o.Element)
 }
 
+type AnyType struct{}
+
+func (AnyType) String() string {
+	return "any"
+}
+
+func (AnyType) Equals(other Type) bool {
+	return true
+}
+
 type NullType struct{}
 
 func (NullType) String() string {
@@ -150,9 +160,10 @@ func (s *StructType) Equals(other Type) bool {
 }
 
 type FuncType struct {
-	Name    string
-	Params  []Type
-	Returns []Type
+	Name     string
+	Params   []Type
+	Returns  []Type
+	Variadic bool
 }
 
 func (f *FuncType) String() string {

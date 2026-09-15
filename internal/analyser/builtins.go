@@ -9,7 +9,7 @@ func (a *Analyser) registerBuiltins() {
 		Name: "emit", Params: []Type{strType}, Returns: nil,
 	}})
 	a.scope.Define(&Symbol{Name: "emitf", Kind: FUNC, Type: &FuncType{
-		Name: "emitf", Params: []Type{strType}, Returns: nil,
+		Name: "emitf", Params: []Type{strType, AnyType{}}, Returns: nil, Variadic: true,
 	}})
 
 	a.scope.Define(&Symbol{Name: "random", Kind: FUNC, Type: &FuncType{

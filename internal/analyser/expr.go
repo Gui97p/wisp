@@ -212,6 +212,33 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 	argTypes := a.evalArgTypes(expr)
 
+	if ft.Variadic {
+		fixedCount := len(ft.Params) - 1
+		if len(argTypes) < fixedCount {
+			a.errorf("function %s expects at least %d args, got %d", ft.Name, fixedCount, len(argTypes))
+			return
+		}
+		for i := range fixedCount {
+			if _, ok := argTypes[i].(InvalidType); ok {
+				continue
+			}
+			if !argTypes[i].Equals(ft.Params[i]) {
+				a.errorf("arg %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), argTypes[i].String())
+			}
+		}
+
+		variadicType := ft.Params[len(ft.Params)-1]
+		for i := fixedCount; i < len(argTypes); i++ {
+			if _, ok := argTypes[i].(InvalidType); ok {
+				continue
+			}
+			if !argTypes[i].Equals(variadicType) {
+				a.errorf("arg %d from %s: expected %s (variadic), got %s", i+1, ft.Name, variadicType.String(), argTypes[i].String())
+			}
+		}
+		return
+	}
+
 	if len(argTypes) != len(ft.Params) {
 		a.errorf("function %s expects %d args, got %d", ft.Name, len(ft.Params), len(argTypes))
 		return
