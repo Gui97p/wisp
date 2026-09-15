@@ -54,6 +54,12 @@ func (p PointerType) Equals(other Type) bool {
 	if !ok {
 		return false
 	}
+	if _, isVoid := p.Element.(VoidType); isVoid {
+		return true
+	}
+	if _, isVoid := o.Element.(VoidType); isVoid {
+		return true
+	}
 	return p.Element.Equals(o.Element)
 }
 
@@ -65,6 +71,16 @@ func (NullType) String() string {
 
 func (NullType) Equals(other Type) bool {
 	_, ok := other.(PointerType)
+	return ok
+}
+
+type VoidType struct{}
+
+func (VoidType) String() string {
+	return "void"
+}
+func (VoidType) Equals(other Type) bool {
+	_, ok := other.(VoidType)
 	return ok
 }
 

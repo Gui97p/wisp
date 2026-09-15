@@ -47,8 +47,13 @@ func (p *Program) Tree(indent string) string {
 type TypeRef struct {
 	Name         string
 	PointerDepth int
-	IsArray      bool
-	ArraySize    int64
+
+	IsArray   bool
+	ArraySize int64
+
+	IsMap    bool
+	MapKey   *TypeRef
+	MapValue *TypeRef
 }
 
 func (t *TypeRef) Tree(indent string) string {
