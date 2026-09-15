@@ -34,6 +34,24 @@ func compileExpression(b *strings.Builder, expr ast.Expression) error {
 			}
 		}
 		b.WriteByte(')')
+	case *ast.MemberExpr:
+		compileExpression(b, e.Object)
+		fmt.Fprintf(b, ".%s", e.Field)
+	case *ast.IndexExpr:
+		compileExpression(b, e.Array)
+		b.WriteByte('[')
+		compileExpression(b, e.Index)
+		b.WriteByte(']')
+	case *ast.TernaryExpr:
+		b.WriteByte('(')
+		compileExpression(b, e.Condition)
+		b.WriteString(") and (")
+		compileExpression(b, e.Then)
+		b.WriteString(") or (")
+		compileExpression(b, e.Else)
+		b.WriteRune(')')
+	case *ast.CastExpr:
+		compileExpression(b, e.Value)
 
 	case *ast.IntLiteral:
 		fmt.Fprintf(b, "%d", e.Value)
