@@ -134,12 +134,9 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	}
 	name := p.current.Literal
 
-	isArray, size, ok := p.parseArraySuffix()
-	if !ok {
+	if !p.parseArraySuffix(&currentType) {
 		return nil
 	}
-	currentType.IsArray = isArray
-	currentType.ArraySize = size
 
 	stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
 
@@ -155,12 +152,9 @@ func (p *Parser) parseVarStatement() ast.Statement {
 		}
 		name := p.current.Literal
 
-		isArray, size, ok := p.parseArraySuffix()
-		if !ok {
+		if !p.parseArraySuffix(&currentType) {
 			return nil
 		}
-		currentType.IsArray = isArray
-		currentType.ArraySize = size
 
 		stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
 	}

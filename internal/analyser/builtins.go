@@ -6,7 +6,7 @@ func (a *Analyser) registerBuiltins() {
 	floatType := PrimitiveType{Name: "float64"}
 
 	a.scope.Define(&Symbol{Name: "emit", Kind: FUNC, Type: &FuncType{
-		Name: "emit", Params: []Type{strType}, Returns: nil,
+		Name: "emit", Params: []Type{strType}, Returns: nil, Variadic: true,
 	}})
 	a.scope.Define(&Symbol{Name: "emitf", Kind: FUNC, Type: &FuncType{
 		Name: "emitf", Params: []Type{strType, AnyType{}}, Returns: nil, Variadic: true,

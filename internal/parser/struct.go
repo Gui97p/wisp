@@ -50,12 +50,9 @@ func (p *Parser) parseStructParamList() []ast.Param {
 			return params
 		}
 
-		isArray, size, ok := p.parseArraySuffix()
-		if !ok {
+		if !p.parseArraySuffix(&currentType) {
 			return nil
 		}
-		currentType.IsArray = isArray
-		currentType.ArraySize = size
 
 		params = append(params, ast.Param{
 			Name: p.current.Literal,
@@ -74,12 +71,9 @@ func (p *Parser) parseStructParamList() []ast.Param {
 			}
 			name := p.current.Literal
 
-			isArray, size, ok := p.parseArraySuffix()
-			if !ok {
+			if !p.parseArraySuffix(&currentType) {
 				return nil
 			}
-			currentType.IsArray = isArray
-			currentType.ArraySize = size
 
 			params = append(params, ast.Param{
 				Name: name,

@@ -63,25 +63,33 @@ func (p *Parser) parseTypePrefix() *ast.TypeRef {
 	return ref
 }
 
-func (p *Parser) parseArraySuffix() (bool, int64, bool) {
+func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
 	if p.peek.Type != lexer.TOKEN_LBRACKET {
-		return false, 0, true
+		return true
 	}
 
 	p.advance()
 
+	if p.peek.Type == lexer.TOKEN_RBRACKET {
+		p.advance()
+		ref.IsSpan = true
+		return true
+	}
+
 	if !p.expect(lexer.TOKEN_INT_LITERAL) {
-		return false, 0, false
+		return false
 	}
 
 	num, err := strconv.ParseInt(p.current.Literal, 10, 64)
 	if err != nil {
-		return false, 0, false
+		return false
 	}
 
 	if !p.expect(lexer.TOKEN_RBRACKET) {
-		return false, 0, false
+		return false
 	}
 
-	return true, num, true
+	ref.IsArray = true
+	ref.ArraySize = num
+	return true
 }

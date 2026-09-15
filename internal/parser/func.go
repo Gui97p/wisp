@@ -85,12 +85,9 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 		}
 		name := p.current.Literal
 
-		isArray, size, ok := p.parseArraySuffix()
-		if !ok {
+		if !p.parseArraySuffix(&currentType) {
 			return nil
 		}
-		currentType.IsArray = isArray
-		currentType.ArraySize = size
 
 		params = append(params, ast.Param{
 			Name: name,
@@ -126,12 +123,9 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			}
 			name := p.current.Literal
 
-			isArray, size, ok := p.parseArraySuffix()
-			if !ok {
+			if !p.parseArraySuffix(&currentType) {
 				return nil
 			}
-			currentType.IsArray = isArray
-			currentType.ArraySize = size
 
 			params = append(params, ast.Param{
 				Name: name,
@@ -160,12 +154,9 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 				return nil
 			}
 
-			isArray, size, ok := p.parseArraySuffix()
-			if !ok {
+			if !p.parseArraySuffix(rType) {
 				return nil
 			}
-			rType.IsArray = isArray
-			rType.ArraySize = size
 
 			returnTypes = append(returnTypes, *rType)
 
@@ -186,12 +177,9 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 			return nil
 		}
 
-		isArray, size, ok := p.parseArraySuffix()
-		if !ok {
+		if !p.parseArraySuffix(rType) {
 			return nil
 		}
-		rType.IsArray = isArray
-		rType.ArraySize = size
 
 		returnTypes = append(returnTypes, *rType)
 		return returnTypes

@@ -50,6 +50,7 @@ type TypeRef struct {
 
 	IsArray   bool
 	ArraySize int64
+	IsSpan    bool
 
 	IsMap    bool
 	MapKey   *TypeRef
