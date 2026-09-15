@@ -53,6 +53,10 @@ const (
 	TOKEN_BREAK
 	TOKEN_CONTINUE
 
+	TOKEN_IMPORT
+	TOKEN_EXPORT
+	TOKEN_AS
+
 	TOKEN_TRUE
 	TOKEN_FALSE
 
@@ -121,6 +125,9 @@ var keywords = map[string]TokenType{
 	"return":   TOKEN_RETURN,
 	"break":    TOKEN_BREAK,
 	"continue": TOKEN_CONTINUE,
+	"import":   TOKEN_IMPORT,
+	"export":   TOKEN_EXPORT,
+	"as":       TOKEN_AS,
 
 	"int":    TOKEN_INT,
 	"uint":   TOKEN_UINT,
