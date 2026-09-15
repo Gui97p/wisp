@@ -19,6 +19,9 @@ func (a *Analyser) registerBuiltins() {
 	a.scope.Define(&Symbol{Name: "malloc", Kind: FUNC, Type: &FuncType{
 		Name: "malloc", Params: []Type{intType}, Returns: []Type{PointerType{Element: VoidType{}}},
 	}})
+	a.scope.Define(&Symbol{Name: "realloc", Kind: FUNC, Type: &FuncType{
+		Name: "realloc", Params: []Type{PointerType{Element: VoidType{}}, intType}, Returns: []Type{PointerType{Element: VoidType{}}},
+	}})
 	a.scope.Define(&Symbol{Name: "free", Kind: FUNC, Type: &FuncType{
 		Name: "free", Params: []Type{PointerType{Element: VoidType{}}}, Returns: nil,
 	}})
