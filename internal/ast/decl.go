@@ -10,6 +10,7 @@ type FuncDecl struct {
 	Params      []Param
 	Body        *BlockStmt
 	ReturnTypes []TypeRef
+	Exported    bool
 }
 
 func (*FuncDecl) decl() {}
@@ -44,8 +45,9 @@ func (f *FuncDecl) Tree(indent string) string {
 }
 
 type StructDecl struct {
-	Name    string
-	Members []Param
+	Name     string
+	Members  []Param
+	Exported bool
 }
 
 func (*StructDecl) decl() {}
@@ -63,4 +65,14 @@ func (s *StructDecl) Tree(indent string) string {
 	}
 
 	return b.String()
+}
+
+type ImportDecl struct {
+	Path  string
+	Alias string
+}
+
+func (*ImportDecl) decl() {}
+func (i *ImportDecl) Tree(indent string) string {
+	return fmt.Sprintf("%sImportDecl(%q as %s)\n", indent, i.Path, i.Alias)
 }
