@@ -29,6 +29,7 @@ func (a *Analyser) Analyze() (*Info, []string) {
 	a.registerStructFields()
 	a.registerBuiltins()
 	a.registerFuncSignatures()
+	a.registerConsts()
 	a.checkFuncBodies()
 
 	return a.info, a.errors
@@ -112,4 +113,20 @@ func (a *Analyser) pushLoop(label string) {
 
 func (a *Analyser) popLoop() {
 	a.loopLabels = a.loopLabels[:len(a.loopLabels)-1]
+}
+
+func rootIdentifier(expr ast.Expression) *ast.IdentLiteral {
+	switch e := expr.(type) {
+	case *ast.IdentLiteral:
+		return e
+	case *ast.MemberExpr:
+		return rootIdentifier(e.Object)
+	case *ast.IndexExpr:
+		return rootIdentifier(e.Array)
+	case *ast.UnaryExpr:
+		if e.Operator == "*" {
+			return rootIdentifier(e.Value)
+		}
+	}
+	return nil
 }

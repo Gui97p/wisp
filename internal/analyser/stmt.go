@@ -164,75 +164,20 @@ func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {
 }
 
 func (a *Analyser) checkVarStmt(stmt *ast.VarStmt) {
-	hasExplicitType := stmt.Vars[0].Type.Name != ""
-
-	if len(stmt.Values) == 0 {
-		for _, v := range stmt.Vars {
-			t := a.resolveTypeRef(a.scope, v.Type)
-			if t == nil {
-				t = InvalidType{}
-			}
-			sym := &Symbol{Name: v.Name, Kind: VAR, Type: t}
-			if !a.scope.Define(sym) {
-				a.errorf("variable %s already declared in this scope", v.Name)
-			}
-		}
-		return
-	}
-
-	valueTypes := a.checkExprList(stmt.Values)
-
-	if len(valueTypes) != len(stmt.Vars) {
-		a.errorf("expected %d values, got %d", len(stmt.Vars), len(valueTypes))
-	}
-
-	for i, v := range stmt.Vars {
-		var valueType Type
-		if i < len(valueTypes) {
-			valueType = valueTypes[i]
-		} else {
-			valueType = InvalidType{}
-		}
-
-		var finalType Type
-		if hasExplicitType {
-			declaredType := a.resolveTypeRef(a.scope, v.Type)
-			if declaredType == nil {
-				declaredType = InvalidType{}
-			}
-			if _, invalid := valueType.(InvalidType); !invalid {
-				if _, declInvalid := declaredType.(InvalidType); !declInvalid {
-					if declArr, ok := declaredType.(ArrayType); ok {
-						valArr, ok := valueType.(ArrayType)
-						switch {
-						case !ok:
-							a.errorf("variable %s declared as %s, got %s", v.Name, declaredType.String(), valueType.String())
-						case valArr.Size > declArr.Size:
-							a.errorf("array %s declared with size %d, got %d elements", v.Name, declArr.Size, valArr.Size)
-						case !valArr.Element.Equals(declArr.Element):
-							a.errorf("array %s expects element type %s, got %s", v.Name, declArr.Element.String(), valArr.Element.String())
-						}
-					} else if !valueType.Equals(declaredType) {
-						a.errorf("variable %s declared as %s, got %s", v.Name, declaredType.String(), valueType.String())
-					}
-				}
-			}
-			finalType = declaredType
-		} else {
-			finalType = valueType
-		}
-
-		sym := &Symbol{Name: v.Name, Kind: VAR, Type: finalType}
-		if !a.scope.Define(sym) {
-			a.errorf("variable %s already declared in this scope", v.Name)
-		}
-	}
+	a.checkVarsAndValues(stmt.Vars, stmt.Values, VAR)
 }
 
 func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 	if !isAddressable(s.Target) && !isDerefTarget(s.Target) {
 		a.errorf("expression not assignable")
 		return
+	}
+
+	if root := rootIdentifier(s.Target); root != nil {
+		if sym, ok := a.scope.Resolve(root.Value); ok && sym.Kind == CONST {
+			a.errorf("cannot assign to constant %s", root.Value)
+			return
+		}
 	}
 
 	targetType := a.checkExpr(s.Target)
@@ -260,6 +205,13 @@ func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 	if !isAddressable(s.Target) && !isDerefTarget(s.Target) {
 		a.errorf("expression not incrementable")
 		return
+	}
+
+	if root := rootIdentifier(s.Target); root != nil {
+		if sym, ok := a.scope.Resolve(root.Value); ok && sym.Kind == CONST {
+			a.errorf("cannot assign to constant %s", root.Value)
+			return
+		}
 	}
 
 	t := a.checkExpr(s.Target)

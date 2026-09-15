@@ -4,6 +4,7 @@ type SymbolKind int
 
 const (
 	VAR SymbolKind = iota
+	CONST
 	PARAM
 	FUNC
 	STRUCT
