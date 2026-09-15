@@ -2,7 +2,6 @@ package parser
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
@@ -67,7 +66,11 @@ func (p *Parser) isPrimitiveType() bool {
 }
 
 func (p *Parser) isStartType() bool {
-	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT
+	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT || p.current.Type == lexer.TOKEN_MAP
+}
+
+func (p *Parser) isPointerType() bool {
+	return p.current.Type == lexer.TOKEN_STAR || p.isStartType()
 }
 
 func (p *Parser) parsePointerDepth() int {
@@ -77,33 +80,4 @@ func (p *Parser) parsePointerDepth() int {
 		p.advance()
 	}
 	return depth
-}
-
-func (p *Parser) parseTypePrefix() (string, int) {
-	name := p.current.Literal
-	p.advance()
-	return name, p.parsePointerDepth()
-}
-
-func (p *Parser) parseArraySuffix() (bool, int64, bool) {
-	if p.peek.Type != lexer.TOKEN_LBRACKET {
-		return false, 0, true
-	}
-
-	p.advance()
-
-	if !p.expect(lexer.TOKEN_INT_LITERAL) {
-		return false, 0, false
-	}
-
-	num, err := strconv.ParseInt(p.current.Literal, 10, 64)
-	if err != nil {
-		return false, 0, false
-	}
-
-	if !p.expect(lexer.TOKEN_RBRACKET) {
-		return false, 0, false
-	}
-
-	return true, num, true
 }
