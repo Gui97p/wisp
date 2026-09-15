@@ -221,10 +221,11 @@ func (l *Lexer) NextToken() Token {
 
 		value := l.ch
 
-		if l.ch != '\'' {
+		if l.peek() != '\'' {
 			return l.token(TOKEN_ILLEGAL, "invalid char literal")
 		}
 
+		l.advance()
 		t = l.token(TOKEN_CHAR_LITERAL, string(value))
 
 	default:
