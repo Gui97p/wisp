@@ -9,6 +9,10 @@ import (
 
 func compileStatement(b *strings.Builder, stmt ast.Statement) error {
 	switch s := stmt.(type) {
+	case *ast.BlockStmt:
+		return compileBlockStatement(b, s)
+	case *ast.VarStmt:
+		return compileVarStatement(b, s)
 	case *ast.ReturnStmt:
 		return compileReturnStatement(b, s)
 	case *ast.ExpressionStmt:
@@ -18,16 +22,45 @@ func compileStatement(b *strings.Builder, stmt ast.Statement) error {
 	}
 }
 
+func compileBlockStatement(b *strings.Builder, block *ast.BlockStmt) error {
+	for _, stmt := range block.Statements {
+		if err := compileStatement(b, stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func compileVarStatement(b *strings.Builder, stmt *ast.VarStmt) error {
+	b.WriteString("local ")
+	for k, variable := range stmt.Vars {
+		b.WriteString(variable.Name)
+		if k != len(stmt.Vars)-1 {
+			b.WriteByte(',')
+		}
+	}
+	b.WriteString(" = ")
+	for k, value := range stmt.Values {
+		compileExpression(b, value)
+		if k != len(stmt.Values)-1 {
+			b.WriteByte(',')
+		}
+	}
+	b.WriteByte('\n')
+	return nil
+}
+
 func compileReturnStatement(b *strings.Builder, stmt *ast.ReturnStmt) error {
-	if len(stmt.Values) != 1 {
-		return fmt.Errorf("lua: only single-value return supported for now")
+	b.WriteString("return ")
+	for k, value := range stmt.Values {
+		if err := compileExpression(b, value); err != nil {
+			return err
+		}
+		if k != len(stmt.Values)-1 {
+			b.WriteByte(',')
+		}
 	}
 
-	lit := stmt.Values[0]
-	b.WriteString("return ")
-	if err := compileExpression(b, lit); err != nil {
-		return err
-	}
 	b.WriteRune('\n')
 	return nil
 }

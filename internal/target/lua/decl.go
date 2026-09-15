@@ -17,12 +17,7 @@ func compileFunc(b *strings.Builder, fd *ast.FuncDecl) error {
 	}
 	b.WriteString(")\n")
 
-	for _, stmt := range fd.Body.Statements {
-		if err := compileStatement(b, stmt); err != nil {
-			return err
-		}
-	}
-
+	compileStatement(b, fd.Body)
 	b.WriteString("end\n")
 
 	return nil
