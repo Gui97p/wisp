@@ -64,6 +64,10 @@ func (p *Parser) parseTypePrefix() *ast.TypeRef {
 }
 
 func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
+	ref.IsArray = false
+	ref.IsSpan = false
+	ref.ArraySize = 0
+
 	if p.peek.Type != lexer.TOKEN_LBRACKET {
 		return true
 	}
