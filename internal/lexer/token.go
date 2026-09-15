@@ -45,6 +45,7 @@ const (
 	TOKEN_ELSE
 
 	TOKEN_FOR
+	TOKEN_IN
 	TOKEN_LOOP
 	TOKEN_UNTIL
 
@@ -114,6 +115,7 @@ var keywords = map[string]TokenType{
 	"if":       TOKEN_IF,
 	"else":     TOKEN_ELSE,
 	"for":      TOKEN_FOR,
+	"in":       TOKEN_IN,
 	"loop":     TOKEN_LOOP,
 	"until":    TOKEN_UNTIL,
 	"return":   TOKEN_RETURN,
