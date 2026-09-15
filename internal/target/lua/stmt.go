@@ -17,6 +17,20 @@ func compileStatement(b *strings.Builder, stmt ast.Statement) error {
 		return compileReturnStatement(b, s)
 	case *ast.ExpressionStmt:
 		return compileExpressionStatement(b, s)
+	case *ast.IfStmt:
+		return compileIfStatement(b, s)
+	// case *ast.ForStmt:
+	// 	return compileForStatement(b, s)
+	// case *ast.LoopStmt:
+	// 	return compileLoopStatement(b, s)
+	// case *ast.BreakStmt:
+	// 	return compileBreakStatement(b, s)
+	// case *ast.ContinueStmt:
+	// 	return compileContinueStatement(b, s)
+	// case *ast.AssignStmt:
+	// 	return compileAssignStatement(b, s)
+	// case *ast.IncDecStmt:
+	// 	return compileIncDecStatement(b, s)
 	default:
 		return fmt.Errorf("lua: unsupported statement %T", stmt)
 	}
@@ -70,5 +84,21 @@ func compileExpressionStatement(b *strings.Builder, stmt *ast.ExpressionStmt) er
 		return err
 	}
 	b.WriteRune('\n')
+	return nil
+}
+
+func compileIfStatement(b *strings.Builder, stmt *ast.IfStmt) error {
+	b.WriteString("if ")
+	compileExpression(b, stmt.Condition)
+	b.WriteString(" then\n")
+	compileStatement(b, stmt.Then)
+
+	if stmt.Else != nil {
+		b.WriteString("else\n")
+		compileStatement(b, stmt.Else)
+	}
+
+	b.WriteString("end\n")
+
 	return nil
 }

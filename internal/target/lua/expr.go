@@ -11,7 +11,14 @@ func compileExpression(b *strings.Builder, expr ast.Expression) error {
 	switch e := expr.(type) {
 	case *ast.BinaryExpr:
 		compileExpression(b, e.Left)
-		b.WriteString(e.Operator)
+		switch e.Operator {
+		case "&&":
+			b.WriteString(" and ")
+		case "||":
+			b.WriteString(" or ")
+		default:
+			b.WriteString(e.Operator)
+		}
 		compileExpression(b, e.Right)
 	case *ast.UnaryExpr:
 		switch e.Operator {
