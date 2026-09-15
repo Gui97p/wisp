@@ -57,6 +57,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
 	if len(expr.Elements) == 0 {
 		a.errorf("impossible to infer type of a empty array")
+		return InvalidType{}
 	}
 
 	elemTypes := make([]Type, len(expr.Elements))

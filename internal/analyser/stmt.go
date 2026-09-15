@@ -167,8 +167,20 @@ func (a *Analyser) checkVarStmt(stmt *ast.VarStmt) {
 				declaredType = InvalidType{}
 			}
 			if _, invalid := valueType.(InvalidType); !invalid {
-				if _, declInvalid := declaredType.(InvalidType); !declInvalid && !valueType.Equals(declaredType) {
-					a.errorf("Variable %s declared as %s, got %s", v.Name, declaredType.String(), valueType.String())
+				if _, declInvalid := declaredType.(InvalidType); !declInvalid {
+					if declArr, ok := declaredType.(ArrayType); ok {
+						valArr, ok := valueType.(ArrayType)
+						switch {
+						case !ok:
+							a.errorf("variable %s declared as %s, got %s", v.Name, declaredType.String(), valueType.String())
+						case valArr.Size > declArr.Size:
+							a.errorf("array %s declared with size %d, got %d elements", v.Name, declArr.Size, valArr.Size)
+						case !valArr.Element.Equals(declArr.Element):
+							a.errorf("array %s expects element type %s, got %s", v.Name, declArr.Element.String(), valArr.Element.String())
+						}
+					} else if !valueType.Equals(declaredType) {
+						a.errorf("variable %s declared as %s, got %s", v.Name, declaredType.String(), valueType.String())
+					}
 				}
 			}
 			finalType = declaredType
