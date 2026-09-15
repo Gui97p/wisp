@@ -35,6 +35,23 @@ func (a *ArrayLiteral) Tree(indent string) string {
 	return b.String()
 }
 
+type MapLiteral struct {
+	Keys   []Expression
+	Values []Expression
+}
+
+func (*MapLiteral) expr() {}
+func (m *MapLiteral) Tree(indent string) string {
+	var b strings.Builder
+	b.WriteString(indent)
+	b.WriteString("MapLiteral\n")
+	for i := range m.Keys {
+		b.WriteString(m.Keys[i].Tree(indent + "  "))
+		b.WriteString(m.Values[i].Tree(indent + "  "))
+	}
+	return b.String()
+}
+
 type IntLiteral struct {
 	Value int64
 }
