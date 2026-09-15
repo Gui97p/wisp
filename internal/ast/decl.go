@@ -5,6 +5,26 @@ import (
 	"strings"
 )
 
+type ConstDecl struct {
+	Vars     []Param
+	Values   []Expression
+	Exported bool
+}
+
+func (*ConstDecl) decl() {}
+func (c *ConstDecl) Tree(indent string) string {
+	var b strings.Builder
+	b.WriteString(indent)
+	b.WriteString("ConstDecl\n")
+	for i, v := range c.Vars {
+		b.WriteString(v.Tree(indent + "  "))
+		if i < len(c.Values) {
+			b.WriteString(c.Values[i].Tree(indent + "  "))
+		}
+	}
+	return b.String()
+}
+
 type FuncDecl struct {
 	Name        string
 	Params      []Param
