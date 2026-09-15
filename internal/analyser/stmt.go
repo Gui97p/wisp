@@ -239,3 +239,29 @@ func (a *Analyser) checkBreakContinue(label, kind string) {
 
 	a.errorf("unknown label: %s", label)
 }
+
+func stmtTerminates(stmt ast.Statement) bool {
+	switch s := stmt.(type) {
+	case *ast.ReturnStmt:
+		return true
+	case *ast.IfStmt:
+		if s.Else == nil {
+			return false
+		}
+		return blockTerminates(s.Then) && stmtTerminates(s.Else)
+	case *ast.LoopStmt:
+		return s.Condition == nil && s.UntilCondition == nil
+	case *ast.BlockStmt:
+		return blockTerminates(s)
+	default:
+		return false
+	}
+}
+
+func blockTerminates(block *ast.BlockStmt) bool {
+	if len(block.Statements) == 0 {
+		return false
+	}
+	last := block.Statements[len(block.Statements)-1]
+	return stmtTerminates(last)
+}

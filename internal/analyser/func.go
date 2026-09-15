@@ -73,4 +73,8 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 	defer func() { a.currentReturns = prevReturns }()
 
 	a.checkBlock(fd.Body)
+
+	if len(ft.Returns) > 0 && !blockTerminates(fd.Body) {
+		a.errorf("missing return at end of function %s", fd.Name)
+	}
 }

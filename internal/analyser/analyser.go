@@ -24,7 +24,7 @@ func NewAnalyser(program *ast.Program) *Analyser {
 	}
 }
 
-func (a *Analyser) Analyze() (*Info, []string) {
+func (a *Analyser) Analyze() *Info {
 	a.registerStructNames()
 	a.registerStructFields()
 	a.registerBuiltins()
@@ -32,7 +32,7 @@ func (a *Analyser) Analyze() (*Info, []string) {
 	a.registerConsts()
 	a.checkFuncBodies()
 
-	return a.info, a.errors
+	return a.info
 }
 
 func (a *Analyser) resolveTypeRef(scope *Scope, ref ast.TypeRef) Type {
