@@ -35,6 +35,20 @@ func (a *Analyser) Analyze() (*Info, []string) {
 }
 
 func (a *Analyser) resolveTypeRef(scope *Scope, ref ast.TypeRef) Type {
+	if ref.IsMap {
+		keyType := a.resolveTypeRef(scope, *ref.MapKey)
+		valueType := a.resolveTypeRef(scope, *ref.MapValue)
+		if keyType == nil || valueType == nil {
+			return nil
+		}
+
+		var result Type = &MapType{Key: keyType, Value: valueType}
+		for i := 0; i < ref.PointerDepth; i++ {
+			result = PointerType{Element: result}
+		}
+		return result
+	}
+
 	var result Type
 
 	if primitives[ref.Name] {

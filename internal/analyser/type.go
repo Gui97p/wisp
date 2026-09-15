@@ -101,6 +101,23 @@ func (a ArrayType) Equals(other Type) bool {
 	return a.Size == o.Size && a.Element.Equals(o.Element)
 }
 
+type MapType struct {
+	Key   Type
+	Value Type
+}
+
+func (m *MapType) String() string {
+	return fmt.Sprintf("map[%s]%s", m.Key.String(), m.Value.String())
+}
+
+func (m *MapType) Equals(other Type) bool {
+	o, ok := other.(*MapType)
+	if !ok {
+		return false
+	}
+	return m.Key.Equals(o.Key) && m.Value.Equals(o.Value)
+}
+
 type StructType struct {
 	Name   string
 	Fields map[string]Type

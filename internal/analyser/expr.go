@@ -34,6 +34,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = NullType{}
 	case *ast.ArrayLiteral:
 		t = a.checkArrayLiteral(e)
+	case *ast.MapLiteral:
+		t = a.checkMapLiteral(e)
 	case *ast.BinaryExpr:
 		t = a.checkBinaryExpr(e)
 	case *ast.UnaryExpr:
@@ -81,6 +83,40 @@ func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
 	}
 
 	return ArrayType{Element: first, Size: int64(len(expr.Elements))}
+}
+
+func (a *Analyser) checkMapLiteral(expr *ast.MapLiteral) Type {
+	if len(expr.Keys) == 0 {
+		a.errorf("impossible to infer type of an empty map")
+		return InvalidType{}
+	}
+
+	keyTypes := make([]Type, len(expr.Keys))
+	valueTypes := make([]Type, len(expr.Values))
+
+	for i := range expr.Keys {
+		keyTypes[i] = a.checkExpr(expr.Keys[i])
+		valueTypes[i] = a.checkExpr(expr.Values[i])
+	}
+
+	firstKey, firstValue := keyTypes[0], valueTypes[0]
+	if _, ok := firstKey.(InvalidType); ok {
+		return InvalidType{}
+	}
+	if _, ok := firstValue.(InvalidType); ok {
+		return InvalidType{}
+	}
+
+	for i := 1; i < len(keyTypes); i++ {
+		if _, ok := keyTypes[i].(InvalidType); !ok && !keyTypes[i].Equals(firstKey) {
+			a.errorf("map key %d expected %s, got %s", i+1, firstKey.String(), keyTypes[i].String())
+		}
+		if _, ok := valueTypes[i].(InvalidType); !ok && !valueTypes[i].Equals(firstValue) {
+			a.errorf("map value %d expected %s, got %s", i+1, firstValue.String(), valueTypes[i].String())
+		}
+	}
+
+	return &MapType{Key: firstKey, Value: firstValue}
 }
 
 func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
@@ -303,15 +339,19 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 		return InvalidType{}
 	}
 
-	at, ok := arrType.(ArrayType)
-	if !ok {
+	switch t := arrType.(type) {
+	case ArrayType:
+		a.requireNumeric(idxType, "array index")
+		return t.Element
+	case *MapType:
+		if _, invalid := idxType.(InvalidType); !invalid && !idxType.Equals(t.Key) {
+			a.errorf("map index expected %s, got %s", t.Key.String(), idxType.String())
+		}
+		return t.Value
+	default:
 		a.errorf("%s can't be indexed", arrType.String())
 		return InvalidType{}
 	}
-
-	a.requireNumeric(idxType, "array index")
-
-	return at.Element
 }
 
 func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
