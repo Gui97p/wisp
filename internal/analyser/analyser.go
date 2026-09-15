@@ -16,7 +16,7 @@ type Analyser struct {
 	errors []string
 }
 
-func NewAnalyzer(program *ast.Program) *Analyser {
+func NewAnalyser(program *ast.Program) *Analyser {
 	return &Analyser{
 		program: program,
 		info:    NewInfo(),
