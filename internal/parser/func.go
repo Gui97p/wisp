@@ -60,9 +60,11 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.errorType(p.current.Type)
 			return params
 		}
-		name, depth := p.parseTypePrefix()
-		currentType.Name = name
-		currentType.PointerDepth = depth
+		ref := p.parseTypePrefix()
+		if ref == nil {
+			return params
+		}
+		currentType = *ref
 
 		if p.current.Type == lexer.TOKEN_VARIADIC {
 			if !p.expect(lexer.TOKEN_IDENT) {
@@ -81,7 +83,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 			return params
 		}
-		name = p.current.Literal
+		name := p.current.Literal
 
 		isArray, size, ok := p.parseArraySuffix()
 		if !ok {
@@ -153,15 +155,10 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 		for {
 			p.advance()
 
-			rType := ast.TypeRef{}
-			rType.PointerDepth = p.parsePointerDepth()
-
-			if !p.isStartType() {
-				p.errorType(p.current.Type)
+			rType := p.parseTypeDefinitionPrefix()
+			if rType == nil {
 				return nil
 			}
-
-			rType.Name = p.current.Literal
 
 			isArray, size, ok := p.parseArraySuffix()
 			if !ok {
@@ -170,7 +167,7 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 			rType.IsArray = isArray
 			rType.ArraySize = size
 
-			returnTypes = append(returnTypes, rType)
+			returnTypes = append(returnTypes, *rType)
 
 			if p.peek.Type == lexer.TOKEN_COMMA {
 				p.advance()
@@ -184,14 +181,10 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 			return returnTypes
 		}
 	} else if p.isStartType() || p.current.Type == lexer.TOKEN_STAR {
-		rType := ast.TypeRef{}
-		rType.PointerDepth = p.parsePointerDepth()
-
-		if !p.isStartType() {
-			p.errorType(p.current.Type)
+		rType := p.parseTypeDefinitionPrefix()
+		if rType == nil {
 			return nil
 		}
-		rType.Name = p.current.Literal
 
 		isArray, size, ok := p.parseArraySuffix()
 		if !ok {
@@ -200,7 +193,7 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 		rType.IsArray = isArray
 		rType.ArraySize = size
 
-		returnTypes = append(returnTypes, rType)
+		returnTypes = append(returnTypes, *rType)
 		return returnTypes
 	} else {
 		p.errorType(p.current.Type)

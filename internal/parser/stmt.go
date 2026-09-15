@@ -22,6 +22,8 @@ func (p *Parser) parseBlockStatement() *ast.BlockStmt {
 }
 
 func (p *Parser) parseStatement() ast.Statement {
+	var stmt ast.Statement
+
 	switch p.current.Type {
 	case lexer.TOKEN_LET,
 		lexer.TOKEN_INT,
@@ -39,73 +41,37 @@ func (p *Parser) parseStatement() ast.Statement {
 		lexer.TOKEN_STRING,
 		lexer.TOKEN_BOOL,
 		lexer.TOKEN_CHAR:
-		stmt := p.parseVarStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+		stmt = p.parseVarStatement()
 	case lexer.TOKEN_IDENT:
 		if p.peek.Type == lexer.TOKEN_IDENT {
-			stmt := p.parseVarStatement()
-			if stmt == nil {
-				return nil
-			}
-			return stmt
+			stmt = p.parseVarStatement()
+		} else {
+			stmt = p.parseSimpleStatement()
 		}
-		stmt := p.parseSimpleStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+	case lexer.TOKEN_MAP:
+		stmt = p.parseVarStatement()
 	case lexer.TOKEN_RETURN:
-		stmt := p.parseReturnStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+		stmt = p.parseReturnStatement()
 	case lexer.TOKEN_IF:
-		stmt := p.parseIfStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+		stmt = p.parseIfStatement()
 	case lexer.TOKEN_FOR:
-		stmt := p.parseForStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+		stmt = p.parseForStatement()
 	case lexer.TOKEN_LOOP:
-		stmt := p.parseLoopStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+		stmt = p.parseLoopStatement()
 	case lexer.TOKEN_BREAK:
-		stmt := p.parseBreakStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+		stmt = p.parseBreakStatement()
 	case lexer.TOKEN_CONTINUE:
-		stmt := p.parseContinueStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+		stmt = p.parseContinueStatement()
 	case lexer.TOKEN_COLON:
-		stmt := p.parseLabeledStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+		stmt = p.parseLabeledStatement()
 	default:
-		stmt := p.parseSimpleStatement()
-		if stmt == nil {
-			return nil
-		}
-		return stmt
+		stmt = p.parseSimpleStatement()
 	}
+
+	if stmt == nil {
+		return nil
+	}
+	return stmt
 }
 
 func (p *Parser) parseSimpleStatement() ast.Statement {
@@ -154,9 +120,11 @@ func (p *Parser) parseVarStatement() ast.Statement {
 
 	var currentType ast.TypeRef
 	if p.current.Type != lexer.TOKEN_LET {
-		name, depth := p.parseTypePrefix()
-		currentType.Name = name
-		currentType.PointerDepth = depth
+		ref := p.parseTypePrefix()
+		if ref == nil {
+			return nil
+		}
+		currentType = *ref
 	} else {
 		p.advance()
 	}
