@@ -232,7 +232,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 			if _, ok := argTypes[i].(InvalidType); ok {
 				continue
 			}
-			if !argTypes[i].Equals(variadicType) {
+			if !variadicType.Equals(argTypes[i]) {
 				a.errorf("arg %d from %s: expected %s (variadic), got %s", i+1, ft.Name, variadicType.String(), argTypes[i].String())
 			}
 		}

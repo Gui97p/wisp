@@ -1,7 +1,11 @@
 func add(int a, b) int => a + b;
 
-func addVerbose(int a, b) (int, bool) { // The second int (before b) is optional, it uses the same as a
+func addVerbose(int a, b) (int, bool) {
   return a + b, true;
+}
+
+func sum(int ...nums) int {
+  return 1;
 }
 
 // Struct declarations
@@ -19,6 +23,11 @@ func main() {
   let total = add(2, 3);
   int limit = 10;
   limit += 2; // Assign operators
+
+  // Zero-value declarations: no initializer -> zeroed
+  int zeroed;
+  int zeroArr[3];
+  emitf("zeroed=%d zeroArr0=%d", zeroed, zeroArr[0]);
 
   if total >= limit {
     emit("greater than or equal");
@@ -57,6 +66,7 @@ func main() {
   }
 
   int nums[5] = [124, 512, 1, 5, 2]; // fixed array
+  int partial[5] = [7, 8]; // partial fill: remaining slots are zero-valued
 
   // let's create some points with it
   Point p = Point(nums[0], nums[1]);
@@ -75,9 +85,35 @@ func main() {
      (ambiguous with multiplication for custom type names), so
      pointer-to-struct locals always go through inferred `let`
   */
-  let pp = &p;    
+  let pp = &p;
   emitf("pp.x=%d pp.y=%d", pp.x, pp.y);
 
+  // null and manual heap allocation
+  int *maybeNull = null;
+  if maybeNull == null {
+    emit("pointer is null");
+  }
+
+  int *heapInt = malloc(8);
+  *heapInt = 99;
+  emitf("heapInt=%d", *heapInt);
+  free(heapInt);
+
+  // maps: key/value type inferred from the {} literal, no need to repeat map[K]V
+  map[string]int scores = {"alice": 10, "bob": 7};
+  emitf("alice score=%d", scores["alice"]);
+
+  map[*Point]string names = {pp: "origin"};
+  emit(names[pp]);
+
+  // mutating through index, member and pointer targets, not just plain variables
+  nums[0] = 999;
+  p.x += 5;
+  *heapInt = 1;
+  nums[1]++;
+
   let a, b = 1, 2;
-  let sum, ok = addVerbose(a, b);
+  let sum2, ok = addVerbose(a, b);
+
+  emitf("variadic sum=%d", sum(1, 2, 3));
 }
