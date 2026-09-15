@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"fmt"
-
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
@@ -38,12 +36,6 @@ func (p *Parser) ParseProgram() *ast.Program {
 	}
 
 	return program
-}
-
-func (p *Parser) ShowErrors() {
-	for _, e := range p.errors {
-		fmt.Println(e)
-	}
 }
 
 func (p *Parser) advance() {

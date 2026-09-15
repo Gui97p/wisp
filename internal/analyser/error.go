@@ -8,6 +8,10 @@ func (a *Analyser) ShowErrors() {
 	}
 }
 
+func (a *Analyser) HasErrors() bool {
+	return len(a.errors) > 0
+}
+
 func (a *Analyser) error(e string) {
 	a.errors = append(a.errors, e)
 }
