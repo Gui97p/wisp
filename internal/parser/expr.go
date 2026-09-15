@@ -51,6 +51,8 @@ func (p *Parser) parsePrefix() ast.Expression {
 		return &ast.NullLiteral{}
 	case lexer.TOKEN_LBRACKET:
 		return p.parseArrayLiteral()
+	case lexer.TOKEN_LBRACE:
+		return p.parseMapLiteral()
 
 	case lexer.TOKEN_MINUS,
 		lexer.TOKEN_NOT,
@@ -201,6 +203,45 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	}
 
 	return arr
+}
+
+func (p *Parser) parseMapLiteral() ast.Expression {
+	m := &ast.MapLiteral{}
+
+	if p.peek.Type == lexer.TOKEN_RBRACE {
+		p.advance()
+		return m
+	}
+
+	p.advance()
+	key := p.parseExpression()
+	if !p.expect(lexer.TOKEN_COLON) {
+		return nil
+	}
+	p.advance()
+
+	value := p.parseExpression()
+	m.Keys = append(m.Keys, key)
+	m.Values = append(m.Values, value)
+
+	for p.peek.Type == lexer.TOKEN_COMMA {
+		p.advance()
+		p.advance()
+		key := p.parseExpression()
+		if !p.expect(lexer.TOKEN_COLON) {
+			return nil
+		}
+		p.advance()
+		value := p.parseExpression()
+		m.Keys = append(m.Keys, key)
+		m.Values = append(m.Values, value)
+	}
+
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+
+	return m
 }
 
 func (p *Parser) parseTernaryExpr(left ast.Expression) ast.Expression {
