@@ -24,6 +24,17 @@ func compileExpression(b *strings.Builder, expr ast.Expression) error {
 		default:
 			return fmt.Errorf("lua: unsupported unary operator %s", e.Operator)
 		}
+	case *ast.CallExpr:
+		compileExpression(b, e.Name)
+		b.WriteByte('(')
+		for k, v := range e.Args {
+			compileExpression(b, v)
+			if k != len(e.Args)-1 {
+				b.WriteByte(',')
+			}
+		}
+		b.WriteByte(')')
+
 	case *ast.IntLiteral:
 		fmt.Fprintf(b, "%d", e.Value)
 	case *ast.FloatLiteral:
