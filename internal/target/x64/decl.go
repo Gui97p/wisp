@@ -18,7 +18,7 @@ func compileFunc(b *strings.Builder, fd *ast.FuncDecl) error {
 	b.WriteString("\n")
 
 	for _, stmt := range fd.Body.Statements {
-		if err := compileStmt(b, stmt); err != nil {
+		if err := compileStatement(b, stmt); err != nil {
 			return err
 		}
 	}
