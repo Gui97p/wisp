@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/lexer"
 	"github.com/Gui97p/wisp/internal/parser"
 	"github.com/Gui97p/wisp/internal/target"
+	"github.com/Gui97p/wisp/internal/target/lua"
 	"github.com/Gui97p/wisp/internal/target/x64"
 )
 
@@ -79,8 +81,45 @@ func main() {
 		}
 		fmt.Printf("built (%s): %s\n", backend.Name(), outputPath)
 
+	case "run":
+		program := p.ParseProgram()
+		if p.HasErrors() {
+			p.ShowErrors()
+			os.Exit(1)
+		}
+
+		a := analyser.NewAnalyser(program)
+		info := a.Analyze()
+		if a.HasErrors() {
+			a.ShowErrors()
+			os.Exit(1)
+		}
+
+		var backend target.Target = lua.New()
+		file, err := backend.Compile(program, info)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		outputPath := strings.TrimSuffix(args[2], ".wsp")
+		f, err := os.Create(outputPath + ".lua")
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Fprint(f, file)
+
+		runCmd := exec.Command("lua", outputPath+".lua")
+		runCmd.Stdout = os.Stdout
+		runCmd.Stderr = os.Stderr
+		if err := runCmd.Run(); err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
 	default:
-		fmt.Println("invalid module.\nAvaiable: build lexer parser analyzer")
+		fmt.Println("invalid module.\nAvaiable: build run lexer parser analyzer")
 		os.Exit(1)
 	}
 }
