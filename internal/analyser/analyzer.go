@@ -70,7 +70,7 @@ func (a *Analyser) resolveTypeRef(scope *Scope, ref ast.TypeRef) Type {
 		result = ArrayType{Element: result, Size: ref.ArraySize}
 	}
 	if ref.IsSpan {
-		result = ArrayType{Element: result}
+		result = SpanType{Element: result}
 	}
 	for i := 0; i < ref.PointerDepth; i++ {
 		result = PointerType{Element: result}

@@ -79,6 +79,40 @@ func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
 }
 
 func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
+	if stmt.Range != nil {
+		rangeType := a.checkExpr(stmt.Range)
+
+		a.pushLoop(stmt.Label)
+		a.enterScope()
+
+		switch t := rangeType.(type) {
+		case ArrayType:
+			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}})
+			if stmt.Var2 != "" {
+				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Element})
+			}
+		case SpanType:
+			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}})
+			if stmt.Var2 != "" {
+				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Element})
+			}
+		case *MapType:
+			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: t.Key})
+			if stmt.Var2 != "" {
+				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Value})
+			}
+		case InvalidType:
+			// error already reported in stmt.Range check
+		default:
+			a.errorf("cannot range over %s", rangeType.String())
+		}
+
+		a.checkBlock(stmt.Body)
+		a.exitScope()
+		a.popLoop()
+		return
+	}
+
 	if stmt.Var == "" {
 		if stmt.End != nil {
 			t := a.checkExpr(stmt.End)

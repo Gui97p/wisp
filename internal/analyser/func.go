@@ -59,7 +59,11 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 	defer a.exitScope()
 
 	for i, p := range fd.Params {
-		if !a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: ft.Params[i]}) {
+		paramType := ft.Params[i]
+		if p.Variadic {
+			paramType = SpanType{Element: paramType}
+		}
+		if !a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: paramType}) {
 			a.errorf("duplicated %s parameter", p.Name)
 		}
 	}
