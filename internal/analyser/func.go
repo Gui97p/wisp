@@ -78,3 +78,41 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 		a.errorf("missing return at end of function %s", fd.Name)
 	}
 }
+
+func (a *Analyser) checkMainFunc() {
+	var mainDecl *ast.FuncDecl
+	count := 0
+	for _, d := range a.program.Declarations {
+		fd, ok := d.(*ast.FuncDecl)
+		if !ok || fd.Name != "main" {
+			continue
+		}
+		count++
+		mainDecl = fd
+	}
+
+	if count == 0 {
+		a.errorf("program has no main function")
+		return
+	}
+	if count > 1 {
+		a.errorf("program has more than one main function")
+		return
+	}
+
+	if len(mainDecl.Params) > 0 {
+		a.errorf("main function cannot have parameters")
+	}
+
+	switch len(mainDecl.ReturnTypes) {
+	case 0:
+		// implicit exit code 0
+	case 1:
+		t := a.resolveTypeRef(a.scope, mainDecl.ReturnTypes[0])
+		if t != nil && !t.Equals(PrimitiveType{Name: "int"}) {
+			a.errorf("main function must return int, got %s", t.String())
+		}
+	default:
+		a.errorf("main function must return nothing or a single int, got %d values", len(mainDecl.ReturnTypes))
+	}
+}

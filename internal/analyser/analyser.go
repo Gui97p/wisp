@@ -30,6 +30,7 @@ func (a *Analyser) Analyze() *Info {
 	a.registerBuiltins()
 	a.registerFuncSignatures()
 	a.registerConsts()
+	a.checkMainFunc()
 	a.checkFuncBodies()
 
 	return a.info
