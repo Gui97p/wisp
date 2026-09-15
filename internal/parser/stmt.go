@@ -55,9 +55,17 @@ func (p *Parser) parseStatement() ast.Statement {
 	case lexer.TOKEN_IF:
 		stmt = p.parseIfStatement()
 	case lexer.TOKEN_FOR:
-		stmt = p.parseForStatement()
+		forStmt := p.parseForStatement()
+		if forStmt == nil {
+			return nil
+		}
+		stmt = forStmt
 	case lexer.TOKEN_LOOP:
-		stmt = p.parseLoopStatement()
+		loopStmt := p.parseLoopStatement()
+		if loopStmt == nil {
+			return nil
+		}
+		stmt = loopStmt
 	case lexer.TOKEN_BREAK:
 		stmt = p.parseBreakStatement()
 	case lexer.TOKEN_CONTINUE:
@@ -287,24 +295,45 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 	stmt := &ast.ForStmt{}
 	p.advance()
 
-	if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_ASSIGN {
+	switch {
+	case p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_COMMA:
+		stmt.Var = p.current.Literal
+		p.advance()
+
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil
+		}
+		stmt.Var2 = p.current.Literal
+
+		if !p.expect(lexer.TOKEN_IN) {
+			return nil
+		}
+		p.advance()
+		stmt.Range = p.parseExpression()
+
+	case p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_IN:
 		stmt.Var = p.current.Literal
 		p.advance()
 		p.advance()
 
-		stmt.Start = p.parseExpression()
-		if !p.expect(lexer.TOKEN_RANGE) {
-			return nil
-		}
-		p.advance()
-		stmt.End = p.parseExpression()
+		expr := p.parseExpression()
 
-		if p.peek.Type == lexer.TOKEN_COLON {
+		if p.peek.Type == lexer.TOKEN_RANGE {
+			stmt.Start = expr
 			p.advance()
 			p.advance()
-			stmt.Step = p.parseExpression()
+			stmt.End = p.parseExpression()
+
+			if p.peek.Type == lexer.TOKEN_COLON {
+				p.advance()
+				p.advance()
+				stmt.Step = p.parseExpression()
+			}
+		} else {
+			stmt.Range = expr
 		}
-	} else {
+
+	default:
 		stmt.End = p.parseExpression()
 	}
 
@@ -391,10 +420,16 @@ func (p *Parser) parseLabeledStatement() ast.Statement {
 	switch p.current.Type {
 	case lexer.TOKEN_FOR:
 		stmt := p.parseForStatement()
+		if stmt == nil {
+			return nil
+		}
 		stmt.Label = label
 		return stmt
 	case lexer.TOKEN_LOOP:
 		stmt := p.parseLoopStatement()
+		if stmt == nil {
+			return nil
+		}
 		stmt.Label = label
 		return stmt
 	default:

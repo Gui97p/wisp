@@ -114,9 +114,11 @@ func (i *IfStmt) Tree(indent string) string {
 type ForStmt struct {
 	Label string
 	Var   string
+	Var2  string
 	Start Expression
 	End   Expression
 	Step  Expression
+	Range Expression
 	Body  *BlockStmt
 }
 
@@ -133,6 +135,9 @@ func (f *ForStmt) Tree(indent string) string {
 
 	if f.Var != "" {
 		fmt.Fprintf(&b, "%s├─ Var(%s)\n", indent, f.Var)
+	}
+	if f.Var2 != "" {
+		fmt.Fprintf(&b, "%s├─ Var2(%s)\n", indent, f.Var)
 	}
 
 	if f.Start != nil {
@@ -151,6 +156,12 @@ func (f *ForStmt) Tree(indent string) string {
 		b.WriteString(indent)
 		b.WriteString("├─ Step\n")
 		b.WriteString(f.Step.Tree(indent + "│  "))
+	}
+
+	if f.Range != nil {
+		b.WriteString(indent)
+		b.WriteString("├─ Range\n")
+		b.WriteString(f.Range.Tree(indent + "│  "))
 	}
 
 	if f.Body != nil {
