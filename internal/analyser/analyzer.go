@@ -34,21 +34,6 @@ func (a *Analyser) Analyze() (*Info, []string) {
 	return a.info, a.errors
 }
 
-func (a *Analyser) registerBuiltins() {
-	strType := PrimitiveType{Name: "string"}
-	floatType := PrimitiveType{Name: "float64"}
-
-	a.scope.Define(&Symbol{Name: "emit", Kind: FUNC, Type: &FuncType{
-		Name: "emit", Params: []Type{strType}, Returns: nil,
-	}})
-	a.scope.Define(&Symbol{Name: "emitf", Kind: FUNC, Type: &FuncType{
-		Name: "emitf", Params: []Type{strType}, Returns: nil,
-	}})
-	a.scope.Define(&Symbol{Name: "random", Kind: FUNC, Type: &FuncType{
-		Name: "random", Params: nil, Returns: []Type{floatType},
-	}})
-}
-
 func (a *Analyser) resolveTypeRef(scope *Scope, ref ast.TypeRef) Type {
 	var result Type
 
