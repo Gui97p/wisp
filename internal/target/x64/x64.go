@@ -60,21 +60,3 @@ func Build(asmSource, outputPath string) error {
 
 	return nil
 }
-
-func compileFunc(b *strings.Builder, fd *ast.FuncDecl) error {
-	fmt.Fprintf(b, "%s:\n", fd.Name)
-	b.WriteString("\tpush rbp\n")
-	b.WriteString("\tmov rbp, rsp\n\n")
-
-	for _, stmt := range fd.Body.Statements {
-		if err := compileStmt(b, stmt); err != nil {
-			return err
-		}
-	}
-
-	b.WriteString("\n\tmov rsp, rbp\n")
-	b.WriteString("\tpop rbp\n")
-	b.WriteString("\tret\n\n")
-
-	return nil
-}

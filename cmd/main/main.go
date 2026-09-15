@@ -80,7 +80,7 @@ func main() {
 		fmt.Printf("built (%s): %s\n", backend.Name(), outputPath)
 
 	default:
-		fmt.Println("invalid module.\nAvaiable: lexer parser analyzer")
+		fmt.Println("invalid module.\nAvaiable: build lexer parser analyzer")
 		os.Exit(1)
 	}
 }
