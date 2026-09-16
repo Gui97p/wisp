@@ -25,14 +25,8 @@ func (*LuaTarget) Name() string {
 func (t *LuaTarget) Compile() (string, error) {
 	var b strings.Builder
 
-	for _, decl := range t.program.Declarations {
-		fd, ok := decl.(*ast.FuncDecl)
-		if !ok {
-			continue
-		}
-		if err := t.compileFunc(&b, fd); err != nil {
-			return "", err
-		}
+	if err := t.compileDeclarations(&b, t.program.Declarations); err != nil {
+		return "", err
 	}
 
 	b.WriteString("__wisp_program_exit_code = main() or 0\n")

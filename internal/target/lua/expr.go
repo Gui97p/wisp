@@ -59,10 +59,11 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 	case *ast.ArrayLiteral:
 		b.WriteByte('{')
 		for k, v := range e.Elements {
-			t.compileExpression(b, v)
-			if k != len(e.Elements)-1 {
+			if k > 0 {
 				b.WriteByte(',')
 			}
+			fmt.Fprintf(b, "[%d]=", k)
+			t.compileExpression(b, v)
 		}
 		b.WriteByte('}')
 	case *ast.MapLiteral:

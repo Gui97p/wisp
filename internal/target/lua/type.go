@@ -92,7 +92,7 @@ func zeroValue(t analyser.Type) (string, error) {
 				return "", err
 			}
 
-			b.WriteString(value)
+			fmt.Fprintf(&b, "[%d]=%s", i, value)
 		}
 
 		b.WriteByte('}')

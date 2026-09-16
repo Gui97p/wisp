@@ -21,8 +21,8 @@ func (t *LuaTarget) compileStatement(b *strings.Builder, stmt ast.Statement) err
 		return t.compileIfStatement(b, s)
 	case *ast.ForStmt:
 		return t.compileForStatement(b, s)
-	// case *ast.LoopStmt:
-	// 	return compileLoopStatement(b, s)
+	case *ast.LoopStmt:
+		return t.compileLoopStatement(b, s)
 	case *ast.BreakStmt:
 		return t.compileBreakStatement(b, s)
 	case *ast.ContinueStmt:
@@ -295,6 +295,48 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 		return err
 	}
 	b.WriteByte('\n')
+
+	fmt.Fprintf(b, "goto %s\n", conditionLabel)
+	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
+
+	return nil
+}
+
+func (t *LuaTarget) compileLoopStatement(b *strings.Builder, stmt *ast.LoopStmt) error {
+	conditionLabel := t.newLabel("loop_condition")
+
+	ctx := loopContext{
+		Label:         stmt.Label,
+		ContinueLabel: t.newLabel("loop_continue"),
+		BreakLabel:    t.newLabel("loop_break"),
+	}
+
+	t.pushLoop(ctx)
+	defer t.popLoop()
+
+	fmt.Fprintf(b, "::%s::\n", conditionLabel)
+
+	if stmt.Condition != nil {
+		b.WriteString("if not (")
+		if err := t.compileExpression(b, stmt.Condition); err != nil {
+			return err
+		}
+		fmt.Fprintf(b, ") then goto %s end\n", ctx.BreakLabel)
+	}
+
+	if err := t.compileStatement(b, stmt.Body); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
+
+	if stmt.UntilCondition != nil {
+		b.WriteString("if ")
+		if err := t.compileExpression(b, stmt.UntilCondition); err != nil {
+			return err
+		}
+		fmt.Fprintf(b, " then goto %s end\n", ctx.BreakLabel)
+	}
 
 	fmt.Fprintf(b, "goto %s\n", conditionLabel)
 	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
