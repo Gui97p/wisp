@@ -48,16 +48,35 @@ func compileBlockStatement(b *strings.Builder, block *ast.BlockStmt) error {
 func compileVarStatement(b *strings.Builder, stmt *ast.VarStmt) error {
 	b.WriteString("local ")
 	for k, variable := range stmt.Vars {
-		b.WriteString(variable.Name)
-		if k != len(stmt.Vars)-1 {
-			b.WriteByte(',')
+		if k > 0 {
+			b.WriteString(", ")
 		}
+		b.WriteString(variable.Name)
 	}
+
 	b.WriteString(" = ")
-	for k, value := range stmt.Values {
-		compileExpression(b, value)
-		if k != len(stmt.Values)-1 {
-			b.WriteByte(',')
+	if len(stmt.Values) > 0 {
+		for k, value := range stmt.Values {
+			if k > 0 {
+				b.WriteString(", ")
+			}
+
+			if err := compileExpression(b, value); err != nil {
+				return err
+			}
+		}
+	} else {
+		for k := range stmt.Vars {
+			if k > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString("nil")
+			// value, err := zeroValue()
+			// if err != nil {
+			// 	return err
+			// }
+
+			// b.WriteString(value)
 		}
 	}
 	b.WriteByte('\n')
@@ -71,7 +90,7 @@ func compileReturnStatement(b *strings.Builder, stmt *ast.ReturnStmt) error {
 			return err
 		}
 		if k != len(stmt.Values)-1 {
-			b.WriteByte(',')
+			b.WriteString(", ")
 		}
 	}
 

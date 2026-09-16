@@ -7,7 +7,9 @@ import (
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
-type LuaTarget struct{}
+type LuaTarget struct {
+	info *analyser.Info
+}
 
 func New() *LuaTarget {
 	return &LuaTarget{}
@@ -17,7 +19,9 @@ func (*LuaTarget) Name() string {
 	return "lua 5"
 }
 
-func (*LuaTarget) Compile(program *ast.Program, info *analyser.Info) (string, error) {
+func (t *LuaTarget) Compile(program *ast.Program, info *analyser.Info) (string, error) {
+	t.info = info
+
 	var b strings.Builder
 
 	for _, decl := range program.Declarations {
