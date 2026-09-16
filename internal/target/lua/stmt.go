@@ -27,10 +27,10 @@ func compileStatement(b *strings.Builder, stmt ast.Statement) error {
 		return compileBreakStatement(b, s)
 	case *ast.ContinueStmt:
 		return compileContinueStatement(b, s)
-	// case *ast.AssignStmt:
-	// 	return compileAssignStatement(b, s)
-	// case *ast.IncDecStmt:
-	// 	return compileIncDecStatement(b, s)
+	case *ast.AssignStmt:
+		return compileAssignStatement(b, s)
+	case *ast.IncDecStmt:
+		return compileIncDecStatement(b, s)
 	default:
 		return fmt.Errorf("lua: unsupported statement %T", stmt)
 	}
@@ -259,13 +259,13 @@ func compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) error {
 	fmt.Fprintf(b, "::%s::\n", conditionLabel)
 	fmt.Fprintf(b, "if %s > ", stmt.Var)
 	compileExpression(b, stmt.End)
-	fmt.Fprintf(b, " then goto %s end", ctx.BreakLabel)
+	fmt.Fprintf(b, " then goto %s end\n", ctx.BreakLabel)
 
 	if err := compileStatement(b, stmt.Body); err != nil {
 		return err
 	}
 
-	fmt.Fprintf(b, "::%s::", ctx.ContinueLabel)
+	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
 
 	fmt.Fprintf(b, "%s = %s + ", stmt.Var, stmt.Var)
 
@@ -314,6 +314,44 @@ func compileContinueStatement(b *strings.Builder, stmt *ast.ContinueStmt) error 
 	}
 
 	fmt.Fprintf(b, "goto %s\n", loop.ContinueLabel)
+
+	return nil
+}
+
+func compileAssignStatement(b *strings.Builder, stmt *ast.AssignStmt) error {
+	if err := compileExpression(b, stmt.Target); err != nil {
+		return err
+	}
+	b.WriteString(" = ")
+
+	if stmt.Op == "=" {
+		compileExpression(b, stmt.Value)
+	} else {
+		op := stmt.Op[0]
+		if err := compileExpression(b, stmt.Target); err != nil {
+			return err
+		}
+		fmt.Fprintf(b, " %c ", op)
+		if err := compileExpression(b, stmt.Value); err != nil {
+			return err
+		}
+	}
+	b.WriteByte('\n')
+
+	return nil
+}
+
+func compileIncDecStatement(b *strings.Builder, stmt *ast.IncDecStmt) error {
+	if err := compileExpression(b, stmt.Target); err != nil {
+		return err
+	}
+	b.WriteString(" = ")
+	if err := compileExpression(b, stmt.Target); err != nil {
+		return err
+	}
+
+	op := stmt.Op[0]
+	fmt.Fprintf(b, " %c 1\n", op)
 
 	return nil
 }
