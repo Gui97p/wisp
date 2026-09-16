@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
@@ -99,13 +100,21 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 }
 
 func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr) error {
+	constructor := false
+
 	if ident, ok := expr.Name.(*ast.IdentLiteral); ok {
 		if _, ok := t.getBuiltin(ident.Value); ok {
 			return t.compileBuiltinCall(b, ident.Value, expr.Args)
 		}
+		if symbol, ok := t.info.Idents[ident]; ok {
+			constructor = symbol.Kind == analyser.STRUCT
+		}
 	}
 
 	t.compileExpression(b, expr.Name)
+	if constructor {
+		b.WriteString(".New")
+	}
 	b.WriteByte('(')
 	for k, v := range expr.Args {
 		t.compileExpression(b, v)
