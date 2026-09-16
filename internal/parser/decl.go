@@ -47,7 +47,7 @@ func (p *Parser) parseDeclarationInner() ast.Declaration {
 	case lexer.TOKEN_EXPORT:
 		return p.parseExportDeclaration()
 	default:
-		p.errorf("expected declaration, got %s", p.current.Type)
+		p.errorf("expected declaration, got %s", p.current.Type.DisplayName())
 		p.advance()
 		return nil
 	}

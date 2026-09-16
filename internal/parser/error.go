@@ -22,9 +22,9 @@ func (p *Parser) error(msg string) {
 }
 
 func (p *Parser) errorExpected(expected, got lexer.TokenType) {
-	p.errorf("expected '%s' got '%s'", expected, got)
+	p.errorf("expected '%s' got '%s'", expected.DisplayName(), got.DisplayName())
 }
 
 func (p *Parser) errorType(t lexer.TokenType) {
-	p.errorf("invalid type: %s", t)
+	p.errorf("invalid type: %s", t.DisplayName())
 }

@@ -52,8 +52,8 @@ func runDebug(cmd *cobra.Command, args []string) error {
 		a := analyser.NewAnalyser(program)
 		a.Analyze()
 		if a.HasErrors() {
-			fmt.Println("\n<<Analyser Errors>>")
-			diag.Render(os.Stdout, args[2], buffer, a.Errors())
+			fmt.Println("<<Analyser Errors>>")
+			diag.Render(os.Stdout, args[1], buffer, a.Errors())
 		} else {
 			fmt.Println("<<No error found on analysis>>")
 		}
