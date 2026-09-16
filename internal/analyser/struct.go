@@ -18,7 +18,7 @@ func (a *Analyser) registerStructNames() {
 		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st}
 
 		if !a.scope.Define(symbol) {
-			a.errorf("%s struct already defined in this scope", sd.Name)
+			a.errorAlreadyDeclared(sd, STRUCT, sd.Name)
 		}
 	}
 }
@@ -34,13 +34,13 @@ func (a *Analyser) registerStructFields() {
 		st := symbol.Type.(*StructType)
 
 		for _, member := range sd.Members {
-			fieldType := a.resolveTypeRef(a.scope, member.Type)
+			fieldType := a.resolveTypeRef(sd, a.scope, member.Type)
 			if fieldType == nil {
 				continue
 			}
 
 			if _, ok := st.Fields[member.Name]; ok {
-				a.errorf("duplicated field %s in struct %s", member.Name, sd.Name)
+				a.errorf(sd, "duplicated field %s in struct %s", member.Name, sd.Name)
 				continue
 			}
 
@@ -54,7 +54,7 @@ func (a *Analyser) checkStructConstruction(expr *ast.CallExpr, st *StructType) [
 	argTypes := a.evalArgTypes(expr)
 
 	if len(argTypes) != len(st.Order) {
-		a.errorf("struct %s expects %d fields, got %d", st.Name, len(st.Order), len(argTypes))
+		a.errorf(expr, "struct %s expects %d fields, got %d", st.Name, len(st.Order), len(argTypes))
 	}
 
 	for i, at := range argTypes {
@@ -64,7 +64,7 @@ func (a *Analyser) checkStructConstruction(expr *ast.CallExpr, st *StructType) [
 		fieldName := st.Order[i]
 		fieldType := st.Fields[fieldName]
 		if !at.Equals(fieldType) {
-			a.errorf("field %d (%s) from %s expected %s, got %s", i+1, fieldName, st.Name, fieldType.String(), at.String())
+			a.errorf(expr, "field %d (%s) from %s expected %s, got %s", i+1, fieldName, st.Name, fieldType.String(), at.String())
 		}
 	}
 

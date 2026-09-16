@@ -13,7 +13,7 @@ func (a *Analyser) registerFuncSignatures() {
 		variadic := false
 
 		for _, p := range fd.Params {
-			t := a.resolveTypeRef(a.scope, p.Type)
+			t := a.resolveTypeRef(fd, a.scope, p.Type)
 			if t == nil {
 				continue
 			}
@@ -25,7 +25,7 @@ func (a *Analyser) registerFuncSignatures() {
 
 		returns := make([]Type, 0, len(fd.ReturnTypes))
 		for _, r := range fd.ReturnTypes {
-			t := a.resolveTypeRef(a.scope, r)
+			t := a.resolveTypeRef(fd, a.scope, r)
 			if t == nil {
 				continue
 			}
@@ -36,7 +36,7 @@ func (a *Analyser) registerFuncSignatures() {
 		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft}
 
 		if !a.scope.Define(symbol) {
-			a.errorf("%s func already defined in this scope", fd.Name)
+			a.errorAlreadyDeclared(fd, FUNC, fd.Name)
 		}
 	}
 }
@@ -64,7 +64,7 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 			paramType = SpanType{Element: paramType}
 		}
 		if !a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: paramType}) {
-			a.errorf("duplicated %s parameter", p.Name)
+			a.errorf(fd, "duplicated %s parameter", p.Name)
 		}
 	}
 
@@ -75,7 +75,7 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 	a.checkBlock(fd.Body)
 
 	if len(ft.Returns) > 0 && !blockTerminates(fd.Body) {
-		a.errorf("missing return at end of function %s", fd.Name)
+		a.errorf(fd, "missing return at end of function %s", fd.Name)
 	}
 }
 
@@ -92,27 +92,27 @@ func (a *Analyser) checkMainFunc() {
 	}
 
 	if count == 0 {
-		a.errorf("program has no main function")
+		a.errors.Add(0, 0, "program has no main function")
 		return
 	}
 	if count > 1 {
-		a.errorf("program has more than one main function")
+		a.errors.Add(0, 0, "program has more than one main function")
 		return
 	}
 
 	if len(mainDecl.Params) > 0 {
-		a.errorf("main function cannot have parameters")
+		a.error(mainDecl, "main function cannot have parameters")
 	}
 
 	switch len(mainDecl.ReturnTypes) {
 	case 0:
 		// implicit exit code 0
 	case 1:
-		t := a.resolveTypeRef(a.scope, mainDecl.ReturnTypes[0])
+		t := a.resolveTypeRef(mainDecl, a.scope, mainDecl.ReturnTypes[0])
 		if t != nil && !t.Equals(PrimitiveType{Name: "int"}) {
-			a.errorf("main function must return int, got %s", t.String())
+			a.errorf(mainDecl, "main function must return int, got %s", t.String())
 		}
 	default:
-		a.errorf("main function must return nothing or a single int, got %d values", len(mainDecl.ReturnTypes))
+		a.errorf(mainDecl, "main function must return nothing or a single int, got %d values", len(mainDecl.ReturnTypes))
 	}
 }

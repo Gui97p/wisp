@@ -1,6 +1,8 @@
 package analyser
 
-import "github.com/Gui97p/wisp/internal/ast"
+import (
+	"github.com/Gui97p/wisp/internal/ast"
+)
 
 func isDerefTarget(expr ast.Expression) bool {
 	u, ok := expr.(*ast.UnaryExpr)
@@ -24,7 +26,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	case *ast.IdentLiteral:
 		symbol, ok := a.scope.Resolve(e.Value)
 		if !ok {
-			a.errorf("identifier %s not declared in this scope", e.Value)
+			a.errorf(expr, "identifier %s not declared in this scope", e.Value)
 			t = InvalidType{}
 			break
 		}
@@ -60,7 +62,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 
 func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
 	if len(expr.Elements) == 0 {
-		a.errorf("impossible to infer type of a empty array")
+		a.error(expr, "impossible to infer type of a empty array")
 		return InvalidType{}
 	}
 
@@ -80,7 +82,7 @@ func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
 			continue
 		}
 		if !t.Equals(first) {
-			a.errorf("array index %d expected %s, got %s", i+1, first.String(), t.String())
+			a.errorf(expr, "array index %d expected %s, got %s", i+1, first.String(), t.String())
 		}
 	}
 
@@ -89,7 +91,7 @@ func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
 
 func (a *Analyser) checkMapLiteral(expr *ast.MapLiteral) Type {
 	if len(expr.Keys) == 0 {
-		a.errorf("impossible to infer type of an empty map")
+		a.error(expr, "impossible to infer type of an empty map")
 		return InvalidType{}
 	}
 
@@ -111,10 +113,10 @@ func (a *Analyser) checkMapLiteral(expr *ast.MapLiteral) Type {
 
 	for i := 1; i < len(keyTypes); i++ {
 		if _, ok := keyTypes[i].(InvalidType); !ok && !keyTypes[i].Equals(firstKey) {
-			a.errorf("map key %d expected %s, got %s", i+1, firstKey.String(), keyTypes[i].String())
+			a.errorf(expr, "map key %d expected %s, got %s", i+1, firstKey.String(), keyTypes[i].String())
 		}
 		if _, ok := valueTypes[i].(InvalidType); !ok && !valueTypes[i].Equals(firstValue) {
-			a.errorf("map value %d expected %s, got %s", i+1, firstValue.String(), valueTypes[i].String())
+			a.errorf(expr, "map value %d expected %s, got %s", i+1, firstValue.String(), valueTypes[i].String())
 		}
 	}
 
@@ -127,13 +129,13 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 
 	switch expr.Operator {
 	case "+", "-", "*", "/", "%":
-		return a.checkArithmetic(expr.Operator, left, right)
+		return a.checkArithmetic(expr, expr.Operator, left, right)
 	case "==", "!=", ">", ">=", "<", "<=":
-		return a.checkComparison(expr.Operator, left, right)
+		return a.checkComparison(expr, expr.Operator, left, right)
 	case "&&", "||":
-		return a.checkLogical(expr.Operator, left, right)
+		return a.checkLogical(expr, expr.Operator, left, right)
 	default:
-		a.errorf("unknown operator %s", expr.Operator)
+		a.errorf(expr, "unknown operator %s", expr.Operator)
 		return InvalidType{}
 	}
 }
@@ -148,46 +150,46 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 	switch expr.Operator {
 	case "-":
 		if !isNumeric(value) {
-			a.errorf("invalid operator %s for %s", expr.Operator, value.String())
+			a.errorf(expr, "invalid operator %s for %s", expr.Operator, value.String())
 			return InvalidType{}
 		}
 		return value
 	case "!":
 		boolType := PrimitiveType{Name: "bool"}
 		if !value.Equals(boolType) {
-			a.errorf("expected bool for !, got %s", value.String())
+			a.errorf(expr, "expected bool for !, got %s", value.String())
 		}
 		return boolType
 	case "&":
 		if !isAddressable(expr.Value) {
-			a.errorf("not possible to obtain address from a temporary expression")
+			a.error(expr, "cannot obtain address of a temporary expression")
 			return InvalidType{}
 		}
 		return PointerType{Element: value}
 	case "*":
 		ptr, ok := value.(PointerType)
 		if !ok {
-			a.errorf("expected pointer for *, got %s", value.String())
+			a.errorf(expr, "expected pointer for *, got %s", value.String())
 			return InvalidType{}
 		}
 		return ptr.Element
 	default:
-		a.errorf("invalid unary operator: %s", expr.Operator)
+		a.errorf(expr, "invalid unary operator: %s", expr.Operator)
 		return InvalidType{}
 	}
 }
 
-func (a *Analyser) checkCallExprValue(e *ast.CallExpr) Type {
-	returns := a.checkCallExpr(e)
+func (a *Analyser) checkCallExprValue(expr *ast.CallExpr) Type {
+	returns := a.checkCallExpr(expr)
 
 	switch len(returns) {
 	case 0:
-		a.errorf("function with no returns can't be used as value")
+		a.error(expr, "function with no returns can't be used as value")
 		return InvalidType{}
 	case 1:
 		return returns[0]
 	default:
-		a.errorf("functions returns %d values, expected 1 in this context", len(returns))
+		a.errorf(expr, "functions returns %d values, expected 1 in this context", len(returns))
 		return InvalidType{}
 	}
 }
@@ -205,7 +207,7 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 		a.evalArgTypes(expr)
 		return nil
 	default:
-		a.errorf("%s is not a function or struct", nameType.String())
+		a.errorf(expr, "%s is not a function or struct", nameType.String())
 		a.evalArgTypes(expr)
 		return nil
 	}
@@ -217,7 +219,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 	if ft.Variadic {
 		fixedCount := len(ft.Params) - 1
 		if len(argTypes) < fixedCount {
-			a.errorf("function %s expects at least %d args, got %d", ft.Name, fixedCount, len(argTypes))
+			a.errorf(expr, "function %s expects at least %d arguments, got %d", ft.Name, fixedCount, len(argTypes))
 			return
 		}
 		for i := range fixedCount {
@@ -225,7 +227,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 				continue
 			}
 			if !argTypes[i].Equals(ft.Params[i]) {
-				a.errorf("arg %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), argTypes[i].String())
+				a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), argTypes[i].String())
 			}
 		}
 
@@ -235,14 +237,14 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 				continue
 			}
 			if !variadicType.Equals(argTypes[i]) {
-				a.errorf("arg %d from %s: expected %s (variadic), got %s", i+1, ft.Name, variadicType.String(), argTypes[i].String())
+				a.errorf(expr, "argument %d from %s: expected %s (variadic), got %s", i+1, ft.Name, variadicType.String(), argTypes[i].String())
 			}
 		}
 		return
 	}
 
 	if len(argTypes) != len(ft.Params) {
-		a.errorf("function %s expects %d args, got %d", ft.Name, len(ft.Params), len(argTypes))
+		a.errorf(expr, "function %s expects %d arguments, got %d", ft.Name, len(ft.Params), len(argTypes))
 		return
 	}
 
@@ -251,7 +253,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 			continue
 		}
 		if !at.Equals(ft.Params[i]) {
-			a.errorf("arg %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String())
+			a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String())
 		}
 	}
 }
@@ -263,7 +265,7 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 		if call, ok := e.(*ast.CallExpr); ok {
 			returns := a.checkCallExpr(call)
 			if len(returns) == 0 {
-				a.errorf("function doesn't expect any return")
+				a.error(e, "function doesn't expect any return")
 				types = append(types, InvalidType{})
 				continue
 			}
@@ -284,56 +286,6 @@ func (a *Analyser) evalArgTypes(expr *ast.CallExpr) []Type {
 	return types
 }
 
-func (a *Analyser) checkArithmetic(op string, left, right Type) Type {
-	if _, ok := left.(InvalidType); ok {
-		return InvalidType{}
-	}
-	if _, ok := right.(InvalidType); ok {
-		return InvalidType{}
-	}
-
-	if !isNumeric(left) || !isNumeric(right) {
-		a.errorf("invalid operator %s for %s and %s", op, left.String(), right.String())
-		return InvalidType{}
-	}
-
-	if !left.Equals(right) {
-		a.errorf("incompatible types: %s %s %s", left.String(), op, right.String())
-		return InvalidType{}
-	}
-
-	return left
-}
-
-func (a *Analyser) checkComparison(op string, left, right Type) Type {
-	if _, ok := left.(InvalidType); ok {
-		return InvalidType{}
-	}
-	if _, ok := right.(InvalidType); ok {
-		return InvalidType{}
-	}
-
-	if !left.Equals(right) {
-		a.errorf("tipos incompatíveis: %s %s %s", left.String(), op, right.String())
-		return InvalidType{}
-	}
-
-	return PrimitiveType{Name: "bool"}
-}
-
-func (a *Analyser) checkLogical(op string, left, right Type) Type {
-	boolType := PrimitiveType{Name: "bool"}
-
-	if _, ok := left.(InvalidType); !ok && !left.Equals(boolType) {
-		a.errorf("operador %s espera bool, recebeu %s", op, left.String())
-	}
-	if _, ok := right.(InvalidType); !ok && !right.Equals(boolType) {
-		a.errorf("operador %s espera bool, recebeu %s", op, right.String())
-	}
-
-	return boolType
-}
-
 func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 	objType := a.checkExpr(expr.Object)
 
@@ -347,13 +299,13 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 
 	st, ok := objType.(*StructType)
 	if !ok {
-		a.errorf("%s is not a struct", objType.String())
+		a.errorf(expr, "%s is not a struct", objType.String())
 		return InvalidType{}
 	}
 
 	fieldType, ok := st.Fields[expr.Field]
 	if !ok {
-		a.errorf("invalid field %s in struct %s", expr.Field, st.Name)
+		a.errorf(expr, "invalid field %s in struct %s", expr.Field, st.Name)
 		return InvalidType{}
 	}
 
@@ -370,25 +322,25 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 
 	switch t := arrType.(type) {
 	case ArrayType:
-		a.requireNumeric(idxType, "array index")
+		a.requireNumeric(expr, idxType, "array index")
 		return t.Element
 	case SpanType:
-		a.requireNumeric(idxType, "span index")
+		a.requireNumeric(expr, idxType, "span index")
 		return t.Element
 	case *MapType:
 		if _, invalid := idxType.(InvalidType); !invalid && !idxType.Equals(t.Key) {
-			a.errorf("map index expected %s, got %s", t.Key.String(), idxType.String())
+			a.errorf(expr, "map index expected %s, got %s", t.Key.String(), idxType.String())
 		}
 		return t.Value
 	default:
-		a.errorf("%s can't be indexed", arrType.String())
+		a.errorf(expr, "%s can't be indexed", arrType.String())
 		return InvalidType{}
 	}
 }
 
 func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 	condType := a.checkExpr(expr.Condition)
-	a.requireBool(condType, "ternary condition")
+	a.requireBool(expr.Condition, condType, "ternary condition")
 
 	thenType := a.checkExpr(expr.Then)
 	elseType := a.checkExpr(expr.Else)
@@ -401,7 +353,7 @@ func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 	}
 
 	if !thenType.Equals(elseType) {
-		a.errorf("incompatible ternary types (%s & %s)", thenType.String(), elseType.String())
+		a.errorf(expr, "incompatible ternary types (%s & %s)", thenType.String(), elseType.String())
 		return InvalidType{}
 	}
 
@@ -410,7 +362,7 @@ func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 
 func (a *Analyser) checkCastExpr(expr *ast.CastExpr) Type {
 	valueType := a.checkExpr(expr.Value)
-	targetType := a.resolveTypeRef(a.scope, expr.Type)
+	targetType := a.resolveTypeRef(expr, a.scope, expr.Type)
 	if targetType == nil {
 		return InvalidType{}
 	}
@@ -428,6 +380,6 @@ func (a *Analyser) checkCastExpr(expr *ast.CastExpr) Type {
 		}
 	}
 
-	a.errorf("cannot cast %s to %s", valueType.String(), targetType.String())
+	a.errorf(expr, "cannot cast %s to %s", valueType.String(), targetType.String())
 	return InvalidType{}
 }

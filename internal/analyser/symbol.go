@@ -10,6 +10,23 @@ const (
 	STRUCT
 )
 
+func (s SymbolKind) String() string {
+	switch s {
+	case VAR:
+		return "variable"
+	case CONST:
+		return "constant"
+	case PARAM:
+		return "parameter"
+	case FUNC:
+		return "function"
+	case STRUCT:
+		return "struct"
+	default:
+		return "unknown"
+	}
+}
+
 type Symbol struct {
 	Name string
 	Type Type

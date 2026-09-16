@@ -37,9 +37,9 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 	case *ast.LoopStmt:
 		a.checkLoopStmt(s)
 	case *ast.BreakStmt:
-		a.checkBreakContinue(s.Label, "break")
+		a.checkBreakContinue(s, s.Label, "break")
 	case *ast.ContinueStmt:
-		a.checkBreakContinue(s.Label, "continue")
+		a.checkBreakContinue(s, s.Label, "continue")
 	case *ast.BlockStmt:
 		a.enterScope()
 		a.checkBlock(s)
@@ -51,7 +51,7 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 	types := a.checkExprList(stmt.Values)
 
 	if len(types) != len(a.currentReturns) {
-		a.errorf("expected %d return values, got %d", len(a.currentReturns), len(types))
+		a.errorf(stmt, "expected %d return values, got %d", len(a.currentReturns), len(types))
 		return
 	}
 
@@ -60,14 +60,14 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 			continue
 		}
 		if !t.Equals(a.currentReturns[i]) {
-			a.errorf("return %d: expected %s, got %s", i+1, a.currentReturns[i].String(), t.String())
+			a.errorf(stmt, "return %d: expected %s, got %s", i+1, a.currentReturns[i].String(), t.String())
 		}
 	}
 }
 
 func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
 	condType := a.checkExpr(stmt.Condition)
-	a.requireBool(condType, "if condition")
+	a.requireBool(stmt.Condition, condType, "if condition")
 
 	a.enterScope()
 	a.checkBlock(stmt.Then)
@@ -104,7 +104,7 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 		case InvalidType:
 			// error already reported in stmt.Range check
 		default:
-			a.errorf("cannot range over %s", rangeType.String())
+			a.errorf(stmt.Range, "cannot range over %s", rangeType.String())
 		}
 
 		a.checkBlock(stmt.Body)
@@ -116,7 +116,7 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 	if stmt.Var == "" {
 		if stmt.End != nil {
 			t := a.checkExpr(stmt.End)
-			a.requireNumeric(t, "for iteration count")
+			a.requireNumeric(stmt.End, t, "for iteration count")
 		}
 
 		a.pushLoop(stmt.Label)
@@ -128,13 +128,13 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 	}
 
 	if stmt.Start != nil {
-		a.requireNumeric(a.checkExpr(stmt.Start), "for start")
+		a.requireNumeric(stmt.Start, a.checkExpr(stmt.Start), "for start")
 	}
 	if stmt.End != nil {
-		a.requireNumeric(a.checkExpr(stmt.End), "for end")
+		a.requireNumeric(stmt.End, a.checkExpr(stmt.End), "for end")
 	}
 	if stmt.Step != nil {
-		a.requireNumeric(a.checkExpr(stmt.Step), "for step")
+		a.requireNumeric(stmt.Step, a.checkExpr(stmt.Step), "for step")
 	}
 
 	a.pushLoop(stmt.Label)
@@ -148,12 +148,12 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {
 	if stmt.Condition != nil {
 		t := a.checkExpr(stmt.Condition)
-		a.requireBool(t, "loop condition")
+		a.requireBool(stmt.Condition, t, "loop condition")
 	}
 
 	if stmt.UntilCondition != nil {
 		t := a.checkExpr(stmt.UntilCondition)
-		a.requireBool(t, "loop until condition")
+		a.requireBool(stmt.UntilCondition, t, "loop until condition")
 	}
 
 	a.pushLoop(stmt.Label)
@@ -164,18 +164,18 @@ func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {
 }
 
 func (a *Analyser) checkVarStmt(stmt *ast.VarStmt) {
-	a.checkVarsAndValues(stmt.Vars, stmt.Values, VAR, stmt)
+	a.checkVarsAndValues(stmt, stmt.Vars, stmt.Values, VAR)
 }
 
 func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 	if !isAddressable(s.Target) && !isDerefTarget(s.Target) {
-		a.errorf("expression not assignable")
+		a.error(s.Target, "expression not assignable")
 		return
 	}
 
 	if root := rootIdentifier(s.Target); root != nil {
 		if sym, ok := a.scope.Resolve(root.Value); ok && sym.Kind == CONST {
-			a.errorf("cannot assign to constant %s", root.Value)
+			a.errorConstAssign(s.Target, root.Value)
 			return
 		}
 	}
@@ -192,24 +192,24 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 
 	if s.Op == "=" {
 		if !valueType.Equals(targetType) {
-			a.errorf("assign expected %s, got %s", targetType.String(), valueType.String())
+			a.errorf(s.Target, "assign expected %s, got %s", targetType.String(), valueType.String())
 		}
 		return
 	}
 
 	baseOp := s.Op[:len(s.Op)-1]
-	a.checkArithmetic(baseOp, targetType, valueType)
+	a.checkArithmetic(s, baseOp, targetType, valueType)
 }
 
 func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 	if !isAddressable(s.Target) && !isDerefTarget(s.Target) {
-		a.errorf("expression not incrementable")
+		a.error(s.Target, "expression not incrementable")
 		return
 	}
 
 	if root := rootIdentifier(s.Target); root != nil {
 		if sym, ok := a.scope.Resolve(root.Value); ok && sym.Kind == CONST {
-			a.errorf("cannot assign to constant %s", root.Value)
+			a.errorConstAssign(s.Target, root.Value)
 			return
 		}
 	}
@@ -219,13 +219,13 @@ func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 		return
 	}
 	if !isNumeric(t) {
-		a.errorf("operator %s invalid for %s", s.Op, t.String())
+		a.errorf(s.Target, "operator %s invalid for %s", s.Op, t.String())
 	}
 }
 
-func (a *Analyser) checkBreakContinue(label, kind string) {
+func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
 	if len(a.loopLabels) == 0 {
-		a.errorf("%s outside a loop", kind)
+		a.errorf(node, "%s outside a loop", kind)
 		return
 	}
 
@@ -237,7 +237,7 @@ func (a *Analyser) checkBreakContinue(label, kind string) {
 		return
 	}
 
-	a.errorf("unknown label: %s", label)
+	a.errorf(node, "unknown label: %s", label)
 }
 
 func stmtTerminates(stmt ast.Statement) bool {

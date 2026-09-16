@@ -2,6 +2,7 @@ package analyser
 
 import (
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/diag"
 )
 
 type Analyser struct {
@@ -13,7 +14,7 @@ type Analyser struct {
 	currentReturns []Type
 	loopLabels     []string
 
-	errors []string
+	errors diag.List
 }
 
 func NewAnalyser(program *ast.Program) *Analyser {
@@ -36,10 +37,10 @@ func (a *Analyser) Analyze() *Info {
 	return a.info
 }
 
-func (a *Analyser) resolveTypeRef(scope *Scope, ref ast.TypeRef) Type {
+func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) Type {
 	if ref.IsMap {
-		keyType := a.resolveTypeRef(scope, *ref.MapKey)
-		valueType := a.resolveTypeRef(scope, *ref.MapValue)
+		keyType := a.resolveTypeRef(node, scope, *ref.MapKey)
+		valueType := a.resolveTypeRef(node, scope, *ref.MapValue)
 		if keyType == nil || valueType == nil {
 			return nil
 		}
@@ -58,11 +59,11 @@ func (a *Analyser) resolveTypeRef(scope *Scope, ref ast.TypeRef) Type {
 	} else {
 		symbol, ok := scope.Resolve(ref.Name)
 		if !ok {
-			a.errorf("unknown type %s", ref.Name)
+			a.errorf(node, "unknown type %s", ref.Name)
 			return nil
 		}
 		if symbol.Kind != STRUCT {
-			a.errorf("%s is not a type", ref.Name)
+			a.errorf(node, "%s is not a type", ref.Name)
 			return nil
 		}
 		result = symbol.Type
@@ -92,21 +93,21 @@ func (a *Analyser) exitScope() {
 	a.scope = a.scope.parent
 }
 
-func (a *Analyser) requireBool(t Type, context string) {
+func (a *Analyser) requireBool(node ast.Node, t Type, context string) {
 	if _, ok := t.(InvalidType); ok {
 		return
 	}
 	if !t.Equals(PrimitiveType{Name: "bool"}) {
-		a.errorf("%s must be bool, got %s", context, t.String())
+		a.errorf(node, "%s must be bool, got %s", context, t.String())
 	}
 }
 
-func (a *Analyser) requireNumeric(t Type, context string) {
+func (a *Analyser) requireNumeric(node ast.Node, t Type, context string) {
 	if _, ok := t.(InvalidType); ok {
 		return
 	}
 	if !isNumeric(t) {
-		a.errorf("%s must be numeric, got %s", context, t.String())
+		a.errorf(node, "%s must be numeric, got %s", context, t.String())
 	}
 }
 
