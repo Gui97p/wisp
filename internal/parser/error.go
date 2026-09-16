@@ -1,29 +1,30 @@
 package parser
 
 import (
-	"fmt"
-
+	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
 
-func (p *Parser) ShowErrors() {
-	for _, e := range p.errors {
-		fmt.Println(e)
-	}
+func (p *Parser) Errors() diag.List {
+	return p.errors
 }
 
 func (p *Parser) HasErrors() bool {
 	return len(p.errors) > 0
 }
 
-func (p *Parser) error(e string) {
-	p.errors = append(p.errors, fmt.Sprintf("[%d:%d] %s", p.current.Line, p.current.Column, e))
+func (p *Parser) errorf(format string, args ...any) {
+	p.errors.Add(p.current.Line, p.current.Column, format, args...)
+}
+
+func (p *Parser) error(msg string) {
+	p.errorf("%s", msg)
 }
 
 func (p *Parser) errorExpected(expected, got lexer.TokenType) {
-	p.error(fmt.Sprintf("expected '%s' got '%s'", expected, got))
+	p.errorf("expected '%s' got '%s'", expected, got)
 }
 
 func (p *Parser) errorType(t lexer.TokenType) {
-	p.error(fmt.Sprintf("invalid type: %s", t))
+	p.errorf("invalid type: %s", t)
 }

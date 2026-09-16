@@ -2,6 +2,7 @@ package parser
 
 import (
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
 
@@ -11,7 +12,7 @@ type Parser struct {
 	current lexer.Token
 	peek    lexer.Token
 
-	errors []string
+	errors diag.List
 }
 
 func NewParser(l *lexer.Lexer) *Parser {

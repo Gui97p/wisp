@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -48,7 +47,7 @@ func (p *Parser) parseDeclarationInner() ast.Declaration {
 	case lexer.TOKEN_EXPORT:
 		return p.parseExportDeclaration()
 	default:
-		p.error(fmt.Sprintf("expected declaration, got %s", p.current.Type))
+		p.errorf("expected declaration, got %s", p.current.Type)
 		p.advance()
 		return nil
 	}
