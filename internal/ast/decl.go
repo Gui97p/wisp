@@ -9,6 +9,8 @@ type ConstDecl struct {
 	Vars     []Param
 	Values   []Expression
 	Exported bool
+
+	NodePos
 }
 
 func (*ConstDecl) decl() {}
@@ -31,6 +33,8 @@ type FuncDecl struct {
 	Body        *BlockStmt
 	ReturnTypes []TypeRef
 	Exported    bool
+
+	NodePos
 }
 
 func (*FuncDecl) decl() {}
@@ -68,6 +72,8 @@ type StructDecl struct {
 	Name     string
 	Members  []Param
 	Exported bool
+
+	NodePos
 }
 
 func (*StructDecl) decl() {}
@@ -90,6 +96,8 @@ func (s *StructDecl) Tree(indent string) string {
 type ImportDecl struct {
 	Path  string
 	Alias string
+
+	NodePos
 }
 
 func (*ImportDecl) decl() {}

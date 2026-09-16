@@ -7,6 +7,8 @@ import (
 
 type IdentLiteral struct {
 	Value string
+
+	NodePos
 }
 
 func (*IdentLiteral) expr() {}
@@ -16,6 +18,8 @@ func (i *IdentLiteral) Tree(indent string) string {
 
 type ArrayLiteral struct {
 	Elements []Expression
+
+	NodePos
 }
 
 func (*ArrayLiteral) expr() {}
@@ -38,6 +42,8 @@ func (a *ArrayLiteral) Tree(indent string) string {
 type MapLiteral struct {
 	Keys   []Expression
 	Values []Expression
+
+	NodePos
 }
 
 func (*MapLiteral) expr() {}
@@ -54,6 +60,8 @@ func (m *MapLiteral) Tree(indent string) string {
 
 type IntLiteral struct {
 	Value int64
+
+	NodePos
 }
 
 func (*IntLiteral) expr() {}
@@ -63,6 +71,8 @@ func (i *IntLiteral) Tree(indent string) string {
 
 type FloatLiteral struct {
 	Value float64
+
+	NodePos
 }
 
 func (*FloatLiteral) expr() {}
@@ -72,6 +82,8 @@ func (f *FloatLiteral) Tree(indent string) string {
 
 type StringLiteral struct {
 	Value string
+
+	NodePos
 }
 
 func (*StringLiteral) expr() {}
@@ -81,6 +93,8 @@ func (s *StringLiteral) Tree(indent string) string {
 
 type CharLiteral struct {
 	Value byte
+
+	NodePos
 }
 
 func (*CharLiteral) expr() {}
@@ -90,6 +104,8 @@ func (c *CharLiteral) Tree(indent string) string {
 
 type BoolLiteral struct {
 	Value bool
+
+	NodePos
 }
 
 func (*BoolLiteral) expr() {}
@@ -101,7 +117,9 @@ func (b *BoolLiteral) Tree(indent string) string {
 	return indent + "BoolLiteral(false)"
 }
 
-type NullLiteral struct{}
+type NullLiteral struct {
+	NodePos
+}
 
 func (*NullLiteral) expr() {}
 func (*NullLiteral) Tree(indent string) string {

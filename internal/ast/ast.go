@@ -7,6 +7,8 @@ import (
 
 type Node interface {
 	Tree(indent string) string
+	Position() (int, int)
+	SetPos(line, col int)
 }
 
 type Declaration interface {
@@ -22,6 +24,18 @@ type Statement interface {
 type Expression interface {
 	Node
 	expr()
+}
+
+type NodePos struct {
+	Line, Col int
+}
+
+func (p NodePos) Position() (int, int) {
+	return p.Line, p.Col
+}
+
+func (p *NodePos) SetPos(line, col int) {
+	p.Line, p.Col = line, col
 }
 
 type Program struct {

@@ -9,6 +9,8 @@ type BinaryExpr struct {
 	Left     Expression
 	Operator string
 	Right    Expression
+
+	NodePos
 }
 
 func (*BinaryExpr) expr() {}
@@ -35,6 +37,8 @@ func (b *BinaryExpr) Tree(indent string) string {
 type UnaryExpr struct {
 	Value    Expression
 	Operator string
+
+	NodePos
 }
 
 func (*UnaryExpr) expr() {}
@@ -53,6 +57,8 @@ func (u *UnaryExpr) Tree(indent string) string {
 type CallExpr struct {
 	Name Expression
 	Args []Expression
+
+	NodePos
 }
 
 func (*CallExpr) expr() {}
@@ -78,11 +84,15 @@ func (c *CallExpr) Tree(indent string) string {
 type MemberExpr struct {
 	Object Expression
 	Field  string
+
+	NodePos
 }
 
 type IndexExpr struct {
 	Array Expression
 	Index Expression
+
+	NodePos
 }
 
 func (*IndexExpr) expr() {}
@@ -126,6 +136,8 @@ type TernaryExpr struct {
 	Condition Expression
 	Then      Expression
 	Else      Expression
+
+	NodePos
 }
 
 func (*TernaryExpr) expr() {}
@@ -152,6 +164,8 @@ func (i *TernaryExpr) Tree(indent string) string {
 type CastExpr struct {
 	Value Expression
 	Type  TypeRef
+
+	NodePos
 }
 
 func (*CastExpr) expr() {}

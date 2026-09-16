@@ -7,6 +7,8 @@ import (
 
 type ExpressionStmt struct {
 	Expr Expression
+
+	NodePos
 }
 
 func (*ExpressionStmt) stmt() {}
@@ -25,6 +27,8 @@ func (e *ExpressionStmt) Tree(indent string) string {
 
 type BlockStmt struct {
 	Statements []Statement
+
+	NodePos
 }
 
 func (*BlockStmt) stmt() {}
@@ -44,6 +48,8 @@ func (b *BlockStmt) Tree(indent string) string {
 type VarStmt struct {
 	Vars   []Param
 	Values []Expression
+
+	NodePos
 }
 
 func (*VarStmt) stmt() {}
@@ -65,6 +71,8 @@ func (v *VarStmt) Tree(indent string) string {
 
 type ReturnStmt struct {
 	Values []Expression
+
+	NodePos
 }
 
 func (*ReturnStmt) stmt() {}
@@ -85,6 +93,8 @@ type IfStmt struct {
 	Condition Expression
 	Then      *BlockStmt
 	Else      Statement
+
+	NodePos
 }
 
 func (*IfStmt) stmt() {}
@@ -120,6 +130,8 @@ type ForStmt struct {
 	Step  Expression
 	Range Expression
 	Body  *BlockStmt
+
+	NodePos
 }
 
 func (*ForStmt) stmt() {}
@@ -178,6 +190,8 @@ type LoopStmt struct {
 	Condition      Expression
 	Body           *BlockStmt
 	UntilCondition Expression
+
+	NodePos
 }
 
 func (*LoopStmt) stmt() {}
@@ -214,6 +228,8 @@ func (l *LoopStmt) Tree(indent string) string {
 
 type BreakStmt struct {
 	Label string
+
+	NodePos
 }
 
 func (*BreakStmt) stmt() {}
@@ -227,6 +243,8 @@ func (b *BreakStmt) Tree(indent string) string {
 
 type ContinueStmt struct {
 	Label string
+
+	NodePos
 }
 
 func (*ContinueStmt) stmt() {}
@@ -242,6 +260,8 @@ type AssignStmt struct {
 	Target Expression
 	Op     string
 	Value  Expression
+
+	NodePos
 }
 
 func (*AssignStmt) stmt() {}
@@ -264,6 +284,8 @@ func (a *AssignStmt) Tree(indent string) string {
 type IncDecStmt struct {
 	Target Expression
 	Op     string
+
+	NodePos
 }
 
 func (*IncDecStmt) stmt() {}
