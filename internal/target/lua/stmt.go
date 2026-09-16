@@ -23,10 +23,10 @@ func compileStatement(b *strings.Builder, stmt ast.Statement) error {
 		return compileForStatement(b, s)
 	// case *ast.LoopStmt:
 	// 	return compileLoopStatement(b, s)
-	// case *ast.BreakStmt:
-	// 	return compileBreakStatement(b, s)
-	// case *ast.ContinueStmt:
-	// 	return compileContinueStatement(b, s)
+	case *ast.BreakStmt:
+		return compileBreakStatement(b, s)
+	case *ast.ContinueStmt:
+		return compileContinueStatement(b, s)
 	// case *ast.AssignStmt:
 	// 	return compileAssignStatement(b, s)
 	// case *ast.IncDecStmt:
@@ -278,6 +278,42 @@ func compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) error {
 
 	fmt.Fprintf(b, "goto %s\n", conditionLabel)
 	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
+
+	return nil
+}
+
+func compileBreakStatement(b *strings.Builder, stmt *ast.BreakStmt) error {
+	var loop *loopContext
+
+	if stmt.Label == "" {
+		loop = currentLoop()
+	} else {
+		loop = findLoop(stmt.Label)
+	}
+
+	if loop == nil {
+		return fmt.Errorf("break: no matching loop")
+	}
+
+	fmt.Fprintf(b, "goto %s\n", loop.BreakLabel)
+
+	return nil
+}
+
+func compileContinueStatement(b *strings.Builder, stmt *ast.ContinueStmt) error {
+	var loop *loopContext
+
+	if stmt.Label == "" {
+		loop = currentLoop()
+	} else {
+		loop = findLoop(stmt.Label)
+	}
+
+	if loop == nil {
+		return fmt.Errorf("continue: no matching loop")
+	}
+
+	fmt.Fprintf(b, "goto %s\n", loop.ContinueLabel)
 
 	return nil
 }
