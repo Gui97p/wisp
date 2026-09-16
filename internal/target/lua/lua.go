@@ -30,8 +30,8 @@ func (*LuaTarget) Compile(program *ast.Program, info *analyser.Info) (string, er
 		}
 	}
 
-	b.WriteString("_PROGRAM_EXIT_CODE = main() or 0\n")
-	b.WriteString("print(\"exit code: \".._PROGRAM_EXIT_CODE)\n")
+	b.WriteString("__wisp_program_exit_code = main() or 0\n")
+	b.WriteString("os.exit(__wisp_program_exit_code)\n")
 
 	return b.String(), nil
 }
