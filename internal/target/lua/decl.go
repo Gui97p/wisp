@@ -7,7 +7,7 @@ import (
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
-func compileFunc(b *strings.Builder, fd *ast.FuncDecl) error {
+func (t *LuaTarget) compileFunc(b *strings.Builder, fd *ast.FuncDecl) error {
 	fmt.Fprintf(b, "local function %s(", fd.Name)
 	for k, v := range fd.Params {
 		b.WriteString(v.Name)
@@ -17,7 +17,7 @@ func compileFunc(b *strings.Builder, fd *ast.FuncDecl) error {
 	}
 	b.WriteString(")\n")
 
-	compileStatement(b, fd.Body)
+	t.compileStatement(b, fd.Body)
 	b.WriteString("end\n")
 
 	return nil

@@ -164,7 +164,7 @@ func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {
 }
 
 func (a *Analyser) checkVarStmt(stmt *ast.VarStmt) {
-	a.checkVarsAndValues(stmt.Vars, stmt.Values, VAR)
+	a.checkVarsAndValues(stmt.Vars, stmt.Values, VAR, stmt)
 }
 
 func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {

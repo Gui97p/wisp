@@ -67,8 +67,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		var backend target.Target = x64.New()
-		asm, err := backend.Compile(program, info)
+		var backend target.Target = x64.New(program, info)
+		asm, err := backend.Compile()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -95,8 +95,8 @@ func main() {
 			os.Exit(1)
 		}
 
-		var backend target.Target = lua.New()
-		file, err := backend.Compile(program, info)
+		var backend target.Target = lua.New(program, info)
+		file, err := backend.Compile()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

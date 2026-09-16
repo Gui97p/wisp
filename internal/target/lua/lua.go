@@ -8,28 +8,29 @@ import (
 )
 
 type LuaTarget struct {
-	info *analyser.Info
+	program      *ast.Program
+	info         *analyser.Info
+	loopStack    []loopContext
+	labelCounter uint64
 }
 
-func New() *LuaTarget {
-	return &LuaTarget{}
+func New(program *ast.Program, info *analyser.Info) *LuaTarget {
+	return &LuaTarget{program: program, info: info}
 }
 
 func (*LuaTarget) Name() string {
 	return "lua 5"
 }
 
-func (t *LuaTarget) Compile(program *ast.Program, info *analyser.Info) (string, error) {
-	t.info = info
-
+func (t *LuaTarget) Compile() (string, error) {
 	var b strings.Builder
 
-	for _, decl := range program.Declarations {
+	for _, decl := range t.program.Declarations {
 		fd, ok := decl.(*ast.FuncDecl)
 		if !ok {
 			continue
 		}
-		if err := compileFunc(&b, fd); err != nil {
+		if err := t.compileFunc(&b, fd); err != nil {
 			return "", err
 		}
 	}

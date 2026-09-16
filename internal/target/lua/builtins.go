@@ -7,21 +7,21 @@ import (
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
-func getBuiltin(name string) (func(*strings.Builder, []ast.Expression) error, bool) {
+func (t *LuaTarget) getBuiltin(name string) (func(*strings.Builder, []ast.Expression) error, bool) {
 	switch name {
 	case "emit":
-		return compileEmit, true
+		return t.compileEmit, true
 	case "emitf":
-		return compileEmitf, true
+		return t.compileEmitf, true
 	case "random":
-		return compileRandom, true
+		return t.compileRandom, true
 	default:
 		return nil, false
 	}
 }
 
-func compileBuiltinCall(b *strings.Builder, name string, args []ast.Expression) error {
-	compile, ok := getBuiltin(name)
+func (t *LuaTarget) compileBuiltinCall(b *strings.Builder, name string, args []ast.Expression) error {
+	compile, ok := t.getBuiltin(name)
 	if !ok {
 		return fmt.Errorf("lua: builtin %q is not supported", name)
 	}
@@ -29,7 +29,7 @@ func compileBuiltinCall(b *strings.Builder, name string, args []ast.Expression) 
 	return compile(b, args)
 }
 
-func compileEmit(b *strings.Builder, args []ast.Expression) error {
+func (t *LuaTarget) compileEmit(b *strings.Builder, args []ast.Expression) error {
 	b.WriteString("print(")
 
 	for i, arg := range args {
@@ -37,7 +37,7 @@ func compileEmit(b *strings.Builder, args []ast.Expression) error {
 			b.WriteString(", ")
 		}
 
-		if err := compileExpression(b, arg); err != nil {
+		if err := t.compileExpression(b, arg); err != nil {
 			return err
 		}
 	}
@@ -46,7 +46,7 @@ func compileEmit(b *strings.Builder, args []ast.Expression) error {
 	return nil
 }
 
-func compileEmitf(b *strings.Builder, args []ast.Expression) error {
+func (t *LuaTarget) compileEmitf(b *strings.Builder, args []ast.Expression) error {
 	b.WriteString("print(string.format(")
 
 	for i, arg := range args {
@@ -54,7 +54,7 @@ func compileEmitf(b *strings.Builder, args []ast.Expression) error {
 			b.WriteString(", ")
 		}
 
-		if err := compileExpression(b, arg); err != nil {
+		if err := t.compileExpression(b, arg); err != nil {
 			return err
 		}
 	}
@@ -63,7 +63,7 @@ func compileEmitf(b *strings.Builder, args []ast.Expression) error {
 	return nil
 }
 
-func compileRandom(b *strings.Builder, args []ast.Expression) error {
+func (*LuaTarget) compileRandom(b *strings.Builder, args []ast.Expression) error {
 	b.WriteString("math.random()")
 	return nil
 }

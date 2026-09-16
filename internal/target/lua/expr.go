@@ -7,10 +7,10 @@ import (
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
-func compileExpression(b *strings.Builder, expr ast.Expression) error {
+func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) error {
 	switch e := expr.(type) {
 	case *ast.BinaryExpr:
-		compileExpression(b, e.Left)
+		t.compileExpression(b, e.Left)
 		switch e.Operator {
 		case "&&":
 			b.WriteString(" and ")
@@ -19,38 +19,38 @@ func compileExpression(b *strings.Builder, expr ast.Expression) error {
 		default:
 			b.WriteString(e.Operator)
 		}
-		compileExpression(b, e.Right)
+		t.compileExpression(b, e.Right)
 	case *ast.UnaryExpr:
 		switch e.Operator {
 		case "-":
 			b.WriteString("-")
-			compileExpression(b, e.Value)
+			t.compileExpression(b, e.Value)
 		case "!":
 			b.WriteString("not ")
-			compileExpression(b, e.Value)
+			t.compileExpression(b, e.Value)
 		default:
 			return fmt.Errorf("lua: unsupported unary operator %s", e.Operator)
 		}
 	case *ast.CallExpr:
-		return compileCallExpression(b, e)
+		return t.compileCallExpression(b, e)
 	case *ast.MemberExpr:
-		compileExpression(b, e.Object)
+		t.compileExpression(b, e.Object)
 		fmt.Fprintf(b, ".%s", e.Field)
 	case *ast.IndexExpr:
-		compileExpression(b, e.Array)
+		t.compileExpression(b, e.Array)
 		b.WriteByte('[')
-		compileExpression(b, e.Index)
+		t.compileExpression(b, e.Index)
 		b.WriteByte(']')
 	case *ast.TernaryExpr:
 		b.WriteByte('(')
-		compileExpression(b, e.Condition)
+		t.compileExpression(b, e.Condition)
 		b.WriteString(") and (")
-		compileExpression(b, e.Then)
+		t.compileExpression(b, e.Then)
 		b.WriteString(") or (")
-		compileExpression(b, e.Else)
+		t.compileExpression(b, e.Else)
 		b.WriteRune(')')
 	case *ast.CastExpr:
-		compileExpression(b, e.Value)
+		t.compileExpression(b, e.Value)
 
 	case *ast.IntLiteral:
 		fmt.Fprintf(b, "%d", e.Value)
@@ -59,7 +59,7 @@ func compileExpression(b *strings.Builder, expr ast.Expression) error {
 	case *ast.ArrayLiteral:
 		b.WriteByte('{')
 		for k, v := range e.Elements {
-			compileExpression(b, v)
+			t.compileExpression(b, v)
 			if k != len(e.Elements)-1 {
 				b.WriteByte(',')
 			}
@@ -69,9 +69,9 @@ func compileExpression(b *strings.Builder, expr ast.Expression) error {
 		b.WriteByte('{')
 		for k, v := range e.Keys {
 			b.WriteByte('[')
-			compileExpression(b, v)
+			t.compileExpression(b, v)
 			b.WriteString("] = ")
-			compileExpression(b, e.Values[k])
+			t.compileExpression(b, e.Values[k])
 			if k != len(e.Keys)-1 {
 				b.WriteByte(',')
 			}
@@ -97,17 +97,17 @@ func compileExpression(b *strings.Builder, expr ast.Expression) error {
 	return nil
 }
 
-func compileCallExpression(b *strings.Builder, expr *ast.CallExpr) error {
+func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr) error {
 	if ident, ok := expr.Name.(*ast.IdentLiteral); ok {
-		if _, ok := getBuiltin(ident.Value); ok {
-			return compileBuiltinCall(b, ident.Value, expr.Args)
+		if _, ok := t.getBuiltin(ident.Value); ok {
+			return t.compileBuiltinCall(b, ident.Value, expr.Args)
 		}
 	}
 
-	compileExpression(b, expr.Name)
+	t.compileExpression(b, expr.Name)
 	b.WriteByte('(')
 	for k, v := range expr.Args {
-		compileExpression(b, v)
+		t.compileExpression(b, v)
 		if k != len(expr.Args)-1 {
 			b.WriteByte(',')
 		}

@@ -10,22 +10,25 @@ import (
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
-type X64Target struct{}
+type X64Target struct {
+	program *ast.Program
+	info    *analyser.Info
+}
 
-func New() *X64Target {
-	return &X64Target{}
+func New(program *ast.Program, info *analyser.Info) *X64Target {
+	return &X64Target{program: program, info: info}
 }
 
 func (*X64Target) Name() string {
 	return "x64"
 }
 
-func (*X64Target) Compile(program *ast.Program, info *analyser.Info) (string, error) {
+func (t *X64Target) Compile() (string, error) {
 	var b strings.Builder
 
 	b.WriteString("global main\n\n")
 
-	for _, decl := range program.Declarations {
+	for _, decl := range t.program.Declarations {
 		fd, ok := decl.(*ast.FuncDecl)
 		if !ok {
 			continue

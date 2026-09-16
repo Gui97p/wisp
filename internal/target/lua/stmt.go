@@ -7,45 +7,45 @@ import (
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
-func compileStatement(b *strings.Builder, stmt ast.Statement) error {
+func (t *LuaTarget) compileStatement(b *strings.Builder, stmt ast.Statement) error {
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
-		return compileBlockStatement(b, s)
+		return t.compileBlockStatement(b, s)
 	case *ast.VarStmt:
-		return compileVarStatement(b, s)
+		return t.compileVarStatement(b, s)
 	case *ast.ReturnStmt:
-		return compileReturnStatement(b, s)
+		return t.compileReturnStatement(b, s)
 	case *ast.ExpressionStmt:
-		return compileExpressionStatement(b, s)
+		return t.compileExpressionStatement(b, s)
 	case *ast.IfStmt:
-		return compileIfStatement(b, s)
+		return t.compileIfStatement(b, s)
 	case *ast.ForStmt:
-		return compileForStatement(b, s)
+		return t.compileForStatement(b, s)
 	// case *ast.LoopStmt:
 	// 	return compileLoopStatement(b, s)
 	case *ast.BreakStmt:
-		return compileBreakStatement(b, s)
+		return t.compileBreakStatement(b, s)
 	case *ast.ContinueStmt:
-		return compileContinueStatement(b, s)
+		return t.compileContinueStatement(b, s)
 	case *ast.AssignStmt:
-		return compileAssignStatement(b, s)
+		return t.compileAssignStatement(b, s)
 	case *ast.IncDecStmt:
-		return compileIncDecStatement(b, s)
+		return t.compileIncDecStatement(b, s)
 	default:
 		return fmt.Errorf("lua: unsupported statement %T", stmt)
 	}
 }
 
-func compileBlockStatement(b *strings.Builder, block *ast.BlockStmt) error {
+func (t *LuaTarget) compileBlockStatement(b *strings.Builder, block *ast.BlockStmt) error {
 	for _, stmt := range block.Statements {
-		if err := compileStatement(b, stmt); err != nil {
+		if err := t.compileStatement(b, stmt); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func compileVarStatement(b *strings.Builder, stmt *ast.VarStmt) error {
+func (t *LuaTarget) compileVarStatement(b *strings.Builder, stmt *ast.VarStmt) error {
 	b.WriteString("local ")
 	for k, variable := range stmt.Vars {
 		if k > 0 {
@@ -61,32 +61,33 @@ func compileVarStatement(b *strings.Builder, stmt *ast.VarStmt) error {
 				b.WriteString(", ")
 			}
 
-			if err := compileExpression(b, value); err != nil {
+			if err := t.compileExpression(b, value); err != nil {
 				return err
 			}
 		}
 	} else {
+		types := t.info.VarTypes[stmt]
 		for k := range stmt.Vars {
 			if k > 0 {
 				b.WriteString(", ")
 			}
-			b.WriteString("nil")
-			// value, err := zeroValue()
-			// if err != nil {
-			// 	return err
-			// }
 
-			// b.WriteString(value)
+			value, err := zeroValue(types[k])
+			if err != nil {
+				return err
+			}
+
+			b.WriteString(value)
 		}
 	}
 	b.WriteByte('\n')
 	return nil
 }
 
-func compileReturnStatement(b *strings.Builder, stmt *ast.ReturnStmt) error {
+func (t *LuaTarget) compileReturnStatement(b *strings.Builder, stmt *ast.ReturnStmt) error {
 	b.WriteString("return ")
 	for k, value := range stmt.Values {
-		if err := compileExpression(b, value); err != nil {
+		if err := t.compileExpression(b, value); err != nil {
 			return err
 		}
 		if k != len(stmt.Values)-1 {
@@ -98,23 +99,23 @@ func compileReturnStatement(b *strings.Builder, stmt *ast.ReturnStmt) error {
 	return nil
 }
 
-func compileExpressionStatement(b *strings.Builder, stmt *ast.ExpressionStmt) error {
-	if err := compileExpression(b, stmt.Expr); err != nil {
+func (t *LuaTarget) compileExpressionStatement(b *strings.Builder, stmt *ast.ExpressionStmt) error {
+	if err := t.compileExpression(b, stmt.Expr); err != nil {
 		return err
 	}
 	b.WriteRune('\n')
 	return nil
 }
 
-func compileIfStatement(b *strings.Builder, stmt *ast.IfStmt) error {
+func (t *LuaTarget) compileIfStatement(b *strings.Builder, stmt *ast.IfStmt) error {
 	b.WriteString("if ")
-	compileExpression(b, stmt.Condition)
+	t.compileExpression(b, stmt.Condition)
 	b.WriteString(" then\n")
-	compileStatement(b, stmt.Then)
+	t.compileStatement(b, stmt.Then)
 
 	if stmt.Else != nil {
 		b.WriteString("else\n")
-		compileStatement(b, stmt.Else)
+		t.compileStatement(b, stmt.Else)
 	}
 
 	b.WriteString("end\n")
@@ -122,36 +123,36 @@ func compileIfStatement(b *strings.Builder, stmt *ast.IfStmt) error {
 	return nil
 }
 
-func compileForStatement(b *strings.Builder, stmt *ast.ForStmt) error {
+func (t *LuaTarget) compileForStatement(b *strings.Builder, stmt *ast.ForStmt) error {
 	switch {
 	case stmt.Range != nil:
-		return compileForRange(b, stmt)
+		return t.compileForRange(b, stmt)
 
 	case stmt.Start != nil:
-		return compileForNumeric(b, stmt)
+		return t.compileForNumeric(b, stmt)
 
 	default:
-		return compileForCount(b, stmt)
+		return t.compileForCount(b, stmt)
 	}
 
 }
 
-func compileForCount(b *strings.Builder, stmt *ast.ForStmt) error {
-	countVar := newLabel("count")
-	conditionLabel := newLabel("for_condition")
+func (t *LuaTarget) compileForCount(b *strings.Builder, stmt *ast.ForStmt) error {
+	countVar := t.newLabel("count")
+	conditionLabel := t.newLabel("for_condition")
 
 	ctx := loopContext{
 		Label:         stmt.Label,
-		ContinueLabel: newLabel("for_continue"),
-		BreakLabel:    newLabel("for_break"),
+		ContinueLabel: t.newLabel("for_continue"),
+		BreakLabel:    t.newLabel("for_break"),
 	}
 
-	pushLoop(ctx)
-	defer popLoop()
+	t.pushLoop(ctx)
+	defer t.popLoop()
 
 	fmt.Fprintf(b, "local %s = ", countVar)
 
-	if err := compileExpression(b, stmt.End); err != nil {
+	if err := t.compileExpression(b, stmt.End); err != nil {
 		return err
 	}
 
@@ -164,7 +165,7 @@ func compileForCount(b *strings.Builder, stmt *ast.ForStmt) error {
 		ctx.BreakLabel,
 	)
 
-	if err := compileStatement(b, stmt.Body); err != nil {
+	if err := t.compileStatement(b, stmt.Body); err != nil {
 		return err
 	}
 
@@ -176,25 +177,25 @@ func compileForCount(b *strings.Builder, stmt *ast.ForStmt) error {
 	return nil
 }
 
-func compileForRange(b *strings.Builder, stmt *ast.ForStmt) error {
-	rangeVar := newLabel("range")
-	keyVar := newLabel("range_key")
-	valueVar := newLabel("range_value")
+func (t *LuaTarget) compileForRange(b *strings.Builder, stmt *ast.ForStmt) error {
+	rangeVar := t.newLabel("range")
+	keyVar := t.newLabel("range_key")
+	valueVar := t.newLabel("range_value")
 
-	conditionLabel := newLabel("for_condition")
+	conditionLabel := t.newLabel("for_condition")
 
 	ctx := loopContext{
 		Label:         stmt.Label,
-		ContinueLabel: newLabel("for_continue"),
-		BreakLabel:    newLabel("for_break"),
+		ContinueLabel: t.newLabel("for_continue"),
+		BreakLabel:    t.newLabel("for_break"),
 	}
 
-	pushLoop(ctx)
-	defer popLoop()
+	t.pushLoop(ctx)
+	defer t.popLoop()
 
 	fmt.Fprintf(b, "local %s = ", rangeVar)
 
-	if err := compileExpression(b, stmt.Range); err != nil {
+	if err := t.compileExpression(b, stmt.Range); err != nil {
 		return err
 	}
 
@@ -240,7 +241,7 @@ func compileForRange(b *strings.Builder, stmt *ast.ForStmt) error {
 		}
 	}
 
-	if err := compileStatement(b, stmt.Body); err != nil {
+	if err := t.compileStatement(b, stmt.Body); err != nil {
 		return err
 	}
 
@@ -254,33 +255,33 @@ func compileForRange(b *strings.Builder, stmt *ast.ForStmt) error {
 	return nil
 }
 
-func compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) error {
-	conditionLabel := newLabel("for_condition")
+func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) error {
+	conditionLabel := t.newLabel("for_condition")
 
 	ctx := loopContext{
 		Label:         stmt.Label,
-		ContinueLabel: newLabel("for_continue"),
-		BreakLabel:    newLabel("for_break"),
+		ContinueLabel: t.newLabel("for_continue"),
+		BreakLabel:    t.newLabel("for_break"),
 	}
 
-	pushLoop(ctx)
-	defer popLoop()
+	t.pushLoop(ctx)
+	defer t.popLoop()
 
 	fmt.Fprintf(b, "local %s = ", stmt.Var)
 
 	if stmt.Start == nil {
 		b.WriteByte('1')
-	} else if err := compileExpression(b, stmt.Start); err != nil {
+	} else if err := t.compileExpression(b, stmt.Start); err != nil {
 		return err
 	}
 	b.WriteByte('\n')
 
 	fmt.Fprintf(b, "::%s::\n", conditionLabel)
 	fmt.Fprintf(b, "if %s > ", stmt.Var)
-	compileExpression(b, stmt.End)
+	t.compileExpression(b, stmt.End)
 	fmt.Fprintf(b, " then goto %s end\n", ctx.BreakLabel)
 
-	if err := compileStatement(b, stmt.Body); err != nil {
+	if err := t.compileStatement(b, stmt.Body); err != nil {
 		return err
 	}
 
@@ -290,7 +291,7 @@ func compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) error {
 
 	if stmt.Step == nil {
 		b.WriteByte('1')
-	} else if err := compileExpression(b, stmt.Step); err != nil {
+	} else if err := t.compileExpression(b, stmt.Step); err != nil {
 		return err
 	}
 	b.WriteByte('\n')
@@ -301,13 +302,13 @@ func compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) error {
 	return nil
 }
 
-func compileBreakStatement(b *strings.Builder, stmt *ast.BreakStmt) error {
+func (t *LuaTarget) compileBreakStatement(b *strings.Builder, stmt *ast.BreakStmt) error {
 	var loop *loopContext
 
 	if stmt.Label == "" {
-		loop = currentLoop()
+		loop = t.currentLoop()
 	} else {
-		loop = findLoop(stmt.Label)
+		loop = t.findLoop(stmt.Label)
 	}
 
 	if loop == nil {
@@ -319,13 +320,13 @@ func compileBreakStatement(b *strings.Builder, stmt *ast.BreakStmt) error {
 	return nil
 }
 
-func compileContinueStatement(b *strings.Builder, stmt *ast.ContinueStmt) error {
+func (t *LuaTarget) compileContinueStatement(b *strings.Builder, stmt *ast.ContinueStmt) error {
 	var loop *loopContext
 
 	if stmt.Label == "" {
-		loop = currentLoop()
+		loop = t.currentLoop()
 	} else {
-		loop = findLoop(stmt.Label)
+		loop = t.findLoop(stmt.Label)
 	}
 
 	if loop == nil {
@@ -337,21 +338,21 @@ func compileContinueStatement(b *strings.Builder, stmt *ast.ContinueStmt) error 
 	return nil
 }
 
-func compileAssignStatement(b *strings.Builder, stmt *ast.AssignStmt) error {
-	if err := compileExpression(b, stmt.Target); err != nil {
+func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignStmt) error {
+	if err := t.compileExpression(b, stmt.Target); err != nil {
 		return err
 	}
 	b.WriteString(" = ")
 
 	if stmt.Op == "=" {
-		compileExpression(b, stmt.Value)
+		t.compileExpression(b, stmt.Value)
 	} else {
 		op := stmt.Op[0]
-		if err := compileExpression(b, stmt.Target); err != nil {
+		if err := t.compileExpression(b, stmt.Target); err != nil {
 			return err
 		}
 		fmt.Fprintf(b, " %c ", op)
-		if err := compileExpression(b, stmt.Value); err != nil {
+		if err := t.compileExpression(b, stmt.Value); err != nil {
 			return err
 		}
 	}
@@ -360,12 +361,12 @@ func compileAssignStatement(b *strings.Builder, stmt *ast.AssignStmt) error {
 	return nil
 }
 
-func compileIncDecStatement(b *strings.Builder, stmt *ast.IncDecStmt) error {
-	if err := compileExpression(b, stmt.Target); err != nil {
+func (t *LuaTarget) compileIncDecStatement(b *strings.Builder, stmt *ast.IncDecStmt) error {
+	if err := t.compileExpression(b, stmt.Target); err != nil {
 		return err
 	}
 	b.WriteString(" = ")
-	if err := compileExpression(b, stmt.Target); err != nil {
+	if err := t.compileExpression(b, stmt.Target); err != nil {
 		return err
 	}
 

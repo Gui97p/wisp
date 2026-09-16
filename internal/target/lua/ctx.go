@@ -2,11 +2,9 @@ package lua
 
 import "fmt"
 
-var labelCounter uint64
-
-func newLabel(prefix string) string {
-	label := fmt.Sprintf("__wisp_%s_%d", prefix, labelCounter)
-	labelCounter++
+func (t *LuaTarget) newLabel(prefix string) string {
+	label := fmt.Sprintf("__wisp_%s_%d", prefix, t.labelCounter)
+	t.labelCounter++
 	return label
 }
 
@@ -16,28 +14,26 @@ type loopContext struct {
 	ContinueLabel string
 }
 
-var loopStack []loopContext
-
-func pushLoop(ctx loopContext) {
-	loopStack = append(loopStack, ctx)
+func (t *LuaTarget) pushLoop(ctx loopContext) {
+	t.loopStack = append(t.loopStack, ctx)
 }
 
-func popLoop() {
-	loopStack = loopStack[:len(loopStack)-1]
+func (t *LuaTarget) popLoop() {
+	t.loopStack = t.loopStack[:len(t.loopStack)-1]
 }
 
-func currentLoop() *loopContext {
-	if len(loopStack) == 0 {
+func (t *LuaTarget) currentLoop() *loopContext {
+	if len(t.loopStack) == 0 {
 		return nil
 	}
 
-	return &loopStack[len(loopStack)-1]
+	return &t.loopStack[len(t.loopStack)-1]
 }
 
-func findLoop(label string) *loopContext {
-	for i := len(loopStack) - 1; i >= 0; i-- {
-		if loopStack[i].Label == label {
-			return &loopStack[i]
+func (t *LuaTarget) findLoop(label string) *loopContext {
+	for i := len(t.loopStack) - 1; i >= 0; i-- {
+		if t.loopStack[i].Label == label {
+			return &t.loopStack[i]
 		}
 	}
 	return nil

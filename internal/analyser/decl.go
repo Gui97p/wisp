@@ -13,10 +13,10 @@ func (a *Analyser) registerConsts() {
 }
 
 func (a *Analyser) checkConstDecl(decl *ast.ConstDecl) {
-	a.checkVarsAndValues(decl.Vars, decl.Values, CONST)
+	a.checkVarsAndValues(decl.Vars, decl.Values, CONST, decl)
 }
 
-func (a *Analyser) checkVarsAndValues(vars []ast.Param, values []ast.Expression, kind SymbolKind) {
+func (a *Analyser) checkVarsAndValues(vars []ast.Param, values []ast.Expression, kind SymbolKind, node ast.Node) {
 	hasExplicitType := vars[0].Type.Name != ""
 
 	if len(values) == 0 {
@@ -29,6 +29,8 @@ func (a *Analyser) checkVarsAndValues(vars []ast.Param, values []ast.Expression,
 			if !a.scope.Define(sym) {
 				a.errorf("variable %s already declared in this scope", v.Name)
 			}
+
+			a.info.VarTypes[node] = append(a.info.VarTypes[node], t)
 		}
 		return
 	}
@@ -65,6 +67,14 @@ func (a *Analyser) checkVarsAndValues(vars []ast.Param, values []ast.Expression,
 						case !valArr.Element.Equals(declArr.Element):
 							a.errorf("array %s expects element type %s, got %s", v.Name, declArr.Element.String(), valArr.Element.String())
 						}
+					} else if declSpan, ok := declaredType.(SpanType); ok {
+						valArr, ok := valueType.(ArrayType)
+						switch {
+						case !ok:
+							a.errorf("variable %s declared as %s, got %s", v.Name, declaredType.String(), valueType.String())
+						case !valArr.Element.Equals(declSpan.Element):
+							a.errorf("span %s expects element type %s, got %s", v.Name, declSpan.Element.String(), valArr.Element.String())
+						}
 					} else if !valueType.Equals(declaredType) {
 						a.errorf("variable %s declared as %s, got %s", v.Name, declaredType.String(), valueType.String())
 					}
@@ -79,5 +89,7 @@ func (a *Analyser) checkVarsAndValues(vars []ast.Param, values []ast.Expression,
 		if !a.scope.Define(sym) {
 			a.errorf("variable %s already declared in this scope", v.Name)
 		}
+
+		a.info.VarTypes[node] = append(a.info.VarTypes[node], finalType)
 	}
 }
