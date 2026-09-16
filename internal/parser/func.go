@@ -26,9 +26,11 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 
 	if p.peek.Type == lexer.TOKEN_ARROW {
 		p.advance()
+		line, col := p.current.Line, p.current.Column
 
 		stmt := p.parseReturnStatement()
 		if stmt != nil {
+			stmt.SetPos(line, col)
 			decl.Body = &ast.BlockStmt{Statements: []ast.Statement{stmt}}
 		}
 	} else {

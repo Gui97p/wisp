@@ -15,6 +15,8 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 	left := p.parsePrefix()
 
 	for p.peek.Type != lexer.TOKEN_EOF && precedence < p.peekPrecedence() {
+		line, col := left.Position()
+
 		switch p.peek.Type {
 		case lexer.TOKEN_LPAREN:
 			p.advance()
@@ -26,12 +28,28 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 			p.advance()
 			left = p.parseInfix(left)
 		}
+
+		if left == nil {
+			return nil
+		}
+		left.SetPos(line, col)
 	}
 
 	return left
 }
 
 func (p *Parser) parsePrefix() ast.Expression {
+	line, col := p.current.Line, p.current.Column
+
+	expr := p.parsePrefixInner()
+	if expr == nil {
+		return nil
+	}
+	expr.SetPos(line, col)
+	return expr
+}
+
+func (p *Parser) parsePrefixInner() ast.Expression {
 	switch p.current.Type {
 	case lexer.TOKEN_INT_LITERAL:
 		i, _ := strconv.ParseInt(p.current.Literal, 10, 64)

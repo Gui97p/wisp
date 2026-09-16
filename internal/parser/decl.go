@@ -9,6 +9,17 @@ import (
 )
 
 func (p *Parser) parseDeclaration() ast.Declaration {
+	line, col := p.current.Line, p.current.Column
+
+	decl := p.parseDeclarationInner()
+	if decl == nil {
+		return nil
+	}
+	decl.SetPos(line, col)
+	return decl
+}
+
+func (p *Parser) parseDeclarationInner() ast.Declaration {
 	switch p.current.Type {
 	case lexer.TOKEN_CONST:
 		decl := p.parseConstDeclaration()

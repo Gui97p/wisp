@@ -5,23 +5,18 @@ import (
 	"github.com/Gui97p/wisp/internal/lexer"
 )
 
-func (p *Parser) parseBlockStatement() *ast.BlockStmt {
-	block := &ast.BlockStmt{}
+func (p *Parser) parseStatement() ast.Statement {
+	line, col := p.current.Line, p.current.Column
 
-	for p.peek.Type != lexer.TOKEN_RBRACE && p.current.Type != lexer.TOKEN_EOF {
-		p.advance()
-
-		stmt := p.parseStatement()
-
-		if stmt != nil {
-			block.Statements = append(block.Statements, stmt)
-		}
+	stmt := p.parseStatementInner()
+	if stmt == nil {
+		return nil
 	}
-
-	return block
+	stmt.SetPos(line, col)
+	return stmt
 }
 
-func (p *Parser) parseStatement() ast.Statement {
+func (p *Parser) parseStatementInner() ast.Statement {
 	var stmt ast.Statement
 
 	switch p.current.Type {
@@ -80,6 +75,22 @@ func (p *Parser) parseStatement() ast.Statement {
 		return nil
 	}
 	return stmt
+}
+
+func (p *Parser) parseBlockStatement() *ast.BlockStmt {
+	block := &ast.BlockStmt{}
+
+	for p.peek.Type != lexer.TOKEN_RBRACE && p.current.Type != lexer.TOKEN_EOF {
+		p.advance()
+
+		stmt := p.parseStatement()
+
+		if stmt != nil {
+			block.Statements = append(block.Statements, stmt)
+		}
+	}
+
+	return block
 }
 
 func (p *Parser) parseSimpleStatement() ast.Statement {
@@ -268,7 +279,11 @@ func (p *Parser) parseIfStatement() ast.Statement {
 			}
 		case lexer.TOKEN_IF:
 			p.advance()
+			line, col := p.current.Line, p.current.Column
 			stmt.Else = p.parseIfStatement()
+			if stmt.Else != nil {
+				stmt.Else.SetPos(line, col)
+			}
 		default:
 			p.error("expected statement after else")
 			return nil
