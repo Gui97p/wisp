@@ -1,6 +1,8 @@
 package lua
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -33,4 +35,12 @@ func (t *LuaTarget) Compile() (string, error) {
 	b.WriteString("os.exit(__wisp_program_exit_code)\n")
 
 	return b.String(), nil
+}
+
+func Build(luaSource, outputPath string) error {
+	if err := os.WriteFile(outputPath, []byte(luaSource), 0644); err != nil {
+		return fmt.Errorf("failed to write asm file: %w", err)
+	}
+
+	return nil
 }

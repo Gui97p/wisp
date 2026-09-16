@@ -41,7 +41,7 @@ func (t *X64Target) Compile() (string, error) {
 	return b.String(), nil
 }
 
-func Build(asmSource, outputPath string) error {
+func Build(asmSource, outputPath string, buildKeepAsm, buildKeepObj bool) error {
 	asmPath := outputPath + ".asm"
 	objPath := outputPath + ".o"
 
@@ -59,6 +59,13 @@ func Build(asmSource, outputPath string) error {
 	gccCmd.Stderr = os.Stderr
 	if err := gccCmd.Run(); err != nil {
 		return fmt.Errorf("gcc failed: %w", err)
+	}
+
+	if !buildKeepAsm {
+		os.Remove(asmPath)
+	}
+	if !buildKeepObj {
+		os.Remove(objPath)
 	}
 
 	return nil
