@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
+	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/lexer"
 	"github.com/Gui97p/wisp/internal/parser"
 	"github.com/Gui97p/wisp/internal/target"
@@ -42,28 +43,28 @@ func main() {
 		program := p.ParseProgram()
 		fmt.Println(program.Tree(""))
 		fmt.Println("\nparsing errors:")
-		p.ShowErrors()
+		diag.Render(os.Stdout, args[2], buffer, p.Errors())
 
 	case "analyzer":
 		program := p.ParseProgram()
 		fmt.Println("\nparsing errors:")
-		p.ShowErrors()
+		diag.Render(os.Stdout, args[2], buffer, p.Errors())
 		a := analyser.NewAnalyser(program)
 		a.Analyze()
 		fmt.Println("\nanalyzing errors:")
-		a.ShowErrors()
+		diag.Render(os.Stdout, args[2], buffer, a.Errors())
 
 	case "build":
 		program := p.ParseProgram()
 		if p.HasErrors() {
-			p.ShowErrors()
+			diag.Render(os.Stdout, args[2], buffer, p.Errors())
 			os.Exit(1)
 		}
 
 		a := analyser.NewAnalyser(program)
 		info := a.Analyze()
 		if a.HasErrors() {
-			a.ShowErrors()
+			diag.Render(os.Stdout, args[2], buffer, a.Errors())
 			os.Exit(1)
 		}
 
@@ -84,14 +85,14 @@ func main() {
 	case "run":
 		program := p.ParseProgram()
 		if p.HasErrors() {
-			p.ShowErrors()
+			diag.Render(os.Stdout, args[2], buffer, p.Errors())
 			os.Exit(1)
 		}
 
 		a := analyser.NewAnalyser(program)
 		info := a.Analyze()
 		if a.HasErrors() {
-			a.ShowErrors()
+			diag.Render(os.Stdout, args[2], buffer, a.Errors())
 			os.Exit(1)
 		}
 
