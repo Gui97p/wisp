@@ -64,36 +64,31 @@ func (p *Parser) parseTypePrefix() *ast.TypeRef {
 }
 
 func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
-	ref.IsArray = false
-	ref.IsSpan = false
-	ref.ArraySize = 0
+	ref.Dims = nil
 
-	if p.peek.Type != lexer.TOKEN_LBRACKET {
-		return true
-	}
-
-	p.advance()
-
-	if p.peek.Type == lexer.TOKEN_RBRACKET {
+	for p.peek.Type == lexer.TOKEN_LBRACKET {
 		p.advance()
-		ref.IsSpan = true
-		return true
+		if p.peek.Type == lexer.TOKEN_RBRACKET {
+			p.advance()
+			ref.Dims = append(ref.Dims, ast.ArrayDim{IsSpan: true})
+			continue
+		}
+
+		if !p.expect(lexer.TOKEN_INT_LITERAL) {
+			return false
+		}
+
+		num, err := strconv.ParseInt(p.current.Literal, 10, 64)
+		if err != nil {
+			return false
+		}
+
+		if !p.expect(lexer.TOKEN_RBRACKET) {
+			return false
+		}
+
+		ref.Dims = append(ref.Dims, ast.ArrayDim{Size: num})
 	}
 
-	if !p.expect(lexer.TOKEN_INT_LITERAL) {
-		return false
-	}
-
-	num, err := strconv.ParseInt(p.current.Literal, 10, 64)
-	if err != nil {
-		return false
-	}
-
-	if !p.expect(lexer.TOKEN_RBRACKET) {
-		return false
-	}
-
-	ref.IsArray = true
-	ref.ArraySize = num
 	return true
 }

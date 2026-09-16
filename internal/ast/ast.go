@@ -44,13 +44,16 @@ func (p *Program) Tree(indent string) string {
 	return b.String()
 }
 
+type ArrayDim struct {
+	IsSpan bool
+	Size   int64
+}
+
 type TypeRef struct {
 	Name         string
 	PointerDepth int
 
-	IsArray   bool
-	ArraySize int64
-	IsSpan    bool
+	Dims []ArrayDim
 
 	IsMap    bool
 	MapKey   *TypeRef
@@ -76,21 +79,24 @@ func (t *TypeRef) Tree(indent string) string {
 	fmt.Fprint(&b, t.PointerDepth)
 	b.WriteRune('\n')
 
-	b.WriteString(indent)
-	b.WriteString("└─ IsArray\n")
-	b.WriteString(indent)
-	b.WriteString("│  ")
-	if t.IsArray {
-		b.WriteString("true\n")
-
+	for k, dim := range t.Dims {
 		b.WriteString(indent)
-		b.WriteString("└─ ArraySize\n")
+		fmt.Fprintf(&b, "└─ ArrayDim(%d)\n", k)
 		b.WriteString(indent)
 		b.WriteString("│  ")
-		fmt.Fprint(&b, t.ArraySize)
+		if dim.IsSpan {
+			b.WriteString(indent)
+			b.WriteString("└─ IsSpan\n")
+			b.WriteString(indent)
+			b.WriteString("│  true")
+		} else {
+			b.WriteString(indent)
+			b.WriteString("└─ ArraySize\n")
+			b.WriteString(indent)
+			b.WriteString("│  ")
+			fmt.Fprint(&b, dim.Size)
+		}
 		b.WriteRune('\n')
-	} else {
-		b.WriteString("false\n")
 	}
 
 	b.WriteString(indent)

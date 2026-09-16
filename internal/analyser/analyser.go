@@ -68,12 +68,14 @@ func (a *Analyser) resolveTypeRef(scope *Scope, ref ast.TypeRef) Type {
 		result = symbol.Type
 	}
 
-	if ref.IsArray {
-		result = ArrayType{Element: result, Size: ref.ArraySize}
+	for i := len(ref.Dims) - 1; i >= 0; i-- {
+		if ref.Dims[i].IsSpan {
+			result = SpanType{Element: result}
+		} else {
+			result = ArrayType{Element: result, Size: ref.Dims[i].Size}
+		}
 	}
-	if ref.IsSpan {
-		result = SpanType{Element: result}
-	}
+
 	for i := 0; i < ref.PointerDepth; i++ {
 		result = PointerType{Element: result}
 	}
