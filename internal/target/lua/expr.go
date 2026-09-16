@@ -32,15 +32,7 @@ func compileExpression(b *strings.Builder, expr ast.Expression) error {
 			return fmt.Errorf("lua: unsupported unary operator %s", e.Operator)
 		}
 	case *ast.CallExpr:
-		compileExpression(b, e.Name)
-		b.WriteByte('(')
-		for k, v := range e.Args {
-			compileExpression(b, v)
-			if k != len(e.Args)-1 {
-				b.WriteByte(',')
-			}
-		}
-		b.WriteByte(')')
+		return compileCallExpression(b, e)
 	case *ast.MemberExpr:
 		compileExpression(b, e.Object)
 		fmt.Fprintf(b, ".%s", e.Field)
@@ -102,5 +94,24 @@ func compileExpression(b *strings.Builder, expr ast.Expression) error {
 	default:
 		return fmt.Errorf("lua: unsupported expression %T", expr)
 	}
+	return nil
+}
+
+func compileCallExpression(b *strings.Builder, expr *ast.CallExpr) error {
+	if ident, ok := expr.Name.(*ast.IdentLiteral); ok {
+		if _, ok := getBuiltin(ident.Value); ok {
+			return compileBuiltinCall(b, ident.Value, expr.Args)
+		}
+	}
+
+	compileExpression(b, expr.Name)
+	b.WriteByte('(')
+	for k, v := range expr.Args {
+		compileExpression(b, v)
+		if k != len(expr.Args)-1 {
+			b.WriteByte(',')
+		}
+	}
+	b.WriteByte(')')
 	return nil
 }
