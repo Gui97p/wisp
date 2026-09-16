@@ -19,8 +19,8 @@ func compileStatement(b *strings.Builder, stmt ast.Statement) error {
 		return compileExpressionStatement(b, s)
 	case *ast.IfStmt:
 		return compileIfStatement(b, s)
-	// case *ast.ForStmt:
-	// 	return compileForStatement(b, s)
+	case *ast.ForStmt:
+		return compileForStatement(b, s)
 	// case *ast.LoopStmt:
 	// 	return compileLoopStatement(b, s)
 	// case *ast.BreakStmt:
@@ -99,6 +99,185 @@ func compileIfStatement(b *strings.Builder, stmt *ast.IfStmt) error {
 	}
 
 	b.WriteString("end\n")
+
+	return nil
+}
+
+func compileForStatement(b *strings.Builder, stmt *ast.ForStmt) error {
+	switch {
+	case stmt.Range != nil:
+		return compileForRange(b, stmt)
+
+	case stmt.Start != nil:
+		return compileForNumeric(b, stmt)
+
+	default:
+		return compileForCount(b, stmt)
+	}
+
+}
+
+func compileForCount(b *strings.Builder, stmt *ast.ForStmt) error {
+	countVar := newLabel("count")
+	conditionLabel := newLabel("for_condition")
+
+	ctx := loopContext{
+		Label:         stmt.Label,
+		ContinueLabel: newLabel("for_continue"),
+		BreakLabel:    newLabel("for_break"),
+	}
+
+	pushLoop(ctx)
+	defer popLoop()
+
+	fmt.Fprintf(b, "local %s = ", countVar)
+
+	if err := compileExpression(b, stmt.End); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(b, "\n::%s::\n", conditionLabel)
+
+	fmt.Fprintf(
+		b,
+		"if %s <= 0 then goto %s end\n",
+		countVar,
+		ctx.BreakLabel,
+	)
+
+	if err := compileStatement(b, stmt.Body); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
+	fmt.Fprintf(b, "%s = %s - 1\n", countVar, countVar)
+	fmt.Fprintf(b, "goto %s\n", conditionLabel)
+	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
+
+	return nil
+}
+
+func compileForRange(b *strings.Builder, stmt *ast.ForStmt) error {
+	rangeVar := newLabel("range")
+	keyVar := newLabel("range_key")
+	valueVar := newLabel("range_value")
+
+	conditionLabel := newLabel("for_condition")
+
+	ctx := loopContext{
+		Label:         stmt.Label,
+		ContinueLabel: newLabel("for_continue"),
+		BreakLabel:    newLabel("for_break"),
+	}
+
+	pushLoop(ctx)
+	defer popLoop()
+
+	fmt.Fprintf(b, "local %s = ", rangeVar)
+
+	if err := compileExpression(b, stmt.Range); err != nil {
+		return err
+	}
+
+	b.WriteByte('\n')
+
+	fmt.Fprintf(b, "local %s = nil\n", keyVar)
+	fmt.Fprintf(b, "local %s = nil\n", valueVar)
+
+	if stmt.Var != "" {
+		fmt.Fprintf(b, "local %s = nil\n", stmt.Var)
+	}
+
+	if stmt.Var2 != "" {
+		fmt.Fprintf(b, "local %s = nil\n", stmt.Var2)
+	}
+
+	fmt.Fprintf(b, "::%s::\n", conditionLabel)
+
+	fmt.Fprintf(
+		b,
+		"%s, %s = next(%s, %s)\n",
+		keyVar,
+		valueVar,
+		rangeVar,
+		keyVar,
+	)
+
+	fmt.Fprintf(
+		b,
+		"if %s == nil then goto %s end\n",
+		keyVar,
+		ctx.BreakLabel,
+	)
+
+	b.WriteString("do\n")
+
+	if stmt.Var != "" {
+		if stmt.Var2 != "" {
+			fmt.Fprintf(b, "%s = %s\n", stmt.Var, keyVar)
+			fmt.Fprintf(b, "%s = %s\n", stmt.Var2, valueVar)
+		} else {
+			fmt.Fprintf(b, "%s = %s\n", stmt.Var, keyVar)
+		}
+	}
+
+	if err := compileStatement(b, stmt.Body); err != nil {
+		return err
+	}
+
+	b.WriteString("end\n")
+
+	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
+	fmt.Fprintf(b, "goto %s\n", conditionLabel)
+
+	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
+
+	return nil
+}
+
+func compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) error {
+	conditionLabel := newLabel("for_condition")
+
+	ctx := loopContext{
+		Label:         stmt.Label,
+		ContinueLabel: newLabel("for_continue"),
+		BreakLabel:    newLabel("for_break"),
+	}
+
+	pushLoop(ctx)
+	defer popLoop()
+
+	fmt.Fprintf(b, "local %s = ", stmt.Var)
+
+	if stmt.Start == nil {
+		b.WriteByte('1')
+	} else if err := compileExpression(b, stmt.Start); err != nil {
+		return err
+	}
+	b.WriteByte('\n')
+
+	fmt.Fprintf(b, "::%s::\n", conditionLabel)
+	fmt.Fprintf(b, "if %s > ", stmt.Var)
+	compileExpression(b, stmt.End)
+	fmt.Fprintf(b, " then goto %s end", ctx.BreakLabel)
+
+	if err := compileStatement(b, stmt.Body); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(b, "::%s::", ctx.ContinueLabel)
+
+	fmt.Fprintf(b, "%s = %s + ", stmt.Var, stmt.Var)
+
+	if stmt.Step == nil {
+		b.WriteByte('1')
+	} else if err := compileExpression(b, stmt.Step); err != nil {
+		return err
+	}
+	b.WriteByte('\n')
+
+	fmt.Fprintf(b, "goto %s\n", conditionLabel)
+	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
 
 	return nil
 }
