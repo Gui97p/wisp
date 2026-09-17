@@ -218,6 +218,23 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 	argTypes := a.evalArgTypes(expr)
 
+	if ft.Name == "len" {
+		if len(argTypes) != 1 {
+			a.errorf(expr, "len expects 1 argument, got %d", len(argTypes))
+			return
+		}
+		switch t := argTypes[0].(type) {
+		case ArrayType, SpanType, InvalidType:
+		case PrimitiveType:
+			if t.Name != "string" {
+				a.errorf(expr, "len expects array, span or string, got %s", argTypes[0])
+			}
+		default:
+			a.errorf(expr, "len expects array, span or string, got %s", argTypes[0])
+		}
+		return
+	}
+
 	if ft.Variadic {
 		fixedCount := len(ft.Params) - 1
 		if len(argTypes) < fixedCount {

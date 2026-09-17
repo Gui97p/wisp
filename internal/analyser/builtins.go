@@ -12,6 +12,9 @@ func (a *Analyser) registerBuiltins() {
 		Name: "emitf", Params: []Type{strType, AnyType{}}, Returns: nil, Variadic: true,
 	}})
 
+	a.scope.Define(&Symbol{Name: "len", Kind: FUNC, Type: &FuncType{
+		Name: "len", Params: []Type{AnyType{}}, Returns: []Type{intType},
+	}})
 	a.scope.Define(&Symbol{Name: "random", Kind: FUNC, Type: &FuncType{
 		Name: "random", Params: nil, Returns: []Type{floatType},
 	}})
