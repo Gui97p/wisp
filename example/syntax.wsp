@@ -10,7 +10,7 @@ func sum(int ...nums) int {
 
 // Struct declarations
 struct Point {
-  int x, y
+  int x, y;
 }
 
 /*

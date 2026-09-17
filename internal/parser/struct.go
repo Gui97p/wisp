@@ -80,6 +80,10 @@ func (p *Parser) parseStructParamList() []ast.Param {
 				Type: currentType,
 			})
 		}
+
+		if !p.expect(lexer.TOKEN_SEMICOLON) {
+			return nil
+		}
 	}
 
 	return params

@@ -93,7 +93,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 
 func runRun(cmd *cobra.Command, args []string) error {
 	inputPath := args[0]
-	_, err := os.ReadFile(inputPath)
+	_, err := os.Stat(inputPath)
 	if err != nil {
 		return err
 	}
