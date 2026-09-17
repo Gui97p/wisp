@@ -52,6 +52,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkTernaryExpr(e)
 	case *ast.CastExpr:
 		t = a.checkCastExpr(e)
+	case *ast.StructLiteral:
+		t = a.checkStructLiteral(e)
 	default:
 		t = InvalidType{}
 	}
@@ -201,13 +203,11 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 	case *FuncType:
 		a.checkCallArgs(expr, ct)
 		return ct.Returns
-	case *StructType:
-		return a.checkStructConstruction(expr, ct)
 	case *InvalidType:
 		a.evalArgTypes(expr)
 		return nil
 	default:
-		a.errorf(expr, "%s is not a function or struct", nameType.String())
+		a.errorf(expr, "%s is not a function", nameType.String())
 		a.evalArgTypes(expr)
 		return nil
 	}

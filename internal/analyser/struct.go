@@ -50,23 +50,41 @@ func (a *Analyser) registerStructFields() {
 	}
 }
 
-func (a *Analyser) checkStructConstruction(expr *ast.CallExpr, st *StructType) []Type {
-	argTypes := a.evalArgTypes(expr)
-
-	if len(argTypes) != len(st.Order) {
-		a.errorf(expr, "struct %s expects %d fields, got %d", st.Name, len(st.Order), len(argTypes))
+func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
+	symbol, ok := a.scope.Resolve(expr.Name)
+	if !ok {
+		a.errorf(expr, "unknown type %s", expr.Name)
+		return InvalidType{}
 	}
 
-	for i, at := range argTypes {
-		if _, ok := at.(InvalidType); ok {
+	st, ok := symbol.Type.(*StructType)
+	if !ok {
+		a.errorf(expr, "%s is not a struct", expr.Name)
+		return InvalidType{}
+	}
+
+	seen := make(map[string]bool)
+	for i, key := range expr.Keys {
+		valueType := a.checkExpr(expr.Values[i])
+
+		fieldType, ok := st.Fields[key]
+		if !ok {
+			a.errorf(expr, "unknown field %s in struct %s", key, st.Name)
 			continue
 		}
-		fieldName := st.Order[i]
-		fieldType := st.Fields[fieldName]
-		if !at.Equals(fieldType) {
-			a.errorf(expr, "field %d (%s) from %s expected %s, got %s", i+1, fieldName, st.Name, fieldType.String(), at.String())
+		if seen[key] {
+			a.errorf(expr, "duplicated field %s in struct literal", key)
+			continue
+		}
+		seen[key] = true
+
+		if _, invalid := valueType.(InvalidType); invalid {
+			continue
+		}
+		if !valueType.Equals(fieldType) {
+			a.errorf(expr, "field %s expects %s, got %s", key, fieldType.String(), valueType.String())
 		}
 	}
 
-	return []Type{st}
+	return st
 }
