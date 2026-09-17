@@ -17,6 +17,8 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 			b.WriteString(" and ")
 		case "||":
 			b.WriteString(" or ")
+		case "!=":
+			b.WriteString("~=")
 		default:
 			b.WriteString(e.Operator)
 		}
@@ -79,6 +81,8 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 			}
 		}
 		b.WriteByte('}')
+	case *ast.StructLiteral:
+		return t.compileStructLiteral(b, e)
 	case *ast.IdentLiteral:
 		b.WriteString(e.Value)
 	case *ast.StringLiteral:
@@ -99,22 +103,50 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 	return nil
 }
 
-func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr) error {
-	constructor := false
+func (t *LuaTarget) compileStructLiteral(b *strings.Builder, expr *ast.StructLiteral) error {
+	st, ok := t.info.Types[expr].(*analyser.StructType)
+	if !ok {
+		return fmt.Errorf("lua: struct literal %s missing resolved type", expr.Name)
+	}
 
+	given := make(map[string]ast.Expression, len(expr.Keys))
+	for i, k := range expr.Keys {
+		given[k] = expr.Values[i]
+	}
+
+	b.WriteByte('{')
+	for i, field := range st.Order {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		fmt.Fprintf(b, "%s=", field)
+
+		if v, ok := given[field]; ok {
+			if err := t.compileExpression(b, v); err != nil {
+				return err
+			}
+			continue
+		}
+
+		zv, err := zeroValue(st.Fields[field])
+		if err != nil {
+			return err
+		}
+		b.WriteString(zv)
+	}
+	b.WriteByte('}')
+
+	return nil
+}
+
+func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr) error {
 	if ident, ok := expr.Name.(*ast.IdentLiteral); ok {
 		if _, ok := t.getBuiltin(ident.Value); ok {
 			return t.compileBuiltinCall(b, ident.Value, expr.Args)
 		}
-		if symbol, ok := t.info.Idents[ident]; ok {
-			constructor = symbol.Kind == analyser.STRUCT
-		}
 	}
 
 	t.compileExpression(b, expr.Name)
-	if constructor {
-		b.WriteString(".New")
-	}
 	b.WriteByte('(')
 	for k, v := range expr.Args {
 		t.compileExpression(b, v)
