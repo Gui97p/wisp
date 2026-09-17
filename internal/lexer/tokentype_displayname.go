@@ -61,6 +61,8 @@ func (t TokenType) DisplayName() string {
 		return "func"
 	case TOKEN_STRUCT:
 		return "struct"
+	case TOKEN_TYPE:
+		return "type"
 	case TOKEN_IF:
 		return "if"
 	case TOKEN_ELSE:

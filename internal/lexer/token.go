@@ -41,6 +41,7 @@ const (
 	TOKEN_CONST
 	TOKEN_FUNC
 	TOKEN_STRUCT
+	TOKEN_TYPE
 
 	TOKEN_IF
 	TOKEN_ELSE
@@ -118,6 +119,7 @@ var keywords = map[string]TokenType{
 	"const":    TOKEN_CONST,
 	"func":     TOKEN_FUNC,
 	"struct":   TOKEN_STRUCT,
+	"type":     TOKEN_TYPE,
 	"if":       TOKEN_IF,
 	"else":     TOKEN_ELSE,
 	"for":      TOKEN_FOR,
