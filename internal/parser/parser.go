@@ -13,10 +13,12 @@ type Parser struct {
 	peek    lexer.Token
 
 	errors diag.List
+
+	allowStructLiteral bool
 }
 
 func NewParser(l *lexer.Lexer) *Parser {
-	p := &Parser{l: l}
+	p := &Parser{l: l, allowStructLiteral: true}
 
 	p.advance()
 	p.advance()

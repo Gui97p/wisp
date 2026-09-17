@@ -45,6 +45,7 @@ var precedences = map[lexer.TokenType]Precedence{
 
 	lexer.TOKEN_AS:       CAST,
 	lexer.TOKEN_LPAREN:   CALL,
+	lexer.TOKEN_LBRACE:   CALL,
 	lexer.TOKEN_LBRACKET: INDEX,
 	lexer.TOKEN_DOT:      MEMBER,
 }

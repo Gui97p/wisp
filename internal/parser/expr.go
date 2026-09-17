@@ -24,6 +24,12 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 		case lexer.TOKEN_LBRACKET:
 			p.advance()
 			left = p.parseIndexExpression(left)
+		case lexer.TOKEN_LBRACE:
+			if !p.allowStructLiteral {
+				return left
+			}
+			p.advance()
+			left = p.parseStructLiteral(left)
 		default:
 			p.advance()
 			left = p.parseInfix(left)
@@ -150,7 +156,10 @@ func (p *Parser) parseBinaryExpression(left ast.Expression) ast.Expression {
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.advance()
 
+	prev := p.allowStructLiteral
+	p.allowStructLiteral = true
 	expr := p.parseExpression()
+	p.allowStructLiteral = prev
 
 	if !p.expect(lexer.TOKEN_RPAREN) {
 		p.errorExpected(lexer.TOKEN_RPAREN, p.current.Type)
@@ -186,7 +195,10 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 	}
 
 	p.advance()
+	prev := p.allowStructLiteral
+	p.allowStructLiteral = true
 	arg := p.parseExpression()
+	p.allowStructLiteral = prev
 	if arg == nil {
 		return nil
 	}
@@ -195,7 +207,10 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
 		p.advance()
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = true
 		arg := p.parseExpression()
+		p.allowStructLiteral = prev
 		if arg == nil {
 			return nil
 		}
@@ -211,7 +226,10 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 
 func (p *Parser) parseIndexExpression(array ast.Expression) ast.Expression {
 	p.advance()
+	prev := p.allowStructLiteral
+	p.allowStructLiteral = true
 	index := p.parseExpression()
+	p.allowStructLiteral = prev
 	if index == nil {
 		return nil
 	}
@@ -232,7 +250,10 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	}
 
 	p.advance()
+	prev := p.allowStructLiteral
+	p.allowStructLiteral = true
 	el := p.parseExpression()
+	p.allowStructLiteral = prev
 	if el == nil {
 		return nil
 	}
@@ -241,7 +262,10 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
 		p.advance()
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = true
 		el := p.parseExpression()
+		p.allowStructLiteral = prev
 		if el == nil {
 			return nil
 		}
@@ -264,7 +288,10 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 	}
 
 	p.advance()
+	prev := p.allowStructLiteral
+	p.allowStructLiteral = true
 	key := p.parseExpression()
+	p.allowStructLiteral = prev
 	if key == nil {
 		return nil
 	}
@@ -273,7 +300,10 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 	}
 	p.advance()
 
+	prev = p.allowStructLiteral
+	p.allowStructLiteral = true
 	value := p.parseExpression()
+	p.allowStructLiteral = prev
 	if value == nil {
 		return nil
 	}
@@ -283,7 +313,10 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
 		p.advance()
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = true
 		key := p.parseExpression()
+		p.allowStructLiteral = prev
 		if key == nil {
 			return nil
 		}
@@ -291,7 +324,10 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 			return nil
 		}
 		p.advance()
+		prev = p.allowStructLiteral
+		p.allowStructLiteral = true
 		value := p.parseExpression()
+		p.allowStructLiteral = prev
 		if value == nil {
 			return nil
 		}
@@ -304,6 +340,47 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 	}
 
 	return m
+}
+
+func (p *Parser) parseStructLiteral(left ast.Expression) ast.Expression {
+	ident, ok := left.(*ast.IdentLiteral)
+	if !ok {
+		p.error("expected identifier before {")
+		return nil
+	}
+	lit := &ast.StructLiteral{Name: ident.Value}
+
+	if p.peek.Type == lexer.TOKEN_RBRACE {
+		p.advance()
+		return lit
+	}
+
+	for {
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil
+		}
+		key := p.current.Literal
+		if !p.expect(lexer.TOKEN_COLON) {
+			return nil
+		}
+		p.advance()
+		value := p.parseExpression()
+		if value == nil {
+			return nil
+		}
+		lit.Keys = append(lit.Keys, key)
+		lit.Values = append(lit.Values, value)
+
+		if p.peek.Type != lexer.TOKEN_COMMA {
+			break
+		}
+		p.advance()
+	}
+
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+	return lit
 }
 
 func (p *Parser) parseTernaryExpr(left ast.Expression) ast.Expression {

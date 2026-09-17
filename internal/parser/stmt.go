@@ -284,7 +284,10 @@ func (p *Parser) parseIfStatement() ast.Statement {
 	stmt := &ast.IfStmt{}
 
 	p.advance()
+	prev := p.allowStructLiteral
+	p.allowStructLiteral = false
 	stmt.Condition = p.parseExpression()
+	p.allowStructLiteral = prev
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
@@ -352,32 +355,47 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 			return nil
 		}
 		p.advance()
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = false
 		stmt.Range = p.parseExpression()
+		p.allowStructLiteral = prev
 
 	case p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_IN:
 		stmt.Var = p.current.Literal
 		p.advance()
 		p.advance()
 
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = false
 		expr := p.parseExpression()
+		p.allowStructLiteral = prev
 
 		if p.peek.Type == lexer.TOKEN_RANGE {
 			stmt.Start = expr
 			p.advance()
 			p.advance()
+			prev := p.allowStructLiteral
+			p.allowStructLiteral = false
 			stmt.End = p.parseExpression()
+			p.allowStructLiteral = prev
 
 			if p.peek.Type == lexer.TOKEN_COLON {
 				p.advance()
 				p.advance()
+				prev := p.allowStructLiteral
+				p.allowStructLiteral = false
 				stmt.Step = p.parseExpression()
+				p.allowStructLiteral = prev
 			}
 		} else {
 			stmt.Range = expr
 		}
 
 	default:
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = false
 		stmt.End = p.parseExpression()
+		p.allowStructLiteral = prev
 	}
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
@@ -397,7 +415,10 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 
 	if p.peek.Type != lexer.TOKEN_LBRACE {
 		p.advance()
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = false
 		stmt.Condition = p.parseExpression()
+		p.allowStructLiteral = prev
 	}
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
@@ -412,7 +433,10 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 	if p.peek.Type == lexer.TOKEN_UNTIL {
 		p.advance()
 		p.advance()
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = false
 		stmt.UntilCondition = p.parseExpression()
+		p.allowStructLiteral = prev
 		if stmt.UntilCondition == nil {
 			return nil
 		}
