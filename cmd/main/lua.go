@@ -55,6 +55,7 @@ func runLua(cmd *cobra.Command, args []string) error {
 	info := a.Analyze()
 	if a.HasErrors() {
 		diag.Render(os.Stdout, inputPath, buffer, a.Errors())
+		os.Exit(1)
 	}
 
 	backend := lua.New(program, info)

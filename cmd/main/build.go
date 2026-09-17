@@ -18,7 +18,6 @@ var (
 	buildOutDir  string
 	buildKeepAsm bool
 	buildKeepObj bool
-	buildRun     bool
 )
 
 var buildCmd = &cobra.Command{
@@ -29,6 +28,14 @@ var buildCmd = &cobra.Command{
 	SilenceUsage: true,
 }
 
+var runCmd = &cobra.Command{
+	Use:          "run <file.wsp>",
+	Short:        "Compiles to a native x64 and automatically run after",
+	Args:         cobra.ExactArgs(1),
+	RunE:         runRun,
+	SilenceUsage: true,
+}
+
 func init() {
 	f := buildCmd.Flags()
 
@@ -36,7 +43,10 @@ func init() {
 	f.StringVar(&buildOutDir, "dir", "bin", "output directory")
 	f.BoolVar(&buildKeepAsm, "asm", false, "keep the generated .asm file")
 	f.BoolVar(&buildKeepObj, "obj", false, "keep the generated .o file")
-	f.BoolVarP(&buildRun, "run", "r", false, "run the binary after building")
+
+	f = runCmd.Flags()
+	f.StringVarP(&buildOutput, "output", "o", "", "output binary name")
+	f.StringVar(&buildOutDir, "dir", "bin", "output directory")
 }
 
 func runBuild(cmd *cobra.Command, args []string) error {
@@ -59,6 +69,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	info := a.Analyze()
 	if a.HasErrors() {
 		diag.Render(os.Stdout, inputPath, buffer, a.Errors())
+		os.Exit(1)
 	}
 
 	backend := x64.New(program, info)
@@ -77,11 +88,28 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("[%s] built: %s\n", backend.Name(), outputPath)
 
-	if buildRun {
-		runCmd := exec.Command("./" + outputPath)
-		runCmd.Stdout, runCmd.Stderr = os.Stdout, os.Stderr
-		return runCmd.Run()
+	return nil
+}
+
+func runRun(cmd *cobra.Command, args []string) error {
+	inputPath := args[0]
+	_, err := os.ReadFile(inputPath)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	buildKeepAsm, buildKeepObj = false, false
+
+	outputPath, err := resolveOutput(inputPath, buildOutput, buildOutDir, "")
+	if err != nil {
+		return err
+	}
+
+	if err := runBuild(cmd, args); err != nil {
+		return err
+	}
+
+	run := exec.Command("./" + outputPath)
+	run.Stdout, run.Stderr = os.Stdout, os.Stderr
+	return run.Run()
 }
