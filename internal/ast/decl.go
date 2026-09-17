@@ -105,6 +105,24 @@ func (s *StructDecl) Tree(indent string) string {
 	return b.String()
 }
 
+type TypeDecl struct {
+	Name       string
+	Underlying TypeRef
+	Exported   bool
+
+	NodePos
+}
+
+func (*TypeDecl) decl() {}
+func (t *TypeDecl) Tree(indent string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%sTypeDecl(%s)\n", indent, t.Name)
+	b.WriteString(indent)
+	b.WriteString("└─ Underlying\n")
+	b.WriteString(t.Underlying.Tree(indent + "   "))
+	return b.String()
+}
+
 type ImportDecl struct {
 	Path  string
 	Alias string
