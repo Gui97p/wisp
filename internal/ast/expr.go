@@ -112,6 +112,51 @@ func (i *IndexExpr) Tree(indent string) string {
 	return b.String()
 }
 
+type SliceExpr struct {
+	Array Expression
+	Start Expression
+	End   Expression
+
+	NodePos
+}
+
+func (*SliceExpr) expr() {}
+func (s *SliceExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sSliceExpr\n", indent)
+
+	if s.Start == nil && s.End == nil {
+		b.WriteString(indent)
+		b.WriteString("└─ Array\n")
+		b.WriteString(s.Array.Tree(indent + "   "))
+	} else {
+		b.WriteString(indent)
+		b.WriteString("├─ Array\n")
+		b.WriteString(s.Array.Tree(indent + "│  "))
+	}
+
+	if s.Start != nil {
+		if s.End == nil {
+			b.WriteString(indent)
+			b.WriteString("└─ Start\n")
+			b.WriteString(s.Start.Tree(indent + "   "))
+		} else {
+			b.WriteString(indent)
+			b.WriteString("├─ Start\n")
+			b.WriteString(s.Start.Tree(indent + "│  "))
+		}
+	}
+
+	if s.End != nil {
+		b.WriteString(indent)
+		b.WriteString("└─ End\n")
+		b.WriteString(s.End.Tree(indent + "   "))
+	}
+
+	return b.String()
+}
+
 func (*MemberExpr) expr() {}
 func (m *MemberExpr) Tree(indent string) string {
 	var b strings.Builder
