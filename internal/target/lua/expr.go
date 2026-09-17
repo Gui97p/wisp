@@ -44,6 +44,9 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 		b.WriteByte('[')
 		t.compileExpression(b, e.Index)
 		b.WriteByte(']')
+	case *ast.SliceExpr:
+		return t.compileSliceExpression(b, e)
+
 	case *ast.TernaryExpr:
 		b.WriteByte('(')
 		t.compileExpression(b, e.Condition)
@@ -153,6 +156,60 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 		if k != len(expr.Args)-1 {
 			b.WriteByte(',')
 		}
+	}
+	b.WriteByte(')')
+	return nil
+}
+
+func (t *LuaTarget) compileSliceExpression(b *strings.Builder, expr *ast.SliceExpr) error {
+	if pt, ok := t.info.Types[expr].(analyser.PrimitiveType); ok && pt.Name == "string" {
+		b.WriteString("string.sub(")
+		if err := t.compileExpression(b, expr.Array); err != nil {
+			return err
+		}
+		b.WriteString(", ")
+		if expr.Start != nil {
+			b.WriteByte('(')
+			if err := t.compileExpression(b, expr.Start); err != nil {
+				return err
+			}
+			b.WriteString(")+1")
+		} else {
+			b.WriteByte('1')
+		}
+		if expr.End != nil {
+			b.WriteString(", ")
+			if err := t.compileExpression(b, expr.End); err != nil {
+				return err
+			}
+		}
+		b.WriteByte(')')
+		return nil
+	}
+
+	b.WriteString("__wisp_slice(")
+	if err := t.compileExpression(b, expr.Array); err != nil {
+		return err
+	}
+	b.WriteString(", ")
+	if expr.Start != nil {
+		if err := t.compileExpression(b, expr.Start); err != nil {
+			return err
+		}
+	} else {
+		b.WriteByte('0')
+	}
+	b.WriteString(", ")
+	if expr.End != nil {
+		if err := t.compileExpression(b, expr.End); err != nil {
+			return err
+		}
+	} else {
+		b.WriteString("__wisp_len(")
+		if err := t.compileExpression(b, expr.Array); err != nil {
+			return err
+		}
+		b.WriteByte(')')
 	}
 	b.WriteByte(')')
 	return nil

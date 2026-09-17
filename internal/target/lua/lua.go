@@ -26,6 +26,7 @@ func (*LuaTarget) Name() string {
 
 func (t *LuaTarget) Compile() (string, error) {
 	var b strings.Builder
+	b.WriteString(runtimePrelude)
 
 	if err := t.compileDeclarations(&b, t.program.Declarations); err != nil {
 		return "", err

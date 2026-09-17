@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
@@ -13,6 +14,8 @@ func (t *LuaTarget) getBuiltin(name string) (func(*strings.Builder, []ast.Expres
 		return t.compileEmit, true
 	case "emitf":
 		return t.compileEmitf, true
+	case "len":
+		return t.compileLen, true
 	case "random":
 		return t.compileRandom, true
 	default:
@@ -60,6 +63,20 @@ func (t *LuaTarget) compileEmitf(b *strings.Builder, args []ast.Expression) erro
 	}
 
 	b.WriteString("))\n")
+	return nil
+}
+
+func (t *LuaTarget) compileLen(b *strings.Builder, args []ast.Expression) error {
+	if pt, ok := t.info.Types[args[0]].(analyser.PrimitiveType); ok && pt.Name == "string" {
+		b.WriteByte('#')
+		return t.compileExpression(b, args[0])
+	}
+
+	b.WriteString("__wisp_len(")
+	if err := t.compileExpression(b, args[0]); err != nil {
+		return err
+	}
+	b.WriteByte(')')
 	return nil
 }
 
