@@ -85,6 +85,9 @@ func (UntypedIntType) String() string {
 	return "untyped int"
 }
 func (UntypedIntType) Equals(other Type) bool {
+	if nt, ok := other.(NamedType); ok {
+		return isNumeric(nt.Underlying)
+	}
 	return isNumeric(other)
 }
 
@@ -94,6 +97,9 @@ func (UntypedFloatType) String() string {
 	return "untyped float"
 }
 func (UntypedFloatType) Equals(other Type) bool {
+	if nt, ok := other.(NamedType); ok {
+		return nt.Underlying.Equals(PrimitiveType{Name: "float32"}) || nt.Underlying.Equals(PrimitiveType{Name: "float64"})
+	}
 	p, ok := other.(PrimitiveType)
 	if !ok {
 		return false
@@ -128,7 +134,7 @@ type ArrayType struct {
 }
 
 func (a ArrayType) String() string {
-	return fmt.Sprintf("%s[%d]", a.Element.String(), a.Size)
+	return fmt.Sprintf("%s[%d]", a.Element, a.Size)
 }
 
 func (a ArrayType) Equals(other Type) bool {
@@ -161,7 +167,7 @@ type MapType struct {
 }
 
 func (m *MapType) String() string {
-	return fmt.Sprintf("map[%s]%s", m.Key.String(), m.Value.String())
+	return fmt.Sprintf("map[%s]%s", m.Key, m.Value)
 }
 
 func (m *MapType) Equals(other Type) bool {
@@ -170,6 +176,27 @@ func (m *MapType) Equals(other Type) bool {
 		return false
 	}
 	return m.Key.Equals(o.Key) && m.Value.Equals(o.Value)
+}
+
+type NamedType struct {
+	Name       string
+	Underlying Type
+}
+
+func (n NamedType) String() string {
+	return n.Name
+}
+
+func (n NamedType) Equals(other Type) bool {
+	if _, ok := other.(UntypedIntType); ok {
+		return isNumeric(n.Underlying)
+	}
+	if _, ok := other.(UntypedFloatType); ok {
+		return n.Underlying.Equals(PrimitiveType{Name: "float32"}) || n.Underlying.Equals(PrimitiveType{Name: "float64"})
+	}
+
+	o, ok := other.(NamedType)
+	return ok && n.Name == o.Name
 }
 
 type StructType struct {

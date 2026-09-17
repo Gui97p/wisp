@@ -2,6 +2,31 @@ package analyser
 
 import "github.com/Gui97p/wisp/internal/ast"
 
+func (a *Analyser) registerTypeAliases() {
+	for _, d := range a.program.Declarations {
+		td, ok := d.(*ast.TypeDecl)
+		if !ok {
+			continue
+		}
+
+		underlyingType := a.resolveTypeRef(td, a.scope, td.Underlying)
+		if underlyingType == nil {
+			continue
+		}
+
+		nt := NamedType{
+			Name:       td.Name,
+			Underlying: underlyingType,
+		}
+
+		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt}
+
+		if !a.scope.Define(symbol) {
+			a.errorAlreadyDeclared(td, TYPE, td.Name)
+		}
+	}
+}
+
 func (a *Analyser) registerConsts() {
 	for _, d := range a.program.Declarations {
 		cd, ok := d.(*ast.ConstDecl)

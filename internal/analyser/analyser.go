@@ -1,6 +1,8 @@
 package analyser
 
 import (
+	"slices"
+
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
 )
@@ -27,6 +29,7 @@ func NewAnalyser(program *ast.Program) *Analyser {
 
 func (a *Analyser) Analyze() *Info {
 	a.registerStructNames()
+	a.registerTypeAliases()
 	a.registerStructFields()
 	a.registerBuiltins()
 	a.registerFuncSignatures()
@@ -62,18 +65,20 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 			a.errorf(node, "unknown type %s", ref.Name)
 			return nil
 		}
-		if symbol.Kind != STRUCT {
+		switch symbol.Kind {
+		case STRUCT, TYPE:
+			result = symbol.Type
+		default:
 			a.errorf(node, "%s is not a type", ref.Name)
 			return nil
 		}
-		result = symbol.Type
 	}
 
-	for i := len(ref.Dims) - 1; i >= 0; i-- {
-		if ref.Dims[i].IsSpan {
+	for _, v := range slices.Backward(ref.Dims) {
+		if v.IsSpan {
 			result = SpanType{Element: result}
 		} else {
-			result = ArrayType{Element: result, Size: ref.Dims[i].Size}
+			result = ArrayType{Element: result, Size: v.Size}
 		}
 	}
 

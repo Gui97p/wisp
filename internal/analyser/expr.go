@@ -380,6 +380,13 @@ func (a *Analyser) checkCastExpr(expr *ast.CastExpr) Type {
 		}
 	}
 
+	if nt, ok := valueType.(NamedType); ok && nt.Underlying.Equals(targetType) {
+		return targetType
+	}
+	if nt, ok := targetType.(NamedType); ok && nt.Underlying.Equals(valueType) {
+		return targetType
+	}
+
 	a.errorf(expr, "cannot cast %s to %s", valueType.String(), targetType.String())
 	return InvalidType{}
 }

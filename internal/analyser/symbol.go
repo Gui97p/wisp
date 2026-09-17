@@ -8,6 +8,7 @@ const (
 	PARAM
 	FUNC
 	STRUCT
+	TYPE
 )
 
 func (s SymbolKind) String() string {
@@ -22,6 +23,8 @@ func (s SymbolKind) String() string {
 		return "function"
 	case STRUCT:
 		return "struct"
+	case TYPE:
+		return "type"
 	default:
 		return "unknown"
 	}
