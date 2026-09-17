@@ -20,6 +20,8 @@ func (p *Parser) parseStatementInner() ast.Statement {
 	var stmt ast.Statement
 
 	switch p.current.Type {
+	case lexer.TOKEN_CONST:
+		stmt = p.parseConstStatement()
 	case lexer.TOKEN_LET,
 		lexer.TOKEN_INT,
 		lexer.TOKEN_INT8,
@@ -74,6 +76,20 @@ func (p *Parser) parseStatementInner() ast.Statement {
 	if stmt == nil {
 		return nil
 	}
+	return stmt
+}
+
+func (p *Parser) parseConstStatement() ast.Statement {
+	stmt := &ast.ConstStmt{}
+
+	vars, values := p.parseConst()
+	if vars == nil || values == nil {
+		return nil
+	}
+
+	stmt.Vars = vars
+	stmt.Values = values
+
 	return stmt
 }
 

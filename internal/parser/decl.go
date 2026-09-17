@@ -113,64 +113,14 @@ func (p *Parser) parseExportDeclaration() ast.Declaration {
 
 func (p *Parser) parseConstDeclaration() *ast.ConstDecl {
 	decl := &ast.ConstDecl{}
-	p.advance()
 
-	isTypedDecl := p.isPrimitiveType() || p.current.Type == lexer.TOKEN_MAP || (p.current.Type == lexer.TOKEN_IDENT && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR))
-
-	var currentType ast.TypeRef
-	if isTypedDecl {
-		ref := p.parseTypePrefix()
-		if ref == nil {
-			return nil
-		}
-		currentType = *ref
-	}
-
-	if p.current.Type != lexer.TOKEN_IDENT {
-		p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
-		return nil
-	}
-	name := p.current.Literal
-
-	if !p.parseArraySuffix(&currentType) {
-		return nil
-	}
-	decl.Vars = append(decl.Vars, ast.Param{Name: name, Type: currentType})
-
-	for p.peek.Type == lexer.TOKEN_COMMA {
-		p.advance()
-		p.advance()
-
-		currentType.PointerDepth = p.parsePointerDepth()
-
-		if p.current.Type != lexer.TOKEN_IDENT {
-			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
-			return nil
-		}
-		name := p.current.Literal
-
-		if !p.parseArraySuffix(&currentType) {
-			return nil
-		}
-		decl.Vars = append(decl.Vars, ast.Param{Name: name, Type: currentType})
-	}
-
-	if !p.expect(lexer.TOKEN_ASSIGN) {
+	vars, values := p.parseConst()
+	if vars == nil || values == nil {
 		return nil
 	}
 
-	p.advance()
-	decl.Values = append(decl.Values, p.parseExpression())
-
-	for p.peek.Type == lexer.TOKEN_COMMA {
-		p.advance()
-		p.advance()
-		decl.Values = append(decl.Values, p.parseExpression())
-	}
-
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	decl.Vars = vars
+	decl.Values = values
 
 	return decl
 }

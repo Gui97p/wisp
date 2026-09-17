@@ -69,6 +69,30 @@ func (v *VarStmt) Tree(indent string) string {
 	return b.String()
 }
 
+type ConstStmt struct {
+	Vars   []Param
+	Values []Expression
+
+	NodePos
+}
+
+func (*ConstStmt) stmt() {}
+func (c *ConstStmt) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sConstStmt\n", indent)
+
+	for _, value := range c.Vars {
+		b.WriteString(value.Tree(indent + "├─ "))
+	}
+
+	for _, value := range c.Values {
+		b.WriteString(value.Tree(indent + "├─ "))
+	}
+
+	return b.String()
+}
+
 type ReturnStmt struct {
 	Values []Expression
 
@@ -104,13 +128,17 @@ func (i *IfStmt) Tree(indent string) string {
 	b.WriteString(indent)
 	b.WriteString("IfStmt\n")
 
-	b.WriteString(indent)
-	b.WriteString("├─ Condition\n")
-	b.WriteString(i.Condition.Tree(indent + "│  "))
+	if i.Condition != nil {
+		b.WriteString(indent)
+		b.WriteString("├─ Condition\n")
+		b.WriteString(i.Condition.Tree(indent + "│  "))
+	}
 
-	b.WriteString(indent)
-	b.WriteString("├─ Then\n")
-	b.WriteString(i.Then.Tree(indent + "│  "))
+	if i.Then != nil {
+		b.WriteString(indent)
+		b.WriteString("├─ Then\n")
+		b.WriteString(i.Then.Tree(indent + "│  "))
+	}
 
 	if i.Else != nil {
 		b.WriteString(indent)
