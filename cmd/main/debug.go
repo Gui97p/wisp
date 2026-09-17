@@ -13,7 +13,8 @@ import (
 
 var debugCmd = &cobra.Command{
 	Use:          "debug <mod> <file.wsp>",
-	Short:        "Debug command that shows the compiler intermediate steps\nAvaiable modules: lexer, parser, analyser",
+	Short:        "Debug command that shows the compiler intermediate steps",
+	Long:         "Debug command that shows the compiler intermediate steps.\nAvailable modules: lexer, parser, analyser",
 	Args:         cobra.ExactArgs(2),
 	RunE:         runDebug,
 	SilenceUsage: true,

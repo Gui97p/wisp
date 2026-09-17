@@ -111,5 +111,11 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 	run := exec.Command("./" + outputPath)
 	run.Stdout, run.Stderr = os.Stdout, os.Stderr
-	return run.Run()
+	if err := run.Run(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			os.Exit(exitErr.ExitCode())
+		}
+		return err
+	}
+	return nil
 }

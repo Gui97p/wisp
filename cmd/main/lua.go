@@ -75,9 +75,14 @@ func runLua(cmd *cobra.Command, args []string) error {
 	fmt.Printf("[%s] built: %s\n", backend.Name(), outputPath)
 
 	if luaRun {
-		runCmd := exec.Command("lua", outputPath)
-		runCmd.Stdout, runCmd.Stderr = os.Stdout, os.Stderr
-		return runCmd.Run()
+		run := exec.Command("lua", outputPath)
+		run.Stdout, run.Stderr = os.Stdout, os.Stderr
+		if err := run.Run(); err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				os.Exit(exitErr.ExitCode())
+			}
+			return err
+		}
 	}
 
 	return nil
