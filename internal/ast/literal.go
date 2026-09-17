@@ -133,3 +133,28 @@ func (*NullLiteral) expr() {}
 func (*NullLiteral) Tree(indent string) string {
 	return indent + "NullLiteral(null)\n"
 }
+
+type StructLiteral struct {
+	Name   string
+	Keys   []string
+	Values []Expression
+
+	NodePos
+}
+
+func (*StructLiteral) expr() {}
+func (s *StructLiteral) Tree(indent string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%sStructLiteral(%s)\n", indent, s.Name)
+
+	for i := range s.Keys {
+		branch, childIndent := "├─ ", "│  "
+		if i == len(s.Keys)-1 {
+			branch, childIndent = "└─ ", "   "
+		}
+		fmt.Fprintf(&b, "%s%sField(%s)\n", indent, branch, s.Keys[i])
+		b.WriteString(s.Values[i].Tree(indent + childIndent))
+	}
+
+	return b.String()
+}
