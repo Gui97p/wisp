@@ -48,6 +48,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkMemberExpr(e)
 	case *ast.IndexExpr:
 		t = a.checkIndexExpr(e)
+	case *ast.SliceExpr:
+		t = a.checkSliceExpr(e)
 	case *ast.TernaryExpr:
 		t = a.checkTernaryExpr(e)
 	case *ast.CastExpr:
@@ -336,6 +338,32 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 		a.errorf(expr, "%s can't be indexed", arrType.String())
 		return InvalidType{}
 	}
+}
+
+func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
+	arrType := a.checkExpr(expr.Array)
+	if expr.Start != nil {
+		a.requireNumeric(expr.Start, a.checkExpr(expr.Start), "slice start")
+	}
+	if expr.End != nil {
+		a.requireNumeric(expr.End, a.checkExpr(expr.End), "slice end")
+	}
+
+	switch t := arrType.(type) {
+	case ArrayType:
+		return SpanType{Element: t.Element}
+	case SpanType:
+		return t
+	case PrimitiveType:
+		if t.Name == "string" {
+			return t
+		}
+	case InvalidType:
+		return InvalidType{}
+	}
+
+	a.errorf(expr, "%s can't be sliced", arrType)
+	return InvalidType{}
 }
 
 func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {

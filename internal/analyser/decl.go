@@ -93,12 +93,17 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 							a.errorf(node, "array %s expects element type %s, got %s", v.Name, declArr.Element.String(), valArr.Element.String())
 						}
 					} else if declSpan, ok := declaredType.(SpanType); ok {
-						valArr, ok := valueType.(ArrayType)
-						switch {
-						case !ok:
+						switch valT := valueType.(type) {
+						case ArrayType:
+							if !valT.Element.Equals(declSpan.Element) {
+								a.errorf(node, "span %s expects element type %s, got %s", v.Name, declSpan.Element.String(), valT.Element.String())
+							}
+						case SpanType:
+							if !valT.Equals(declSpan) {
+								a.errorDeclaredAs(node, v.Name, declaredType, valueType)
+							}
+						default:
 							a.errorDeclaredAs(node, v.Name, declaredType, valueType)
-						case !valArr.Element.Equals(declSpan.Element):
-							a.errorf(node, "span %s expects element type %s, got %s", v.Name, declSpan.Element.String(), valArr.Element.String())
 						}
 					} else if !valueType.Equals(declaredType) {
 						a.errorDeclaredAs(node, v.Name, declaredType, valueType)
