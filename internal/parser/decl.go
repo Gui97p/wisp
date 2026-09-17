@@ -19,31 +19,44 @@ func (p *Parser) parseDeclaration() ast.Declaration {
 }
 
 func (p *Parser) parseDeclarationInner() ast.Declaration {
-	var decl ast.Declaration
-
 	switch p.current.Type {
 	case lexer.TOKEN_CONST:
-		decl = p.parseConstDeclaration()
+		decl := p.parseConstDeclaration()
+		if decl == nil {
+			return nil
+		}
+		return decl
 	case lexer.TOKEN_FUNC:
-		decl = p.parseFuncDeclaration()
+		decl := p.parseFuncDeclaration()
+		if decl == nil {
+			return nil
+		}
+		return decl
 	case lexer.TOKEN_STRUCT:
-		decl = p.parseStructDeclaration()
+		decl := p.parseStructDeclaration()
+		if decl == nil {
+			return nil
+		}
+		return decl
 	case lexer.TOKEN_TYPE:
-		decl = p.parseTypeDeclaration()
+		decl := p.parseTypeDeclaration()
+		if decl == nil {
+			return nil
+		}
+		return decl
 	case lexer.TOKEN_IMPORT:
-		decl = p.parseImportDeclaration()
+		decl := p.parseImportDeclaration()
+		if decl == nil {
+			return nil
+		}
+		return decl
 	case lexer.TOKEN_EXPORT:
-		decl = p.parseExportDeclaration()
+		return p.parseExportDeclaration()
 	default:
 		p.errorf("expected declaration, got %s", p.current.Type.DisplayName())
 		p.advance()
 		return nil
 	}
-
-	if decl == nil {
-		return nil
-	}
-	return decl
 }
 
 func (p *Parser) parseImportDeclaration() *ast.ImportDecl {

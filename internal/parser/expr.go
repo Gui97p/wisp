@@ -23,7 +23,7 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 			left = p.parseCallExpression(left)
 		case lexer.TOKEN_LBRACKET:
 			p.advance()
-			left = p.parseIndexExpression(left)
+			left = p.parseIndexSliceExpression(left)
 		case lexer.TOKEN_LBRACE:
 			if !p.allowStructLiteral {
 				return left
@@ -224,21 +224,50 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 	return args
 }
 
-func (p *Parser) parseIndexExpression(array ast.Expression) ast.Expression {
+func (p *Parser) parseIndexSliceExpression(array ast.Expression) ast.Expression {
 	p.advance()
-	prev := p.allowStructLiteral
-	p.allowStructLiteral = true
-	index := p.parseExpression()
-	p.allowStructLiteral = prev
-	if index == nil {
-		return nil
+
+	var start ast.Expression
+	if p.current.Type != lexer.TOKEN_COLON {
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = true
+		start = p.parseExpression()
+		p.allowStructLiteral = prev
+		if start == nil {
+			return nil
+		}
+		if p.peek.Type == lexer.TOKEN_COLON {
+			p.advance()
+		}
 	}
 
+	if p.current.Type == lexer.TOKEN_COLON {
+		slice := &ast.SliceExpr{Array: array, Start: start}
+		if p.peek.Type != lexer.TOKEN_RBRACKET {
+			p.advance()
+			prev := p.allowStructLiteral
+			p.allowStructLiteral = true
+			slice.End = p.parseExpression()
+			p.allowStructLiteral = prev
+			if slice.End == nil {
+				return nil
+			}
+		}
+		if !p.expect(lexer.TOKEN_RBRACKET) {
+			return nil
+		}
+		return slice
+	}
+
+	if start == nil {
+		p.error("expected expression")
+		return nil
+	}
 	if !p.expect(lexer.TOKEN_RBRACKET) {
 		return nil
 	}
 
-	return &ast.IndexExpr{Array: array, Index: index}
+	return &ast.IndexExpr{Array: array, Index: start}
 }
 
 func (p *Parser) parseArrayLiteral() ast.Expression {
