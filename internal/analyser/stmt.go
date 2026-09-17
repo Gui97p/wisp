@@ -26,6 +26,8 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.checkReturnStmt(s)
 	case *ast.VarStmt:
 		a.checkVarStmt(s)
+	case *ast.ConstStmt:
+		a.checkConstStmt(s)
 	case *ast.AssignStmt:
 		a.checkAssignStmt(s)
 	case *ast.IncDecStmt:
@@ -165,6 +167,10 @@ func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {
 
 func (a *Analyser) checkVarStmt(stmt *ast.VarStmt) {
 	a.checkVarsAndValues(stmt, stmt.Vars, stmt.Values, VAR)
+}
+
+func (a *Analyser) checkConstStmt(stmt *ast.ConstStmt) {
+	a.checkVarsAndValues(stmt, stmt.Vars, stmt.Values, CONST)
 }
 
 func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
