@@ -27,11 +27,9 @@ func runDebug(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	l := lexer.NewLexer(buffer)
-	p := parser.NewParser(l)
-
 	switch args[0] {
 	case "lexer":
+		l := lexer.NewLexer(buffer)
 		token := l.NextToken()
 		for token.Type != lexer.TOKEN_EOF {
 			fmt.Printf("%s(%s)\n", token.Type.String(), token.Literal)
@@ -39,6 +37,8 @@ func runDebug(cmd *cobra.Command, args []string) error {
 		}
 
 	case "parser":
+		l := lexer.NewLexer(buffer)
+		p := parser.NewParser(l)
 		program := p.ParseProgram()
 		fmt.Println(program.Tree(""))
 		if p.HasErrors() {
@@ -49,6 +49,8 @@ func runDebug(cmd *cobra.Command, args []string) error {
 		}
 
 	case "analyser":
+		l := lexer.NewLexer(buffer)
+		p := parser.NewParser(l)
 		program := p.ParseProgram()
 		a := analyser.NewAnalyser(program)
 		a.Analyze()
