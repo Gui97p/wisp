@@ -208,12 +208,20 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	}
 
 	p.advance()
-	stmt.Values = append(stmt.Values, p.parseExpression())
+	value := p.parseExpression()
+	if value == nil {
+		return nil
+	}
+	stmt.Values = append(stmt.Values, value)
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
 		p.advance()
-		stmt.Values = append(stmt.Values, p.parseExpression())
+		value := p.parseExpression()
+		if value == nil {
+			return nil
+		}
+		stmt.Values = append(stmt.Values, value)
 	}
 
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
@@ -231,6 +239,9 @@ func (p *Parser) parseAssignStatement(target ast.Expression) ast.Statement {
 
 	p.advance()
 	stmt.Value = p.parseExpression()
+	if stmt.Value == nil {
+		return nil
+	}
 
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
@@ -251,9 +262,10 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 		p.advance()
 
 		expr := p.parseExpression()
-		if expr != nil {
-			stmt.Values = append(stmt.Values, expr)
+		if expr == nil {
+			return nil
 		}
+		stmt.Values = append(stmt.Values, expr)
 
 		if p.peek.Type != lexer.TOKEN_COMMA {
 			break
@@ -401,6 +413,9 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 		p.advance()
 		p.advance()
 		stmt.UntilCondition = p.parseExpression()
+		if stmt.UntilCondition == nil {
+			return nil
+		}
 
 		if !p.expect(lexer.TOKEN_SEMICOLON) {
 			return nil

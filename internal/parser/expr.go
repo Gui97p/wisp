@@ -92,6 +92,9 @@ func (p *Parser) parseUnaryExpression() ast.Expression {
 	p.advance()
 
 	right := p.parseExpressionPratt(PREFIX)
+	if right == nil {
+		return nil
+	}
 
 	return &ast.UnaryExpr{
 		Operator: op,
@@ -133,6 +136,9 @@ func (p *Parser) parseBinaryExpression(left ast.Expression) ast.Expression {
 	p.advance()
 
 	right := p.parseExpressionPratt(precedece)
+	if right == nil {
+		return nil
+	}
 
 	return &ast.BinaryExpr{
 		Left:     left,
@@ -163,7 +169,12 @@ func (p *Parser) parseMemberExpression(object ast.Expression) ast.Expression {
 }
 
 func (p *Parser) parseCallExpression(name ast.Expression) ast.Expression {
-	return &ast.CallExpr{Name: name, Args: p.parseCallArgs()}
+	args := p.parseCallArgs()
+	if args == nil {
+		return nil
+	}
+
+	return &ast.CallExpr{Name: name, Args: args}
 }
 
 func (p *Parser) parseCallArgs() []ast.Expression {
@@ -175,12 +186,20 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 	}
 
 	p.advance()
-	args = append(args, p.parseExpression())
+	arg := p.parseExpression()
+	if arg == nil {
+		return nil
+	}
+	args = append(args, arg)
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
 		p.advance()
-		args = append(args, p.parseExpression())
+		arg := p.parseExpression()
+		if arg == nil {
+			return nil
+		}
+		args = append(args, arg)
 	}
 
 	if !p.expect(lexer.TOKEN_RPAREN) {
@@ -193,6 +212,9 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 func (p *Parser) parseIndexExpression(array ast.Expression) ast.Expression {
 	p.advance()
 	index := p.parseExpression()
+	if index == nil {
+		return nil
+	}
 
 	if !p.expect(lexer.TOKEN_RBRACKET) {
 		return nil
@@ -210,12 +232,20 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	}
 
 	p.advance()
-	arr.Elements = append(arr.Elements, p.parseExpression())
+	el := p.parseExpression()
+	if el == nil {
+		return nil
+	}
+	arr.Elements = append(arr.Elements, el)
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
 		p.advance()
-		arr.Elements = append(arr.Elements, p.parseExpression())
+		el := p.parseExpression()
+		if el == nil {
+			return nil
+		}
+		arr.Elements = append(arr.Elements, el)
 	}
 
 	if !p.expect(lexer.TOKEN_RBRACKET) {
@@ -235,12 +265,18 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 
 	p.advance()
 	key := p.parseExpression()
+	if key == nil {
+		return nil
+	}
 	if !p.expect(lexer.TOKEN_COLON) {
 		return nil
 	}
 	p.advance()
 
 	value := p.parseExpression()
+	if value == nil {
+		return nil
+	}
 	m.Keys = append(m.Keys, key)
 	m.Values = append(m.Values, value)
 
@@ -248,11 +284,17 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 		p.advance()
 		p.advance()
 		key := p.parseExpression()
+		if key == nil {
+			return nil
+		}
 		if !p.expect(lexer.TOKEN_COLON) {
 			return nil
 		}
 		p.advance()
 		value := p.parseExpression()
+		if value == nil {
+			return nil
+		}
 		m.Keys = append(m.Keys, key)
 		m.Values = append(m.Values, value)
 	}
@@ -268,12 +310,18 @@ func (p *Parser) parseTernaryExpr(left ast.Expression) ast.Expression {
 	expr := &ast.TernaryExpr{Condition: left}
 	p.advance()
 	expr.Then = p.parseExpression()
+	if expr.Then == nil {
+		return nil
+	}
 
 	if !p.expect(lexer.TOKEN_COLON) {
 		return nil
 	}
 	p.advance()
 	expr.Else = p.parseExpressionPratt(TERNARY)
+	if expr.Else == nil {
+		return nil
+	}
 
 	return expr
 }
