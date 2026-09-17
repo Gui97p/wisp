@@ -11,8 +11,10 @@ func (t *LuaTarget) compileStatement(b *strings.Builder, stmt ast.Statement) err
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
 		return t.compileBlockStatement(b, s)
+	case *ast.ConstStmt:
+		return t.compileDefinition(b, s, s.Vars, s.Values)
 	case *ast.VarStmt:
-		return t.compileVarStatement(b, s)
+		return t.compileDefinition(b, s, s.Vars, s.Values)
 	case *ast.ReturnStmt:
 		return t.compileReturnStatement(b, s)
 	case *ast.ExpressionStmt:
@@ -42,45 +44,6 @@ func (t *LuaTarget) compileBlockStatement(b *strings.Builder, block *ast.BlockSt
 			return err
 		}
 	}
-	return nil
-}
-
-func (t *LuaTarget) compileVarStatement(b *strings.Builder, stmt *ast.VarStmt) error {
-	b.WriteString("local ")
-	for k, variable := range stmt.Vars {
-		if k > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString(variable.Name)
-	}
-
-	b.WriteString(" = ")
-	if len(stmt.Values) > 0 {
-		for k, value := range stmt.Values {
-			if k > 0 {
-				b.WriteString(", ")
-			}
-
-			if err := t.compileExpression(b, value); err != nil {
-				return err
-			}
-		}
-	} else {
-		types := t.info.VarTypes[stmt]
-		for k := range stmt.Vars {
-			if k > 0 {
-				b.WriteString(", ")
-			}
-
-			value, err := zeroValue(types[k])
-			if err != nil {
-				return err
-			}
-
-			b.WriteString(value)
-		}
-	}
-	b.WriteByte('\n')
 	return nil
 }
 

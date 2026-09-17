@@ -19,7 +19,7 @@ func (t *LuaTarget) compileDeclarations(b *strings.Builder, decls []ast.Declarat
 				return err
 			}
 		case *ast.ConstDecl:
-			if err := t.compileConstDeclaration(b, d); err != nil {
+			if err := t.compileDefinition(b, d, d.Vars, d.Values); err != nil {
 				return err
 			}
 		}
@@ -62,44 +62,5 @@ func (t *LuaTarget) compileStructDeclaration(b *strings.Builder, sd *ast.StructD
 	}
 	fmt.Fprintln(b, "}\nend")
 
-	return nil
-}
-
-func (t *LuaTarget) compileConstDeclaration(b *strings.Builder, cd *ast.ConstDecl) error {
-	b.WriteString("local ")
-	for k, variable := range cd.Vars {
-		if k > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString(variable.Name)
-	}
-
-	b.WriteString(" = ")
-	if len(cd.Values) > 0 {
-		for k, value := range cd.Values {
-			if k > 0 {
-				b.WriteString(", ")
-			}
-
-			if err := t.compileExpression(b, value); err != nil {
-				return err
-			}
-		}
-	} else {
-		types := t.info.VarTypes[cd]
-		for k := range cd.Vars {
-			if k > 0 {
-				b.WriteString(", ")
-			}
-
-			value, err := zeroValue(types[k])
-			if err != nil {
-				return err
-			}
-
-			b.WriteString(value)
-		}
-	}
-	b.WriteByte('\n')
 	return nil
 }
