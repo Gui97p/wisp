@@ -79,58 +79,29 @@ func (t *TypeRef) Tree(indent string) string {
 
 	fmt.Fprintf(&b, "%sTypeRef\n", indent)
 
-	b.WriteString(indent)
-	b.WriteString("└─ Name\n")
-	b.WriteString(indent)
-	b.WriteString("│  ")
-	b.WriteString(t.Name)
-	b.WriteRune('\n')
-
-	b.WriteString(indent)
-	b.WriteString("└─ PointerDepth\n")
-	b.WriteString(indent)
-	b.WriteString("│  ")
-	fmt.Fprint(&b, t.PointerDepth)
-	b.WriteRune('\n')
+	fmt.Fprintf(&b, "%s├─ Name\n%s│  %s\n", indent, indent, t.Name)
+	fmt.Fprintf(&b, "%s├─ PointerDepth\n%s│  %d\n", indent, indent, t.PointerDepth)
 
 	for k, dim := range t.Dims {
-		b.WriteString(indent)
-		fmt.Fprintf(&b, "└─ ArrayDim(%d)\n", k)
-		b.WriteString(indent)
-		b.WriteString("│  ")
+		fmt.Fprintf(&b, "%s├─ ArrayDim(%d)\n", indent, k)
 		if dim.IsSpan {
-			b.WriteString(indent)
-			b.WriteString("└─ IsSpan\n")
-			b.WriteString(indent)
-			b.WriteString("│  true")
+			fmt.Fprintf(&b, "%s│  └─ IsSpan\n%s│     true\n", indent, indent)
 		} else {
-			b.WriteString(indent)
-			b.WriteString("└─ ArraySize\n")
-			b.WriteString(indent)
-			b.WriteString("│  ")
-			fmt.Fprint(&b, dim.Size)
+			fmt.Fprintf(&b, "%s│  └─ ArraySize\n%s│     %d\n", indent, indent, dim.Size)
 		}
-		b.WriteRune('\n')
 	}
 
-	b.WriteString(indent)
-	b.WriteString("└─ IsMap\n")
-	b.WriteString(indent)
-	b.WriteString("│  ")
+	fmt.Fprintf(&b, "%s└─ IsMap\n", indent)
 	if t.IsMap {
-		b.WriteString("true\n")
+		fmt.Fprintf(&b, "%s   true\n", indent)
 
-		b.WriteString(indent)
-		b.WriteString("└─ MapKey\n")
-		b.WriteString(t.MapKey.Tree(indent + "│  "))
-		b.WriteRune('\n')
+		b.WriteString(indent + "   ├─ MapKey\n")
+		b.WriteString(t.MapKey.Tree(indent + "   │  "))
 
-		b.WriteString(indent)
-		b.WriteString("└─ MapValue\n")
-		b.WriteString(t.MapValue.Tree(indent + "│  "))
-		b.WriteRune('\n')
+		b.WriteString(indent + "   └─ MapValue\n")
+		b.WriteString(t.MapValue.Tree(indent + "      "))
 	} else {
-		b.WriteString("false\n")
+		fmt.Fprintf(&b, "%s   false\n", indent)
 	}
 
 	return b.String()
@@ -145,8 +116,10 @@ type Param struct {
 func (p *Param) Tree(indent string) string {
 	var b strings.Builder
 
-	b.WriteString(p.Type.Tree(indent))
-	b.WriteString(p.Name)
+	if p.Type.Name != "" {
+		b.WriteString(p.Type.Tree(indent))
+	}
+	fmt.Fprintf(&b, "%sName: %s\n", indent, p.Name)
 
-	return indent + b.String()
+	return b.String()
 }

@@ -30,10 +30,10 @@ func (a *ArrayLiteral) Tree(indent string) string {
 	b.WriteString("ArrayLiteral\n")
 
 	b.WriteString(indent)
-	b.WriteString("├─ Args\n")
+	b.WriteString("└─ Args\n")
 
 	for _, e := range a.Elements {
-		b.WriteString(e.Tree(indent + "│  "))
+		b.WriteString(e.Tree(indent + "   "))
 	}
 
 	return b.String()
@@ -51,10 +51,18 @@ func (m *MapLiteral) Tree(indent string) string {
 	var b strings.Builder
 	b.WriteString(indent)
 	b.WriteString("MapLiteral\n")
+
 	for i := range m.Keys {
-		b.WriteString(m.Keys[i].Tree(indent + "  "))
-		b.WriteString(m.Values[i].Tree(indent + "  "))
+		branch, childIndent := "├─ ", "│  "
+		if i == len(m.Keys)-1 {
+			branch, childIndent = "└─ ", "   "
+		}
+
+		fmt.Fprintf(&b, "%s%sEntry(%d)\n", indent, branch, i)
+		b.WriteString(m.Keys[i].Tree(indent + childIndent + "├─ "))
+		b.WriteString(m.Values[i].Tree(indent + childIndent + "└─ "))
 	}
+
 	return b.String()
 }
 
@@ -111,10 +119,10 @@ type BoolLiteral struct {
 func (*BoolLiteral) expr() {}
 func (b *BoolLiteral) Tree(indent string) string {
 	if b.Value {
-		return indent + "BoolLiteral(true)"
+		return indent + "BoolLiteral(true)\n"
 	}
 
-	return indent + "BoolLiteral(false)"
+	return indent + "BoolLiteral(false)\n"
 }
 
 type NullLiteral struct {
@@ -123,5 +131,5 @@ type NullLiteral struct {
 
 func (*NullLiteral) expr() {}
 func (*NullLiteral) Tree(indent string) string {
-	return indent + "NullLiteral(null)"
+	return indent + "NullLiteral(null)\n"
 }

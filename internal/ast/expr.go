@@ -72,10 +72,10 @@ func (c *CallExpr) Tree(indent string) string {
 	b.WriteString(c.Name.Tree(indent + "│  "))
 
 	b.WriteString(indent)
-	b.WriteString("├─ Args\n")
+	b.WriteString("└─ Args\n")
 
 	for _, a := range c.Args {
-		b.WriteString(a.Tree(indent + "│  "))
+		b.WriteString(a.Tree(indent + "   "))
 	}
 
 	return b.String()
@@ -106,8 +106,8 @@ func (i *IndexExpr) Tree(indent string) string {
 	b.WriteString(i.Array.Tree(indent + "│  "))
 
 	b.WriteString(indent)
-	b.WriteString("├─ Index\n")
-	b.WriteString(i.Index.Tree(indent + "│  "))
+	b.WriteString("└─ Index\n")
+	b.WriteString(i.Index.Tree(indent + "   "))
 
 	return b.String()
 }
@@ -123,9 +123,9 @@ func (m *MemberExpr) Tree(indent string) string {
 	b.WriteString(m.Object.Tree(indent + "│  "))
 
 	b.WriteString(indent)
-	b.WriteString("├─ Field\n")
+	b.WriteString("└─ Field\n")
 	b.WriteString(indent)
-	b.WriteString("│  ")
+	b.WriteString("   ")
 	b.WriteString(m.Field)
 	b.WriteRune('\n')
 
@@ -155,8 +155,8 @@ func (i *TernaryExpr) Tree(indent string) string {
 	b.WriteString(i.Then.Tree(indent + "│  "))
 
 	b.WriteString(indent)
-	b.WriteString("├─ Else\n")
-	b.WriteString(i.Else.Tree(indent + "│  "))
+	b.WriteString("└─ Else\n")
+	b.WriteString(i.Else.Tree(indent + "   "))
 
 	return b.String()
 }
@@ -173,7 +173,9 @@ func (c *CastExpr) Tree(indent string) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "%sCastExpr(as %s)\n", indent, c.Type.Name)
-	b.WriteString(c.Value.Tree(indent + "	"))
+	b.WriteString(indent)
+	b.WriteString("└─ Value\n")
+	b.WriteString(c.Value.Tree(indent + "   "))
 
 	return b.String()
 }

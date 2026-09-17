@@ -58,12 +58,22 @@ func (v *VarStmt) Tree(indent string) string {
 
 	fmt.Fprintf(&b, "%sVarStmt\n", indent)
 
+	total := len(v.Vars) + len(v.Values)
+	n := 0
+	branch := func() string {
+		n++
+		if n == total {
+			return "└─ "
+		}
+		return "├─ "
+	}
+
 	for _, value := range v.Vars {
-		b.WriteString(value.Tree(indent + "├─ "))
+		b.WriteString(value.Tree(indent + branch()))
 	}
 
 	for _, value := range v.Values {
-		b.WriteString(value.Tree(indent + "├─ "))
+		b.WriteString(value.Tree(indent + branch()))
 	}
 
 	return b.String()
@@ -82,12 +92,22 @@ func (c *ConstStmt) Tree(indent string) string {
 
 	fmt.Fprintf(&b, "%sConstStmt\n", indent)
 
+	total := len(c.Vars) + len(c.Values)
+	n := 0
+	branch := func() string {
+		n++
+		if n == total {
+			return "└─ "
+		}
+		return "├─ "
+	}
+
 	for _, value := range c.Vars {
-		b.WriteString(value.Tree(indent + "├─ "))
+		b.WriteString(value.Tree(indent + branch()))
 	}
 
 	for _, value := range c.Values {
-		b.WriteString(value.Tree(indent + "├─ "))
+		b.WriteString(value.Tree(indent + branch()))
 	}
 
 	return b.String()
@@ -106,8 +126,12 @@ func (r *ReturnStmt) Tree(indent string) string {
 	b.WriteString(indent)
 	b.WriteString("ReturnStmt\n")
 
-	for _, value := range r.Values {
-		b.WriteString(value.Tree(indent + "├─ "))
+	for i, value := range r.Values {
+		if i == len(r.Values)-1 {
+			b.WriteString(value.Tree(indent + "└─ "))
+		} else {
+			b.WriteString(value.Tree(indent + "├─ "))
+		}
 	}
 
 	return b.String()
@@ -136,8 +160,13 @@ func (i *IfStmt) Tree(indent string) string {
 
 	if i.Then != nil {
 		b.WriteString(indent)
-		b.WriteString("├─ Then\n")
-		b.WriteString(i.Then.Tree(indent + "│  "))
+		if i.Else != nil {
+			b.WriteString("├─ Then\n")
+			b.WriteString(i.Then.Tree(indent + "│  "))
+		} else {
+			b.WriteString("└─ Then\n")
+			b.WriteString(i.Then.Tree(indent + "   "))
+		}
 	}
 
 	if i.Else != nil {
@@ -323,7 +352,7 @@ func (i *IncDecStmt) Tree(indent string) string {
 	fmt.Fprintf(&b, "%sIncDecStmt(%s)\n", indent, i.Op)
 
 	if i.Target != nil {
-		b.WriteString(i.Target.Tree(indent + "├─ "))
+		b.WriteString(i.Target.Tree(indent + "└─ "))
 	}
 
 	return b.String()

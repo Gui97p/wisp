@@ -18,12 +18,24 @@ func (c *ConstDecl) Tree(indent string) string {
 	var b strings.Builder
 	b.WriteString(indent)
 	b.WriteString("ConstDecl\n")
-	for i, v := range c.Vars {
-		b.WriteString(v.Tree(indent + "  "))
-		if i < len(c.Values) {
-			b.WriteString(c.Values[i].Tree(indent + "  "))
+
+	total := len(c.Vars) + len(c.Values)
+	n := 0
+	branch := func() string {
+		n++
+		if n == total {
+			return "└─ "
 		}
+		return "├─ "
 	}
+
+	for _, v := range c.Vars {
+		b.WriteString(v.Tree(indent + branch()))
+	}
+	for _, value := range c.Values {
+		b.WriteString(value.Tree(indent + branch()))
+	}
+
 	return b.String()
 }
 
