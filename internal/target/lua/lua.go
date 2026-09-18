@@ -28,6 +28,11 @@ func (t *LuaTarget) Compile() (string, error) {
 	var b strings.Builder
 	b.WriteString(runtimePrelude)
 
+	names := collectFuncNames(t.program.Declarations)
+	if len(names) > 0 {
+		fmt.Fprintf(&b, "local %s\n", strings.Join(names, ", "))
+	}
+
 	if err := t.compileDeclarations(&b, t.program.Declarations); err != nil {
 		return "", err
 	}

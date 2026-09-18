@@ -17,6 +17,16 @@ struct Point {
   int x, y;
 }
 
+// methods: receiver comes before the name, same *Type syntax as everywhere else
+func (*Point p) pos() (int, int) {
+  return p.x, p.y;
+}
+
+func (*Point p) scale(int factor) {
+  p.x = p.x * factor;
+  p.y = p.y * factor;
+}
+
 /*
 This is a
 multiline comment
@@ -75,6 +85,11 @@ func main() {
   // let's create some points with it
   Point p = Point{x: nums[0], y: nums[1]};
   let p2 = Point{x: nums[3], y: 2};
+
+  let posX, posY = p.pos();
+  emitf("p.pos()=%d,%d", posX, posY);
+  p.scale(2);
+  emitf("p scaled=%d,%d", p.x, p.y);
 
   emitf("p: x=%d y=%d", p.x, p.y);
 

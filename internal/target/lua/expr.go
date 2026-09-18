@@ -142,10 +142,45 @@ func (t *LuaTarget) compileStructLiteral(b *strings.Builder, expr *ast.StructLit
 	return nil
 }
 
+func methodOwnerName(t analyser.Type) (string, bool) {
+	if pt, ok := t.(analyser.PointerType); ok {
+		t = pt.Element
+	}
+	switch tt := t.(type) {
+	case *analyser.StructType:
+		return tt.Name, true
+	case analyser.NamedType:
+		return tt.Name, true
+	default:
+		return "", false
+	}
+}
+
 func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr) error {
 	if ident, ok := expr.Name.(*ast.IdentLiteral); ok {
 		if _, ok := t.getBuiltin(ident.Value); ok {
 			return t.compileBuiltinCall(b, ident.Value, expr.Args)
+		}
+	}
+
+	if member, ok := expr.Name.(*ast.MemberExpr); ok {
+		objType := t.info.Types[member.Object]
+		if methods := analyser.MethodsOf(objType); methods != nil {
+			if _, isMethod := methods[member.Field]; isMethod {
+				typeName, _ := methodOwnerName(objType)
+				fmt.Fprintf(b, "%s_%s(", typeName, member.Field)
+				if err := t.compileExpression(b, member.Object); err != nil {
+					return err
+				}
+				for _, arg := range expr.Args {
+					b.WriteByte(',')
+					if err := t.compileExpression(b, arg); err != nil {
+						return err
+					}
+				}
+				b.WriteByte(')')
+				return nil
+			}
 		}
 	}
 
