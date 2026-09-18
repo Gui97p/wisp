@@ -199,6 +199,16 @@ func (a *Analyser) checkCallExprValue(expr *ast.CallExpr) Type {
 }
 
 func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
+	if member, ok := expr.Name.(*ast.MemberExpr); ok {
+		objType := a.checkExpr(member.Object)
+		if methods := MethodsOf(objType); methods != nil {
+			if ft, ok := methods[member.Field]; ok {
+				a.checkCallArgs(expr, ft)
+				return ft.Returns
+			}
+		}
+	}
+
 	nameType := a.checkExpr(expr.Name)
 
 	switch ct := nameType.(type) {

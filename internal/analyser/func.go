@@ -26,10 +26,9 @@ func (a *Analyser) registerFuncSignatures() {
 		returns := make([]Type, 0, len(fd.ReturnTypes))
 		for _, r := range fd.ReturnTypes {
 			t := a.resolveTypeRef(fd, a.scope, r)
-			if t == nil {
-				continue
+			if t != nil {
+				returns = append(returns, t)
 			}
-			returns = append(returns, t)
 		}
 
 		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
@@ -52,11 +51,34 @@ func (a *Analyser) checkFuncBodies() {
 }
 
 func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
-	symbol, _ := a.scope.Resolve(fd.Name)
-	ft := symbol.Type.(*FuncType)
-
 	a.enterScope()
 	defer a.exitScope()
+
+	var ft *FuncType
+
+	if fd.Receiver != nil {
+		recvType := a.resolveTypeRef(fd, a.scope, fd.Receiver.Type)
+		if recvType == nil {
+			return
+		}
+		methods := MethodsOf(recvType)
+		if methods == nil {
+			return
+		}
+		ft = methods[fd.Name]
+		if ft == nil {
+			return
+		}
+
+		if fd.Receiver.Name != "" {
+			if !a.scope.Define(&Symbol{Name: fd.Receiver.Name, Kind: PARAM, Type: recvType}) {
+				a.errorf(fd, "duplicated receiver %s", fd.Receiver.Name)
+			}
+		}
+	} else {
+		symbol, _ := a.scope.Resolve(fd.Name)
+		ft = symbol.Type.(*FuncType)
+	}
 
 	for i, p := range fd.Params {
 		paramType := ft.Params[i]

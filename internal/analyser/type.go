@@ -181,6 +181,7 @@ func (m *MapType) Equals(other Type) bool {
 type NamedType struct {
 	Name       string
 	Underlying Type
+	Methods    map[string]*FuncType
 }
 
 func (n NamedType) String() string {
@@ -200,9 +201,10 @@ func (n NamedType) Equals(other Type) bool {
 }
 
 type StructType struct {
-	Name   string
-	Fields map[string]Type
-	Order  []string
+	Name    string
+	Fields  map[string]Type
+	Order   []string
+	Methods map[string]*FuncType
 }
 
 func (s *StructType) String() string {
@@ -289,6 +291,20 @@ var primitives = map[string]bool{
 	"float32": true, "float64": true,
 	"char": true, "string": true,
 	"bool": true,
+}
+
+func MethodsOf(t Type) map[string]*FuncType {
+	if pt, ok := t.(PointerType); ok {
+		t = pt.Element
+	}
+	switch tt := t.(type) {
+	case *StructType:
+		return tt.Methods
+	case NamedType:
+		return tt.Methods
+	default:
+		return nil
+	}
 }
 
 func isNumeric(t Type) bool {

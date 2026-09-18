@@ -10,9 +10,10 @@ func (a *Analyser) registerStructNames() {
 		}
 
 		st := &StructType{
-			Name:   sd.Name,
-			Fields: make(map[string]Type),
-			Order:  make([]string, 0, len(sd.Members)),
+			Name:    sd.Name,
+			Fields:  make(map[string]Type),
+			Order:   make([]string, 0, len(sd.Members)),
+			Methods: make(map[string]*FuncType),
 		}
 
 		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st}

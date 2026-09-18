@@ -17,6 +17,7 @@ func (a *Analyser) registerTypeAliases() {
 		nt := NamedType{
 			Name:       td.Name,
 			Underlying: underlyingType,
+			Methods:    make(map[string]*FuncType),
 		}
 
 		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt}
@@ -34,6 +35,54 @@ func (a *Analyser) registerConsts() {
 			continue
 		}
 		a.checkConstDecl(cd)
+	}
+}
+
+func (a *Analyser) registerMethods() {
+	for _, d := range a.program.Declarations {
+		fd, ok := d.(*ast.FuncDecl)
+		if !ok || fd.Receiver == nil {
+			continue
+		}
+
+		recvType := a.resolveTypeRef(fd, a.scope, fd.Receiver.Type)
+		if recvType == nil {
+			continue
+		}
+
+		methods := MethodsOf(recvType)
+		if methods == nil {
+			a.errorf(fd, "cannot declare method on %s", recvType)
+			continue
+		}
+		if _, exists := methods[fd.Name]; exists {
+			a.errorf(fd, "method %s already declared for %s", fd.Name, recvType)
+			continue
+		}
+
+		params := make([]Type, 0, len(fd.Params))
+		variadic := false
+
+		for _, p := range fd.Params {
+			t := a.resolveTypeRef(fd, a.scope, p.Type)
+			if t == nil {
+				continue
+			}
+			params = append(params, t)
+			if p.Variadic {
+				variadic = true
+			}
+		}
+
+		returns := make([]Type, 0, len(fd.ReturnTypes))
+		for _, r := range fd.ReturnTypes {
+			t := a.resolveTypeRef(fd, a.scope, r)
+			if t != nil {
+				returns = append(returns, t)
+			}
+		}
+
+		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
 	}
 }
 

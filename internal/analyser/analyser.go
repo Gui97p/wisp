@@ -30,6 +30,7 @@ func NewAnalyser(program *ast.Program) *Analyser {
 func (a *Analyser) Analyze() *Info {
 	a.registerStructNames()
 	a.registerTypeAliases()
+	a.registerMethods()
 	a.registerStructFields()
 	a.registerBuiltins()
 	a.registerFuncSignatures()
