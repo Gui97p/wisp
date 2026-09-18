@@ -95,10 +95,12 @@ func (t *TypeRef) Tree(indent string) string {
 	if t.IsMap {
 		fmt.Fprintf(&b, "%s   true\n", indent)
 
-		b.WriteString(indent + "   ├─ MapKey\n")
+		b.WriteString(indent)
+		b.WriteString("   ├─ MapKey\n")
 		b.WriteString(t.MapKey.Tree(indent + "   │  "))
 
-		b.WriteString(indent + "   └─ MapValue\n")
+		b.WriteString(indent)
+		b.WriteString("   └─ MapValue\n")
 		b.WriteString(t.MapValue.Tree(indent + "      "))
 	} else {
 		fmt.Fprintf(&b, "%s   false\n", indent)
@@ -119,7 +121,9 @@ func (p *Param) Tree(indent string) string {
 	if p.Type.Name != "" {
 		b.WriteString(p.Type.Tree(indent))
 	}
-	fmt.Fprintf(&b, "%sName: %s\n", indent, p.Name)
+	if p.Name != "" {
+		fmt.Fprintf(&b, "%sName: %s\n", indent, p.Name)
+	}
 
 	return b.String()
 }

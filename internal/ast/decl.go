@@ -41,6 +41,7 @@ func (c *ConstDecl) Tree(indent string) string {
 
 type FuncDecl struct {
 	Name        string
+	Receiver    *Param
 	Params      []Param
 	Body        *BlockStmt
 	ReturnTypes []TypeRef
@@ -54,6 +55,12 @@ func (f *FuncDecl) Tree(indent string) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "%sFuncDecl(%s)\n", indent, f.Name)
+
+	if f.Receiver != nil {
+		b.WriteString(indent)
+		b.WriteString("├─ Receiver\n")
+		b.WriteString(f.Receiver.Tree(indent + "│  "))
+	}
 
 	b.WriteString(indent)
 	b.WriteString("├─ Params\n")
