@@ -43,6 +43,9 @@ const (
 	TOKEN_STRUCT
 	TOKEN_TYPE
 	TOKEN_ENUM
+	TOKEN_SWITCH
+	TOKEN_CASE
+	TOKEN_DEFAULT
 
 	TOKEN_IF
 	TOKEN_ELSE
@@ -122,6 +125,9 @@ var keywords = map[string]TokenType{
 	"struct":   TOKEN_STRUCT,
 	"type":     TOKEN_TYPE,
 	"enum":     TOKEN_ENUM,
+	"switch":   TOKEN_SWITCH,
+	"case":     TOKEN_CASE,
+	"default":  TOKEN_DEFAULT,
 	"if":       TOKEN_IF,
 	"else":     TOKEN_ELSE,
 	"for":      TOKEN_FOR,

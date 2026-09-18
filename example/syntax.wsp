@@ -2,6 +2,15 @@
 const MaxScore = 100;
 type UserID int;
 
+// enum desugars to a nominal type + typed consts: Color is its own type,
+// not just int, so mixing it with plain int still requires an explicit cast
+enum Color {
+  Red,
+  Green,
+  Blue,
+  Alpha = 10 // explicit value; auto-increment continues from here (11, 12, ...)
+}
+
 func add(int a, b) int => a + b;
 
 func addVerbose(int a, b) (int, bool) {
@@ -156,6 +165,10 @@ func main() {
   UserID uid = 42;
   int rawId = uid as int;
   emitf("uid=%d rawId=%d", uid as int, rawId);
+
+  // enum members are typed constants of the enum's own type, not plain int
+  Color favorite = Green;
+  emitf("Red=%d Green=%d Blue=%d Alpha=%d favorite=%d", Red as int, Green as int, Blue as int, Alpha as int, favorite as int);
 
   // slicing: [start:end], both ends optional; works on arrays, spans and strings
   int[] sliceMid = nums[1:3];
