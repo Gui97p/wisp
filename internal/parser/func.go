@@ -62,10 +62,11 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.errorType(p.current.Type)
 			return params
 		}
-		ref := p.parseTypePrefix()
+		ref := p.parseTypeDefinitionPrefix()
 		if ref == nil {
 			return params
 		}
+		p.advance()
 		currentType = *ref
 
 		if p.current.Type == lexer.TOKEN_VARIADIC {
@@ -103,8 +104,6 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			if p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC) {
 				break
 			}
-
-			currentType.PointerDepth = p.parsePointerDepth()
 
 			if p.current.Type == lexer.TOKEN_VARIADIC {
 				if !p.expect(lexer.TOKEN_IDENT) {

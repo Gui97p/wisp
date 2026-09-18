@@ -39,10 +39,11 @@ func (p *Parser) parseStructParamList() []ast.Param {
 			p.errorType(p.current.Type)
 			return params
 		}
-		ref := p.parseTypePrefix()
+		ref := p.parseTypeDefinitionPrefix()
 		if ref == nil {
 			return params
 		}
+		p.advance()
 		currentType := *ref
 
 		if p.current.Type != lexer.TOKEN_IDENT {
@@ -62,8 +63,6 @@ func (p *Parser) parseStructParamList() []ast.Param {
 		for p.peek.Type == lexer.TOKEN_COMMA {
 			p.advance()
 			p.advance()
-
-			currentType.PointerDepth = p.parsePointerDepth()
 
 			if p.current.Type != lexer.TOKEN_IDENT {
 				p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)

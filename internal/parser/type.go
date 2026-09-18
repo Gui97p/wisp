@@ -49,20 +49,6 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 	return ref
 }
 
-func (p *Parser) parseTypePrefix() *ast.TypeRef {
-	ref := p.parseMapPrefix()
-
-	if !ref.IsMap {
-		ref.Name = p.current.Literal
-		p.advance()
-		ref.PointerDepth = p.parsePointerDepth()
-	} else {
-		p.advance()
-	}
-
-	return ref
-}
-
 func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
 	ref.Dims = nil
 
@@ -91,4 +77,20 @@ func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
 	}
 
 	return true
+}
+
+func (p *Parser) looksPointerDeclaration() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+
+	p.parsePointerDepth()
+
+	switch {
+	case p.current.Type == lexer.TOKEN_MAP, p.isPrimitiveType():
+		return true
+	case p.current.Type == lexer.TOKEN_IDENT:
+		return p.peek.Type == lexer.TOKEN_IDENT
+	default:
+		return false
+	}
 }

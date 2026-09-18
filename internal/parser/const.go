@@ -15,10 +15,11 @@ func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
 
 	var currentType ast.TypeRef
 	if isTypedDecl {
-		ref := p.parseTypePrefix()
+		ref := p.parseTypeDefinitionPrefix()
 		if ref == nil {
 			return nil, nil
 		}
+		p.advance()
 		currentType = *ref
 	}
 
@@ -36,8 +37,6 @@ func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
 		p.advance()
-
-		currentType.PointerDepth = p.parsePointerDepth()
 
 		if p.current.Type != lexer.TOKEN_IDENT {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)

@@ -12,6 +12,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	if stmt == nil {
 		return nil
 	}
+
 	stmt.SetPos(line, col)
 	return stmt
 }
@@ -41,6 +42,12 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		stmt = p.parseVarStatement()
 	case lexer.TOKEN_IDENT:
 		if p.peek.Type == lexer.TOKEN_IDENT {
+			stmt = p.parseVarStatement()
+		} else {
+			stmt = p.parseSimpleStatement()
+		}
+	case lexer.TOKEN_STAR:
+		if p.looksPointerDeclaration() {
 			stmt = p.parseVarStatement()
 		} else {
 			stmt = p.parseSimpleStatement()
@@ -155,10 +162,11 @@ func (p *Parser) parseVarStatement() ast.Statement {
 
 	var currentType ast.TypeRef
 	if p.current.Type != lexer.TOKEN_LET {
-		ref := p.parseTypePrefix()
+		ref := p.parseTypeDefinitionPrefix()
 		if ref == nil {
 			return nil
 		}
+		p.advance()
 		currentType = *ref
 	} else {
 		p.advance()
@@ -178,8 +186,6 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
 		p.advance()
-
-		currentType.PointerDepth = p.parsePointerDepth()
 
 		if p.current.Type != lexer.TOKEN_IDENT {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)

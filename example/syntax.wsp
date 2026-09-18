@@ -79,26 +79,26 @@ func main() {
   emitf("p: x=%d y=%d", p.x, p.y);
 
   // Pointers, including multiple levels of indirection
+  // pointer star is a prefix on the type (*int, **int, *Point, ...),
+  // never postfix -- this is what lets pointer-to-custom-type also be
+  // declared explicitly, unlike the old "Point *pp" style which was
+  // ambiguous with multiplication.
   int x = 1 > 2 ? 42 : 21;
-  int *px = &x;      // pointer to int
-  int **ppx = &px;   // pointer to pointer to int
+  *int px = &x;      // pointer to int
+  **int ppx = &px;   // pointer to pointer to int
 
   emitf("x=%d *px=%d **ppx=%d", x, *px, **ppx);
 
-  /* pointer to a struct; explicit "Point *pp" isn't valid syntax
-     (ambiguous with multiplication for custom type names), so
-     pointer-to-struct locals always go through inferred `let`
-  */
-  let pp = &p;
+  *Point pp = &p;    // pointer to a struct, explicit type
   emitf("pp.x=%d pp.y=%d", pp.x, pp.y);
 
   // null and manual heap allocation
-  int *maybeNull = null;
+  *int maybeNull = null;
   if maybeNull == null {
     emit("pointer is null");
   }
 
-  int *heapInt = malloc(8);
+  *int heapInt = malloc(8);
   *heapInt = 99;
   emitf("heapInt=%d", *heapInt);
   free(heapInt);
