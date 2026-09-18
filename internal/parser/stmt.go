@@ -320,13 +320,23 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 			}
 		}
 
+		currentIf.Condition = expr
+
 		if !p.expect(lexer.TOKEN_COLON) {
-			stmts := p.parseSwitchBlock()
-			if stmts != nil {
-				currentIf.Then.Statements = stmts
-			}
+			return nil
+		}
+
+		stmts := p.parseSwitchBlock()
+		if stmts != nil {
+			currentIf.Then.Statements = stmts
 		}
 	}
+
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+
+	block.Statements = append(block.Statements, stmt)
 
 	return block
 }

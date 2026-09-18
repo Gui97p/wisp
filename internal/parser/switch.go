@@ -24,7 +24,10 @@ func (p *Parser) parseSwitchHeader() (*ast.BlockStmt, ast.Expression) {
 		p.switchNameCount++
 	}
 
+	last := p.allowStructLiteral
+	p.allowStructLiteral = false
 	value := p.parseExpression()
+	p.allowStructLiteral = last
 	if value == nil {
 		return nil, nil
 	}
@@ -35,7 +38,7 @@ func (p *Parser) parseSwitchHeader() (*ast.BlockStmt, ast.Expression) {
 
 	block.Statements = append(block.Statements, varStmt)
 
-	return block, value
+	return block, &ast.IdentLiteral{Value: name}
 }
 
 func (p *Parser) parseSwitchBlock() []ast.Statement {
