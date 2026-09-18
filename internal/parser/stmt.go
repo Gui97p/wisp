@@ -332,6 +332,18 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 		}
 	}
 
+	if p.peek.Type == lexer.TOKEN_DEFAULT {
+		p.advance()
+		if !p.expect(lexer.TOKEN_COLON) {
+			return nil
+		}
+
+		stmts := p.parseSwitchBlock()
+		if stmts != nil {
+			currentIf.Else = &ast.BlockStmt{Statements: stmts}
+		}
+	}
+
 	if !p.expect(lexer.TOKEN_RBRACE) {
 		return nil
 	}

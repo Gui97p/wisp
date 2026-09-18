@@ -44,7 +44,14 @@ func (p *Parser) parseSwitchHeader() (*ast.BlockStmt, ast.Expression) {
 func (p *Parser) parseSwitchBlock() []ast.Statement {
 	stmts := []ast.Statement{}
 
-	for p.peek.Type != lexer.TOKEN_RBRACE && p.peek.Type != lexer.TOKEN_CASE && p.peek.Type != lexer.TOKEN_EOF {
+	for {
+		if p.peek.Type == lexer.TOKEN_CASE || p.peek.Type == lexer.TOKEN_DEFAULT {
+			break
+		}
+		if p.peek.Type == lexer.TOKEN_RBRACE || p.peek.Type == lexer.TOKEN_EOF {
+			break
+		}
+
 		p.advance()
 
 		stmt := p.parseStatement()
@@ -83,7 +90,7 @@ func (p *Parser) parseCaseExpression(value ast.Expression) ast.Expression {
 		right := &ast.BinaryExpr{
 			Left:     value,
 			Operator: "<=",
-			Right:    expr,
+			Right:    end,
 		}
 
 		expr = &ast.BinaryExpr{
