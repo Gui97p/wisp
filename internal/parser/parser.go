@@ -15,6 +15,7 @@ type Parser struct {
 	errors diag.List
 
 	allowStructLiteral bool
+	switchNameCount    int
 }
 
 func NewParser(l *lexer.Lexer) *Parser {

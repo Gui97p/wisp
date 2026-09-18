@@ -50,6 +50,8 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		stmt = p.parseVarStatement()
 	case lexer.TOKEN_RETURN:
 		stmt = p.parseReturnStatement()
+	case lexer.TOKEN_SWITCH:
+		stmt = p.parseSwitchStatement()
 	case lexer.TOKEN_IF:
 		stmt = p.parseIfStatement()
 	case lexer.TOKEN_FOR:
@@ -112,6 +114,9 @@ func (p *Parser) parseBlockStatement() *ast.BlockStmt {
 
 func (p *Parser) parseSimpleStatement() ast.Statement {
 	expr := p.parseExpression()
+	if expr == nil {
+		return nil
+	}
 
 	switch p.peek.Type {
 	case lexer.TOKEN_ASSIGN,
@@ -274,6 +279,56 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 	}
 
 	return stmt
+}
+
+func (p *Parser) parseSwitchStatement() ast.Statement {
+	p.advance()
+	block, value := p.parseSwitchHeader()
+	if block == nil || value == nil {
+		return nil
+	}
+
+	if !p.expect(lexer.TOKEN_LBRACE) {
+		return nil
+	}
+
+	first := true
+	stmt := &ast.IfStmt{Then: &ast.BlockStmt{}}
+	currentIf := stmt
+
+	for p.peek.Type == lexer.TOKEN_CASE {
+		if !first {
+			newIf := &ast.IfStmt{Then: &ast.BlockStmt{}}
+			currentIf.Else = &ast.BlockStmt{Statements: []ast.Statement{newIf}}
+			currentIf = newIf
+		} else {
+			first = false
+		}
+
+		expr := p.parseCaseExpression(value)
+
+		for p.peek.Type == lexer.TOKEN_COMMA {
+			right := p.parseCaseExpression(value)
+			if right == nil {
+				return nil
+			}
+
+			expr = &ast.BinaryExpr{
+				Left:     expr,
+				Operator: "||",
+				Right:    right,
+			}
+		}
+
+		if !p.expect(lexer.TOKEN_COLON) {
+			stmts := p.parseSwitchBlock()
+			if stmts != nil {
+				currentIf.Then.Statements = stmts
+			}
+		}
+	}
+
+	return block
 }
 
 func (p *Parser) parseIfStatement() ast.Statement {
