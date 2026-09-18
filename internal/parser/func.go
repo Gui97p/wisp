@@ -8,8 +8,29 @@ import (
 func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 	decl := &ast.FuncDecl{}
 
+	if p.peek.Type == lexer.TOKEN_LPAREN {
+		p.advance()
+		p.advance()
+
+		ref := p.parseTypeDefinitionPrefix()
+		if ref == nil {
+			return nil
+		}
+
+		var name string
+		if p.peek.Type == lexer.TOKEN_IDENT {
+			p.advance()
+			name = p.current.Literal
+		}
+		decl.Receiver = &ast.Param{Name: name, Type: *ref}
+
+		if !p.expect(lexer.TOKEN_RPAREN) {
+			return nil
+		}
+	}
+
 	if !p.expect(lexer.TOKEN_IDENT) {
-		p.error("expected function name in declaration")
+		p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 		return nil
 	}
 	decl.Name = p.current.Literal
