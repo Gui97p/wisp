@@ -30,11 +30,8 @@ func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 
 	for p.current.Type != lexer.TOKEN_EOF {
-		decl := p.parseDeclaration()
-
-		if decl != nil {
-			program.Declarations = append(program.Declarations, decl)
-		}
+		decls := p.parseDeclaration()
+		program.Declarations = append(program.Declarations, decls...)
 		p.advance()
 	}
 

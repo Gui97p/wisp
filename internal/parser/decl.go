@@ -1,62 +1,72 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
 
-func (p *Parser) parseDeclaration() ast.Declaration {
+func (p *Parser) parseDeclaration() []ast.Declaration {
 	line, col := p.current.Line, p.current.Column
 
-	decl := p.parseDeclarationInner()
-	if decl == nil {
+	decls := p.parseDeclarationInner()
+	if decls == nil {
 		return nil
 	}
-	decl.SetPos(line, col)
-	return decl
+	for _, decl := range decls {
+		decl.SetPos(line, col)
+	}
+
+	return decls
 }
 
-func (p *Parser) parseDeclarationInner() ast.Declaration {
+func (p *Parser) parseDeclarationInner() []ast.Declaration {
+	decls := []ast.Declaration{}
+
 	switch p.current.Type {
 	case lexer.TOKEN_CONST:
 		decl := p.parseConstDeclaration()
 		if decl == nil {
 			return nil
 		}
-		return decl
+		decls = append(decls, decl)
 	case lexer.TOKEN_FUNC:
 		decl := p.parseFuncDeclaration()
 		if decl == nil {
 			return nil
 		}
-		return decl
+		decls = append(decls, decl)
 	case lexer.TOKEN_STRUCT:
 		decl := p.parseStructDeclaration()
 		if decl == nil {
 			return nil
 		}
-		return decl
+		decls = append(decls, decl)
 	case lexer.TOKEN_TYPE:
 		decl := p.parseTypeDeclaration()
 		if decl == nil {
 			return nil
 		}
-		return decl
+		decls = append(decls, decl)
 	case lexer.TOKEN_IMPORT:
 		decl := p.parseImportDeclaration()
 		if decl == nil {
 			return nil
 		}
-		return decl
+		decls = append(decls, decl)
 	case lexer.TOKEN_EXPORT:
 		return p.parseExportDeclaration()
+	case lexer.TOKEN_ENUM:
+		return p.parseEnumDeclaration()
 	default:
 		p.errorf("expected declaration, got %s", p.current.Type.DisplayName())
 		p.advance()
 		return nil
 	}
+
+	return decls
 }
 
 func (p *Parser) parseImportDeclaration() *ast.ImportDecl {
@@ -83,8 +93,9 @@ func (p *Parser) parseImportDeclaration() *ast.ImportDecl {
 	return decl
 }
 
-func (p *Parser) parseExportDeclaration() ast.Declaration {
+func (p *Parser) parseExportDeclaration() []ast.Declaration {
 	p.advance()
+	decls := []ast.Declaration{}
 
 	switch p.current.Type {
 	case lexer.TOKEN_CONST:
@@ -93,7 +104,7 @@ func (p *Parser) parseExportDeclaration() ast.Declaration {
 			return nil
 		}
 		decl.Exported = true
-		return decl
+		decls = append(decls, decl)
 
 	case lexer.TOKEN_FUNC:
 		decl := p.parseFuncDeclaration()
@@ -101,7 +112,23 @@ func (p *Parser) parseExportDeclaration() ast.Declaration {
 			return nil
 		}
 		decl.Exported = true
-		return decl
+		decls = append(decls, decl)
+
+	case lexer.TOKEN_ENUM:
+		decls = p.parseEnumDeclaration()
+		if decls == nil {
+			return nil
+		}
+		for _, decl := range decls {
+			switch d := decl.(type) {
+			case *ast.ConstDecl:
+				d.Exported = true
+			case *ast.TypeDecl:
+				d.Exported = true
+			default:
+				return nil
+			}
+		}
 
 	case lexer.TOKEN_STRUCT:
 		decl := p.parseStructDeclaration()
@@ -109,7 +136,7 @@ func (p *Parser) parseExportDeclaration() ast.Declaration {
 			return nil
 		}
 		decl.Exported = true
-		return decl
+		decls = append(decls, decl)
 
 	case lexer.TOKEN_TYPE:
 		decl := p.parseTypeDeclaration()
@@ -117,12 +144,14 @@ func (p *Parser) parseExportDeclaration() ast.Declaration {
 			return nil
 		}
 		decl.Exported = true
-		return decl
+		decls = append(decls, decl)
 
 	default:
 		p.error("expected declaration after export")
 		return nil
 	}
+
+	return decls
 }
 
 func (p *Parser) parseConstDeclaration() *ast.ConstDecl {
@@ -170,4 +199,61 @@ func (p *Parser) parseTypeDeclaration() *ast.TypeDecl {
 	}
 
 	return decl
+}
+
+func (p *Parser) parseEnumDeclaration() []ast.Declaration {
+	decls := []ast.Declaration{}
+
+	if !p.expect(lexer.TOKEN_IDENT) {
+		return nil
+	}
+	name := p.current.Literal
+	decls = append(decls, &ast.TypeDecl{Name: name, Underlying: ast.TypeRef{Name: "int"}})
+
+	if !p.expect(lexer.TOKEN_LBRACE) {
+		return nil
+	}
+
+	var current int64 = 0
+	for p.peek.Type != lexer.TOKEN_EOF {
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil
+		}
+		decl := &ast.ConstDecl{}
+		decl.Vars = append(decl.Vars, ast.Param{
+			Name: p.current.Literal,
+			Type: ast.TypeRef{Name: name},
+		})
+
+		if p.peek.Type == lexer.TOKEN_ASSIGN {
+			p.advance()
+			if !p.expect(lexer.TOKEN_INT_LITERAL) {
+				return nil
+			}
+			num, err := strconv.ParseInt(p.current.Literal, 10, 64)
+			if err != nil {
+				p.errorf("error converting int literal %s", err.Error())
+				return nil
+			}
+			if num < current {
+				p.errorf("enum expected a value greater than %d, got %d", current-1, num)
+			}
+			current = num
+		}
+		decl.Values = append(decl.Values, &ast.IntLiteral{Value: current})
+		current++
+
+		decls = append(decls, decl)
+
+		if p.peek.Type == lexer.TOKEN_RBRACE {
+			p.advance()
+			break
+		}
+
+		if !p.expect(lexer.TOKEN_COMMA) {
+			return nil
+		}
+	}
+
+	return decls
 }
