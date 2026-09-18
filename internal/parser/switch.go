@@ -64,7 +64,7 @@ func (p *Parser) parseSwitchBlock() []ast.Statement {
 	return stmts
 }
 
-func (p *Parser) parseCaseExpression(value ast.Expression) ast.Expression {
+func (p *Parser) parseOneCaseExpression(value ast.Expression) ast.Expression {
 	p.advance()
 	p.advance()
 
@@ -103,6 +103,25 @@ func (p *Parser) parseCaseExpression(value ast.Expression) ast.Expression {
 			Left:     value,
 			Operator: "==",
 			Right:    expr,
+		}
+	}
+
+	return expr
+}
+
+func (p *Parser) parseCaseExpression(value ast.Expression) ast.Expression {
+	expr := p.parseOneCaseExpression(value)
+
+	for p.peek.Type == lexer.TOKEN_COMMA {
+		right := p.parseOneCaseExpression(value)
+		if right == nil {
+			return nil
+		}
+
+		expr = &ast.BinaryExpr{
+			Left:     expr,
+			Operator: "||",
+			Right:    right,
 		}
 	}
 

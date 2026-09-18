@@ -441,3 +441,73 @@ func (p *Parser) parseCastExpr(left ast.Expression) ast.Expression {
 
 	return &ast.CastExpr{Value: left, Type: *ref}
 }
+
+func (p *Parser) parseSwitchExpr() ast.Expression {
+	p.advance()
+	block, value := p.parseSwitchHeader()
+	if block == nil || value == nil {
+		return nil
+	}
+
+	if !p.expect(lexer.TOKEN_LBRACE) {
+		return nil
+	}
+
+	first := true
+	ternaryExpr := &ast.TernaryExpr{}
+	currentTernary := ternaryExpr
+
+	for p.peek.Type == lexer.TOKEN_CASE {
+		if !first {
+			newTernary := &ast.TernaryExpr{}
+			currentTernary.Else = newTernary
+			currentTernary = newTernary
+		} else {
+			first = false
+		}
+
+		expr := p.parseCaseExpression(value)
+
+		currentTernary.Condition = expr
+
+		if !p.expect(lexer.TOKEN_ARROW) {
+			return nil
+		}
+		p.advance()
+
+		expr = p.parseExpression()
+		if expr == nil {
+			return nil
+		}
+		currentTernary.Then = expr
+
+		if !p.expect(lexer.TOKEN_COMMA) {
+			return nil
+		}
+	}
+
+	if !p.expect(lexer.TOKEN_DEFAULT) {
+		return nil
+	}
+
+	if !p.expect(lexer.TOKEN_ARROW) {
+		return nil
+	}
+
+	p.advance()
+	expr := p.parseExpression()
+	if expr == nil {
+		return nil
+	}
+	currentTernary.Else = expr
+
+	if p.peek.Type == lexer.TOKEN_COMMA {
+		p.advance()
+	}
+
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+
+	return ternaryExpr
+}

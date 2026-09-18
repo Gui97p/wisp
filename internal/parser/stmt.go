@@ -307,19 +307,6 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 
 		expr := p.parseCaseExpression(value)
 
-		for p.peek.Type == lexer.TOKEN_COMMA {
-			right := p.parseCaseExpression(value)
-			if right == nil {
-				return nil
-			}
-
-			expr = &ast.BinaryExpr{
-				Left:     expr,
-				Operator: "||",
-				Right:    right,
-			}
-		}
-
 		currentIf.Condition = expr
 
 		if !p.expect(lexer.TOKEN_COLON) {
