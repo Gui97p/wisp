@@ -98,6 +98,12 @@ func (p *Parser) parseCaseExpression(value ast.Expression) ast.Expression {
 			Operator: "&&",
 			Right:    right,
 		}
+	} else {
+		expr = &ast.BinaryExpr{
+			Left:     value,
+			Operator: "==",
+			Right:    expr,
+		}
 	}
 
 	return expr
