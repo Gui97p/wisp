@@ -40,14 +40,8 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		lexer.TOKEN_BOOL,
 		lexer.TOKEN_CHAR:
 		stmt = p.parseVarStatement()
-	case lexer.TOKEN_IDENT:
-		if p.peek.Type == lexer.TOKEN_IDENT {
-			stmt = p.parseVarStatement()
-		} else {
-			stmt = p.parseSimpleStatement()
-		}
-	case lexer.TOKEN_STAR:
-		if p.looksPointerDeclaration() {
+	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR:
+		if p.looksLikeTypeDeclaration() {
 			stmt = p.parseVarStatement()
 		} else {
 			stmt = p.parseSimpleStatement()
@@ -166,6 +160,9 @@ func (p *Parser) parseVarStatement() ast.Statement {
 		if ref == nil {
 			return nil
 		}
+		if !p.parseArraySuffix(ref) {
+			return nil
+		}
 		p.advance()
 		currentType = *ref
 	} else {
@@ -173,13 +170,10 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	}
 
 	if p.current.Type != lexer.TOKEN_IDENT {
+		p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 		return nil
 	}
 	name := p.current.Literal
-
-	if !p.parseArraySuffix(&currentType) {
-		return nil
-	}
 
 	stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
 
@@ -192,10 +186,6 @@ func (p *Parser) parseVarStatement() ast.Statement {
 			return nil
 		}
 		name := p.current.Literal
-
-		if !p.parseArraySuffix(&currentType) {
-			return nil
-		}
 
 		stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
 	}

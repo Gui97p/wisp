@@ -19,6 +19,9 @@ func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
 		if ref == nil {
 			return nil, nil
 		}
+		if !p.parseArraySuffix(ref) {
+			return nil, nil
+		}
 		p.advance()
 		currentType = *ref
 	}
@@ -28,10 +31,6 @@ func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
 		return nil, nil
 	}
 	name := p.current.Literal
-
-	if !p.parseArraySuffix(&currentType) {
-		return nil, nil
-	}
 	vars = append(vars, ast.Param{Name: name, Type: currentType})
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
@@ -43,10 +42,6 @@ func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
 			return nil, nil
 		}
 		name := p.current.Literal
-
-		if !p.parseArraySuffix(&currentType) {
-			return nil, nil
-		}
 		vars = append(vars, ast.Param{Name: name, Type: currentType})
 	}
 

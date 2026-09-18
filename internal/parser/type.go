@@ -79,7 +79,7 @@ func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
 	return true
 }
 
-func (p *Parser) looksPointerDeclaration() bool {
+func (p *Parser) looksLikeTypeDeclaration() bool {
 	cp := p.checkpoint()
 	defer p.restore(cp)
 
@@ -89,6 +89,16 @@ func (p *Parser) looksPointerDeclaration() bool {
 	case p.current.Type == lexer.TOKEN_MAP, p.isPrimitiveType():
 		return true
 	case p.current.Type == lexer.TOKEN_IDENT:
+		if p.peek.Type == lexer.TOKEN_IDENT {
+			return true
+		}
+		if p.peek.Type != lexer.TOKEN_LBRACKET {
+			return false
+		}
+		var ref ast.TypeRef
+		if !p.parseArraySuffix(&ref) {
+			return false
+		}
 		return p.peek.Type == lexer.TOKEN_IDENT
 	default:
 		return false

@@ -30,7 +30,7 @@ func main() {
 
   // Zero-value declarations: no initializer -> zeroed
   int zeroed;
-  int zeroArr[3];
+  int[3] zeroArr;
   emitf("zeroed=%d zeroArr0=%d", zeroed, zeroArr[0]);
 
   if total >= limit {
@@ -69,8 +69,8 @@ func main() {
     }
   }
 
-  int nums[5] = [124, 512, 1, 5, 2]; // fixed array
-  int partial[5] = [7, 8]; // partial fill: remaining slots are zero-valued
+  int[5] nums = [124, 512, 1, 5, 2]; // fixed array
+  int[5] partial = [7, 8]; // partial fill: remaining slots are zero-valued
 
   // let's create some points with it
   Point p = Point{x: nums[0], y: nums[1]};
@@ -143,10 +143,10 @@ func main() {
   emitf("uid=%d rawId=%d", uid as int, rawId);
 
   // slicing: [start:end], both ends optional; works on arrays, spans and strings
-  int sliceMid[] = nums[1:3];
-  int sliceHead[] = nums[:2];
-  int sliceTail[] = nums[3:];
-  int sliceAll[] = nums[:];
+  int[] sliceMid = nums[1:3];
+  int[] sliceHead = nums[:2];
+  int[] sliceTail = nums[3:];
+  int[] sliceAll = nums[:];
   emitf("mid0=%d mid1=%d", sliceMid[0], sliceMid[1]);
 
   string greeting = "hello world";

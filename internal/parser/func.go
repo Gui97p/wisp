@@ -66,6 +66,9 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 		if ref == nil {
 			return params
 		}
+		if !p.parseArraySuffix(ref) {
+			return nil
+		}
 		p.advance()
 		currentType = *ref
 
@@ -87,10 +90,6 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			return params
 		}
 		name := p.current.Literal
-
-		if !p.parseArraySuffix(&currentType) {
-			return nil
-		}
 
 		params = append(params, ast.Param{
 			Name: name,
@@ -123,10 +122,6 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 				return params
 			}
 			name := p.current.Literal
-
-			if !p.parseArraySuffix(&currentType) {
-				return nil
-			}
 
 			params = append(params, ast.Param{
 				Name: name,

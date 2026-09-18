@@ -43,16 +43,15 @@ func (p *Parser) parseStructParamList() []ast.Param {
 		if ref == nil {
 			return params
 		}
+		if !p.parseArraySuffix(ref) {
+			return nil
+		}
 		p.advance()
 		currentType := *ref
 
 		if p.current.Type != lexer.TOKEN_IDENT {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 			return params
-		}
-
-		if !p.parseArraySuffix(&currentType) {
-			return nil
 		}
 
 		params = append(params, ast.Param{
@@ -69,10 +68,6 @@ func (p *Parser) parseStructParamList() []ast.Param {
 				return params
 			}
 			name := p.current.Literal
-
-			if !p.parseArraySuffix(&currentType) {
-				return nil
-			}
 
 			params = append(params, ast.Param{
 				Name: name,

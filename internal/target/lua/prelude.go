@@ -14,5 +14,4 @@ local function __wisp_slice(t, a, b)
 		j = j + 1
 	end
 	return r
-end
-`
+end\n\n`
