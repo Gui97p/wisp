@@ -94,7 +94,7 @@ func (p *Parser) parseConstStatement() ast.Statement {
 	p.advance()
 
 	if p.current.Type == lexer.TOKEN_SWITCH {
-		block, value := p.parseSwitchExpr()
+		group, value := p.parseSwitchExpr()
 		if value == nil {
 			return nil
 		}
@@ -104,8 +104,8 @@ func (p *Parser) parseConstStatement() ast.Statement {
 			return nil
 		}
 
-		block.Statements = append(block.Statements, stmt)
-		return block
+		group.Statements = append(group.Statements, stmt)
+		return group
 	}
 
 	values := p.parseConstValues()
@@ -231,7 +231,7 @@ func (p *Parser) parseVarStatement() ast.Statement {
 
 	p.advance()
 	if p.current.Type == lexer.TOKEN_SWITCH {
-		block, value := p.parseSwitchExpr()
+		group, value := p.parseSwitchExpr()
 		if value == nil {
 			return nil
 		}
@@ -241,8 +241,8 @@ func (p *Parser) parseVarStatement() ast.Statement {
 			return nil
 		}
 
-		block.Statements = append(block.Statements, stmt)
-		return block
+		group.Statements = append(group.Statements, stmt)
+		return group
 	}
 
 	value := p.parseExpression()
@@ -297,7 +297,7 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 
 	if p.peek.Type == lexer.TOKEN_SWITCH {
 		p.advance()
-		block, value := p.parseSwitchExpr()
+		group, value := p.parseSwitchExpr()
 		if value == nil {
 			return nil
 		}
@@ -307,8 +307,8 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 			return nil
 		}
 
-		block.Statements = append(block.Statements, stmt)
-		return block
+		group.Statements = append(group.Statements, stmt)
+		return group
 	}
 
 	for {

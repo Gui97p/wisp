@@ -14,6 +14,12 @@ func (a *Analyser) checkBlock(block *ast.BlockStmt) {
 	}
 }
 
+func (a *Analyser) checkGroup(group *ast.GroupStmt) {
+	for _, stmt := range group.Statements {
+		a.checkStmt(stmt)
+	}
+}
+
 func (a *Analyser) checkStmt(stmt ast.Statement) {
 	switch s := stmt.(type) {
 	case *ast.ExpressionStmt:
@@ -46,6 +52,8 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.enterScope()
 		a.checkBlock(s)
 		a.exitScope()
+	case *ast.GroupStmt:
+		a.checkGroup(s)
 	}
 }
 
@@ -259,6 +267,8 @@ func stmtTerminates(stmt ast.Statement) bool {
 		return s.Condition == nil && s.UntilCondition == nil
 	case *ast.BlockStmt:
 		return blockTerminates(s)
+	case *ast.GroupStmt:
+		return blockTerminates((*ast.BlockStmt)(s))
 	default:
 		return false
 	}

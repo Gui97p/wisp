@@ -442,12 +442,13 @@ func (p *Parser) parseCastExpr(left ast.Expression) ast.Expression {
 	return &ast.CastExpr{Value: left, Type: *ref}
 }
 
-func (p *Parser) parseSwitchExpr() (*ast.BlockStmt, ast.Expression) {
+func (p *Parser) parseSwitchExpr() (*ast.GroupStmt, ast.Expression) {
 	p.advance()
 	block, value := p.parseSwitchHeader()
 	if block == nil || value == nil {
 		return nil, nil
 	}
+	group := &ast.GroupStmt{Statements: block.Statements}
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil, nil
@@ -509,5 +510,5 @@ func (p *Parser) parseSwitchExpr() (*ast.BlockStmt, ast.Expression) {
 		return nil, nil
 	}
 
-	return block, ternaryExpr
+	return group, ternaryExpr
 }

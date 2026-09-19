@@ -11,6 +11,8 @@ func (t *LuaTarget) compileStatement(b *strings.Builder, stmt ast.Statement) err
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
 		return t.compileBlockStatement(b, s)
+	case *ast.GroupStmt:
+		return t.compileGroupStatement(b, s)
 	case *ast.ConstStmt:
 		return t.compileDefinition(b, s, s.Vars, s.Values)
 	case *ast.VarStmt:
@@ -40,6 +42,15 @@ func (t *LuaTarget) compileStatement(b *strings.Builder, stmt ast.Statement) err
 
 func (t *LuaTarget) compileBlockStatement(b *strings.Builder, block *ast.BlockStmt) error {
 	for _, stmt := range block.Statements {
+		if err := t.compileStatement(b, stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *LuaTarget) compileGroupStatement(b *strings.Builder, group *ast.GroupStmt) error {
+	for _, stmt := range group.Statements {
 		if err := t.compileStatement(b, stmt); err != nil {
 			return err
 		}
