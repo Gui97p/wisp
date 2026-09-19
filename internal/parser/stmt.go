@@ -85,12 +85,33 @@ func (p *Parser) parseStatementInner() ast.Statement {
 func (p *Parser) parseConstStatement() ast.Statement {
 	stmt := &ast.ConstStmt{}
 
-	vars, values := p.parseConst()
-	if vars == nil || values == nil {
+	vars := p.parseConstIdentifiers()
+	if vars == nil {
 		return nil
 	}
-
 	stmt.Vars = vars
+
+	p.advance()
+
+	if p.current.Type == lexer.TOKEN_SWITCH {
+		block, value := p.parseSwitchExpr()
+		if value == nil {
+			return nil
+		}
+		stmt.Values = append(stmt.Values, value)
+
+		if !p.expect(lexer.TOKEN_SEMICOLON) {
+			return nil
+		}
+
+		block.Statements = append(block.Statements, stmt)
+		return block
+	}
+
+	values := p.parseConstValues()
+	if values == nil {
+		return nil
+	}
 	stmt.Values = values
 
 	return stmt
@@ -209,6 +230,21 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	}
 
 	p.advance()
+	if p.current.Type == lexer.TOKEN_SWITCH {
+		block, value := p.parseSwitchExpr()
+		if value == nil {
+			return nil
+		}
+		stmt.Values = append(stmt.Values, value)
+
+		if !p.expect(lexer.TOKEN_SEMICOLON) {
+			return nil
+		}
+
+		block.Statements = append(block.Statements, stmt)
+		return block
+	}
+
 	value := p.parseExpression()
 	if value == nil {
 		return nil
@@ -257,6 +293,22 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 	if p.peek.Type == lexer.TOKEN_SEMICOLON {
 		p.advance()
 		return stmt
+	}
+
+	if p.peek.Type == lexer.TOKEN_SWITCH {
+		p.advance()
+		block, value := p.parseSwitchExpr()
+		if value == nil {
+			return nil
+		}
+		stmt.Values = append(stmt.Values, value)
+
+		if !p.expect(lexer.TOKEN_SEMICOLON) {
+			return nil
+		}
+
+		block.Statements = append(block.Statements, stmt)
+		return block
 	}
 
 	for {

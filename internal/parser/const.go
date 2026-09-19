@@ -5,9 +5,8 @@ import (
 	"github.com/Gui97p/wisp/internal/lexer"
 )
 
-func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
+func (p *Parser) parseConstIdentifiers() []ast.Param {
 	var vars []ast.Param
-	var values []ast.Expression
 
 	p.advance()
 
@@ -17,10 +16,10 @@ func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
 	if isTypedDecl {
 		ref := p.parseTypeDefinitionPrefix()
 		if ref == nil {
-			return nil, nil
+			return nil
 		}
 		if !p.parseArraySuffix(ref) {
-			return nil, nil
+			return nil
 		}
 		p.advance()
 		currentType = *ref
@@ -28,7 +27,7 @@ func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
 
 	if p.current.Type != lexer.TOKEN_IDENT {
 		p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
-		return nil, nil
+		return nil
 	}
 	name := p.current.Literal
 	vars = append(vars, ast.Param{Name: name, Type: currentType})
@@ -39,20 +38,25 @@ func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
 
 		if p.current.Type != lexer.TOKEN_IDENT {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
-			return nil, nil
+			return nil
 		}
 		name := p.current.Literal
 		vars = append(vars, ast.Param{Name: name, Type: currentType})
 	}
 
 	if !p.expect(lexer.TOKEN_ASSIGN) {
-		return nil, nil
+		return nil
 	}
 
-	p.advance()
+	return vars
+}
+
+func (p *Parser) parseConstValues() []ast.Expression {
+	var values []ast.Expression
+
 	value := p.parseExpression()
 	if value == nil {
-		return nil, nil
+		return nil
 	}
 	values = append(values, value)
 
@@ -61,14 +65,14 @@ func (p *Parser) parseConst() ([]ast.Param, []ast.Expression) {
 		p.advance()
 		value := p.parseExpression()
 		if value == nil {
-			return nil, nil
+			return nil
 		}
 		values = append(values, value)
 	}
 
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil, nil
+		return nil
 	}
 
-	return vars, values
+	return values
 }

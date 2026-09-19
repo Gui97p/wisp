@@ -157,12 +157,17 @@ func (p *Parser) parseExportDeclaration() []ast.Declaration {
 func (p *Parser) parseConstDeclaration() *ast.ConstDecl {
 	decl := &ast.ConstDecl{}
 
-	vars, values := p.parseConst()
-	if vars == nil || values == nil {
+	vars := p.parseConstIdentifiers()
+	if vars == nil {
 		return nil
 	}
-
 	decl.Vars = vars
+
+	p.advance()
+	values := p.parseConstValues()
+	if values == nil {
+		return nil
+	}
 	decl.Values = values
 
 	return decl
@@ -215,7 +220,7 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 	}
 
 	var current int64 = 0
-	for p.peek.Type != lexer.TOKEN_EOF {
+	for p.peek.Type != lexer.TOKEN_EOF && p.peek.Type != lexer.TOKEN_RBRACE {
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return nil
 		}
@@ -245,14 +250,15 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 
 		decls = append(decls, decl)
 
-		if p.peek.Type == lexer.TOKEN_RBRACE {
-			p.advance()
-			break
+		if p.peek.Type != lexer.TOKEN_RBRACE {
+			if !p.expect(lexer.TOKEN_COMMA) {
+				return nil
+			}
 		}
+	}
 
-		if !p.expect(lexer.TOKEN_COMMA) {
-			return nil
-		}
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
 	}
 
 	return decls

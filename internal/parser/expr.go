@@ -442,15 +442,15 @@ func (p *Parser) parseCastExpr(left ast.Expression) ast.Expression {
 	return &ast.CastExpr{Value: left, Type: *ref}
 }
 
-func (p *Parser) parseSwitchExpr() ast.Expression {
+func (p *Parser) parseSwitchExpr() (*ast.BlockStmt, ast.Expression) {
 	p.advance()
 	block, value := p.parseSwitchHeader()
 	if block == nil || value == nil {
-		return nil
+		return nil, nil
 	}
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
-		return nil
+		return nil, nil
 	}
 
 	first := true
@@ -471,33 +471,33 @@ func (p *Parser) parseSwitchExpr() ast.Expression {
 		currentTernary.Condition = expr
 
 		if !p.expect(lexer.TOKEN_ARROW) {
-			return nil
+			return nil, nil
 		}
 		p.advance()
 
 		expr = p.parseExpression()
 		if expr == nil {
-			return nil
+			return nil, nil
 		}
 		currentTernary.Then = expr
 
 		if !p.expect(lexer.TOKEN_COMMA) {
-			return nil
+			return nil, nil
 		}
 	}
 
 	if !p.expect(lexer.TOKEN_DEFAULT) {
-		return nil
+		return nil, nil
 	}
 
 	if !p.expect(lexer.TOKEN_ARROW) {
-		return nil
+		return nil, nil
 	}
 
 	p.advance()
 	expr := p.parseExpression()
 	if expr == nil {
-		return nil
+		return nil, nil
 	}
 	currentTernary.Else = expr
 
@@ -506,8 +506,8 @@ func (p *Parser) parseSwitchExpr() ast.Expression {
 	}
 
 	if !p.expect(lexer.TOKEN_RBRACE) {
-		return nil
+		return nil, nil
 	}
 
-	return ternaryExpr
+	return block, ternaryExpr
 }
