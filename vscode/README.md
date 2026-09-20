@@ -5,7 +5,7 @@ Syntax highlighting, snippets and a file icon for [Wisp](https://github.com/Gui9
 ## Features
 
 - Syntax highlighting for keywords, types, numbers, strings, characters, comments, operators, functions, struct and enum names, and enum values.
-- Snippets for `main`, `func`, `let`, `if`, `ifelse`, `switch`, `for`, `loop`, `struct`, `enum` and `emit`.
+- Snippets for `main`, `func`, `if`, `ifelse`, `switch`, `for`, `loop`, `struct` and `enum`.
 - Bracket matching, auto-closing pairs, comment toggling and `// region` folding.
 - A file icon for `.wsp` files.
 

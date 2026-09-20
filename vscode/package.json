@@ -1,20 +1,28 @@
 {
     "name": "wisp",
     "displayName": "Wisp Language Support",
-    "description": "Syntax highlighting and language support for the Wisp programming language.",
-    "version": "0.1.0",
+    "description": "Syntax highlighting, snippets and file icon for the Wisp programming language.",
+    "version": "0.1.1",
     "publisher": "gui97p",
     "license": "MIT",
     "repository": {
         "type": "git",
         "url": "https://github.com/Gui97p/wisp.git"
     },
+    "keywords": [
+        "wisp",
+        "language",
+        "syntax highlighting",
+        "snippets"
+    ],
     "engines": {
         "vscode": "^1.102.0"
     },
     "categories": [
-        "Programming Languages"
+        "Programming Languages",
+        "Snippets"
     ],
+    "icon": "icons/wisp-128.png",
     "contributes": {
         "languages": [
             {
