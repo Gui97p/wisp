@@ -34,13 +34,19 @@ func collectFuncNames(decls []ast.Declaration) []string {
 	var names []string
 	for _, d := range decls {
 		if fd, ok := d.(*ast.FuncDecl); ok {
-			names = append(names, funcName(fd))
+			if fd.Body != nil {
+				names = append(names, funcName(fd))
+			}
 		}
 	}
 	return names
 }
 
 func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl) error {
+	if fd.Body == nil {
+		return nil
+	}
+
 	fmt.Fprintf(b, "%s = function(", funcName(fd))
 
 	first := true
@@ -68,4 +74,3 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 
 	return nil
 }
-

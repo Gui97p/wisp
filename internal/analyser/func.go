@@ -46,7 +46,9 @@ func (a *Analyser) checkFuncBodies() {
 		if !ok {
 			continue
 		}
-		a.checkFuncBody(fd)
+		if fd.Body != nil {
+			a.checkFuncBody(fd)
+		}
 	}
 }
 

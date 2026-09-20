@@ -45,6 +45,11 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 	}
 	decl.ReturnTypes = p.parseReturnTypes()
 
+	if p.peek.Type == lexer.TOKEN_SEMICOLON {
+		p.advance()
+		return decl
+	}
+
 	if p.peek.Type == lexer.TOKEN_ARROW {
 		p.advance()
 		line, col := p.current.Line, p.current.Column
@@ -157,7 +162,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 func (p *Parser) parseReturnTypes() []ast.TypeRef {
 	returnTypes := []ast.TypeRef{}
 
-	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW {
+	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW || p.peek.Type == lexer.TOKEN_SEMICOLON {
 		return returnTypes
 	}
 	p.advance()
