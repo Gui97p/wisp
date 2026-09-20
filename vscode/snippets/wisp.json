@@ -1,0 +1,86 @@
+{
+    "Main Function": {
+        "prefix": "main",
+        "body": [
+            "func main() {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Main Function"
+    },
+    "Function": {
+        "prefix": "func",
+        "body": [
+            "func ${1:nome}(${2}) {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Declares a function"
+    },
+    "if": {
+        "prefix": "if",
+        "body": [
+            "if ${1:condition} {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Conditional if"
+    },
+    "if else": {
+        "prefix": "ifelse",
+        "body": [
+            "if ${1:condition} {",
+            "\t$2",
+            "} else {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Conditional if with else"
+    },
+    "switch (expression)": {
+        "prefix": "switch",
+        "body": [
+            "let ${1:name} = switch ${2:value} {",
+            "\tcase ${3:A} => ${4:x},",
+            "\tdefault => ${5:y},",
+            "};"
+        ],
+        "description": "Switch as expression, attributed to a variable"
+    },
+    "for (range)": {
+        "prefix": "for",
+        "body": [
+            "for ${1:i} in ${2:0}..${3:10} {",
+            "\t$0",
+            "}"
+        ],
+        "description": "For loop in an internal"
+    },
+    "loop": {
+        "prefix": "loop",
+        "body": [
+            "loop {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Infinite Loop"
+    },
+    "struct": {
+        "prefix": "struct",
+        "body": [
+            "struct ${1:Name} {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Declares a struct"
+    },
+    "enum": {
+        "prefix": "enum",
+        "body": [
+            "enum ${1:Name} {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Declares an enum"
+    }
+}

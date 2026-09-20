@@ -1,0 +1,6 @@
+.vscode/**
+**/*.ts
+**/*.map
+icons/wisp-128.svg
+sample/**
+.gitignore

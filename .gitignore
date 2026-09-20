@@ -36,3 +36,4 @@ Thumbs.db
 # Development Files
 example/
 !example/syntax.wsp
+*.vsix
