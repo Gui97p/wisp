@@ -209,6 +209,9 @@ func (i *TernaryExpr) Tree(indent string) string {
 type CoalesceExpr struct {
 	Left    Expression
 	Default Expression
+	Block   Statement
+
+	ErrorBind string
 
 	NodePos
 }
@@ -223,9 +226,15 @@ func (c *CoalesceExpr) Tree(indent string) string {
 	b.WriteString("├─ Left\n")
 	b.WriteString(c.Left.Tree(indent + "│  "))
 
-	b.WriteString(indent)
-	b.WriteString("└─ Default\n")
-	b.WriteString(c.Default.Tree(indent + "   "))
+	if c.Default != nil {
+		b.WriteString(indent)
+		b.WriteString("└─ Default\n")
+		b.WriteString(c.Default.Tree(indent + "   "))
+	} else if c.Block != nil {
+		b.WriteString(indent)
+		fmt.Fprintf(&b, "└─ Block(%s)\n", c.ErrorBind)
+		b.WriteString(c.Block.Tree(indent + "   "))
+	}
 
 	return b.String()
 }
