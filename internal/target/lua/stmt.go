@@ -419,7 +419,7 @@ func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignS
 	if stmt.Op == "=" {
 		b.WriteString(value)
 	} else {
-		fmt.Fprintf(b, "%s %c %s", target, stmt.Op[0], value)
+		fmt.Fprintf(b, "(%s) %c (%s)", target, stmt.Op[0], value)
 	}
 	b.WriteByte('\n')
 

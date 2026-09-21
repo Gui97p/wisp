@@ -283,6 +283,22 @@ func (p *Parser) parseAssignStatement(target ast.Expression) ast.Statement {
 	stmt.Op = p.current.Literal
 
 	p.advance()
+
+	if p.current.Type == lexer.TOKEN_SWITCH {
+		group, value := p.parseSwitchExpr()
+		if value == nil {
+			return nil
+		}
+		stmt.Value = value
+
+		if !p.expect(lexer.TOKEN_SEMICOLON) {
+			return nil
+		}
+
+		group.Statements = append(group.Statements, stmt)
+		return group
+	}
+
 	stmt.Value = p.parseExpression()
 	if stmt.Value == nil {
 		return nil
