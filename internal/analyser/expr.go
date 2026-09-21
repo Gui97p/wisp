@@ -52,6 +52,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkSliceExpr(e)
 	case *ast.TernaryExpr:
 		t = a.checkTernaryExpr(e)
+	case *ast.CoalesceExpr:
+		t = a.checkCoalesceExpr(e)
 	case *ast.CastExpr:
 		t = a.checkCastExpr(e)
 	case *ast.StructLiteral:
@@ -433,6 +435,23 @@ func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 	}
 
 	return thenType
+}
+
+func (a *Analyser) checkCoalesceExpr(expr *ast.CoalesceExpr) Type {
+	left := a.checkExpr(expr.Left)
+	eu, ok := left.(ErrorUnionType)
+	if !ok {
+		a.errorf(expr, "?? can only be used on a fallible (!T) value, got %s", left)
+		return InvalidType{}
+	}
+
+	def := a.checkExpr(expr.Default)
+	if !def.Equals(eu.Payload) {
+		a.errorf(expr, "expected %s for default value, got %s", eu.Payload, def)
+		return InvalidType{}
+	}
+
+	return eu.Payload
 }
 
 func (a *Analyser) checkCastExpr(expr *ast.CastExpr) Type {
