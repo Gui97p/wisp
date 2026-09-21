@@ -206,6 +206,30 @@ func (i *TernaryExpr) Tree(indent string) string {
 	return b.String()
 }
 
+type CoalesceExpr struct {
+	Left    Expression
+	Default Expression
+
+	NodePos
+}
+
+func (*CoalesceExpr) expr() {}
+func (c *CoalesceExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sCoalesceExpr\n", indent)
+
+	b.WriteString(indent)
+	b.WriteString("├─ Left\n")
+	b.WriteString(c.Left.Tree(indent + "│  "))
+
+	b.WriteString(indent)
+	b.WriteString("└─ Default\n")
+	b.WriteString(c.Default.Tree(indent + "   "))
+
+	return b.String()
+}
+
 type CastExpr struct {
 	Value Expression
 	Type  TypeRef
