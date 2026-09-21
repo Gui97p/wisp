@@ -158,3 +158,41 @@ func (s *StructLiteral) Tree(indent string) string {
 
 	return b.String()
 }
+
+type FuncLiteral struct {
+	Params      []Param
+	ReturnTypes []TypeRef
+	Block       *BlockStmt
+
+	NodePos
+}
+
+func (*FuncLiteral) expr() {}
+func (f *FuncLiteral) Tree(indent string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%sFuncLiteral\n", indent)
+
+	b.WriteString(indent)
+	b.WriteString("├─ Params\n")
+
+	for _, p := range f.Params {
+		b.WriteString(p.Tree(indent + "│  "))
+		b.WriteRune('\n')
+	}
+
+	b.WriteString(indent)
+	b.WriteString("├─ ReturnTypes\n")
+
+	for _, r := range f.ReturnTypes {
+		b.WriteString(r.Tree(indent + "│  "))
+		b.WriteRune('\n')
+	}
+
+	if f.Block != nil {
+		b.WriteString(indent)
+		b.WriteString("└─ Block\n")
+		b.WriteString(f.Block.Tree(indent + "   "))
+	}
+
+	return b.String()
+}
