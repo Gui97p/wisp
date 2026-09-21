@@ -86,11 +86,65 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		return p.parseUnaryExpression()
 
 	case lexer.TOKEN_LPAREN:
+		if p.looksLikeLambda() {
+			return p.parseFuncLiteral()
+		}
 		return p.parseGroupedExpression()
 	}
 
 	p.error("expected expression")
 	return nil
+}
+
+func (p *Parser) parseFuncLiteral() ast.Expression {
+	lit := &ast.FuncLiteral{}
+	lit.Params = p.parseFuncParamList()
+
+	if !p.expect(lexer.TOKEN_RPAREN) {
+		return nil
+	}
+
+	if p.peek.Type != lexer.TOKEN_ARROW {
+		p.advance()
+		lit.ReturnTypes = p.parseReturnTypes()
+		if lit.ReturnTypes == nil {
+			return nil
+		}
+	}
+
+	if !p.expect(lexer.TOKEN_ARROW) {
+		return nil
+	}
+
+	if p.peek.Type == lexer.TOKEN_LBRACE {
+		p.advance()
+		lit.Block = p.parseBlockStatement()
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
+	} else {
+		line, col := p.current.Line, p.current.Column
+
+		stmt := &ast.ReturnStmt{}
+		for {
+			p.advance()
+
+			expr := p.parseExpression()
+			if expr == nil {
+				return nil
+			}
+			stmt.Values = append(stmt.Values, expr)
+
+			if p.peek.Type != lexer.TOKEN_COMMA {
+				break
+			}
+			p.advance()
+		}
+		stmt.SetPos(line, col)
+		lit.Block = &ast.BlockStmt{Statements: []ast.Statement{stmt}}
+	}
+
+	return lit
 }
 
 func (p *Parser) parseUnaryExpression() ast.Expression {

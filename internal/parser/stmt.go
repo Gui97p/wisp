@@ -40,7 +40,7 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		lexer.TOKEN_BOOL,
 		lexer.TOKEN_CHAR:
 		stmt = p.parseVarStatement()
-	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR:
+	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN:
 		if p.looksLikeTypeDeclaration() {
 			stmt = p.parseVarStatement()
 		} else {

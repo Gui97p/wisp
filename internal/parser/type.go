@@ -42,6 +42,15 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 		p.advance()
 	}
 
+	if p.current.Type == lexer.TOKEN_LPAREN {
+		ref := p.parseFuncTypePrefix()
+		if ref == nil {
+			return nil
+		}
+		ref.Fallible = fallible
+		return ref
+	}
+
 	ref := p.parseMapPrefix()
 	ref.Fallible = fallible
 
@@ -92,6 +101,12 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 	switch {
 	case p.current.Type == lexer.TOKEN_MAP, p.isPrimitiveType():
 		return true
+	case p.current.Type == lexer.TOKEN_LPAREN:
+		ref := p.parseFuncTypePrefix()
+		if ref == nil {
+			return false
+		}
+		return p.peek.Type == lexer.TOKEN_IDENT
 	case p.current.Type == lexer.TOKEN_IDENT:
 		if p.peek.Type == lexer.TOKEN_IDENT {
 			return true
@@ -107,4 +122,44 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 	default:
 		return false
 	}
+}
+
+func (p *Parser) looksLikeLambda() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+
+	p.parseFuncParamList()
+	if !p.expect(lexer.TOKEN_RPAREN) {
+		return false
+	}
+
+	if p.peek.Type != lexer.TOKEN_ARROW {
+		p.advance()
+		if p.parseReturnTypes() == nil {
+			return false
+		}
+	}
+
+	return p.peek.Type == lexer.TOKEN_ARROW
+}
+
+func (p *Parser) isPrimitiveType() bool {
+	return p.current.Type >= lexer.TOKEN_INT && p.current.Type <= lexer.TOKEN_STRING
+}
+
+func (p *Parser) isStartType() bool {
+	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT || p.current.Type == lexer.TOKEN_MAP || p.current.Type == lexer.TOKEN_LPAREN
+}
+
+func (p *Parser) isPointerType() bool {
+	return p.current.Type == lexer.TOKEN_STAR || p.isStartType()
+}
+
+func (p *Parser) parsePointerDepth() int {
+	depth := 0
+	for p.current.Type == lexer.TOKEN_STAR {
+		depth++
+		p.advance()
+	}
+	return depth
 }

@@ -52,7 +52,13 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 	if !p.expect(lexer.TOKEN_RPAREN) {
 		return nil
 	}
-	decl.ReturnTypes = p.parseReturnTypes()
+
+	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW || p.peek.Type == lexer.TOKEN_SEMICOLON {
+		decl.ReturnTypes = []ast.TypeRef{}
+	} else {
+		p.advance()
+		decl.ReturnTypes = p.parseReturnTypes()
+	}
 
 	if p.peek.Type == lexer.TOKEN_SEMICOLON {
 		p.advance()
@@ -139,7 +145,8 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.advance()
 			p.advance()
 
-			if p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC) {
+			if p.current.Type == lexer.TOKEN_LPAREN ||
+				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC)) {
 				break
 			}
 
@@ -178,11 +185,6 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 
 func (p *Parser) parseReturnTypes() []ast.TypeRef {
 	returnTypes := []ast.TypeRef{}
-
-	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW || p.peek.Type == lexer.TOKEN_SEMICOLON {
-		return returnTypes
-	}
-	p.advance()
 
 	if p.current.Type == lexer.TOKEN_LPAREN {
 		for {
@@ -226,4 +228,42 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 		p.errorType(p.current.Type)
 		return returnTypes
 	}
+}
+
+func (p *Parser) parseFuncTypePrefix() *ast.TypeRef {
+	ref := &ast.TypeRef{IsFunc: true}
+
+	if p.peek.Type != lexer.TOKEN_RPAREN {
+		p.advance()
+		for {
+			if !p.isStartType() {
+				p.errorType(p.current.Type)
+				return nil
+			}
+			paramType := p.parseTypeDefinitionPrefix()
+			if paramType == nil || !p.parseArraySuffix(paramType) {
+				return nil
+			}
+			ref.FuncParams = append(ref.FuncParams, *paramType)
+
+			if p.peek.Type != lexer.TOKEN_COMMA {
+				break
+			}
+			p.advance()
+			p.advance()
+		}
+	}
+
+	if !p.expect(lexer.TOKEN_RPAREN) {
+		return nil
+	}
+
+	if p.peek.Type != lexer.TOKEN_ARROW {
+		return ref
+	}
+	p.advance()
+	p.advance()
+
+	ref.FuncReturns = p.parseReturnTypes()
+	return ref
 }

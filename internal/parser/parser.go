@@ -57,27 +57,6 @@ func (p *Parser) expect(t lexer.TokenType) bool {
 	return true
 }
 
-func (p *Parser) isPrimitiveType() bool {
-	return p.current.Type >= lexer.TOKEN_INT && p.current.Type <= lexer.TOKEN_STRING
-}
-
-func (p *Parser) isStartType() bool {
-	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT || p.current.Type == lexer.TOKEN_MAP
-}
-
-func (p *Parser) isPointerType() bool {
-	return p.current.Type == lexer.TOKEN_STAR || p.isStartType()
-}
-
-func (p *Parser) parsePointerDepth() int {
-	depth := 0
-	for p.current.Type == lexer.TOKEN_STAR {
-		depth++
-		p.advance()
-	}
-	return depth
-}
-
 func (p *Parser) checkReservedName(name string) bool {
 	if strings.HasPrefix(name, "__wisp") {
 		p.error("declaration cannot start with __wisp prefix")
