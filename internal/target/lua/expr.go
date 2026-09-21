@@ -19,6 +19,8 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 			b.WriteString(" or ")
 		case "!=":
 			b.WriteString("~=")
+		case "^":
+			b.WriteString("~")
 		default:
 			b.WriteString(e.Operator)
 		}
@@ -33,6 +35,9 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 				return t.compilePropagate(b, e)
 			}
 			b.WriteString("not ")
+			t.compileExpression(b, e.Value)
+		case "~":
+			b.WriteString("~")
 			t.compileExpression(b, e.Value)
 		default:
 			return fmt.Errorf("lua: unsupported unary operator %s", e.Operator)

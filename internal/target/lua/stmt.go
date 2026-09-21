@@ -419,7 +419,11 @@ func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignS
 	if stmt.Op == "=" {
 		b.WriteString(value)
 	} else {
-		fmt.Fprintf(b, "(%s) %c (%s)", target, stmt.Op[0], value)
+		op := strings.TrimSuffix(stmt.Op, "=")
+		if op == "^" {
+			op = "~"
+		}
+		fmt.Fprintf(b, "(%s) %s (%s)", target, op, value)
 	}
 	b.WriteByte('\n')
 
