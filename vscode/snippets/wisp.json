@@ -38,7 +38,7 @@
         "description": "Conditional if with else"
     },
     "switch (expression)": {
-        "prefix": "switch",
+        "prefix": "switchexpr",
         "body": [
             "let ${1:name} = switch ${2:value} {",
             "\tcase ${3:A} => ${4:x},",
@@ -46,6 +46,80 @@
             "};"
         ],
         "description": "Switch as expression, attributed to a variable"
+    },
+    "switch (statement)": {
+        "prefix": "switch",
+        "body": [
+            "switch ${1:value} {",
+            "\tcase ${2:A}:",
+            "\t\t$3",
+            "\tdefault:",
+            "\t\t$0",
+            "}"
+        ],
+        "description": "Switch as a statement"
+    },
+    "method": {
+        "prefix": "method",
+        "body": [
+            "func (*${1:Type} ${2:self}) ${3:name}(${4}) {",
+            "\t$0",
+            "}"
+        ],
+        "description": "Declares a method with a pointer receiver"
+    },
+    "enum (with values)": {
+        "prefix": "enumvals",
+        "body": [
+            "enum ${1:Name} {",
+            "\t${2:A} = ${3:0},",
+            "\t${4:B},",
+            "\t$0",
+            "}"
+        ],
+        "description": "Declares an enum with explicit values"
+    },
+    "struct literal": {
+        "prefix": "structlit",
+        "body": [
+            "${1:Name}{${2:field}: ${3:value}}"
+        ],
+        "description": "Struct literal"
+    },
+    "pointer declaration": {
+        "prefix": "ptr",
+        "body": [
+            "*${1:int} ${2:name};"
+        ],
+        "description": "Pointer declaration"
+    },
+    "array declaration": {
+        "prefix": "arr",
+        "body": [
+            "${1:int}[${2:5}] ${3:name};"
+        ],
+        "description": "Fixed-size array declaration"
+    },
+    "slice declaration": {
+        "prefix": "slice",
+        "body": [
+            "${1:int}[] ${2:name};"
+        ],
+        "description": "Slice declaration"
+    },
+    "import": {
+        "prefix": "import",
+        "body": [
+            "import \"${1:path}\";"
+        ],
+        "description": "Import a module"
+    },
+    "function without body": {
+        "prefix": "funcdecl",
+        "body": [
+            "func ${1:name}(${2});"
+        ],
+        "description": "Function declaration without a body"
     },
     "for (range)": {
         "prefix": "for",

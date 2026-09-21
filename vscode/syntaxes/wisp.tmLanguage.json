@@ -39,9 +39,6 @@
             "include": "#calls"
         },
         {
-            "include": "#enum-values"
-        },
-        {
             "include": "#type-names"
         },
         {
@@ -331,14 +328,6 @@
                 }
             ]
         },
-        "enum-values": {
-            "patterns": [
-                {
-                    "name": "variable.other.constant.wisp",
-                    "match": "\\b[A-Z][A-Z0-9_]+\\b"
-                }
-            ]
-        },
         "type-names": {
             "patterns": [
                 {
@@ -438,15 +427,30 @@
             ]
         },
         "function-signature": {
-            "begin": "\\b(func)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(\\()",
+            "begin": "\\b(func)\\s+(?:(\\()\\s*(\\*+)?\\s*([A-Za-z_][A-Za-z0-9_]*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(\\))\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(\\()",
             "beginCaptures": {
                 "1": {
                     "name": "storage.type.function.wisp"
                 },
                 "2": {
-                    "name": "entity.name.function.wisp"
+                    "name": "punctuation.bracket.wisp"
                 },
                 "3": {
+                    "name": "keyword.operator.address.wisp"
+                },
+                "4": {
+                    "name": "entity.name.type.wisp"
+                },
+                "5": {
+                    "name": "variable.other.readwrite.wisp"
+                },
+                "6": {
+                    "name": "punctuation.bracket.wisp"
+                },
+                "7": {
+                    "name": "entity.name.function.wisp"
+                },
+                "8": {
                     "name": "punctuation.bracket.wisp"
                 }
             },
