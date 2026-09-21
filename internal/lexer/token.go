@@ -74,6 +74,7 @@ const (
 	TOKEN_SLASH   // /
 	TOKEN_PERCENT // %
 	TOKEN_AMP     // &
+	TOKEN_PIPE    // |
 
 	TOKEN_PLUS_ASSIGN    // +=
 	TOKEN_MINUS_ASSIGN   // -=

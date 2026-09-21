@@ -153,7 +153,7 @@ func (l *Lexer) NextToken() Token {
 			l.advance()
 			t = l.token(TOKEN_OR, "||")
 		} else {
-			t = l.token(TOKEN_ILLEGAL, "|")
+			t = l.token(TOKEN_PIPE, "|")
 		}
 	case ',':
 		t = l.token(TOKEN_COMMA, ",")

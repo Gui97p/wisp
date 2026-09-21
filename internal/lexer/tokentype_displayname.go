@@ -114,6 +114,8 @@ func (t TokenType) DisplayName() string {
 		return "%"
 	case TOKEN_AMP:
 		return "&"
+	case TOKEN_PIPE:
+		return "|"
 
 	case TOKEN_PLUS_ASSIGN:
 		return "+="
