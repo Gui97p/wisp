@@ -11,6 +11,27 @@ enum Color {
   Alpha = 10 // explicit value; auto-increment continues from here (11, 12, ...)
 }
 
+// error handling: `!T` marks a fallible return; the error branch must be
+// an Error{} (a builtin struct with code+message), the success branch the
+// declared payload type. Error sets are just enums, reused as-is.
+enum DivError {
+  DivByZero
+}
+
+func divide(int a, int b) !int {
+  if b == 0 {
+    return Error{code: DivByZero as int, message: "cannot divide by zero"};
+  }
+  return a / b;
+}
+
+// propagate (`!expr`) only compiles inside another fallible function --
+// it forwards the error up instead of handling it here
+func doubleDivide(int a, int b) !int {
+  let half = !divide(a, b);
+  return half * 2;
+}
+
 func add(int a, b) int => a + b;
 
 func addVerbose(int a, b) (int, bool) {
@@ -87,6 +108,47 @@ func main() {
       continue; // continue accepts labels too
     }
   }
+
+  // switch as a statement: cases use `:`, ranges reuse `..`, no fallthrough
+  switch limit {
+    case 10:
+      emit("limit is ten");
+    case 11..20:
+      emit("limit is in the teens/twenties");
+    default:
+      emit("limit is something else");
+  }
+
+  // switch as an expression: cases use `=>`, default is required since it
+  // must always produce a value; only valid as the direct RHS of let/const/
+  // return/assignment (Wisp has no general block-expressions)
+  let sizeLabel = switch limit {
+    case 10 => "ten",
+    default => "other",
+  };
+  emit(sizeLabel);
+
+  // ...and it also works as the RHS of a plain assignment
+  int doubled;
+  doubled = switch limit {
+    case 10 => 20,
+    default => 0,
+  };
+  emitf("doubled=%d", doubled);
+
+  // error handling: `!` propagates the error up (only legal inside another
+  // fallible function), `??` unwraps with a default value or a handler block
+  int safeDiv = divide(10, 0) ?? -1;
+  emitf("safeDiv=%d", safeDiv);
+
+  int handledDiv = divide(10, 0) ?? |e| {
+    emitf("division failed: %s (code=%d)", e.message, e.code);
+    return -1;
+  };
+  emitf("handledDiv=%d", handledDiv);
+
+  int propagated = doubleDivide(10, 0) ?? -1;
+  emitf("propagated=%d", propagated);
 
   int[5] nums = [124, 512, 1, 5, 2]; // fixed array
   int[5] partial = [7, 8]; // partial fill: remaining slots are zero-valued
