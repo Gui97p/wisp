@@ -53,6 +53,9 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		for i := 0; i < ref.PointerDepth; i++ {
 			result = PointerType{Element: result}
 		}
+		if ref.Fallible {
+			result = ErrorUnionType{Payload: result}
+		}
 		return result
 	}
 
@@ -85,6 +88,10 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 
 	for i := 0; i < ref.PointerDepth; i++ {
 		result = PointerType{Element: result}
+	}
+
+	if ref.Fallible {
+		result = ErrorUnionType{Payload: result}
 	}
 
 	return result

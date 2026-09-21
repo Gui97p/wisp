@@ -84,6 +84,16 @@ func (a *Analyser) registerMethods() {
 			}
 		}
 
+		fallibleCount := 0
+		for _, t := range returns {
+			if _, ok := t.(ErrorUnionType); ok {
+				fallibleCount++
+			}
+		}
+		if fallibleCount > 1 {
+			a.errorf(fd, "function can only have one fallible (!T) return value")
+		}
+
 		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
 	}
 }

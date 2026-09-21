@@ -72,6 +72,8 @@ type TypeRef struct {
 	IsMap    bool
 	MapKey   *TypeRef
 	MapValue *TypeRef
+
+	Fallible bool
 }
 
 func (t *TypeRef) Tree(indent string) string {

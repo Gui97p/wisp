@@ -31,6 +31,16 @@ func (a *Analyser) registerFuncSignatures() {
 			}
 		}
 
+		fallibleCount := 0
+		for _, t := range returns {
+			if _, ok := t.(ErrorUnionType); ok {
+				fallibleCount++
+			}
+		}
+		if fallibleCount > 1 {
+			a.errorf(fd, "function can only have one fallible (!T) return value")
+		}
+
 		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
 		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft}
 

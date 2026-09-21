@@ -39,7 +39,13 @@ func (p *Parser) parseMapPrefix() *ast.TypeRef {
 }
 
 func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
+	fallible := p.current.Type == lexer.TOKEN_NOT
+	if fallible {
+		p.advance()
+	}
+
 	ref := p.parseMapPrefix()
+	ref.Fallible = fallible
 
 	if !ref.IsMap {
 		ref.PointerDepth = p.parsePointerDepth()

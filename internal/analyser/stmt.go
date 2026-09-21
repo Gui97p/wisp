@@ -69,8 +69,11 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 		if _, ok := t.(InvalidType); ok {
 			continue
 		}
+		if _, ok := a.currentReturns[i].(ErrorUnionType); ok {
+			continue
+		}
 		if !t.Equals(a.currentReturns[i]) {
-			a.errorf(stmt, "return %d: expected %s, got %s", i+1, a.currentReturns[i].String(), t.String())
+			a.errorf(stmt, "return %d: expected %s, got %s", i+1, a.currentReturns[i], t)
 		}
 	}
 }

@@ -160,10 +160,30 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 		return value
 	case "!":
 		boolType := PrimitiveType{Name: "bool"}
-		if !value.Equals(boolType) {
-			a.errorf(expr, "expected bool for !, got %s", value.String())
+
+		if value.Equals(boolType) {
+			return boolType
 		}
-		return boolType
+
+		if eu, ok := value.(ErrorUnionType); ok {
+			fallible := false
+			for _, r := range a.currentReturns {
+				if _, ok := r.(ErrorUnionType); ok {
+					fallible = true
+					break
+				}
+			}
+
+			if !fallible {
+				a.error(expr, "cannot propagate outside a fallible (!T) function")
+				return InvalidType{}
+			}
+
+			return eu.Payload
+		}
+
+		a.errorf(expr, "expected bool or fallible value for !, got %s", value.String())
+		return InvalidType{}
 	case "&":
 		if !isAddressable(expr.Value) {
 			a.error(expr, "cannot obtain address of a temporary expression")

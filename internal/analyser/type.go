@@ -285,6 +285,22 @@ func (f *FuncType) Equals(other Type) bool {
 	return true
 }
 
+type ErrorUnionType struct {
+	Payload Type
+}
+
+func (e ErrorUnionType) String() string {
+	return "!" + e.Payload.String()
+}
+
+func (e ErrorUnionType) Equals(other Type) bool {
+	o, ok := other.(ErrorUnionType)
+	if !ok {
+		return false
+	}
+	return e.Payload.Equals(o.Payload)
+}
+
 var primitives = map[string]bool{
 	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
 	"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
