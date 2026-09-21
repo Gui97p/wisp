@@ -116,6 +116,14 @@ func (t TokenType) DisplayName() string {
 		return "&"
 	case TOKEN_PIPE:
 		return "|"
+	case TOKEN_XOR:
+		return "^"
+	case TOKEN_NXOR:
+		return "~"
+	case TOKEN_SHIFT_LEFT:
+		return "<<"
+	case TOKEN_SHIFT_RIGHT:
+		return ">>"
 
 	case TOKEN_PLUS_ASSIGN:
 		return "+="
@@ -127,6 +135,16 @@ func (t TokenType) DisplayName() string {
 		return "/="
 	case TOKEN_PERCENT_ASSIGN:
 		return "%="
+	case TOKEN_AMP_ASSIGN:
+		return "&="
+	case TOKEN_PIPE_ASSIGN:
+		return "|="
+	case TOKEN_XOR_ASSIGN:
+		return "^="
+	case TOKEN_SHIFT_LEFT_ASSIGN:
+		return "<<="
+	case TOKEN_SHIFT_RIGHT_ASSIGN:
+		return ">>="
 
 	case TOKEN_INCREMENT:
 		return "++"

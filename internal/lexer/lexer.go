@@ -128,33 +128,68 @@ func (l *Lexer) NextToken() Token {
 			t = l.token(TOKEN_NOT, "!")
 		}
 	case '>':
-		if l.peek() == '=' {
+		switch l.peek() {
+		case '=':
 			l.advance()
 			t = l.token(TOKEN_GTE, ">=")
-		} else {
+		case '>':
+			l.advance()
+			if l.peek() == '=' {
+				l.advance()
+				t = l.token(TOKEN_SHIFT_RIGHT_ASSIGN, ">>=")
+			} else {
+				t = l.token(TOKEN_SHIFT_RIGHT, ">>")
+			}
+		default:
 			t = l.token(TOKEN_GT, ">")
 		}
 	case '<':
-		if l.peek() == '=' {
+		switch l.peek() {
+		case '=':
 			l.advance()
 			t = l.token(TOKEN_LTE, "<=")
-		} else {
+		case '<':
+			l.advance()
+			if l.peek() == '=' {
+				l.advance()
+				t = l.token(TOKEN_SHIFT_LEFT_ASSIGN, "<<=")
+			} else {
+				t = l.token(TOKEN_SHIFT_LEFT, "<<")
+			}
+		default:
 			t = l.token(TOKEN_LT, "<")
 		}
 	case '&':
-		if l.peek() == '&' {
+		switch l.peek() {
+		case '=':
+			l.advance()
+			t = l.token(TOKEN_AMP_ASSIGN, "&=")
+		case '&':
 			l.advance()
 			t = l.token(TOKEN_AND, "&&")
-		} else {
+		default:
 			t = l.token(TOKEN_AMP, "&")
 		}
 	case '|':
-		if l.peek() == '|' {
+		switch l.peek() {
+		case '=':
+			l.advance()
+			t = l.token(TOKEN_PIPE_ASSIGN, "|=")
+		case '|':
 			l.advance()
 			t = l.token(TOKEN_OR, "||")
-		} else {
+		default:
 			t = l.token(TOKEN_PIPE, "|")
 		}
+	case '^':
+		if l.peek() == '=' {
+			l.advance()
+			t = l.token(TOKEN_XOR_ASSIGN, "^=")
+		} else {
+			t = l.token(TOKEN_XOR, "^")
+		}
+	case '~':
+		t = l.token(TOKEN_NXOR, "~")
 	case ',':
 		t = l.token(TOKEN_COMMA, ",")
 	case ';':

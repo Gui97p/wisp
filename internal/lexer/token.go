@@ -67,20 +67,29 @@ const (
 	TOKEN_FALSE
 
 	// Operators
-	TOKEN_ASSIGN  // =
-	TOKEN_PLUS    // +
-	TOKEN_MINUS   // -
-	TOKEN_STAR    // *
-	TOKEN_SLASH   // /
-	TOKEN_PERCENT // %
-	TOKEN_AMP     // &
-	TOKEN_PIPE    // |
+	TOKEN_ASSIGN      // =
+	TOKEN_PLUS        // +
+	TOKEN_MINUS       // -
+	TOKEN_STAR        // *
+	TOKEN_SLASH       // /
+	TOKEN_PERCENT     // %
+	TOKEN_AMP         // &
+	TOKEN_PIPE        // |
+	TOKEN_XOR         // ^
+	TOKEN_NXOR        // ~
+	TOKEN_SHIFT_LEFT  // <<
+	TOKEN_SHIFT_RIGHT // >>
 
-	TOKEN_PLUS_ASSIGN    // +=
-	TOKEN_MINUS_ASSIGN   // -=
-	TOKEN_STAR_ASSIGN    // *=
-	TOKEN_SLASH_ASSIGN   // /=
-	TOKEN_PERCENT_ASSIGN // %=
+	TOKEN_PLUS_ASSIGN        // +=
+	TOKEN_MINUS_ASSIGN       // -=
+	TOKEN_STAR_ASSIGN        // *=
+	TOKEN_SLASH_ASSIGN       // /=
+	TOKEN_PERCENT_ASSIGN     // %=
+	TOKEN_AMP_ASSIGN         // &=
+	TOKEN_PIPE_ASSIGN        // |=
+	TOKEN_XOR_ASSIGN         // ^=
+	TOKEN_SHIFT_LEFT_ASSIGN  // <<=
+	TOKEN_SHIFT_RIGHT_ASSIGN // >>=
 
 	TOKEN_INCREMENT // ++
 	TOKEN_DECREMENT // --
