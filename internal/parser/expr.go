@@ -128,6 +128,8 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		return p.parseMemberExpression(left)
 	case lexer.TOKEN_QUESTION_MARK:
 		return p.parseTernaryExpr(left)
+	case lexer.TOKEN_COALESCE:
+		return p.parseCoalesceExpr(left)
 	case lexer.TOKEN_AS:
 		return p.parseCastExpr(left)
 	}
@@ -429,6 +431,20 @@ func (p *Parser) parseTernaryExpr(left ast.Expression) ast.Expression {
 		return nil
 	}
 
+	return expr
+}
+
+func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
+	line, col := p.current.Line, p.current.Column
+	p.advance()
+
+	def := p.parseExpression()
+	if def == nil {
+		return nil
+	}
+
+	expr := &ast.CoalesceExpr{Left: left, Default: def}
+	expr.SetPos(line, col)
 	return expr
 }
 

@@ -210,7 +210,7 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 
 			return returnTypes
 		}
-	} else if p.isStartType() || p.current.Type == lexer.TOKEN_STAR {
+	} else if p.isStartType() || p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_NOT {
 		rType := p.parseTypeDefinitionPrefix()
 		if rType == nil {
 			return nil
