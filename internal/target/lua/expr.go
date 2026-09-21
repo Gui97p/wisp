@@ -72,6 +72,8 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 		fmt.Fprintf(b, "%d", e.Value)
 	case *ast.FloatLiteral:
 		fmt.Fprintf(b, "%f", e.Value)
+	case *ast.FuncLiteral:
+		return t.compileFuncLiteral(b, e)
 	case *ast.ArrayLiteral:
 		b.WriteByte('{')
 		for k, v := range e.Elements {
@@ -149,6 +151,37 @@ func (t *LuaTarget) compileStructLiteral(b *strings.Builder, expr *ast.StructLit
 	}
 	b.WriteByte('}')
 
+	return nil
+}
+
+func (t *LuaTarget) compileFuncLiteral(b *strings.Builder, expr *ast.FuncLiteral) error {
+	b.WriteString("function(")
+	for i, p := range expr.Params {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(p.Name)
+	}
+	b.WriteString(")\n")
+
+	prevCount, prevIdx := t.currentReturnCount, t.currentFallibleIndex
+	t.currentReturnCount = len(expr.ReturnTypes)
+	t.currentFallibleIndex = -1
+	for i, r := range expr.ReturnTypes {
+		if r.Fallible {
+			t.currentFallibleIndex = i
+			break
+		}
+	}
+	defer func() {
+		t.currentReturnCount = prevCount
+		t.currentFallibleIndex = prevIdx
+	}()
+
+	if err := t.compileStatement(b, expr.Block); err != nil {
+		return err
+	}
+	b.WriteString("end")
 	return nil
 }
 

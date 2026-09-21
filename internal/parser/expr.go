@@ -13,6 +13,9 @@ func (p *Parser) parseExpression() ast.Expression {
 
 func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 	left := p.parsePrefix()
+	if left == nil {
+		return nil
+	}
 
 	for p.peek.Type != lexer.TOKEN_EOF && precedence < p.peekPrecedence() {
 		line, col := left.Position()

@@ -187,6 +187,14 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 	returnTypes := []ast.TypeRef{}
 
 	if p.current.Type == lexer.TOKEN_LPAREN {
+		if p.looksLikeFuncTypeReturn() {
+			ref := p.parseFuncTypePrefix()
+			if ref == nil {
+				return nil
+			}
+			return []ast.TypeRef{*ref}
+		}
+
 		for {
 			p.advance()
 

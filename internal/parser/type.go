@@ -143,6 +143,14 @@ func (p *Parser) looksLikeLambda() bool {
 	return p.peek.Type == lexer.TOKEN_ARROW
 }
 
+func (p *Parser) looksLikeFuncTypeReturn() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+
+	ref := p.parseFuncTypePrefix()
+	return ref != nil && ref.FuncReturns != nil
+}
+
 func (p *Parser) isPrimitiveType() bool {
 	return p.current.Type >= lexer.TOKEN_INT && p.current.Type <= lexer.TOKEN_STRING
 }
