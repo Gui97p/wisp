@@ -1,8 +1,6 @@
 package analyser
 
 import (
-	"strings"
-
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
@@ -122,10 +120,6 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 	for i, v := range vars {
 		var valueType Type
 
-		if strings.HasPrefix(v.Name, "__wisp") {
-			valueType = InvalidType{}
-			a.error(node, "declaration cannot start with __wisp prefix")
-		}
 		if i < len(valueTypes) {
 			valueType = valueTypes[i]
 		} else {

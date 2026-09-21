@@ -30,6 +30,11 @@ func (p *Parser) parseConstIdentifiers() []ast.Param {
 		return nil
 	}
 	name := p.current.Literal
+
+	if !p.checkReservedName(name) {
+		return nil
+	}
+
 	vars = append(vars, ast.Param{Name: name, Type: currentType})
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
@@ -41,6 +46,11 @@ func (p *Parser) parseConstIdentifiers() []ast.Param {
 			return nil
 		}
 		name := p.current.Literal
+
+		if !p.checkReservedName(name) {
+			return nil
+		}
+
 		vars = append(vars, ast.Param{Name: name, Type: currentType})
 	}
 

@@ -14,6 +14,10 @@ func (p *Parser) parseStructDeclaration() *ast.StructDecl {
 	}
 	decl.Name = p.current.Literal
 
+	if !p.checkReservedName(decl.Name) {
+		return nil
+	}
+
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
 	}
@@ -54,8 +58,14 @@ func (p *Parser) parseStructParamList() []ast.Param {
 			return params
 		}
 
+		name := p.current.Literal
+
+		if !p.checkReservedName(name) {
+			return nil
+		}
+
 		params = append(params, ast.Param{
-			Name: p.current.Literal,
+			Name: name,
 			Type: currentType,
 		})
 
@@ -68,6 +78,10 @@ func (p *Parser) parseStructParamList() []ast.Param {
 				return params
 			}
 			name := p.current.Literal
+
+			if !p.checkReservedName(name) {
+				return nil
+			}
 
 			params = append(params, ast.Param{
 				Name: name,

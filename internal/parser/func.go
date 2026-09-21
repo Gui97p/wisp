@@ -21,6 +21,11 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 		if p.peek.Type == lexer.TOKEN_IDENT {
 			p.advance()
 			name = p.current.Literal
+
+			if !p.checkReservedName(name) {
+				return nil
+			}
+
 		}
 		decl.Receiver = &ast.Param{Name: name, Type: *ref}
 
@@ -34,6 +39,10 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 		return nil
 	}
 	decl.Name = p.current.Literal
+
+	if !p.checkReservedName(decl.Name) {
+		return nil
+	}
 
 	if !p.expect(lexer.TOKEN_LPAREN) {
 		return nil
@@ -117,6 +126,10 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 		}
 		name := p.current.Literal
 
+		if !p.checkReservedName(name) {
+			return nil
+		}
+
 		params = append(params, ast.Param{
 			Name: name,
 			Type: currentType,
@@ -148,6 +161,10 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 				return params
 			}
 			name := p.current.Literal
+
+			if !p.checkReservedName(name) {
+				return nil
+			}
 
 			params = append(params, ast.Param{
 				Name: name,

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/lexer"
@@ -73,4 +75,12 @@ func (p *Parser) parsePointerDepth() int {
 		p.advance()
 	}
 	return depth
+}
+
+func (p *Parser) checkReservedName(name string) bool {
+	if strings.HasPrefix(name, "__wisp") {
+		p.error("declaration cannot start with __wisp prefix")
+		return false
+	}
+	return true
 }

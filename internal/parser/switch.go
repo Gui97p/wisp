@@ -7,7 +7,7 @@ import (
 	"github.com/Gui97p/wisp/internal/lexer"
 )
 
-func (p *Parser) parseSwitchHeader() (*ast.BlockStmt, ast.Expression) {
+func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expression) {
 	block := &ast.BlockStmt{}
 
 	name := fmt.Sprintf("__wisp_switch_%d", p.switchNameCount)
@@ -16,6 +16,11 @@ func (p *Parser) parseSwitchHeader() (*ast.BlockStmt, ast.Expression) {
 			return nil, nil
 		}
 		name = p.current.Literal
+
+		if !p.checkReservedName(name) {
+			return nil, nil
+		}
+
 		if !p.expect(lexer.TOKEN_ASSIGN) {
 			return nil, nil
 		}
@@ -35,10 +40,15 @@ func (p *Parser) parseSwitchHeader() (*ast.BlockStmt, ast.Expression) {
 	varStmt := &ast.VarStmt{}
 	varStmt.Vars = append(varStmt.Vars, ast.Param{Name: name})
 	varStmt.Values = append(varStmt.Values, value)
+	varStmt.SetPos(line, col)
 
 	block.Statements = append(block.Statements, varStmt)
+	block.SetPos(line, col)
 
-	return block, &ast.IdentLiteral{Value: name}
+	ident := &ast.IdentLiteral{Value: name}
+	ident.SetPos(line, col)
+
+	return block, ident
 }
 
 func (p *Parser) parseSwitchBlock() []ast.Statement {
@@ -64,7 +74,7 @@ func (p *Parser) parseSwitchBlock() []ast.Statement {
 	return stmts
 }
 
-func (p *Parser) parseOneCaseExpression(value ast.Expression) ast.Expression {
+func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast.Expression {
 	p.advance()
 	p.advance()
 
@@ -87,33 +97,37 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression) ast.Expression {
 			Operator: ">=",
 			Right:    expr,
 		}
+		left.SetPos(line, col)
 		right := &ast.BinaryExpr{
 			Left:     value,
 			Operator: "<=",
 			Right:    end,
 		}
+		right.SetPos(line, col)
 
 		expr = &ast.BinaryExpr{
 			Left:     left,
 			Operator: "&&",
 			Right:    right,
 		}
+		expr.(*ast.BinaryExpr).SetPos(line, col)
 	} else {
 		expr = &ast.BinaryExpr{
 			Left:     value,
 			Operator: "==",
 			Right:    expr,
 		}
+		expr.(*ast.BinaryExpr).SetPos(line, col)
 	}
 
 	return expr
 }
 
-func (p *Parser) parseCaseExpression(value ast.Expression) ast.Expression {
-	expr := p.parseOneCaseExpression(value)
+func (p *Parser) parseCaseExpression(value ast.Expression, line, col int) ast.Expression {
+	expr := p.parseOneCaseExpression(value, line, col)
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
-		right := p.parseOneCaseExpression(value)
+		right := p.parseOneCaseExpression(value, line, col)
 		if right == nil {
 			return nil
 		}
@@ -123,6 +137,7 @@ func (p *Parser) parseCaseExpression(value ast.Expression) ast.Expression {
 			Operator: "||",
 			Right:    right,
 		}
+		expr.(*ast.BinaryExpr).SetPos(line, col)
 	}
 
 	return expr

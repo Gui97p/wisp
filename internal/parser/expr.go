@@ -443,12 +443,14 @@ func (p *Parser) parseCastExpr(left ast.Expression) ast.Expression {
 }
 
 func (p *Parser) parseSwitchExpr() (*ast.GroupStmt, ast.Expression) {
+	line, col := p.current.Line, p.current.Column
 	p.advance()
-	block, value := p.parseSwitchHeader()
+	block, value := p.parseSwitchHeader(line, col)
 	if block == nil || value == nil {
 		return nil, nil
 	}
 	group := &ast.GroupStmt{Statements: block.Statements}
+	group.SetPos(line, col)
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil, nil
@@ -456,18 +458,20 @@ func (p *Parser) parseSwitchExpr() (*ast.GroupStmt, ast.Expression) {
 
 	first := true
 	ternaryExpr := &ast.TernaryExpr{}
+	ternaryExpr.SetPos(line, col)
 	currentTernary := ternaryExpr
 
 	for p.peek.Type == lexer.TOKEN_CASE {
 		if !first {
 			newTernary := &ast.TernaryExpr{}
+			newTernary.SetPos(line, col)
 			currentTernary.Else = newTernary
 			currentTernary = newTernary
 		} else {
 			first = false
 		}
 
-		expr := p.parseCaseExpression(value)
+		expr := p.parseCaseExpression(value, line, col)
 
 		currentTernary.Condition = expr
 

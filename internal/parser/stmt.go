@@ -201,6 +201,10 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	}
 	name := p.current.Literal
 
+	if !p.checkReservedName(name) {
+		return nil
+	}
+
 	stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
@@ -212,6 +216,10 @@ func (p *Parser) parseVarStatement() ast.Statement {
 			return nil
 		}
 		name := p.current.Literal
+
+		if !p.checkReservedName(name) {
+			return nil
+		}
 
 		stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
 	}
@@ -334,8 +342,9 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 }
 
 func (p *Parser) parseSwitchStatement() ast.Statement {
+	line, col := p.current.Line, p.current.Column
 	p.advance()
-	block, value := p.parseSwitchHeader()
+	block, value := p.parseSwitchHeader(line, col)
 	if block == nil || value == nil {
 		return nil
 	}
@@ -346,18 +355,20 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 
 	first := true
 	stmt := &ast.IfStmt{Then: &ast.BlockStmt{}}
+	stmt.SetPos(line, col)
 	currentIf := stmt
 
 	for p.peek.Type == lexer.TOKEN_CASE {
 		if !first {
 			newIf := &ast.IfStmt{Then: &ast.BlockStmt{}}
+			newIf.SetPos(line, col)
 			currentIf.Else = &ast.BlockStmt{Statements: []ast.Statement{newIf}}
 			currentIf = newIf
 		} else {
 			first = false
 		}
 
-		expr := p.parseCaseExpression(value)
+		expr := p.parseCaseExpression(value, line, col)
 
 		currentIf.Condition = expr
 
@@ -456,12 +467,21 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 	switch {
 	case p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_COMMA:
 		stmt.Var = p.current.Literal
+
+		if !p.checkReservedName(stmt.Var) {
+			return nil
+		}
+
 		p.advance()
 
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return nil
 		}
 		stmt.Var2 = p.current.Literal
+
+		if !p.checkReservedName(stmt.Var2) {
+			return nil
+		}
 
 		if !p.expect(lexer.TOKEN_IN) {
 			return nil
@@ -474,6 +494,11 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 
 	case p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_IN:
 		stmt.Var = p.current.Literal
+
+		if !p.checkReservedName(stmt.Var) {
+			return nil
+		}
+
 		p.advance()
 		p.advance()
 
@@ -597,6 +622,11 @@ func (p *Parser) parseLabeledStatement() ast.Statement {
 	}
 
 	label := p.current.Literal
+
+	if !p.checkReservedName(label) {
+		return nil
+	}
+
 	p.advance()
 
 	switch p.current.Type {

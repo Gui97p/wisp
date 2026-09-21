@@ -189,6 +189,10 @@ func (p *Parser) parseTypeDeclaration() *ast.TypeDecl {
 	}
 	decl.Name = p.current.Literal
 
+	if !p.checkReservedName(decl.Name) {
+		return nil
+	}
+
 	p.advance()
 	ref := p.parseTypeDefinitionPrefix()
 	if ref == nil {
@@ -213,6 +217,11 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 		return nil
 	}
 	name := p.current.Literal
+
+	if !p.checkReservedName(name) {
+		return nil
+	}
+
 	decls = append(decls, &ast.TypeDecl{Name: name, Underlying: ast.TypeRef{Name: "int"}})
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
@@ -225,8 +234,15 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 			return nil
 		}
 		decl := &ast.ConstDecl{}
+
+		memberName := p.current.Literal
+
+		if !p.checkReservedName(memberName) {
+			return nil
+		}
+
 		decl.Vars = append(decl.Vars, ast.Param{
-			Name: p.current.Literal,
+			Name: memberName,
 			Type: ast.TypeRef{Name: name},
 		})
 
