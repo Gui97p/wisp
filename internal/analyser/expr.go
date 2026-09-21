@@ -34,6 +34,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = symbol.Type
 	case *ast.NullLiteral:
 		t = NullType{}
+	case *ast.FuncLiteral:
+		t = a.checkFuncLiteral(e)
 	case *ast.ArrayLiteral:
 		t = a.checkArrayLiteral(e)
 	case *ast.MapLiteral:
@@ -64,6 +66,53 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 
 	a.info.Types[expr] = t
 	return t
+}
+
+func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
+	params := make([]Type, len(expr.Params))
+	for i, p := range expr.Params {
+		params[i] = a.resolveTypeRef(expr, a.scope, p.Type)
+	}
+	returns := make([]Type, len(expr.ReturnTypes))
+	for i, r := range expr.ReturnTypes {
+		returns[i] = a.resolveTypeRef(expr, a.scope, r)
+	}
+
+	a.enterScope()
+	for i, p := range expr.Params {
+		a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: params[i]})
+	}
+
+	if len(returns) == 0 {
+		if ret, ok := singleReturn(expr.Block); ok {
+			returns = a.checkExprList(ret.Values)
+		}
+	}
+
+	prevReturns := a.currentReturns
+	a.currentReturns = returns
+
+	a.checkBlock(expr.Block)
+
+	a.currentReturns = prevReturns
+	a.exitScope()
+
+	if len(returns) > 0 && !blockTerminates(expr.Block) {
+		a.error(expr, "missing return at end of lambda")
+	}
+
+	return &FuncType{Params: params, Returns: returns}
+}
+
+func singleReturn(block *ast.BlockStmt) (*ast.ReturnStmt, bool) {
+	if len(block.Statements) != 1 {
+		return nil, false
+	}
+	ret, ok := block.Statements[0].(*ast.ReturnStmt)
+	if !ok || len(ret.Values) == 0 {
+		return nil, false
+	}
+	return ret, true
 }
 
 func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {

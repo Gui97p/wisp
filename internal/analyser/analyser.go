@@ -42,6 +42,18 @@ func (a *Analyser) Analyze() *Info {
 }
 
 func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) Type {
+	if ref.IsFunc {
+		params := make([]Type, len(ref.FuncParams))
+		for i, p := range ref.FuncParams {
+			params[i] = a.resolveTypeRef(node, scope, p)
+		}
+		returns := make([]Type, len(ref.FuncReturns))
+		for i, r := range ref.FuncReturns {
+			returns[i] = a.resolveTypeRef(node, scope, r)
+		}
+		return &FuncType{Params: params, Returns: returns}
+	}
+
 	if ref.IsMap {
 		keyType := a.resolveTypeRef(node, scope, *ref.MapKey)
 		valueType := a.resolveTypeRef(node, scope, *ref.MapValue)
