@@ -69,7 +69,15 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 		if _, ok := t.(InvalidType); ok {
 			continue
 		}
-		if _, ok := a.currentReturns[i].(ErrorUnionType); ok {
+		if eu, ok := a.currentReturns[i].(ErrorUnionType); ok {
+			if t.Equals(eu.Payload) {
+				continue
+			}
+			errSymbol, _ := a.scope.Resolve("Error")
+			if t.Equals(errSymbol.Type) {
+				continue
+			}
+			a.errorf(stmt, "return %d: expected %s or Error, got %s", i+1, eu.Payload, t)
 			continue
 		}
 		if !t.Equals(a.currentReturns[i]) {

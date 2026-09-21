@@ -28,4 +28,15 @@ func (a *Analyser) registerBuiltins() {
 	a.scope.Define(&Symbol{Name: "free", Kind: FUNC, Type: &FuncType{
 		Name: "free", Params: []Type{PointerType{Element: VoidType{}}}, Returns: nil,
 	}})
+
+	errorType := &StructType{
+		Name: "Error",
+		Fields: map[string]Type{
+			"code":    intType,
+			"message": strType,
+		},
+		Order:   []string{"code", "message"},
+		Methods: make(map[string]*FuncType),
+	}
+	a.scope.Define(&Symbol{Name: "Error", Kind: STRUCT, Type: errorType})
 }
