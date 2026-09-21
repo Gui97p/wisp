@@ -438,13 +438,42 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 	line, col := p.current.Line, p.current.Column
 	p.advance()
 
+	expr := &ast.CoalesceExpr{Left: left, Default: nil, Block: nil}
+	expr.SetPos(line, col)
+
+	if p.current.Type == lexer.TOKEN_PIPE {
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil
+		}
+		expr.ErrorBind = p.current.Literal
+
+		if !p.checkReservedName(expr.ErrorBind) {
+			return nil
+		}
+
+		if !p.expect(lexer.TOKEN_PIPE) {
+			return nil
+		}
+
+		if !p.expect(lexer.TOKEN_LBRACE) {
+			return nil
+		}
+
+		expr.Block = p.parseBlockStatement()
+
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
+
+		return expr
+	}
+
 	def := p.parseExpression()
 	if def == nil {
 		return nil
 	}
 
-	expr := &ast.CoalesceExpr{Left: left, Default: def}
-	expr.SetPos(line, col)
+	expr.Default = def
 	return expr
 }
 

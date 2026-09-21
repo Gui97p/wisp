@@ -445,9 +445,37 @@ func (a *Analyser) checkCoalesceExpr(expr *ast.CoalesceExpr) Type {
 		return InvalidType{}
 	}
 
-	def := a.checkExpr(expr.Default)
-	if !def.Equals(eu.Payload) {
-		a.errorf(expr, "expected %s for default value, got %s", eu.Payload, def)
+	if expr.Default != nil {
+		def := a.checkExpr(expr.Default)
+		if !def.Equals(eu.Payload) {
+			a.errorf(expr, "expected %s for default value, got %s", eu.Payload, def)
+			return InvalidType{}
+		}
+	} else if expr.Block != nil {
+		b, ok := expr.Block.(*ast.BlockStmt)
+		if !ok {
+			a.errorf(expr, "expected valid block for coalesce")
+			return InvalidType{}
+		}
+
+		errSymbol, _ := a.scope.Resolve("Error")
+
+		prevReturns := a.currentReturns
+		a.currentReturns = []Type{eu.Payload}
+
+		a.enterScope()
+		a.scope.Define(&Symbol{Name: expr.ErrorBind, Kind: VAR, Type: errSymbol.Type})
+		a.checkBlock(b)
+		a.exitScope()
+
+		a.currentReturns = prevReturns
+
+		if !blockTerminates(b) {
+			a.error(expr, "coalesce handler block must end with a return")
+			return InvalidType{}
+		}
+	} else {
+		a.error(expr, "expected default value or block in coalesce")
 		return InvalidType{}
 	}
 
