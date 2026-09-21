@@ -138,6 +138,8 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 		return a.checkArithmetic(expr, expr.Operator, left, right)
 	case "==", "!=", ">", ">=", "<", "<=":
 		return a.checkComparison(expr, expr.Operator, left, right)
+	case "&", "|", "^", "<<", ">>":
+		return a.checkBitwise(expr, expr.Operator, left, right)
 	case "&&", "||":
 		return a.checkLogical(expr, expr.Operator, left, right)
 	default:
@@ -156,7 +158,13 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 	switch expr.Operator {
 	case "-":
 		if !isNumeric(value) {
-			a.errorf(expr, "invalid operator %s for %s", expr.Operator, value.String())
+			a.errorf(expr, "invalid operator %s for %s", expr.Operator, value)
+			return InvalidType{}
+		}
+		return value
+	case "~":
+		if !isInteger(value) {
+			a.errorf(expr, "invalid operator %s for %s", expr.Operator, value)
 			return InvalidType{}
 		}
 		return value

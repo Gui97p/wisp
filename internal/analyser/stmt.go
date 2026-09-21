@@ -223,7 +223,12 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 	}
 
 	baseOp := s.Op[:len(s.Op)-1]
-	a.checkArithmetic(s, baseOp, targetType, valueType)
+	switch baseOp {
+	case "&", "|", "^", "<<", ">>":
+		a.checkBitwise(s, baseOp, targetType, valueType)
+	default:
+		a.checkArithmetic(s, baseOp, targetType, valueType)
+	}
 }
 
 func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {

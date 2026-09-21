@@ -324,8 +324,11 @@ func MethodsOf(t Type) map[string]*FuncType {
 }
 
 func isNumeric(t Type) bool {
-	switch t.(type) {
-	case UntypedIntType, UntypedFloatType:
+	return isInteger(t) || isFloat(t)
+}
+
+func isInteger(t Type) bool {
+	if _, ok := t.(UntypedIntType); ok {
 		return true
 	}
 	p, ok := t.(PrimitiveType)
@@ -334,8 +337,22 @@ func isNumeric(t Type) bool {
 	}
 	switch p.Name {
 	case "int", "int8", "int16", "int32", "int64",
-		"uint", "uint8", "uint16", "uint32", "uint64",
-		"float32", "float64":
+		"uint", "uint8", "uint16", "uint32", "uint64":
+		return true
+	}
+	return false
+}
+
+func isFloat(t Type) bool {
+	if _, ok := t.(UntypedFloatType); ok {
+		return true
+	}
+	p, ok := t.(PrimitiveType)
+	if !ok {
+		return false
+	}
+	switch p.Name {
+	case "float32", "float64":
 		return true
 	}
 	return false

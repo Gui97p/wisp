@@ -51,3 +51,24 @@ func (a *Analyser) checkLogical(node ast.Node, op string, left, right Type) Type
 
 	return boolType
 }
+
+func (a *Analyser) checkBitwise(node ast.Node, op string, left, right Type) Type {
+	if _, ok := left.(InvalidType); ok {
+		return InvalidType{}
+	}
+	if _, ok := right.(InvalidType); ok {
+		return InvalidType{}
+	}
+
+	if !isInteger(left) || !isInteger(right) {
+		a.errorf(node, "invalid operator %s for %s and %s", op, left, right)
+		return InvalidType{}
+	}
+
+	if !left.Equals(right) {
+		a.errorf(node, "incompatible types: %s %s %s", left, op, right)
+		return InvalidType{}
+	}
+
+	return left
+}
