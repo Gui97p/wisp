@@ -161,6 +161,9 @@ func (t TokenType) DisplayName() string {
 		return ":"
 	case TOKEN_QUESTION_MARK:
 		return "?"
+	case TOKEN_COALESCE:
+		return "??"
+
 	case TOKEN_DOT:
 		return "."
 	case TOKEN_RANGE:

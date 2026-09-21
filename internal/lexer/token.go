@@ -103,6 +103,7 @@ const (
 	TOKEN_SEMICOLON     // ;
 	TOKEN_COLON         // :
 	TOKEN_QUESTION_MARK // ?
+	TOKEN_COALESCE      // ??
 
 	TOKEN_DOT      // .
 	TOKEN_RANGE    // ..
