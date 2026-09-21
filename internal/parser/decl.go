@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -251,7 +250,7 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 			if !p.expect(lexer.TOKEN_INT_LITERAL) {
 				return nil
 			}
-			num, err := strconv.ParseInt(p.current.Literal, 10, 64)
+			num, err := p.parseIntLiteral(p.current.Literal)
 			if err != nil {
 				p.errorf("error converting int literal %s", err.Error())
 				return nil

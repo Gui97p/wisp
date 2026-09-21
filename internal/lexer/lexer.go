@@ -284,16 +284,35 @@ func (l *Lexer) NextToken() Token {
 				t = l.token(TOKEN_IDENT, str)
 			}
 		} else if isNumeric(l.ch) {
+			if l.ch == '0' {
+				switch l.peek() {
+				case 'x', 'X':
+					return l.parseNumberBases(&builder, "0123456789abcdef")
+				case 'o', 'O':
+					return l.parseNumberBases(&builder, "01234567")
+				case 'b', 'B':
+					return l.parseNumberBases(&builder, "01")
+				}
+			}
+
 			builder.WriteByte(l.ch)
-			for isNumeric(l.peek()) {
-				builder.WriteByte(l.advance())
+			for isNumeric(l.peek()) || l.peek() == '_' {
+				c := l.advance()
+				if c == '_' {
+					continue
+				}
+				builder.WriteByte(c)
 			}
 
 			if l.peek() == '.' && l.peekNext() != '.' {
 				builder.WriteByte(l.advance())
 				if isNumeric(l.peek()) {
-					for isNumeric(l.peek()) {
-						builder.WriteByte(l.advance())
+					for isNumeric(l.peek()) || l.peek() == '_' {
+						c := l.advance()
+						if c == '_' {
+							continue
+						}
+						builder.WriteByte(c)
 					}
 					l.advance()
 					return l.token(TOKEN_FLOAT_LITERAL, builder.String())
@@ -343,6 +362,29 @@ func (l *Lexer) peek() byte {
 
 func (l *Lexer) peekNext() byte {
 	return l.read(l.pos + 2)
+}
+
+func (l *Lexer) parseNumberBases(b *strings.Builder, charset string) Token {
+	b.WriteByte(l.ch)
+	b.WriteByte(l.advance())
+	for strings.IndexByte(charset, lowerByte(l.peek())) != -1 || l.peek() == '_' {
+		if l.peek() == '_' {
+			l.advance()
+			continue
+		}
+		b.WriteByte(l.advance())
+	}
+
+	t := l.token(TOKEN_INT_LITERAL, b.String())
+	l.advance()
+	return t
+}
+
+func lowerByte(ch byte) byte {
+	if ch >= 'A' && ch <= 'Z' {
+		return ch + ('a' - 'A')
+	}
+	return ch
 }
 
 func isSpace(ch byte) bool {

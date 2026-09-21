@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -83,4 +84,13 @@ func (p *Parser) checkReservedName(name string) bool {
 		return false
 	}
 	return true
+}
+
+func (p *Parser) parseIntLiteral(lit string) (int64, error) {
+	charset := "0x0X0b0B0o0O"
+	base := 10
+	if len(lit) > 2 && strings.Contains(charset, lit[:2]) {
+		base = 0
+	}
+	return strconv.ParseInt(lit, base, 64)
 }

@@ -58,7 +58,7 @@ func (p *Parser) parsePrefix() ast.Expression {
 func (p *Parser) parsePrefixInner() ast.Expression {
 	switch p.current.Type {
 	case lexer.TOKEN_INT_LITERAL:
-		i, _ := strconv.ParseInt(p.current.Literal, 10, 64)
+		i, _ := p.parseIntLiteral(p.current.Literal)
 		return &ast.IntLiteral{Value: i}
 	case lexer.TOKEN_STRING_LITERAL:
 		return &ast.StringLiteral{Value: p.current.Literal}

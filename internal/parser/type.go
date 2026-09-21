@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strconv"
-
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
@@ -70,7 +68,7 @@ func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
 			return false
 		}
 
-		num, err := strconv.ParseInt(p.current.Literal, 10, 64)
+		num, err := p.parseIntLiteral(p.current.Literal)
 		if err != nil {
 			return false
 		}
