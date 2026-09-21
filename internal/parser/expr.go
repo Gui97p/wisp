@@ -81,7 +81,8 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 	case lexer.TOKEN_MINUS,
 		lexer.TOKEN_NOT,
 		lexer.TOKEN_AMP,
-		lexer.TOKEN_STAR:
+		lexer.TOKEN_STAR,
+		lexer.TOKEN_NXOR:
 		return p.parseUnaryExpression()
 
 	case lexer.TOKEN_LPAREN:
@@ -122,7 +123,12 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		lexer.TOKEN_GT,
 		lexer.TOKEN_GTE,
 		lexer.TOKEN_AND,
-		lexer.TOKEN_OR:
+		lexer.TOKEN_OR,
+		lexer.TOKEN_XOR,
+		lexer.TOKEN_SHIFT_LEFT,
+		lexer.TOKEN_SHIFT_RIGHT,
+		lexer.TOKEN_AMP,
+		lexer.TOKEN_PIPE:
 		return p.parseBinaryExpression(left)
 	case lexer.TOKEN_DOT:
 		return p.parseMemberExpression(left)

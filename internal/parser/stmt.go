@@ -145,7 +145,12 @@ func (p *Parser) parseSimpleStatement() ast.Statement {
 		lexer.TOKEN_MINUS_ASSIGN,
 		lexer.TOKEN_STAR_ASSIGN,
 		lexer.TOKEN_SLASH_ASSIGN,
-		lexer.TOKEN_PERCENT_ASSIGN:
+		lexer.TOKEN_PERCENT_ASSIGN,
+		lexer.TOKEN_AMP_ASSIGN,
+		lexer.TOKEN_PIPE_ASSIGN,
+		lexer.TOKEN_XOR_ASSIGN,
+		lexer.TOKEN_SHIFT_LEFT_ASSIGN,
+		lexer.TOKEN_SHIFT_RIGHT_ASSIGN:
 		stmt := p.parseAssignStatement(expr)
 		if stmt == nil {
 			return nil

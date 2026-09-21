@@ -11,8 +11,12 @@ const (
 	TERNARY               // x ? a : b
 	OR                    // ||
 	AND                   // &&
+	BIT_OR                // |
+	BIT_XOR               // ^
+	BIT_AND               // &
 	EQUALITY              // == !=
 	COMPARISON            // < <= > >=
+	SHIFT                 // << >>
 	SUM                   // + -
 	PRODUCT               // * / %
 	PREFIX                // -x !x
@@ -29,6 +33,10 @@ var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_OR:  OR,
 	lexer.TOKEN_AND: AND,
 
+	lexer.TOKEN_PIPE: BIT_OR,
+	lexer.TOKEN_XOR:  BIT_XOR,
+	lexer.TOKEN_AMP:  BIT_AND,
+
 	lexer.TOKEN_EQUAL:     EQUALITY,
 	lexer.TOKEN_NOT_EQUAL: EQUALITY,
 
@@ -36,6 +44,9 @@ var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_LTE: COMPARISON,
 	lexer.TOKEN_GT:  COMPARISON,
 	lexer.TOKEN_GTE: COMPARISON,
+
+	lexer.TOKEN_SHIFT_LEFT:  SHIFT,
+	lexer.TOKEN_SHIFT_RIGHT: SHIFT,
 
 	lexer.TOKEN_PLUS:  SUM,
 	lexer.TOKEN_MINUS: SUM,
