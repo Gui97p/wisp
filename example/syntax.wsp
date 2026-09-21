@@ -68,6 +68,22 @@ func main() {
   int limit = 10;
   limit += 2; // Assign operators
 
+  // Bitwise operators: & | ^ ~ << >>, plus their compound-assign forms.
+  // Integer-only (not float) -- `~` is unary bitwise-not, so `~=` doesn't
+  // exist, there's no binary meaning to compound-assign with it.
+  int bitsA = 6;
+  int bitsB = 3;
+  emitf("bitsA&bitsB=%d bitsA|bitsB=%d bitsA^bitsB=%d ~bitsA=%d bitsA<<1=%d bitsA>>1=%d",
+    bitsA & bitsB, bitsA | bitsB, bitsA ^ bitsB, ~bitsA, bitsA << 1, bitsA >> 1);
+
+  int flags = 6; // 0110
+  flags &= 2;    // 0010
+  flags |= 8;    // 1000
+  flags ^= 1;    // 0001
+  flags <<= 1;
+  flags >>= 1;
+  emitf("flags=%d", flags);
+
   // Zero-value declarations: no initializer -> zeroed
   int zeroed;
   int[3] zeroArr;
