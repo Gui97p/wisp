@@ -59,31 +59,66 @@ func (t *LuaTarget) compileGroupStatement(b *strings.Builder, group *ast.GroupSt
 }
 
 func (t *LuaTarget) compileReturnStatement(b *strings.Builder, stmt *ast.ReturnStmt) error {
-	b.WriteString("return ")
-	for k, value := range stmt.Values {
-		if err := t.compileExpression(b, value); err != nil {
+	if result, ok := t.currentCoalesceResult(); ok {
+		text, err := t.compileExprScratch(stmt.Values[0])
+		if err != nil {
 			return err
 		}
-		if k != len(stmt.Values)-1 {
-			b.WriteString(", ")
-		}
+
+		t.flushPending(b)
+
+		fmt.Fprintf(b, "%s = %s\n", result, text)
+		return nil
 	}
 
+	texts := make([]string, len(stmt.Values))
+	for k, value := range stmt.Values {
+		text, err := t.compileExprScratch(value)
+		if err != nil {
+			return err
+		}
+
+		if k == t.currentFallibleIndex {
+			if isError(t.info.Types[value]) {
+				text = fmt.Sprintf("{value = nil, err = %s}", text)
+			} else {
+				text = fmt.Sprintf("{value = %s, err = nil}", text)
+			}
+		}
+		texts[k] = text
+	}
+
+	t.flushPending(b)
+
+	b.WriteString("return ")
+	b.WriteString(strings.Join(texts, ", "))
 	b.WriteRune('\n')
 	return nil
 }
 
 func (t *LuaTarget) compileExpressionStatement(b *strings.Builder, stmt *ast.ExpressionStmt) error {
-	if err := t.compileExpression(b, stmt.Expr); err != nil {
+	text, err := t.compileExprScratch(stmt.Expr)
+	if err != nil {
 		return err
 	}
+
+	t.flushPending(b)
+
+	b.WriteString(text)
 	b.WriteRune('\n')
 	return nil
 }
 
 func (t *LuaTarget) compileIfStatement(b *strings.Builder, stmt *ast.IfStmt) error {
+	cond, err := t.compileExprScratch(stmt.Condition)
+	if err != nil {
+		return err
+	}
+
+	t.flushPending(b)
+
 	b.WriteString("if ")
-	t.compileExpression(b, stmt.Condition)
+	b.WriteString(cond)
 	b.WriteString(" then\n")
 	t.compileStatement(b, stmt.Then)
 
@@ -124,13 +159,15 @@ func (t *LuaTarget) compileForCount(b *strings.Builder, stmt *ast.ForStmt) error
 	t.pushLoop(ctx)
 	defer t.popLoop()
 
-	fmt.Fprintf(b, "local %s = ", countVar)
-
-	if err := t.compileExpression(b, stmt.End); err != nil {
+	end, err := t.compileExprScratch(stmt.End)
+	if err != nil {
 		return err
 	}
+	t.flushPending(b)
 
-	fmt.Fprintf(b, "\n::%s::\n", conditionLabel)
+	fmt.Fprintf(b, "local %s = %s\n", countVar, end)
+
+	fmt.Fprintf(b, "::%s::\n", conditionLabel)
 
 	fmt.Fprintf(
 		b,
@@ -167,13 +204,13 @@ func (t *LuaTarget) compileForRange(b *strings.Builder, stmt *ast.ForStmt) error
 	t.pushLoop(ctx)
 	defer t.popLoop()
 
-	fmt.Fprintf(b, "local %s = ", rangeVar)
-
-	if err := t.compileExpression(b, stmt.Range); err != nil {
+	rangeText, err := t.compileExprScratch(stmt.Range)
+	if err != nil {
 		return err
 	}
+	t.flushPending(b)
 
-	b.WriteByte('\n')
+	fmt.Fprintf(b, "local %s = %s\n", rangeVar, rangeText)
 
 	fmt.Fprintf(b, "local %s = nil\n", keyVar)
 	fmt.Fprintf(b, "local %s = nil\n", valueVar)
@@ -241,19 +278,25 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 	t.pushLoop(ctx)
 	defer t.popLoop()
 
-	fmt.Fprintf(b, "local %s = ", stmt.Var)
-
-	if stmt.Start == nil {
-		b.WriteByte('1')
-	} else if err := t.compileExpression(b, stmt.Start); err != nil {
-		return err
+	start := "1"
+	if stmt.Start != nil {
+		text, err := t.compileExprScratch(stmt.Start)
+		if err != nil {
+			return err
+		}
+		t.flushPending(b)
+		start = text
 	}
-	b.WriteByte('\n')
+	fmt.Fprintf(b, "local %s = %s\n", stmt.Var, start)
 
 	fmt.Fprintf(b, "::%s::\n", conditionLabel)
-	fmt.Fprintf(b, "if %s > ", stmt.Var)
-	t.compileExpression(b, stmt.End)
-	fmt.Fprintf(b, " then goto %s end\n", ctx.BreakLabel)
+
+	end, err := t.compileExprScratch(stmt.End)
+	if err != nil {
+		return err
+	}
+	t.flushPending(b)
+	fmt.Fprintf(b, "if %s > %s then goto %s end\n", stmt.Var, end, ctx.BreakLabel)
 
 	if err := t.compileStatement(b, stmt.Body); err != nil {
 		return err
@@ -261,14 +304,16 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 
 	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
 
-	fmt.Fprintf(b, "%s = %s + ", stmt.Var, stmt.Var)
-
-	if stmt.Step == nil {
-		b.WriteByte('1')
-	} else if err := t.compileExpression(b, stmt.Step); err != nil {
-		return err
+	step := "1"
+	if stmt.Step != nil {
+		text, err := t.compileExprScratch(stmt.Step)
+		if err != nil {
+			return err
+		}
+		t.flushPending(b)
+		step = text
 	}
-	b.WriteByte('\n')
+	fmt.Fprintf(b, "%s = %s + %s\n", stmt.Var, stmt.Var, step)
 
 	fmt.Fprintf(b, "goto %s\n", conditionLabel)
 	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
@@ -291,11 +336,12 @@ func (t *LuaTarget) compileLoopStatement(b *strings.Builder, stmt *ast.LoopStmt)
 	fmt.Fprintf(b, "::%s::\n", conditionLabel)
 
 	if stmt.Condition != nil {
-		b.WriteString("if not (")
-		if err := t.compileExpression(b, stmt.Condition); err != nil {
+		cond, err := t.compileExprScratch(stmt.Condition)
+		if err != nil {
 			return err
 		}
-		fmt.Fprintf(b, ") then goto %s end\n", ctx.BreakLabel)
+		t.flushPending(b)
+		fmt.Fprintf(b, "if not (%s) then goto %s end\n", cond, ctx.BreakLabel)
 	}
 
 	if err := t.compileStatement(b, stmt.Body); err != nil {
@@ -305,11 +351,12 @@ func (t *LuaTarget) compileLoopStatement(b *strings.Builder, stmt *ast.LoopStmt)
 	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
 
 	if stmt.UntilCondition != nil {
-		b.WriteString("if ")
-		if err := t.compileExpression(b, stmt.UntilCondition); err != nil {
+		cond, err := t.compileExprScratch(stmt.UntilCondition)
+		if err != nil {
 			return err
 		}
-		fmt.Fprintf(b, " then goto %s end\n", ctx.BreakLabel)
+		t.flushPending(b)
+		fmt.Fprintf(b, "if %s then goto %s end\n", cond, ctx.BreakLabel)
 	}
 
 	fmt.Fprintf(b, "goto %s\n", conditionLabel)
@@ -355,22 +402,24 @@ func (t *LuaTarget) compileContinueStatement(b *strings.Builder, stmt *ast.Conti
 }
 
 func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignStmt) error {
-	if err := t.compileExpression(b, stmt.Target); err != nil {
+	target, err := t.compileExprScratch(stmt.Target)
+	if err != nil {
 		return err
 	}
+	value, err := t.compileExprScratch(stmt.Value)
+	if err != nil {
+		return err
+	}
+
+	t.flushPending(b)
+
+	b.WriteString(target)
 	b.WriteString(" = ")
 
 	if stmt.Op == "=" {
-		t.compileExpression(b, stmt.Value)
+		b.WriteString(value)
 	} else {
-		op := stmt.Op[0]
-		if err := t.compileExpression(b, stmt.Target); err != nil {
-			return err
-		}
-		fmt.Fprintf(b, " %c ", op)
-		if err := t.compileExpression(b, stmt.Value); err != nil {
-			return err
-		}
+		fmt.Fprintf(b, "%s %c %s", target, stmt.Op[0], value)
 	}
 	b.WriteByte('\n')
 

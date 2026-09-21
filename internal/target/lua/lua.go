@@ -14,6 +14,12 @@ type LuaTarget struct {
 	info         *analyser.Info
 	loopStack    []loopContext
 	labelCounter uint64
+
+	currentFallibleIndex int
+	currentReturnCount   int
+
+	pending       []string
+	coalesceStack []string
 }
 
 func New(program *ast.Program, info *analyser.Info) *LuaTarget {

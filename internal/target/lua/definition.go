@@ -7,6 +7,31 @@ import (
 )
 
 func (t *LuaTarget) compileDefinition(b *strings.Builder, node ast.Node, vars []ast.Param, values []ast.Expression) error {
+	var texts []string
+
+	if len(values) > 0 {
+		texts = make([]string, len(values))
+		for k, value := range values {
+			text, err := t.compileExprScratch(value)
+			if err != nil {
+				return err
+			}
+			texts[k] = text
+		}
+	} else {
+		types := t.info.VarTypes[node]
+		texts = make([]string, len(vars))
+		for k := range vars {
+			value, err := zeroValue(types[k])
+			if err != nil {
+				return err
+			}
+			texts[k] = value
+		}
+	}
+
+	t.flushPending(b)
+
 	b.WriteString("local ")
 	for k, variable := range vars {
 		if k > 0 {
@@ -16,31 +41,7 @@ func (t *LuaTarget) compileDefinition(b *strings.Builder, node ast.Node, vars []
 	}
 
 	b.WriteString(" = ")
-	if len(values) > 0 {
-		for k, value := range values {
-			if k > 0 {
-				b.WriteString(", ")
-			}
-
-			if err := t.compileExpression(b, value); err != nil {
-				return err
-			}
-		}
-	} else {
-		types := t.info.VarTypes[node]
-		for k := range vars {
-			if k > 0 {
-				b.WriteString(", ")
-			}
-
-			value, err := zeroValue(types[k])
-			if err != nil {
-				return err
-			}
-
-			b.WriteString(value)
-		}
-	}
+	b.WriteString(strings.Join(texts, ", "))
 	b.WriteByte('\n')
 	return nil
 }

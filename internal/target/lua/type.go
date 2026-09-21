@@ -28,6 +28,11 @@ var zeroValues = map[string]string{
 	"bool":   "false",
 }
 
+func isError(t analyser.Type) bool {
+	st, ok := t.(*analyser.StructType)
+	return ok && st.Name == "Error"
+}
+
 func zeroValue(t analyser.Type) (string, error) {
 	switch t := t.(type) {
 	case analyser.PrimitiveType:

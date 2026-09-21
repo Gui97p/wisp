@@ -29,6 +29,9 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 			b.WriteString("-")
 			t.compileExpression(b, e.Value)
 		case "!":
+			if _, ok := t.info.Types[e.Value].(analyser.ErrorUnionType); ok {
+				return t.compilePropagate(b, e)
+			}
 			b.WriteString("not ")
 			t.compileExpression(b, e.Value)
 		default:
@@ -46,6 +49,8 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 		b.WriteByte(']')
 	case *ast.SliceExpr:
 		return t.compileSliceExpression(b, e)
+	case *ast.CoalesceExpr:
+		return t.compileCoalesceExpr(b, e)
 
 	case *ast.TernaryExpr:
 		b.WriteByte('(')
@@ -247,5 +252,81 @@ func (t *LuaTarget) compileSliceExpression(b *strings.Builder, expr *ast.SliceEx
 		b.WriteByte(')')
 	}
 	b.WriteByte(')')
+	return nil
+}
+
+func (t *LuaTarget) compilePropagate(b *strings.Builder, expr *ast.UnaryExpr) error {
+	box, err := t.compileExprScratch(expr.Value)
+	if err != nil {
+		return err
+	}
+
+	tmp := t.newLabel("prop")
+	t.emitPending(fmt.Sprintf("local %s = %s\n", tmp, box))
+
+	parts := make([]string, t.currentReturnCount)
+	for i := range parts {
+		if i == t.currentFallibleIndex {
+			parts[i] = fmt.Sprintf("{value = nil, err = %s.err}", tmp)
+		} else {
+			parts[i] = "nil"
+		}
+	}
+	t.emitPending(fmt.Sprintf("if %s.err ~= nil then return %s end\n", tmp, strings.Join(parts, ", ")))
+
+	b.WriteString(tmp)
+	b.WriteString(".value")
+	return nil
+}
+
+func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceExpr) error {
+	left, err := t.compileExprScratch(expr.Left)
+	if err != nil {
+		return err
+	}
+
+	tmp := t.newLabel("coalesce")
+	result := t.newLabel("coalesce_r")
+	t.emitPending(fmt.Sprintf("local %s = %s\n", tmp, left))
+	t.emitPending(fmt.Sprintf("local %s\n", result))
+
+	outer := t.pending
+	t.pending = nil
+
+	var branch strings.Builder
+	fmt.Fprintf(&branch, "if %s.err ~= nil then\n", tmp)
+
+	if expr.Default != nil {
+		def, err := t.compileExprScratch(expr.Default)
+		if err != nil {
+			t.pending = outer
+			return err
+		}
+		t.flushPending(&branch)
+		fmt.Fprintf(&branch, "%s = %s\n", result, def)
+	} else {
+		block, ok := expr.Block.(*ast.BlockStmt)
+		if !ok {
+			t.pending = outer
+			return fmt.Errorf("lua: coalesce expects a block")
+		}
+
+		fmt.Fprintf(&branch, "local %s = %s.err\n", expr.ErrorBind, tmp)
+
+		t.pushCoalesceResult(result)
+		err := t.compileStatement(&branch, block)
+		t.popCoalesceResult()
+		if err != nil {
+			t.pending = outer
+			return err
+		}
+	}
+
+	fmt.Fprintf(&branch, "else\n%s = %s.value\nend\n", result, tmp)
+
+	t.pending = outer
+	t.emitPending(branch.String())
+
+	b.WriteString(result)
 	return nil
 }

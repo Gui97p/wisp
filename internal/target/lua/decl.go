@@ -65,6 +65,19 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 		b.WriteString(v.Name)
 		first = false
 	}
+	prevCount, prevIdx := t.currentReturnCount, t.currentFallibleIndex
+	t.currentReturnCount = len(fd.ReturnTypes)
+	t.currentFallibleIndex = -1
+	for i, r := range fd.ReturnTypes {
+		if r.Fallible {
+			t.currentFallibleIndex = i
+			break
+		}
+	}
+	defer func() {
+		t.currentReturnCount = prevCount
+		t.currentFallibleIndex = prevIdx
+	}()
 	b.WriteString(")\n")
 
 	if err := t.compileStatement(b, fd.Body); err != nil {
