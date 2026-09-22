@@ -10,8 +10,10 @@ import (
 )
 
 type LuaTarget struct {
-	program      *ast.Program
-	info         *analyser.Info
+	program *ast.Program
+	info    *analyser.Info
+	isEntry bool
+
 	loopStack    []loopContext
 	labelCounter uint64
 
@@ -22,17 +24,23 @@ type LuaTarget struct {
 	coalesceStack []string
 }
 
-func New(program *ast.Program, info *analyser.Info) *LuaTarget {
-	return &LuaTarget{program: program, info: info}
+func New(program *ast.Program, info *analyser.Info, isEntry bool) *LuaTarget {
+	return &LuaTarget{program: program, info: info, isEntry: isEntry}
 }
 
 func (*LuaTarget) Name() string {
-	return "lua 5"
+	return "lua"
 }
 
 func (t *LuaTarget) Compile() (string, error) {
 	var b strings.Builder
 	b.WriteString(runtimePrelude)
+
+	for _, d := range t.program.Declarations {
+		if imp, ok := d.(*ast.ImportDecl); ok {
+			fmt.Fprintf(&b, "local %s = require(%q)\n", imp.Alias, luaRequirePath(imp.Path))
+		}
+	}
 
 	names := collectFuncNames(t.program.Declarations)
 	if len(names) > 0 {
@@ -43,9 +51,22 @@ func (t *LuaTarget) Compile() (string, error) {
 		return "", err
 	}
 
-	b.WriteString("main()\n")
+	if t.isEntry {
+		b.WriteString("main()\n")
+	} else {
+		b.WriteString("local __wisp_module = {}\n")
+		for _, name := range t.exportedNames() {
+			fmt.Fprintf(&b, "__wisp_module.%s = %s\n", name, name)
+		}
+		b.WriteString("return __wisp_module\n")
+	}
 
 	return b.String(), nil
+}
+
+func luaRequirePath(path string) string {
+	path = strings.TrimSuffix(path, ".wsp")
+	return "__wisp_modules." + strings.ReplaceAll(path, "/", ".")
 }
 
 func Build(luaSource, outputPath string) error {
@@ -54,4 +75,27 @@ func Build(luaSource, outputPath string) error {
 	}
 
 	return nil
+}
+
+func (t *LuaTarget) exportedNames() []string {
+	var names []string
+
+	for _, d := range t.program.Declarations {
+		switch decl := d.(type) {
+		case *ast.FuncDecl:
+			if !decl.Exported || decl.Receiver != nil {
+				continue
+			}
+			names = append(names, decl.Name)
+		case *ast.ConstDecl:
+			if !decl.Exported {
+				continue
+			}
+			for _, v := range decl.Vars {
+				names = append(names, v.Name)
+			}
+		}
+	}
+
+	return names
 }
