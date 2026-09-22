@@ -10,6 +10,10 @@ func (a *Analyser) checkArithmetic(node ast.Node, op string, left, right Type) T
 		return InvalidType{}
 	}
 
+	if op == "+" && isString(left) && isString(right) {
+		return left
+	}
+
 	if !isNumeric(left) || !isNumeric(right) {
 		a.errorf(node, "invalid operator %s for %s and %s", op, left.String(), right.String())
 		return InvalidType{}

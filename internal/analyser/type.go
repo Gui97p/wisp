@@ -323,6 +323,14 @@ func MethodsOf(t Type) map[string]*FuncType {
 	}
 }
 
+func isString(t Type) bool {
+	p, ok := t.(PrimitiveType)
+	if !ok {
+		return false
+	}
+	return p.Name == "string"
+}
+
 func isNumeric(t Type) bool {
 	return isInteger(t) || isFloat(t)
 }

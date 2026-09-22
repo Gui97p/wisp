@@ -21,6 +21,12 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 			b.WriteString("~=")
 		case "^":
 			b.WriteString("~")
+		case "+":
+			if pt, ok := t.info.Types[e.Left].(analyser.PrimitiveType); ok && pt.Name == "string" {
+				b.WriteString("..")
+			} else {
+				b.WriteString(e.Operator)
+			}
 		default:
 			b.WriteString(e.Operator)
 		}

@@ -43,7 +43,17 @@ func (m *Module) BufferMap() map[string][]byte {
 	return buffers
 }
 
-var stdlibRoot = "std"
+func stdlibRoot() (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+	exe, err = filepath.EvalSymlinks(exe)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(filepath.Dir(exe), "..", "std"), nil
+}
 
 func FindProjectRoot(startDir string) string {
 	dir := startDir
@@ -62,26 +72,42 @@ func FindProjectRoot(startDir string) string {
 func resolveImportPath(projectRoot, path string) (dir string, files []string, err error) {
 	base := filepath.Join(projectRoot, path)
 	if after, ok := strings.CutPrefix(path, "std/"); ok {
-		base = filepath.Join(stdlibRoot, after)
-	}
-
-	if strings.HasSuffix(path, ".wsp") {
-		return filepath.Dir(base), []string{base}, nil
-	}
-
-	entries, err := os.ReadDir(base)
-	if err != nil {
-		return "", nil, fmt.Errorf("cannot resolve import %q: %w", path, err)
-	}
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".wsp") {
-			files = append(files, filepath.Join(base, e.Name()))
+		root, err := stdlibRoot()
+		if err != nil {
+			return "", nil, fmt.Errorf("cannot locate stdlib: %w", err)
 		}
+		base = filepath.Join(root, after)
 	}
-	if len(files) == 0 {
-		return "", nil, fmt.Errorf("import %q (%s) has no .wsp files", path, base)
+
+	fileExists := false
+	if info, err := os.Stat(base + ".wsp"); err == nil && !info.IsDir() {
+		fileExists = true
 	}
-	return base, files, nil
+	dirInfo, dirErr := os.Stat(base)
+	dirExists := dirErr == nil && dirInfo.IsDir()
+
+	switch {
+	case fileExists && dirExists:
+		return "", nil, fmt.Errorf("import %q is ambiguous: both %s.wsp and %s/ exist", path, base, base)
+	case fileExists:
+		return filepath.Dir(base), []string{base + ".wsp"}, nil
+	case dirExists:
+		entries, err := os.ReadDir(base)
+		if err != nil {
+			return "", nil, fmt.Errorf("cannot resolve import %q: %w", path, err)
+		}
+		for _, e := range entries {
+			if !e.IsDir() && strings.HasSuffix(e.Name(), ".wsp") {
+				files = append(files, filepath.Join(base, e.Name()))
+			}
+		}
+		if len(files) == 0 {
+			return "", nil, fmt.Errorf("import %q (%s) has no .wsp files", path, base)
+		}
+		return base, files, nil
+	default:
+		return "", nil, fmt.Errorf("cannot resolve import %q", path)
+	}
 }
 
 func BuildGraph(entryFile string) ([]*Module, error) {

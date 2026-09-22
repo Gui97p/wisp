@@ -3,7 +3,6 @@ package analyser
 func (a *Analyser) registerBuiltins() {
 	intType := PrimitiveType{Name: "int"}
 	strType := PrimitiveType{Name: "string"}
-	floatType := PrimitiveType{Name: "float64"}
 
 	a.scope.Define(&Symbol{Name: "emit", Kind: FUNC, Type: &FuncType{
 		Name: "emit", Params: []Type{strType}, Returns: nil, Variadic: true,
@@ -11,12 +10,8 @@ func (a *Analyser) registerBuiltins() {
 	a.scope.Define(&Symbol{Name: "emitf", Kind: FUNC, Type: &FuncType{
 		Name: "emitf", Params: []Type{strType, AnyType{}}, Returns: nil, Variadic: true,
 	}})
-
 	a.scope.Define(&Symbol{Name: "len", Kind: FUNC, Type: &FuncType{
 		Name: "len", Params: []Type{AnyType{}}, Returns: []Type{intType},
-	}})
-	a.scope.Define(&Symbol{Name: "random", Kind: FUNC, Type: &FuncType{
-		Name: "random", Params: nil, Returns: []Type{floatType},
 	}})
 
 	a.scope.Define(&Symbol{Name: "malloc", Kind: FUNC, Type: &FuncType{

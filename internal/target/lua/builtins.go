@@ -16,8 +16,6 @@ func (t *LuaTarget) getBuiltin(name string) (func(*strings.Builder, []ast.Expres
 		return t.compileEmitf, true
 	case "len":
 		return t.compileLen, true
-	case "random":
-		return t.compileRandom, true
 	default:
 		return nil, false
 	}
@@ -77,10 +75,5 @@ func (t *LuaTarget) compileLen(b *strings.Builder, args []ast.Expression) error 
 		return err
 	}
 	b.WriteByte(')')
-	return nil
-}
-
-func (*LuaTarget) compileRandom(b *strings.Builder, args []ast.Expression) error {
-	b.WriteString("math.random()")
 	return nil
 }
