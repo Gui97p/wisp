@@ -1,14 +1,103 @@
-export func indexOf(string s, string sub) int;
+export func indexOf(string s, string sub) int {
+    if sub == "" || len(sub) > len(s) {
+        return -1;
+    }
 
-export func startsWith(string s, string prefix) bool;
-export func endsWith(string s, string suffix) bool;
+    int subLen = len(sub);
+    int limit = len(s) - subLen;
 
-export func trim(string s) string;
-export func trimLeft(string s) string;
-export func trimRight(string s) string;
+    for i in 0..limit {
+        if s[i:i + len(sub)] == sub {
+            return i;
+        }
+    }
 
-export func toUpper(string s) string;
-export func toLower(string s) string;
+    return -1;
+}
 
-export func repeat(string s, int n) string;
-export func replace(string s, string old, string new) string;
+export func startsWith(string s, prefix) bool {
+    return s[:len(prefix)] == prefix;
+}
+export func endsWith(string s, suffix) bool {
+    return s[len(s)-len(suffix):] == suffix;
+}
+
+export func trim(string s, charset) string {
+    return trimLeft(trimRight(s, charset), charset);
+}
+export func trimLeft(string s, charset) string {
+    if s == "" {
+        return "";
+    }
+
+    loop s[0] in charset && s != "" {
+        s = s[1:];
+    }
+
+    return s;
+}
+export func trimRight(string s, charset) string {
+    if s == "" {
+        return "";
+    }
+
+    loop s[len(s)-1] in charset && s != "" {
+        s = s[:len(s)-1];
+    }
+
+    return s;
+}
+export func trimPrefix(string s, prefix) string {
+    if !startsWith(s, prefix) {
+        return s;
+    }
+
+    return s[len(prefix):];
+}
+export func trimSuffix(string s, suffix) string {
+    if !endsWith(s, suffix) {
+        return s;
+    }
+
+    return s[:len(s)-len(suffix)];
+}
+
+export func toUpper(string s) string {
+    string ns;
+
+    for i in 0..len(s)-1 {
+        char c = s[i];
+
+        if c >= 'a' && c <= 'z' {
+            c -= 32;
+        }
+
+        ns += c;
+    }
+
+    return ns;
+}
+export func toLower(string s) string {
+    string ns;
+
+    for i in 0..len(s)-1 {
+        char c = s[i];
+
+        if c >= 'A' && c <= 'Z' {
+            c += 32;
+        }
+
+        ns += c;
+    }
+
+    return ns;
+}
+
+export func rep(string s, int n) string {
+    string ns;
+    for n {
+        ns += s;
+    }
+    return ns;
+}
+export func replace(string s, old, new) string;
