@@ -40,6 +40,7 @@ var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_EQUAL:     EQUALITY,
 	lexer.TOKEN_NOT_EQUAL: EQUALITY,
 
+	lexer.TOKEN_IN:  COMPARISON,
 	lexer.TOKEN_LT:  COMPARISON,
 	lexer.TOKEN_LTE: COMPARISON,
 	lexer.TOKEN_GT:  COMPARISON,

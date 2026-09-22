@@ -69,6 +69,9 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 	case *ast.CoalesceExpr:
 		return t.compileCoalesceExpr(b, e)
 
+	case *ast.InExpr:
+		return t.compileInExpression(b, e)
+
 	case *ast.TernaryExpr:
 		b.WriteByte('(')
 		t.compileExpression(b, e.Condition)
@@ -378,5 +381,35 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 	t.emitPending(branch.String())
 
 	b.WriteString(result)
+	return nil
+}
+
+func (t *LuaTarget) compileInExpression(b *strings.Builder, expr *ast.InExpr) error {
+	switch t.info.Types[expr.Right].(type) {
+	case *analyser.MapType:
+		b.WriteByte('(')
+		t.compileExpression(b, expr.Right)
+		b.WriteByte('[')
+		t.compileExpression(b, expr.Left)
+		b.WriteString("] ~= nil)")
+	case analyser.PrimitiveType:
+		b.WriteString("(string.find(")
+		t.compileExpression(b, expr.Right)
+		b.WriteString(", ")
+		if isChar(t.info.Types[expr.Left]) {
+			b.WriteString("string.char(")
+			t.compileExpression(b, expr.Left)
+			b.WriteByte(')')
+		} else {
+			t.compileExpression(b, expr.Left)
+		}
+		b.WriteString(", 1, true) ~= nil)")
+	default:
+		b.WriteString("__wisp_contains(")
+		t.compileExpression(b, expr.Right)
+		b.WriteString(", ")
+		t.compileExpression(b, expr.Left)
+		b.WriteByte(')')
+	}
 	return nil
 }

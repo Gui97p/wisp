@@ -16,4 +16,12 @@ local function __wisp_slice(t, a, b)
 	return r
 end
 
+local function __wisp_contains(t, v)
+	local n = __wisp_len(t)
+	for i = 0, n - 1 do
+		if t[i] == v then return true end
+	end
+	return false
+end
+
 `

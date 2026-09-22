@@ -58,6 +58,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkCoalesceExpr(e)
 	case *ast.CastExpr:
 		t = a.checkCastExpr(e)
+	case *ast.InExpr:
+		t = a.checkInExpr(e)
 	case *ast.StructLiteral:
 		t = a.checkStructLiteral(e)
 	default:
@@ -588,4 +590,44 @@ func (a *Analyser) checkCastExpr(expr *ast.CastExpr) Type {
 
 	a.errorf(expr, "cannot cast %s to %s", valueType.String(), targetType.String())
 	return InvalidType{}
+}
+
+func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {
+	left := a.checkExpr(expr.Left)
+	right := a.checkExpr(expr.Right)
+	boolType := PrimitiveType{Name: "bool"}
+
+	if _, ok := left.(InvalidType); ok {
+		return boolType
+	}
+	if _, ok := right.(InvalidType); ok {
+		return boolType
+	}
+
+	switch rt := right.(type) {
+	case ArrayType:
+		if !left.Equals(rt.Element) {
+			a.errorf(expr, "'in' expects %s, got %s", rt.Element, left)
+		}
+	case SpanType:
+		if !left.Equals(rt.Element) {
+			a.errorf(expr, "'in' expects %s, got %s", rt.Element, left)
+		}
+	case *MapType:
+		if !left.Equals(rt.Key) {
+			a.errorf(expr, "'in' expects %s, got %s", rt.Key, left)
+		}
+	case PrimitiveType:
+		if rt.Name != "string" {
+			a.errorf(expr, "'in' not supported for %s", right)
+			break
+		}
+		if !left.Equals(PrimitiveType{Name: "char"}) && !left.Equals(PrimitiveType{Name: "string"}) {
+			a.errorf(expr, "'in' expects char or string, got %s", left)
+		}
+	default:
+		a.errorf(expr, "'in' not supported for %s", right)
+	}
+
+	return boolType
 }

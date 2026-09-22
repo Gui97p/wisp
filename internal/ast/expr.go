@@ -257,3 +257,27 @@ func (c *CastExpr) Tree(indent string) string {
 
 	return b.String()
 }
+
+type InExpr struct {
+	Left  Expression
+	Right Expression
+
+	NodePos
+}
+
+func (*InExpr) expr() {}
+func (i *InExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sInExpr\n", indent)
+
+	b.WriteString(indent)
+	b.WriteString("├─ Left\n")
+	b.WriteString(i.Left.Tree(indent + "│  "))
+
+	b.WriteString(indent)
+	b.WriteString("└─ Right\n")
+	b.WriteString(i.Right.Tree(indent + "|  "))
+
+	return b.String()
+}

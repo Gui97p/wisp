@@ -195,6 +195,8 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		return p.parseCoalesceExpr(left)
 	case lexer.TOKEN_AS:
 		return p.parseCastExpr(left)
+	case lexer.TOKEN_IN:
+		return p.parseInExpr(left)
 	}
 
 	return left
@@ -548,6 +550,38 @@ func (p *Parser) parseCastExpr(left ast.Expression) ast.Expression {
 	}
 
 	return &ast.CastExpr{Value: left, Type: *ref}
+}
+
+func (p *Parser) parseInExpr(left ast.Expression) ast.Expression {
+	line, col := p.current.Line, p.current.Column
+	p.advance()
+
+	start := p.parseExpressionPratt(COMPARISON)
+	if start == nil {
+		return nil
+	}
+
+	if p.peek.Type == lexer.TOKEN_RANGE {
+		p.advance()
+		p.advance()
+		end := p.parseExpressionPratt(COMPARISON)
+		if end == nil {
+			return nil
+		}
+
+		lower := &ast.BinaryExpr{Left: left, Operator: ">=", Right: start}
+		lower.SetPos(line, col)
+		upper := &ast.BinaryExpr{Left: left, Operator: "<=", Right: end}
+		upper.SetPos(line, col)
+
+		result := &ast.BinaryExpr{Left: lower, Operator: "&&", Right: upper}
+		result.SetPos(line, col)
+		return result
+	}
+
+	expr := &ast.InExpr{Left: left, Right: start}
+	expr.SetPos(line, col)
+	return expr
 }
 
 func (p *Parser) parseSwitchExpr() (*ast.GroupStmt, ast.Expression) {

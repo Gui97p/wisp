@@ -33,6 +33,11 @@ func isError(t analyser.Type) bool {
 	return ok && st.Name == "Error"
 }
 
+func isChar(t analyser.Type) bool {
+	pt, ok := t.(analyser.PrimitiveType)
+	return ok && pt.Name == "char"
+}
+
 func zeroValue(t analyser.Type) (string, error) {
 	switch t := t.(type) {
 	case analyser.PrimitiveType:
