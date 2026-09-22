@@ -12,12 +12,13 @@ import (
 )
 
 type Module struct {
-	Path      string
-	Dir       string
-	Files     []*ast.Program
-	Buffers   [][]byte
-	FilePaths []string
-	Imports   []string
+	Path       string
+	Dir        string
+	Files      []*ast.Program
+	Buffers    [][]byte
+	FilePaths  []string
+	Imports    []string
+	ParseError *SourceError
 }
 
 func (m *Module) Merge() (*ast.Program, map[ast.Declaration]string) {
@@ -101,10 +102,7 @@ func BuildGraph(entryFile string) ([]*Module, error) {
 		}
 		visiting[path] = true
 
-		mod, err := loadModule(path, dir, files)
-		if err != nil {
-			return err
-		}
+		mod := loadModule(path, dir, files)
 		modules[path] = mod
 
 		for _, imp := range mod.Imports {
@@ -129,7 +127,7 @@ func BuildGraph(entryFile string) ([]*Module, error) {
 	return order, nil
 }
 
-func loadModule(path, dir string, files []string) (*Module, error) {
+func loadModule(path, dir string, files []string) *Module {
 	mod := &Module{
 		Path:      path,
 		Dir:       dir,
@@ -139,19 +137,21 @@ func loadModule(path, dir string, files []string) (*Module, error) {
 	for _, f := range files {
 		buffer, err := os.ReadFile(f)
 		if err != nil {
-			return nil, err
+			mod.Buffers = append(mod.Buffers, nil)
+			mod.Files = append(mod.Files, &ast.Program{})
+			continue
 		}
 
 		l := lexer.NewLexer(buffer)
 		p := parser.NewParser(l)
 		program := p.ParseProgram()
 
-		if p.HasErrors() {
-			return nil, &SourceError{Path: f, Buffer: buffer, Errors: p.Errors()}
-		}
-
 		mod.Files = append(mod.Files, program)
 		mod.Buffers = append(mod.Buffers, buffer)
+
+		if p.HasErrors() && mod.ParseError == nil {
+			mod.ParseError = &SourceError{Path: f, Buffer: buffer, Errors: p.Errors()}
+		}
 
 		for _, decl := range program.Declarations {
 			if d, ok := decl.(*ast.ImportDecl); ok {
@@ -160,5 +160,5 @@ func loadModule(path, dir string, files []string) (*Module, error) {
 		}
 	}
 
-	return mod, nil
+	return mod
 }

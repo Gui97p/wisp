@@ -9,6 +9,15 @@ import (
 	"github.com/Gui97p/wisp/internal/module"
 )
 
+func resolveModules(inputPath string) ([]*module.Module, bool) {
+	modules, err := module.BuildGraph(inputPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return nil, false
+	}
+	return modules, true
+}
+
 func resolveOutput(inputPath, output, outDir, ext string) (string, error) {
 	if output == "" {
 		base := strings.TrimSuffix(filepath.Base(inputPath), ".wsp")

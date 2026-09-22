@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/diag"
-	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/target/lua"
 	"github.com/spf13/cobra"
 )
@@ -42,33 +40,37 @@ func runLua(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	modules, err := module.BuildGraph(inputPath)
-	if err != nil {
-		if srcErr, ok := errors.AsType[*module.SourceError](err); ok {
-			diag.Render(os.Stdout, srcErr.Path, srcErr.Buffer, srcErr.Errors)
-		} else {
-			fmt.Fprintln(os.Stderr, err)
-		}
+	modules, ok := resolveModules(inputPath)
+	if !ok {
 		os.Exit(1)
 	}
 
 	exports := map[string]*analyser.ModuleInfo{}
 	var entryOutputPath string
+	hadErrors := false
 
 	for _, mod := range modules {
+		isEntry := mod.Path == ""
+		name := mod.Path
+		if isEntry {
+			name = inputPath
+		}
+
+		if mod.ParseError != nil {
+			diag.Render(os.Stdout, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
+			hadErrors = true
+			continue
+		}
+
 		merged, declFiles := mod.Merge()
 
-		isEntry := mod.Path == ""
 		a := analyser.NewAnalyser(merged, isEntry, exports, declFiles)
 		info := a.Analyze()
 		if a.HasErrors() {
-			name := mod.Path
-			if isEntry {
-				name = inputPath
-			}
 			fmt.Printf("<<  %s  >>\n", name)
 			diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
-			os.Exit(1)
+			hadErrors = true
+			continue
 		}
 
 		exports[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
@@ -92,6 +94,10 @@ func runLua(cmd *cobra.Command, args []string) error {
 		if isEntry {
 			entryOutputPath = outputPath
 		}
+	}
+
+	if hadErrors {
+		os.Exit(1)
 	}
 
 	if luaRun {
