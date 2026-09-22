@@ -35,14 +35,6 @@ func (m *Module) Merge() (*ast.Program, map[ast.Declaration]string) {
 	return program, declFiles
 }
 
-func (m *Module) NativeLuaPath() (string, bool) {
-	path := filepath.Join(m.Dir, "native.lua")
-	if info, err := os.Stat(path); err == nil && !info.IsDir() {
-		return path, true
-	}
-	return "", false
-}
-
 func (m *Module) BufferMap() map[string][]byte {
 	buffers := map[string][]byte{}
 	for i, p := range m.FilePaths {

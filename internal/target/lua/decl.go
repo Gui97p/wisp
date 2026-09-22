@@ -30,11 +30,11 @@ func funcName(fd *ast.FuncDecl) string {
 	return fd.Name
 }
 
-func collectFuncNames(decls []ast.Declaration) []string {
+func (t *LuaTarget) collectFuncNames(decls []ast.Declaration) []string {
 	var names []string
 	for _, d := range decls {
 		if fd, ok := d.(*ast.FuncDecl); ok {
-			if fd.Body != nil {
+			if fd.Body != nil || t.nativeAlias(fd.Name) != "" {
 				names = append(names, funcName(fd))
 			}
 		}
@@ -44,6 +44,9 @@ func collectFuncNames(decls []ast.Declaration) []string {
 
 func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl) error {
 	if fd.Body == nil {
+		if alias := t.nativeAlias(fd.Name); alias != "" {
+			fmt.Fprintf(b, "%s = %s\n", funcName(fd), alias)
+		}
 		return nil
 	}
 

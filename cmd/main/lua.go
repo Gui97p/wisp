@@ -80,22 +80,7 @@ func runLua(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		if nativePath, ok := mod.NativeLuaPath(); ok {
-			data, err := os.ReadFile(nativePath)
-			if err != nil {
-				return err
-			}
-			if err := os.WriteFile(outputPath, data, 0644); err != nil {
-				return err
-			}
-			fmt.Printf("[lua] built (native): %s\n", outputPath)
-			if isEntry {
-				entryOutputPath = outputPath
-			}
-			continue
-		}
-
-		backend := lua.New(merged, info, isEntry)
+		backend := lua.New(merged, info, isEntry, mod.Path)
 		source, err := backend.Compile()
 		if err != nil {
 			return err
