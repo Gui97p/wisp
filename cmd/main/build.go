@@ -1,14 +1,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 
 	"github.com/Gui97p/wisp/internal/analyser"
+	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
-	"github.com/Gui97p/wisp/internal/lexer"
-	"github.com/Gui97p/wisp/internal/parser"
+	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/target/x64"
 	"github.com/spf13/cobra"
 )
@@ -23,7 +24,7 @@ var (
 var buildCmd = &cobra.Command{
 	Use:          "build <file.wsp>",
 	Short:        "Compile to a native x64 binary",
-	Args:         cobra.ExactArgs(1),
+	Args:         cobra.MaximumNArgs(1),
 	RunE:         runBuild,
 	SilenceUsage: true,
 }
@@ -31,7 +32,7 @@ var buildCmd = &cobra.Command{
 var runCmd = &cobra.Command{
 	Use:          "run <file.wsp>",
 	Short:        "Compiles to a native x64 and automatically run after",
-	Args:         cobra.ExactArgs(1),
+	Args:         cobra.MaximumNArgs(1),
 	RunE:         runRun,
 	SilenceUsage: true,
 }
@@ -50,29 +51,47 @@ func init() {
 }
 
 func runBuild(cmd *cobra.Command, args []string) error {
-	inputPath := args[0]
-	buffer, err := os.ReadFile(inputPath)
+	inputPath, err := resolveEntry(args)
 	if err != nil {
 		return err
 	}
 
-	l := lexer.NewLexer(buffer)
-	p := parser.NewParser(l)
-
-	program := p.ParseProgram()
-	if p.HasErrors() {
-		diag.Render(os.Stdout, inputPath, buffer, p.Errors())
+	modules, err := module.BuildGraph(inputPath)
+	if err != nil {
+		if srcErr, ok := errors.AsType[*module.SourceError](err); ok {
+			diag.Render(os.Stdout, srcErr.Path, srcErr.Buffer, srcErr.Errors)
+		} else {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		os.Exit(1)
 	}
 
-	a := analyser.NewAnalyser(program)
-	info := a.Analyze()
-	if a.HasErrors() {
-		diag.Render(os.Stdout, inputPath, buffer, a.Errors())
-		os.Exit(1)
+	exports := map[string]*analyser.ModuleInfo{}
+	var entryProgram *ast.Program
+	var entryInfo *analyser.Info
+
+	for _, mod := range modules {
+		merged := &ast.Program{}
+		for _, f := range mod.Files {
+			merged.Declarations = append(merged.Declarations, f.Declarations...)
+		}
+
+		isEntry := mod.Path == ""
+		a := analyser.NewAnalyser(merged, isEntry, exports)
+		info := a.Analyze()
+		if a.HasErrors() {
+			diag.Render(os.Stdout, mod.FilePaths[0], mod.Buffers[0], a.Errors())
+			os.Exit(1)
+		}
+
+		exports[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
+
+		if isEntry {
+			entryProgram, entryInfo = merged, info
+		}
 	}
 
-	backend := x64.New(program, info)
+	backend := x64.New(entryProgram, entryInfo)
 	asm, err := backend.Compile()
 	if err != nil {
 		return err
@@ -92,9 +111,11 @@ func runBuild(cmd *cobra.Command, args []string) error {
 }
 
 func runRun(cmd *cobra.Command, args []string) error {
-	inputPath := args[0]
-	_, err := os.Stat(inputPath)
+	inputPath, err := resolveEntry(args)
 	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(inputPath); err != nil {
 		return err
 	}
 

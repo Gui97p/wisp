@@ -1,14 +1,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/Gui97p/wisp/internal/analyser"
+	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
-	"github.com/Gui97p/wisp/internal/lexer"
-	"github.com/Gui97p/wisp/internal/parser"
+	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/target/lua"
 	"github.com/spf13/cobra"
 )
@@ -22,7 +24,7 @@ var (
 var luaCmd = &cobra.Command{
 	Use:          "lua <file.wsp>",
 	Short:        "Transpile to lua source code",
-	Args:         cobra.ExactArgs(1),
+	Args:         cobra.MaximumNArgs(1),
 	RunE:         runLua,
 	SilenceUsage: true,
 }
@@ -36,46 +38,69 @@ func init() {
 }
 
 func runLua(cmd *cobra.Command, args []string) error {
-	inputPath := args[0]
-	buffer, err := os.ReadFile(inputPath)
+	inputPath, err := resolveEntry(args)
 	if err != nil {
 		return err
 	}
 
-	l := lexer.NewLexer(buffer)
-	p := parser.NewParser(l)
-
-	program := p.ParseProgram()
-	if p.HasErrors() {
-		diag.Render(os.Stdout, inputPath, buffer, p.Errors())
+	modules, err := module.BuildGraph(inputPath)
+	if err != nil {
+		if srcErr, ok := errors.AsType[*module.SourceError](err); ok {
+			diag.Render(os.Stdout, srcErr.Path, srcErr.Buffer, srcErr.Errors)
+		} else {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		os.Exit(1)
 	}
 
-	a := analyser.NewAnalyser(program)
-	info := a.Analyze()
-	if a.HasErrors() {
-		diag.Render(os.Stdout, inputPath, buffer, a.Errors())
-		os.Exit(1)
-	}
+	exports := map[string]*analyser.ModuleInfo{}
+	var entryOutputPath string
 
-	backend := lua.New(program, info)
-	source, err := backend.Compile()
-	if err != nil {
-		return err
-	}
+	for _, mod := range modules {
+		merged := &ast.Program{}
+		for _, f := range mod.Files {
+			merged.Declarations = append(merged.Declarations, f.Declarations...)
+		}
 
-	outputPath, err := resolveOutput(inputPath, luaOutput, luaOutDir, ".lua")
-	if err != nil {
-		return err
-	}
+		isEntry := mod.Path == ""
+		a := analyser.NewAnalyser(merged, isEntry, exports)
+		info := a.Analyze()
+		if a.HasErrors() {
+			name := mod.Path
+			if isEntry {
+				name = inputPath
+			}
+			fmt.Printf("<<  %s  >>\n", name)
+			diag.Render(os.Stdout, mod.FilePaths[0], mod.Buffers[0], a.Errors())
+			os.Exit(1)
+		}
 
-	if err := lua.Build(source, outputPath); err != nil {
-		return err
+		exports[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
+
+		backend := lua.New(merged, info, isEntry)
+		source, err := backend.Compile()
+		if err != nil {
+			return err
+		}
+
+		outputPath, err := modulePath(luaOutDir, inputPath, luaOutput, mod.Path, isEntry)
+		if err != nil {
+			return err
+		}
+		if err := lua.Build(source, outputPath); err != nil {
+			return err
+		}
+
+		fmt.Printf("[%s] built: %s\n", backend.Name(), outputPath)
+
+		if isEntry {
+			entryOutputPath = outputPath
+		}
 	}
-	fmt.Printf("[%s] built: %s\n", backend.Name(), outputPath)
 
 	if luaRun {
-		run := exec.Command("lua", outputPath)
+		run := exec.Command("lua", filepath.Base(entryOutputPath))
+		run.Dir = filepath.Dir(entryOutputPath)
 		run.Stdout, run.Stderr = os.Stdout, os.Stderr
 		if err := run.Run(); err != nil {
 			if exitErr, ok := err.(*exec.ExitError); ok {
