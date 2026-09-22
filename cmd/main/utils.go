@@ -23,9 +23,6 @@ func resolveOutput(inputPath, output, outDir, ext string) (string, error) {
 		base := strings.TrimSuffix(filepath.Base(inputPath), ".wsp")
 		output = base + ext
 	}
-	if outDir == "" {
-		outDir = "dist"
-	}
 	if err := os.MkdirAll(outDir, 0755); err != nil {
 		return "", err
 	}
@@ -47,7 +44,16 @@ func modulePath(outDir, entryFile, output, modPath string, isEntry bool) (string
 
 func resolveEntry(args []string) (string, error) {
 	if len(args) == 1 {
-		return args[0], nil
+		inputPath := args[0]
+
+		root := module.FindProjectRoot(filepath.Dir(inputPath))
+		if luaOutDir == "" {
+			luaOutDir = filepath.Join(root, "dist")
+		}
+		if buildOutDir == "" {
+			buildOutDir = filepath.Join(root, "bin")
+		}
+		return inputPath, nil
 	}
 
 	cwd, err := os.Getwd()
@@ -56,6 +62,13 @@ func resolveEntry(args []string) (string, error) {
 	}
 
 	root := module.FindProjectRoot(cwd)
+	if luaOutDir == "" {
+		luaOutDir = filepath.Join(root, "dist")
+	}
+	if buildOutDir == "" {
+		buildOutDir = filepath.Join(root, "bin")
+	}
+
 	cfg, err := module.LoadConfig(root)
 	if err != nil || cfg.Entry == "" {
 		return "", fmt.Errorf("no entry file given and no 'entry' configured in wisp.toml")

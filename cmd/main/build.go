@@ -39,13 +39,13 @@ func init() {
 	f := buildCmd.Flags()
 
 	f.StringVarP(&buildOutput, "output", "o", "", "output binary name")
-	f.StringVar(&buildOutDir, "dir", "bin", "output directory")
+	f.StringVar(&buildOutDir, "dir", "", "output directory")
 	f.BoolVar(&buildKeepAsm, "asm", false, "keep the generated .asm file")
 	f.BoolVar(&buildKeepObj, "obj", false, "keep the generated .o file")
 
 	f = runCmd.Flags()
 	f.StringVarP(&buildOutput, "output", "o", "", "output binary name")
-	f.StringVar(&buildOutDir, "dir", "bin", "output directory")
+	f.StringVar(&buildOutDir, "dir", "", "output directory")
 }
 
 func runBuild(cmd *cobra.Command, args []string) error {

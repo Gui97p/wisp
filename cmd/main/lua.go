@@ -30,13 +30,17 @@ func init() {
 	f := luaCmd.Flags()
 
 	f.StringVarP(&luaOutput, "output", "o", "", "output lua file name")
-	f.StringVar(&luaOutDir, "dir", "dist", "output directory")
+	f.StringVar(&luaOutDir, "dir", "", "output directory")
 	f.BoolVarP(&luaRun, "run", "r", false, "run lua file after building (requires lua installed)")
 }
 
 func runLua(cmd *cobra.Command, args []string) error {
 	inputPath, err := resolveEntry(args)
 	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(inputPath); err != nil {
 		return err
 	}
 
@@ -90,18 +94,19 @@ func runLua(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		fmt.Printf("[%s] built: %s\n", backend.Name(), outputPath)
-
 		if isEntry {
 			entryOutputPath = outputPath
 		}
 	}
+
+	fmt.Printf("[lua] built %s\n", luaOutDir)
 
 	if hadErrors {
 		os.Exit(1)
 	}
 
 	if luaRun {
+		fmt.Printf("[lua] running %s\n", entryOutputPath)
 		run := exec.Command("lua", filepath.Base(entryOutputPath))
 		run.Dir = filepath.Dir(entryOutputPath)
 		run.Stdout, run.Stderr = os.Stdout, os.Stderr
