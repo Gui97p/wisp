@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
@@ -420,8 +421,14 @@ func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignS
 		b.WriteString(value)
 	} else {
 		op := strings.TrimSuffix(stmt.Op, "=")
-		if op == "^" {
+		switch op {
+		case "^":
 			op = "~"
+		case "+":
+			pt, ok := t.info.Types[stmt.Target].(analyser.PrimitiveType)
+			if ok && pt.Name == "string" {
+				op = ".."
+			}
 		}
 		fmt.Fprintf(b, "(%s) %s (%s)", target, op, value)
 	}
