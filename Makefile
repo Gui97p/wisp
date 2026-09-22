@@ -8,15 +8,15 @@ build:
 	go build -o bin/$(APP) ./cmd/main
 
 prod:
-	rm -rf dist/$(NAME)
-	mkdir -p dist/$(NAME)
+	rm -rf dist/$(APP)
+	mkdir -p dist/$(APP)
 
-	cp -r bin dist/$(NAME)
-	cp -r std dist/$(NAME)
+	cp -r bin dist/$(APP)
+	cp -r std dist/$(APP)
 	
-	tar -C dist -czf dist/$(NAME).tar.gz $(NAME)
+	tar -C dist -czf dist/$(NAME).tar.gz $(APP)
 
-	rm -rf dist/$(NAME)
+	rm -rf dist/$(APP)
 
 run:
 	go run ./cmd/main
