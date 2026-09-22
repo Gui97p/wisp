@@ -24,6 +24,14 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 		case "+":
 			if pt, ok := t.info.Types[e.Left].(analyser.PrimitiveType); ok && pt.Name == "string" {
 				b.WriteString("..")
+				if pt, ok := t.info.Types[e.Right].(analyser.PrimitiveType); ok && pt.Name == "char" {
+					b.WriteString("string.char(")
+					if err := t.compileExpression(b, e.Right); err != nil {
+						return err
+					}
+					b.WriteByte(')')
+					return nil
+				}
 			} else {
 				b.WriteString(e.Operator)
 			}

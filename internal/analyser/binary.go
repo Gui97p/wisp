@@ -10,7 +10,7 @@ func (a *Analyser) checkArithmetic(node ast.Node, op string, left, right Type) T
 		return InvalidType{}
 	}
 
-	if op == "+" && isString(left) && isString(right) {
+	if op == "+" && isString(left) && (isString(right) || isChar(right)) {
 		return left
 	}
 

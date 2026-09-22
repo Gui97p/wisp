@@ -331,6 +331,14 @@ func isString(t Type) bool {
 	return p.Name == "string"
 }
 
+func isChar(t Type) bool {
+	p, ok := t.(PrimitiveType)
+	if !ok {
+		return false
+	}
+	return p.Name == "char"
+}
+
 func isNumeric(t Type) bool {
 	return isInteger(t) || isFloat(t)
 }

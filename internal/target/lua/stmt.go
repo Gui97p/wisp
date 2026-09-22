@@ -177,9 +177,13 @@ func (t *LuaTarget) compileForCount(b *strings.Builder, stmt *ast.ForStmt) error
 		ctx.BreakLabel,
 	)
 
+	b.WriteString("do\n")
+
 	if err := t.compileStatement(b, stmt.Body); err != nil {
 		return err
 	}
+
+	b.WriteString("end\n")
 
 	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
 	fmt.Fprintf(b, "%s = %s - 1\n", countVar, countVar)
@@ -299,9 +303,13 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 	t.flushPending(b)
 	fmt.Fprintf(b, "if %s > %s then goto %s end\n", stmt.Var, end, ctx.BreakLabel)
 
+	b.WriteString("do\n")
+
 	if err := t.compileStatement(b, stmt.Body); err != nil {
 		return err
 	}
+
+	b.WriteString("end\n")
 
 	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
 
@@ -425,9 +433,11 @@ func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignS
 		case "^":
 			op = "~"
 		case "+":
-			pt, ok := t.info.Types[stmt.Target].(analyser.PrimitiveType)
-			if ok && pt.Name == "string" {
+			if pt, ok := t.info.Types[stmt.Target].(analyser.PrimitiveType); ok && pt.Name == "string" {
 				op = ".."
+				if pt, ok := t.info.Types[stmt.Value].(analyser.PrimitiveType); ok && pt.Name == "char" {
+					value = fmt.Sprintf("string.char(%s)", value)
+				}
 			}
 		}
 		fmt.Fprintf(b, "(%s) %s (%s)", target, op, value)
