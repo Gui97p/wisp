@@ -1,0 +1,22 @@
+export func abs(int x) int;
+export func fabs(float64 x) float64;
+
+export func min(int a, int b) int;
+export func fmin(float64 a, float64 b) float64;
+
+export func max(int a, int b) int;
+export func fmax(float64 a, float64 b) float64;
+
+export func floor(float64 x) float64;
+export func ceil(float64 x) float64;
+export func round(float64 x) float64;
+
+export func sqrt(float64 x) float64;
+export func pow(float64 base, float64 exp) float64;
+
+export func sin(float64 x) float64;
+export func cos(float64 x) float64;
+export func tan(float64 x) float64;
+
+export func log(float64 x) float64;
+export func exp(float64 x) float64;

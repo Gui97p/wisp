@@ -1,0 +1,14 @@
+export func indexOf(string s, string sub) int;
+
+export func startsWith(string s, string prefix) bool;
+export func endsWith(string s, string suffix) bool;
+
+export func trim(string s) string;
+export func trimLeft(string s) string;
+export func trimRight(string s) string;
+
+export func toUpper(string s) string;
+export func toLower(string s) string;
+
+export func repeat(string s, int n) string;
+export func replace(string s, string old, string new) string;
