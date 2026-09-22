@@ -7,6 +7,22 @@ import (
 	"strings"
 )
 
+func RenderGrouped(w io.Writer, buffers map[string][]byte, diags List) {
+	var order []string
+	grouped := map[string]List{}
+
+	for _, d := range diags {
+		if _, ok := grouped[d.File]; !ok {
+			order = append(order, d.File)
+		}
+		grouped[d.File] = append(grouped[d.File], d)
+	}
+
+	for _, file := range order {
+		Render(w, file, buffers[file], grouped[file])
+	}
+}
+
 func Render(w io.Writer, filename string, source []byte, diags List) {
 	lines := strings.Split(string(source), "\n")
 

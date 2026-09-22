@@ -4,6 +4,7 @@ import "github.com/Gui97p/wisp/internal/ast"
 
 func (a *Analyser) registerStructNames() {
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		sd, ok := d.(*ast.StructDecl)
 		if !ok {
 			continue
@@ -26,6 +27,7 @@ func (a *Analyser) registerStructNames() {
 
 func (a *Analyser) registerStructFields() {
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		sd, ok := d.(*ast.StructDecl)
 		if !ok {
 			continue

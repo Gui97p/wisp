@@ -14,7 +14,7 @@ func (p *Parser) HasErrors() bool {
 }
 
 func (p *Parser) errorf(format string, args ...any) {
-	p.errors.Add(p.current.Line, p.current.Column, format, args...)
+	p.errors.Add("", p.current.Line, p.current.Column, format, args...)
 	p.synchronize()
 }
 

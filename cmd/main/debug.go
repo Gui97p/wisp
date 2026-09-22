@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/Gui97p/wisp/internal/analyser"
-	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/lexer"
 	"github.com/Gui97p/wisp/internal/module"
@@ -70,13 +69,10 @@ func runDebug(cmd *cobra.Command, args []string) error {
 		anyErrors := false
 
 		for _, mod := range modules {
-			merged := &ast.Program{}
-			for _, f := range mod.Files {
-				merged.Declarations = append(merged.Declarations, f.Declarations...)
-			}
+			merged, declFiles := mod.Merge()
 
 			isEntry := mod.Path == ""
-			a := analyser.NewAnalyser(merged, isEntry, exports)
+			a := analyser.NewAnalyser(merged, isEntry, exports, declFiles)
 			a.Analyze()
 			if a.HasErrors() {
 				anyErrors = true
@@ -85,7 +81,7 @@ func runDebug(cmd *cobra.Command, args []string) error {
 					name = inputPath
 				}
 				fmt.Printf("<<Analyser Errors: %s>>\n", name)
-				diag.Render(os.Stdout, mod.FilePaths[0], mod.Buffers[0], a.Errors())
+				diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
 			}
 			exports[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
 		}

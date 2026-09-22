@@ -4,6 +4,7 @@ import "github.com/Gui97p/wisp/internal/ast"
 
 func (a *Analyser) registerFuncSignatures() {
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		fd, ok := d.(*ast.FuncDecl)
 		if !ok {
 			continue
@@ -52,6 +53,7 @@ func (a *Analyser) registerFuncSignatures() {
 
 func (a *Analyser) checkFuncBodies() {
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		fd, ok := d.(*ast.FuncDecl)
 		if !ok {
 			continue
@@ -117,6 +119,7 @@ func (a *Analyser) checkMainFunc() {
 	var mainDecl *ast.FuncDecl
 	count := 0
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		fd, ok := d.(*ast.FuncDecl)
 		if !ok || fd.Name != "main" {
 			continue
@@ -126,11 +129,11 @@ func (a *Analyser) checkMainFunc() {
 	}
 
 	if count == 0 {
-		a.errors.Add(0, 0, "program has no main function")
+		a.errors.Add(a.currentFile, 0, 0, "program has no main function")
 		return
 	}
 	if count > 1 {
-		a.errors.Add(0, 0, "program has more than one main function")
+		a.errors.Add(a.currentFile, 0, 0, "program has more than one main function")
 		return
 	}
 

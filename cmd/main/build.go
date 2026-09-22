@@ -71,16 +71,13 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	var entryInfo *analyser.Info
 
 	for _, mod := range modules {
-		merged := &ast.Program{}
-		for _, f := range mod.Files {
-			merged.Declarations = append(merged.Declarations, f.Declarations...)
-		}
+		merged, declFiles := mod.Merge()
 
 		isEntry := mod.Path == ""
-		a := analyser.NewAnalyser(merged, isEntry, exports)
+		a := analyser.NewAnalyser(merged, isEntry, exports, declFiles)
 		info := a.Analyze()
 		if a.HasErrors() {
-			diag.Render(os.Stdout, mod.FilePaths[0], mod.Buffers[0], a.Errors())
+			diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
 			os.Exit(1)
 		}
 

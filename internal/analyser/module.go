@@ -10,6 +10,7 @@ func (a *Analyser) Exports() map[string]*Symbol {
 	exports := map[string]*Symbol{}
 
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		switch decl := d.(type) {
 		case *ast.FuncDecl:
 			if decl.Receiver != nil || !decl.Exported {
@@ -62,6 +63,7 @@ func (m *ModuleType) Equals(other Type) bool {
 
 func (a *Analyser) registerImports() {
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		imp, ok := d.(*ast.ImportDecl)
 		if !ok {
 			continue

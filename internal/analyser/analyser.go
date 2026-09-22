@@ -19,16 +19,20 @@ type Analyser struct {
 	isEntry bool
 	modules map[string]*ModuleInfo
 
+	declFiles   map[ast.Declaration]string
+	currentFile string
+
 	errors diag.List
 }
 
-func NewAnalyser(program *ast.Program, isEntry bool, modules map[string]*ModuleInfo) *Analyser {
+func NewAnalyser(program *ast.Program, isEntry bool, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string) *Analyser {
 	return &Analyser{
-		program: program,
-		info:    NewInfo(),
-		scope:   NewScope(nil),
-		isEntry: isEntry,
-		modules: modules,
+		program:   program,
+		info:      NewInfo(),
+		scope:     NewScope(nil),
+		isEntry:   isEntry,
+		modules:   modules,
+		declFiles: declFiles,
 	}
 }
 

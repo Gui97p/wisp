@@ -6,6 +6,7 @@ import (
 
 func (a *Analyser) registerTypeAliases() {
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		td, ok := d.(*ast.TypeDecl)
 		if !ok {
 			continue
@@ -32,6 +33,7 @@ func (a *Analyser) registerTypeAliases() {
 
 func (a *Analyser) registerConsts() {
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		cd, ok := d.(*ast.ConstDecl)
 		if !ok {
 			continue
@@ -42,6 +44,7 @@ func (a *Analyser) registerConsts() {
 
 func (a *Analyser) registerMethods() {
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
 		fd, ok := d.(*ast.FuncDecl)
 		if !ok || fd.Receiver == nil {
 			continue

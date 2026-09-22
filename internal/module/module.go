@@ -20,6 +20,28 @@ type Module struct {
 	Imports   []string
 }
 
+func (m *Module) Merge() (*ast.Program, map[ast.Declaration]string) {
+	program := &ast.Program{}
+	declFiles := map[ast.Declaration]string{}
+
+	for i, f := range m.Files {
+		for _, d := range f.Declarations {
+			declFiles[d] = m.FilePaths[i]
+		}
+		program.Declarations = append(program.Declarations, f.Declarations...)
+	}
+
+	return program, declFiles
+}
+
+func (m *Module) BufferMap() map[string][]byte {
+	buffers := map[string][]byte{}
+	for i, p := range m.FilePaths {
+		buffers[p] = m.Buffers[i]
+	}
+	return buffers
+}
+
 var stdlibRoot = "std"
 
 func FindProjectRoot(startDir string) string {
