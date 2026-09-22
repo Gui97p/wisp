@@ -280,6 +280,10 @@ func (a *Analyser) checkCallExprValue(expr *ast.CallExpr) Type {
 func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 	if member, ok := expr.Name.(*ast.MemberExpr); ok {
 		objType := a.checkExpr(member.Object)
+		if _, ok := objType.(InvalidType); ok {
+			a.evalArgTypes(expr)
+			return []Type{InvalidType{}}
+		}
 		if methods := MethodsOf(objType); methods != nil {
 			if ft, ok := methods[member.Field]; ok {
 				a.checkCallArgs(expr, ft)
@@ -294,9 +298,9 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 	case *FuncType:
 		a.checkCallArgs(expr, ct)
 		return ct.Returns
-	case *InvalidType:
+	case InvalidType:
 		a.evalArgTypes(expr)
-		return nil
+		return []Type{InvalidType{}}
 	default:
 		a.errorf(expr, "%s is not a function", nameType.String())
 		a.evalArgTypes(expr)
@@ -399,6 +403,15 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 
 	if _, ok := objType.(InvalidType); ok {
 		return InvalidType{}
+	}
+
+	if mod, ok := objType.(*ModuleType); ok {
+		sym, ok := mod.Exports[expr.Field]
+		if !ok {
+			a.errorf(expr, "module has no exported %s", expr.Field)
+			return InvalidType{}
+		}
+		return sym.Type
 	}
 
 	if ptr, ok := objType.(PointerType); ok {

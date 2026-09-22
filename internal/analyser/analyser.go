@@ -16,18 +16,24 @@ type Analyser struct {
 	currentReturns []Type
 	loopLabels     []string
 
+	isEntry bool
+	modules map[string]*ModuleInfo
+
 	errors diag.List
 }
 
-func NewAnalyser(program *ast.Program) *Analyser {
+func NewAnalyser(program *ast.Program, isEntry bool, modules map[string]*ModuleInfo) *Analyser {
 	return &Analyser{
 		program: program,
 		info:    NewInfo(),
 		scope:   NewScope(nil),
+		isEntry: isEntry,
+		modules: modules,
 	}
 }
 
 func (a *Analyser) Analyze() *Info {
+	a.registerImports()
 	a.registerStructNames()
 	a.registerTypeAliases()
 	a.registerMethods()
@@ -35,7 +41,9 @@ func (a *Analyser) Analyze() *Info {
 	a.registerBuiltins()
 	a.registerFuncSignatures()
 	a.registerConsts()
-	a.checkMainFunc()
+	if a.isEntry {
+		a.checkMainFunc()
+	}
 	a.checkFuncBodies()
 
 	return a.info

@@ -174,10 +174,10 @@ func (p *Parser) parseConstDeclaration() *ast.ConstDecl {
 
 func lastPathSegment(path string) string {
 	idx := strings.LastIndex(path, "/")
-	if idx == -1 {
-		return path
+	if idx != -1 {
+		path = path[idx+1:]
 	}
-	return path[idx+1:]
+	return strings.TrimSuffix(path, ".wsp")
 }
 
 func (p *Parser) parseTypeDeclaration() *ast.TypeDecl {

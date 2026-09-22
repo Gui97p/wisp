@@ -9,6 +9,7 @@ const (
 	FUNC
 	STRUCT
 	TYPE
+	MODULE
 )
 
 func (s SymbolKind) String() string {
@@ -25,6 +26,8 @@ func (s SymbolKind) String() string {
 		return "struct"
 	case TYPE:
 		return "type"
+	case MODULE:
+		return "module"
 	default:
 		return "unknown"
 	}
