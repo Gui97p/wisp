@@ -48,6 +48,18 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 		t.compileExpression(b, e.Object)
 		fmt.Fprintf(b, ".%s", e.Field)
 	case *ast.IndexExpr:
+		if pt, ok := t.info.Types[e.Array].(analyser.PrimitiveType); ok && pt.Name == "string" {
+			b.WriteString("string.byte(")
+			if err := t.compileExpression(b, e.Array); err != nil {
+				return err
+			}
+			b.WriteString(", (")
+			if err := t.compileExpression(b, e.Index); err != nil {
+				return err
+			}
+			b.WriteString(")+1)")
+			break
+		}
 		t.compileExpression(b, e.Array)
 		b.WriteByte('[')
 		t.compileExpression(b, e.Index)
@@ -103,7 +115,7 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 	case *ast.StringLiteral:
 		fmt.Fprintf(b, "\"%s\"", e.Value)
 	case *ast.CharLiteral:
-		fmt.Fprintf(b, "'%c'", e.Value)
+		fmt.Fprintf(b, "%d", e.Value)
 	case *ast.BoolLiteral:
 		if e.Value {
 			b.WriteString("true")

@@ -453,6 +453,13 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 			a.errorf(expr, "map index expected %s, got %s", t.Key.String(), idxType.String())
 		}
 		return t.Value
+	case PrimitiveType:
+		if t.Name != "string" {
+			a.errorf(expr, "%s can't be indexed", arrType.String())
+			return InvalidType{}
+		}
+		a.requireNumeric(expr, idxType, "string index")
+		return PrimitiveType{Name: "char"}
 	default:
 		a.errorf(expr, "%s can't be indexed", arrType.String())
 		return InvalidType{}
