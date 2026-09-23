@@ -95,6 +95,8 @@ func (t TokenType) DisplayName() string {
 		return "export"
 	case TOKEN_AS:
 		return "as"
+	case TOKEN_NATIVE:
+		return "native"
 	case TOKEN_TRUE:
 		return "true"
 	case TOKEN_FALSE:

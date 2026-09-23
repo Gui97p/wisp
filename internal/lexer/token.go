@@ -62,6 +62,7 @@ const (
 	TOKEN_IMPORT
 	TOKEN_EXPORT
 	TOKEN_AS
+	TOKEN_NATIVE
 
 	TOKEN_TRUE
 	TOKEN_FALSE
@@ -151,6 +152,7 @@ var keywords = map[string]TokenType{
 	"import":   TOKEN_IMPORT,
 	"export":   TOKEN_EXPORT,
 	"as":       TOKEN_AS,
+	"native":   TOKEN_NATIVE,
 
 	"int":    TOKEN_INT,
 	"uint":   TOKEN_UINT,

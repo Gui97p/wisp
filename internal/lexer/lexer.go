@@ -240,11 +240,28 @@ func (l *Lexer) NextToken() Token {
 		for {
 			l.advance()
 
-			if l.ch == EOF {
+			if l.ch == EOF || isEndLine(l.ch) {
 				return l.token(TOKEN_ILLEGAL, "unterminated string")
 			}
 
 			if l.ch == '"' {
+				break
+			}
+
+			str.WriteByte(l.ch)
+		}
+
+		t = l.token(TOKEN_STRING_LITERAL, str.String())
+	case '`':
+		var str strings.Builder
+		for {
+			l.advance()
+
+			if l.ch == EOF {
+				return l.token(TOKEN_ILLEGAL, "unterminated string")
+			}
+
+			if l.ch == '`' {
 				break
 			}
 
@@ -385,6 +402,10 @@ func lowerByte(ch byte) byte {
 		return ch + ('a' - 'A')
 	}
 	return ch
+}
+
+func isEndLine(ch byte) bool {
+	return ch == '\r' || ch == '\n'
 }
 
 func isSpace(ch byte) bool {

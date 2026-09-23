@@ -130,7 +130,18 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 	case *ast.IdentLiteral:
 		b.WriteString(e.Value)
 	case *ast.StringLiteral:
-		fmt.Fprintf(b, "\"%s\"", e.Value)
+		b.WriteByte('"')
+		for _, c := range e.Value {
+			switch c {
+			case '\n':
+				b.WriteString("\\n")
+			case '\r':
+				b.WriteString("\\r")
+			default:
+				b.WriteRune(c)
+			}
+		}
+		b.WriteByte('"')
 	case *ast.CharLiteral:
 		fmt.Fprintf(b, "%d", e.Value)
 	case *ast.BoolLiteral:

@@ -45,6 +45,10 @@ func (p *Parser) ParseProgram() *ast.Program {
 func (p *Parser) advance() {
 	p.current = p.peek
 	p.peek = p.l.NextToken()
+
+	if p.peek.Type == lexer.TOKEN_ILLEGAL {
+		p.errorf("illegal expression: %s", p.peek.Literal)
+	}
 }
 
 func (p *Parser) expect(t lexer.TokenType) bool {
