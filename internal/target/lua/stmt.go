@@ -32,6 +32,8 @@ func (t *LuaTarget) compileStatement(b *strings.Builder, stmt ast.Statement) err
 		return t.compileBreakStatement(b, s)
 	case *ast.ContinueStmt:
 		return t.compileContinueStatement(b, s)
+	case *ast.NativeStmt:
+		return t.compileNativeStatement(b, s)
 	case *ast.AssignStmt:
 		return t.compileAssignStatement(b, s)
 	case *ast.IncDecStmt:
@@ -408,6 +410,11 @@ func (t *LuaTarget) compileContinueStatement(b *strings.Builder, stmt *ast.Conti
 	fmt.Fprintf(b, "goto %s\n", loop.ContinueLabel)
 
 	return nil
+}
+
+func (t *LuaTarget) compileNativeStatement(b *strings.Builder, stmt *ast.NativeStmt) error {
+	_, err := fmt.Fprintln(b, stmt.Code)
+	return err
 }
 
 func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignStmt) error {

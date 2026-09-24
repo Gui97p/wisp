@@ -70,6 +70,8 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		stmt = p.parseBreakStatement()
 	case lexer.TOKEN_CONTINUE:
 		stmt = p.parseContinueStatement()
+	case lexer.TOKEN_NATIVE:
+		stmt = p.parseNativeStatement()
 	case lexer.TOKEN_COLON:
 		stmt = p.parseLabeledStatement()
 	default:
@@ -629,6 +631,21 @@ func (p *Parser) parseContinueStatement() ast.Statement {
 		p.advance()
 		stmt.Label = p.current.Literal
 	}
+
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseNativeStatement() ast.Statement {
+	stmt := &ast.NativeStmt{}
+
+	if !p.expect(lexer.TOKEN_STRING_LITERAL) {
+		return nil
+	}
+	stmt.Code = p.current.Literal
 
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil

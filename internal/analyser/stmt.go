@@ -48,6 +48,7 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.checkBreakContinue(s, s.Label, "break")
 	case *ast.ContinueStmt:
 		a.checkBreakContinue(s, s.Label, "continue")
+	case *ast.NativeStmt:
 	case *ast.BlockStmt:
 		a.enterScope()
 		a.checkBlock(s)

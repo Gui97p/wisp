@@ -84,7 +84,7 @@ func runLua(cmd *cobra.Command, args []string) error {
 			return err
 		}
 
-		backend := lua.New(merged, info, isEntry, mod.Path)
+		backend := lua.New(merged, info, isEntry)
 		source, err := backend.Compile()
 		if err != nil {
 			return err

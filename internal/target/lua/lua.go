@@ -13,7 +13,6 @@ type LuaTarget struct {
 	program *ast.Program
 	info    *analyser.Info
 	isEntry bool
-	modPath string
 
 	loopStack    []loopContext
 	labelCounter uint64
@@ -25,8 +24,8 @@ type LuaTarget struct {
 	coalesceStack []string
 }
 
-func New(program *ast.Program, info *analyser.Info, isEntry bool, modPath string) *LuaTarget {
-	return &LuaTarget{program: program, info: info, isEntry: isEntry, modPath: modPath}
+func New(program *ast.Program, info *analyser.Info, isEntry bool) *LuaTarget {
+	return &LuaTarget{program: program, info: info, isEntry: isEntry}
 }
 
 func (*LuaTarget) Name() string {
@@ -43,7 +42,7 @@ func (t *LuaTarget) Compile() (string, error) {
 		}
 	}
 
-	names := t.collectFuncNames(t.program.Declarations)
+	names := collectFuncNames(t.program.Declarations)
 	if len(names) > 0 {
 		fmt.Fprintf(&b, "local %s\n", strings.Join(names, ", "))
 	}

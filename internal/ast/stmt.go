@@ -333,6 +333,17 @@ func (c *ContinueStmt) Tree(indent string) string {
 	return indent + "ContinueStmt\n"
 }
 
+type NativeStmt struct {
+	Code string
+
+	NodePos
+}
+
+func (*NativeStmt) stmt() {}
+func (n *NativeStmt) Tree(indent string) string {
+	return fmt.Sprintf("%sNativeStmt(%s)\n", indent, n.Code)
+}
+
 type AssignStmt struct {
 	Target Expression
 	Op     string
