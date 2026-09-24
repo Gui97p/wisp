@@ -120,17 +120,32 @@ func (t *LuaTarget) compileIfStatement(b *strings.Builder, stmt *ast.IfStmt) err
 
 	t.flushPending(b)
 
+	var ctx loopContext
+	if stmt.IsSwitch {
+		ctx = loopContext{BreakLabel: t.newLabel("switch_break")}
+		t.pushLoop(ctx)
+	}
+
 	b.WriteString("if ")
 	b.WriteString(cond)
 	b.WriteString(" then\n")
-	t.compileStatement(b, stmt.Then)
+	if err := t.compileStatement(b, stmt.Then); err != nil {
+		return err
+	}
 
 	if stmt.Else != nil {
 		b.WriteString("else\n")
-		t.compileStatement(b, stmt.Else)
+		if err := t.compileStatement(b, stmt.Else); err != nil {
+			return err
+		}
 	}
 
 	b.WriteString("end\n")
+
+	if stmt.IsSwitch {
+		t.popLoop()
+		fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
+	}
 
 	return nil
 }
@@ -157,6 +172,7 @@ func (t *LuaTarget) compileForCount(b *strings.Builder, stmt *ast.ForStmt) error
 		Label:         stmt.Label,
 		ContinueLabel: t.newLabel("for_continue"),
 		BreakLabel:    t.newLabel("for_break"),
+		SupportsContinue: true,
 	}
 
 	t.pushLoop(ctx)
@@ -210,6 +226,7 @@ func (t *LuaTarget) compileForRange(b *strings.Builder, stmt *ast.ForStmt) error
 		Label:         stmt.Label,
 		ContinueLabel: t.newLabel("for_continue"),
 		BreakLabel:    t.newLabel("for_break"),
+		SupportsContinue: true,
 	}
 
 	t.pushLoop(ctx)
@@ -288,6 +305,7 @@ func (t *LuaTarget) compileForRangeString(b *strings.Builder, stmt *ast.ForStmt)
 		Label:         stmt.Label,
 		ContinueLabel: t.newLabel("for_continue"),
 		BreakLabel:    t.newLabel("for_break"),
+		SupportsContinue: true,
 	}
 
 	t.pushLoop(ctx)
@@ -344,6 +362,7 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 		Label:         stmt.Label,
 		ContinueLabel: t.newLabel("for_continue"),
 		BreakLabel:    t.newLabel("for_break"),
+		SupportsContinue: true,
 	}
 
 	t.pushLoop(ctx)
@@ -403,6 +422,7 @@ func (t *LuaTarget) compileLoopStatement(b *strings.Builder, stmt *ast.LoopStmt)
 		Label:         stmt.Label,
 		ContinueLabel: t.newLabel("loop_continue"),
 		BreakLabel:    t.newLabel("loop_break"),
+		SupportsContinue: true,
 	}
 
 	t.pushLoop(ctx)
@@ -462,7 +482,7 @@ func (t *LuaTarget) compileContinueStatement(b *strings.Builder, stmt *ast.Conti
 	var loop *loopContext
 
 	if stmt.Label == "" {
-		loop = t.currentLoop()
+		loop = t.currentContinuable()
 	} else {
 		loop = t.findLoop(stmt.Label)
 	}

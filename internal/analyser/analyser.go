@@ -14,7 +14,7 @@ type Analyser struct {
 	scope *Scope
 
 	currentReturns []Type
-	loopLabels     []string
+	loopFrames     []loopFrame
 
 	isEntry bool
 	modules map[string]*ModuleInfo
@@ -148,12 +148,30 @@ func (a *Analyser) requireNumeric(node ast.Node, t Type, context string) {
 	}
 }
 
+type loopFrame struct {
+	Label            string
+	SupportsContinue bool
+}
+
 func (a *Analyser) pushLoop(label string) {
-	a.loopLabels = append(a.loopLabels, label)
+	a.loopFrames = append(a.loopFrames, loopFrame{Label: label, SupportsContinue: true})
+}
+
+func (a *Analyser) pushSwitch() {
+	a.loopFrames = append(a.loopFrames, loopFrame{SupportsContinue: false})
 }
 
 func (a *Analyser) popLoop() {
-	a.loopLabels = a.loopLabels[:len(a.loopLabels)-1]
+	a.loopFrames = a.loopFrames[:len(a.loopFrames)-1]
+}
+
+func (a *Analyser) hasContinuableLoop() bool {
+	for _, f := range a.loopFrames {
+		if f.SupportsContinue {
+			return true
+		}
+	}
+	return false
 }
 
 func rootIdentifier(expr ast.Expression) *ast.IdentLiteral {

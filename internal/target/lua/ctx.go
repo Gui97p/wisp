@@ -33,9 +33,10 @@ func (t *LuaTarget) flushPending(b *strings.Builder) {
 }
 
 type loopContext struct {
-	Label         string
-	BreakLabel    string
-	ContinueLabel string
+	Label            string
+	BreakLabel       string
+	ContinueLabel    string
+	SupportsContinue bool
 }
 
 func (t *LuaTarget) pushLoop(ctx loopContext) {
@@ -52,6 +53,15 @@ func (t *LuaTarget) currentLoop() *loopContext {
 	}
 
 	return &t.loopStack[len(t.loopStack)-1]
+}
+
+func (t *LuaTarget) currentContinuable() *loopContext {
+	for i := len(t.loopStack) - 1; i >= 0; i-- {
+		if t.loopStack[i].SupportsContinue {
+			return &t.loopStack[i]
+		}
+	}
+	return nil
 }
 
 func (t *LuaTarget) findLoop(label string) *loopContext {

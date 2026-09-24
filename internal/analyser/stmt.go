@@ -88,6 +88,11 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 }
 
 func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
+	if stmt.IsSwitch {
+		a.pushSwitch()
+		defer a.popLoop()
+	}
+
 	condType := a.checkExpr(stmt.Condition)
 	a.requireBool(stmt.Condition, condType, "if condition")
 
@@ -264,7 +269,12 @@ func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 }
 
 func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
-	if len(a.loopLabels) == 0 {
+	if kind == "continue" {
+		if !a.hasContinuableLoop() {
+			a.errorf(node, "%s outside a loop", kind)
+			return
+		}
+	} else if len(a.loopFrames) == 0 {
 		a.errorf(node, "%s outside a loop", kind)
 		return
 	}
@@ -273,7 +283,7 @@ func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
 		return
 	}
 
-	if slices.Contains(a.loopLabels, label) {
+	if slices.ContainsFunc(a.loopFrames, func(f loopFrame) bool { return f.Label == label }) {
 		return
 	}
 

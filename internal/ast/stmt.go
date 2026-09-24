@@ -161,6 +161,7 @@ type IfStmt struct {
 	Condition Expression
 	Then      *BlockStmt
 	Else      Statement
+	IsSwitch  bool
 
 	NodePos
 }

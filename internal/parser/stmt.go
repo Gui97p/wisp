@@ -377,7 +377,7 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 	}
 
 	first := true
-	stmt := &ast.IfStmt{Then: &ast.BlockStmt{}}
+	stmt := &ast.IfStmt{Then: &ast.BlockStmt{}, IsSwitch: true}
 	stmt.SetPos(line, col)
 	currentIf := stmt
 
