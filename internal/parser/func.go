@@ -72,6 +72,7 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 		stmt := p.parseReturnStatement()
 		if stmt != nil {
 			stmt.SetPos(line, col)
+			stmt.SetEndPos(p.current.Line, p.current.Column)
 			decl.Body = &ast.BlockStmt{Statements: []ast.Statement{stmt}}
 		}
 	} else {

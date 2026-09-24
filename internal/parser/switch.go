@@ -41,12 +41,15 @@ func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expressio
 	varStmt.Vars = append(varStmt.Vars, ast.Param{Name: name})
 	varStmt.Values = append(varStmt.Values, value)
 	varStmt.SetPos(line, col)
+	varStmt.SetEndPos(p.current.Line, p.current.Column)
 
 	block.Statements = append(block.Statements, varStmt)
 	block.SetPos(line, col)
+	block.SetEndPos(p.current.Line, p.current.Column)
 
 	ident := &ast.IdentLiteral{Value: name}
 	ident.SetPos(line, col)
+	ident.SetEndPos(p.current.Line, p.current.Column)
 
 	return block, ident
 }
@@ -98,12 +101,14 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 			Right:    expr,
 		}
 		left.SetPos(line, col)
+		left.SetEndPos(p.current.Line, p.current.Column)
 		right := &ast.BinaryExpr{
 			Left:     value,
 			Operator: "<=",
 			Right:    end,
 		}
 		right.SetPos(line, col)
+		right.SetEndPos(p.current.Line, p.current.Column)
 
 		expr = &ast.BinaryExpr{
 			Left:     left,
@@ -111,6 +116,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 			Right:    right,
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
+		expr.(*ast.BinaryExpr).SetEndPos(p.current.Line, p.current.Column)
 	} else {
 		expr = &ast.BinaryExpr{
 			Left:     value,
@@ -118,6 +124,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 			Right:    expr,
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
+		expr.(*ast.BinaryExpr).SetEndPos(p.current.Line, p.current.Column)
 	}
 
 	return expr
@@ -138,6 +145,7 @@ func (p *Parser) parseCaseExpression(value ast.Expression, line, col int) ast.Ex
 			Right:    right,
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
+		expr.(*ast.BinaryExpr).SetEndPos(p.current.Line, p.current.Column)
 	}
 
 	return expr

@@ -14,6 +14,7 @@ func (p *Parser) parseStatement() ast.Statement {
 	}
 
 	stmt.SetPos(line, col)
+	stmt.SetEndPos(p.current.Line, p.current.Column)
 	return stmt
 }
 
@@ -403,6 +404,7 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 		if stmts != nil {
 			currentIf.Then.Statements = stmts
 		}
+		currentIf.SetEndPos(p.current.Line, p.current.Column)
 	}
 
 	if p.peek.Type == lexer.TOKEN_DEFAULT {
@@ -415,11 +417,14 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 		if stmts != nil {
 			currentIf.Else = &ast.BlockStmt{Statements: stmts}
 		}
+		currentIf.SetEndPos(p.current.Line, p.current.Column)
 	}
 
 	if !p.expect(lexer.TOKEN_RBRACE) {
 		return nil
 	}
+
+	stmt.SetEndPos(p.current.Line, p.current.Column)
 
 	block.Statements = append(block.Statements, stmt)
 
@@ -460,6 +465,7 @@ func (p *Parser) parseIfStatement() ast.Statement {
 			stmt.Else = p.parseIfStatement()
 			if stmt.Else != nil {
 				stmt.Else.SetPos(line, col)
+				stmt.Else.SetEndPos(p.current.Line, p.current.Column)
 			}
 		default:
 			p.error("expected statement after else")

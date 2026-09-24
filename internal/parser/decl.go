@@ -16,6 +16,7 @@ func (p *Parser) parseDeclaration() []ast.Declaration {
 	}
 	for _, decl := range decls {
 		decl.SetPos(line, col)
+		decl.SetEndPos(p.current.Line, p.current.Column)
 	}
 
 	return decls

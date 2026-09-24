@@ -44,6 +44,7 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 		left.SetPos(line, col)
 	}
 
+	left.SetEndPos(p.current.Line, p.current.Column)
 	return left
 }
 
@@ -144,6 +145,7 @@ func (p *Parser) parseFuncLiteral() ast.Expression {
 			p.advance()
 		}
 		stmt.SetPos(line, col)
+		stmt.SetEndPos(p.current.Line, p.current.Column)
 		lit.Block = &ast.BlockStmt{Statements: []ast.Statement{stmt}}
 	}
 
@@ -571,11 +573,15 @@ func (p *Parser) parseInExpr(left ast.Expression) ast.Expression {
 
 		lower := &ast.BinaryExpr{Left: left, Operator: ">=", Right: start}
 		lower.SetPos(line, col)
+		lower.SetEndPos(p.current.Line, p.current.Column)
 		upper := &ast.BinaryExpr{Left: left, Operator: "<=", Right: end}
 		upper.SetPos(line, col)
+		upper.SetEndPos(p.current.Line, p.current.Column)
 
 		result := &ast.BinaryExpr{Left: lower, Operator: "&&", Right: upper}
 		result.SetPos(line, col)
+		result.SetEndPos(p.current.Line, p.current.Column)
+
 		return result
 	}
 
@@ -627,6 +633,7 @@ func (p *Parser) parseSwitchExpr() (*ast.GroupStmt, ast.Expression) {
 			return nil, nil
 		}
 		currentTernary.Then = expr
+		currentTernary.SetEndPos(p.current.Line, p.current.Column)
 
 		if !p.expect(lexer.TOKEN_COMMA) {
 			return nil, nil
@@ -647,6 +654,7 @@ func (p *Parser) parseSwitchExpr() (*ast.GroupStmt, ast.Expression) {
 		return nil, nil
 	}
 	currentTernary.Else = expr
+	currentTernary.SetEndPos(p.current.Line, p.current.Column)
 
 	if p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
@@ -655,6 +663,9 @@ func (p *Parser) parseSwitchExpr() (*ast.GroupStmt, ast.Expression) {
 	if !p.expect(lexer.TOKEN_RBRACE) {
 		return nil, nil
 	}
+
+	ternaryExpr.SetEndPos(p.current.Line, p.current.Column)
+	group.SetEndPos(p.current.Line, p.current.Column)
 
 	return group, ternaryExpr
 }

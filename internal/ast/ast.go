@@ -9,6 +9,7 @@ type Node interface {
 	Tree(indent string) string
 	Position() (int, int)
 	SetPos(line, col int)
+	SetEndPos(line, col int)
 }
 
 type Declaration interface {
@@ -27,7 +28,8 @@ type Expression interface {
 }
 
 type NodePos struct {
-	Line, Col int
+	Line, Col       int
+	EndLine, EndCol int
 }
 
 func (p NodePos) Position() (int, int) {
@@ -36,6 +38,10 @@ func (p NodePos) Position() (int, int) {
 
 func (p *NodePos) SetPos(line, col int) {
 	p.Line, p.Col = line, col
+}
+
+func (p *NodePos) SetEndPos(line, col int) {
+	p.EndLine, p.EndCol = line, col
 }
 
 type Program struct {
