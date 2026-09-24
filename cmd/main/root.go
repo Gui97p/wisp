@@ -21,5 +21,5 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.AddCommand(buildCmd, runCmd, luaCmd, debugCmd, initCmd)
+	rootCmd.AddCommand(buildCmd, runCmd, luaCmd, debugCmd, initCmd, lspCmd)
 }
