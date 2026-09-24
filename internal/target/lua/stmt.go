@@ -196,6 +196,10 @@ func (t *LuaTarget) compileForCount(b *strings.Builder, stmt *ast.ForStmt) error
 }
 
 func (t *LuaTarget) compileForRange(b *strings.Builder, stmt *ast.ForStmt) error {
+	if pt, ok := t.info.Types[stmt.Range].(analyser.PrimitiveType); ok && pt.Name == "string" {
+		return t.compileForRangeString(b, stmt)
+	}
+
 	rangeVar := t.newLabel("range")
 	keyVar := t.newLabel("range_key")
 	valueVar := t.newLabel("range_value")
@@ -266,6 +270,66 @@ func (t *LuaTarget) compileForRange(b *strings.Builder, stmt *ast.ForStmt) error
 	b.WriteString("end\n")
 
 	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
+	fmt.Fprintf(b, "goto %s\n", conditionLabel)
+
+	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
+
+	return nil
+}
+
+func (t *LuaTarget) compileForRangeString(b *strings.Builder, stmt *ast.ForStmt) error {
+	rangeVar := t.newLabel("range")
+	lenVar := t.newLabel("range_len")
+	idxVar := t.newLabel("range_idx")
+
+	conditionLabel := t.newLabel("for_condition")
+
+	ctx := loopContext{
+		Label:         stmt.Label,
+		ContinueLabel: t.newLabel("for_continue"),
+		BreakLabel:    t.newLabel("for_break"),
+	}
+
+	t.pushLoop(ctx)
+	defer t.popLoop()
+
+	rangeText, err := t.compileExprScratch(stmt.Range)
+	if err != nil {
+		return err
+	}
+	t.flushPending(b)
+
+	fmt.Fprintf(b, "local %s = %s\n", rangeVar, rangeText)
+	fmt.Fprintf(b, "local %s = #%s\n", lenVar, rangeVar)
+	fmt.Fprintf(b, "local %s = 0\n", idxVar)
+
+	fmt.Fprintf(b, "::%s::\n", conditionLabel)
+
+	fmt.Fprintf(
+		b,
+		"if %s >= %s then goto %s end\n",
+		idxVar,
+		lenVar,
+		ctx.BreakLabel,
+	)
+
+	b.WriteString("do\n")
+
+	if stmt.Var != "" {
+		fmt.Fprintf(b, "local %s = %s\n", stmt.Var, idxVar)
+	}
+	if stmt.Var2 != "" {
+		fmt.Fprintf(b, "local %s = string.byte(%s, %s + 1)\n", stmt.Var2, rangeVar, idxVar)
+	}
+
+	if err := t.compileStatement(b, stmt.Body); err != nil {
+		return err
+	}
+
+	b.WriteString("end\n")
+
+	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
+	fmt.Fprintf(b, "%s = %s + 1\n", idxVar, idxVar)
 	fmt.Fprintf(b, "goto %s\n", conditionLabel)
 
 	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)

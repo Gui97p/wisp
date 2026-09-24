@@ -123,10 +123,19 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 			if stmt.Var2 != "" {
 				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Value})
 			}
+		case PrimitiveType:
+			if t.Name == "string" {
+				a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}})
+				if stmt.Var2 != "" {
+					a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: PrimitiveType{Name: "char"}})
+				}
+			} else {
+				a.errorf(stmt.Range, "cannot range over %s", rangeType)
+			}
 		case InvalidType:
 			// error already reported in stmt.Range check
 		default:
-			a.errorf(stmt.Range, "cannot range over %s", rangeType.String())
+			a.errorf(stmt.Range, "cannot range over %s", rangeType)
 		}
 
 		a.checkBlock(stmt.Body)
