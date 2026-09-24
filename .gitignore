@@ -37,3 +37,7 @@ Thumbs.db
 dev/
 *.vsix
 *.sh
+
+# VS Code extension build
+vscode/node_modules/
+vscode/out/

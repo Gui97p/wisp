@@ -23,7 +23,30 @@
         "Snippets"
     ],
     "icon": "icons/wisp-128.png",
+    "main": "./out/extension.js",
+    "scripts": {
+        "vscode:prepublish": "tsc -p ./",
+        "compile": "tsc -p ./"
+    },
+    "dependencies": {
+        "vscode-languageclient": "^9.0.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/vscode": "^1.102.0",
+        "typescript": "^5.5.0"
+    },
     "contributes": {
+        "configuration": {
+            "title": "Wisp",
+            "properties": {
+                "wisp.serverPath": {
+                    "type": "string",
+                    "default": "wisp",
+                    "description": "Path to the wisp binary used to run the language server (`wisp lsp`)."
+                }
+            }
+        },
         "languages": [
             {
                 "id": "wisp",
