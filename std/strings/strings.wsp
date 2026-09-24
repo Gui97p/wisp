@@ -65,9 +65,7 @@ export func trimSuffix(string s, suffix) string {
 export func toUpper(string s) string {
     string ns;
 
-    for i in 0..len(s)-1 {
-        char c = s[i];
-
+    for i, c in s {
         if c >= 'a' && c <= 'z' {
             c -= 32;
         }
@@ -80,9 +78,7 @@ export func toUpper(string s) string {
 export func toLower(string s) string {
     string ns;
 
-    for i in 0..len(s)-1 {
-        char c = s[i];
-
+    for i, c in s {
         if c >= 'A' && c <= 'Z' {
             c += 32;
         }
