@@ -114,6 +114,20 @@
         ],
         "description": "Import a module"
     },
+    "import (with alias)": {
+        "prefix": "importas",
+        "body": [
+            "import \"${1:path}\" as ${2:alias};"
+        ],
+        "description": "Import a module with an explicit alias"
+    },
+    "native": {
+        "prefix": "native",
+        "body": [
+            "native \"${0}\";"
+        ],
+        "description": "Inline backend-native statement"
+    },
     "function without body": {
         "prefix": "funcdecl",
         "body": [

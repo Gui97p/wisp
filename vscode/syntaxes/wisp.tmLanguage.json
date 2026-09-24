@@ -108,6 +108,21 @@
                             "include": "#escapes"
                         }
                     ]
+                },
+                {
+                    "name": "string.quoted.other.raw.wisp",
+                    "begin": "`",
+                    "end": "`",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.begin.wisp"
+                        }
+                    },
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.string.end.wisp"
+                        }
+                    }
                 }
             ]
         },
@@ -278,6 +293,10 @@
                 {
                     "name": "keyword.control.import.wisp",
                     "match": "\\b(import|export|as)\\b"
+                },
+                {
+                    "name": "keyword.other.native.wisp",
+                    "match": "\\bnative\\b"
                 }
             ]
         },
@@ -301,7 +320,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.wisp",
-                    "match": "\\b(emit|emitf|len|random|malloc|realloc|free)\\b(?=\\s*\\()"
+                    "match": "\\b(emit|emitf|len|malloc|realloc|free)\\b(?=\\s*\\()"
                 }
             ]
         },
