@@ -30,6 +30,21 @@ func NewParser(l *lexer.Lexer) *Parser {
 	return p
 }
 
+func (p *Parser) currentEnd() (int, int) {
+	lit := p.current.Literal
+	if lit == "" {
+		return p.current.Line, p.current.Column
+	}
+
+	if idx := strings.LastIndexByte(lit, '\n'); idx >= 0 {
+		lines := strings.Count(lit, "\n")
+		lastLineLen := len(lit) - idx - 1
+		return p.current.Line + lines, lastLineLen
+	}
+
+	return p.current.Line, p.current.Column + len(lit) - 1
+}
+
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 

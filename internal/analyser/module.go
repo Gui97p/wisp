@@ -73,7 +73,8 @@ func (a *Analyser) registerImports() {
 			a.errorf(imp, "unresolved import %q", imp.Path)
 			continue
 		}
-		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: &ModuleType{Exports: mod.Exports}}
+		line, col := imp.Position()
+		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: &ModuleType{Exports: mod.Exports}, Line: line, Col: col}
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(imp, MODULE, imp.Alias)
 		}

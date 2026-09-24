@@ -17,7 +17,8 @@ func (a *Analyser) registerStructNames() {
 			Methods: make(map[string]*FuncType),
 		}
 
-		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st}
+		line, col := sd.Position()
+		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st, Line: line, Col: col}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(sd, STRUCT, sd.Name)

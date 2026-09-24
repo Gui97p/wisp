@@ -80,9 +80,10 @@ func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
 		returns[i] = a.resolveTypeRef(expr, a.scope, r)
 	}
 
+	line, col := expr.Position()
 	a.enterScope()
 	for i, p := range expr.Params {
-		a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: params[i]})
+		a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: params[i], Line: line, Col: col})
 	}
 
 	if len(returns) == 0 {
@@ -542,8 +543,9 @@ func (a *Analyser) checkCoalesceExpr(expr *ast.CoalesceExpr) Type {
 		prevReturns := a.currentReturns
 		a.currentReturns = []Type{eu.Payload}
 
+		line, col := expr.Position()
 		a.enterScope()
-		a.scope.Define(&Symbol{Name: expr.ErrorBind, Kind: VAR, Type: errSymbol.Type})
+		a.scope.Define(&Symbol{Name: expr.ErrorBind, Kind: VAR, Type: errSymbol.Type, Line: line, Col: col})
 		a.checkBlock(b)
 		a.exitScope()
 

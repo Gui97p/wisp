@@ -37,6 +37,8 @@ type Symbol struct {
 	Name string
 	Type Type
 	Kind SymbolKind
+	Line int
+	Col  int
 }
 
 type Scope struct {

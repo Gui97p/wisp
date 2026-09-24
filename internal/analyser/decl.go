@@ -23,7 +23,8 @@ func (a *Analyser) registerTypeAliases() {
 			Methods:    make(map[string]*FuncType),
 		}
 
-		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt}
+		line, col := td.Position()
+		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(td, TYPE, td.Name)
@@ -107,6 +108,7 @@ func (a *Analyser) checkConstDecl(decl *ast.ConstDecl) {
 
 func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []ast.Expression, kind SymbolKind) {
 	hasExplicitType := vars[0].Type.Name != ""
+	line, col := node.Position()
 
 	if len(values) == 0 {
 		for _, v := range vars {
@@ -114,7 +116,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 			if t == nil {
 				t = InvalidType{}
 			}
-			sym := &Symbol{Name: v.Name, Kind: kind, Type: t}
+			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: line, Col: col}
 			if !a.scope.Define(sym) {
 				a.errorAlreadyDeclared(node, kind, v.Name)
 			}
@@ -180,7 +182,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 			finalType = valueType
 		}
 
-		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType}
+		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: line, Col: col}
 		if !a.scope.Define(sym) {
 			a.errorAlreadyDeclared(node, kind, v.Name)
 		}

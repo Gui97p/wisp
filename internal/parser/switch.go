@@ -41,15 +41,15 @@ func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expressio
 	varStmt.Vars = append(varStmt.Vars, ast.Param{Name: name})
 	varStmt.Values = append(varStmt.Values, value)
 	varStmt.SetPos(line, col)
-	varStmt.SetEndPos(p.current.Line, p.current.Column)
+	varStmt.SetEndPos(p.currentEnd())
 
 	block.Statements = append(block.Statements, varStmt)
 	block.SetPos(line, col)
-	block.SetEndPos(p.current.Line, p.current.Column)
+	block.SetEndPos(p.currentEnd())
 
 	ident := &ast.IdentLiteral{Value: name}
 	ident.SetPos(line, col)
-	ident.SetEndPos(p.current.Line, p.current.Column)
+	ident.SetEndPos(p.currentEnd())
 
 	return block, ident
 }
@@ -101,14 +101,14 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 			Right:    expr,
 		}
 		left.SetPos(line, col)
-		left.SetEndPos(p.current.Line, p.current.Column)
+		left.SetEndPos(p.currentEnd())
 		right := &ast.BinaryExpr{
 			Left:     value,
 			Operator: "<=",
 			Right:    end,
 		}
 		right.SetPos(line, col)
-		right.SetEndPos(p.current.Line, p.current.Column)
+		right.SetEndPos(p.currentEnd())
 
 		expr = &ast.BinaryExpr{
 			Left:     left,
@@ -116,7 +116,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 			Right:    right,
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
-		expr.(*ast.BinaryExpr).SetEndPos(p.current.Line, p.current.Column)
+		expr.(*ast.BinaryExpr).SetEndPos(p.currentEnd())
 	} else {
 		expr = &ast.BinaryExpr{
 			Left:     value,
@@ -124,7 +124,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 			Right:    expr,
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
-		expr.(*ast.BinaryExpr).SetEndPos(p.current.Line, p.current.Column)
+		expr.(*ast.BinaryExpr).SetEndPos(p.currentEnd())
 	}
 
 	return expr
@@ -145,7 +145,7 @@ func (p *Parser) parseCaseExpression(value ast.Expression, line, col int) ast.Ex
 			Right:    right,
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
-		expr.(*ast.BinaryExpr).SetEndPos(p.current.Line, p.current.Column)
+		expr.(*ast.BinaryExpr).SetEndPos(p.currentEnd())
 	}
 
 	return expr
