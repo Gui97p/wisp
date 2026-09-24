@@ -101,6 +101,10 @@ export func rep(string s, int n) string {
     return ns;
 }
 export func replace(string s, old, new) string {
+    if old == new {
+        return s;
+    }
+
     int idx = indexOf(s, old);
     loop idx != -1 {
         s = s[:idx] + new + s[idx+len(old):];

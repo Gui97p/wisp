@@ -1,22 +1,86 @@
-export func abs(int x) int;
-export func fabs(float64 x) float64;
+export func abs(int x) int {
+    int r;
+    native "r = x < 0 and -x or x";
+    return r;
+}
+export func fabs(float64 x) float64 {
+    float64 r;
+    native "r = math.abs(x)";
+    return r;
+}
 
-export func min(int a, int b) int;
-export func fmin(float64 a, float64 b) float64;
+export func min(int a, int b) int {
+    int r;
+    native "r = math.min(a, b)";
+    return r;
+}
+export func fmin(float64 a, float64 b) float64 {
+    float64 r;
+    native "r = math.min(a, b)";
+    return r;
+}
 
-export func max(int a, int b) int;
-export func fmax(float64 a, float64 b) float64;
+export func max(int a, int b) int {
+    int r;
+    native "r = math.max(a, b)";
+    return r;
+}
+export func fmax(float64 a, float64 b) float64 {
+    float64 r;
+    native "r = math.max(a, b)";
+    return r;
+}
 
-export func floor(float64 x) float64;
-export func ceil(float64 x) float64;
-export func round(float64 x) float64;
+export func floor(float64 x) float64 {
+    float64 r;
+    native "r = math.floor(x)";
+    return r;
+}
+export func ceil(float64 x) float64 {
+    float64 r;
+    native "r = math.ceil(x)";
+    return r;
+}
+export func round(float64 x) float64 {
+    float64 r;
+    native "r = math.floor(x + 0.5)";
+    return r;
+}
 
-export func sqrt(float64 x) float64;
-export func pow(float64 base, float64 exp) float64;
+export func sqrt(float64 x) float64 {
+    float64 r;
+    native "r = math.sqrt(x)";
+    return r;
+}
+export func pow(float64 base, float64 exp) float64 {
+    float64 r;
+    native "r = base ^ exp";
+    return r;
+}
 
-export func sin(float64 x) float64;
-export func cos(float64 x) float64;
-export func tan(float64 x) float64;
+export func sin(float64 x) float64 {
+    float64 r;
+    native "r = math.sin(x)";
+    return r;
+}
+export func cos(float64 x) float64 {
+    float64 r;
+    native "r = math.cos(x)";
+    return r;
+}
+export func tan(float64 x) float64 {
+    float64 r;
+    native "r = math.tan(x)";
+    return r;
+}
 
-export func log(float64 x) float64;
-export func exp(float64 x) float64;
+export func log(float64 x) float64 {
+    float64 r;
+    native "r = math.log(x)";
+    return r;
+}
+export func exp(float64 x) float64 {
+    float64 r;
+    native "r = math.exp(x)";
+    return r;
+}
