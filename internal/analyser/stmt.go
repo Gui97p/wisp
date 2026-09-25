@@ -116,25 +116,25 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 
 		switch t := rangeType.(type) {
 		case ArrayType:
-			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col})
+			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col, File: a.currentFile})
 			if stmt.Var2 != "" {
-				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Element, Line: line, Col: col})
+				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Element, Line: line, Col: col, File: a.currentFile})
 			}
 		case SpanType:
-			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col})
+			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col, File: a.currentFile})
 			if stmt.Var2 != "" {
-				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Element, Line: line, Col: col})
+				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Element, Line: line, Col: col, File: a.currentFile})
 			}
 		case *MapType:
-			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: t.Key, Line: line, Col: col})
+			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: t.Key, Line: line, Col: col, File: a.currentFile})
 			if stmt.Var2 != "" {
-				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Value, Line: line, Col: col})
+				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Value, Line: line, Col: col, File: a.currentFile})
 			}
 		case PrimitiveType:
 			if t.Name == "string" {
-				a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col})
+				a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col, File: a.currentFile})
 				if stmt.Var2 != "" {
-					a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: PrimitiveType{Name: "char"}, Line: line, Col: col})
+					a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: PrimitiveType{Name: "char"}, Line: line, Col: col, File: a.currentFile})
 				}
 			} else {
 				a.errorf(stmt.Range, "cannot range over %s", rangeType)
@@ -177,7 +177,7 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 
 	a.pushLoop(stmt.Label)
 	a.enterScope()
-	a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col})
+	a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col, File: a.currentFile})
 	a.checkBlock(stmt.Body)
 	a.exitScope()
 	a.popLoop()

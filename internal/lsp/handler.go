@@ -64,6 +64,14 @@ func NewHandler() *protocol.Handler {
 		return hover(params.TextDocument.URI, params.Position), nil
 	}
 
+	handler.TextDocumentDefinition = func(context *glsp.Context, params *protocol.DefinitionParams) (any, error) {
+		loc := definition(params.TextDocument.URI, params.Position)
+		if loc == nil {
+			return nil, nil
+		}
+		return loc, nil
+	}
+
 	handler.Shutdown = func(context *glsp.Context) error {
 		return nil
 	}

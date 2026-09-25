@@ -44,7 +44,7 @@ func (a *Analyser) registerFuncSignatures() {
 
 		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
 		line, col := fd.Position()
-		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col}
+		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(fd, FUNC, fd.Name)
@@ -88,7 +88,7 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 		}
 
 		if fd.Receiver.Name != "" {
-			if !a.scope.Define(&Symbol{Name: fd.Receiver.Name, Kind: PARAM, Type: recvType, Line: line, Col: col}) {
+			if !a.scope.Define(&Symbol{Name: fd.Receiver.Name, Kind: PARAM, Type: recvType, Line: line, Col: col, File: a.currentFile}) {
 				a.errorf(fd, "duplicated receiver %s", fd.Receiver.Name)
 			}
 		}
@@ -102,7 +102,7 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 		if p.Variadic {
 			paramType = SpanType{Element: paramType}
 		}
-		if !a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: paramType, Line: line, Col: col}) {
+		if !a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: paramType, Line: line, Col: col, File: a.currentFile}) {
 			a.errorf(fd, "duplicated %s parameter", p.Name)
 		}
 	}

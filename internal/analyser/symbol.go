@@ -37,8 +37,10 @@ type Symbol struct {
 	Name string
 	Type Type
 	Kind SymbolKind
+
 	Line int
 	Col  int
+	File string
 }
 
 type Scope struct {

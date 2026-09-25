@@ -74,7 +74,7 @@ func (a *Analyser) registerImports() {
 			continue
 		}
 		line, col := imp.Position()
-		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: &ModuleType{Exports: mod.Exports}, Line: line, Col: col}
+		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: &ModuleType{Exports: mod.Exports}, Line: line, Col: col, File: a.currentFile}
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(imp, MODULE, imp.Alias)
 		}

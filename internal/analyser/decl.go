@@ -24,7 +24,7 @@ func (a *Analyser) registerTypeAliases() {
 		}
 
 		line, col := td.Position()
-		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col}
+		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col, File: a.currentFile}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(td, TYPE, td.Name)
@@ -116,7 +116,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 			if t == nil {
 				t = InvalidType{}
 			}
-			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: line, Col: col}
+			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: line, Col: col, File: a.currentFile}
 			if !a.scope.Define(sym) {
 				a.errorAlreadyDeclared(node, kind, v.Name)
 			}
@@ -182,7 +182,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 			finalType = valueType
 		}
 
-		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: line, Col: col}
+		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: line, Col: col, File: a.currentFile}
 		if !a.scope.Define(sym) {
 			a.errorAlreadyDeclared(node, kind, v.Name)
 		}
