@@ -43,10 +43,6 @@ func (m *Module) BufferMap() map[string][]byte {
 	return buffers
 }
 
-func StdlibRoot() (string, error) {
-	return stdlibRoot()
-}
-
 func stdlibRoot() (string, error) {
 	exe, err := os.Executable()
 	if err != nil {

@@ -17,7 +17,7 @@ func analyseEntry(path string) (*ast.Program, *analyser.Info) {
 	exports := map[string]*analyser.ModuleInfo{}
 
 	for _, mod := range modules {
-		isEntry := mod.Path == "" && !isUnderStdlib(mod.FilePaths)
+		isEntry := false
 
 		merged, declFiles := mod.Merge()
 		a := analyser.NewAnalyser(merged, isEntry, exports, declFiles)

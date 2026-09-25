@@ -20,7 +20,7 @@ func diagnoseFile(path string) map[string][]protocol.Diagnostic {
 	exports := map[string]*analyser.ModuleInfo{}
 
 	for _, mod := range modules {
-		isEntry := mod.Path == "" && !isUnderStdlib(mod.FilePaths)
+		isEntry := false
 
 		for _, f := range mod.FilePaths {
 			if _, ok := result[f]; !ok {
