@@ -71,7 +71,7 @@ func luaRequirePath(path string) string {
 
 func Build(luaSource, outputPath string) error {
 	if err := os.WriteFile(outputPath, []byte(luaSource), 0644); err != nil {
-		return fmt.Errorf("failed to write asm file: %w", err)
+		return fmt.Errorf("failed to write lua file: %w", err)
 	}
 
 	return nil

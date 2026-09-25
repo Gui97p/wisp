@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
+	"path/filepath"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -13,38 +13,46 @@ import (
 type X64Target struct {
 	program *ast.Program
 	info    *analyser.Info
+	isEntry bool
+
+	data   *dataSection
+	rodata *rodataSection
+	text   *textSection
 }
 
-func New(program *ast.Program, info *analyser.Info) *X64Target {
-	return &X64Target{program: program, info: info}
-}
+func New(program *ast.Program, info *analyser.Info, isEntry bool) *X64Target {
+	return &X64Target{
+		program: program,
+		info:    info,
+		isEntry: isEntry,
 
-func (*X64Target) Name() string {
-	return "x64"
+		data:   NewData(),
+		rodata: NewRodata(),
+		text:   NewText(),
+	}
 }
 
 func (t *X64Target) Compile() (string, error) {
-	var b strings.Builder
-
-	b.WriteString("global main\n\n")
+	if t.isEntry {
+		t.text.println("global main\n")
+	}
 
 	for _, decl := range t.program.Declarations {
 		fd, ok := decl.(*ast.FuncDecl)
 		if !ok {
 			continue
 		}
-		if err := compileFunc(&b, fd); err != nil {
+		if err := compileFunc(&t.text.b, fd); err != nil {
 			return "", err
 		}
 	}
 
-	return b.String(), nil
+	code := fmt.Sprintf("%s\n%s\n%s", t.rodata.b.String(), t.data.b.String(), t.text.b.String())
+
+	return code, nil
 }
 
-func Build(asmSource, outputPath string, buildKeepAsm, buildKeepObj bool) error {
-	asmPath := outputPath + ".asm"
-	objPath := outputPath + ".o"
-
+func Assemble(asmSource, objPath, asmPath string, keepAsm bool) error {
 	if err := os.WriteFile(asmPath, []byte(asmSource), 0644); err != nil {
 		return fmt.Errorf("failed to write asm file: %w", err)
 	}
@@ -55,18 +63,37 @@ func Build(asmSource, outputPath string, buildKeepAsm, buildKeepObj bool) error 
 		return fmt.Errorf("nasm failed: %w", err)
 	}
 
-	gccCmd := exec.Command("gcc", objPath, "-o", outputPath)
+	if !keepAsm {
+		os.Remove(asmPath)
+		removeEmptyDirs(filepath.Dir(asmPath))
+	}
+
+	return nil
+}
+
+func Link(objPaths []string, outputPath string, keepObj bool) error {
+	args := append(objPaths, "-o", outputPath)
+	gccCmd := exec.Command("gcc", args...)
 	gccCmd.Stderr = os.Stderr
 	if err := gccCmd.Run(); err != nil {
 		return fmt.Errorf("gcc failed: %w", err)
 	}
 
-	if !buildKeepAsm {
-		os.Remove(asmPath)
-	}
-	if !buildKeepObj {
-		os.Remove(objPath)
+	if !keepObj {
+		for _, path := range objPaths {
+			os.Remove(path)
+			removeEmptyDirs(filepath.Dir(path))
+		}
 	}
 
 	return nil
+}
+
+func removeEmptyDirs(dir string) {
+	for {
+		if err := os.Remove(dir); err != nil {
+			return
+		}
+		dir = filepath.Dir(dir)
+	}
 }
