@@ -66,6 +66,10 @@ func paramRange(param *ast.Param) *protocol.Range {
 	}
 }
 
+func renderHover(kind, code string) string {
+	return fmt.Sprintf("```wisp\n%s\n```\n*%s*", code, kind)
+}
+
 func paramHoverText(param *ast.Param, owner ast.Node, idx int, info *analyser.Info) string {
 	kind := "variable"
 	switch owner.(type) {
@@ -85,7 +89,7 @@ func paramHoverText(param *ast.Param, owner ast.Node, idx int, info *analyser.In
 		return ""
 	}
 
-	return fmt.Sprintf("**%s** `%s`: `%s`", kind, param.Name, typeStr)
+	return renderHover(kind, fmt.Sprintf("%s %s", typeStr, param.Name))
 }
 
 func hoverText(expr ast.Expression, info *analyser.Info) string {
@@ -96,9 +100,12 @@ func hoverText(expr ast.Expression, info *analyser.Info) string {
 
 	if ident, ok := expr.(*ast.IdentLiteral); ok {
 		if sym, ok := info.Idents[ident]; ok {
-			return fmt.Sprintf("**%s** `%s`: `%s`", sym.Kind, sym.Name, t)
+			if sym.Kind == analyser.FUNC {
+				return renderHover(sym.Kind.String(), t.String())
+			}
+			return renderHover(sym.Kind.String(), fmt.Sprintf("%s %s", t, sym.Name))
 		}
 	}
 
-	return fmt.Sprintf("`%s`", t)
+	return fmt.Sprintf("```wisp\n%s\n```", t)
 }

@@ -42,6 +42,7 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 			return nil
 		}
 		left.SetPos(line, col)
+		left.SetEndPos(p.currentEnd())
 	}
 
 	left.SetEndPos(p.currentEnd())
