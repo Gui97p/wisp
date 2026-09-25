@@ -12,7 +12,7 @@ func diagnoseFile(path string) map[string][]protocol.Diagnostic {
 		path: {},
 	}
 
-	modules, err := module.BuildGraphWithOverrides(path, fileBuffer)
+	modules, err := module.BuildGraphWithOverrides(resolveProjectEntry(path), fileBuffer)
 	if err != nil {
 		return result
 	}
@@ -20,7 +20,7 @@ func diagnoseFile(path string) map[string][]protocol.Diagnostic {
 	exports := map[string]*analyser.ModuleInfo{}
 
 	for _, mod := range modules {
-		isEntry := mod.Path == ""
+		isEntry := mod.Path == "" && !isUnderStdlib(mod.FilePaths)
 
 		for _, f := range mod.FilePaths {
 			if _, ok := result[f]; !ok {

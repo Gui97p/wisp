@@ -1,13 +1,15 @@
 package lsp
 
 import (
+	"slices"
+
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/module"
 )
 
 func analyseEntry(path string) (*ast.Program, *analyser.Info) {
-	modules, err := module.BuildGraphWithOverrides(path, fileBuffer)
+	modules, err := module.BuildGraphWithOverrides(resolveProjectEntry(path), fileBuffer)
 	if err != nil {
 		return nil, nil
 	}
@@ -15,13 +17,13 @@ func analyseEntry(path string) (*ast.Program, *analyser.Info) {
 	exports := map[string]*analyser.ModuleInfo{}
 
 	for _, mod := range modules {
-		isEntry := mod.Path == ""
+		isEntry := mod.Path == "" && !isUnderStdlib(mod.FilePaths)
 
 		merged, declFiles := mod.Merge()
 		a := analyser.NewAnalyser(merged, isEntry, exports, declFiles)
 		info := a.Analyze()
 
-		if isEntry {
+		if slices.Contains(mod.FilePaths, path) {
 			return merged, info
 		}
 
