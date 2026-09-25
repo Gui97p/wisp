@@ -335,13 +335,17 @@ func (c *ContinueStmt) Tree(indent string) string {
 }
 
 type NativeStmt struct {
-	Code string
+	Backend string
+	Code    string
 
 	NodePos
 }
 
 func (*NativeStmt) stmt() {}
 func (n *NativeStmt) Tree(indent string) string {
+	if n.Backend != "" {
+		return fmt.Sprintf("%sNativeStmt(%s: %s)\n", indent, n.Backend, n.Code)
+	}
 	return fmt.Sprintf("%sNativeStmt(%s)\n", indent, n.Code)
 }
 

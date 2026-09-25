@@ -650,6 +650,11 @@ func (p *Parser) parseContinueStatement() ast.Statement {
 func (p *Parser) parseNativeStatement() ast.Statement {
 	stmt := &ast.NativeStmt{}
 
+	if p.peek.Type == lexer.TOKEN_IDENT {
+		p.advance()
+		stmt.Backend = p.current.Literal
+	}
+
 	if !p.expect(lexer.TOKEN_STRING_LITERAL) {
 		return nil
 	}
