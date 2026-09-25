@@ -18,16 +18,18 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 		}
 
 		var name string
+		var line, col, endLine, endCol int
 		if p.peek.Type == lexer.TOKEN_IDENT {
 			p.advance()
 			name = p.current.Literal
+			line, col, endLine, endCol = p.currentIdentPos()
 
 			if !p.checkReservedName(name) {
 				return nil
 			}
 
 		}
-		decl.Receiver = &ast.Param{Name: name, Type: *ref}
+		decl.Receiver = &ast.Param{Name: name, Type: *ref, Line: line, Col: col, EndLine: endLine, EndCol: endCol}
 
 		if !p.expect(lexer.TOKEN_RPAREN) {
 			return nil
@@ -119,10 +121,12 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 				return nil
 			}
 
+			line, col, endLine, endCol := p.currentIdentPos()
 			params = append(params, ast.Param{
 				Name:     p.current.Literal,
 				Type:     currentType,
 				Variadic: true,
+				Line:     line, Col: col, EndLine: endLine, EndCol: endCol,
 			})
 			return params
 		}
@@ -132,6 +136,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			return params
 		}
 		name := p.current.Literal
+		line, col, endLine, endCol := p.currentIdentPos()
 
 		if !p.checkReservedName(name) {
 			return nil
@@ -140,6 +145,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 		params = append(params, ast.Param{
 			Name: name,
 			Type: currentType,
+			Line: line, Col: col, EndLine: endLine, EndCol: endCol,
 		})
 
 		for p.peek.Type == lexer.TOKEN_COMMA {
@@ -156,10 +162,12 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 					return nil
 				}
 
+				line, col, endLine, endCol := p.currentIdentPos()
 				params = append(params, ast.Param{
 					Name:     p.current.Literal,
 					Type:     currentType,
 					Variadic: true,
+					Line:     line, Col: col, EndLine: endLine, EndCol: endCol,
 				})
 				return params
 			}
@@ -169,6 +177,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 				return params
 			}
 			name := p.current.Literal
+			line, col, endLine, endCol := p.currentIdentPos()
 
 			if !p.checkReservedName(name) {
 				return nil
@@ -177,6 +186,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			params = append(params, ast.Param{
 				Name: name,
 				Type: currentType,
+				Line: line, Col: col, EndLine: endLine, EndCol: endCol,
 			})
 		}
 	}

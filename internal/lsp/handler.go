@@ -60,6 +60,10 @@ func NewHandler() *protocol.Handler {
 		return nil
 	}
 
+	handler.TextDocumentHover = func(context *glsp.Context, params *protocol.HoverParams) (*protocol.Hover, error) {
+		return hover(params.TextDocument.URI, params.Position), nil
+	}
+
 	handler.Shutdown = func(context *glsp.Context) error {
 		return nil
 	}

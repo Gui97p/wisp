@@ -11,11 +11,13 @@ func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expressio
 	block := &ast.BlockStmt{}
 
 	name := fmt.Sprintf("__wisp_switch_%d", p.switchNameCount)
+	var nameLine, nameCol, nameEndLine, nameEndCol int
 	if p.current.Type == lexer.TOKEN_LET {
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return nil, nil
 		}
 		name = p.current.Literal
+		nameLine, nameCol, nameEndLine, nameEndCol = p.currentIdentPos()
 
 		if !p.checkReservedName(name) {
 			return nil, nil
@@ -38,7 +40,7 @@ func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expressio
 	}
 
 	varStmt := &ast.VarStmt{}
-	varStmt.Vars = append(varStmt.Vars, ast.Param{Name: name})
+	varStmt.Vars = append(varStmt.Vars, ast.Param{Name: name, Line: nameLine, Col: nameCol, EndLine: nameEndLine, EndCol: nameEndCol})
 	varStmt.Values = append(varStmt.Values, value)
 	varStmt.SetPos(line, col)
 	varStmt.SetEndPos(p.currentEnd())

@@ -59,6 +59,7 @@ func (p *Parser) parseStructParamList() []ast.Param {
 		}
 
 		name := p.current.Literal
+		line, col, endLine, endCol := p.currentIdentPos()
 
 		if !p.checkReservedName(name) {
 			return nil
@@ -67,6 +68,7 @@ func (p *Parser) parseStructParamList() []ast.Param {
 		params = append(params, ast.Param{
 			Name: name,
 			Type: currentType,
+			Line: line, Col: col, EndLine: endLine, EndCol: endCol,
 		})
 
 		for p.peek.Type == lexer.TOKEN_COMMA {
@@ -78,6 +80,7 @@ func (p *Parser) parseStructParamList() []ast.Param {
 				return params
 			}
 			name := p.current.Literal
+			line, col, endLine, endCol := p.currentIdentPos()
 
 			if !p.checkReservedName(name) {
 				return nil
@@ -86,6 +89,7 @@ func (p *Parser) parseStructParamList() []ast.Param {
 			params = append(params, ast.Param{
 				Name: name,
 				Type: currentType,
+				Line: line, Col: col, EndLine: endLine, EndCol: endCol,
 			})
 		}
 

@@ -236,14 +236,19 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 		decl := &ast.ConstDecl{}
 
 		memberName := p.current.Literal
+		memberLine, memberCol, memberEndLine, memberEndCol := p.currentIdentPos()
 
 		if !p.checkReservedName(memberName) {
 			return nil
 		}
 
 		decl.Vars = append(decl.Vars, ast.Param{
-			Name: memberName,
-			Type: ast.TypeRef{Name: name},
+			Name:    memberName,
+			Type:    ast.TypeRef{Name: name},
+			Line:    memberLine,
+			Col:     memberCol,
+			EndLine: memberEndLine,
+			EndCol:  memberEndCol,
 		})
 
 		if p.peek.Type == lexer.TOKEN_ASSIGN {

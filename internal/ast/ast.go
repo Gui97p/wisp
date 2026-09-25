@@ -130,6 +130,9 @@ type Param struct {
 	Name     string
 	Type     TypeRef
 	Variadic bool
+
+	Line, Col       int
+	EndLine, EndCol int
 }
 
 func (p *Param) Tree(indent string) string {

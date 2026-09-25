@@ -30,6 +30,12 @@ func NewParser(l *lexer.Lexer) *Parser {
 	return p
 }
 
+func (p *Parser) currentIdentPos() (line, col, endLine, endCol int) {
+	line, col = p.current.Line, p.current.Column
+	endLine, endCol = p.currentEnd()
+	return
+}
+
 func (p *Parser) currentEnd() (int, int) {
 	lit := p.current.Literal
 	if lit == "" {

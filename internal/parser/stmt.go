@@ -208,12 +208,13 @@ func (p *Parser) parseVarStatement() ast.Statement {
 		return nil
 	}
 	name := p.current.Literal
+	line, col, endLine, endCol := p.currentIdentPos()
 
 	if !p.checkReservedName(name) {
 		return nil
 	}
 
-	stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
+	stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType, Line: line, Col: col, EndLine: endLine, EndCol: endCol})
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		p.advance()
@@ -224,12 +225,13 @@ func (p *Parser) parseVarStatement() ast.Statement {
 			return nil
 		}
 		name := p.current.Literal
+		line, col, endLine, endCol := p.currentIdentPos()
 
 		if !p.checkReservedName(name) {
 			return nil
 		}
 
-		stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType})
+		stmt.Vars = append(stmt.Vars, ast.Param{Name: name, Type: currentType, Line: line, Col: col, EndLine: endLine, EndCol: endCol})
 	}
 
 	if p.peek.Type == lexer.TOKEN_SEMICOLON {
