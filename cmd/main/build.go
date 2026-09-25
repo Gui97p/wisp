@@ -6,17 +6,17 @@ import (
 	"os/exec"
 
 	"github.com/Gui97p/wisp/internal/analyser"
-	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/target/x64"
 	"github.com/spf13/cobra"
 )
 
 var (
-	buildOutput  string
-	buildOutDir  string
-	buildKeepAsm bool
-	buildKeepObj bool
+	buildOutput   string
+	buildOutDir   string
+	buildBuildDir string
+	buildKeepAsm  bool
+	buildKeepObj  bool
 )
 
 var buildCmd = &cobra.Command{
@@ -40,17 +40,25 @@ func init() {
 
 	f.StringVarP(&buildOutput, "output", "o", "", "output binary name")
 	f.StringVar(&buildOutDir, "dir", "", "output directory")
+	f.StringVar(&buildBuildDir, "build-dir", "", "directory for intermediate .asm/.o files")
 	f.BoolVar(&buildKeepAsm, "asm", false, "keep the generated .asm file")
 	f.BoolVar(&buildKeepObj, "obj", false, "keep the generated .o file")
 
 	f = runCmd.Flags()
 	f.StringVarP(&buildOutput, "output", "o", "", "output binary name")
 	f.StringVar(&buildOutDir, "dir", "", "output directory")
+	f.StringVar(&buildBuildDir, "build-dir", "", "directory for intermediate .asm/.o files")
+	f.BoolVar(&buildKeepAsm, "asm", false, "keep the generated .asm file")
+	f.BoolVar(&buildKeepObj, "obj", false, "keep the generated .o file")
 }
 
 func runBuild(cmd *cobra.Command, args []string) error {
 	inputPath, err := resolveEntry(args)
 	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(inputPath); err != nil {
 		return err
 	}
 
@@ -60,12 +68,16 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	}
 
 	exports := map[string]*analyser.ModuleInfo{}
-	var entryProgram *ast.Program
-	var entryInfo *analyser.Info
 	hadErrors := false
+
+	objPaths := []string{}
 
 	for _, mod := range modules {
 		isEntry := mod.Path == ""
+		name := mod.Path
+		if isEntry {
+			name = inputPath
+		}
 
 		if mod.ParseError != nil {
 			diag.Render(os.Stdout, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
@@ -78,6 +90,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 		a := analyser.NewAnalyser(merged, isEntry, exports, declFiles)
 		info := a.Analyze()
 		if a.HasErrors() {
+			fmt.Printf("<<  %s  >>\n", name)
 			diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
 			hadErrors = true
 			continue
@@ -85,30 +98,41 @@ func runBuild(cmd *cobra.Command, args []string) error {
 
 		exports[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
 
-		if isEntry {
-			entryProgram, entryInfo = merged, info
+		backend := x64.New(merged, info, isEntry)
+		source, err := backend.Compile()
+		if err != nil {
+			return err
 		}
+
+		objFile, err := objPath(buildBuildDir, inputPath, mod.Path, isEntry)
+		if err != nil {
+			return err
+		}
+		asmFile, err := asmPath(buildBuildDir, inputPath, mod.Path, isEntry)
+		if err != nil {
+			return err
+		}
+
+		if err := x64.Assemble(source, objFile, asmFile, buildKeepAsm); err != nil {
+			return err
+		}
+
+		objPaths = append(objPaths, objFile)
 	}
 
 	if hadErrors {
 		os.Exit(1)
 	}
 
-	backend := x64.New(entryProgram, entryInfo)
-	asm, err := backend.Compile()
+	finalPath, err := resolveOutput(inputPath, buildOutput, buildOutDir, "")
 	if err != nil {
 		return err
 	}
 
-	outputPath, err := resolveOutput(inputPath, buildOutput, buildOutDir, "")
-	if err != nil {
+	if err := x64.Link(objPaths, finalPath, buildKeepObj); err != nil {
 		return err
 	}
-
-	if err := x64.Build(asm, outputPath, buildKeepAsm, buildKeepObj); err != nil {
-		return err
-	}
-	fmt.Printf("[%s] built: %s\n", backend.Name(), outputPath)
+	fmt.Printf("[x64] built %s\n", finalPath)
 
 	return nil
 }
@@ -122,8 +146,6 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	buildKeepAsm, buildKeepObj = false, false
-
 	outputPath, err := resolveOutput(inputPath, buildOutput, buildOutDir, "")
 	if err != nil {
 		return err
@@ -133,7 +155,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	run := exec.Command("./" + outputPath)
+	run := exec.Command(outputPath)
 	run.Stdout, run.Stderr = os.Stdout, os.Stderr
 	if err := run.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {

@@ -42,17 +42,45 @@ func modulePath(outDir, entryFile, output, modPath string, isEntry bool) (string
 	return full, nil
 }
 
+func intermediatePath(tmpDir, subdir, ext, entryFile, modPath string, isEntry bool) (string, error) {
+	name := strings.TrimSuffix(filepath.Base(entryFile), ".wsp") + ext
+	if !isEntry {
+		name = strings.TrimSuffix(modPath, ".wsp") + ext
+	}
+
+	full := filepath.Join(tmpDir, subdir, name)
+	if err := os.MkdirAll(filepath.Dir(full), 0755); err != nil {
+		return "", err
+	}
+	return full, nil
+}
+
+func objPath(tmpDir, entryFile, modPath string, isEntry bool) (string, error) {
+	return intermediatePath(tmpDir, "obj", ".o", entryFile, modPath, isEntry)
+}
+
+func asmPath(tmpDir, entryFile, modPath string, isEntry bool) (string, error) {
+	return intermediatePath(tmpDir, "asm", ".asm", entryFile, modPath, isEntry)
+}
+
+func anchorToRoot(root, dir, defaultName string) string {
+	if dir == "" {
+		dir = defaultName
+	}
+	if filepath.IsAbs(dir) {
+		return dir
+	}
+	return filepath.Join(root, dir)
+}
+
 func resolveEntry(args []string) (string, error) {
 	if len(args) == 1 {
 		inputPath := args[0]
 
 		root := module.FindProjectRoot(filepath.Dir(inputPath))
-		if luaOutDir == "" {
-			luaOutDir = filepath.Join(root, "dist")
-		}
-		if buildOutDir == "" {
-			buildOutDir = filepath.Join(root, "bin")
-		}
+		luaOutDir = anchorToRoot(root, luaOutDir, "dist")
+		buildOutDir = anchorToRoot(root, buildOutDir, "bin")
+		buildBuildDir = anchorToRoot(root, buildBuildDir, "build")
 		return inputPath, nil
 	}
 
@@ -62,12 +90,9 @@ func resolveEntry(args []string) (string, error) {
 	}
 
 	root := module.FindProjectRoot(cwd)
-	if luaOutDir == "" {
-		luaOutDir = filepath.Join(root, "dist")
-	}
-	if buildOutDir == "" {
-		buildOutDir = filepath.Join(root, "bin")
-	}
+	luaOutDir = anchorToRoot(root, luaOutDir, "dist")
+	buildOutDir = anchorToRoot(root, buildOutDir, "bin")
+	buildBuildDir = anchorToRoot(root, buildBuildDir, "build")
 
 	cfg, err := module.LoadConfig(root)
 	if err != nil || cfg.Entry == "" {

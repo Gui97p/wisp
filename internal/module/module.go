@@ -56,6 +56,10 @@ func stdlibRoot() (string, error) {
 }
 
 func FindProjectRoot(startDir string) string {
+	if abs, err := filepath.Abs(startDir); err == nil {
+		startDir = abs
+	}
+
 	dir := startDir
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "wisp.toml")); err == nil {
