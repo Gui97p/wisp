@@ -56,6 +56,7 @@ func (p *Parser) parsePrefix() ast.Expression {
 		return nil
 	}
 	expr.SetPos(line, col)
+	expr.SetEndPos(p.currentEnd())
 	return expr
 }
 

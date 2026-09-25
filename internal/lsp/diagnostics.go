@@ -30,7 +30,6 @@ func diagnoseFile(path string) map[string][]protocol.Diagnostic {
 
 		if mod.ParseError != nil {
 			addDiagnostics(result, mod.ParseError.Path, mod.ParseError.Errors)
-			continue
 		}
 
 		merged, declFiles := mod.Merge()
@@ -39,7 +38,6 @@ func diagnoseFile(path string) map[string][]protocol.Diagnostic {
 
 		if a.HasErrors() {
 			addDiagnostics(result, "", a.Errors())
-			continue
 		}
 
 		exports[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
@@ -64,11 +62,20 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 			col = uint32(d.Col - 1)
 		}
 
+		endLine := line
+		if d.EndLine > 0 {
+			endLine = uint32(d.EndLine - 1)
+		}
+		endCol := col + 1
+		if d.EndCol > 0 {
+			endCol = uint32(d.EndCol - 1) + 1
+		}
+
 		severity := protocol.DiagnosticSeverityError
 		result[file] = append(result[file], protocol.Diagnostic{
 			Range: protocol.Range{
 				Start: protocol.Position{Line: line, Character: col},
-				End:   protocol.Position{Line: line, Character: col + 1},
+				End:   protocol.Position{Line: endLine, Character: endCol},
 			},
 			Severity: &severity,
 			Message:  d.Message,

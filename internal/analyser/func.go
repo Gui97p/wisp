@@ -132,11 +132,11 @@ func (a *Analyser) checkMainFunc() {
 	}
 
 	if count == 0 {
-		a.errors.Add(a.currentFile, 0, 0, "program has no main function")
+		a.errors.Add(a.currentFile, 0, 0, 0, 0, "program has no main function")
 		return
 	}
 	if count > 1 {
-		a.errors.Add(a.currentFile, 0, 0, "program has more than one main function")
+		a.errors.Add(a.currentFile, 0, 0, 0, 0, "program has more than one main function")
 		return
 	}
 

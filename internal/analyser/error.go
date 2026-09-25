@@ -15,7 +15,8 @@ func (a *Analyser) HasErrors() bool {
 
 func (a *Analyser) errorf(node ast.Node, format string, args ...any) {
 	line, col := node.Position()
-	a.errors.Add(a.currentFile, line, col, format, args...)
+	endLine, endCol := node.EndPosition()
+	a.errors.Add(a.currentFile, line, col, endLine, endCol, format, args...)
 }
 
 func (a *Analyser) error(node ast.Node, msg string) {

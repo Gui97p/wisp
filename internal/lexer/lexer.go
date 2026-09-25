@@ -13,6 +13,9 @@ type Lexer struct {
 	line   int
 	column int
 
+	tokenLine int
+	tokenCol  int
+
 	ch byte
 }
 
@@ -35,6 +38,9 @@ func (l *Lexer) NextToken() Token {
 	for isSpace(l.ch) {
 		l.advance()
 	}
+
+	l.tokenLine = l.line
+	l.tokenCol = l.column
 
 	var t Token
 
@@ -348,7 +354,7 @@ func (l *Lexer) NextToken() Token {
 }
 
 func (l *Lexer) token(t TokenType, lit string) Token {
-	return Token{Type: t, Literal: lit, Line: l.line, Column: l.column}
+	return Token{Type: t, Literal: lit, Line: l.tokenLine, Column: l.tokenCol}
 }
 
 func (l *Lexer) read(pos int) byte {

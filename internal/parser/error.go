@@ -13,8 +13,13 @@ func (p *Parser) HasErrors() bool {
 	return len(p.errors) > 0
 }
 
+func (p *Parser) errorfNoSync(format string, args ...any) {
+	endLine, endCol := p.currentEnd()
+	p.errors.Add("", p.current.Line, p.current.Column, endLine, endCol, format, args...)
+}
+
 func (p *Parser) errorf(format string, args ...any) {
-	p.errors.Add("", p.current.Line, p.current.Column, format, args...)
+	p.errorfNoSync(format, args...)
 	p.synchronize()
 }
 
@@ -23,6 +28,10 @@ func (p *Parser) error(msg string) {
 }
 
 func (p *Parser) errorExpected(expected, got lexer.TokenType) {
+	if expected == lexer.TOKEN_SEMICOLON {
+		p.errorfNoSync("expected '%s' got '%s'", expected.DisplayName(), got.DisplayName())
+		return
+	}
 	p.errorf("expected '%s' got '%s'", expected.DisplayName(), got.DisplayName())
 }
 

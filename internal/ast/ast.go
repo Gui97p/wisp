@@ -8,6 +8,7 @@ import (
 type Node interface {
 	Tree(indent string) string
 	Position() (int, int)
+	EndPosition() (int, int)
 	SetPos(line, col int)
 	SetEndPos(line, col int)
 }
@@ -34,6 +35,10 @@ type NodePos struct {
 
 func (p NodePos) Position() (int, int) {
 	return p.Line, p.Col
+}
+
+func (p NodePos) EndPosition() (int, int) {
+	return p.EndLine, p.EndCol
 }
 
 func (p *NodePos) SetPos(line, col int) {
