@@ -34,6 +34,14 @@ func NewHandler() *protocol.Handler {
 		return nil
 	}
 
+	handler.Shutdown = func(context *glsp.Context) error {
+		return nil
+	}
+
+	handler.Exit = func(context *glsp.Context) error {
+		return nil
+	}
+
 	return handler
 }
 

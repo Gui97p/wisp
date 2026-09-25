@@ -46,6 +46,16 @@ function resolveServerPath(): string {
     return findOnPath() ?? "wisp";
 }
 
+function setupCommands(context: vscode.ExtensionContext) {
+    context.subscriptions.push(
+        vscode.commands.registerCommand("wisp.restartLSP", async () => {
+            if (client) {
+                await client.restart();
+            }
+        })
+    );
+}
+
 export function activate(context: vscode.ExtensionContext) {
     const serverOptions: ServerOptions = {
         command: resolveServerPath(),
@@ -62,6 +72,8 @@ export function activate(context: vscode.ExtensionContext) {
         serverOptions,
         clientOptions
     );
+
+    setupCommands(context);
 
     client.start();
 }

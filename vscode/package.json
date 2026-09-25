@@ -2,7 +2,7 @@
     "name": "wisp",
     "displayName": "Wisp Language Support",
     "description": "Syntax highlighting, snippets and file icon for the Wisp programming language.",
-    "version": "0.1.3",
+    "version": "0.2.1",
     "publisher": "gui97p",
     "license": "MIT",
     "repository": {
@@ -75,6 +75,12 @@
             {
                 "language": "wisp",
                 "path": "./snippets/wisp.json"
+            }
+        ],
+        "commands": [
+            {
+                "command": "wisp.restartLSP",
+                "title": "Restart Wisp Language Server"
             }
         ]
     }
