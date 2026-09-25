@@ -12,7 +12,7 @@ func diagnoseFile(path string) map[string][]protocol.Diagnostic {
 		path: {},
 	}
 
-	modules, err := module.BuildGraph(path)
+	modules, err := module.BuildGraphWithOverrides(path, fileBuffer)
 	if err != nil {
 		return result
 	}

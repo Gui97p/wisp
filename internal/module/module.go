@@ -111,6 +111,10 @@ func resolveImportPath(projectRoot, path string) (dir string, files []string, er
 }
 
 func BuildGraph(entryFile string) ([]*Module, error) {
+	return BuildGraphWithOverrides(entryFile, nil)
+}
+
+func BuildGraphWithOverrides(entryFile string, overrides map[string][]byte) ([]*Module, error) {
 	root := FindProjectRoot(filepath.Dir(entryFile))
 
 	modules := map[string]*Module{}
@@ -128,7 +132,7 @@ func BuildGraph(entryFile string) ([]*Module, error) {
 		}
 		visiting[path] = true
 
-		mod := loadModule(path, dir, files)
+		mod := loadModule(path, dir, files, overrides)
 		modules[path] = mod
 
 		for _, imp := range mod.Imports {
@@ -153,7 +157,7 @@ func BuildGraph(entryFile string) ([]*Module, error) {
 	return order, nil
 }
 
-func loadModule(path, dir string, files []string) *Module {
+func loadModule(path, dir string, files []string, overrides map[string][]byte) *Module {
 	mod := &Module{
 		Path:      path,
 		Dir:       dir,
@@ -161,11 +165,15 @@ func loadModule(path, dir string, files []string) *Module {
 	}
 
 	for _, f := range files {
-		buffer, err := os.ReadFile(f)
-		if err != nil {
-			mod.Buffers = append(mod.Buffers, nil)
-			mod.Files = append(mod.Files, &ast.Program{})
-			continue
+		buffer, ok := overrides[f]
+		if !ok {
+			var err error
+			buffer, err = os.ReadFile(f)
+			if err != nil {
+				mod.Buffers = append(mod.Buffers, nil)
+				mod.Files = append(mod.Files, &ast.Program{})
+				continue
+			}
 		}
 
 		l := lexer.NewLexer(buffer)

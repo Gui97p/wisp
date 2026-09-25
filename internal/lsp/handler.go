@@ -7,6 +7,8 @@ import (
 
 const languageServerName = "wisp-lsp"
 
+var fileBuffer = map[string][]byte{}
+
 func NewHandler() *protocol.Handler {
 	handler := &protocol.Handler{}
 
@@ -25,12 +27,36 @@ func NewHandler() *protocol.Handler {
 	}
 
 	handler.TextDocumentDidOpen = func(context *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
+		path := uriToPath(params.TextDocument.URI)
+		fileBuffer[path] = []byte(params.TextDocument.Text)
+
 		publish(context, params.TextDocument.URI)
+		return nil
+	}
+
+	handler.TextDocumentDidChange = func(context *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
+		if len(params.ContentChanges) == 0 {
+			return nil
+		}
+
+		change, ok := params.ContentChanges[len(params.ContentChanges)-1].(protocol.TextDocumentContentChangeEventWhole)
+		if !ok {
+			return nil
+		}
+
+		uri := params.TextDocument.URI
+		fileBuffer[uriToPath(uri)] = []byte(change.Text)
+		publish(context, uri)
 		return nil
 	}
 
 	handler.TextDocumentDidSave = func(context *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
 		publish(context, params.TextDocument.URI)
+		return nil
+	}
+
+	handler.TextDocumentDidClose = func(context *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
+		delete(fileBuffer, uriToPath(params.TextDocument.URI))
 		return nil
 	}
 
