@@ -23,12 +23,37 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	t.text.printf("\n%s:\n", fd.Name)
 	t.text.printlnt("push rbp")
-	t.text.printlnt("mov rbp, rsp\n")
+	t.text.printlnt("mov rbp, rsp")
 
 	for i, param := range fd.Params {
 		t.ctx.Set(param.Name, t.sizeOf(t.info.VarTypes[fd][i]))
 	}
 	t.collectVariables(fd.Body)
+	t.text.printft("sub rsp, %d\n\n", t.ctx.AlignTo(16))
+
+	regIdx := 0
+	for paramIdx, param := range fd.Params {
+		if regIdx > 6 {
+			return fmt.Errorf("x84-64: max parameter size reached")
+		}
+		offset, ok := t.ctx.Get(param.Name)
+		if !ok {
+			return fmt.Errorf("x86-64: error on allocating parameter offset")
+		}
+
+		size := t.sizeOf(t.info.VarTypes[fd][paramIdx])
+		regsNeeded := (size + 7) / 8
+
+		for j := range regsNeeded {
+			reg := x64context.ParamOrder[regIdx]
+			t.text.printft("mov [rbp-%d], %s\n", offset-j*8, t.ctx.GetRegister(reg, min(size, 8)))
+			t.ctx.FreeRegister(reg)
+			regIdx++
+			size -= 8
+		}
+	}
+
+	t.text.newLine()
 
 	t.text.printlnt("mov rsp, rbp")
 	t.text.printlnt("pop rbp")

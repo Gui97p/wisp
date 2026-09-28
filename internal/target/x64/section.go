@@ -33,6 +33,10 @@ func (w *Writable) printlnt(str string) {
 	fmt.Fprintf(&w.b, "\t%s\n", str)
 }
 
+func (w *Writable) newLine() {
+	w.b.WriteRune('\n')
+}
+
 type rodataSection struct {
 	Writable
 }

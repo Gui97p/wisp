@@ -16,8 +16,13 @@ func (c *Context) Get(ident string) (int, bool) {
 	return value, ok
 }
 
-func (c *Context) AlignTo(align int) {
+func (c *Context) Size() int {
+	return c.stackSize
+}
+
+func (c *Context) AlignTo(align int) int {
 	c.stackSize = (c.stackSize + align - 1) / align * align
+	return c.stackSize
 }
 
 func (c *Context) Set(ident string, size int) int {

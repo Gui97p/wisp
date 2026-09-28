@@ -16,6 +16,8 @@ const (
 	R12
 )
 
+var ParamOrder = []Reg{DI, SI, DX, CX, R8, R9}
+
 var registers = map[Reg]map[int]string{
 	AX:  {1: "al", 2: "ax", 4: "eax", 8: "rax"},
 	BX:  {1: "bl", 2: "bx", 4: "ebx", 8: "rbx"},
