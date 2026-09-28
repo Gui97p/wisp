@@ -4,11 +4,11 @@ type Context struct {
 	stackOffset map[string]int
 	stackSize   int
 
-	registers map[string]bool
+	registers map[Reg]bool
 }
 
 func NewContext() *Context {
-	return &Context{stackOffset: map[string]int{}, registers: map[string]bool{}}
+	return &Context{stackOffset: map[string]int{}, registers: map[Reg]bool{}}
 }
 
 func (c *Context) Get(ident string) (int, bool) {

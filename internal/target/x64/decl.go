@@ -4,12 +4,17 @@ import (
 	"fmt"
 
 	"github.com/Gui97p/wisp/internal/ast"
+	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 	switch d := decl.(type) {
 	case *ast.FuncDecl:
-		return t.compileFunc(d)
+		ctx := t.ctx
+		t.ctx = x64context.NewContext()
+		err := t.compileFunc(d)
+		t.ctx = ctx
+		return err
 	default:
 		return fmt.Errorf("x86-64: unsupported declaration %T", d)
 	}
@@ -20,9 +25,36 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	t.text.printlnt("push rbp")
 	t.text.printlnt("mov rbp, rsp\n")
 
+	for i, param := range fd.Params {
+		t.ctx.Set(param.Name, t.sizeOf(t.info.VarTypes[fd][i]))
+	}
+	t.collectVariables(fd.Body)
+
 	t.text.printlnt("mov rsp, rbp")
 	t.text.printlnt("pop rbp")
 	t.text.printlnt("ret")
 
 	return nil
+}
+
+func (t *X64Target) collectVariables(stmt ast.Statement) {
+	switch s := stmt.(type) {
+	case *ast.BlockStmt:
+		for _, stmt := range s.Statements {
+			t.collectVariables(stmt)
+		}
+	case *ast.VarStmt:
+		for i, v := range s.Vars {
+			t.ctx.Set(v.Name, t.sizeOf(t.info.VarTypes[s][i]))
+		}
+	case *ast.IfStmt:
+		t.collectVariables(s.Then)
+		if s.Else != nil {
+			t.collectVariables(s.Else)
+		}
+	case *ast.ForStmt:
+		t.collectVariables(s.Body)
+	case *ast.LoopStmt:
+		t.collectVariables(s.Body)
+	}
 }

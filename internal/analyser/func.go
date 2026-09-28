@@ -43,6 +43,7 @@ func (a *Analyser) registerFuncSignatures() {
 		}
 
 		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
+		a.info.VarTypes[fd] = params
 		line, col := fd.Position()
 		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile}
 

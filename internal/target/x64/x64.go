@@ -8,12 +8,15 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 type X64Target struct {
 	program *ast.Program
 	info    *analyser.Info
 	isEntry bool
+
+	ctx *x64context.Context
 
 	data   *dataSection
 	rodata *rodataSection
@@ -92,4 +95,36 @@ func removeEmptyDirs(dir string) {
 		}
 		dir = filepath.Dir(dir)
 	}
+}
+
+func (t *X64Target) sizeOf(at analyser.Type) int {
+	switch tp := at.(type) {
+	case analyser.PrimitiveType:
+		switch tp.Name {
+		case "int8", "uint8", "bool", "char":
+			return 1
+		case "int16", "uint16":
+			return 2
+		case "int32", "uint32", "float32":
+			return 4
+		case "int", "int64", "uint", "uint64", "float64":
+			return 8
+		case "string":
+			return 16
+		}
+	case analyser.PointerType:
+		return 8
+	case analyser.ArrayType:
+		return int(tp.Size) * t.sizeOf(tp.Element)
+	case *analyser.StructType:
+		size := 0
+		for _, field := range tp.Fields {
+			size += t.sizeOf(field)
+		}
+		return size
+	case analyser.SpanType:
+		return 16
+	}
+
+	return 0
 }
