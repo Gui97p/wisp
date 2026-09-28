@@ -2,30 +2,27 @@ package x64
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
-func compileFunc(b *strings.Builder, fd *ast.FuncDecl) error {
-	fmt.Fprintf(b, "%s:\n", fd.Name)
-	b.WriteString("\tpush rbp\n")
-	b.WriteString("\tmov rbp, rsp\n")
-
-	if len(fd.ReturnTypes) == 0 {
-		b.WriteString("\txor eax, eax\n")
+func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
+	switch d := decl.(type) {
+	case *ast.FuncDecl:
+		return t.compileFunc(d)
+	default:
+		return fmt.Errorf("x86-64: unsupported declaration %T", d)
 	}
-	b.WriteString("\n")
+}
 
-	for _, stmt := range fd.Body.Statements {
-		if err := compileStatement(b, stmt); err != nil {
-			return err
-		}
-	}
+func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
+	t.text.printf("\n%s:\n", fd.Name)
+	t.text.printlnt("push rbp")
+	t.text.printlnt("mov rbp, rsp\n")
 
-	b.WriteString("\n\tmov rsp, rbp\n")
-	b.WriteString("\tpop rbp\n")
-	b.WriteString("\tret\n\n")
+	t.text.printlnt("mov rsp, rbp")
+	t.text.printlnt("pop rbp")
+	t.text.printlnt("ret")
 
 	return nil
 }

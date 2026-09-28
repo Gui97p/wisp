@@ -34,15 +34,11 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool) *X64Target {
 
 func (t *X64Target) Compile() (string, error) {
 	if t.isEntry {
-		t.text.println("global main\n")
+		t.text.println("global main")
 	}
 
 	for _, decl := range t.program.Declarations {
-		fd, ok := decl.(*ast.FuncDecl)
-		if !ok {
-			continue
-		}
-		if err := compileFunc(&t.text.b, fd); err != nil {
+		if err := t.compileDeclaration(decl); err != nil {
 			return "", err
 		}
 	}

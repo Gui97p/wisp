@@ -21,6 +21,18 @@ func (w *Writable) println(str string) {
 	fmt.Fprintf(&w.b, "%s\n", str)
 }
 
+func (w *Writable) printt(str string) {
+	fmt.Fprintf(&w.b, "\t%s", str)
+}
+
+func (w *Writable) printft(str string, args ...any) {
+	fmt.Fprintf(&w.b, "\t"+str, args...)
+}
+
+func (w *Writable) printlnt(str string) {
+	fmt.Fprintf(&w.b, "\t%s\n", str)
+}
+
 type rodataSection struct {
 	Writable
 }
