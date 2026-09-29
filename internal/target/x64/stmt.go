@@ -13,7 +13,6 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 			if err := t.compileStatement(stmt); err != nil {
 				return err
 			}
-			t.text.newLine()
 		}
 		return nil
 	case *ast.VarStmt:
@@ -22,6 +21,8 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		return t.compileReturnStmt(s)
 	case *ast.AssignStmt:
 		return t.compileAssignStmt(s)
+	case *ast.IfStmt:
+		return t.compileIfStmt(s)
 	default:
 		return fmt.Errorf("x86-64: unsupported statement %T", stmt)
 	}
@@ -60,7 +61,7 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 
 	opText := t.operandText(op, size)
 	if opText != "rax" {
-		t.text.printft("mov rax, %s\n")
+		t.text.printft("mov rax, %s\n", opText)
 	}
 
 	return nil
@@ -104,5 +105,37 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 		t.ctx.FreeRegister(r.Reg)
 	}
 
+	return nil
+}
+
+func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
+	op, err := t.compileExpr(stmt.Condition)
+	if err != nil {
+		return err
+	}
+	size := t.sizeOf(t.info.Types[stmt.Condition])
+
+	elseLabel := t.newLabel("else")
+	endLabel := t.newLabel("end")
+
+	opText := t.operandText(op, size)
+	t.text.printft("test %s, %s\n", opText, opText)
+	t.text.printft("jz %s\n", elseLabel)
+
+	t.operandFree(op)
+
+	if err = t.compileStatement(stmt.Then); err != nil {
+		return err
+	}
+	t.text.printft("jmp %s\n", endLabel)
+
+	t.text.printf("%s:\n", elseLabel)
+	if stmt.Else != nil {
+		if err = t.compileStatement(stmt.Else); err != nil {
+			return err
+		}
+	}
+
+	t.text.printf("%s:\n", endLabel)
 	return nil
 }

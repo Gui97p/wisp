@@ -24,6 +24,8 @@ type X64Target struct {
 
 	dataIdent  map[any]string
 	identCount int
+
+	labels map[string]int
 }
 
 func New(program *ast.Program, info *analyser.Info, isEntry bool) *X64Target {
@@ -37,6 +39,8 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool) *X64Target {
 		text:   NewText(),
 
 		dataIdent: map[any]string{},
+
+		labels: map[string]int{},
 	}
 }
 
@@ -134,6 +138,16 @@ func (t *X64Target) sizeOf(at analyser.Type) int {
 	}
 
 	return 0
+}
+
+func (t *X64Target) newLabel(key string) string {
+	if _, ok := t.labels[key]; !ok {
+		t.labels[key] = 0
+	}
+
+	label := fmt.Sprintf(".%s%d", key, t.labels[key])
+	t.labels[key]++
+	return label
 }
 
 func (t *X64Target) createData(key string, value any) string {

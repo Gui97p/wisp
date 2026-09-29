@@ -29,7 +29,7 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		t.ctx.Set(param.Name, t.sizeOf(t.info.VarTypes[fd][i]))
 	}
 	t.collectVariables(fd.Body)
-	t.text.printft("sub rsp, %d\n", t.ctx.AlignTo(16))
+	t.text.printft("sub rsp, %d\n\n", t.ctx.AlignTo(16))
 
 	regIdx := 0
 	for paramIdx, param := range fd.Params {
@@ -61,6 +61,7 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		return err
 	}
 
+	t.text.newLine()
 	t.text.printlnt("mov rsp, rbp")
 	t.text.printlnt("pop rbp")
 	t.text.printlnt("ret")

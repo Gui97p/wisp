@@ -41,3 +41,23 @@ func (t *X64Target) operandText(op Operand, size int) string {
 		return ""
 	}
 }
+
+func (t *X64Target) operandFree(op Operand) {
+	o, ok := op.(RegOperand)
+	if !ok {
+		return
+	}
+
+	t.ctx.FreeRegister(o.Reg)
+}
+
+var setccOperators = map[string]string{
+	"==": "sete",
+	"!=": "setne",
+
+	"<":  "setl",
+	"<=": "setle",
+
+	">":  "setg",
+	">=": "setge",
+}
