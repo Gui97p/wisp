@@ -6,7 +6,7 @@ import (
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
-func (t *X64Target) compileExpression(expr ast.Expression) (Operand, error) {
+func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	switch e := expr.(type) {
 	case *ast.IntLiteral:
 		return Imm(e.Value), nil
@@ -23,20 +23,33 @@ func (t *X64Target) compileExpression(expr ast.Expression) (Operand, error) {
 		return RegOperand{Reg: freeReg, Size: size}, nil
 
 	case *ast.BinaryExpr:
-		return t.compileBinaryExpression(e)
+		return t.compileBinaryExpr(e)
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
 }
 
-func (t *X64Target) compileBinaryExpression(expr *ast.BinaryExpr) (Operand, error) {
+func (t *X64Target) compileLValue(expr ast.Expression) (int, error) {
+	switch e := expr.(type) {
+	case *ast.IdentLiteral:
+		offset, ok := t.ctx.Get(e.Value)
+		if !ok {
+			return 0, fmt.Errorf("x86-64: undeclared variable %s", e.Value)
+		}
+		return offset, nil
+	default:
+		return 0, fmt.Errorf("x86-64: unsupported assignment target %T", expr)
+	}
+}
+
+func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 	size := t.sizeOf(t.info.Types[expr])
 
-	left, err := t.compileExpression(expr.Left)
+	left, err := t.compileExpr(expr.Left)
 	if err != nil {
 		return nil, err
 	}
-	right, err := t.compileExpression(expr.Right)
+	right, err := t.compileExpr(expr.Right)
 	if err != nil {
 		return nil, err
 	}
