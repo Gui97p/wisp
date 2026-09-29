@@ -62,6 +62,7 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	}
 
 	t.text.newLine()
+	t.text.println(".return:")
 	t.text.printlnt("mov rsp, rbp")
 	t.text.printlnt("pop rbp")
 	t.text.printlnt("ret")

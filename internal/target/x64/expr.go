@@ -51,40 +51,16 @@ func (t *X64Target) compileLValue(expr ast.Expression) (int, error) {
 }
 
 func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
-	left, err := t.compileExpr(expr.Left)
-	if err != nil {
-		return nil, err
-	}
-	right, err := t.compileExpr(expr.Right)
-	if err != nil {
-		return nil, err
-	}
-
-	size := t.sizeOf(t.info.Types[expr.Left])
-	leftReg := t.ensureRegister(left, size)
-	reg := t.ctx.GetRegister(leftReg, size)
-	opText := t.operandText(right, size)
-	if r, ok := right.(RegOperand); ok {
-		t.ctx.FreeRegister(r.Reg)
-	}
 	switch expr.Operator {
-	case "+":
-		t.text.printft("add %s, %s\n", reg, opText)
-	case "-":
-		t.text.printft("sub %s, %s\n", reg, opText)
-	case "*":
-		t.text.printft("imul %s, %s\n", reg, opText)
-	case "==", "!=", "<", "<=", ">", ">=":
-
-		size := t.sizeOf(t.info.Types[expr])
-		resultReg := t.ctx.AllocFreeRegister()
-		resultRegStr := t.ctx.GetRegister(resultReg, size)
-
-		t.text.printft("xor %s, %s\n", resultRegStr, resultRegStr)
-		t.text.printft("cmp %s, %s\n", reg, opText)
-		t.text.printft("%s %s\n", setccOperators[expr.Operator], resultRegStr)
-
-		return RegOperand{Reg: resultReg, Size: size}, nil
+	case "+", "-", "*", "/", "%":
+		return t.compileArithmetic(expr)
+	case "==", "!=", ">", ">=", "<", "<=":
+		return t.compileComparison(expr)
+	case "&", "|", "^", "<<", ">>":
+		return t.compileBitwise(expr)
+	case "&&", "||":
+		return t.compileLogical(expr)
+	default:
+		return nil, fmt.Errorf("x86-64: unsupported operator %s", expr.Operator)
 	}
-	return RegOperand{Reg: leftReg, Size: size}, nil
 }

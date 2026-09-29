@@ -64,6 +64,8 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 		t.text.printft("mov rax, %s\n", opText)
 	}
 
+	t.text.printlnt("jmp .return")
+
 	return nil
 }
 
