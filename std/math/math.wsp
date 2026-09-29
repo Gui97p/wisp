@@ -1,3 +1,6 @@
+import "std/math/constants";
+export constants;
+
 export func abs(int x) int {
     int r;
     native lua "r = x < 0 and -x or x";

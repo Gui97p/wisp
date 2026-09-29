@@ -21,6 +21,10 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 }
 
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
+	if fd.Exported {
+		t.text.printf("global %s\n", fd.Name)
+	}
+
 	t.text.printf("\n%s:\n", fd.Name)
 	t.text.printlnt("push rbp")
 	t.text.printlnt("mov rbp, rsp")

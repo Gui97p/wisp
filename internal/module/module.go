@@ -2,6 +2,7 @@ package module
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,7 +18,7 @@ type Module struct {
 	Files      []*ast.Program
 	Buffers    [][]byte
 	FilePaths  []string
-	Imports    []string
+	Imports    []*ast.ImportDecl
 	ParseError *SourceError
 }
 
@@ -73,14 +74,23 @@ func FindProjectRoot(startDir string) string {
 	}
 }
 
-func resolveImportPath(projectRoot, path string) (dir string, files []string, err error) {
+func canonicalModulePath(root, file string) (string, error) {
+	rel, err := filepath.Rel(root, file)
+	if err != nil {
+		return "", err
+	}
+	return filepath.ToSlash(strings.TrimSuffix(rel, ".wsp")), nil
+}
+
+func resolveImportPath(projectRoot, path string) (key, dir string, files []string, err error) {
+	isStd := strings.HasPrefix(path, "std/")
 	base := filepath.Join(projectRoot, path)
 	if after, ok := strings.CutPrefix(path, "std/"); ok {
-		root, err := stdlibRoot()
+		stdRoot, err := stdlibRoot()
 		if err != nil {
-			return "", nil, fmt.Errorf("cannot locate stdlib: %w", err)
+			return "", "", nil, fmt.Errorf("cannot locate stdlib: %w", err)
 		}
-		base = filepath.Join(root, after)
+		base = filepath.Join(stdRoot, after)
 	}
 
 	fileExists := false
@@ -92,25 +102,30 @@ func resolveImportPath(projectRoot, path string) (dir string, files []string, er
 
 	switch {
 	case fileExists && dirExists:
-		return "", nil, fmt.Errorf("import %q is ambiguous: both %s.wsp and %s/ exist", path, base, base)
+		return "", "", nil, fmt.Errorf("import %q is ambiguous: both %s.wsp and %s/ exist", path, base, base)
 	case fileExists:
-		return filepath.Dir(base), []string{base + ".wsp"}, nil
-	case dirExists:
-		entries, err := os.ReadDir(base)
-		if err != nil {
-			return "", nil, fmt.Errorf("cannot resolve import %q: %w", path, err)
-		}
-		for _, e := range entries {
-			if !e.IsDir() && strings.HasSuffix(e.Name(), ".wsp") {
-				files = append(files, filepath.Join(base, e.Name()))
+		file := base + ".wsp"
+		key = path
+		if !isStd {
+			if key, err = canonicalModulePath(projectRoot, file); err != nil {
+				return "", "", nil, err
 			}
 		}
-		if len(files) == 0 {
-			return "", nil, fmt.Errorf("import %q (%s) has no .wsp files", path, base)
+		return key, filepath.Dir(base), []string{file}, nil
+	case dirExists:
+		modFile := filepath.Join(base, filepath.Base(base)+".wsp")
+		if info, statErr := os.Stat(modFile); statErr != nil || info.IsDir() {
+			return "", "", nil, fmt.Errorf("directory %q has no module file %s.wsp", path, filepath.Base(base))
 		}
-		return base, files, nil
+		key = path
+		if !isStd {
+			if key, err = canonicalModulePath(projectRoot, modFile); err != nil {
+				return "", "", nil, err
+			}
+		}
+		return key, base, []string{modFile}, nil
 	default:
-		return "", nil, fmt.Errorf("cannot resolve import %q", path)
+		return "", "", nil, fmt.Errorf("cannot resolve import %q", path)
 	}
 }
 
@@ -140,11 +155,12 @@ func BuildGraphWithOverrides(entryFile string, overrides map[string][]byte) ([]*
 		modules[path] = mod
 
 		for _, imp := range mod.Imports {
-			depDir, depFiles, err := resolveImportPath(root, imp)
+			key, depDir, depFiles, err := resolveImportPath(root, imp.Path)
 			if err != nil {
 				return err
 			}
-			if err := visit(imp, depDir, depFiles); err != nil {
+			imp.Path = key
+			if err := visit(key, depDir, depFiles); err != nil {
 				return err
 			}
 		}
@@ -158,6 +174,86 @@ func BuildGraphWithOverrides(entryFile string, overrides map[string][]byte) ([]*
 	if err := visit("", filepath.Dir(entryFile), []string{entryFile}); err != nil {
 		return nil, err
 	}
+	return order, nil
+}
+
+type moduleRoot struct {
+	path  string
+	dir   string
+	files []string
+}
+
+func discoverModuleRoots(root string) ([]moduleRoot, error) {
+	var roots []moduleRoot
+
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(p, ".wsp") {
+			return nil
+		}
+		path, err := canonicalModulePath(root, p)
+		if err != nil {
+			return err
+		}
+		roots = append(roots, moduleRoot{path: path, dir: filepath.Dir(p), files: []string{p}})
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return roots, nil
+}
+
+func DiscoverProject(root string) ([]*Module, error) {
+	modules := map[string]*Module{}
+	visiting := map[string]bool{}
+	visited := map[string]bool{}
+	var order []*Module
+
+	var visit func(path, dir string, files []string) error
+	visit = func(path, dir string, files []string) error {
+		if visited[path] {
+			return nil
+		}
+		if visiting[path] {
+			return fmt.Errorf("cyclic import: %q", path)
+		}
+		visiting[path] = true
+
+		mod := loadModule(path, dir, files, nil)
+		modules[path] = mod
+
+		for _, imp := range mod.Imports {
+			key, depDir, depFiles, err := resolveImportPath(root, imp.Path)
+			if err != nil {
+				return err
+			}
+			imp.Path = key
+			if err := visit(key, depDir, depFiles); err != nil {
+				return err
+			}
+		}
+
+		visiting[path] = false
+		visited[path] = true
+		order = append(order, mod)
+		return nil
+	}
+
+	roots, err := discoverModuleRoots(root)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range roots {
+		if err := visit(r.path, r.dir, r.files); err != nil {
+			return nil, err
+		}
+	}
+
 	return order, nil
 }
 
@@ -193,7 +289,7 @@ func loadModule(path, dir string, files []string, overrides map[string][]byte) *
 
 		for _, decl := range program.Declarations {
 			if d, ok := decl.(*ast.ImportDecl); ok {
-				mod.Imports = append(mod.Imports, d.Path)
+				mod.Imports = append(mod.Imports, d)
 			}
 		}
 	}

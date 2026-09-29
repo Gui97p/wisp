@@ -141,3 +141,14 @@ func (*ImportDecl) decl() {}
 func (i *ImportDecl) Tree(indent string) string {
 	return fmt.Sprintf("%sImportDecl(%q as %s)\n", indent, i.Path, i.Alias)
 }
+
+type ReexportDecl struct {
+	Name string
+
+	NodePos
+}
+
+func (*ReexportDecl) decl() {}
+func (r *ReexportDecl) Tree(indent string) string {
+	return fmt.Sprintf("%sReexportDecl(%s)\n", indent, r.Name)
+}

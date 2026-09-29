@@ -8,7 +8,15 @@ import (
 )
 
 type Config struct {
-	Entry string `toml:"entry"`
+	Entry  string       `toml:"entry"`
+	Output OutputConfig `toml:"output"`
+}
+
+type OutputConfig struct {
+	Bin string `toml:"bin"`
+	Obj string `toml:"obj"`
+	Asm string `toml:"asm"`
+	Lua string `toml:"lua"`
 }
 
 func LoadConfig(root string) (*Config, error) {

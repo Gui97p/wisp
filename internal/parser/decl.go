@@ -146,6 +146,13 @@ func (p *Parser) parseExportDeclaration() []ast.Declaration {
 		decl.Exported = true
 		decls = append(decls, decl)
 
+	case lexer.TOKEN_IDENT:
+		decl := &ast.ReexportDecl{Name: p.current.Literal}
+		if !p.expect(lexer.TOKEN_SEMICOLON) {
+			return nil
+		}
+		decls = append(decls, decl)
+
 	default:
 		p.error("expected declaration after export")
 		return nil

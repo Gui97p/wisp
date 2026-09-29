@@ -38,7 +38,7 @@ func (t *LuaTarget) Compile() (string, error) {
 
 	for _, d := range t.program.Declarations {
 		if imp, ok := d.(*ast.ImportDecl); ok {
-			fmt.Fprintf(&b, "local %s = require(%q)\n", imp.Alias, luaRequirePath(imp.Path))
+			fmt.Fprintf(&b, "local %s = require(%q)\n", imp.Alias, ModuleID(imp.Path))
 		}
 	}
 
@@ -64,9 +64,18 @@ func (t *LuaTarget) Compile() (string, error) {
 	return b.String(), nil
 }
 
-func luaRequirePath(path string) string {
+var luaBuiltins = map[string]bool{
+	"math": true, "string": true, "table": true, "os": true, "io": true,
+	"coroutine": true, "utf8": true, "debug": true, "package": true, "bit32": true,
+}
+
+func ModuleID(path string) string {
 	path = strings.TrimSuffix(path, ".wsp")
-	return "__wisp_modules." + strings.ReplaceAll(path, "/", ".")
+	dotted := strings.ReplaceAll(path, "/", ".")
+	if luaBuiltins[dotted] {
+		return "wisp." + dotted
+	}
+	return dotted
 }
 
 func Build(luaSource, outputPath string) error {

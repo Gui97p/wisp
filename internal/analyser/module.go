@@ -9,6 +9,14 @@ type ModuleInfo struct {
 func (a *Analyser) Exports() map[string]*Symbol {
 	exports := map[string]*Symbol{}
 
+	add := func(node ast.Node, name string, sym *Symbol) {
+		if _, exists := exports[name]; exists {
+			a.errorf(node, "%s already declared in exported scope", name)
+			return
+		}
+		exports[name] = sym
+	}
+
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		switch decl := d.(type) {
@@ -17,21 +25,21 @@ func (a *Analyser) Exports() map[string]*Symbol {
 				continue
 			}
 			if sym, ok := a.scope.Resolve(decl.Name); ok {
-				exports[decl.Name] = sym
+				add(decl, decl.Name, sym)
 			}
 		case *ast.StructDecl:
 			if !decl.Exported {
 				continue
 			}
 			if sym, ok := a.scope.Resolve(decl.Name); ok {
-				exports[decl.Name] = sym
+				add(decl, decl.Name, sym)
 			}
 		case *ast.TypeDecl:
 			if !decl.Exported {
 				continue
 			}
 			if sym, ok := a.scope.Resolve(decl.Name); ok {
-				exports[decl.Name] = sym
+				add(decl, decl.Name, sym)
 			}
 		case *ast.ConstDecl:
 			if !decl.Exported {
@@ -39,8 +47,22 @@ func (a *Analyser) Exports() map[string]*Symbol {
 			}
 			for _, v := range decl.Vars {
 				if sym, ok := a.scope.Resolve(v.Name); ok {
-					exports[v.Name] = sym
+					add(decl, v.Name, sym)
 				}
+			}
+		case *ast.ReexportDecl:
+			sym, ok := a.scope.Resolve(decl.Name)
+			if !ok {
+				a.errorf(decl, "identifier %s not declared in this scope", decl.Name)
+				continue
+			}
+			mt, ok := sym.Type.(*ModuleType)
+			if !ok {
+				a.errorf(decl, "%s is not an imported module", decl.Name)
+				continue
+			}
+			for name, exp := range mt.Exports {
+				add(decl, name, exp)
 			}
 		}
 	}
