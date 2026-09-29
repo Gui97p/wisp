@@ -29,10 +29,13 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		t.ctx.Set(param.Name, t.sizeOf(t.info.VarTypes[fd][i]))
 	}
 	t.collectVariables(fd.Body)
-	t.text.printft("sub rsp, %d\n\n", t.ctx.AlignTo(16))
+	t.text.printft("sub rsp, %d\n", t.ctx.AlignTo(16))
 
 	regIdx := 0
 	for paramIdx, param := range fd.Params {
+		if paramIdx == 0 {
+			t.text.newLine()
+		}
 		offset, ok := t.ctx.Get(param.Name)
 		if !ok {
 			return fmt.Errorf("x86-64: error on allocating parameter offset")
@@ -53,7 +56,6 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 			size -= 8
 		}
 	}
-	t.text.newLine()
 
 	if err := t.compileStatement(fd.Body); err != nil {
 		return err

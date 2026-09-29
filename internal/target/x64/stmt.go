@@ -13,6 +13,7 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 			if err := t.compileStatement(stmt); err != nil {
 				return err
 			}
+			t.text.newLine()
 		}
 		return nil
 	case *ast.VarStmt:
