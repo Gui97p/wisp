@@ -33,9 +33,6 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 
 	regIdx := 0
 	for paramIdx, param := range fd.Params {
-		if regIdx > 6 {
-			return fmt.Errorf("x84-64: max parameter size reached")
-		}
 		offset, ok := t.ctx.Get(param.Name)
 		if !ok {
 			return fmt.Errorf("x86-64: error on allocating parameter offset")
@@ -43,6 +40,10 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 
 		size := t.sizeOf(t.info.VarTypes[fd][paramIdx])
 		regsNeeded := (size + 7) / 8
+
+		if regIdx+regsNeeded > len(x64context.ParamOrder) {
+			return fmt.Errorf("x84-64: max parameter size reached")
+		}
 
 		for j := range regsNeeded {
 			reg := x64context.ParamOrder[regIdx]
@@ -52,8 +53,11 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 			size -= 8
 		}
 	}
-
 	t.text.newLine()
+
+	if err := t.compileStatement(fd.Body); err != nil {
+		return err
+	}
 
 	t.text.printlnt("mov rsp, rbp")
 	t.text.printlnt("pop rbp")

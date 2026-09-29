@@ -21,6 +21,9 @@ type X64Target struct {
 	data   *dataSection
 	rodata *rodataSection
 	text   *textSection
+
+	dataIdent  map[any]string
+	identCount int
 }
 
 func New(program *ast.Program, info *analyser.Info, isEntry bool) *X64Target {
@@ -32,6 +35,8 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool) *X64Target {
 		data:   NewData(),
 		rodata: NewRodata(),
 		text:   NewText(),
+
+		dataIdent: map[any]string{},
 	}
 }
 
@@ -112,6 +117,8 @@ func (t *X64Target) sizeOf(at analyser.Type) int {
 		case "string":
 			return 16
 		}
+	case analyser.UntypedIntType, analyser.UntypedFloatType:
+		return 8
 	case analyser.PointerType:
 		return 8
 	case analyser.ArrayType:
@@ -127,4 +134,15 @@ func (t *X64Target) sizeOf(at analyser.Type) int {
 	}
 
 	return 0
+}
+
+func (t *X64Target) createData(key string, value any) string {
+	if ident, ok := t.dataIdent[value]; ok {
+		return ident
+	}
+
+	ident := fmt.Sprintf("%s%d", key, t.identCount)
+	t.dataIdent[value] = ident
+	t.identCount++
+	return ident
 }

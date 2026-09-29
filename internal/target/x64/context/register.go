@@ -17,6 +17,7 @@ const (
 )
 
 var ParamOrder = []Reg{DI, SI, DX, CX, R8, R9}
+var RegisterOrder = []Reg{AX, BX, CX, DX, DI, SI, R8, R9, R10, R11, R12}
 
 var registers = map[Reg]map[int]string{
 	AX:  {1: "al", 2: "ax", 4: "eax", 8: "rax"},
@@ -46,4 +47,14 @@ func (c *Context) AllocRegister(reg Reg) bool {
 
 func (c *Context) FreeRegister(reg Reg) {
 	delete(c.registers, reg)
+}
+
+func (c *Context) AllocFreeRegister() Reg {
+	for _, reg := range RegisterOrder {
+		if _, ok := c.registers[reg]; !ok {
+			c.AllocRegister(reg)
+			return reg
+		}
+	}
+	panic("no free registers")
 }
