@@ -1,17 +1,19 @@
 package x64context
 
+import "github.com/Gui97p/wisp/internal/analyser"
+
 type Context struct {
-	stackOffset map[string]int
+	stackOffset map[*analyser.Symbol]int
 	stackSize   int
 
 	registers map[Reg]bool
 }
 
 func NewContext() *Context {
-	return &Context{stackOffset: map[string]int{}, registers: map[Reg]bool{}}
+	return &Context{stackOffset: map[*analyser.Symbol]int{}, registers: map[Reg]bool{}}
 }
 
-func (c *Context) Get(ident string) (int, bool) {
+func (c *Context) Get(ident *analyser.Symbol) (int, bool) {
 	value, ok := c.stackOffset[ident]
 	return value, ok
 }
@@ -25,7 +27,7 @@ func (c *Context) AlignTo(align int) int {
 	return c.stackSize
 }
 
-func (c *Context) Set(ident string, size int) int {
+func (c *Context) Set(ident *analyser.Symbol, size int) int {
 	c.stackSize += size
 	c.stackOffset[ident] = c.stackSize
 

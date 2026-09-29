@@ -122,6 +122,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 			}
 
 			a.info.VarTypes[node] = append(a.info.VarTypes[node], t)
+			a.info.VarSymbols[node] = append(a.info.VarSymbols[node], sym)
 		}
 		return
 	}
@@ -188,5 +189,6 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		}
 
 		a.info.VarTypes[node] = append(a.info.VarTypes[node], finalType)
+		a.info.VarSymbols[node] = append(a.info.VarSymbols[node], sym)
 	}
 }

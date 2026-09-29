@@ -25,18 +25,18 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	t.text.printlnt("push rbp")
 	t.text.printlnt("mov rbp, rsp")
 
-	for i, param := range fd.Params {
-		t.ctx.Set(param.Name, t.sizeOf(t.info.VarTypes[fd][i]))
+	for i := range fd.Params {
+		t.ctx.Set(t.info.VarSymbols[fd][i], t.sizeOf(t.info.VarTypes[fd][i]))
 	}
 	t.collectVariables(fd.Body)
 	t.text.printft("sub rsp, %d\n\n", t.ctx.AlignTo(16))
 
 	regIdx := 0
-	for paramIdx, param := range fd.Params {
+	for paramIdx := range fd.Params {
 		if paramIdx == 0 {
 			t.text.newLine()
 		}
-		offset, ok := t.ctx.Get(param.Name)
+		offset, ok := t.ctx.Get(t.info.VarSymbols[fd][paramIdx])
 		if !ok {
 			return fmt.Errorf("x86-64: error on allocating parameter offset")
 		}
@@ -76,8 +76,8 @@ func (t *X64Target) collectVariables(stmt ast.Statement) {
 			t.collectVariables(stmt)
 		}
 	case *ast.VarStmt:
-		for i, v := range s.Vars {
-			t.ctx.Set(v.Name, t.sizeOf(t.info.VarTypes[s][i]))
+		for i := range s.Vars {
+			t.ctx.Set(t.info.VarSymbols[s][i], t.sizeOf(t.info.VarTypes[s][i]))
 		}
 	case *ast.IfStmt:
 		t.collectVariables(s.Then)

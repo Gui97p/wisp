@@ -19,7 +19,7 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	case *ast.CharLiteral:
 		return Imm(e.Value), nil
 	case *ast.IdentLiteral:
-		offset, ok := t.ctx.Get(e.Value)
+		offset, ok := t.ctx.Get(t.info.Idents[e])
 		if !ok {
 			return nil, fmt.Errorf("x86-64: undefined literal")
 		}
@@ -40,7 +40,7 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 func (t *X64Target) compileLValue(expr ast.Expression) (int, error) {
 	switch e := expr.(type) {
 	case *ast.IdentLiteral:
-		offset, ok := t.ctx.Get(e.Value)
+		offset, ok := t.ctx.Get(t.info.Idents[e])
 		if !ok {
 			return 0, fmt.Errorf("x86-64: undeclared variable %s", e.Value)
 		}

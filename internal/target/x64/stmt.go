@@ -30,7 +30,7 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 
 func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 	for i, v := range stmt.Vars {
-		offset, ok := t.ctx.Get(v.Name)
+		offset, ok := t.ctx.Get(t.info.VarSymbols[stmt][i])
 		if !ok {
 			return fmt.Errorf("x86-64: undeclared variable %s", v.Name)
 		}

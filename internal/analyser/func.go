@@ -103,9 +103,11 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 		if p.Variadic {
 			paramType = SpanType{Element: paramType}
 		}
-		if !a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: paramType, Line: line, Col: col, File: a.currentFile}) {
+		paramSym := &Symbol{Name: p.Name, Kind: PARAM, Type: paramType, Line: line, Col: col, File: a.currentFile}
+		if !a.scope.Define(paramSym) {
 			a.errorf(fd, "duplicated %s parameter", p.Name)
 		}
+		a.info.VarSymbols[fd] = append(a.info.VarSymbols[fd], paramSym)
 	}
 
 	prevReturns := a.currentReturns
