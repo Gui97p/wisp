@@ -143,7 +143,8 @@ func (i *ImportDecl) Tree(indent string) string {
 }
 
 type ReexportDecl struct {
-	Name string
+	Name  string
+	Alias string
 
 	NodePos
 }

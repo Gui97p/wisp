@@ -10,6 +10,7 @@ type Info struct {
 	Types      map[ast.Expression]Type
 	Idents     map[*ast.IdentLiteral]*Symbol
 	Scopes     map[ast.Node]*Scope
+	Reexports  map[*ast.ReexportDecl][]string
 }
 
 func NewInfo() *Info {
@@ -19,5 +20,6 @@ func NewInfo() *Info {
 		Types:      make(map[ast.Expression]Type),
 		Idents:     make(map[*ast.IdentLiteral]*Symbol),
 		Scopes:     make(map[ast.Node]*Scope),
+		Reexports:  make(map[*ast.ReexportDecl][]string),
 	}
 }

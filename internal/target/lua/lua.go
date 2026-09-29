@@ -55,9 +55,7 @@ func (t *LuaTarget) Compile() (string, error) {
 		b.WriteString("main()\n")
 	} else {
 		b.WriteString("local __wisp_module = {}\n")
-		for _, name := range t.exportedNames() {
-			fmt.Fprintf(&b, "__wisp_module.%s = %s\n", name, name)
-		}
+		t.writeExports(&b)
 		b.WriteString("return __wisp_module\n")
 	}
 
@@ -86,25 +84,29 @@ func Build(luaSource, outputPath string) error {
 	return nil
 }
 
-func (t *LuaTarget) exportedNames() []string {
-	var names []string
-
+func (t *LuaTarget) writeExports(b *strings.Builder) {
 	for _, d := range t.program.Declarations {
 		switch decl := d.(type) {
 		case *ast.FuncDecl:
 			if !decl.Exported || decl.Receiver != nil {
 				continue
 			}
-			names = append(names, decl.Name)
+			fmt.Fprintf(b, "__wisp_module.%s = %s\n", decl.Name, decl.Name)
 		case *ast.ConstDecl:
 			if !decl.Exported {
 				continue
 			}
 			for _, v := range decl.Vars {
-				names = append(names, v.Name)
+				fmt.Fprintf(b, "__wisp_module.%s = %s\n", v.Name, v.Name)
+			}
+		case *ast.ReexportDecl:
+			if decl.Alias != "" {
+				fmt.Fprintf(b, "__wisp_module.%s = %s\n", decl.Alias, decl.Name)
+				continue
+			}
+			for _, name := range t.info.Reexports[decl] {
+				fmt.Fprintf(b, "__wisp_module.%s = %s.%s\n", name, decl.Name, name)
 			}
 		}
 	}
-
-	return names
 }

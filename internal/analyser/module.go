@@ -56,13 +56,18 @@ func (a *Analyser) Exports() map[string]*Symbol {
 				a.errorf(decl, "identifier %s not declared in this scope", decl.Name)
 				continue
 			}
-			mt, ok := sym.Type.(*ModuleType)
-			if !ok {
+			if _, ok := sym.Type.(*ModuleType); !ok {
 				a.errorf(decl, "%s is not an imported module", decl.Name)
 				continue
 			}
+			if decl.Alias != "" {
+				add(decl, decl.Alias, sym)
+				continue
+			}
+			mt := sym.Type.(*ModuleType)
 			for name, exp := range mt.Exports {
 				add(decl, name, exp)
+				a.info.Reexports[decl] = append(a.info.Reexports[decl], name)
 			}
 		}
 	}

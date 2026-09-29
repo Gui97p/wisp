@@ -148,6 +148,15 @@ func (p *Parser) parseExportDeclaration() []ast.Declaration {
 
 	case lexer.TOKEN_IDENT:
 		decl := &ast.ReexportDecl{Name: p.current.Literal}
+
+		if p.peek.Type == lexer.TOKEN_AS {
+			p.advance()
+			if !p.expect(lexer.TOKEN_IDENT) {
+				return nil
+			}
+			decl.Alias = p.current.Literal
+		}
+
 		if !p.expect(lexer.TOKEN_SEMICOLON) {
 			return nil
 		}
