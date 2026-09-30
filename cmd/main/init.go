@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/spf13/cobra"
 )
@@ -16,11 +17,15 @@ var initCmd = &cobra.Command{
 	SilenceUsage: true,
 }
 
-const initTomlContent = `entry = "main.wsp"
+const initTomlContent = `target = "%s_x64"
+
+[output]
+bin = "bin/main"
+lua = "dist"
 `
 
-const initMainContent = `func main() {
-    emit("Hello, Wisp!");
+const initMainContent = `func main() int {
+    return 0;
 }
 `
 
@@ -35,7 +40,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("wisp.toml already exists in %s", cwd)
 	}
 
-	if err := os.WriteFile(tomlPath, []byte(initTomlContent), 0644); err != nil {
+	toml := fmt.Sprintf(initTomlContent, runtime.GOOS)
+	if err := os.WriteFile(tomlPath, []byte(toml), 0644); err != nil {
 		return err
 	}
 

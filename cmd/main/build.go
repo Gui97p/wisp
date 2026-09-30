@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -16,9 +17,10 @@ import (
 )
 
 var (
-	asmOut string
-	objOut string
-	binOut string
+	asmOut    string
+	objOut    string
+	binOut    string
+	targetOpt string
 )
 
 var buildCmd = &cobra.Command{
@@ -42,11 +44,23 @@ func init() {
 	f.StringVar(&asmOut, "asm", "", "output directory for generated .asm files")
 	f.StringVar(&objOut, "obj", "", "output directory for generated .o files")
 	f.StringVar(&binOut, "bin", "", "output path for the final binary")
+	f.StringVar(&targetOpt, "target", "", "native target name (e.g. linux_x64)")
 
 	f = runCmd.Flags()
 	f.StringVar(&asmOut, "asm", "", "output directory for generated .asm files")
 	f.StringVar(&objOut, "obj", "", "output directory for generated .o files")
 	f.StringVar(&binOut, "bin", "", "output path for the final binary")
+	f.StringVar(&targetOpt, "target", "", "native target name (e.g. linux_x64)")
+}
+
+func resolveTarget(cfg *module.Config) string {
+	if targetOpt != "" {
+		return targetOpt
+	}
+	if cfg.Target != "" {
+		return cfg.Target
+	}
+	return runtime.GOOS + "_x64"
 }
 
 type buildTargets struct {
@@ -95,7 +109,6 @@ func resolveBuildTargets(root string, cfg *module.Config) buildTargets {
 
 	return t
 }
-
 
 type compiledModule struct {
 	mod    *module.Module
@@ -153,6 +166,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	}
 
 	targets := resolveBuildTargets(root, cfg)
+	target := resolveTarget(cfg)
 
 	modules, err := module.DiscoverProject(root)
 	if err != nil {
@@ -224,7 +238,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	for _, c := range compiled {
 		isEntry := mainMod != nil && c.mod == mainMod.mod
 
-		backend := x64.New(c.merged, c.info, isEntry)
+		backend := x64.New(c.merged, c.info, isEntry, target)
 		source, err := backend.Compile()
 		if err != nil {
 			return err

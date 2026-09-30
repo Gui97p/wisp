@@ -655,6 +655,15 @@ func (p *Parser) parseNativeStatement() ast.Statement {
 		stmt.Backend = p.current.Literal
 	}
 
+	if p.peek.Type == lexer.TOKEN_LPAREN {
+		p.advance()
+		bindings, ok := p.parseNativeBindings()
+		if !ok {
+			return nil
+		}
+		stmt.Bindings = bindings
+	}
+
 	if !p.expect(lexer.TOKEN_STRING_LITERAL) {
 		return nil
 	}
@@ -665,6 +674,46 @@ func (p *Parser) parseNativeStatement() ast.Statement {
 	}
 
 	return stmt
+}
+
+func (p *Parser) parseNativeBindings() ([]ast.NativeBinding, bool) {
+	var bindings []ast.NativeBinding
+
+	if p.peek.Type == lexer.TOKEN_RPAREN {
+		p.advance()
+		return bindings, true
+	}
+
+	for {
+		p.advance()
+
+		var out bool
+		switch {
+		case p.current.Type == lexer.TOKEN_IN:
+		case p.current.Type == lexer.TOKEN_IDENT && p.current.Literal == "out":
+			out = true
+		default:
+			p.error("expected in or out")
+			return nil, false
+		}
+
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil, false
+		}
+		ident := &ast.IdentLiteral{Value: p.current.Literal}
+		ident.SetPos(p.current.Line, p.current.Column)
+		ident.SetEndPos(p.currentEnd())
+		bindings = append(bindings, ast.NativeBinding{Out: out, Var: ident})
+
+		if p.peek.Type == lexer.TOKEN_COMMA {
+			p.advance()
+			continue
+		}
+		if !p.expect(lexer.TOKEN_RPAREN) {
+			return nil, false
+		}
+		return bindings, true
+	}
 }
 
 func (p *Parser) parseLabeledStatement() ast.Statement {

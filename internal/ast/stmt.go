@@ -334,19 +334,35 @@ func (c *ContinueStmt) Tree(indent string) string {
 	return indent + "ContinueStmt\n"
 }
 
+type NativeBinding struct {
+	Out bool
+	Var *IdentLiteral
+}
+
 type NativeStmt struct {
-	Backend string
-	Code    string
+	Backend  string
+	Bindings []NativeBinding
+	Code     string
 
 	NodePos
 }
 
 func (*NativeStmt) stmt() {}
 func (n *NativeStmt) Tree(indent string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%sNativeStmt(", indent)
 	if n.Backend != "" {
-		return fmt.Sprintf("%sNativeStmt(%s: %s)\n", indent, n.Backend, n.Code)
+		b.WriteString(n.Backend)
 	}
-	return fmt.Sprintf("%sNativeStmt(%s)\n", indent, n.Code)
+	for _, bd := range n.Bindings {
+		mode := "in"
+		if bd.Out {
+			mode = "out"
+		}
+		fmt.Fprintf(&b, " %s %s", mode, bd.Var.Value)
+	}
+	fmt.Fprintf(&b, ": %s)\n", n.Code)
+	return b.String()
 }
 
 type AssignStmt struct {

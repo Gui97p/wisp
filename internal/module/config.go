@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	Entry  string       `toml:"entry"`
+	Target string       `toml:"target"`
 	Output OutputConfig `toml:"output"`
 }
 

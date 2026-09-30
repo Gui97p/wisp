@@ -49,6 +49,7 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 	case *ast.ContinueStmt:
 		a.checkBreakContinue(s, s.Label, "continue")
 	case *ast.NativeStmt:
+		a.checkNativeStmt(s)
 	case *ast.BlockStmt:
 		a.enterScope()
 		a.checkBlock(s)
@@ -245,6 +246,20 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 		a.checkBitwise(s, baseOp, targetType, valueType)
 	default:
 		a.checkArithmetic(s, baseOp, targetType, valueType)
+	}
+}
+
+func (a *Analyser) checkNativeStmt(s *ast.NativeStmt) {
+	for _, bd := range s.Bindings {
+		if _, ok := a.checkExpr(bd.Var).(InvalidType); ok {
+			continue
+		}
+		if !bd.Out {
+			continue
+		}
+		if sym, ok := a.scope.Resolve(bd.Var.Value); ok && sym.Kind == CONST {
+			a.errorConstAssign(bd.Var, bd.Var.Value)
+		}
 	}
 }
 

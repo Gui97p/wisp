@@ -1,7 +1,7 @@
 .PHONY: build prod run clean
 APP=wisp
 
-VERSION=0.1.0
+VERSION=0.2.1
 NAME=wisp-$(VERSION)-linux-amd64
 
 build:
