@@ -16,7 +16,7 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 	case *ast.ExpressionStmt:
 		var op Operand
 		op, err = t.compileExpr(s.Expr)
-		t.operandFree(op)
+		t.freeOperand(op)
 		return nil
 	case *ast.BlockStmt:
 		for _, stmt := range s.Statements {
@@ -116,12 +116,12 @@ func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 			if err != nil {
 				return err
 			}
-			t.text.printft("mov [rbp-%d], %s\n", offset, t.operandText(op, size))
-			if r, ok := op.(RegOperand); ok {
-				t.ctx.FreeRegister(r.Reg)
-			}
+			t.storeOperand(op, offset, size)
+			t.freeOperand(op)
 		} else {
-			t.text.printft("mov %s [rbp-%d], 0\n", sizeLabels[size], offset)
+			for off := 0; off < size; off += 8 {
+				t.text.printft("mov %s, 0\n", t.mem(offset-off, size-off))
+			}
 		}
 	}
 
@@ -144,7 +144,7 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 		t.text.printft("mov rax, %s\n", opText)
 	}
 
-	t.operandFree(op)
+	t.freeOperand(op)
 
 	t.text.printlnt("jmp .return")
 
@@ -167,18 +167,18 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 
 	switch stmt.Op {
 	case "=":
-		t.text.printft("mov [rbp-%d], %s\n", offset, opText)
+		t.storeOperand(op, offset, size)
 	case "+=":
-		t.text.printft("add [rbp-%d], %s\n", offset, opText)
+		t.text.printft("add %s, %s\n", t.mem(offset, size), opText)
 	case "-=":
-		t.text.printft("sub [rbp-%d], %s\n", offset, opText)
+		t.text.printft("sub %s, %s\n", t.mem(offset, size), opText)
 	case "*=":
 		reg := t.ctx.AllocFreeRegister()
 		regStr := t.ctx.GetRegister(reg, size)
 
-		t.text.printft("mov %s, [rbp-%d]\n", regStr, offset)
-		t.text.printft("imul %s, %s\n", regStr, opText)
-		t.text.printft("mov [rbp-%d], %s\n", offset, regStr)
+		t.text.printft("mov %s %s, [rbp-%d]\n", sizeLabels[size], regStr, offset)
+		t.text.printft("imul %s %s, %s\n", sizeLabels[size], regStr, opText)
+		t.text.printft("mov %s, %s\n", t.mem(offset, size), regStr)
 
 		t.ctx.FreeRegister(reg)
 	default:
@@ -206,7 +206,7 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 	t.text.printft("test %s, %s\n", opText, opText)
 	t.text.printft("jz %s\n", elseLabel)
 
-	t.operandFree(op)
+	t.freeOperand(op)
 
 	if err = t.compileStatement(stmt.Then); err != nil {
 		return err

@@ -9,10 +9,19 @@ import (
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
+func (t *X64Target) newImm(v int64) (Operand, error) {
+	if v != int64(int32(v)) {
+		reg := t.ctx.AllocFreeRegister()
+		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, 8), v)
+		return RegOperand{Reg: reg, Size: 8}, nil
+	}
+	return Imm(v), nil
+}
+
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	switch e := expr.(type) {
 	case *ast.IntLiteral:
-		return Imm(e.Value), nil
+		return t.newImm(e.Value)
 	case *ast.BoolLiteral:
 		if e.Value {
 			return Imm(1), nil
@@ -21,6 +30,16 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		}
 	case *ast.CharLiteral:
 		return Imm(e.Value), nil
+	case *ast.StringLiteral:
+		decoded, err := decodeEscapes(e.Value)
+		if err != nil {
+			return nil, err
+		}
+		label, ok := t.createData("str", string(decoded))
+		if !ok {
+			t.rodata.printf("%s db %s\n", label, bytesToAsm(append(decoded, 0)))
+		}
+		return StrOperand{Label: label, Len: len(decoded)}, nil
 	case *ast.IdentLiteral:
 		offset, ok := t.ctx.Get(t.info.Idents[e])
 		if !ok {
@@ -29,7 +48,7 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 
 		freeReg := t.ctx.AllocFreeRegister()
 		size := t.sizeOf(t.info.Types[e])
-		t.text.printft("mov %s, [rbp-%d]\n", t.ctx.GetRegister(freeReg, size), offset)
+		t.text.printft("mov %s %s, [rbp-%d]\n", sizeLabels[size], t.ctx.GetRegister(freeReg, size), offset)
 
 		return RegOperand{Reg: freeReg, Size: size}, nil
 
@@ -107,7 +126,7 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 			return nil, err
 		}
 		t.push(t.operandText(op, 8))
-		t.operandFree(op)
+		t.freeOperand(op)
 	}
 
 	if len(expr.Args) > len(x64context.ParamOrder) {

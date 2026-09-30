@@ -25,8 +25,8 @@ type X64Target struct {
 	rodata  *rodataSection
 	text    *textSection
 
-	dataIdent  map[any]string
-	identCount int
+	dataLabel  map[any]string
+	labelCount int
 
 	labels map[string]int
 }
@@ -44,7 +44,7 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, target string,
 		rodata:  NewRodata(),
 		text:    NewText(),
 
-		dataIdent: map[any]string{},
+		dataLabel: map[any]string{},
 
 		labels: map[string]int{},
 	}
@@ -67,7 +67,7 @@ func Assemble(asmSource, objPath, asmPath string, keepAsm bool) error {
 		return fmt.Errorf("failed to write asm file: %w", err)
 	}
 
-	nasmCmd := exec.Command("nasm", "-f", "elf64", asmPath, "-o", objPath)
+	nasmCmd := exec.Command("nasm", "-f", "elf64", "-w+error=number-overflow", asmPath, "-o", objPath)
 	nasmCmd.Stderr = os.Stderr
 	if err := nasmCmd.Run(); err != nil {
 		return fmt.Errorf("nasm failed: %w", err)
@@ -88,66 +88,4 @@ func removeEmptyDirs(dir string) {
 		}
 		dir = filepath.Dir(dir)
 	}
-}
-
-var sizeLabels = map[int]string{
-	1: "byte",
-	2: "word",
-	4: "dword",
-	8: "qword",
-}
-
-func (t *X64Target) sizeOf(at analyser.Type) int {
-	switch tp := at.(type) {
-	case analyser.PrimitiveType:
-		switch tp.Name {
-		case "int8", "uint8", "bool", "char":
-			return 1
-		case "int16", "uint16":
-			return 2
-		case "int32", "uint32", "float32":
-			return 4
-		case "int", "int64", "uint", "uint64", "float64":
-			return 8
-		case "string":
-			return 16
-		}
-	case analyser.UntypedIntType, analyser.UntypedFloatType:
-		return 8
-	case analyser.PointerType:
-		return 8
-	case analyser.ArrayType:
-		return int(tp.Size) * t.sizeOf(tp.Element)
-	case *analyser.StructType:
-		size := 0
-		for _, field := range tp.Fields {
-			size += t.sizeOf(field)
-		}
-		return size
-	case analyser.SpanType:
-		return 16
-	}
-
-	return 0
-}
-
-func (t *X64Target) newLabel(key string) string {
-	if _, ok := t.labels[key]; !ok {
-		t.labels[key] = 0
-	}
-
-	label := fmt.Sprintf(".%s%d", key, t.labels[key])
-	t.labels[key]++
-	return label
-}
-
-func (t *X64Target) createData(key string, value any) string {
-	if ident, ok := t.dataIdent[value]; ok {
-		return ident
-	}
-
-	ident := fmt.Sprintf("%s%d", key, t.identCount)
-	t.dataIdent[value] = ident
-	t.identCount++
-	return ident
 }

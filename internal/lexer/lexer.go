@@ -250,6 +250,12 @@ func (l *Lexer) NextToken() Token {
 				return l.token(TOKEN_ILLEGAL, "unterminated string")
 			}
 
+			if l.ch == '\\' && l.peek() == '"' {
+				l.advance()
+				str.WriteByte('"')
+				continue
+			}
+
 			if l.ch == '"' {
 				break
 			}
@@ -265,6 +271,12 @@ func (l *Lexer) NextToken() Token {
 
 			if l.ch == EOF {
 				return l.token(TOKEN_ILLEGAL, "unterminated string")
+			}
+
+			if l.ch == '\\' && l.peek() == '`' {
+				l.advance()
+				str.WriteByte('`')
+				continue
 			}
 
 			if l.ch == '`' {

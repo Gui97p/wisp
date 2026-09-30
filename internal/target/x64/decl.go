@@ -55,7 +55,8 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 
 		for j := range regsNeeded {
 			reg := x64context.ParamOrder[regIdx]
-			t.text.printft("mov [rbp-%d], %s\n", offset-j*8, t.ctx.GetRegister(reg, min(size, 8)))
+			w := min(size, 8)
+			t.text.printft("mov %s, %s\n", t.mem(offset-j*8, w), t.ctx.GetRegister(reg, w))
 			t.ctx.FreeRegister(reg)
 			regIdx++
 			size -= 8

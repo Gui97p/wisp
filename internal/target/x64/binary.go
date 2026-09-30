@@ -58,7 +58,7 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 	t.text.printft("%s %s\n", setccOperators[expr.Operator], resultRegStr)
 
 	t.ctx.FreeRegister(leftReg)
-	t.operandFree(right)
+	t.freeOperand(right)
 
 	return RegOperand{Reg: resultReg, Size: size}, nil
 }
