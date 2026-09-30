@@ -68,6 +68,10 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	t.text.printlnt("pop rbp")
 	t.text.printlnt("ret")
 
+	if t.ctx.Pushed() != 0 {
+		return fmt.Errorf("x86-64: stack alignment failed")
+	}
+
 	return nil
 }
 

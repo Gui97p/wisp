@@ -2,8 +2,10 @@ package x64
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/ast"
+	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
@@ -32,6 +34,8 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 
 	case *ast.BinaryExpr:
 		return t.compileBinaryExpr(e)
+	case *ast.CallExpr:
+		return t.compileCallExpr(e)
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
@@ -63,4 +67,56 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported operator %s", expr.Operator)
 	}
+}
+
+func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
+	pushed := t.ctx.Pushed()
+
+	regs := t.ctx.AllocatedRegisters()
+	for i := range regs {
+		t.push(t.ctx.GetRegister(regs[i], 8))
+	}
+	align := t.ctx.Pushed()%2 == 1
+	if align {
+		t.alignStack(-8)
+	}
+
+	for _, arg := range expr.Args {
+		op, err := t.compileExpr(arg)
+		if err != nil {
+			return nil, err
+		}
+		t.push(t.operandText(op, 8))
+		t.operandFree(op)
+	}
+
+	if len(expr.Args) > len(x64context.ParamOrder) {
+		return nil, fmt.Errorf("x86-64: more than 6 parameters not supported")
+	}
+
+	for i := range slices.Backward(expr.Args) {
+		t.pop(t.ctx.GetRegister(x64context.ParamOrder[i], 8))
+	}
+
+	ident, ok := expr.Name.(*ast.IdentLiteral)
+	if !ok {
+		return nil, fmt.Errorf("x86-64: member calls not supported")
+	}
+	t.text.printft("call %s\n", ident.Value)
+	reg := t.ctx.AllocFreeRegister()
+	t.text.printft("mov %s, rax\n", t.ctx.GetRegister(reg, 8))
+
+	if align {
+		t.alignStack(8)
+	}
+
+	for i := range regs {
+		t.pop(t.ctx.GetRegister(regs[len(regs)-i-1], 8))
+	}
+
+	if t.ctx.Pushed() != pushed {
+		return nil, fmt.Errorf("x86-64: call stack unaligned")
+	}
+
+	return RegOperand{Reg: reg, Size: t.sizeOf(t.info.Types[expr])}, nil
 }

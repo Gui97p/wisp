@@ -7,6 +7,8 @@ type Context struct {
 	stackSize   int
 
 	registers map[Reg]bool
+
+	pushed int
 }
 
 func NewContext() *Context {
@@ -32,4 +34,12 @@ func (c *Context) Set(ident *analyser.Symbol, size int) int {
 	c.stackOffset[ident] = c.stackSize
 
 	return c.stackSize
+}
+
+func (c *Context) AddPushed(n int) {
+	c.pushed += n
+}
+
+func (c *Context) Pushed() int {
+	return c.pushed
 }

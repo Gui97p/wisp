@@ -17,7 +17,7 @@ const (
 )
 
 var ParamOrder = []Reg{DI, SI, DX, CX, R8, R9}
-var RegisterOrder = []Reg{AX, BX, CX, DX, DI, SI, R8, R9, R10, R11, R12}
+var RegisterOrder = []Reg{AX, CX, DX, DI, SI, R8, R9, R10, R11}
 
 var registers = map[Reg]map[int]string{
 	AX:  {1: "al", 2: "ax", 4: "eax", 8: "rax"},
@@ -43,6 +43,14 @@ func (c *Context) AllocRegister(reg Reg) bool {
 	}
 	c.registers[reg] = true
 	return true
+}
+
+func (c *Context) AllocatedRegisters() []Reg {
+	regs := []Reg{}
+	for reg := range c.registers {
+		regs = append(regs, reg)
+	}
+	return regs
 }
 
 func (c *Context) FreeRegister(reg Reg) {

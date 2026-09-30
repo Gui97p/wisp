@@ -61,3 +61,32 @@ var setccOperators = map[string]string{
 	">":  "setg",
 	">=": "setge",
 }
+
+func (t *X64Target) push(operand string) {
+	t.text.printft("push %s\n", operand)
+	t.ctx.AddPushed(1)
+}
+
+func (t *X64Target) pop(operand string) {
+	t.text.printft("pop %s\n", operand)
+	t.ctx.AddPushed(-1)
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
+func (t *X64Target) alignStack(n int) {
+	if n == 0 {
+		return
+	}
+	inst := "add"
+	if n < 0 {
+		inst = "sub"
+	}
+	t.ctx.AddPushed(-n / 8)
+	t.text.printft("%s rsp, %d\n", inst, abs(n))
+}

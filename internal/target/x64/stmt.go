@@ -8,27 +8,40 @@ import (
 )
 
 func (t *X64Target) compileStatement(stmt ast.Statement) error {
+	var err error
+
 	switch s := stmt.(type) {
 	case *ast.NativeStmt:
-		return t.compileNativeStmt(s)
+		err = t.compileNativeStmt(s)
+	case *ast.ExpressionStmt:
+		var op Operand
+		op, err = t.compileExpr(s.Expr)
+		t.operandFree(op)
+		return nil
 	case *ast.BlockStmt:
 		for _, stmt := range s.Statements {
-			if err := t.compileStatement(stmt); err != nil {
-				return err
+			err = t.compileStatement(stmt)
+			if err != nil {
+				break
 			}
 		}
-		return nil
 	case *ast.VarStmt:
-		return t.compileVarStmt(s)
+		err = t.compileVarStmt(s)
 	case *ast.ReturnStmt:
-		return t.compileReturnStmt(s)
+		err = t.compileReturnStmt(s)
 	case *ast.AssignStmt:
-		return t.compileAssignStmt(s)
+		err = t.compileAssignStmt(s)
 	case *ast.IfStmt:
-		return t.compileIfStmt(s)
+		err = t.compileIfStmt(s)
 	default:
 		return fmt.Errorf("x86-64: unsupported statement %T", stmt)
 	}
+
+	if len(t.ctx.AllocatedRegisters()) != 0 {
+		line, col := stmt.Position()
+		return fmt.Errorf("x86-64: register leakage detected in %d %d", line, col)
+	}
+	return err
 }
 
 func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
@@ -130,6 +143,8 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 	if opText != "rax" {
 		t.text.printft("mov rax, %s\n", opText)
 	}
+
+	t.operandFree(op)
 
 	t.text.printlnt("jmp .return")
 
