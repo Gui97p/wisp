@@ -1,0 +1,53 @@
+// Tour - Basics: constants, variables and operators.
+//
+// Every file in this tour exports a `demo` function. main.wsp imports them
+// all and calls them in order, so you can run the whole tour with:
+//
+//     wisp lua --run
+
+// A top-level constant. It is visible to the whole file and can never be
+// assigned again.
+const MaxScore = 100;
+
+export func demo() {
+  // `let` infers the type from the value; an explicit type works too.
+  let total = 2 + 3;
+  int limit = 10;
+
+  // Compound assignment and increment.
+  limit += 2;
+  limit *= 2;
+  total++;
+  emitf("total=%d limit=%d MaxScore=%d", total, limit, MaxScore);
+
+  // A variable declared without a value starts zeroed.
+  int zeroed;
+  emitf("zeroed=%d", zeroed);
+
+  // `const` also works inside a function.
+  const Greeting = "hi";
+  emit(Greeting);
+
+  // Integer division truncates toward zero, and `%` keeps the sign of the
+  // dividend, so (a / b) * b + a % b is always a.
+  emitf("17/5=%d -17/5=%d 17%%5=%d -17%%5=%d", 17 / 5, -17 / 5, 17 % 5, -17 % 5);
+
+  // Bitwise operators: & | ^ ~ << >>. They only work on integers.
+  // `~` is unary (bitwise not), so there is no `~=`.
+  int a = 6;
+  int b = 3;
+  emitf("a&b=%d a|b=%d a^b=%d ~a=%d a<<1=%d a>>1=%d", a & b, a | b, a ^ b, ~a, a << 1, a >> 1);
+
+  // Every binary bitwise operator has a compound form.
+  int flags = 6;
+  flags &= 2;
+  flags |= 8;
+  flags ^= 1;
+  flags <<= 1;
+  flags >>= 1;
+  emitf("flags=%d", flags);
+
+  // The ternary operator.
+  int bigger = 1 > 2 ? 42 : 21;
+  emitf("bigger=%d", bigger);
+}

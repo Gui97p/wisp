@@ -1,0 +1,26 @@
+// Tour - Native code.
+//
+// `native` embeds code written for one backend. The name after `native`
+// picks the backend: `lua`, or a machine target such as `linux_x64`. Blocks
+// for other backends are skipped, so one function can carry an
+// implementation for each target.
+//
+// The bindings in parentheses say which Wisp variables the block reads
+// (`in`) and writes (`out`). They are checked like any other use of a
+// variable: they must exist, and an `out` can't be a constant.
+//
+// In Lua the native code uses the variable names directly. For x86-64 the
+// code refers to a binding with `{name}`, which becomes a sized memory
+// operand, and `;` separates instructions:
+//
+//     native linux_x64(in x, out r) "mov rax, {x}; add rax, rax; mov {r}, rax";
+
+export func abs(int x) int {
+  int r;
+  native lua(out r, in x) "r = x < 0 and -x or x";
+  return r;
+}
+
+export func demo() {
+  emitf("abs(-5)=%d abs(5)=%d", abs(-5), abs(5));
+}

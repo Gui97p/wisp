@@ -1,0 +1,49 @@
+// The entry point of the tour. `wisp lua --run` (or `wisp run` for the
+// native x86-64 backend, once it covers this much) finds the single `main`
+// in the project on its own, no `entry` setting needed.
+//
+// Every file is its own module. `import "basics"` loads basics.wsp and binds
+// it to the name `basics`; `as` picks another name.
+
+import "basics";
+import "branching";
+import "loops";
+import "functions";
+import "types";
+import "structs";
+import "collections";
+import "errors";
+import "interop";
+import "geometry" as geo;
+
+func main() {
+  emit("== basics ==");
+  basics.demo();
+
+  emit("== branching ==");
+  branching.demo();
+
+  emit("== loops ==");
+  loops.demo();
+
+  emit("== functions ==");
+  functions.demo();
+
+  emit("== types ==");
+  types.demo();
+
+  emit("== structs ==");
+  structs.demo();
+
+  emit("== collections ==");
+  collections.demo();
+
+  emit("== errors ==");
+  errors.demo();
+
+  emit("== interop ==");
+  interop.demo();
+
+  emit("== modules ==");
+  emitf("area=%d sides=%d", geo.area(3, 4), geo.Sides);
+}

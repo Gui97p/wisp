@@ -1,0 +1,64 @@
+// Tour - Loops: `for` and `loop`.
+
+export func demo() {
+  // A range includes both ends: this prints 1, 2, 3.
+  for i in 1..3 {
+    emitf("range: %d", i);
+  }
+
+  // `:2` after the range is the step. This prints 1, 5, 9.
+  for i in 1..10:4 {
+    emitf("step: %d", i);
+  }
+
+  // Without a variable, `for` just repeats.
+  for 2 {
+    emit("twice");
+  }
+
+  // `loop <condition>` is a while loop.
+  int left = 3;
+  loop left != 0 {
+    emitf("%d to go", left);
+    left--;
+  }
+
+  // A `loop` with `until` at the end is a do-while: the body runs first.
+  int tries = 0;
+  loop {
+    tries++;
+  } until tries == 3;
+  emitf("tries=%d", tries);
+
+  // A bare `loop` runs until something breaks out of it.
+  int n = 0;
+  loop {
+    n++;
+    if n == 2 {
+      continue;
+    }
+    if n > 4 {
+      break;
+    }
+    emitf("n=%d", n);
+  }
+
+  // Labels start with `:` and let `break` and `continue` target an outer loop.
+  :outer loop {
+    loop {
+      emit("leaving both loops");
+      break outer;
+    }
+  }
+
+  // `for ... in` walks any collection. With two names you get the index
+  // (or the key, for a map) and the element; with a single name you get
+  // just the index.
+  int[3] values = [10, 20, 30];
+  for i, v in values {
+    emitf("values[%d]=%d", i, v);
+  }
+  for i in values {
+    emitf("index %d", i);
+  }
+}

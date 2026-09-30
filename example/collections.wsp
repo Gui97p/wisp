@@ -1,0 +1,41 @@
+// Tour - Arrays, maps and slicing.
+
+export func demo() {
+  // A fixed-size array: the size is part of the type.
+  int[5] nums = [124, 512, 1, 5, 2];
+
+  // A partial literal fills the rest with zero values.
+  int[5] partial = [7, 8];
+  emitf("partial=%d,%d,%d", partial[0], partial[1], partial[2]);
+
+  // Elements can be assigned, incremented and updated in place.
+  nums[0] = 999;
+  nums[1]++;
+  nums[2] += 10;
+  emitf("nums=%d,%d,%d", nums[0], nums[1], nums[2]);
+
+  // `len` works on arrays, slices and strings.
+  emitf("len(nums)=%d", len(nums));
+
+  // Slicing is [start:end]. The end is exclusive and both ends are optional.
+  int[] middle = nums[1:3];
+  int[] head = nums[:2];
+  int[] tail = nums[3:];
+  emitf("middle=%d,%d len=%d head0=%d tail0=%d", middle[0], middle[1], len(middle), head[0], tail[0]);
+
+  // Strings slice the same way.
+  string greeting = "hello world";
+  emitf("%s | %s", greeting[:5], greeting[6:]);
+
+  // Maps infer their key and value types from the literal.
+  map[string]int scores = {"alice": 10, "bob": 7};
+  scores["carol"] = 3;
+  emitf("alice=%d bob=%d carol=%d", scores["alice"], scores["bob"], scores["carol"]);
+
+  // Iterating a map gives the key and the value. The order is not specified.
+  int total;
+  for name, score in scores {
+    total += score;
+  }
+  emitf("total=%d", total);
+}

@@ -1,0 +1,35 @@
+// Tour - Types: aliases, enums and casts.
+
+// `type` creates a new nominal type. UserID and int are different types, so
+// mixing them needs an explicit cast.
+type UserID int;
+
+// An enum is a nominal type plus typed constants. Numbering starts at 0 and
+// continues from the last explicit value.
+enum Color {
+  Red,
+  Green,
+  Blue,
+  Alpha = 10,
+  Beta
+}
+
+export func demo() {
+  // An untyped literal adapts to the alias directly...
+  UserID uid = 42;
+
+  // ...but going back to int needs `as`.
+  int raw = uid as int;
+  emitf("uid=%d raw=%d", uid as int, raw);
+
+  Color favorite = Green;
+  emitf("Red=%d Green=%d Blue=%d Alpha=%d Beta=%d", Red as int, Green as int, Blue as int, Alpha as int, Beta as int);
+  emitf("favorite=%d", favorite as int);
+
+  // Primitive types: int, uint, int8..int64, uint8..uint64, float32,
+  // float64, bool, char and string.
+  float64 ratio = 2.5;
+  bool ready = true;
+  char letter = 'w';
+  emitf("ratio=%f ready=%s letter=%c", ratio, ready, letter);
+}

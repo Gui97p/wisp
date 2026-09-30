@@ -1,0 +1,53 @@
+// Tour - Pointers and manual memory.
+//
+// Nothing runs this file yet: the Lua backend has no address-of, and the
+// x86-64 backend doesn't implement pointers so far. It lives in a folder
+// starting with `_`, which project discovery skips, and it still passes the
+// analyser:
+//
+//     wisp debug analyser _pending/pointers.wsp
+//
+// When a backend supports it, move it next to the others and import it from
+// main.wsp like the rest of the tour.
+//
+// The star is always a prefix of the type: *int, **int, *Point. It is never
+// written after the type, which keeps `Point *p` from being mistaken for a
+// multiplication.
+
+struct Point {
+  int x, y;
+}
+
+export func demo() {
+  int x = 1;
+  *int px = &x;
+  **int ppx = &px;
+  emitf("x=%d *px=%d **ppx=%d", x, *px, **ppx);
+
+  // Writing through a pointer changes the original.
+  *px = 7;
+  emitf("x=%d", x);
+
+  // Pointers to structs reach their fields directly.
+  Point p = Point{x: 1, y: 2};
+  *Point pp = &p;
+  pp.x = 10;
+  emitf("p.x=%d pp.y=%d", p.x, pp.y);
+
+  // `null` is the empty pointer.
+  *int nothing = null;
+  if nothing == null {
+    emit("nothing is null");
+  }
+
+  // Manual heap allocation.
+  *int heap = malloc(8);
+  *heap = 99;
+  emitf("heap=%d", *heap);
+  free(heap);
+}
+
+// Only here so the analyser accepts this file when run on its own.
+func main() {
+  demo();
+}

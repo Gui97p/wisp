@@ -1,0 +1,40 @@
+// Tour - Functions.
+
+// The parameter type comes first. `a, b` share the type written before them.
+func add(int a, b) int {
+  return a + b;
+}
+
+// A function made of a single expression can use `=>`.
+func square(int x) int => x * x;
+
+// Multiple return values.
+func minmax(int a, b) (int, int) {
+  if a < b {
+    return a, b;
+  }
+  return b, a;
+}
+
+// A variadic parameter is a real span inside the body: indexable, iterable
+// and measurable with `len`.
+func sum(int ...values) int {
+  int total;
+  for i, v in values {
+    total += v;
+  }
+  return total;
+}
+
+export func demo() {
+  emitf("add=%d square=%d", add(2, 3), square(7));
+
+  let low, high = minmax(9, 4);
+  emitf("low=%d high=%d", low, high);
+
+  emitf("sum=%d", sum(1, 2, 3, 4));
+
+  // Functions are values too.
+  let triple = (int x) int => x * 3;
+  emitf("triple=%d", triple(5));
+}

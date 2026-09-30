@@ -1,0 +1,40 @@
+// Tour - Error handling.
+
+// An enum makes a handy set of error codes.
+enum DivError {
+  DivByZero
+}
+
+// `!T` marks a function that can fail. The failure branch returns an
+// Error{} (a builtin struct with a code and a message) and the success
+// branch returns the declared type.
+func divide(int a, b) !int {
+  if b == 0 {
+    return Error{code: DivByZero as int, message: "cannot divide by zero"};
+  }
+  return a / b;
+}
+
+// `!expr` propagates: if the call fails, this function fails with the same
+// error. It is only legal inside another fallible function.
+func halveThenDouble(int a, b) !int {
+  let half = !divide(a, b);
+  return half * 2;
+}
+
+export func demo() {
+  // `??` unwraps the result, falling back to a default value on failure.
+  int ok = divide(10, 2) ?? -1;
+  int fallback = divide(10, 0) ?? -1;
+  emitf("ok=%d fallback=%d", ok, fallback);
+
+  // `?? |e| { ... }` runs a handler that receives the error.
+  int handled = divide(10, 0) ?? |e| {
+    emitf("failed: %s (code=%d)", e.message, e.code);
+    return -1;
+  };
+  emitf("handled=%d", handled);
+
+  int propagated = halveThenDouble(10, 0) ?? -1;
+  emitf("propagated=%d", propagated);
+}

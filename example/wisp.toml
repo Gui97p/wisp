@@ -1,0 +1,2 @@
+[output]
+lua = "../dist/example"

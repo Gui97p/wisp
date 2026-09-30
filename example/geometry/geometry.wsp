@@ -1,0 +1,11 @@
+// A package: the file named after its folder is what `import "geometry"`
+// resolves to. Other files in the folder stay separate modules.
+//
+// Importing a sibling and then `export`ing it by name re-exports everything
+// it exports, as if it were declared here. `export constants as consts;`
+// would nest it instead, reachable as `geometry.consts.Sides`.
+
+import "geometry/constants";
+export constants;
+
+export func area(int width, height) int => width * height;
