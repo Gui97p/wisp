@@ -15,6 +15,7 @@ type X64Target struct {
 	program *ast.Program
 	info    *analyser.Info
 	isEntry bool
+	target  string
 
 	ctx *x64context.Context
 
@@ -28,11 +29,12 @@ type X64Target struct {
 	labels map[string]int
 }
 
-func New(program *ast.Program, info *analyser.Info, isEntry bool) *X64Target {
+func New(program *ast.Program, info *analyser.Info, isEntry bool, target string) *X64Target {
 	return &X64Target{
 		program: program,
 		info:    info,
 		isEntry: isEntry,
+		target:  target,
 
 		data:   NewData(),
 		rodata: NewRodata(),
@@ -45,10 +47,6 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool) *X64Target {
 }
 
 func (t *X64Target) Compile() (string, error) {
-	if t.isEntry {
-		t.text.println("global main")
-	}
-
 	for _, decl := range t.program.Declarations {
 		if err := t.compileDeclaration(decl); err != nil {
 			return "", err
@@ -104,6 +102,13 @@ func removeEmptyDirs(dir string) {
 		}
 		dir = filepath.Dir(dir)
 	}
+}
+
+var sizeLabels = map[int]string{
+	1: "byte",
+	2: "word",
+	4: "dword",
+	8: "qword",
 }
 
 func (t *X64Target) sizeOf(at analyser.Type) int {

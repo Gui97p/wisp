@@ -37,9 +37,6 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 
 	regIdx := 0
 	for paramIdx := range fd.Params {
-		if paramIdx == 0 {
-			t.text.newLine()
-		}
 		offset, ok := t.ctx.Get(t.info.VarSymbols[fd][paramIdx])
 		if !ok {
 			return fmt.Errorf("x86-64: error on allocating parameter offset")

@@ -2,12 +2,15 @@ package x64
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
 func (t *X64Target) compileStatement(stmt ast.Statement) error {
 	switch s := stmt.(type) {
+	case *ast.NativeStmt:
+		return t.compileNativeStmt(s)
 	case *ast.BlockStmt:
 		for _, stmt := range s.Statements {
 			if err := t.compileStatement(stmt); err != nil {
@@ -28,6 +31,66 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 	}
 }
 
+func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
+	if stmt.Backend != "" {
+		if stmt.Backend != t.target && stmt.Backend != "x64" {
+			return nil
+		}
+	}
+
+	variables := map[string]string{}
+	for _, binding := range stmt.Bindings {
+		sym := t.info.Idents[binding.Var]
+		offset, ok := t.ctx.Get(sym)
+		if !ok {
+			return fmt.Errorf("x86-64: variable %s not declared on this scope", sym.Name)
+		}
+		size := t.sizeOf(sym.Type)
+		label, ok := sizeLabels[size]
+		if !ok {
+			return fmt.Errorf("x86-64: type %s not supported", sym.Type)
+		}
+
+		variables[sym.Name] = fmt.Sprintf("%s [rbp-%d]", label, offset)
+	}
+
+	var b strings.Builder
+	parts := strings.Split(stmt.Code, ";")
+
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+
+	s := strings.Join(parts, "\n\t")
+
+	for i := 0; i < len(s); {
+		if s[i] != '{' {
+			b.WriteByte(s[i])
+			i++
+			continue
+		}
+
+		end := strings.IndexByte(s[i+1:], '}')
+		if end == -1 {
+			return fmt.Errorf("x86-64: invalid identifier definition")
+		}
+
+		end += i + 1
+		ident := s[i+1 : end]
+
+		inst, ok := variables[ident]
+		if !ok {
+			return fmt.Errorf("x86-64: undeclared identifier %s", ident)
+		}
+
+		b.WriteString(inst)
+		i = end + 1
+	}
+
+	t.text.printlnt(b.String())
+	return nil
+}
+
 func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 	for i, v := range stmt.Vars {
 		offset, ok := t.ctx.Get(t.info.VarSymbols[stmt][i])
@@ -35,13 +98,17 @@ func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 			return fmt.Errorf("x86-64: undeclared variable %s", v.Name)
 		}
 		size := t.sizeOf(t.info.VarTypes[stmt][i])
-		op, err := t.compileExpr(stmt.Values[i])
-		if err != nil {
-			return err
-		}
-		t.text.printft("mov [rbp-%d], %s\n", offset, t.operandText(op, size))
-		if r, ok := op.(RegOperand); ok {
-			t.ctx.FreeRegister(r.Reg)
+		if i < len(stmt.Values) && stmt.Values[i] != nil {
+			op, err := t.compileExpr(stmt.Values[i])
+			if err != nil {
+				return err
+			}
+			t.text.printft("mov [rbp-%d], %s\n", offset, t.operandText(op, size))
+			if r, ok := op.(RegOperand); ok {
+				t.ctx.FreeRegister(r.Reg)
+			}
+		} else {
+			t.text.printft("mov %s [rbp-%d], 0\n", sizeLabels[size], offset)
 		}
 	}
 
