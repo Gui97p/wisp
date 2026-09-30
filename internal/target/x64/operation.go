@@ -38,14 +38,17 @@ type RegOperand struct {
 
 func (RegOperand) op() {}
 
-func (t *X64Target) ensureRegister(op Operand, size int) x64context.Reg {
-	if r, ok := op.(RegOperand); ok {
-		return r.Reg
+func (t *X64Target) ensureRegister(op Operand, size int) (x64context.Reg, error) {
+	switch o := op.(type) {
+	case RegOperand:
+		return o.Reg, nil
+	case Imm:
+		reg := t.ctx.AllocFreeRegister()
+		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, size), o)
+		return reg, nil
+	default:
+		return 0, fmt.Errorf("x86-64: unsupported operand type %s", o)
 	}
-
-	reg := t.ctx.AllocFreeRegister()
-	t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, size), op.(Imm))
-	return reg
 }
 
 func (t *X64Target) operandText(op Operand, size int) (string, error) {

@@ -17,7 +17,10 @@ func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
 	}
 
 	size := t.sizeOf(t.info.Types[expr.Left])
-	leftReg := t.ensureRegister(left, size)
+	leftReg, err := t.ensureRegister(left, size)
+	if err != nil {
+		return nil, err
+	}
 	reg := t.ctx.GetRegister(leftReg, size)
 	opText, err := t.operandText(right, size)
 	if err != nil {
@@ -48,7 +51,10 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 	}
 
 	size := t.sizeOf(t.info.Types[expr.Left])
-	leftReg := t.ensureRegister(left, size)
+	leftReg, err := t.ensureRegister(left, size)
+	if err != nil {
+		return nil, err
+	}
 	leftRegStr := t.ctx.GetRegister(leftReg, size)
 	opText, err := t.operandText(right, size)
 	if err != nil {
@@ -85,7 +91,10 @@ func (t *X64Target) compileLogical(expr *ast.BinaryExpr) (Operand, error) {
 	}
 
 	size := t.sizeOf(t.info.Types[expr.Left])
-	leftReg := t.ensureRegister(left, size)
+	leftReg, err := t.ensureRegister(left, size)
+	if err != nil {
+		return nil, err
+	}
 	leftRegStr := t.ctx.GetRegister(leftReg, size)
 	t.text.printft("test %s, %s\n", leftRegStr, leftRegStr)
 	t.text.printft("%s %s\n", inst, condLabel)
@@ -96,7 +105,10 @@ func (t *X64Target) compileLogical(expr *ast.BinaryExpr) (Operand, error) {
 	}
 
 	size = t.sizeOf(t.info.Types[expr.Right])
-	rightReg := t.ensureRegister(right, size)
+	rightReg, err := t.ensureRegister(right, size)
+	if err != nil {
+		return nil, err
+	}
 	rightRegStr := t.ctx.GetRegister(rightReg, size)
 	t.text.printft("test %s, %s\n", rightRegStr, rightRegStr)
 
