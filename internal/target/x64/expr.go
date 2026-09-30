@@ -2,7 +2,6 @@ package x64
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -120,21 +119,33 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 		t.alignStack(-8)
 	}
 
+	total := 0
 	for _, arg := range expr.Args {
 		op, err := t.compileExpr(arg)
 		if err != nil {
 			return nil, err
 		}
-		t.push(t.operandText(op, 8))
+		switch o := op.(type) {
+		case Imm, RegOperand:
+			t.push(t.operandText(op, 8))
+			total++
+		case StrOperand:
+			reg := t.ctx.AllocFreeRegister()
+			regStr := t.ctx.GetRegister(reg, 8)
+			t.text.printft("lea %s, [rel %s]\n", regStr, o.Label)
+			t.push(regStr)
+			t.ctx.FreeRegister(reg)
+			t.push(fmt.Sprint(o.Len))
+			total += 2
+		}
 		t.freeOperand(op)
 	}
 
-	if len(expr.Args) > len(x64context.ParamOrder) {
+	if total > len(x64context.ParamOrder) {
 		return nil, fmt.Errorf("x86-64: more than 6 parameters not supported")
 	}
-
-	for i := range slices.Backward(expr.Args) {
-		t.pop(t.ctx.GetRegister(x64context.ParamOrder[i], 8))
+	for r := total - 1; r >= 0; r-- {
+		t.pop(t.ctx.GetRegister(x64context.ParamOrder[r], 8))
 	}
 
 	sym, err := t.resolveCallee(expr.Name)
