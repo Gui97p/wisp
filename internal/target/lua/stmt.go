@@ -534,7 +534,15 @@ func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignS
 				}
 			}
 		}
-		fmt.Fprintf(b, "(%s) %s (%s)", target, op, value)
+		if (op == "/" || op == "%") && analyser.IsInteger(t.info.Types[stmt.Target]) {
+			fn := "__wisp_idiv"
+			if op == "%" {
+				fn = "__wisp_imod"
+			}
+			fmt.Fprintf(b, "%s(%s, %s)", fn, target, value)
+		} else {
+			fmt.Fprintf(b, "(%s) %s (%s)", target, op, value)
+		}
 	}
 	b.WriteByte('\n')
 

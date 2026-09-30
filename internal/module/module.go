@@ -190,7 +190,14 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || !strings.HasSuffix(p, ".wsp") {
+		if d.IsDir() {
+			name := d.Name()
+			if p != root && (strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(p, ".wsp") {
 			return nil
 		}
 		path, err := canonicalModulePath(root, p)

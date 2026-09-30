@@ -384,6 +384,9 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 				types = append(types, InvalidType{})
 				continue
 			}
+			if len(returns) == 1 {
+				a.info.Types[call] = returns[0]
+			}
 			types = append(types, returns...)
 		} else {
 			types = append(types, a.checkExpr(e))

@@ -343,6 +343,10 @@ func isNumeric(t Type) bool {
 	return isInteger(t) || isFloat(t)
 }
 
+func IsInteger(t Type) bool {
+	return isInteger(t)
+}
+
 func isInteger(t Type) bool {
 	if _, ok := t.(UntypedIntType); ok {
 		return true

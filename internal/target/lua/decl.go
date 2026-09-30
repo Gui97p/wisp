@@ -58,11 +58,17 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 		b.WriteString(recvName)
 		first = false
 	}
+	variadicName := ""
 	for _, v := range fd.Params {
 		if !first {
 			b.WriteByte(',')
 		}
-		b.WriteString(v.Name)
+		if v.Variadic {
+			b.WriteString("...")
+			variadicName = v.Name
+		} else {
+			b.WriteString(v.Name)
+		}
 		first = false
 	}
 	prevCount, prevIdx := t.currentReturnCount, t.currentFallibleIndex
@@ -79,6 +85,10 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 		t.currentFallibleIndex = prevIdx
 	}()
 	b.WriteString(")\n")
+
+	if variadicName != "" {
+		fmt.Fprintf(b, "local %s = __wisp_pack(...)\n", variadicName)
+	}
 
 	if err := t.compileStatement(b, fd.Body); err != nil {
 		return err

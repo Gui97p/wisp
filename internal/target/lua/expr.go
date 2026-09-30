@@ -11,6 +11,11 @@ import (
 func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) error {
 	switch e := expr.(type) {
 	case *ast.BinaryExpr:
+		if e.Operator == "/" || e.Operator == "%" {
+			if analyser.IsInteger(t.info.Types[e]) {
+				return t.compileIntDivision(b, e)
+			}
+		}
 		t.compileExpression(b, e.Left)
 		switch e.Operator {
 		case "&&":
@@ -436,5 +441,25 @@ func (t *LuaTarget) compileInExpression(b *strings.Builder, expr *ast.InExpr) er
 		t.compileExpression(b, expr.Left)
 		b.WriteByte(')')
 	}
+	return nil
+}
+
+func (t *LuaTarget) compileIntDivision(b *strings.Builder, e *ast.BinaryExpr) error {
+	fn := "__wisp_idiv"
+	if e.Operator == "%" {
+		fn = "__wisp_imod"
+	}
+
+	b.WriteString(fn)
+	b.WriteByte('(')
+	if err := t.compileExpression(b, e.Left); err != nil {
+		return err
+	}
+	b.WriteString(", ")
+	if err := t.compileExpression(b, e.Right); err != nil {
+		return err
+	}
+	b.WriteByte(')')
+
 	return nil
 }
