@@ -301,5 +301,12 @@ func loadModule(path, dir string, files []string, overrides map[string][]byte) *
 		}
 	}
 
+	if !strings.HasPrefix(path, "std/") && len(mod.Files) > 0 {
+		prelude := &ast.ImportDecl{Path: "std/prelude", Alias: "__prelude", Implicit: true}
+		first := mod.Files[0]
+		first.Declarations = append([]ast.Declaration{prelude}, first.Declarations...)
+		mod.Imports = append(mod.Imports, prelude)
+	}
+
 	return mod
 }

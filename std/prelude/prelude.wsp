@@ -1,0 +1,4 @@
+export func emit(string s) {
+    native lua(in s) "print(s)";
+    native linux_x64(in s) "mov rax, 1; mov rdi, 1; mov rsi, {s.ptr}; mov rdx, {s.len}; syscall; push 10; mov rsi, rsp; mov edx, 1; mov eax, 1; mov edi, 1; syscall; pop rax";
+}

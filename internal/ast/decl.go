@@ -131,8 +131,9 @@ func (t *TypeDecl) Tree(indent string) string {
 }
 
 type ImportDecl struct {
-	Path  string
-	Alias string
+	Path     string
+	Alias    string
+	Implicit bool
 
 	NodePos
 }

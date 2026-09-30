@@ -20,6 +20,8 @@ type Analyser struct {
 	modules map[string]*ModuleInfo
 	module  string
 
+	prelude *Scope
+
 	declFiles   map[ast.Declaration]string
 	currentFile string
 
@@ -27,10 +29,12 @@ type Analyser struct {
 }
 
 func NewAnalyser(program *ast.Program, isEntry bool, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string, module string) *Analyser {
+	prelude := NewScope(nil)
 	return &Analyser{
 		program:   program,
 		info:      NewInfo(),
-		scope:     NewScope(nil),
+		prelude:   prelude,
+		scope:     NewScope(prelude),
 		isEntry:   isEntry,
 		modules:   modules,
 		declFiles: declFiles,

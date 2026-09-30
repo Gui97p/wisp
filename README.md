@@ -116,6 +116,18 @@ import "std/strings" as strings;
 
 The compiler looks for it in a `std` folder next to the `bin` folder that holds the `wisp` executable, which is the layout `make prod` packages.
 
+## Prelude
+
+A few names are available everywhere without an import, such as `emit`. They come from `std/prelude`, which the compiler imports into every module except the standard library itself. Declaring a function with the same name in your own module shadows the prelude one.
+
+```wsp
+func main() {
+  emit("hello");
+}
+```
+
+Because the prelude lives in the standard library, every build needs `std/` to be findable.
+
 ## Native blocks
 
 ```wsp
