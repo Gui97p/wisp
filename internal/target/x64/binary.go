@@ -19,7 +19,10 @@ func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
 	size := t.sizeOf(t.info.Types[expr.Left])
 	leftReg := t.ensureRegister(left, size)
 	reg := t.ctx.GetRegister(leftReg, size)
-	opText := t.operandText(right, size)
+	opText, err := t.operandText(right, size)
+	if err != nil {
+		return nil, err
+	}
 	if r, ok := right.(RegOperand); ok {
 		t.ctx.FreeRegister(r.Reg)
 	}
@@ -47,7 +50,10 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 	size := t.sizeOf(t.info.Types[expr.Left])
 	leftReg := t.ensureRegister(left, size)
 	leftRegStr := t.ctx.GetRegister(leftReg, size)
-	opText := t.operandText(right, size)
+	opText, err := t.operandText(right, size)
+	if err != nil {
+		return nil, err
+	}
 
 	size = t.sizeOf(t.info.Types[expr])
 	resultReg := t.ctx.AllocFreeRegister()

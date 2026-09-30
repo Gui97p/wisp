@@ -36,7 +36,7 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		return fmt.Errorf("x86-64: unsupported statement %T", stmt)
 	}
 
-	if len(t.ctx.AllocatedRegisters()) != 0 {
+	if err == nil && len(t.ctx.AllocatedRegisters()) != 0 {
 		line, col := stmt.Position()
 		return fmt.Errorf("x86-64: register leakage detected in %d %d", line, col)
 	}
@@ -55,7 +55,9 @@ func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 			if err != nil {
 				return err
 			}
-			t.storeOperand(op, offset, size)
+			if err := t.storeOperand(op, offset, size); err != nil {
+				return err
+			}
 			t.freeOperand(op)
 		} else {
 			for off := 0; off < size; off += 8 {
@@ -78,7 +80,10 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 		return err
 	}
 
-	opText := t.operandText(op, size)
+	opText, err := t.operandText(op, size)
+	if err != nil {
+		return err
+	}
 	if opText != "rax" {
 		t.text.printft("mov rax, %s\n", opText)
 	}
@@ -102,11 +107,19 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 		return err
 	}
 
-	opText := t.operandText(op, size)
+	var opText string
+	if stmt.Op != "=" {
+		opText, err = t.operandText(op, size)
+		if err != nil {
+			return err
+		}
+	}
 
 	switch stmt.Op {
 	case "=":
-		t.storeOperand(op, offset, size)
+		if err := t.storeOperand(op, offset, size); err != nil {
+			return err
+		}
 	case "+=":
 		t.text.printft("add %s, %s\n", t.mem(offset, size), opText)
 	case "-=":
@@ -141,7 +154,10 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 	elseLabel := t.newLabel("else")
 	endLabel := t.newLabel("end")
 
-	opText := t.operandText(op, size)
+	opText, err := t.operandText(op, size)
+	if err != nil {
+		return err
+	}
 	t.text.printft("test %s, %s\n", opText, opText)
 	t.text.printft("jz %s\n", elseLabel)
 

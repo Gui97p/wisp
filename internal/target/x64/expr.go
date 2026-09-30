@@ -44,12 +44,16 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		if !ok {
 			return nil, fmt.Errorf("x86-64: undefined literal")
 		}
-
-		freeReg := t.ctx.AllocFreeRegister()
 		size := t.sizeOf(t.info.Types[e])
-		t.text.printft("mov %s %s, [rbp-%d]\n", sizeLabels[size], t.ctx.GetRegister(freeReg, size), offset)
 
-		return RegOperand{Reg: freeReg, Size: size}, nil
+		if size > 8 {
+			return MemOperand{Offset: offset, Size: size}, nil
+		} else {
+			freeReg := t.ctx.AllocFreeRegister()
+			t.text.printft("mov %s %s, [rbp-%d]\n", sizeLabels[size], t.ctx.GetRegister(freeReg, size), offset)
+
+			return RegOperand{Reg: freeReg, Size: size}, nil
+		}
 
 	case *ast.BinaryExpr:
 		return t.compileBinaryExpr(e)
@@ -127,7 +131,11 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 		}
 		switch o := op.(type) {
 		case Imm, RegOperand:
-			t.push(t.operandText(op, 8))
+			text, err := t.operandText(op, 8)
+			if err != nil {
+				return nil, err
+			}
+			t.push(text)
 			total++
 		case StrOperand:
 			reg := t.ctx.AllocFreeRegister()
@@ -137,6 +145,14 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 			t.ctx.FreeRegister(reg)
 			t.push(fmt.Sprint(o.Len))
 			total += 2
+		case MemOperand:
+			if o.Size%8 != 0 {
+				return nil, fmt.Errorf("x86-64: invalid parameter with MemOperand")
+			}
+			for i := 0; i < o.Size-1; i += 8 {
+				t.push(t.mem(o.Offset-i, 8))
+			}
+			total += o.Size / 8
 		}
 		t.freeOperand(op)
 	}

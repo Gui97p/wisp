@@ -24,6 +24,13 @@ type StrOperand struct {
 
 func (StrOperand) op() {}
 
+type MemOperand struct {
+	Offset int
+	Size   int
+}
+
+func (MemOperand) op() {}
+
 type RegOperand struct {
 	Reg  x64context.Reg
 	Size int
@@ -41,28 +48,49 @@ func (t *X64Target) ensureRegister(op Operand, size int) x64context.Reg {
 	return reg
 }
 
-func (t *X64Target) operandText(op Operand, size int) string {
+func (t *X64Target) operandText(op Operand, size int) (string, error) {
 	switch o := op.(type) {
 	case Imm:
-		return fmt.Sprint(o)
+		return fmt.Sprint(o), nil
 	case RegOperand:
-		return t.ctx.GetRegister(o.Reg, size)
+		return t.ctx.GetRegister(o.Reg, size), nil
 	default:
-		return ""
+		return "", fmt.Errorf("x86-64: unsupported operand")
 	}
 }
 
-func (t *X64Target) storeOperand(op Operand, offset, size int) {
+func (t *X64Target) storeOperand(op Operand, offset, size int) error {
 	switch o := op.(type) {
 	case Imm, RegOperand:
-		t.text.printft("mov %s [rbp-%d], %s\n", sizeLabels[size], offset, t.operandText(op, size))
+		text, err := t.operandText(op, size)
+		if err != nil {
+			return err
+		}
+		t.text.printft("mov %s [rbp-%d], %s\n", sizeLabels[size], offset, text)
+		return nil
 	case StrOperand:
 		reg := t.ctx.AllocFreeRegister()
 		regStr := t.ctx.GetRegister(reg, 8)
+
 		t.text.printft("lea %s, [rel %s]\n", regStr, o.Label)
 		t.text.printft("mov qword [rbp-%d], %s\n", offset, regStr)
 		t.text.printft("mov qword [rbp-(%d-8)], %d\n", offset, o.Len)
 		t.ctx.FreeRegister(reg)
+
+		return nil
+	case MemOperand:
+		reg := t.ctx.AllocFreeRegister()
+		regStr := t.ctx.GetRegister(reg, 8)
+
+		for i := 0; i < size-1; i += 8 {
+			t.text.printft("mov %s, %s\n", regStr, t.mem(o.Offset-i, 8))
+			t.text.printft("mov %s, %s\n", t.mem(offset-i, 8), regStr)
+		}
+		t.ctx.FreeRegister(reg)
+
+		return nil
+	default:
+		return fmt.Errorf("x86-64: unsupported operand")
 	}
 }
 
