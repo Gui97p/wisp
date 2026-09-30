@@ -39,7 +39,7 @@ The [`example/`](example) folder is a guided tour: one small file per topic, wri
 | Lua | `wisp lua` | The most complete. Does not cover pointers or `malloc` yet. |
 | x86-64 (NASM, ELF) | `wisp build`, `wisp run` | In progress: integer arithmetic, comparisons, `if`, locals and `native` so far. |
 
-The x86-64 backend emits NASM assembly, assembles it with `nasm` and links with `gcc`, following the System V calling convention so the object files can be linked against C.
+The x86-64 backend emits NASM assembly, assembles it with `nasm` and links with `ld`, following the System V calling convention so the object files can be linked against C. Binaries are static and do not use libc: a small start stub calls `main` and exits with its return value, and it is only added when `wisp build --bin` links, so the `.o` files stay linkable by any toolchain.
 
 ## Usage
 
@@ -137,7 +137,7 @@ native linux_x64(in x, out r) "mov rax, {x}; add rax, rax; mov {r}, rax";
 Requirements:
 
 * Go, to build the compiler
-* `nasm` and `gcc`, for the x86-64 backend
+* `nasm` and `ld` (binutils), for the x86-64 backend
 * `lua` 5.4, for `wisp lua --run`
 
 ```bash

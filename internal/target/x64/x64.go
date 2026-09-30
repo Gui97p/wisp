@@ -81,24 +81,6 @@ func Assemble(asmSource, objPath, asmPath string, keepAsm bool) error {
 	return nil
 }
 
-func Link(objPaths []string, outputPath string, keepObj bool) error {
-	args := append(objPaths, "-o", outputPath)
-	gccCmd := exec.Command("gcc", args...)
-	gccCmd.Stderr = os.Stderr
-	if err := gccCmd.Run(); err != nil {
-		return fmt.Errorf("gcc failed: %w", err)
-	}
-
-	if !keepObj {
-		for _, path := range objPaths {
-			os.Remove(path)
-			removeEmptyDirs(filepath.Dir(path))
-		}
-	}
-
-	return nil
-}
-
 func removeEmptyDirs(dir string) {
 	for {
 		if err := os.Remove(dir); err != nil {
