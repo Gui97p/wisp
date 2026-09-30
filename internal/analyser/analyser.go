@@ -18,6 +18,7 @@ type Analyser struct {
 
 	isEntry bool
 	modules map[string]*ModuleInfo
+	module  string
 
 	declFiles   map[ast.Declaration]string
 	currentFile string
@@ -25,7 +26,7 @@ type Analyser struct {
 	errors diag.List
 }
 
-func NewAnalyser(program *ast.Program, isEntry bool, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string) *Analyser {
+func NewAnalyser(program *ast.Program, isEntry bool, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string, module string) *Analyser {
 	return &Analyser{
 		program:   program,
 		info:      NewInfo(),
@@ -33,6 +34,7 @@ func NewAnalyser(program *ast.Program, isEntry bool, modules map[string]*ModuleI
 		isEntry:   isEntry,
 		modules:   modules,
 		declFiles: declFiles,
+		module:    module,
 	}
 }
 

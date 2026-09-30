@@ -37,6 +37,24 @@ func (w *Writable) newLine() {
 	w.b.WriteRune('\n')
 }
 
+type prelude struct {
+	extern map[string]bool
+	Writable
+}
+
+func (p *prelude) define(ident string) {
+	if _, ok := p.extern[ident]; ok {
+		return
+	}
+	p.printf("extern %s\n", ident)
+	p.extern[ident] = true
+}
+
+func NewPrelude() *prelude {
+	p := &prelude{extern: map[string]bool{}}
+	return p
+}
+
 type rodataSection struct {
 	Writable
 }

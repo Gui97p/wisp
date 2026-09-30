@@ -45,7 +45,7 @@ func (a *Analyser) registerFuncSignatures() {
 		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
 		a.info.VarTypes[fd] = params
 		line, col := fd.Position()
-		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile}
+		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(fd, FUNC, fd.Name)

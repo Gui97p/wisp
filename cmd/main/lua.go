@@ -79,7 +79,7 @@ func runLua(cmd *cobra.Command, args []string) error {
 
 		merged, declFiles := mod.Merge()
 
-		a := analyser.NewAnalyser(merged, false, exports, declFiles)
+		a := analyser.NewAnalyser(merged, false, exports, declFiles, mod.Path)
 		info := a.Analyze()
 		if a.HasErrors() {
 			fmt.Printf("<<  %s  >>\n", mod.Path)

@@ -15,17 +15,21 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		err := t.compileFunc(d)
 		t.ctx = ctx
 		return err
+	case *ast.ImportDecl, *ast.ReexportDecl:
+		return nil
 	default:
 		return fmt.Errorf("x86-64: unsupported declaration %T", d)
 	}
 }
 
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
+	name := t.funcSymbol(t.module, fd.Name)
+
 	if fd.Exported {
-		t.text.printf("global %s\n", fd.Name)
+		t.text.printf("global %s\n", name)
 	}
 
-	t.text.printf("\n%s:\n", fd.Name)
+	t.text.printf("\n%s:\n", name)
 	t.text.printlnt("push rbp")
 	t.text.printlnt("mov rbp, rsp")
 

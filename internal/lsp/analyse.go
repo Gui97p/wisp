@@ -20,7 +20,7 @@ func analyseEntry(path string) (*ast.Program, *analyser.Info) {
 		isEntry := false
 
 		merged, declFiles := mod.Merge()
-		a := analyser.NewAnalyser(merged, isEntry, exports, declFiles)
+		a := analyser.NewAnalyser(merged, isEntry, exports, declFiles, mod.Path)
 		info := a.Analyze()
 
 		if slices.Contains(mod.FilePaths, path) {

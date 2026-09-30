@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
@@ -69,6 +70,25 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 	}
 }
 
+func (t *X64Target) resolveCallee(expr ast.Expression) (*analyser.Symbol, error) {
+	switch e := expr.(type) {
+	case *ast.IdentLiteral:
+		return t.info.Idents[e], nil
+	case *ast.MemberExpr:
+		c, err := t.resolveCallee(e.Object)
+		if err != nil {
+			return nil, err
+		}
+		tp, ok := c.Type.(*analyser.ModuleType)
+		if !ok {
+			return c, nil
+		}
+		return tp.Exports[e.Field], nil
+	default:
+		return nil, fmt.Errorf("x86-64: invalid callee %s", e)
+	}
+}
+
 func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 	pushed := t.ctx.Pushed()
 
@@ -98,11 +118,18 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 		t.pop(t.ctx.GetRegister(x64context.ParamOrder[i], 8))
 	}
 
-	ident, ok := expr.Name.(*ast.IdentLiteral)
-	if !ok {
-		return nil, fmt.Errorf("x86-64: member calls not supported")
+	sym, err := t.resolveCallee(expr.Name)
+	if err != nil {
+		return nil, err
 	}
-	t.text.printft("call %s\n", ident.Value)
+
+	fSym := t.funcSymbol(sym.Module, sym.Name)
+
+	if sym.Module != t.module {
+		t.prelude.define(fSym)
+	}
+
+	t.text.printft("call %s\n", fSym)
 	reg := t.ctx.AllocFreeRegister()
 	t.text.printft("mov %s, rax\n", t.ctx.GetRegister(reg, 8))
 

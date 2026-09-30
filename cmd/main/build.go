@@ -186,7 +186,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 
 		merged, declFiles := mod.Merge()
 
-		a := analyser.NewAnalyser(merged, false, exports, declFiles)
+		a := analyser.NewAnalyser(merged, false, exports, declFiles, mod.Path)
 		info := a.Analyze()
 		if a.HasErrors() {
 			fmt.Printf("<<  %s  >>\n", mod.Path)
@@ -238,7 +238,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	for _, c := range compiled {
 		isEntry := mainMod != nil && c.mod == mainMod.mod
 
-		backend := x64.New(c.merged, c.info, isEntry, target)
+		backend := x64.New(c.merged, c.info, isEntry, target, c.mod.Path)
 		source, err := backend.Compile()
 		if err != nil {
 			return err

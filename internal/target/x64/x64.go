@@ -15,13 +15,15 @@ type X64Target struct {
 	program *ast.Program
 	info    *analyser.Info
 	isEntry bool
+	module  string
 	target  string
 
 	ctx *x64context.Context
 
-	data   *dataSection
-	rodata *rodataSection
-	text   *textSection
+	prelude *prelude
+	data    *dataSection
+	rodata  *rodataSection
+	text    *textSection
 
 	dataIdent  map[any]string
 	identCount int
@@ -29,16 +31,18 @@ type X64Target struct {
 	labels map[string]int
 }
 
-func New(program *ast.Program, info *analyser.Info, isEntry bool, target string) *X64Target {
+func New(program *ast.Program, info *analyser.Info, isEntry bool, target string, module string) *X64Target {
 	return &X64Target{
 		program: program,
 		info:    info,
 		isEntry: isEntry,
+		module:  module,
 		target:  target,
 
-		data:   NewData(),
-		rodata: NewRodata(),
-		text:   NewText(),
+		prelude: NewPrelude(),
+		data:    NewData(),
+		rodata:  NewRodata(),
+		text:    NewText(),
 
 		dataIdent: map[any]string{},
 
@@ -53,7 +57,7 @@ func (t *X64Target) Compile() (string, error) {
 		}
 	}
 
-	code := fmt.Sprintf("%s\n%s\n%s", t.rodata.b.String(), t.data.b.String(), t.text.b.String())
+	code := fmt.Sprintf("%s\n%s\n%s\n%s", t.prelude.b.String(), t.rodata.b.String(), t.data.b.String(), t.text.b.String())
 
 	return code, nil
 }
