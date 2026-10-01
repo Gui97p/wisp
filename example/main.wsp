@@ -1,6 +1,7 @@
-// The entry point of the tour. `wisp lua --run` (or `wisp run` for the
-// native x86-64 backend, once it covers this much) finds the single `main`
-// in the project on its own, no `entry` setting needed.
+// The entry point of the tour. `wisp run` finds the single `main` in the
+// project on its own, no `entry` setting needed, and wisp.toml next to this
+// file picks the Lua target (`wisp run --target linux_x64` would use the
+// native x86-64 backend, once it covers this much).
 //
 // Every file is its own module. `import "basics"` loads basics.wsp and binds
 // it to the name `basics`; `as` picks another name.

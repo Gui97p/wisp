@@ -1,2 +1,20 @@
+target = "lua"
+
+# entry = "main.wsp"
+
 [output]
 lua = "../dist/example"
+# bin = "bin/tour"
+# obj = "build/obj"
+# asm = "build/asm"
+
+# A target of your own, for instance a userspace for a kernel (see the README).
+# `wisp init target mykernel` creates this block and its files.
+#
+# [targets.mykernel]
+# arch = "x64"
+# os = "mykernel"
+# entry = "_start"
+# runtime = "targets/mykernel/runtime"
+# start = "targets/mykernel/start.asm"
+# link = ["-z", "noexecstack"]

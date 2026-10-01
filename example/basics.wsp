@@ -3,7 +3,7 @@
 // Every file in this tour exports a `demo` function. main.wsp imports them
 // all and calls them in order, so you can run the whole tour with:
 //
-//     wisp lua --run
+//     wisp run
 
 // A top-level constant. It is visible to the whole file and can never be
 // assigned again.

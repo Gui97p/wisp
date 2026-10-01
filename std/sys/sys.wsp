@@ -2,11 +2,12 @@ export func write(int fd, string s, int len) int {
     int n;
     native linux_x64(in fd, in s, in len, out n) "mov rax, 1; mov rdi, {fd}; mov rsi, {s.ptr}; mov rdx, {len}; syscall; mov {n}, rax";
     native sine_x64(in fd, in s, in len, out n) "mov rax, 5; mov rdi, {fd}; mov rsi, {s.ptr}; mov rdx, {len}; syscall; mov {n}, rax";
-    native lua(in s, in len, out n) "io.write(string.sub(s, 1, len)); n = len-1";
+    native lua(in s, in len, out n) "io.write(string.sub(s, 1, len)); n = len";
     return n;
 }
 
 export func exit(int code) {
-    native linux_x64(in code) "mov rax, 60; mov rdi, {code}";
-    native sine_x64 "mov rax, 19; mov rdi, 3";
+    native linux_x64(in code) "mov rax, 60; mov rdi, {code}; syscall";
+    native sine_x64 "mov rax, 19; mov rdi, 3; syscall";
+    native lua(in code) "os.exit(code)";
 }

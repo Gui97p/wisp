@@ -36,7 +36,7 @@ The [`example/`](example) folder is a guided tour: one small file per topic, wri
 
 | Backend | Command | Status |
 | --- | --- | --- |
-| Lua | `wisp lua` | The most complete. Does not cover pointers or `malloc` yet. |
+| Lua | `wisp build --target lua`, `wisp run --target lua` | The most complete. Does not cover pointers or `malloc` yet. |
 | x86-64 (NASM, ELF) | `wisp build`, `wisp run` | In progress: integer arithmetic, comparisons, `if`, locals and `native` so far. |
 
 The x86-64 backend emits NASM assembly, assembles it with `nasm` and links with `ld`, following the System V calling convention so the object files can be linked against C. Binaries are static and do not use libc: a small start stub calls `main` and exits with its return value, and it is only added when `wisp build --bin` links, so the `.o` files stay linkable by any toolchain.
@@ -44,10 +44,13 @@ The x86-64 backend emits NASM assembly, assembles it with `nasm` and links with 
 ## Usage
 
 ```bash
-wisp init                  # create wisp.toml and a main.wsp
-wisp lua --run             # transpile the project to Lua and run it
-wisp build                 # compile to a native binary
-wisp run                   # build, then run the binary
+wisp init                  # native project for the host target
+wisp init lua              # project that targets Lua
+wisp init lib              # library project: object files, no main
+wisp init target <name>    # add a target of your own (kernel userspace)
+wisp build                 # compile for the target (x86-64 for the host by default)
+wisp run                   # build, then run the result
+wisp run --target lua      # transpile to Lua and run it
 wisp debug <lexer|parser|analyser> <file.wsp>
 wisp lsp                   # start the language server
 ```
@@ -60,6 +63,10 @@ There is no entry file to name: the compiler reads every `.wsp` file under the p
 
 Directories starting with `.` or `_` are skipped when looking for source files.
 
+### Targets and pipelines
+
+`wisp build` and `wisp run` work for every target; the target picks the pipeline. It comes from `--target`, then `target = "..."` in `wisp.toml`, then the host x86-64 target. An x86-64 target goes through assembly, object files and linking, a `lua` target writes one `.lua` file per module. Setting `target = "lua"` in `wisp.toml` makes plain `wisp run` run a Lua project.
+
 ### Build outputs
 
 Each stage of the x86-64 pipeline is produced only when asked for, and each takes the path it should be written to:
@@ -68,9 +75,11 @@ Each stage of the x86-64 pipeline is produced only when asked for, and each take
 wisp build --asm build/asm --obj build/obj --bin bin/app
 ```
 
-With none of the three given, `wisp build` produces just the binary. Asking only for `--asm` or `--obj` never needs a `main`, which is how you produce `.o` files to link into a C project.
+With none of the three given, `wisp build` produces just the binary.
 
-`wisp build` and `wisp run` also take `--target` (for example `linux_x64`), which selects the matching `native` blocks. `wisp lua` takes `--dir` for the output folder.
+Those folders only ever contain your own modules. Standard library modules are built on demand into a cache (`~/.cache/wisp`, or the folder in `WISP_CACHE_DIR`), keyed by the compiler and the contents of `std/`, and `--bin` links them from there. That is the same role `libc` plays for a C program: it is an input of the toolchain, not a file of your project. `wisp cache dir` prints the cache folder, and `wisp cache clean` empties it (`--old` keeps only what the current compiler would use). Asking only for `--asm` or `--obj` never needs a `main`, which is how you produce `.o` files to link into a C project.
+
+`wisp build` and `wisp run` also take `--target` (for example `linux_x64`), which selects the matching `native` blocks. Targets are checked: an unknown or misspelled name, in the flag, in `wisp.toml` or in a `native` block, is an error that suggests the closest known one. A `native` block can name a full target (`linux_x64`), an architecture (`x64`) or an operating system (`linux`). A flag for another pipeline is an error, never silently ignored: `--asm`, `--obj` and `--bin` do not apply to `lua`, and `--lua <dir>`, the output folder of the Lua pipeline (default `dist`), does not apply to x86-64 targets.
 
 ### `wisp.toml`
 
@@ -86,6 +95,29 @@ obj = "build/obj"
 asm = "build/asm"
 lua = "dist"
 ```
+
+## Targets
+
+Besides the built-in targets (`linux_x64`, `sine_x64`, `lua`), a project can define its own, for instance to write a userspace for a kernel of its own. A target is data in `wisp.toml`:
+
+```toml
+[targets.mykernel]
+arch = "x64"
+os = "mykernel"
+entry = "kstart"
+runtime = "mylib/runtime"
+start = "targets/start.asm"
+link = ["-T", "targets/link.ld"]
+```
+
+* `arch` is required and only `x64` exists for now; `abi` (`sysv`) and `format` (`elf64`) default to the only supported values.
+* `start` is required: the assembly that calls `main` and leaves the program on this kernel. It is assembled only when linking, and `entry` is the symbol the linker starts at (default `_start`).
+* `link` holds extra `ld` arguments. They run from the project root, so relative paths resolve there.
+* `runtime` is the module providing what the compiler calls on its own, such as `emit` (default `std/runtime`).
+
+Then `wisp build --target mykernel` uses it, and `native mykernel "..."` blocks apply to it. Names are lowercase letters, digits and underscores, and cannot reuse a built-in target, architecture or operating system name.
+
+A function that has `native` blocks but none for the target being built is an error, so a missing port is never a silently empty function. This applies to every module in the project, used or not.
 
 ## Modules
 
@@ -116,17 +148,9 @@ import "std/strings" as strings;
 
 The compiler looks for it in a `std` folder next to the `bin` folder that holds the `wisp` executable, which is the layout `make prod` packages.
 
-## Prelude
+## Builtins
 
-A few names are available everywhere without an import, such as `emit`. They come from `std/prelude`, which the compiler imports into every module except the standard library itself. Declaring a function with the same name in your own module shadows the prelude one.
-
-```wsp
-func main() {
-  emit("hello");
-}
-```
-
-Because the prelude lives in the standard library, every build needs `std/` to be findable.
+`emit`, `emitf`, `len`, `malloc`, `realloc` and `free` are builtins: the compiler knows them, and they need no import. Declaring a function with the same name in your own module shadows the builtin. The Lua backend translates `emit`, `emitf` and `len`; the x86-64 backend refuses a builtin it cannot translate yet, with an error naming it.
 
 ## Native blocks
 
@@ -150,7 +174,7 @@ Requirements:
 
 * Go, to build the compiler
 * `nasm` and `ld` (binutils), for the x86-64 backend
-* `lua` 5.4, for `wisp lua --run`
+* `lua` 5.4, for `wisp run --target lua`
 
 ```bash
 make build    # writes bin/wisp
