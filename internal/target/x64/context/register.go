@@ -1,9 +1,10 @@
 package x64context
 
-type Reg int
+type Register int
 
 const (
-	AX Reg = iota
+	NoReg Register = iota
+	AX
 	BX
 	CX
 	DX
@@ -14,12 +15,14 @@ const (
 	R10
 	R11
 	R12
+
+	BP
 )
 
-var ParamOrder = []Reg{DI, SI, DX, CX, R8, R9}
-var RegisterOrder = []Reg{AX, CX, DX, DI, SI, R8, R9, R10, R11}
+var ParamOrder = []Register{DI, SI, DX, CX, R8, R9}
+var RegisterOrder = []Register{AX, CX, DX, DI, SI, R8, R9, R10, R11}
 
-var registers = map[Reg]map[int]string{
+var registers = map[Register]map[int]string{
 	AX:  {1: "al", 2: "ax", 4: "eax", 8: "rax"},
 	BX:  {1: "bl", 2: "bx", 4: "ebx", 8: "rbx"},
 	CX:  {1: "cl", 2: "cx", 4: "ecx", 8: "rcx"},
@@ -31,13 +34,15 @@ var registers = map[Reg]map[int]string{
 	R10: {1: "r10b", 2: "r10w", 4: "r10d", 8: "r10"},
 	R11: {1: "r11b", 2: "r11w", 4: "r11d", 8: "r11"},
 	R12: {1: "r12b", 2: "r12w", 4: "r12d", 8: "r12"},
+
+	BP: {1: "bpl", 2: "bp", 4: "ebp", 8: "rbp"},
 }
 
-func (c *Context) GetRegister(reg Reg, size int) string {
+func (c *Context) GetRegister(reg Register, size int) string {
 	return registers[reg][size]
 }
 
-func (c *Context) AllocRegister(reg Reg) bool {
+func (c *Context) AllocRegister(reg Register) bool {
 	if _, ok := c.registers[reg]; ok {
 		return false
 	}
@@ -45,19 +50,19 @@ func (c *Context) AllocRegister(reg Reg) bool {
 	return true
 }
 
-func (c *Context) AllocatedRegisters() []Reg {
-	regs := []Reg{}
+func (c *Context) AllocatedRegisters() []Register {
+	regs := []Register{}
 	for reg := range c.registers {
 		regs = append(regs, reg)
 	}
 	return regs
 }
 
-func (c *Context) FreeRegister(reg Reg) {
+func (c *Context) FreeRegister(reg Register) {
 	delete(c.registers, reg)
 }
 
-func (c *Context) AllocFreeRegister() Reg {
+func (c *Context) AllocFreeRegister() Register {
 	for _, reg := range RegisterOrder {
 		if _, ok := c.registers[reg]; !ok {
 			c.AllocRegister(reg)

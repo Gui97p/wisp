@@ -6,13 +6,13 @@ type Context struct {
 	stackOffset map[*analyser.Symbol]int
 	stackSize   int
 
-	registers map[Reg]bool
+	registers map[Register]bool
 
 	pushed int
 }
 
 func NewContext() *Context {
-	return &Context{stackOffset: map[*analyser.Symbol]int{}, registers: map[Reg]bool{}}
+	return &Context{stackOffset: map[*analyser.Symbol]int{}, registers: map[Register]bool{}}
 }
 
 func (c *Context) Get(ident *analyser.Symbol) (int, bool) {
