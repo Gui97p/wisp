@@ -28,6 +28,8 @@ type X64Target struct {
 	dataLabel  map[any]string
 	labelCount int
 
+	err error
+
 	labels map[string]int
 }
 
@@ -47,6 +49,12 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, target string,
 		dataLabel: map[any]string{},
 
 		labels: map[string]int{},
+	}
+}
+
+func (t *X64Target) fail(message string, args ...any) {
+	if t.err == nil {
+		t.err = fmt.Errorf(message, args...)
 	}
 }
 
