@@ -1,11 +1,14 @@
 package lsp
 
 import (
+	"github.com/Gui97p/wisp/internal/version"
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
 const languageServerName = "wisp-lsp"
+
+var serverVersion = version.Version()
 
 var fileBuffer = map[string][]byte{}
 
@@ -21,7 +24,8 @@ func NewHandler() *protocol.Handler {
 		return protocol.InitializeResult{
 			Capabilities: capabilities,
 			ServerInfo: &protocol.InitializeResultServerInfo{
-				Name: languageServerName,
+				Name:    languageServerName,
+				Version: &serverVersion,
 			},
 		}, nil
 	}

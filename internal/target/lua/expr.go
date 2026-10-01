@@ -133,10 +133,6 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 	case *ast.StructLiteral:
 		return t.compileStructLiteral(b, e)
 	case *ast.IdentLiteral:
-		if sym, ok := t.info.Idents[e]; ok && sym.Via != "" {
-			b.WriteString(sym.Via)
-			b.WriteByte('.')
-		}
 		b.WriteString(e.Value)
 	case *ast.StringLiteral:
 		b.WriteByte('"')

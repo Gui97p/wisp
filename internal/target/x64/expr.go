@@ -168,6 +168,9 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 	if err != nil {
 		return nil, err
 	}
+	if sym.Module == "" {
+		return nil, fmt.Errorf("x86-64: builtin %s is not supported yet", sym.Name)
+	}
 
 	fSym := t.funcSymbol(sym.Module, sym.Name)
 

@@ -42,7 +42,6 @@ type Symbol struct {
 	Col    int
 	File   string
 	Module string
-	Via    string
 }
 
 type Scope struct {

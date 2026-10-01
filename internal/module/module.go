@@ -44,7 +44,7 @@ func (m *Module) BufferMap() map[string][]byte {
 	return buffers
 }
 
-func stdlibRoot() (string, error) {
+func StdlibRoot() (string, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -86,7 +86,7 @@ func resolveImportPath(projectRoot, path string) (key, dir string, files []strin
 	isStd := strings.HasPrefix(path, "std/")
 	base := filepath.Join(projectRoot, path)
 	if after, ok := strings.CutPrefix(path, "std/"); ok {
-		stdRoot, err := stdlibRoot()
+		stdRoot, err := StdlibRoot()
 		if err != nil {
 			return "", "", nil, fmt.Errorf("cannot locate stdlib: %w", err)
 		}
@@ -214,7 +214,7 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 	return roots, nil
 }
 
-func DiscoverProject(root string) ([]*Module, error) {
+func DiscoverProject(root string, extra ...string) ([]*Module, error) {
 	modules := map[string]*Module{}
 	visiting := map[string]bool{}
 	visited := map[string]bool{}
@@ -261,6 +261,16 @@ func DiscoverProject(root string) ([]*Module, error) {
 		}
 	}
 
+	for _, imp := range extra {
+		key, dir, files, err := resolveImportPath(root, imp)
+		if err != nil {
+			return nil, err
+		}
+		if err := visit(key, dir, files); err != nil {
+			return nil, err
+		}
+	}
+
 	return order, nil
 }
 
@@ -299,13 +309,6 @@ func loadModule(path, dir string, files []string, overrides map[string][]byte) *
 				mod.Imports = append(mod.Imports, d)
 			}
 		}
-	}
-
-	if !strings.HasPrefix(path, "std/") && len(mod.Files) > 0 {
-		prelude := &ast.ImportDecl{Path: "std/prelude", Alias: "__prelude", Implicit: true}
-		first := mod.Files[0]
-		first.Declarations = append([]ast.Declaration{prelude}, first.Declarations...)
-		mod.Imports = append(mod.Imports, prelude)
 	}
 
 	return mod

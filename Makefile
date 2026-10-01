@@ -1,13 +1,22 @@
-.PHONY: build prod run clean
+.PHONY: build prod run clean version sync-vscode check-version
 APP=wisp
 
-VERSION=0.2.1
-NAME=wisp-$(VERSION)-linux-amd64
+VERSION = $(shell go run ./cmd/main version --short)
+NAME = wisp-$(VERSION)-linux-amd64
 
 build:
 	go build -o bin/$(APP) ./cmd/main
 
-prod:
+version:
+	@go run ./cmd/main version
+
+sync-vscode:
+	sed -i 's/^    "version": ".*"/    "version": "$(VERSION)"/' vscode/package.json
+
+check-version:
+	@grep -q '^    "version": "$(VERSION)"' vscode/package.json || { echo "vscode/package.json is out of sync with $(VERSION), run: make sync-vscode"; exit 1; }
+
+prod: check-version
 	rm -rf dist/$(APP)
 	mkdir -p dist/$(APP)
 
@@ -17,6 +26,12 @@ prod:
 	tar -C dist -czf dist/$(NAME).tar.gz $(APP)
 
 	rm -rf dist/$(APP)
+
+ext:
+	mkdir -p dist/vscode
+	cd vscode
+	npx @vscode/vsce package
+	cp *.vsix ../dist/vscode
 
 run:
 	go run ./cmd/main

@@ -100,14 +100,6 @@ func (a *Analyser) registerImports() {
 			a.errorf(imp, "unresolved import %q", imp.Path)
 			continue
 		}
-		if imp.Implicit {
-			for _, sym := range mod.Exports {
-				shared := *sym
-				shared.Via = imp.Alias
-				a.prelude.Define(&shared)
-			}
-			continue
-		}
 		line, col := imp.Position()
 		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: &ModuleType{Exports: mod.Exports}, Line: line, Col: col, File: a.currentFile}
 		if !a.scope.Define(symbol) {
