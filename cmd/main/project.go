@@ -24,8 +24,8 @@ type project struct {
 	mainCount int
 }
 
-func loadProject(root string, cfg *module.Config, extra ...string) (*project, error) {
-	modules, err := module.DiscoverProject(root, extra...)
+func loadProject(root string, cfg *module.Config) (*project, error) {
+	modules, err := module.DiscoverProject(root)
 	if err != nil {
 		return nil, err
 	}

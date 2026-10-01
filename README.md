@@ -106,7 +106,7 @@ Besides the built-in targets (`linux_x64`, `sine_x64`, `lua`), a project can def
 arch = "x64"
 os = "mykernel"
 entry = "kstart"
-runtime = "mylib/runtime"
+runtime = "targets/mykernel/runtime.asm"
 start = "targets/start.asm"
 link = ["-T", "targets/link.ld"]
 ```
@@ -114,7 +114,7 @@ link = ["-T", "targets/link.ld"]
 * `arch` is required and only `x64` exists for now; `abi` (`sysv`) and `format` (`elf64`) default to the only supported values.
 * `start` is required: the assembly that calls `main` and leaves the program on this kernel. It is assembled only when linking, and `entry` is the symbol the linker starts at (default `_start`).
 * `link` holds extra `ld` arguments. They run from the project root, so relative paths resolve there.
-* `runtime` is the module providing what the compiler calls on its own, such as `emit` (default `std/runtime`).
+* `runtime` is optional: an assembly file with the routines the compiler calls on its own. Today that is `__wisp_emit`, which backs the `emit` builtin (`rdi` holds the address of the text and `rsi` its length). Like `start`, it is assembled only when linking.
 
 Then `wisp build --target mykernel` uses it, and `native mykernel "..."` blocks apply to it. Names are lowercase letters, digits and underscores, and cannot reuse a built-in target, architecture or operating system name.
 
@@ -151,7 +151,7 @@ The compiler looks for it in a `std` folder next to the `bin` folder that holds 
 
 ## Builtins
 
-`emit`, `emitf`, `len`, `malloc`, `realloc` and `free` are builtins: the compiler knows them, and they need no import. Declaring a function with the same name in your own module shadows the builtin. The Lua backend translates `emit`, `emitf` and `len`; the x86-64 backend refuses a builtin it cannot translate yet, with an error naming it.
+`emit`, `emitf`, `len`, `malloc`, `realloc` and `free` are builtins: the compiler knows them, and they need no import. Declaring a function with the same name in your own module shadows the builtin. The Lua backend translates `emit`, `emitf` and `len`. On x86-64, `len` is resolved by the compiler and `emit` becomes a call to `__wisp_emit`, which the target provides; a target without a runtime reports `target X does not provide emit`. A builtin the x86-64 backend cannot translate yet is an error naming it. None of this needs the standard library.
 
 ## Native blocks
 

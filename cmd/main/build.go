@@ -198,12 +198,7 @@ func resolveBuildTargets(root string, cfg *module.Config, forceBin bool) buildTa
 func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (*buildResult, error) {
 	targets := resolveBuildTargets(root, cfg, forRun)
 
-	var extra []string
-	if targets.wantBin {
-		extra = append(extra, tgt.Runtime)
-	}
-
-	proj, err := loadProject(root, cfg, extra...)
+	proj, err := loadProject(root, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -217,17 +212,17 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 	var objPaths, libPaths []string
 
 	var stdc *stdCache
-	if targets.wantBin {
-		stdc, err = openStdCache(tgt)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	for _, c := range proj.compiled {
 		if strings.HasPrefix(c.mod.Path, "std/") {
-			if stdc == nil {
+			if !targets.wantBin {
 				continue
+			}
+			if stdc == nil {
+				stdc, err = openStdCache(tgt)
+				if err != nil {
+					return nil, err
+				}
 			}
 			c := c
 			obj, err := stdc.object(c.mod.Path, func(objPath string) error {

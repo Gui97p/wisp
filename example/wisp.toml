@@ -15,6 +15,6 @@ lua = "../dist/example"
 # arch = "x64"
 # os = "mykernel"
 # entry = "_start"
-# runtime = "targets/mykernel/runtime"
+# runtime = "targets/mykernel/runtime.asm"
 # start = "targets/mykernel/start.asm"
 # link = ["-z", "noexecstack"]

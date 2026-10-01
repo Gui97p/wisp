@@ -90,7 +90,7 @@ const targetTomlContent = `
 arch = "x64"
 os = "%[1]s"
 entry = "_start"
-runtime = "targets/%[1]s/runtime"
+runtime = "targets/%[1]s/runtime.asm"
 start = "targets/%[1]s/start.asm"
 link = ["-z", "noexecstack"]
 `
@@ -113,10 +113,30 @@ _start:
 section .note.GNU-stack noalloc noexec nowrite progbits
 `
 
-const targetRuntimeContent = `export func emit(string s) {
-    native lua(in s) "print(s)";
-    native %[1]s(in s) "mov rax, 1; mov rdi, 1; mov rsi, {s.ptr}; mov rdx, {s.len}; syscall; push 10; mov rsi, rsp; mov edx, 1; mov eax, 1; mov edi, 1; syscall; pop rax";
-}
+const targetRuntimeContent = `; Runtime of the %[1]s target: routines the compiler calls on its own.
+; __wisp_emit backs the emit builtin: rdi holds the address of the text and
+; rsi its length. It writes the text and a line feed to the standard output.
+; The Linux write below is only a placeholder, replace it with your kernel's.
+
+global __wisp_emit
+
+section .text
+__wisp_emit:
+    mov rdx, rsi
+    mov rsi, rdi
+    mov edi, 1
+    mov eax, 1
+    syscall
+    push 10
+    mov rsi, rsp
+    mov edx, 1
+    mov edi, 1
+    mov eax, 1
+    syscall
+    pop rax
+    ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits
 `
 
 func runInit(cmd *cobra.Command, args []string) error {
@@ -187,7 +207,7 @@ func runInitTarget(cmd *cobra.Command, args []string) error {
 
 	dir := filepath.Join(root, "targets", name)
 	startPath := filepath.Join(dir, "start.asm")
-	runtimePath := filepath.Join(dir, "runtime.wsp")
+	runtimePath := filepath.Join(dir, "runtime.asm")
 	for _, p := range []string{startPath, runtimePath} {
 		if _, err := os.Stat(p); err == nil {
 			return fmt.Errorf("%s already exists", p)
