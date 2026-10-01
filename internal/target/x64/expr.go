@@ -112,6 +112,18 @@ func (t *X64Target) resolveCallee(expr ast.Expression) (*analyser.Symbol, error)
 }
 
 func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
+	sym, err := t.resolveCallee(expr.Name)
+	if err != nil {
+		return nil, err
+	}
+	if sym.Module == "" {
+		return t.compileBuiltin(sym.Name, expr)
+	}
+
+	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), sym.Module != t.module, expr.Args, t.info.Types[expr])
+}
+
+func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, returnType analyser.Type) (Operand, error) {
 	pushed := t.ctx.Pushed()
 
 	regs := t.ctx.AllocatedRegisters()
@@ -124,7 +136,7 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 	}
 
 	total := 0
-	for _, arg := range expr.Args {
+	for _, arg := range args {
 		op, err := t.compileExpr(arg)
 		if err != nil {
 			return nil, err
@@ -164,21 +176,11 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 		t.pop(t.ctx.GetRegister(x64context.ParamOrder[r], 8))
 	}
 
-	sym, err := t.resolveCallee(expr.Name)
-	if err != nil {
-		return nil, err
-	}
-	if sym.Module == "" {
-		return nil, fmt.Errorf("x86-64: builtin %s is not supported yet", sym.Name)
+	if extern {
+		t.prelude.define(sym)
 	}
 
-	fSym := t.funcSymbol(sym.Module, sym.Name)
-
-	if sym.Module != t.module {
-		t.prelude.define(fSym)
-	}
-
-	t.text.printft("call %s\n", fSym)
+	t.text.printft("call %s\n", sym)
 	reg := t.ctx.AllocFreeRegister()
 	t.text.printft("mov %s, rax\n", t.ctx.GetRegister(reg, 8))
 
@@ -194,5 +196,5 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 		return nil, fmt.Errorf("x86-64: call stack unaligned")
 	}
 
-	return RegOperand{Reg: reg, Size: t.sizeOf(t.info.Types[expr])}, nil
+	return RegOperand{Reg: reg, Size: t.sizeOf(returnType)}, nil
 }

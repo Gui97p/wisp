@@ -214,7 +214,7 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 	return roots, nil
 }
 
-func DiscoverProject(root string, extra ...string) ([]*Module, error) {
+func DiscoverProject(root string) ([]*Module, error) {
 	modules := map[string]*Module{}
 	visiting := map[string]bool{}
 	visited := map[string]bool{}
@@ -257,16 +257,6 @@ func DiscoverProject(root string, extra ...string) ([]*Module, error) {
 
 	for _, r := range roots {
 		if err := visit(r.path, r.dir, r.files); err != nil {
-			return nil, err
-		}
-	}
-
-	for _, imp := range extra {
-		key, dir, files, err := resolveImportPath(root, imp)
-		if err != nil {
-			return nil, err
-		}
-		if err := visit(key, dir, files); err != nil {
 			return nil, err
 		}
 	}

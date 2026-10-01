@@ -12,12 +12,12 @@ type Target struct {
 	Arch string
 	OS   string
 
-	ABI         string
-	Format      string
-	Entry       string
-	Runtime     string
-	StartSource string
-	LinkArgs    []string
+	ABI           string
+	Format        string
+	Entry         string
+	StartSource   string
+	RuntimeSource string
+	LinkArgs      []string
 
 	Builtin bool
 }
@@ -32,6 +32,48 @@ _start:
 	mov rdi, rax
 	mov eax, 60
 	syscall
+
+section .note.GNU-stack noalloc noexec nowrite progbits
+`
+
+const linuxRuntime = `global __wisp_emit
+
+section .text
+__wisp_emit:
+	mov rdx, rsi
+	mov rsi, rdi
+	mov edi, 1
+	mov eax, 1
+	syscall
+	push 10
+	mov rsi, rsp
+	mov edx, 1
+	mov edi, 1
+	mov eax, 1
+	syscall
+	pop rax
+	ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits
+`
+
+const sineRuntime = `global __wisp_emit
+
+section .text
+__wisp_emit:
+	mov rdx, rsi
+	mov rsi, rdi
+	mov edi, 1
+	mov eax, 5
+	syscall
+	push 10
+	mov rsi, rsp
+	mov edx, 1
+	mov edi, 1
+	mov eax, 5
+	syscall
+	pop rax
+	ret
 
 section .note.GNU-stack noalloc noexec nowrite progbits
 `
@@ -51,8 +93,8 @@ section .note.GNU-stack noalloc noexec nowrite progbits
 `
 
 var builtin = []Target{
-	{Name: "linux_x64", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", Runtime: "std/runtime", StartSource: linuxStart, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
-	{Name: "sine_x64", Arch: "x64", OS: "sine", ABI: "sysv", Format: "elf64", Entry: "_start", Runtime: "std/runtime", StartSource: sineStart, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
+	{Name: "linux_x64", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
+	{Name: "sine_x64", Arch: "x64", OS: "sine", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: sineStart, RuntimeSource: sineRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
 	{Name: "lua", Arch: "lua", Builtin: true},
 }
 
@@ -108,9 +150,6 @@ func Register(t Target) error {
 	}
 	if !entryPattern.MatchString(t.Entry) {
 		return fmt.Errorf("target %q: invalid entry symbol %q", t.Name, t.Entry)
-	}
-	if t.Runtime == "" {
-		t.Runtime = "std/runtime"
 	}
 	if strings.TrimSpace(t.StartSource) == "" {
 		return fmt.Errorf("target %q: \"start\" is required, the assembly that calls main and leaves the program for this kernel", t.Name)

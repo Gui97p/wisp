@@ -35,6 +35,14 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 		args = append(args, startObj)
 	}
 
+	if t.RuntimeSource != "" {
+		runtimeObj := filepath.Join(tmp, "runtime.o")
+		if err := Assemble(t.RuntimeSource, runtimeObj, filepath.Join(tmp, "runtime.asm"), false, t.Format); err != nil {
+			return err
+		}
+		args = append(args, runtimeObj)
+	}
+
 	for _, p := range append(append([]string{}, objPaths...), libPaths...) {
 		abs, err := filepath.Abs(p)
 		if err != nil {

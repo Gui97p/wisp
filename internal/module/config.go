@@ -62,7 +62,7 @@ func (c *Config) registerTargets(root string) error {
 	for _, name := range names {
 		tc := c.Targets[name]
 
-		var start string
+		var start, runtimeSource string
 		if tc.Start != "" {
 			data, err := os.ReadFile(filepath.Join(root, tc.Start))
 			if err != nil {
@@ -70,17 +70,24 @@ func (c *Config) registerTargets(root string) error {
 			}
 			start = string(data)
 		}
+		if tc.Runtime != "" {
+			data, err := os.ReadFile(filepath.Join(root, tc.Runtime))
+			if err != nil {
+				return fmt.Errorf("target %q: cannot read runtime file: %w", name, err)
+			}
+			runtimeSource = string(data)
+		}
 
 		err := target.Register(target.Target{
-			Name:        name,
-			Arch:        tc.Arch,
-			OS:          tc.OS,
-			ABI:         tc.ABI,
-			Format:      tc.Format,
-			Entry:       tc.Entry,
-			Runtime:     tc.Runtime,
-			StartSource: start,
-			LinkArgs:    tc.Link,
+			Name:          name,
+			Arch:          tc.Arch,
+			OS:            tc.OS,
+			ABI:           tc.ABI,
+			Format:        tc.Format,
+			Entry:         tc.Entry,
+			StartSource:   start,
+			RuntimeSource: runtimeSource,
+			LinkArgs:      tc.Link,
 		})
 		if err != nil {
 			return err
