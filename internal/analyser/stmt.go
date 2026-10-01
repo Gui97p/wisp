@@ -1,6 +1,7 @@
 package analyser
 
 import (
+	"github.com/Gui97p/wisp/internal/target"
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -250,6 +251,12 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 }
 
 func (a *Analyser) checkNativeStmt(s *ast.NativeStmt) {
+	if s.Backend != "" {
+		if err := target.ValidateSelector(s.Backend); err != nil {
+			a.errorf(s, "native: %s", err)
+		}
+	}
+
 	for _, bd := range s.Bindings {
 		if _, ok := a.checkExpr(bd.Var).(InvalidType); ok {
 			continue

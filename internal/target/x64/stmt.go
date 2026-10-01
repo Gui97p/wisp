@@ -16,7 +16,7 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		var op Operand
 		op, err = t.compileExpr(s.Expr)
 		t.freeOperand(op)
-		return nil
+		return err
 	case *ast.BlockStmt:
 		for _, stmt := range s.Statements {
 			err = t.compileStatement(stmt)

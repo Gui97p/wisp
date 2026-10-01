@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/target"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
@@ -23,6 +24,12 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 }
 
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
+	if fd.Body != nil {
+		if err := target.CheckNative(t.target, ast.NativeBackends(fd.Body)); err != nil {
+			return fmt.Errorf("x86-64: function %s %w", fd.Name, err)
+		}
+	}
+
 	name := t.funcSymbol(t.module, fd.Name)
 
 	if fd.Exported {

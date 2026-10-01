@@ -1,16 +1,31 @@
 package module
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/BurntSushi/toml"
+	"github.com/Gui97p/wisp/internal/target"
 )
 
 type Config struct {
-	Entry  string       `toml:"entry"`
-	Target string       `toml:"target"`
-	Output OutputConfig `toml:"output"`
+	Entry   string                  `toml:"entry"`
+	Target  string                  `toml:"target"`
+	Output  OutputConfig            `toml:"output"`
+	Targets map[string]TargetConfig `toml:"targets"`
+}
+
+type TargetConfig struct {
+	Arch    string   `toml:"arch"`
+	OS      string   `toml:"os"`
+	ABI     string   `toml:"abi"`
+	Format  string   `toml:"format"`
+	Entry   string   `toml:"entry"`
+	Runtime string   `toml:"runtime"`
+	Start   string   `toml:"start"`
+	Link    []string `toml:"link"`
 }
 
 type OutputConfig struct {
@@ -31,5 +46,46 @@ func LoadConfig(root string) (*Config, error) {
 	if _, err := toml.DecodeFile(path, &cfg); err != nil {
 		return nil, err
 	}
+	if err := cfg.registerTargets(root); err != nil {
+		return nil, err
+	}
 	return &cfg, nil
+}
+
+func (c *Config) registerTargets(root string) error {
+	names := make([]string, 0, len(c.Targets))
+	for name := range c.Targets {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		tc := c.Targets[name]
+
+		var start string
+		if tc.Start != "" {
+			data, err := os.ReadFile(filepath.Join(root, tc.Start))
+			if err != nil {
+				return fmt.Errorf("target %q: cannot read start file: %w", name, err)
+			}
+			start = string(data)
+		}
+
+		err := target.Register(target.Target{
+			Name:        name,
+			Arch:        tc.Arch,
+			OS:          tc.OS,
+			ABI:         tc.ABI,
+			Format:      tc.Format,
+			Entry:       tc.Entry,
+			Runtime:     tc.Runtime,
+			StartSource: start,
+			LinkArgs:    tc.Link,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

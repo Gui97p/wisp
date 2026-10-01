@@ -6,6 +6,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/target"
 )
 
 func (t *LuaTarget) compileStatement(b *strings.Builder, stmt ast.Statement) error {
@@ -497,7 +498,7 @@ func (t *LuaTarget) compileContinueStatement(b *strings.Builder, stmt *ast.Conti
 }
 
 func (t *LuaTarget) compileNativeStatement(b *strings.Builder, stmt *ast.NativeStmt) error {
-	if stmt.Backend != "" && stmt.Backend != "lua" {
+	if stmt.Backend != "" && !target.MatchesName("lua", stmt.Backend) {
 		return nil
 	}
 	_, err := fmt.Fprintln(b, stmt.Code)

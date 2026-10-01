@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/target"
 )
 
 func (t *LuaTarget) compileDeclarations(b *strings.Builder, decls []ast.Declaration) error {
@@ -45,6 +46,10 @@ func collectFuncNames(decls []ast.Declaration) []string {
 func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl) error {
 	if fd.Body == nil {
 		return nil
+	}
+
+	if err := target.CheckNative("lua", ast.NativeBackends(fd.Body)); err != nil {
+		return fmt.Errorf("lua: function %s %w", fd.Name, err)
 	}
 
 	fmt.Fprintf(b, "%s = function(", funcName(fd))

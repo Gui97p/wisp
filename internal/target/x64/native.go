@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"github.com/Gui97p/wisp/internal/target"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -45,7 +46,7 @@ func (t *X64Target) nativeOperand(name, field string, hasField bool, v nativeVar
 
 func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
 	if stmt.Backend != "" {
-		if stmt.Backend != t.target && stmt.Backend != "x64" {
+		if !target.MatchesName(t.target, stmt.Backend) {
 			return nil
 		}
 	}

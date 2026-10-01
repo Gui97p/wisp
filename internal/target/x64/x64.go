@@ -62,12 +62,16 @@ func (t *X64Target) Compile() (string, error) {
 	return code, nil
 }
 
-func Assemble(asmSource, objPath, asmPath string, keepAsm bool) error {
+func Assemble(asmSource, objPath, asmPath string, keepAsm bool, format string) error {
+	if format == "" {
+		format = "elf64"
+	}
+
 	if err := os.WriteFile(asmPath, []byte(asmSource), 0644); err != nil {
 		return fmt.Errorf("failed to write asm file: %w", err)
 	}
 
-	nasmCmd := exec.Command("nasm", "-f", "elf64", "-w+error=number-overflow", asmPath, "-o", objPath)
+	nasmCmd := exec.Command("nasm", "-f", format, "-w+error=number-overflow", asmPath, "-o", objPath)
 	nasmCmd.Stderr = os.Stderr
 	if err := nasmCmd.Run(); err != nil {
 		return fmt.Errorf("nasm failed: %w", err)
