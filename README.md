@@ -51,6 +51,7 @@ wisp init target <name>    # add a target of your own (kernel userspace)
 wisp build                 # compile for the target (x86-64 for the host by default)
 wisp run                   # build, then run the result
 wisp run --target lua      # transpile to Lua and run it
+wisp version               # compiler version, codename and build info
 wisp debug <lexer|parser|analyser> <file.wsp>
 wisp lsp                   # start the language server
 ```
@@ -181,6 +182,14 @@ make build    # writes bin/wisp
 make prod     # packages bin/ and std/ into dist/
 ```
 
+## Versioning
+
+The version lives in one file, [`internal/version/VERSION`](internal/version/VERSION), and everything else reads it or is generated from it: `wisp version` and `wisp --version`, the language server's `serverInfo`, the Makefile (it asks the compiler, `wisp version --short`), and the VS Code extension's `package.json`, which `make sync-vscode` rewrites and `make prod` checks.
+
+Releases are `major.minor.patch`. While the major is 0, a new minor brings new language or CLI features (and may break things) and a patch is a fix. Each minor has a codename, a will-o'-the-wisp from a different culture, and a patch keeps the codename of its minor. The commit and build date come from the Go build itself, so they never need to be written down.
+
+To bump: edit `internal/version/VERSION`, run `make sync-vscode`, and tag.
+
 ## Project structure
 
 ```text
@@ -191,6 +200,7 @@ internal/
 ├── ast/             node definitions
 ├── analyser/        scopes, types and checks
 ├── module/          project discovery, imports and wisp.toml
+├── version/         the compiler version (a single VERSION file)
 ├── diag/            error rendering
 ├── lsp/             language server
 └── target/
