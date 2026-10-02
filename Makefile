@@ -1,4 +1,4 @@
-.PHONY: build prod run clean version sync-vscode check-version
+.PHONY: build prod run clean version sync-vscode check-version testgen test test-lua test-x64
 APP=wisp
 
 VERSION = $(shell go run ./cmd/main version --short)
@@ -35,6 +35,17 @@ ext:
 
 run:
 	go run ./cmd/main
+
+testgen:
+	go run ./tests/gen
+
+test-lua: build testgen
+	WISP=bin/$(APP) tests/run.sh lua $(FILTER)
+
+test-x64: build testgen
+	WISP=bin/$(APP) tests/run.sh linux_x64 $(FILTER)
+
+test: test-lua test-x64
 
 clean:
 	rm -rf bin

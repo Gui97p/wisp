@@ -35,8 +35,8 @@ Thumbs.db
 
 # Development Files
 dev/
+tests/numeric/
 *.vsix
-*.sh
 
 # VS Code extension build
 vscode/node_modules/
