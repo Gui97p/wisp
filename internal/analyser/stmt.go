@@ -121,25 +121,25 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 
 		switch t := rangeType.(type) {
 		case ArrayType:
-			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col, File: a.currentFile})
+			a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, line, col)
 			if stmt.Var2 != "" {
-				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Element, Line: line, Col: col, File: a.currentFile})
+				a.defineLoopVar(stmt, stmt.Var2, t.Element, line, col)
 			}
 		case SpanType:
-			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col, File: a.currentFile})
+			a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, line, col)
 			if stmt.Var2 != "" {
-				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Element, Line: line, Col: col, File: a.currentFile})
+				a.defineLoopVar(stmt, stmt.Var2, t.Element, line, col)
 			}
 		case *MapType:
-			a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: t.Key, Line: line, Col: col, File: a.currentFile})
+			a.defineLoopVar(stmt, stmt.Var, t.Key, line, col)
 			if stmt.Var2 != "" {
-				a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: t.Value, Line: line, Col: col, File: a.currentFile})
+				a.defineLoopVar(stmt, stmt.Var2, t.Value, line, col)
 			}
 		case PrimitiveType:
 			if t.Name == "string" {
-				a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col, File: a.currentFile})
+				a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, line, col)
 				if stmt.Var2 != "" {
-					a.scope.Define(&Symbol{Name: stmt.Var2, Kind: VAR, Type: PrimitiveType{Name: "char"}, Line: line, Col: col, File: a.currentFile})
+					a.defineLoopVar(stmt, stmt.Var2, PrimitiveType{Name: "char"}, line, col)
 				}
 			} else {
 				a.errorf(stmt.Range, "cannot range over %s", rangeType)
@@ -182,10 +182,17 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 
 	a.pushLoop(stmt.Label)
 	a.enterScope()
-	a.scope.Define(&Symbol{Name: stmt.Var, Kind: VAR, Type: PrimitiveType{Name: "int"}, Line: line, Col: col, File: a.currentFile})
+	a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, line, col)
 	a.checkBlock(stmt.Body)
 	a.exitScope()
 	a.popLoop()
+}
+
+func (a *Analyser) defineLoopVar(stmt *ast.ForStmt, name string, tp Type, line, col int) {
+	sym := &Symbol{Name: name, Kind: VAR, Type: tp, Line: line, Col: col, File: a.currentFile}
+	a.scope.Define(sym)
+	a.info.VarSymbols[stmt] = append(a.info.VarSymbols[stmt], sym)
+	a.info.VarTypes[stmt] = append(a.info.VarTypes[stmt], tp)
 }
 
 func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {

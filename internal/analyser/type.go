@@ -97,6 +97,10 @@ func (UntypedFloatType) String() string {
 	return "untyped float"
 }
 func (UntypedFloatType) Equals(other Type) bool {
+	switch other.(type) {
+	case UntypedFloatType, UntypedIntType:
+		return true
+	}
 	if nt, ok := other.(NamedType); ok {
 		return nt.Underlying.Equals(PrimitiveType{Name: "float32"}) || nt.Underlying.Equals(PrimitiveType{Name: "float64"})
 	}
