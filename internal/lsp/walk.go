@@ -1,6 +1,10 @@
 package lsp
 
-import "github.com/Gui97p/wisp/internal/ast"
+import (
+	"slices"
+
+	"github.com/Gui97p/wisp/internal/ast"
+)
 
 func contains(node ast.Node, line, col int) bool {
 	sl, sc := node.Position()
@@ -236,7 +240,7 @@ func exprInStmt(stmt ast.Statement, line, col int) ast.Expression {
 		}
 		return exprInStmt(s.Body, line, col)
 	case *ast.AssignStmt:
-		return firstExpr(line, col, s.Target, s.Value)
+		return firstExpr(line, col, append(slices.Clone(s.Targets), s.Values...)...)
 	case *ast.IncDecStmt:
 		return exprAt(s.Target, line, col)
 	}

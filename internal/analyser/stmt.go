@@ -212,41 +212,64 @@ func (a *Analyser) checkConstStmt(stmt *ast.ConstStmt) {
 }
 
 func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
-	if !isAddressable(s.Target) && !isDerefTarget(s.Target) {
-		a.error(s.Target, "expression not assignable")
-		return
-	}
+	valid := true
+	for _, target := range s.Targets {
+		if !isAddressable(target) && !isDerefTarget(target) {
+			a.error(target, "expression not assignable")
+			valid = false
+			continue
+		}
 
-	if root := rootIdentifier(s.Target); root != nil {
-		if sym, ok := a.scope.Resolve(root.Value); ok && sym.Kind == CONST {
-			a.errorConstAssign(s.Target, root.Value)
-			return
+		if root := rootIdentifier(target); root != nil {
+			if sym, ok := a.scope.Resolve(root.Value); ok && sym.Kind == CONST {
+				a.errorConstAssign(target, root.Value)
+				valid = false
+			}
 		}
 	}
-
-	targetType := a.checkExpr(s.Target)
-	valueType := a.checkExpr(s.Value)
-
-	if _, ok := targetType.(InvalidType); ok {
+	if !valid {
 		return
 	}
-	if _, ok := valueType.(InvalidType); ok {
+
+	targetTypes := make([]Type, len(s.Targets))
+	for i, target := range s.Targets {
+		targetTypes[i] = a.checkExpr(target)
+	}
+	valueTypes := a.checkExprList(s.Values)
+
+	if len(valueTypes) != len(targetTypes) {
+		a.errorf(s, "expected %d values, got %d", len(targetTypes), len(valueTypes))
 		return
 	}
 
 	if s.Op == "=" {
-		if !valueType.Equals(targetType) {
-			a.errorf(s.Target, "assign expected %s, got %s", targetType.String(), valueType.String())
+		for i, targetType := range targetTypes {
+			if _, ok := targetType.(InvalidType); ok {
+				continue
+			}
+			if _, ok := valueTypes[i].(InvalidType); ok {
+				continue
+			}
+			if !valueTypes[i].Equals(targetType) {
+				a.errorf(s.Targets[i], "assign expected %s, got %s", targetType.String(), valueTypes[i].String())
+			}
 		}
+		return
+	}
+
+	if _, ok := targetTypes[0].(InvalidType); ok {
+		return
+	}
+	if _, ok := valueTypes[0].(InvalidType); ok {
 		return
 	}
 
 	baseOp := s.Op[:len(s.Op)-1]
 	switch baseOp {
 	case "&", "|", "^", "<<", ">>":
-		a.checkBitwise(s, baseOp, targetType, valueType)
+		a.checkBitwise(s, baseOp, targetTypes[0], valueTypes[0])
 	default:
-		a.checkArithmetic(s, baseOp, targetType, valueType)
+		a.checkArithmetic(s, baseOp, targetTypes[0], valueTypes[0])
 	}
 }
 

@@ -142,6 +142,22 @@ func (p *Parser) parseSimpleStatement() ast.Statement {
 		return nil
 	}
 
+	targets := []ast.Expression{expr}
+	for p.peek.Type == lexer.TOKEN_COMMA {
+		p.advance()
+		p.advance()
+		next := p.parseExpression()
+		if next == nil {
+			return nil
+		}
+		targets = append(targets, next)
+	}
+
+	if len(targets) > 1 && p.peek.Type != lexer.TOKEN_ASSIGN {
+		p.errorExpected(lexer.TOKEN_ASSIGN, p.peek.Type)
+		return nil
+	}
+
 	switch p.peek.Type {
 	case lexer.TOKEN_ASSIGN,
 		lexer.TOKEN_PLUS_ASSIGN,
@@ -154,7 +170,7 @@ func (p *Parser) parseSimpleStatement() ast.Statement {
 		lexer.TOKEN_XOR_ASSIGN,
 		lexer.TOKEN_SHIFT_LEFT_ASSIGN,
 		lexer.TOKEN_SHIFT_RIGHT_ASSIGN:
-		stmt := p.parseAssignStatement(expr)
+		stmt := p.parseAssignStatement(targets)
 		if stmt == nil {
 			return nil
 		}
@@ -286,8 +302,8 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	return stmt
 }
 
-func (p *Parser) parseAssignStatement(target ast.Expression) ast.Statement {
-	stmt := &ast.AssignStmt{Target: target}
+func (p *Parser) parseAssignStatement(targets []ast.Expression) ast.Statement {
+	stmt := &ast.AssignStmt{Targets: targets}
 
 	p.advance()
 	stmt.Op = p.current.Literal
@@ -295,11 +311,16 @@ func (p *Parser) parseAssignStatement(target ast.Expression) ast.Statement {
 	p.advance()
 
 	if p.current.Type == lexer.TOKEN_SWITCH {
+		if len(targets) > 1 {
+			p.errorf("switch expression cannot be assigned to multiple targets")
+			return nil
+		}
+
 		group, value := p.parseSwitchExpr()
 		if value == nil {
 			return nil
 		}
-		stmt.Value = value
+		stmt.Values = append(stmt.Values, value)
 
 		if !p.expect(lexer.TOKEN_SEMICOLON) {
 			return nil
@@ -309,8 +330,24 @@ func (p *Parser) parseAssignStatement(target ast.Expression) ast.Statement {
 		return group
 	}
 
-	stmt.Value = p.parseExpression()
-	if stmt.Value == nil {
+	value := p.parseExpression()
+	if value == nil {
+		return nil
+	}
+	stmt.Values = append(stmt.Values, value)
+
+	for p.peek.Type == lexer.TOKEN_COMMA {
+		p.advance()
+		p.advance()
+		value := p.parseExpression()
+		if value == nil {
+			return nil
+		}
+		stmt.Values = append(stmt.Values, value)
+	}
+
+	if stmt.Op != "=" && len(stmt.Values) > 1 {
+		p.errorf("operator %s accepts a single value", stmt.Op)
 		return nil
 	}
 

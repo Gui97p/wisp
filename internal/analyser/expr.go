@@ -281,6 +281,12 @@ func (a *Analyser) checkCallExprValue(expr *ast.CallExpr) Type {
 }
 
 func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
+	returns := a.checkCallTypes(expr)
+	a.info.CallReturns[expr] = returns
+	return returns
+}
+
+func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 	if member, ok := expr.Name.(*ast.MemberExpr); ok {
 		objType := a.checkExpr(member.Object)
 		if _, ok := objType.(InvalidType); ok {

@@ -366,9 +366,9 @@ func (n *NativeStmt) Tree(indent string) string {
 }
 
 type AssignStmt struct {
-	Target Expression
-	Op     string
-	Value  Expression
+	Targets []Expression
+	Op      string
+	Values  []Expression
 
 	NodePos
 }
@@ -379,12 +379,16 @@ func (a *AssignStmt) Tree(indent string) string {
 
 	fmt.Fprintf(&b, "%sAssignStmt(%s)\n", indent, a.Op)
 
-	if a.Target != nil {
-		b.WriteString(a.Target.Tree(indent + "├─ "))
+	for _, target := range a.Targets {
+		b.WriteString(target.Tree(indent + "├─ "))
 	}
 
-	if a.Value != nil {
-		b.WriteString(a.Value.Tree(indent + "└─ "))
+	for i, value := range a.Values {
+		if i == len(a.Values)-1 {
+			b.WriteString(value.Tree(indent + "└─ "))
+		} else {
+			b.WriteString(value.Tree(indent + "├─ "))
+		}
 	}
 
 	return b.String()

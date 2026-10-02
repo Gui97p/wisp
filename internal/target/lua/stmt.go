@@ -170,9 +170,9 @@ func (t *LuaTarget) compileForCount(b *strings.Builder, stmt *ast.ForStmt) error
 	conditionLabel := t.newLabel("for_condition")
 
 	ctx := loopContext{
-		Label:         stmt.Label,
-		ContinueLabel: t.newLabel("for_continue"),
-		BreakLabel:    t.newLabel("for_break"),
+		Label:            stmt.Label,
+		ContinueLabel:    t.newLabel("for_continue"),
+		BreakLabel:       t.newLabel("for_break"),
 		SupportsContinue: true,
 	}
 
@@ -224,9 +224,9 @@ func (t *LuaTarget) compileForRange(b *strings.Builder, stmt *ast.ForStmt) error
 	conditionLabel := t.newLabel("for_condition")
 
 	ctx := loopContext{
-		Label:         stmt.Label,
-		ContinueLabel: t.newLabel("for_continue"),
-		BreakLabel:    t.newLabel("for_break"),
+		Label:            stmt.Label,
+		ContinueLabel:    t.newLabel("for_continue"),
+		BreakLabel:       t.newLabel("for_break"),
 		SupportsContinue: true,
 	}
 
@@ -303,9 +303,9 @@ func (t *LuaTarget) compileForRangeString(b *strings.Builder, stmt *ast.ForStmt)
 	conditionLabel := t.newLabel("for_condition")
 
 	ctx := loopContext{
-		Label:         stmt.Label,
-		ContinueLabel: t.newLabel("for_continue"),
-		BreakLabel:    t.newLabel("for_break"),
+		Label:            stmt.Label,
+		ContinueLabel:    t.newLabel("for_continue"),
+		BreakLabel:       t.newLabel("for_break"),
 		SupportsContinue: true,
 	}
 
@@ -360,9 +360,9 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 	conditionLabel := t.newLabel("for_condition")
 
 	ctx := loopContext{
-		Label:         stmt.Label,
-		ContinueLabel: t.newLabel("for_continue"),
-		BreakLabel:    t.newLabel("for_break"),
+		Label:            stmt.Label,
+		ContinueLabel:    t.newLabel("for_continue"),
+		BreakLabel:       t.newLabel("for_break"),
 		SupportsContinue: true,
 	}
 
@@ -420,9 +420,9 @@ func (t *LuaTarget) compileLoopStatement(b *strings.Builder, stmt *ast.LoopStmt)
 	conditionLabel := t.newLabel("loop_condition")
 
 	ctx := loopContext{
-		Label:         stmt.Label,
-		ContinueLabel: t.newLabel("loop_continue"),
-		BreakLabel:    t.newLabel("loop_break"),
+		Label:            stmt.Label,
+		ContinueLabel:    t.newLabel("loop_continue"),
+		BreakLabel:       t.newLabel("loop_break"),
 		SupportsContinue: true,
 	}
 
@@ -506,44 +506,57 @@ func (t *LuaTarget) compileNativeStatement(b *strings.Builder, stmt *ast.NativeS
 }
 
 func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignStmt) error {
-	target, err := t.compileExprScratch(stmt.Target)
-	if err != nil {
-		return err
+	targets := make([]string, len(stmt.Targets))
+	for i, target := range stmt.Targets {
+		text, err := t.compileExprScratch(target)
+		if err != nil {
+			return err
+		}
+		targets[i] = text
 	}
-	value, err := t.compileExprScratch(stmt.Value)
-	if err != nil {
-		return err
+
+	values := make([]string, len(stmt.Values))
+	for i, value := range stmt.Values {
+		text, err := t.compileExprScratch(value)
+		if err != nil {
+			return err
+		}
+		values[i] = text
 	}
 
 	t.flushPending(b)
 
-	b.WriteString(target)
+	b.WriteString(strings.Join(targets, ", "))
 	b.WriteString(" = ")
 
 	if stmt.Op == "=" {
-		b.WriteString(value)
+		b.WriteString(strings.Join(values, ", "))
+		b.WriteByte('\n')
+		return nil
+	}
+
+	target, value := targets[0], values[0]
+	targetType := t.info.Types[stmt.Targets[0]]
+	op := strings.TrimSuffix(stmt.Op, "=")
+	switch op {
+	case "^":
+		op = "~"
+	case "+":
+		if pt, ok := targetType.(analyser.PrimitiveType); ok && pt.Name == "string" {
+			op = ".."
+			if pt, ok := t.info.Types[stmt.Values[0]].(analyser.PrimitiveType); ok && pt.Name == "char" {
+				value = fmt.Sprintf("string.char(%s)", value)
+			}
+		}
+	}
+	if (op == "/" || op == "%") && analyser.IsInteger(targetType) {
+		fn := "__wisp_idiv"
+		if op == "%" {
+			fn = "__wisp_imod"
+		}
+		fmt.Fprintf(b, "%s(%s, %s)", fn, target, value)
 	} else {
-		op := strings.TrimSuffix(stmt.Op, "=")
-		switch op {
-		case "^":
-			op = "~"
-		case "+":
-			if pt, ok := t.info.Types[stmt.Target].(analyser.PrimitiveType); ok && pt.Name == "string" {
-				op = ".."
-				if pt, ok := t.info.Types[stmt.Value].(analyser.PrimitiveType); ok && pt.Name == "char" {
-					value = fmt.Sprintf("string.char(%s)", value)
-				}
-			}
-		}
-		if (op == "/" || op == "%") && analyser.IsInteger(t.info.Types[stmt.Target]) {
-			fn := "__wisp_idiv"
-			if op == "%" {
-				fn = "__wisp_imod"
-			}
-			fmt.Fprintf(b, "%s(%s, %s)", fn, target, value)
-		} else {
-			fmt.Fprintf(b, "(%s) %s (%s)", target, op, value)
-		}
+		fmt.Fprintf(b, "(%s) %s (%s)", target, op, value)
 	}
 	b.WriteByte('\n')
 
