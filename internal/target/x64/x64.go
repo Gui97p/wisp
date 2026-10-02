@@ -30,7 +30,9 @@ type X64Target struct {
 
 	err error
 
-	labels map[string]int
+	labels      map[string]int
+	funcReturns []analyser.Type
+	hidden      Mem
 }
 
 func New(program *ast.Program, info *analyser.Info, isEntry bool, target string, module string) *X64Target {

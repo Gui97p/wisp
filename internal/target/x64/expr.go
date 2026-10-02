@@ -5,7 +5,6 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
-	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) newImm(v int64) (Operand, error) {
@@ -120,81 +119,9 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 		return t.compileBuiltin(sym.Name, expr)
 	}
 
-	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), sym.Module != t.module, expr.Args, t.info.Types[expr])
-}
-
-func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, returnType analyser.Type) (Operand, error) {
-	pushed := t.ctx.Pushed()
-
-	regs := t.ctx.AllocatedRegisters()
-	for i := range regs {
-		t.push(t.ctx.GetRegister(regs[i], 8))
+	ops, err := t.compileCall(t.funcSymbol(sym.Module, sym.Name), sym.Module != t.module, expr.Args, t.info.CallReturns[expr])
+	if len(ops) == 1 {
+		return ops[0], nil
 	}
-	align := t.ctx.Pushed()%2 == 1
-	if align {
-		t.alignStack(-8)
-	}
-
-	total := 0
-	for _, arg := range args {
-		op, err := t.compileExpr(arg)
-		if err != nil {
-			return nil, err
-		}
-		switch o := op.(type) {
-		case Imm, RegOperand:
-			text, err := t.operandText(op, 8)
-			if err != nil {
-				return nil, err
-			}
-			t.push(text)
-			total++
-		case StrOperand:
-			reg := t.ctx.AllocFreeRegister()
-			regStr := t.ctx.GetRegister(reg, 8)
-			t.text.printft("lea %s, [rel %s]\n", regStr, o.Label)
-			t.push(regStr)
-			t.ctx.FreeRegister(reg)
-			t.push(fmt.Sprint(o.Len))
-			total += 2
-		case MemOperand:
-			if o.Size%8 != 0 {
-				return nil, fmt.Errorf("x86-64: invalid parameter with MemOperand")
-			}
-			for i := 0; i < o.Size-1; i += 8 {
-				t.push(t.mem(o.Offset-i, 8))
-			}
-			total += o.Size / 8
-		}
-		t.freeOperand(op)
-	}
-
-	if total > len(x64context.ParamOrder) {
-		return nil, fmt.Errorf("x86-64: more than 6 parameters not supported")
-	}
-	for r := total - 1; r >= 0; r-- {
-		t.pop(t.ctx.GetRegister(x64context.ParamOrder[r], 8))
-	}
-
-	if extern {
-		t.prelude.define(sym)
-	}
-
-	t.text.printft("call %s\n", sym)
-	reg := t.ctx.AllocFreeRegister()
-	t.text.printft("mov %s, rax\n", t.ctx.GetRegister(reg, 8))
-
-	if align {
-		t.alignStack(8)
-	}
-
-	for i := range regs {
-		t.pop(t.ctx.GetRegister(regs[len(regs)-i-1], 8))
-	}
-
-	if t.ctx.Pushed() != pushed {
-		return nil, fmt.Errorf("x86-64: call stack unaligned")
-	}
-
-	return RegOperand{Reg: reg, Size: t.sizeOf(returnType)}, nil
+	return nil, err
 }

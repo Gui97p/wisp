@@ -3,6 +3,7 @@ package x64
 import (
 	"fmt"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/target"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
@@ -40,33 +41,42 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	t.text.printlnt("push rbp")
 	t.text.printlnt("mov rbp, rsp")
 
-	for i := range fd.Params {
-		t.ctx.Set(t.info.VarSymbols[fd][i], t.sizeOf(t.info.VarTypes[fd][i]))
+	types := []analyser.Type{}
+	for _, sym := range t.info.VarSymbols[fd] {
+		t.ctx.Set(sym, sizeOf(sym.Type))
+		types = append(types, sym.Type)
 	}
 	t.collectVariables(fd.Body)
-	t.text.printft("sub rsp, %d\n\n", t.ctx.AlignTo(16))
+	t.text.printlnt("sub rsp, .frame\n")
 
-	regIdx := 0
-	for paramIdx := range fd.Params {
-		offset, ok := t.ctx.Get(t.info.VarSymbols[fd][paramIdx])
-		if !ok {
-			return fmt.Errorf("x86-64: error on allocating parameter offset")
+	t.funcReturns = t.info.FuncReturns[fd]
+	sret := usesSret(t.funcReturns)
+	if sret {
+		t.hidden = slot(t.ctx.Reserve(8), 8)
+		t.text.printft("mov %s, rdi\n", t.memText(t.hidden))
+	}
+
+	args := assignArgs(types, sret)
+	for i, arg := range args {
+		sym := t.info.VarSymbols[fd][i]
+		offset, _ := t.ctx.Get(sym)
+		size := sizeOf(sym.Type)
+		for j, reg := range arg.Regs {
+			t.storeWord(slot(offset, size).at(8*j, min(8, size-8*j)), Reg{reg, 8})
 		}
+	}
 
-		size := t.sizeOf(t.info.VarTypes[fd][paramIdx])
-		regsNeeded := (size + 7) / 8
-
-		if regIdx+regsNeeded > len(x64context.ParamOrder) {
-			return fmt.Errorf("x84-64: max parameter size reached")
-		}
-
-		for j := range regsNeeded {
-			reg := x64context.ParamOrder[regIdx]
-			w := min(size, 8)
-			t.text.printft("mov %s, %s\n", t.mem(offset-j*8, w), t.ctx.GetRegister(reg, w))
-			t.ctx.FreeRegister(reg)
-			regIdx++
-			size -= 8
+	for i, arg := range args {
+		sym := t.info.VarSymbols[fd][i]
+		offset, _ := t.ctx.Get(sym)
+		size := sizeOf(sym.Type)
+		if len(arg.Regs) == 0 && size > 0 {
+			for k := range (size + 7) / 8 {
+				reg := t.ctx.AllocFreeRegister()
+				t.loadWord(reg, deref(x64context.BP, 16+arg.Stack+8*k, 8))
+				t.storeWord(slot(offset, size).at(8*k, min(8, size-8*k)), Reg{reg, 8})
+				t.ctx.FreeRegister(reg)
+			}
 		}
 	}
 
@@ -79,6 +89,7 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	t.text.printlnt("mov rsp, rbp")
 	t.text.printlnt("pop rbp")
 	t.text.printlnt("ret")
+	t.text.printft(".frame equ %d\n", t.ctx.AlignTo(16))
 
 	if t.ctx.Pushed() != 0 {
 		return fmt.Errorf("x86-64: stack alignment failed")
@@ -95,7 +106,7 @@ func (t *X64Target) collectVariables(stmt ast.Statement) {
 		}
 	case *ast.VarStmt:
 		for i := range s.Vars {
-			t.ctx.Set(t.info.VarSymbols[s][i], t.sizeOf(t.info.VarTypes[s][i]))
+			t.ctx.Set(t.info.VarSymbols[s][i], sizeOf(t.info.VarTypes[s][i]))
 		}
 	case *ast.IfStmt:
 		t.collectVariables(s.Then)

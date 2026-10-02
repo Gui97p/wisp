@@ -1,7 +1,11 @@
 package x64
 
 import (
+	"fmt"
+	"slices"
+
 	"github.com/Gui97p/wisp/internal/analyser"
+	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
@@ -91,7 +95,7 @@ func assignArgs(types []analyser.Type, sret bool) []x64context.ArgLoc {
 	return argLocs
 }
 
-func (t *X64Target) captureReturn(types []analyser.Type, slot Mem) []Operand {
+func (t *X64Target) captureReturn(types []analyser.Type, memSlot Mem) []Operand {
 	if len(types) == 0 {
 		return nil
 	}
@@ -101,7 +105,7 @@ func (t *X64Target) captureReturn(types []analyser.Type, slot Mem) []Operand {
 	if usesSret(types) {
 		offsets := retOffsets(types)
 		for i, tp := range types {
-			ops = append(ops, slot.at(offsets[i], sizeOf(tp)))
+			ops = append(ops, memSlot.at(offsets[i], sizeOf(tp)))
 		}
 	} else {
 		n := 0
@@ -184,4 +188,88 @@ func (t *X64Target) returnValue(ops []Operand, types []analyser.Type, hidden Mem
 			t.pop(x64context.AX)
 		}
 	}
+}
+
+func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, rets []analyser.Type) ([]Operand, error) {
+	pushed := t.ctx.Pushed()
+
+	types := []analyser.Type{}
+	for _, arg := range args {
+		types = append(types, t.info.Types[arg])
+	}
+	sret := usesSret(rets)
+	argLocs := assignArgs(types, sret)
+
+	regs := t.ctx.AllocatedRegisters()
+	for _, reg := range regs {
+		t.pushWord(Reg{reg, 8})
+	}
+
+	stackBytes := 0
+	for i, arg := range argLocs {
+		size := sizeOf(types[i])
+		if len(arg.Regs) == 0 && size > 0 {
+			stackBytes += (size + 7) / 8 * 8
+		}
+	}
+
+	pad := 0
+	if (t.ctx.Pushed()+stackBytes/8)%2 == 1 {
+		pad = 1
+	}
+	t.alignStack(-(stackBytes + 8*pad))
+	base := t.ctx.Pushed()
+
+	for i, arg := range args {
+		op, err := t.compileExpr(arg)
+		if err != nil {
+			return nil, err
+		}
+		size := sizeOf(types[i])
+		if size > 0 {
+			if len(argLocs[i].Regs) == 0 {
+				t.store(op, Mem{Base: x64context.SP, Disp: 8*(t.ctx.Pushed()-base) + argLocs[i].Stack, Size: size})
+			} else {
+				t.pushValue(op)
+			}
+		} else {
+			t.freeOp(op)
+		}
+	}
+
+	for _, arg := range slices.Backward(argLocs) {
+		for _, reg := range slices.Backward(arg.Regs) {
+			t.pop(reg)
+		}
+	}
+
+	var memSlot Mem
+	if sret {
+		lastIndex := len(rets) - 1
+		offsets := retOffsets(rets)
+		total := offsets[lastIndex] + (sizeOf(rets[lastIndex])+7)/8*8
+		off := t.ctx.Reserve(total)
+
+		memSlot := slot(off, total)
+		t.loadWord(x64context.DI, Addr{Of: memSlot})
+	}
+
+	if extern {
+		t.prelude.define(sym)
+	}
+
+	t.text.printft("call %s\n", sym)
+
+	ops := t.captureReturn(rets, memSlot)
+	t.alignStack(stackBytes + 8*pad)
+
+	for _, reg := range slices.Backward(regs) {
+		t.pop(reg)
+	}
+
+	if t.ctx.Pushed() != pushed {
+		return nil, fmt.Errorf("x86-64: call stack unaligned")
+	}
+
+	return ops, nil
 }

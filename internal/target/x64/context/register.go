@@ -17,6 +17,7 @@ const (
 	R12
 
 	BP
+	SP
 )
 
 type Class int
@@ -48,6 +49,7 @@ var registers = map[Register]map[int]string{
 	R12: {1: "r12b", 2: "r12w", 4: "r12d", 8: "r12"},
 
 	BP: {1: "bpl", 2: "bp", 4: "ebp", 8: "rbp"},
+	SP: {1: "spl", 2: "sp", 4: "esp", 8: "rsp"},
 }
 
 func (c *Context) GetRegister(reg Register, size int) string {

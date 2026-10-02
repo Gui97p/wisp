@@ -24,6 +24,11 @@ func (c *Context) Size() int {
 	return c.stackSize
 }
 
+func (c *Context) Reserve(size int) int {
+	c.stackSize += size
+	return c.stackSize
+}
+
 func (c *Context) AlignTo(align int) int {
 	c.stackSize = (c.stackSize + align - 1) / align * align
 	return c.stackSize
