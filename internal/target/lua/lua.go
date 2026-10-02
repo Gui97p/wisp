@@ -34,7 +34,6 @@ func (*LuaTarget) Name() string {
 
 func (t *LuaTarget) Compile() (string, error) {
 	var b strings.Builder
-	b.WriteString(runtimePrelude)
 
 	for _, d := range t.program.Declarations {
 		if imp, ok := d.(*ast.ImportDecl); ok {
@@ -59,7 +58,8 @@ func (t *LuaTarget) Compile() (string, error) {
 		b.WriteString("return __wisp_module\n")
 	}
 
-	return b.String(), nil
+	body := b.String()
+	return preludeFor(body) + body, nil
 }
 
 var luaBuiltins = map[string]bool{

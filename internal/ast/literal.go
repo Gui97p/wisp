@@ -67,13 +67,17 @@ func (m *MapLiteral) Tree(indent string) string {
 }
 
 type IntLiteral struct {
-	Value int64
+	Value    int64
+	Unsigned bool
 
 	NodePos
 }
 
 func (*IntLiteral) expr() {}
 func (i *IntLiteral) Tree(indent string) string {
+	if i.Unsigned {
+		return indent + fmt.Sprintf("IntLiteral(%d)\n", uint64(i.Value))
+	}
 	return indent + fmt.Sprintf("IntLiteral(%d)\n", i.Value)
 }
 

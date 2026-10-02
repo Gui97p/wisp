@@ -538,42 +538,52 @@ func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignS
 	target, value := targets[0], values[0]
 	targetType := t.info.Types[stmt.Targets[0]]
 	op := strings.TrimSuffix(stmt.Op, "=")
+
+	var text string
 	switch op {
-	case "^":
-		op = "~"
 	case "+":
 		if pt, ok := targetType.(analyser.PrimitiveType); ok && pt.Name == "string" {
-			op = ".."
-			if pt, ok := t.info.Types[stmt.Values[0]].(analyser.PrimitiveType); ok && pt.Name == "char" {
+			if vt, ok := t.info.Types[stmt.Values[0]].(analyser.PrimitiveType); ok && vt.Name == "char" {
 				value = fmt.Sprintf("string.char(%s)", value)
 			}
+			text = fmt.Sprintf("(%s .. %s)", target, value)
+		} else {
+			text = wrapInt(fmt.Sprintf("(%s + %s)", target, value), targetType)
 		}
-	}
-	if (op == "/" || op == "%") && analyser.IsInteger(targetType) {
-		fn := "__wisp_idiv"
-		if op == "%" {
-			fn = "__wisp_imod"
+	case "-", "*":
+		text = wrapInt(fmt.Sprintf("(%s %s %s)", target, op, value), targetType)
+	case "<<":
+		text = wrapInt(fmt.Sprintf("(%s << %s)", target, value), targetType)
+	case ">>":
+		if isSignedInt(targetType) {
+			text = fmt.Sprintf("__wisp_sar(%s, %s)", target, value)
+		} else {
+			text = fmt.Sprintf("(%s >> %s)", target, value)
 		}
-		fmt.Fprintf(b, "%s(%s, %s)", fn, target, value)
-	} else {
-		fmt.Fprintf(b, "(%s) %s (%s)", target, op, value)
+	case "/", "%":
+		text = t.divisionText(op, target, value, targetType)
+	case "^":
+		text = fmt.Sprintf("(%s ~ %s)", target, value)
+	default:
+		text = fmt.Sprintf("(%s %s %s)", target, op, value)
 	}
+
+	b.WriteString(text)
 	b.WriteByte('\n')
 
 	return nil
 }
 
 func (t *LuaTarget) compileIncDecStatement(b *strings.Builder, stmt *ast.IncDecStmt) error {
-	if err := t.compileExpression(b, stmt.Target); err != nil {
-		return err
-	}
-	b.WriteString(" = ")
-	if err := t.compileExpression(b, stmt.Target); err != nil {
+	target, err := t.compileExprScratch(stmt.Target)
+	if err != nil {
 		return err
 	}
 
-	op := stmt.Op[0]
-	fmt.Fprintf(b, " %c 1\n", op)
+	t.flushPending(b)
+
+	text := wrapInt(fmt.Sprintf("(%s %c 1)", target, stmt.Op[0]), t.info.Types[stmt.Target])
+	fmt.Fprintf(b, "%s = %s\n", target, text)
 
 	return nil
 }

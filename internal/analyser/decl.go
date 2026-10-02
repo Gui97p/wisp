@@ -175,11 +175,16 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 						}
 					} else if !valueType.Equals(declaredType) {
 						a.errorDeclaredAs(node, v.Name, declaredType, valueType)
+					} else {
+						a.checkConstFits(a.valueAt(values, len(vars), i), declaredType)
 					}
 				}
 			}
 			finalType = declaredType
 		} else {
+			if _, untyped := valueType.(UntypedIntType); untyped {
+				a.checkConstFits(a.valueAt(values, len(vars), i), PrimitiveType{Name: "int"})
+			}
 			finalType = valueType
 		}
 

@@ -32,6 +32,8 @@ func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
 		t.text.printft("sub %s, %s\n", reg, opText)
 	case "*":
 		t.text.printft("imul %s, %s\n", reg, opText)
+	default:
+		return nil, fmt.Errorf("x86-64: binary operator %s not supported", expr.Operator)
 	}
 	return Reg{Reg: leftReg, Size: size}, nil
 }
@@ -46,19 +48,19 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 		return nil, err
 	}
 
-	size := sizeOf(t.info.Types[expr.Left])
-	leftReg := t.materialize(left, size)
-	opText := t.opText(right, size)
+	opSize := sizeOf(t.info.Types[expr.Left])
+	leftReg := t.materialize(left, opSize)
+	opText := t.opText(right, opSize)
 	if t.err != nil {
 		return nil, t.err
 	}
 
-	size = sizeOf(t.info.Types[expr])
+	size := sizeOf(t.info.Types[expr])
 	resultReg := t.ctx.AllocFreeRegister()
 	resultRegStr := t.ctx.GetRegister(resultReg, size)
 
 	t.text.printft("xor %s, %s\n", resultRegStr, resultRegStr)
-	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(leftReg, size), opText)
+	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(leftReg, opSize), opText)
 	t.text.printft("%s %s\n", setccOperators[expr.Operator], resultRegStr)
 
 	t.ctx.FreeRegister(leftReg)

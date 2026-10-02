@@ -74,6 +74,7 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 		}
 		if eu, ok := a.currentReturns[i].(ErrorUnionType); ok {
 			if t.Equals(eu.Payload) {
+				a.checkConstFits(a.valueAt(stmt.Values, len(types), i), eu.Payload)
 				continue
 			}
 			errSymbol, _ := a.scope.Resolve("Error")
@@ -85,7 +86,9 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 		}
 		if !t.Equals(a.currentReturns[i]) {
 			a.errorf(stmt, "return %d: expected %s, got %s", i+1, a.currentReturns[i], t)
+			continue
 		}
+		a.checkConstFits(a.valueAt(stmt.Values, len(types), i), a.currentReturns[i])
 	}
 }
 
@@ -252,7 +255,9 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 			}
 			if !valueTypes[i].Equals(targetType) {
 				a.errorf(s.Targets[i], "assign expected %s, got %s", targetType.String(), valueTypes[i].String())
+				continue
 			}
+			a.checkConstFits(a.valueAt(s.Values, len(s.Targets), i), targetType)
 		}
 		return
 	}
@@ -265,6 +270,9 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 	}
 
 	baseOp := s.Op[:len(s.Op)-1]
+	if baseOp != "<<" && baseOp != ">>" {
+		a.checkConstFits(s.Values[0], targetTypes[0])
+	}
 	switch baseOp {
 	case "&", "|", "^", "<<", ">>":
 		a.checkBitwise(s, baseOp, targetTypes[0], valueTypes[0])

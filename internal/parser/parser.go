@@ -90,11 +90,18 @@ func (p *Parser) checkReservedName(name string) bool {
 	return true
 }
 
-func (p *Parser) parseIntLiteral(lit string) (int64, error) {
+func intLiteralBase(lit string) int {
 	charset := "0x0X0b0B0o0O"
-	base := 10
 	if len(lit) > 2 && strings.Contains(charset, lit[:2]) {
-		base = 0
+		return 0
 	}
-	return strconv.ParseInt(lit, base, 64)
+	return 10
+}
+
+func (p *Parser) parseIntLiteral(lit string) (int64, error) {
+	return strconv.ParseInt(lit, intLiteralBase(lit), 64)
+}
+
+func (p *Parser) parseUintLiteral(lit string) (uint64, error) {
+	return strconv.ParseUint(lit, intLiteralBase(lit), 64)
 }

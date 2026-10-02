@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"math"
 	"strconv"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -64,8 +65,12 @@ func (p *Parser) parsePrefix() ast.Expression {
 func (p *Parser) parsePrefixInner() ast.Expression {
 	switch p.current.Type {
 	case lexer.TOKEN_INT_LITERAL:
-		i, _ := p.parseIntLiteral(p.current.Literal)
-		return &ast.IntLiteral{Value: i}
+		u, err := p.parseUintLiteral(p.current.Literal)
+		if err != nil {
+			p.errorf("integer literal %s exceeds 64 bits", p.current.Literal)
+			return nil
+		}
+		return &ast.IntLiteral{Value: int64(u), Unsigned: u > math.MaxInt64}
 	case lexer.TOKEN_STRING_LITERAL:
 		return &ast.StringLiteral{Value: p.current.Literal}
 	case lexer.TOKEN_CHAR_LITERAL:

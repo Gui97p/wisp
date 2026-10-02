@@ -186,6 +186,11 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	right := a.checkExpr(expr.Right)
 
 	switch expr.Operator {
+	case "+", "-", "*", "/", "%", "==", "!=", ">", ">=", "<", "<=", "&", "|", "^":
+		a.checkBinaryConst(expr.Operator, expr.Left, expr.Right, left, right)
+	}
+
+	switch expr.Operator {
 	case "+", "-", "*", "/", "%":
 		return a.checkArithmetic(expr, expr.Operator, left, right)
 	case "==", "!=", ">", ">=", "<", "<=":
@@ -349,7 +354,9 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 			}
 			if !argTypes[i].Equals(ft.Params[i]) {
 				a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), argTypes[i].String())
+				continue
 			}
+			a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), ft.Params[i])
 		}
 
 		variadicType := ft.Params[len(ft.Params)-1]
@@ -359,7 +366,9 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 			}
 			if !variadicType.Equals(argTypes[i]) {
 				a.errorf(expr, "argument %d from %s: expected %s (variadic), got %s", i+1, ft.Name, variadicType.String(), argTypes[i].String())
+				continue
 			}
+			a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), variadicType)
 		}
 		return
 	}
@@ -375,7 +384,9 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 		}
 		if !at.Equals(ft.Params[i]) {
 			a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String())
+			continue
 		}
+		a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), ft.Params[i])
 	}
 }
 

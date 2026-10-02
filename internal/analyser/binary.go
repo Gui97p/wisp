@@ -24,6 +24,18 @@ func (a *Analyser) checkArithmetic(node ast.Node, op string, left, right Type) T
 		return InvalidType{}
 	}
 
+	return typedSide(left, right)
+}
+
+func typedSide(left, right Type) Type {
+	switch left.(type) {
+	case UntypedIntType, UntypedFloatType:
+		switch right.(type) {
+		case UntypedIntType, UntypedFloatType:
+		default:
+			return right
+		}
+	}
 	return left
 }
 
@@ -74,5 +86,8 @@ func (a *Analyser) checkBitwise(node ast.Node, op string, left, right Type) Type
 		return InvalidType{}
 	}
 
-	return left
+	if op == "<<" || op == ">>" {
+		return left
+	}
+	return typedSide(left, right)
 }

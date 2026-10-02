@@ -87,7 +87,9 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 		}
 		if !valueType.Equals(fieldType) {
 			a.errorf(expr, "field %s expects %s, got %s", key, fieldType.String(), valueType.String())
+			continue
 		}
+		a.checkConstFits(expr.Values[i], fieldType)
 	}
 
 	return st

@@ -11,56 +11,9 @@ import (
 func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) error {
 	switch e := expr.(type) {
 	case *ast.BinaryExpr:
-		if e.Operator == "/" || e.Operator == "%" {
-			if analyser.IsInteger(t.info.Types[e]) {
-				return t.compileIntDivision(b, e)
-			}
-		}
-		t.compileExpression(b, e.Left)
-		switch e.Operator {
-		case "&&":
-			b.WriteString(" and ")
-		case "||":
-			b.WriteString(" or ")
-		case "!=":
-			b.WriteString("~=")
-		case "^":
-			b.WriteString("~")
-		case "+":
-			if pt, ok := t.info.Types[e.Left].(analyser.PrimitiveType); ok && pt.Name == "string" {
-				b.WriteString("..")
-				if pt, ok := t.info.Types[e.Right].(analyser.PrimitiveType); ok && pt.Name == "char" {
-					b.WriteString("string.char(")
-					if err := t.compileExpression(b, e.Right); err != nil {
-						return err
-					}
-					b.WriteByte(')')
-					return nil
-				}
-			} else {
-				b.WriteString(e.Operator)
-			}
-		default:
-			b.WriteString(e.Operator)
-		}
-		t.compileExpression(b, e.Right)
+		return t.compileBinaryExpr(b, e)
 	case *ast.UnaryExpr:
-		switch e.Operator {
-		case "-":
-			b.WriteString("-")
-			t.compileExpression(b, e.Value)
-		case "!":
-			if _, ok := t.info.Types[e.Value].(analyser.ErrorUnionType); ok {
-				return t.compilePropagate(b, e)
-			}
-			b.WriteString("not ")
-			t.compileExpression(b, e.Value)
-		case "~":
-			b.WriteString("~")
-			t.compileExpression(b, e.Value)
-		default:
-			return fmt.Errorf("lua: unsupported unary operator %s", e.Operator)
-		}
+		return t.compileUnaryExpr(b, e)
 	case *ast.CallExpr:
 		return t.compileCallExpression(b, e)
 	case *ast.MemberExpr:
@@ -100,10 +53,10 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 		t.compileExpression(b, e.Else)
 		b.WriteRune(')')
 	case *ast.CastExpr:
-		t.compileExpression(b, e.Value)
+		return t.compileCastExpr(b, e)
 
 	case *ast.IntLiteral:
-		fmt.Fprintf(b, "%d", e.Value)
+		b.WriteString(intLiteralText(e))
 	case *ast.FloatLiteral:
 		fmt.Fprintf(b, "%f", e.Value)
 	case *ast.FuncLiteral:
@@ -441,25 +394,5 @@ func (t *LuaTarget) compileInExpression(b *strings.Builder, expr *ast.InExpr) er
 		t.compileExpression(b, expr.Left)
 		b.WriteByte(')')
 	}
-	return nil
-}
-
-func (t *LuaTarget) compileIntDivision(b *strings.Builder, e *ast.BinaryExpr) error {
-	fn := "__wisp_idiv"
-	if e.Operator == "%" {
-		fn = "__wisp_imod"
-	}
-
-	b.WriteString(fn)
-	b.WriteByte('(')
-	if err := t.compileExpression(b, e.Left); err != nil {
-		return err
-	}
-	b.WriteString(", ")
-	if err := t.compileExpression(b, e.Right); err != nil {
-		return err
-	}
-	b.WriteByte(')')
-
 	return nil
 }

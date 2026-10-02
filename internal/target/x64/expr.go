@@ -10,6 +10,11 @@ import (
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	switch e := expr.(type) {
 	case *ast.IntLiteral:
+		if int64(int32(e.Value)) != e.Value {
+			reg := t.ctx.AllocFreeRegister()
+			t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, 8), e.Value)
+			return Reg{Reg: reg, Size: 8}, nil
+		}
 		return Imm(e.Value), nil
 	case *ast.BoolLiteral:
 		if e.Value {
