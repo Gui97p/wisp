@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -15,7 +16,9 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 	case *ast.ExpressionStmt:
 		var op Operand
 		op, err = t.compileExpr(s.Expr)
-		t.freeOperand(op)
+		if op != nil {
+			t.freeOp(op)
+		}
 		return err
 	case *ast.BlockStmt:
 		for _, stmt := range s.Statements {
@@ -48,101 +51,109 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 }
 
 func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
-	for i, v := range stmt.Vars {
-		offset, ok := t.ctx.Get(t.info.VarSymbols[stmt][i])
-		if !ok {
-			return fmt.Errorf("x86-64: undeclared variable %s", v.Name)
-		}
-		size := t.sizeOf(t.info.VarTypes[stmt][i])
-		if i < len(stmt.Values) && stmt.Values[i] != nil {
-			op, err := t.compileExpr(stmt.Values[i])
-			if err != nil {
-				return err
+	if len(stmt.Values) == 0 {
+		for i := range stmt.Vars {
+			sym := t.info.VarSymbols[stmt][i]
+			offset, ok := t.ctx.Get(sym)
+			if !ok {
+				return fmt.Errorf("x86-64: undeclared variable %s", sym.Name)
 			}
-			if err := t.storeOperand(op, offset, size); err != nil {
-				return err
-			}
-			t.freeOperand(op)
-		} else {
-			for off := 0; off < size; off += 8 {
-				t.text.printft("mov %s, 0\n", t.mem(offset-off, size-off))
+			size := sizeOf(t.info.VarTypes[stmt][i])
+			for w := 0; w < (size+7)/8; w++ {
+				t.storeWord(slot(offset, size).at(8*w, min(8, size-8*w)), Imm(0))
 			}
 		}
+		return nil
 	}
-
-	return nil
+	return t.eachValue(stmt.Values, func(i int, op Operand) error {
+		sym := t.info.VarSymbols[stmt][i]
+		offset, ok := t.ctx.Get(sym)
+		if !ok {
+			return fmt.Errorf("x86-64: undeclared variable %s", sym.Name)
+		}
+		size := sizeOf(t.info.VarTypes[stmt][i])
+		t.store(op, slot(offset, size))
+		return nil
+	})
 }
 
 func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
-	if len(stmt.Values) != 1 {
-		return fmt.Errorf("x86-64: only single-value return supported for now")
-	}
+	ops := []Operand{}
 
-	size := t.sizeOf(t.info.Types[stmt.Values[0]])
-	op, err := t.compileExpr(stmt.Values[0])
-	if err != nil {
+	if err := t.eachValue(stmt.Values, func(i int, op Operand) error {
+		ops = append(ops, op)
+		return nil
+	}); err != nil {
 		return err
 	}
 
-	opText, err := t.operandText(op, size)
-	if err != nil {
-		return err
-	}
-	if opText != "rax" {
-		t.text.printft("mov rax, %s\n", opText)
-	}
-
-	t.freeOperand(op)
-
+	t.returnValue(ops, t.funcReturns, t.hidden)
 	t.text.printlnt("jmp .return")
 
 	return nil
 }
 
 func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
-	offset, err := t.compileLValue(stmt.Target)
-	if err != nil {
-		return err
-	}
-	size := t.sizeOf(t.info.Types[stmt.Target])
-
-	op, err := t.compileExpr(stmt.Value)
-	if err != nil {
-		return err
-	}
-
-	var opText string
-	if stmt.Op != "=" {
-		opText, err = t.operandText(op, size)
+	if len(stmt.Targets) == 1 {
+		memSlot, err := t.compileLValue(stmt.Targets[0])
 		if err != nil {
 			return err
 		}
-	}
 
-	switch stmt.Op {
-	case "=":
-		if err := t.storeOperand(op, offset, size); err != nil {
+		op, err := t.compileExpr(stmt.Values[0])
+		if err != nil {
 			return err
 		}
-	case "+=":
-		t.text.printft("add %s, %s\n", t.mem(offset, size), opText)
-	case "-=":
-		t.text.printft("sub %s, %s\n", t.mem(offset, size), opText)
-	case "*=":
-		reg := t.ctx.AllocFreeRegister()
-		regStr := t.ctx.GetRegister(reg, size)
 
-		t.text.printft("mov %s %s, [rbp-%d]\n", sizeLabels[size], regStr, offset)
-		t.text.printft("imul %s %s, %s\n", sizeLabels[size], regStr, opText)
-		t.text.printft("mov %s, %s\n", t.mem(offset, size), regStr)
+		size := sizeOf(t.info.Types[stmt.Targets[0]])
 
-		t.ctx.FreeRegister(reg)
-	default:
-		return fmt.Errorf("x86-64: unsupported operator %s", stmt.Op)
+		switch stmt.Op {
+		case "=":
+			t.store(op, memSlot)
+		case "+=", "-=":
+			inst := "add"
+			if stmt.Op == "-=" {
+				inst = "sub"
+			}
+			reg := t.materialize(op, size)
+			t.text.printft("%s %s, %s\n", inst, t.memText(memSlot), t.ctx.GetRegister(reg, size))
+			t.ctx.FreeRegister(reg)
+		case "*=":
+			reg := t.materialize(op, size)
+			r2 := t.ctx.AllocFreeRegister()
+			t.loadWord(r2, memSlot)
+
+			t.text.printft("imul %s %s, %s\n", sizeLabels[size], t.ctx.GetRegister(r2, size), t.ctx.GetRegister(reg, size))
+			t.storeWord(memSlot, Reg{r2, size})
+
+			t.ctx.FreeRegister(reg)
+			t.ctx.FreeRegister(r2)
+		default:
+			return fmt.Errorf("x86-64: unsupported operator %s", stmt.Op)
+		}
+		return nil
 	}
 
-	if r, ok := op.(RegOperand); ok {
-		t.ctx.FreeRegister(r.Reg)
+	err := t.eachValue(stmt.Values, func(i int, op Operand) error {
+		t.pushValue(op)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, target := range slices.Backward(stmt.Targets) {
+		memSlot, err := t.compileLValue(target)
+		if err != nil {
+			return err
+		}
+		size := sizeOf(t.info.Types[target])
+		for w := (size+7)/8 - 1; w >= 0; w-- {
+			reg := t.ctx.AllocFreeRegister()
+			t.pop(reg)
+			t.storeWord(memSlot.at(8*w, min(8, size-8*w)), Reg{reg, 8})
+			t.ctx.FreeRegister(reg)
+		}
 	}
 
 	return nil
@@ -153,19 +164,20 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 	if err != nil {
 		return err
 	}
-	size := t.sizeOf(t.info.Types[stmt.Condition])
+	size := sizeOf(t.info.Types[stmt.Condition])
 
 	elseLabel := t.newLabel("else")
 	endLabel := t.newLabel("end")
 
-	opText, err := t.operandText(op, size)
-	if err != nil {
-		return err
+	reg := t.materialize(op, size)
+	opText := t.ctx.GetRegister(reg, size)
+	if t.err != nil {
+		return t.err
 	}
 	t.text.printft("test %s, %s\n", opText, opText)
 	t.text.printft("jz %s\n", elseLabel)
 
-	t.freeOperand(op)
+	t.ctx.FreeRegister(reg)
 
 	if err = t.compileStatement(stmt.Then); err != nil {
 		return err

@@ -2,8 +2,9 @@ package x64
 
 import (
 	"fmt"
-	"github.com/Gui97p/wisp/internal/target"
 	"strings"
+
+	"github.com/Gui97p/wisp/internal/target"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -14,33 +15,33 @@ type nativeVar struct {
 	tp     analyser.Type
 }
 
-func (t *X64Target) nativeOperand(name, field string, hasField bool, v nativeVar) (string, error) {
+func (t *X64Target) nativeOperand(name, field string, hasField bool, v nativeVar) (Mem, error) {
 	if hasField {
 		switch nv := v.tp.(type) {
 		case analyser.PrimitiveType:
 			if nv.Name != "string" {
-				return "", fmt.Errorf("x86-64: cannot access field %s in var %s with type %s", field, name, nv.Name)
+				return Mem{}, fmt.Errorf("x86-64: cannot access field %s in var %s with type %s", field, name, nv.Name)
 			}
 		case analyser.SpanType:
 		default:
-			return "", fmt.Errorf("x86-64: cannot access field %s in var %s", field, name)
+			return Mem{}, fmt.Errorf("x86-64: cannot access field %s in var %s", field, name)
 		}
 
 		switch field {
 		case "ptr":
-			return t.mem(v.offset, 8), nil
+			return slot(v.offset, 8), nil
 		case "len":
-			return t.mem(v.offset-8, 8), nil
+			return slot(v.offset-8, 8), nil
 		default:
-			return "", fmt.Errorf("x86-64: cannot access field %s in var %s", field, name)
+			return Mem{}, fmt.Errorf("x86-64: cannot access field %s in var %s", field, name)
 		}
 	} else {
-		size := t.sizeOf(v.tp)
+		size := sizeOf(v.tp)
 		if size > 8 {
-			return "", fmt.Errorf("x86-64: variable too big. Use {%s.ptr} or {%s.len}", name, name)
+			return Mem{}, fmt.Errorf("x86-64: variable too big. Use {%s.ptr} or {%s.len}", name, name)
 		}
 
-		return t.mem(v.offset, size), nil
+		return slot(v.offset, size), nil
 	}
 }
 
@@ -90,12 +91,12 @@ func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
 			return fmt.Errorf("x86-64: undeclared binding %s", ident)
 		}
 
-		inst, err := t.nativeOperand(name, field, hasField, nativeVar)
+		memSlot, err := t.nativeOperand(name, field, hasField, nativeVar)
 		if err != nil {
 			return err
 		}
 
-		b.WriteString(inst)
+		b.WriteString(t.memText(memSlot))
 		i = end + 1
 	}
 

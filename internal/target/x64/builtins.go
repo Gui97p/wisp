@@ -32,7 +32,8 @@ func (t *X64Target) compileEmitBuiltin(expr *ast.CallExpr) (Operand, error) {
 		return nil, fmt.Errorf("x86-64: emit only accepts 1 parameter")
 	}
 
-	return t.compileCall("__wisp_emit", true, expr.Args, nil)
+	t.compileCall("__wisp_emit", true, expr.Args, nil)
+	return nil, nil
 }
 
 func (t *X64Target) compileLenBuiltin(expr *ast.CallExpr) (Operand, error) {
@@ -45,16 +46,7 @@ func (t *X64Target) compileLenBuiltin(expr *ast.CallExpr) (Operand, error) {
 			return nil, err
 		}
 
-		switch o := op.(type) {
-		case StrOperand:
-			return Imm(o.Len), nil
-		case MemOperand:
-			reg := t.ctx.AllocFreeRegister()
-			t.text.printft("mov %s, qword [rbp-%d]\n", t.ctx.GetRegister(reg, 8), o.Offset-8)
-			return RegOperand{Reg: reg, Size: 8}, nil
-		default:
-			return nil, fmt.Errorf("x86-64: cannot get length of %s", arg)
-		}
+		return t.field(op, 1), nil
 	default:
 		return nil, fmt.Errorf("x86-64: cannot get length of %s", arg)
 	}

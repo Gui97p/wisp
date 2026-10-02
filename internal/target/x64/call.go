@@ -193,10 +193,7 @@ func (t *X64Target) returnValue(ops []Operand, types []analyser.Type, hidden Mem
 func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, rets []analyser.Type) ([]Operand, error) {
 	pushed := t.ctx.Pushed()
 
-	types := []analyser.Type{}
-	for _, arg := range args {
-		types = append(types, t.info.Types[arg])
-	}
+	types := t.valueTypes(args)
 	sret := usesSret(rets)
 	argLocs := assignArgs(types, sret)
 
@@ -220,11 +217,7 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 	t.alignStack(-(stackBytes + 8*pad))
 	base := t.ctx.Pushed()
 
-	for i, arg := range args {
-		op, err := t.compileExpr(arg)
-		if err != nil {
-			return nil, err
-		}
+	err := t.eachValue(args, func(i int, op Operand) error {
 		size := sizeOf(types[i])
 		if size > 0 {
 			if len(argLocs[i].Regs) == 0 {
@@ -235,6 +228,10 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 		} else {
 			t.freeOp(op)
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	for _, arg := range slices.Backward(argLocs) {
@@ -250,7 +247,7 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 		total := offsets[lastIndex] + (sizeOf(rets[lastIndex])+7)/8*8
 		off := t.ctx.Reserve(total)
 
-		memSlot := slot(off, total)
+		memSlot = slot(off, total)
 		t.loadWord(x64context.DI, Addr{Of: memSlot})
 	}
 
@@ -272,4 +269,23 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 	}
 
 	return ops, nil
+}
+
+func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
+	sym, err := t.resolveCallee(expr.Name)
+	if err != nil {
+		return nil, err
+	}
+	if sym.Module == "" {
+		op, err := t.compileBuiltin(sym.Name, expr)
+		if err != nil {
+			return nil, err
+		}
+		if op == nil {
+			return nil, nil
+		}
+		return []Operand{op}, nil
+	}
+
+	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), sym.Module != t.module, expr.Args, t.info.CallReturns[expr])
 }
