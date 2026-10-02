@@ -36,6 +36,10 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		return fmt.Errorf("x86-64: unsupported statement %T", stmt)
 	}
 
+	if t.err != nil {
+		return t.err
+	}
+
 	if err == nil && len(t.ctx.AllocatedRegisters()) != 0 {
 		line, col := stmt.Position()
 		return fmt.Errorf("x86-64: register leakage detected in %d %d", line, col)

@@ -19,6 +19,18 @@ const (
 	BP
 )
 
+type Class int
+
+const (
+	Int Class = iota
+	SSE
+	Memory
+)
+
+func (r Register) Class() Class {
+	return Int
+}
+
 var ParamOrder = []Register{DI, SI, DX, CX, R8, R9}
 var RegisterOrder = []Register{AX, CX, DX, DI, SI, R8, R9, R10, R11}
 
@@ -70,4 +82,9 @@ func (c *Context) AllocFreeRegister() Register {
 		}
 	}
 	panic("no free registers")
+}
+
+type ArgLoc struct {
+	Regs  []Register
+	Stack int
 }

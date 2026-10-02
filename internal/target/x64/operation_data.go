@@ -24,7 +24,7 @@ var sizeLabels = map[int]string{
 	8: "qword",
 }
 
-func (t *X64Target) sizeOf(at analyser.Type) int {
+func sizeOf(at analyser.Type) int {
 	switch tp := at.(type) {
 	case analyser.PrimitiveType:
 		switch tp.Name {
@@ -44,11 +44,11 @@ func (t *X64Target) sizeOf(at analyser.Type) int {
 	case analyser.PointerType:
 		return 8
 	case analyser.ArrayType:
-		return int(tp.Size) * t.sizeOf(tp.Element)
+		return int(tp.Size) * sizeOf(tp.Element)
 	case *analyser.StructType:
 		size := 0
 		for _, field := range tp.Fields {
-			size += t.sizeOf(field)
+			size += sizeOf(field)
 		}
 		return size
 	case analyser.SpanType:
