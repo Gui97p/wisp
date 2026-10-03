@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/Gui97p/wisp/internal/analyser"
 )
 
 func abs(n int) int {
@@ -11,6 +13,22 @@ func abs(n int) int {
 		return -n
 	}
 	return n
+}
+
+func isSigned(tp analyser.Type) bool {
+	switch t := tp.(type) {
+	case analyser.NamedType:
+		return isSigned(t.Underlying)
+	case analyser.PrimitiveType:
+		switch t.Name {
+		case "int", "int8", "int16", "int32", "int64", "float", "float32", "float64":
+			return true
+		default:
+			return false
+		}
+	default:
+		return false
+	}
 }
 
 func decodeEscapes(s string) ([]byte, error) {

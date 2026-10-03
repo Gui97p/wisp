@@ -48,7 +48,8 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 		return nil, err
 	}
 
-	opSize := sizeOf(t.info.Types[expr.Left])
+	tp := t.info.Types[expr.Left]
+	opSize := sizeOf(tp)
 	leftReg := t.materialize(left, opSize)
 	opText := t.opText(right, opSize)
 	if t.err != nil {
@@ -59,9 +60,14 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 	resultReg := t.ctx.AllocFreeRegister()
 	resultRegStr := t.ctx.GetRegister(resultReg, size)
 
+	ccop := usetccOperators[expr.Operator]
+	if isSigned(tp) {
+		ccop = setccOperators[expr.Operator]
+	}
+
 	t.text.printft("xor %s, %s\n", resultRegStr, resultRegStr)
 	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(leftReg, opSize), opText)
-	t.text.printft("%s %s\n", setccOperators[expr.Operator], resultRegStr)
+	t.text.printft("%s %s\n", ccop, resultRegStr)
 
 	t.ctx.FreeRegister(leftReg)
 	t.freeOp(right)

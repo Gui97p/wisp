@@ -17,6 +17,17 @@ var setccOperators = map[string]string{
 	">=": "setge",
 }
 
+var usetccOperators = map[string]string{
+	"==": "sete",
+	"!=": "setne",
+
+	"<":  "setb",
+	"<=": "setbe",
+
+	">":  "seta",
+	">=": "setae",
+}
+
 var sizeLabels = map[int]string{
 	1: "byte",
 	2: "word",
