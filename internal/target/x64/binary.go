@@ -3,9 +3,22 @@ package x64
 import (
 	"fmt"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
+
+func (t *X64Target) typedOperand(left, right ast.Expression) analyser.Type {
+	lt := t.info.Types[left]
+	rt := t.info.Types[right]
+
+	switch lt.(type) {
+	case analyser.UntypedFloatType, analyser.UntypedIntType:
+		return rt
+	default:
+		return lt
+	}
+}
 
 func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
 	left, err := t.compileExpr(expr.Left)
@@ -17,7 +30,7 @@ func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
 		return nil, err
 	}
 
-	size := sizeOf(t.info.Types[expr.Left])
+	size := sizeOf(t.info.Types[expr])
 	leftReg := t.materialize(left, size)
 	opText := t.opText(right, size)
 	if t.err != nil {
@@ -55,7 +68,7 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 		return nil, err
 	}
 
-	tp := t.info.Types[expr.Left]
+	tp := t.typedOperand(expr.Left, expr.Right)
 	opSize := sizeOf(tp)
 	leftReg := t.materialize(left, opSize)
 	opText := t.opText(right, opSize)
