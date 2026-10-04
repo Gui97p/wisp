@@ -31,7 +31,13 @@ func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
 	case "-":
 		t.text.printft("sub %s, %s\n", reg, opText)
 	case "*":
-		t.text.printft("imul %s, %s\n", reg, opText)
+		if size == 1 {
+			right := t.materialize(right, 4)
+			t.text.printft("imul %s, %s\n", t.ctx.GetRegister(leftReg, 4), t.ctx.GetRegister(right, 4))
+			t.ctx.FreeRegister(right)
+		} else {
+			t.text.printft("imul %s, %s\n", reg, opText)
+		}
 	default:
 		return nil, fmt.Errorf("x86-64: binary operator %s not supported", expr.Operator)
 	}
