@@ -20,8 +20,6 @@ func diagnoseFile(path string) map[string][]protocol.Diagnostic {
 	exports := map[string]*analyser.ModuleInfo{}
 
 	for _, mod := range modules {
-		isEntry := false
-
 		for _, f := range mod.FilePaths {
 			if _, ok := result[f]; !ok {
 				result[f] = []protocol.Diagnostic{}
@@ -33,7 +31,7 @@ func diagnoseFile(path string) map[string][]protocol.Diagnostic {
 		}
 
 		merged, declFiles := mod.Merge()
-		a := analyser.NewAnalyser(merged, isEntry, exports, declFiles, mod.Path)
+		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 		a.Analyze()
 
 		if a.HasErrors() {
@@ -68,7 +66,7 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 		}
 		endCol := col + 1
 		if d.EndCol > 0 {
-			endCol = uint32(d.EndCol - 1) + 1
+			endCol = uint32(d.EndCol-1) + 1
 		}
 
 		severity := protocol.DiagnosticSeverityError

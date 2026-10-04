@@ -43,7 +43,7 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 
 		merged, declFiles := mod.Merge()
 
-		a := analyser.NewAnalyser(merged, false, exports, declFiles, mod.Path)
+		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 		info := a.Analyze()
 		if a.HasErrors() {
 			fmt.Printf("<<  %s  >>\n", mod.Path)

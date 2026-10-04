@@ -10,6 +10,11 @@ func (a *Analyser) registerFuncSignatures() {
 			continue
 		}
 
+		if fd.Name == "main" {
+			a.checkMainFunc(fd)
+			continue
+		}
+
 		params := make([]Type, 0, len(fd.Params))
 		variadic := false
 
@@ -122,41 +127,31 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 	}
 }
 
-func (a *Analyser) checkMainFunc() {
-	var mainDecl *ast.FuncDecl
-	count := 0
-	for _, d := range a.program.Declarations {
-		a.currentFile = a.declFiles[d]
-		fd, ok := d.(*ast.FuncDecl)
-		if !ok || fd.Name != "main" {
-			continue
-		}
-		count++
-		mainDecl = fd
+func (a *Analyser) checkMainFunc(fd *ast.FuncDecl) {
+	if len(fd.Params) > 0 {
+		a.error(fd, "main function cannot have parameters")
 	}
 
-	if count == 0 {
-		a.errors.Add(a.currentFile, 0, 0, 0, 0, "program has no main function")
-		return
-	}
-	if count > 1 {
-		a.errors.Add(a.currentFile, 0, 0, 0, 0, "program has more than one main function")
-		return
-	}
-
-	if len(mainDecl.Params) > 0 {
-		a.error(mainDecl, "main function cannot have parameters")
-	}
-
-	switch len(mainDecl.ReturnTypes) {
+	returns := []Type{}
+	switch len(fd.ReturnTypes) {
 	case 0:
 		// implicit exit code 0
 	case 1:
-		t := a.resolveTypeRef(mainDecl, a.scope, mainDecl.ReturnTypes[0])
+		t := a.resolveTypeRef(fd, a.scope, fd.ReturnTypes[0])
 		if t != nil && !t.Equals(PrimitiveType{Name: "int"}) {
-			a.errorf(mainDecl, "main function must return int, got %s", t.String())
+			a.errorf(fd, "main function must return int, got %s", t.String())
 		}
+		returns = append(returns, t)
 	default:
-		a.errorf(mainDecl, "main function must return nothing or a single int, got %d values", len(mainDecl.ReturnTypes))
+		a.errorf(fd, "main function must return nothing or a single int, got %d values", len(fd.ReturnTypes))
+	}
+
+	ft := &FuncType{Name: fd.Name, Params: []Type{}, Returns: returns, Variadic: false}
+	a.info.FuncReturns[fd] = returns
+	line, col := fd.Position()
+	symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module}
+
+	if !a.scope.Define(symbol) {
+		a.errorAlreadyDeclared(fd, FUNC, fd.Name)
 	}
 }

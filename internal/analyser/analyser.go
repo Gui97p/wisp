@@ -16,7 +16,6 @@ type Analyser struct {
 	currentReturns []Type
 	loopFrames     []loopFrame
 
-	isEntry bool
 	modules map[string]*ModuleInfo
 	module  string
 
@@ -28,14 +27,13 @@ type Analyser struct {
 	errors diag.List
 }
 
-func NewAnalyser(program *ast.Program, isEntry bool, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string, module string) *Analyser {
+func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string, module string) *Analyser {
 	universe := NewScope(nil)
 	return &Analyser{
 		program:   program,
 		info:      NewInfo(),
 		universe:  universe,
 		scope:     NewScope(universe),
-		isEntry:   isEntry,
 		modules:   modules,
 		declFiles: declFiles,
 		module:    module,
@@ -51,9 +49,6 @@ func (a *Analyser) Analyze() *Info {
 	a.registerBuiltins()
 	a.registerFuncSignatures()
 	a.registerConsts()
-	if a.isEntry {
-		a.checkMainFunc()
-	}
 	a.checkFuncBodies()
 
 	return a.info

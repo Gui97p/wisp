@@ -77,7 +77,7 @@ func runDebug(cmd *cobra.Command, args []string) error {
 
 			merged, declFiles := mod.Merge()
 
-			a := analyser.NewAnalyser(merged, isEntry, exports, declFiles, mod.Path)
+			a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 			a.Analyze()
 			if a.HasErrors() {
 				anyErrors = true
