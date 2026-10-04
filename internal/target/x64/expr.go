@@ -5,6 +5,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
@@ -12,6 +13,9 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	case *ast.IntLiteral:
 		if int64(int32(e.Value)) != e.Value {
 			reg := t.ctx.AllocFreeRegister()
+			if reg == x64context.NoReg {
+				return nil, fmt.Errorf("x86-64: no avaiable registers")
+			}
 			t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, 8), e.Value)
 			return Reg{Reg: reg, Size: 8}, nil
 		}

@@ -115,7 +115,12 @@ func (t *X64Target) captureReturn(types []analyser.Type, memSlot Mem) []Operand 
 
 		rs := []x64context.Register{}
 		for range n {
-			rs = append(rs, t.ctx.AllocFreeRegister())
+			reg := t.ctx.AllocFreeRegister()
+			if reg == x64context.NoReg {
+				t.fail("x86-64: no avaiable registers")
+				return nil
+			}
+			rs = append(rs, reg)
 		}
 
 		if len(rs) == 1 {
@@ -146,9 +151,10 @@ func (t *X64Target) captureReturn(types []analyser.Type, memSlot Mem) []Operand 
 		k := 0
 		for _, tp := range types {
 			w := len(classify(tp))
-			if w == 1 {
+			switch w {
+			case 1:
 				ops = append(ops, Reg{Reg: rs[k], Size: sizeOf(tp)})
-			} else if w == 2 {
+			case 2:
 				ops = append(ops, Wide{Words: []Operand{Reg{rs[k], 8}, Reg{rs[k+1], 8}}, Size: 16})
 			}
 			k += w
@@ -165,6 +171,10 @@ func (t *X64Target) returnValue(ops []Operand, types []analyser.Type, hidden Mem
 
 	if usesSret(types) {
 		p := t.ctx.AllocFreeRegister()
+		if p == x64context.NoReg {
+			t.fail("x86-64: no avaiable registers")
+			return
+		}
 		t.loadWord(p, hidden)
 
 		offsets := retOffsets(types)

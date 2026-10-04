@@ -83,7 +83,7 @@ func (c *Context) AllocFreeRegister() Register {
 			return reg
 		}
 	}
-	panic("no free registers")
+	return NoReg
 }
 
 type ArgLoc struct {

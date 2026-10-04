@@ -31,11 +31,19 @@ func (t *X64Target) storeWord(dst Mem, w Operand) {
 		t.text.printft("mov %s, %s\n", t.memText(dst), t.ctx.GetRegister(o.Reg, dst.Size))
 	case Mem:
 		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			t.fail("x86-64: no avaiable registers")
+			return
+		}
 		t.loadWord(reg, o)
 		t.text.printft("mov %s, %s\n", t.memText(dst), t.ctx.GetRegister(reg, o.Size))
 		t.ctx.FreeRegister(reg)
 	case Addr:
 		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			t.fail("x86-64: no avaiable registers")
+			return
+		}
 		regStr := t.ctx.GetRegister(reg, 8)
 		t.text.printft("lea %s, %s\n", regStr, t.memText(o.Of))
 		t.text.printft("mov %s, %s\n", t.memText(dst), regStr)
@@ -54,6 +62,10 @@ func (t *X64Target) pushWord(w Operand) {
 	case Mem:
 		if o.Size < 8 {
 			reg := t.ctx.AllocFreeRegister()
+			if reg == x64context.NoReg {
+				t.fail("x86-64: no avaiable registers")
+				return
+			}
 			t.text.printft("mov %s, %s\n", t.ctx.GetRegister(reg, o.Size), t.memText(o))
 			t.text.printft("push %s\n", t.ctx.GetRegister(reg, 8))
 			t.ctx.FreeRegister(reg)
@@ -62,6 +74,10 @@ func (t *X64Target) pushWord(w Operand) {
 		}
 	case Addr:
 		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			t.fail("x86-64: no avaiable registers")
+			return
+		}
 		regStr := t.ctx.GetRegister(reg, 8)
 		t.text.printft("lea %s, %s\n", regStr, t.memText(o.Of))
 		t.text.printft("push %s\n", regStr)

@@ -73,17 +73,29 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 	switch o := op.(type) {
 	case Imm:
 		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			t.fail("x86-64: no avaiable registers")
+			return reg
+		}
 		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, size), o)
 		return reg
 	case Reg:
 		return o.Reg
 	case Mem:
 		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			t.fail("x86-64: no avaiable registers")
+			return reg
+		}
 		t.loadWord(reg, o)
 		t.freeWord(o)
 		return reg
 	case Addr:
 		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			t.fail("x86-64: no avaiable registers")
+			return reg
+		}
 		t.loadWord(reg, o)
 		return reg
 	default:

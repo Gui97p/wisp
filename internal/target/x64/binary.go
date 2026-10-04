@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Gui97p/wisp/internal/ast"
+	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
@@ -64,6 +65,9 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 
 	size := sizeOf(t.info.Types[expr])
 	resultReg := t.ctx.AllocFreeRegister()
+	if resultReg == x64context.NoReg {
+		return nil, fmt.Errorf("x86-64: no avaiable registers")
+	}
 	resultRegStr := t.ctx.GetRegister(resultReg, size)
 
 	ccop := usetccOperators[expr.Operator]

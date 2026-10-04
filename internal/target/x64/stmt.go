@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/ast"
+	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) compileStatement(stmt ast.Statement) error {
@@ -121,6 +122,9 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 		case "*=":
 			reg := t.materialize(op, size)
 			r2 := t.ctx.AllocFreeRegister()
+			if reg == x64context.NoReg {
+				return fmt.Errorf("x86-64: no avaiable registers")
+			}
 			t.loadWord(r2, memSlot)
 
 			t.text.printft("imul %s %s, %s\n", sizeLabels[size], t.ctx.GetRegister(r2, size), t.ctx.GetRegister(reg, size))
@@ -150,6 +154,10 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 		size := sizeOf(t.info.Types[target])
 		for w := (size+7)/8 - 1; w >= 0; w-- {
 			reg := t.ctx.AllocFreeRegister()
+
+			if reg == x64context.NoReg {
+				return fmt.Errorf("x86-64: no avaiable registers")
+			}
 			t.pop(reg)
 			t.storeWord(memSlot.at(8*w, min(8, size-8*w)), Reg{reg, 8})
 			t.ctx.FreeRegister(reg)
