@@ -440,9 +440,13 @@ func (t *LuaTarget) compileLoopStatement(b *strings.Builder, stmt *ast.LoopStmt)
 		fmt.Fprintf(b, "if not (%s) then goto %s end\n", cond, ctx.BreakLabel)
 	}
 
+	b.WriteString("do\n")
+
 	if err := t.compileStatement(b, stmt.Body); err != nil {
 		return err
 	}
+
+	b.WriteString("end\n")
 
 	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
 
