@@ -217,10 +217,10 @@ func runInitTarget(cmd *cobra.Command, args []string) error {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(startPath, []byte(fmt.Sprintf(targetStartContent, name)), 0644); err != nil {
+	if err := os.WriteFile(startPath, fmt.Appendf(nil, targetStartContent, name), 0644); err != nil {
 		return err
 	}
-	if err := os.WriteFile(runtimePath, []byte(fmt.Sprintf(targetRuntimeContent, name)), 0644); err != nil {
+	if err := os.WriteFile(runtimePath, fmt.Appendf(nil, targetRuntimeContent, name), 0644); err != nil {
 		return err
 	}
 

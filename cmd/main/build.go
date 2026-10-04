@@ -65,6 +65,14 @@ func resolveTarget(cfg *module.Config) (target.Target, error) {
 	return target.Lookup(name)
 }
 
+func resolveExecutable(name string) string {
+	if !strings.ContainsRune(name, os.PathSeparator) {
+		return "." + string(os.PathSeparator) + name
+	}
+
+	return name
+}
+
 func rejectFlags(cmd *cobra.Command, tgt target.Target, names ...string) error {
 	for _, name := range names {
 		if cmd.Flags().Changed(name) {
@@ -127,7 +135,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 	var run *exec.Cmd
 	if res.binPath != "" {
-		run = exec.Command(res.binPath)
+		run = exec.Command(resolveExecutable(res.binPath))
 	} else {
 		rel, err := filepath.Rel(res.luaDir, res.luaEntry)
 		if err != nil {
