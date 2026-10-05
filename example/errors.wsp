@@ -1,25 +1,38 @@
 // Tour - Error handling.
 
-// An enum makes a handy set of error codes.
+// An enum is the family of an error: each member is one kind of failure.
 enum DivError {
   DivByZero
 }
 
-// `!T` marks a function that can fail. The failure branch returns an
-// Error{} (a builtin struct with a code and a message) and the success
-// branch returns the declared type.
+// A `!` before the return list marks a function that can fail. Inside it,
+// `return value` succeeds and `return Error(Member)` fails. The error keeps
+// its enum, the member, a message (the member's name unless you give one) and
+// the file and line where it was raised.
 func divide(int a, b) !int {
   if b == 0 {
-    return Error{code: DivByZero, message: "cannot divide by zero"};
+    return Error(DivByZero, "cannot divide by zero");
   }
   return a / b;
 }
 
-// `!expr` propagates: if the call fails, this function fails with the same
-// error. It is only legal inside another fallible function.
+// A postfix `!` passes the error up: if the call fails, this function fails
+// with the very same error. It is only legal inside a fallible function.
 func halveThenDouble(int a, b) !int {
-  let half = !divide(a, b);
+  let half = divide(a, b)!;
   return half * 2;
+}
+
+// A handler block runs on failure and has to leave: `return` here returns
+// from describe itself.
+func describe(int a, b) string {
+  let n = divide(a, b) ?? |e| {
+    return e.message;
+  };
+  if n > 0 {
+    return "positive";
+  }
+  return "zero";
 }
 
 export func demo() {
@@ -28,13 +41,30 @@ export func demo() {
   int fallback = divide(10, 0) ?? -1;
   emitf("ok=%d fallback=%d", ok, fallback);
 
-  // `?? |e| { ... }` runs a handler that receives the error.
-  int handled = divide(10, 0) ?? |e| {
-    emitf("failed: %s (code=%d)", e.message, e.code);
-    return -1;
-  };
-  emitf("handled=%d", handled);
+  // `?? |e| value` computes the fallback from the error.
+  int code = divide(10, 0) ?? |e| e.line;
+  emitf("raised on line %d", code);
 
   int propagated = halveThenDouble(10, 0) ?? -1;
   emitf("propagated=%d", propagated);
+  emit(describe(10, 0));
+  emit(describe(10, 5));
+
+  // Destructuring gives the value and the error. The value is zero on
+  // failure, and an error you never read is a compile error (bind it to `_`
+  // to drop it on purpose).
+  let value, e = divide(10, 0);
+  if e != null {
+    emitf("failed: %s (value=%d)", e.message, value);
+  }
+
+  // An error compares with null and with enum members, so a switch can sort
+  // failures out.
+  let result, err = divide(7, 0);
+  string what = switch err {
+    case null => "no error",
+    case DivByZero => "divided by zero",
+    default => err.message,
+  };
+  emit(what);
 }

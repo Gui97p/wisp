@@ -187,6 +187,7 @@ type NamedType struct {
 	Underlying Type
 	Methods    map[string]*FuncType
 	Enum       bool
+	Module     string
 }
 
 func (n NamedType) String() string {
@@ -242,6 +243,7 @@ type FuncType struct {
 	Params   []Type
 	Returns  []Type
 	Variadic bool
+	Fallible bool
 }
 
 func (f *FuncType) String() string {
@@ -257,7 +259,11 @@ func (f *FuncType) String() string {
 	}
 	b.WriteRune(')')
 
-	b.WriteString(" (")
+	b.WriteString(" ")
+	if f.Fallible {
+		b.WriteString("!")
+	}
+	b.WriteString("(")
 	for i, tp := range f.Returns {
 		b.WriteString(tp.String())
 		if i != len(f.Returns)-1 {
@@ -274,7 +280,7 @@ func (f *FuncType) Equals(other Type) bool {
 	if !ok {
 		return false
 	}
-	if len(f.Params) != len(o.Params) || len(f.Returns) != len(o.Returns) {
+	if len(f.Params) != len(o.Params) || len(f.Returns) != len(o.Returns) || f.Fallible != o.Fallible {
 		return false
 	}
 	for i := range f.Params {
@@ -290,20 +296,58 @@ func (f *FuncType) Equals(other Type) bool {
 	return true
 }
 
-type ErrorUnionType struct {
-	Payload Type
+type FallibleType struct {
+	Values []Type
 }
 
-func (e ErrorUnionType) String() string {
-	return "!" + e.Payload.String()
+func (f FallibleType) String() string {
+	switch len(f.Values) {
+	case 0:
+		return "!"
+	case 1:
+		return "!" + f.Values[0].String()
+	}
+
+	parts := make([]string, len(f.Values))
+	for i, v := range f.Values {
+		parts[i] = v.String()
+	}
+	return "!(" + strings.Join(parts, ", ") + ")"
 }
 
-func (e ErrorUnionType) Equals(other Type) bool {
-	o, ok := other.(ErrorUnionType)
-	if !ok {
+func (f FallibleType) Equals(other Type) bool {
+	o, ok := other.(FallibleType)
+	if !ok || len(f.Values) != len(o.Values) {
 		return false
 	}
-	return e.Payload.Equals(o.Payload)
+	for i := range f.Values {
+		if !f.Values[i].Equals(o.Values[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+type ErrorType struct{}
+
+func (ErrorType) String() string {
+	return "Error"
+}
+
+func (ErrorType) Equals(other Type) bool {
+	switch other.(type) {
+	case ErrorType, NullType:
+		return true
+	}
+	return false
+}
+
+var errorFields = map[string]Type{
+	"domain":  PrimitiveType{Name: "string"},
+	"code":    PrimitiveType{Name: "int"},
+	"message": PrimitiveType{Name: "string"},
+	"file":    PrimitiveType{Name: "string"},
+	"line":    PrimitiveType{Name: "int"},
 }
 
 var primitives = map[string]bool{

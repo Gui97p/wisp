@@ -13,8 +13,12 @@ type Analyser struct {
 	info  *Info
 	scope *Scope
 
-	currentReturns []Type
-	loopFrames     []loopFrame
+	currentReturns  []Type
+	currentFallible bool
+	loopFrames      []loopFrame
+
+	mustUse   []*Symbol
+	handlerOK map[ast.Expression]bool
 
 	modules map[string]*ModuleInfo
 	module  string
@@ -37,6 +41,7 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 		modules:   modules,
 		declFiles: declFiles,
 		module:    module,
+		handlerOK: map[ast.Expression]bool{},
 	}
 }
 
@@ -51,6 +56,7 @@ func (a *Analyser) Analyze() *Info {
 	a.registerConsts()
 	a.checkFuncBodies()
 	a.defaultUntyped()
+	a.checkMustUse()
 
 	return a.info
 }
@@ -65,7 +71,7 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		for i, r := range ref.FuncReturns {
 			returns[i] = a.resolveTypeRef(node, scope, r)
 		}
-		return &FuncType{Params: params, Returns: returns}
+		return &FuncType{Params: params, Returns: returns, Fallible: ref.FuncFallible}
 	}
 
 	if ref.IsMap {
@@ -78,9 +84,6 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		var result Type = &MapType{Key: keyType, Value: valueType}
 		for i := 0; i < ref.PointerDepth; i++ {
 			result = PointerType{Element: result}
-		}
-		if ref.Fallible {
-			result = ErrorUnionType{Payload: result}
 		}
 		return result
 	}
@@ -114,10 +117,6 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 
 	for i := 0; i < ref.PointerDepth; i++ {
 		result = PointerType{Element: result}
-	}
-
-	if ref.Fallible {
-		result = ErrorUnionType{Payload: result}
 	}
 
 	return result

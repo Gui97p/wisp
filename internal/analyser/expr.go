@@ -31,6 +31,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 			break
 		}
 		a.info.Idents[e] = symbol
+		symbol.Used = true
 		t = symbol.Type
 	case *ast.NullLiteral:
 		t = NullType{}
@@ -56,6 +57,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkTernaryExpr(e)
 	case *ast.CoalesceExpr:
 		t = a.checkCoalesceExpr(e)
+	case *ast.PropagateExpr:
+		t = a.checkPropagateExpr(e)
 	case *ast.CastExpr:
 		t = a.info.Types[e]
 	case *ast.InExpr:
@@ -92,19 +95,19 @@ func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
 		}
 	}
 
-	prevReturns := a.currentReturns
-	a.currentReturns = returns
+	prevReturns, prevFallible := a.currentReturns, a.currentFallible
+	a.currentReturns, a.currentFallible = returns, expr.Fallible
 
 	a.checkBlock(expr.Block)
 
-	a.currentReturns = prevReturns
+	a.currentReturns, a.currentFallible = prevReturns, prevFallible
 	a.exitScope()
 
 	if len(returns) > 0 && !blockTerminates(expr.Block) {
 		a.error(expr, "missing return at end of lambda")
 	}
 
-	return &FuncType{Params: params, Returns: returns}
+	return &FuncType{Params: params, Returns: returns, Fallible: expr.Fallible}
 }
 
 func singleReturn(block *ast.BlockStmt) (*ast.ReturnStmt, bool) {
@@ -213,6 +216,12 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	left := a.checkExpr(expr.Left)
 	right := a.checkExpr(expr.Right)
 
+	if expr.Operator == "==" || expr.Operator == "!=" {
+		if t, handled := a.checkErrorComparison(expr, left, right); handled {
+			return t
+		}
+	}
+
 	switch expr.Operator {
 	case "+", "-", "*", "/", "%", "==", "!=", ">", ">=", "<", "<=", "&", "|", "^":
 		a.checkBinaryConst(expr.Operator, expr.Left, expr.Right, left, right)
@@ -269,24 +278,12 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 			return boolType
 		}
 
-		if eu, ok := value.(ErrorUnionType); ok {
-			fallible := false
-			for _, r := range a.currentReturns {
-				if _, ok := r.(ErrorUnionType); ok {
-					fallible = true
-					break
-				}
-			}
-
-			if !fallible {
-				a.error(expr, "cannot propagate outside a fallible (!T) function")
-				return InvalidType{}
-			}
-
-			return eu.Payload
+		if _, ok := value.(FallibleType); ok {
+			a.error(expr, "a call that can fail is propagated with a postfix !, as in f()!")
+			return InvalidType{}
 		}
 
-		a.errorf(expr, "expected bool or fallible value for !, got %s", value.String())
+		a.errorf(expr, "expected bool for !, got %s", value.String())
 		return InvalidType{}
 	case "&":
 		if !isAddressable(expr.Value) {
@@ -323,6 +320,12 @@ func (a *Analyser) checkCallExprValue(expr *ast.CallExpr) Type {
 }
 
 func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
+	if a.isErrorConstructor(expr) {
+		returns := []Type{a.checkErrorConstructor(expr)}
+		a.info.CallReturns[expr] = returns
+		return returns
+	}
+
 	if target, ok := a.conversionTarget(expr); ok {
 		returns := []Type{a.checkConversion(expr, target)}
 		a.info.CallReturns[expr] = returns
@@ -330,8 +333,24 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 	}
 
 	returns := a.checkCallTypes(expr)
-	a.info.CallReturns[expr] = returns
+	a.info.CallReturns[expr] = machineReturns(returns)
 	return returns
+}
+
+func machineReturns(returns []Type) []Type {
+	if len(returns) == 1 {
+		if ft, ok := returns[0].(FallibleType); ok {
+			return append(append([]Type{}, ft.Values...), ErrorType{})
+		}
+	}
+	return returns
+}
+
+func callResults(ft *FuncType) []Type {
+	if ft.Fallible {
+		return []Type{FallibleType{Values: ft.Returns}}
+	}
+	return ft.Returns
 }
 
 func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
@@ -344,7 +363,7 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 		if methods := MethodsOf(objType); methods != nil {
 			if ft, ok := methods[member.Field]; ok {
 				a.checkCallArgs(expr, ft)
-				return ft.Returns
+				return callResults(ft)
 			}
 		}
 	}
@@ -354,7 +373,7 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 	switch ct := nameType.(type) {
 	case *FuncType:
 		a.checkCallArgs(expr, ct)
-		return ct.Returns
+		return callResults(ct)
 	case InvalidType:
 		a.evalArgTypes(expr)
 		return []Type{InvalidType{}}
@@ -437,6 +456,17 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 	var types []Type
 
 	for _, e := range exprs {
+		if pe, ok := e.(*ast.PropagateExpr); ok {
+			values := a.checkPropagate(pe)
+			if len(values) > 0 {
+				a.info.Types[pe] = values[0]
+			} else {
+				a.info.Types[pe] = VoidType{}
+			}
+			types = append(types, values...)
+			continue
+		}
+
 		if call, ok := e.(*ast.CallExpr); ok {
 			returns := a.checkCallExpr(call)
 			if len(returns) == 0 {
@@ -461,7 +491,7 @@ func (a *Analyser) evalArgTypes(expr *ast.CallExpr) []Type {
 	for i, arg := range expr.Args {
 		types[i] = a.checkExpr(arg)
 	}
-	return types
+	return a.rejectFallible(expr.Args, types)
 }
 
 func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
@@ -478,6 +508,15 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 			return InvalidType{}
 		}
 		return sym.Type
+	}
+
+	if _, ok := objType.(ErrorType); ok {
+		fieldType, ok := errorFields[expr.Field]
+		if !ok {
+			a.errorf(expr, "Error has no field %s", expr.Field)
+			return InvalidType{}
+		}
+		return fieldType
 	}
 
 	if ptr, ok := objType.(PointerType); ok {
@@ -581,50 +620,245 @@ func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 	return thenType
 }
 
+func (a *Analyser) checkPropagateExpr(expr *ast.PropagateExpr) Type {
+	values := a.checkPropagate(expr)
+	switch len(values) {
+	case 1:
+		return values[0]
+	case 0:
+		a.error(expr, "this call has no value to use")
+	default:
+		a.errorf(expr, "call yields %d values, expected 1 in this context", len(values))
+	}
+	return InvalidType{}
+}
+
+func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
+	operand := a.checkExpr(expr.Value)
+	if _, bad := operand.(InvalidType); bad {
+		return []Type{InvalidType{}}
+	}
+
+	ft, ok := operand.(FallibleType)
+	if !ok {
+		a.errorf(expr, "! expects a call that can fail, got %s", operand.String())
+		return []Type{InvalidType{}}
+	}
+
+	if !a.currentFallible {
+		a.error(expr, "cannot propagate outside a fallible function: mark it with !, or handle the error with ?? or let v, e = ...")
+		return []Type{InvalidType{}}
+	}
+
+	return ft.Values
+}
+
+func (a *Analyser) defineErrorBind(expr *ast.CoalesceExpr) {
+	line, col := expr.Position()
+	sym := &Symbol{Name: expr.ErrorBind, Kind: VAR, Type: ErrorType{}, Line: line, Col: col, File: a.currentFile, Used: true}
+	a.scope.Define(sym)
+	a.info.VarSymbols[expr] = []*Symbol{sym}
+	a.info.VarTypes[expr] = []Type{ErrorType{}}
+}
+
 func (a *Analyser) checkCoalesceExpr(expr *ast.CoalesceExpr) Type {
 	left := a.checkExpr(expr.Left)
-	eu, ok := left.(ErrorUnionType)
-	if !ok {
-		a.errorf(expr, "?? can only be used on a fallible (!T) value, got %s", left)
+	if _, bad := left.(InvalidType); bad {
 		return InvalidType{}
 	}
 
-	if expr.Default != nil {
-		def := a.checkExpr(expr.Default)
-		if !a.coerce(&expr.Default, def, eu.Payload) {
-			a.errorf(expr, "expected %s for default value, got %s", eu.Payload, def)
-			return InvalidType{}
-		}
-	} else if expr.Block != nil {
+	ft, ok := left.(FallibleType)
+	if !ok {
+		a.errorf(expr, "?? can only be used on a call that can fail, got %s", left)
+		return InvalidType{}
+	}
+	if len(ft.Values) != 1 {
+		a.errorf(expr, "?? needs a call that yields exactly one value, got %d", len(ft.Values))
+		return InvalidType{}
+	}
+	payload := ft.Values[0]
+
+	switch {
+	case expr.Block != nil:
 		b, ok := expr.Block.(*ast.BlockStmt)
 		if !ok {
 			a.errorf(expr, "expected valid block for coalesce")
 			return InvalidType{}
 		}
+		if !a.handlerOK[expr] {
+			a.error(expr, "a handler block can only be the value of a let, an assignment, a return or a statement")
+		}
 
-		errSymbol, _ := a.scope.Resolve("Error")
-
-		prevReturns := a.currentReturns
-		a.currentReturns = []Type{eu.Payload}
-
-		line, col := expr.Position()
 		a.enterScope()
-		a.scope.Define(&Symbol{Name: expr.ErrorBind, Kind: VAR, Type: errSymbol.Type, Line: line, Col: col, File: a.currentFile})
+		a.defineErrorBind(expr)
 		a.checkBlock(b)
 		a.exitScope()
 
-		a.currentReturns = prevReturns
-
-		if !blockTerminates(b) {
-			a.error(expr, "coalesce handler block must end with a return")
+		if !blockDiverges(b) {
+			a.error(expr, "the handler block must end with return, break or continue")
 			return InvalidType{}
 		}
-	} else {
+	case expr.Default != nil && expr.ErrorBind != "":
+		a.enterScope()
+		a.defineErrorBind(expr)
+		handler := a.checkExpr(expr.Default)
+		a.exitScope()
+		if !a.coerce(&expr.Default, handler, payload) {
+			a.errorf(expr, "expected %s for the handler value, got %s", payload, handler)
+			return InvalidType{}
+		}
+	case expr.Default != nil:
+		def := a.checkExpr(expr.Default)
+		if !a.coerce(&expr.Default, def, payload) {
+			a.errorf(expr, "expected %s for default value, got %s", payload, def)
+			return InvalidType{}
+		}
+	default:
 		a.error(expr, "expected default value or block in coalesce")
 		return InvalidType{}
 	}
 
-	return eu.Payload
+	return payload
+}
+
+func blockDiverges(block *ast.BlockStmt) bool {
+	if blockTerminates(block) {
+		return true
+	}
+	if len(block.Statements) == 0 {
+		return false
+	}
+	switch block.Statements[len(block.Statements)-1].(type) {
+	case *ast.BreakStmt, *ast.ContinueStmt:
+		return true
+	}
+	return false
+}
+
+func (a *Analyser) rejectFallible(exprs []ast.Expression, types []Type) []Type {
+	for i, t := range types {
+		ft, ok := t.(FallibleType)
+		if !ok {
+			continue
+		}
+		var node ast.Node = exprs[0]
+		if len(exprs) == len(types) {
+			node = exprs[i]
+		}
+		a.errorf(node, "unhandled error: the call can fail (%s); use !, ??, or bind the error with let v, e = ...", ft.String())
+		types[i] = InvalidType{}
+	}
+	return types
+}
+
+func (a *Analyser) expandFallible(values []ast.Expression, types []Type, want int) ([]Type, bool) {
+	if len(values) != 1 || len(types) != 1 {
+		return types, false
+	}
+	ft, ok := types[0].(FallibleType)
+	if !ok || want != len(ft.Values)+1 {
+		return types, false
+	}
+	return append(append([]Type{}, ft.Values...), ErrorType{}), true
+}
+
+func (a *Analyser) isErrorConstructor(expr *ast.CallExpr) bool {
+	id, ok := expr.Name.(*ast.IdentLiteral)
+	if !ok || id.Value != "Error" {
+		return false
+	}
+	sym, found := a.scope.Resolve("Error")
+	if !found {
+		return false
+	}
+	_, isError := sym.Type.(ErrorType)
+	return isError
+}
+
+func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
+	if len(expr.Args) < 1 || len(expr.Args) > 2 {
+		a.error(expr, "Error expects an enum member and an optional message")
+		a.evalArgTypes(expr)
+		return ErrorType{}
+	}
+
+	codeType := a.checkExpr(expr.Args[0])
+	enum, ok := codeType.(NamedType)
+	if _, bad := codeType.(InvalidType); bad {
+		return ErrorType{}
+	}
+	if !ok || !enum.Enum {
+		a.errorf(expr.Args[0], "the first argument of Error must be an enum member, got %s", codeType.String())
+		return ErrorType{}
+	}
+
+	code, isConst := a.evalConst(expr.Args[0])
+	if !isConst || code.Kind != ConstInt {
+		a.error(expr.Args[0], "the first argument of Error must be a constant enum member")
+		return ErrorType{}
+	}
+
+	member := enum.Name
+	if id, ok := expr.Args[0].(*ast.IdentLiteral); ok {
+		member = id.Value
+	}
+	message := enum.Name + "." + member
+
+	if len(expr.Args) == 2 {
+		messageType := a.checkExpr(expr.Args[1])
+		if _, bad := messageType.(InvalidType); !bad {
+			text, isConst := a.evalConst(expr.Args[1])
+			if !messageType.Equals(PrimitiveType{Name: "string"}) || !isConst || text.Kind != ConstString {
+				a.error(expr.Args[1], "the message of Error must be a constant string")
+				return ErrorType{}
+			}
+			message = text.Str
+		}
+	}
+
+	line, _ := expr.Position()
+	a.info.ErrorLiterals[expr] = &ErrorLiteral{
+		Domain:  enum.Module + "." + enum.Name,
+		Code:    code.Bits(),
+		Message: message,
+		File:    a.currentFile,
+		Line:    line,
+	}
+	return ErrorType{}
+}
+
+func (a *Analyser) checkErrorComparison(expr *ast.BinaryExpr, left, right Type) (Type, bool) {
+	_, leftErr := left.(ErrorType)
+	_, rightErr := right.(ErrorType)
+	if !leftErr && !rightErr {
+		return nil, false
+	}
+
+	boolType := PrimitiveType{Name: "bool"}
+	if leftErr && rightErr {
+		a.error(expr, "two errors cannot be compared: compare an Error with null or with an enum member")
+		return boolType, true
+	}
+
+	other, otherExpr := right, expr.Right
+	if rightErr {
+		other, otherExpr = left, expr.Left
+	}
+
+	switch o := other.(type) {
+	case NullType, InvalidType:
+		return boolType, true
+	case NamedType:
+		if o.Enum {
+			if _, isConst := a.evalConst(otherExpr); !isConst {
+				a.error(otherExpr, "an Error can only be compared with a constant enum member or null")
+			}
+			return boolType, true
+		}
+	}
+
+	a.errorf(expr, "cannot compare Error with %s", other.String())
+	return boolType, true
 }
 
 func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {

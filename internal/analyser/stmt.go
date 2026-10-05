@@ -24,18 +24,31 @@ func (a *Analyser) checkGroup(group *ast.GroupStmt) {
 func (a *Analyser) checkStmt(stmt ast.Statement) {
 	switch s := stmt.(type) {
 	case *ast.ExpressionStmt:
-		if call, ok := s.Expr.(*ast.CallExpr); ok {
-			a.checkCallExpr(call)
-		} else {
+		a.markHandlers([]ast.Expression{s.Expr})
+		switch e := s.Expr.(type) {
+		case *ast.CallExpr:
+			returns := a.checkCallExpr(e)
+			a.rejectFallible([]ast.Expression{e}, returns)
+		case *ast.PropagateExpr:
+			values := a.checkPropagate(e)
+			if len(values) > 0 {
+				a.info.Types[e] = values[0]
+			} else {
+				a.info.Types[e] = VoidType{}
+			}
+		default:
 			a.checkExpr(s.Expr)
 		}
 	case *ast.ReturnStmt:
 		a.checkReturnStmt(s)
 	case *ast.VarStmt:
+		a.markHandlers(s.Values)
 		a.checkVarStmt(s)
 	case *ast.ConstStmt:
+		a.markHandlers(s.Values)
 		a.checkConstStmt(s)
 	case *ast.AssignStmt:
+		a.markHandlers(s.Values)
 		a.checkAssignStmt(s)
 	case *ast.IncDecStmt:
 		a.checkIncDecStmt(s)
@@ -60,8 +73,24 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 	}
 }
 
+func (a *Analyser) markHandlers(exprs []ast.Expression) {
+	for _, e := range exprs {
+		if c, ok := e.(*ast.CoalesceExpr); ok {
+			a.handlerOK[c] = true
+		}
+	}
+}
+
 func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
-	types := a.checkExprList(stmt.Values)
+	a.markHandlers(stmt.Values)
+	types := a.rejectFallible(stmt.Values, a.checkExprList(stmt.Values))
+
+	if a.currentFallible && len(types) == 1 {
+		if _, isError := types[0].(ErrorType); isError {
+			a.info.ErrorReturns[stmt] = true
+			return
+		}
+	}
 
 	if len(types) != len(a.currentReturns) {
 		a.errorf(stmt, "expected %d return values, got %d", len(a.currentReturns), len(types))
@@ -70,18 +99,6 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 
 	for i, t := range types {
 		if _, ok := t.(InvalidType); ok {
-			continue
-		}
-		if eu, ok := a.currentReturns[i].(ErrorUnionType); ok {
-			if a.coerceAt(stmt.Values, len(types), i, t, eu.Payload) {
-				a.checkConstFits(a.valueAt(stmt.Values, len(types), i), eu.Payload)
-				continue
-			}
-			errSymbol, _ := a.scope.Resolve("Error")
-			if t.Equals(errSymbol.Type) {
-				continue
-			}
-			a.errorf(stmt, "return %d: expected %s or Error, got %s", i+1, eu.Payload, t)
 			continue
 		}
 		if !a.coerceAt(stmt.Values, len(types), i, t, a.currentReturns[i]) {
@@ -246,6 +263,8 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 		targetTypes[i] = a.checkExpr(target)
 	}
 	valueTypes := a.checkExprList(s.Values)
+	valueTypes, _ = a.expandFallible(s.Values, valueTypes, len(targetTypes))
+	valueTypes = a.rejectFallible(s.Values, valueTypes)
 
 	if len(valueTypes) != len(targetTypes) {
 		a.errorf(s, "expected %d values, got %d", len(targetTypes), len(valueTypes))

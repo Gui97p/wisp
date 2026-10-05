@@ -44,6 +44,9 @@ type Symbol struct {
 	Module string
 
 	Const *ConstValue
+
+	MustUse bool
+	Used    bool
 }
 
 type Scope struct {

@@ -37,17 +37,7 @@ func (a *Analyser) registerFuncSignatures() {
 			}
 		}
 
-		fallibleCount := 0
-		for _, t := range returns {
-			if _, ok := t.(ErrorUnionType); ok {
-				fallibleCount++
-			}
-		}
-		if fallibleCount > 1 {
-			a.errorf(fd, "function can only have one fallible (!T) return value")
-		}
-
-		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
+		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic, Fallible: fd.Fallible}
 		a.info.VarTypes[fd] = params
 		a.info.FuncReturns[fd] = returns
 		line, col := fd.Position()
@@ -116,9 +106,9 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 		a.info.VarSymbols[fd] = append(a.info.VarSymbols[fd], paramSym)
 	}
 
-	prevReturns := a.currentReturns
-	a.currentReturns = ft.Returns
-	defer func() { a.currentReturns = prevReturns }()
+	prevReturns, prevFallible := a.currentReturns, a.currentFallible
+	a.currentReturns, a.currentFallible = ft.Returns, ft.Fallible
+	defer func() { a.currentReturns, a.currentFallible = prevReturns, prevFallible }()
 
 	a.checkBlock(fd.Body)
 
@@ -146,12 +136,21 @@ func (a *Analyser) checkMainFunc(fd *ast.FuncDecl) {
 		a.errorf(fd, "main function must return nothing or a single int, got %d values", len(fd.ReturnTypes))
 	}
 
-	ft := &FuncType{Name: fd.Name, Params: []Type{}, Returns: returns, Variadic: false}
+	ft := &FuncType{Name: fd.Name, Params: []Type{}, Returns: returns, Variadic: false, Fallible: fd.Fallible}
 	a.info.FuncReturns[fd] = returns
 	line, col := fd.Position()
 	symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module}
 
 	if !a.scope.Define(symbol) {
 		a.errorAlreadyDeclared(fd, FUNC, fd.Name)
+	}
+}
+
+func (a *Analyser) checkMustUse() {
+	for _, sym := range a.mustUse {
+		if sym.Used {
+			continue
+		}
+		a.errors.Add(sym.File, sym.Line, sym.Col, sym.Line, sym.Col+len(sym.Name), "error %s is never used: handle it, or bind it to _", sym.Name)
 	}
 }

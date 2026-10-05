@@ -24,14 +24,5 @@ func (a *Analyser) registerBuiltins() {
 		Name: "free", Params: []Type{PointerType{Element: VoidType{}}}, Returns: nil,
 	}})
 
-	errorType := &StructType{
-		Name: "Error",
-		Fields: map[string]Type{
-			"code":    intType,
-			"message": strType,
-		},
-		Order:   []string{"code", "message"},
-		Methods: make(map[string]*FuncType),
-	}
-	a.universe.Define(&Symbol{Name: "Error", Kind: STRUCT, Type: errorType})
+	a.universe.Define(&Symbol{Name: "Error", Kind: TYPE, Type: ErrorType{}})
 }

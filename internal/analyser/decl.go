@@ -22,6 +22,7 @@ func (a *Analyser) registerTypeAliases() {
 			Underlying: underlyingType,
 			Methods:    make(map[string]*FuncType),
 			Enum:       td.IsEnum,
+			Module:     a.module,
 		}
 
 		line, col := td.Position()
@@ -89,17 +90,8 @@ func (a *Analyser) registerMethods() {
 			}
 		}
 
-		fallibleCount := 0
-		for _, t := range returns {
-			if _, ok := t.(ErrorUnionType); ok {
-				fallibleCount++
-			}
-		}
-		if fallibleCount > 1 {
-			a.errorf(fd, "function can only have one fallible (!T) return value")
-		}
-
-		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic}
+		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic, Fallible: fd.Fallible}
+		a.info.FuncReturns[fd] = returns
 	}
 }
 
@@ -129,6 +121,8 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 	}
 
 	valueTypes := a.checkExprList(values)
+	valueTypes, destructured := a.expandFallible(values, valueTypes, len(vars))
+	valueTypes = a.rejectFallible(values, valueTypes)
 
 	if len(valueTypes) != len(vars) {
 		a.errorf(node, "expected %d values, got %d", len(vars), len(valueTypes))
@@ -203,8 +197,16 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		if kind == CONST {
 			sym.Const = a.constantFor(node, values, len(vars), i, finalType)
 		}
-		if !a.scope.Define(sym) {
-			a.errorAlreadyDeclared(node, kind, v.Name)
+		if v.Name == "_" {
+			sym.Used = true
+		} else {
+			if destructured && i == len(vars)-1 {
+				sym.MustUse = true
+				a.mustUse = append(a.mustUse, sym)
+			}
+			if !a.scope.Define(sym) {
+				a.errorAlreadyDeclared(node, kind, v.Name)
+			}
 		}
 
 		a.info.VarTypes[node] = append(a.info.VarTypes[node], finalType)
