@@ -27,7 +27,7 @@ func main() {
 * `let` inference next to explicit types, and zero-value declarations
 * `if`, `switch` (statement and expression), `for` ranges with steps, and `loop` in its while, do-while and infinite forms
 * Labels for `break` and `continue`
-* Error handling with `!T`, `!expr` and `??`
+* Error handling: a `!` before the return list marks a function that can fail, `Error(Member)` raises, a postfix `!` passes an error up, `??` supplies a fallback, and `let v, e = f()` destructures (a `switch` can sort the failures out)
 * Modules with `import`, `export` and re-exports
 * `native` blocks for embedding backend-specific code
 
