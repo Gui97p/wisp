@@ -305,6 +305,44 @@ func (a *Analyser) unifySlots(left, right *ast.Expression, lt, rt Type) (Type, T
 	return common, common
 }
 
+func (a *Analyser) commonElement(current, next Type) (Type, bool) {
+	if isUntyped(current) && isUntyped(next) {
+		return typedSide(current, next), true
+	}
+	if isUntyped(current) {
+		if current.Equals(next) {
+			return next, true
+		}
+		return nil, false
+	}
+	if isUntyped(next) {
+		if next.Equals(current) {
+			return current, true
+		}
+		return nil, false
+	}
+	if current.Equals(next) && next.Equals(current) {
+		return current, true
+	}
+	if numericLike(current) && numericLike(next) {
+		return commonType(current, next)
+	}
+	return nil, false
+}
+
+func (a *Analyser) fixMapLiteral(expr ast.Expression, key, value Type) {
+	lit, ok := expr.(*ast.MapLiteral)
+	if !ok {
+		return
+	}
+
+	for i := range lit.Keys {
+		a.coerce(&lit.Keys[i], a.info.Types[lit.Keys[i]], key)
+		a.coerce(&lit.Values[i], a.info.Types[lit.Values[i]], value)
+	}
+	a.info.Types[lit] = &MapType{Key: key, Value: value}
+}
+
 func (a *Analyser) defaultUntyped() {
 	for expr, t := range a.info.Types {
 		if containsUntyped(t) {

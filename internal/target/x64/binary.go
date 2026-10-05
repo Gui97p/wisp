@@ -4,10 +4,11 @@ import (
 	"fmt"
 
 	"github.com/Gui97p/wisp/internal/analyser"
+	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
-func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
+func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightType, resultType analyser.Type, rightExpr ast.Expression) (Operand, error) {
 	switch op {
 	case "+", "-", "*", "/", "%":
 		return t.compileArithmetic(op, left, right, resultType)
@@ -16,7 +17,7 @@ func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightTy
 	case "&", "|", "^", "<<", ">>":
 		return t.compileBitwise(op, left, right, leftType, resultType)
 	case "&&", "||":
-		return t.compileLogical(op, left, right, leftType, rightType, resultType)
+		return t.compileLogical(op, left, rightExpr, leftType, rightType, resultType)
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported operator %s", op)
 	}
@@ -88,7 +89,7 @@ func (t *X64Target) compileComparison(op string, left, right Operand, leftType, 
 	return Reg{Reg: resultReg, Size: size}, nil
 }
 
-func (t *X64Target) compileLogical(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
+func (t *X64Target) compileLogical(op string, left Operand, rightExpr ast.Expression, leftType, rightType, resultType analyser.Type) (Operand, error) {
 	condLabel := t.newLabel("logcond")
 	endLabel := t.newLabel("logend")
 
@@ -106,6 +107,11 @@ func (t *X64Target) compileLogical(op string, left, right Operand, leftType, rig
 	leftRegStr := t.ctx.GetRegister(leftReg, size)
 	t.text.printft("test %s, %s\n", leftRegStr, leftRegStr)
 	t.text.printft("%s %s\n", inst, condLabel)
+
+	right, err := t.compileExpr(rightExpr)
+	if err != nil {
+		return nil, err
+	}
 
 	size = sizeOf(rightType)
 	rightReg := t.materialize(right, size)

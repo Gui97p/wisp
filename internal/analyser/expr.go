@@ -134,17 +134,27 @@ func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
 		return InvalidType{}
 	}
 
+	common := first
 	for i := 1; i < len(elemTypes); i++ {
 		t := elemTypes[i]
 		if _, ok := t.(InvalidType); ok {
 			continue
 		}
-		if !t.Equals(first) {
-			a.errorf(expr, "array index %d expected %s, got %s", i+1, first.String(), t.String())
+		next, ok := a.commonElement(common, t)
+		if !ok {
+			a.errorf(expr, "array index %d expected %s, got %s", i+1, common.String(), t.String())
+			continue
+		}
+		common = next
+	}
+
+	for i := range expr.Elements {
+		if _, ok := elemTypes[i].(InvalidType); !ok {
+			a.coerce(&expr.Elements[i], elemTypes[i], common)
 		}
 	}
 
-	return ArrayType{Element: first, Size: int64(len(expr.Elements))}
+	return ArrayType{Element: common, Size: int64(len(expr.Elements))}
 }
 
 func (a *Analyser) checkMapLiteral(expr *ast.MapLiteral) Type {
@@ -169,16 +179,34 @@ func (a *Analyser) checkMapLiteral(expr *ast.MapLiteral) Type {
 		return InvalidType{}
 	}
 
+	commonKey, commonValue := firstKey, firstValue
 	for i := 1; i < len(keyTypes); i++ {
-		if _, ok := keyTypes[i].(InvalidType); !ok && !keyTypes[i].Equals(firstKey) {
-			a.errorf(expr, "map key %d expected %s, got %s", i+1, firstKey.String(), keyTypes[i].String())
+		if _, ok := keyTypes[i].(InvalidType); !ok {
+			if next, ok := a.commonElement(commonKey, keyTypes[i]); ok {
+				commonKey = next
+			} else {
+				a.errorf(expr, "map key %d expected %s, got %s", i+1, commonKey.String(), keyTypes[i].String())
+			}
 		}
-		if _, ok := valueTypes[i].(InvalidType); !ok && !valueTypes[i].Equals(firstValue) {
-			a.errorf(expr, "map value %d expected %s, got %s", i+1, firstValue.String(), valueTypes[i].String())
+		if _, ok := valueTypes[i].(InvalidType); !ok {
+			if next, ok := a.commonElement(commonValue, valueTypes[i]); ok {
+				commonValue = next
+			} else {
+				a.errorf(expr, "map value %d expected %s, got %s", i+1, commonValue.String(), valueTypes[i].String())
+			}
 		}
 	}
 
-	return &MapType{Key: firstKey, Value: firstValue}
+	for i := range expr.Keys {
+		if _, ok := keyTypes[i].(InvalidType); !ok {
+			a.coerce(&expr.Keys[i], keyTypes[i], commonKey)
+		}
+		if _, ok := valueTypes[i].(InvalidType); !ok {
+			a.coerce(&expr.Values[i], valueTypes[i], commonValue)
+		}
+	}
+
+	return &MapType{Key: commonKey, Value: commonValue}
 }
 
 func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
@@ -613,15 +641,15 @@ func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {
 
 	switch rt := right.(type) {
 	case ArrayType:
-		if !left.Equals(rt.Element) {
+		if !a.coerce(&expr.Left, left, rt.Element) {
 			a.errorf(expr, "'in' expects %s, got %s", rt.Element, left)
 		}
 	case SpanType:
-		if !left.Equals(rt.Element) {
+		if !a.coerce(&expr.Left, left, rt.Element) {
 			a.errorf(expr, "'in' expects %s, got %s", rt.Element, left)
 		}
 	case *MapType:
-		if !left.Equals(rt.Key) {
+		if !a.coerce(&expr.Left, left, rt.Key) {
 			a.errorf(expr, "'in' expects %s, got %s", rt.Key, left)
 		}
 	case PrimitiveType:

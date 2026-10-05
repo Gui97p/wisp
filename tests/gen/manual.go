@@ -796,4 +796,21 @@ func main() {
     check(j == 100, "conv nested");
 }
 `},
+
+	{dir: "conv_literals", src: `func main() {
+    int8 a = 1;
+    int16 b = 300;
+    int64 c = 5000000000;
+    int64[3] xs = [a, b, c];
+    check(xs[0] == 1, "literal array widens an int8 element");
+    check(xs[1] == 300, "literal array widens an int16 element");
+    check(xs[2] == 5000000000, "literal array keeps an int64 element");
+    let ys = [a, b];
+    check(ys[1] == 300, "literal array takes the common element type");
+    check(a in xs, "in widens the left operand");
+    map[string]int64 m = {"one": a, "big": c};
+    check(m["one"] == 1, "literal map widens a value");
+    check(m["big"] == 5000000000, "literal map keeps an int64 value");
+}
+`},
 }

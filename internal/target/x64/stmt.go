@@ -108,15 +108,17 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 			return err
 		}
 
+		if stmt.Op == "=" {
+			t.store(op, memSlot)
+		} else {
 		targetType := t.info.Types[stmt.Targets[0]]
 		valueType := t.info.Types[stmt.Values[0]]
-
-		res, err := t.emitBinary(stmt.Op[:len(stmt.Op)-1], memSlot, op, targetType, valueType, targetType)
+			res, err := t.emitBinary(stmt.Op[:len(stmt.Op)-1], memSlot, op, targetType, valueType, targetType, nil)
 		if err != nil {
 			return err
 		}
-
 		t.store(res, memSlot)
+		}
 
 		return nil
 	}

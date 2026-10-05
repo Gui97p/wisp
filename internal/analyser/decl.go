@@ -158,7 +158,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 							a.errorDeclaredAs(node, v.Name, declaredType, valueType)
 						case valArr.Size > declArr.Size:
 							a.errorf(node, "array %s declared with size %d, got %d elements", v.Name, declArr.Size, valArr.Size)
-						case !valArr.Element.Equals(declArr.Element):
+						case !a.arrayElementAssignable(values, len(vars), i, valArr.Element, declArr.Element):
 							a.errorf(node, "array %s expects element type %s, got %s", v.Name, declArr.Element.String(), valArr.Element.String())
 						default:
 							if slot := a.valueSlot(values, len(vars), i); slot != nil {
@@ -168,7 +168,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 					} else if declSpan, ok := declaredType.(SpanType); ok {
 						switch valT := valueType.(type) {
 						case ArrayType:
-							if !valT.Element.Equals(declSpan.Element) {
+							if !a.arrayElementAssignable(values, len(vars), i, valT.Element, declSpan.Element) {
 								a.errorf(node, "span %s expects element type %s, got %s", v.Name, declSpan.Element.String(), valT.Element.String())
 							} else if slot := a.valueSlot(values, len(vars), i); slot != nil {
 								a.fixArrayLiteral(*slot, declSpan.Element)
@@ -180,6 +180,8 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 						default:
 							a.errorDeclaredAs(node, v.Name, declaredType, valueType)
 						}
+					} else if declMap, isMap := declaredType.(*MapType); isMap && a.mapLiteralAssignable(values, len(vars), i, valueType, declMap) {
+						a.fixMapLiteral(values[i], declMap.Key, declMap.Value)
 					} else if !a.coerceAt(values, len(vars), i, valueType, declaredType) {
 						a.errorDeclaredAs(node, v.Name, declaredType, valueType)
 					} else {
@@ -205,4 +207,35 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		a.info.VarTypes[node] = append(a.info.VarTypes[node], finalType)
 		a.info.VarSymbols[node] = append(a.info.VarSymbols[node], sym)
 	}
+}
+
+func (a *Analyser) arrayElementAssignable(values []ast.Expression, n, i int, from, to Type) bool {
+	if from.Equals(to) {
+		return true
+	}
+	slot := a.valueSlot(values, n, i)
+	if slot == nil {
+		return false
+	}
+	if _, isLiteral := (*slot).(*ast.ArrayLiteral); !isLiteral {
+		return false
+	}
+	return implicitConversion(from, to)
+}
+
+func (a *Analyser) mapLiteralAssignable(values []ast.Expression, n, i int, from Type, to *MapType) bool {
+	slot := a.valueSlot(values, n, i)
+	if slot == nil {
+		return false
+	}
+	if _, isLiteral := (*slot).(*ast.MapLiteral); !isLiteral {
+		return false
+	}
+	vm, ok := from.(*MapType)
+	if !ok {
+		return false
+	}
+	keyOK := vm.Key.Equals(to.Key) || implicitConversion(vm.Key, to.Key)
+	valueOK := vm.Value.Equals(to.Value) || implicitConversion(vm.Value, to.Value)
+	return keyOK && valueOK
 }

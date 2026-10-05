@@ -77,12 +77,16 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 	if err != nil {
 		return nil, err
 	}
-	right, err := t.compileExpr(expr.Right)
+
+	var right Operand
+	if expr.Operator != "&&" && expr.Operator != "||" {
+		right, err = t.compileExpr(expr.Right)
 	if err != nil {
 		return nil, err
+		}
 	}
 
-	return t.emitBinary(expr.Operator, left, right, t.info.Types[expr.Left], t.info.Types[expr.Right], t.info.Types[expr])
+	return t.emitBinary(expr.Operator, left, right, t.info.Types[expr.Left], t.info.Types[expr.Right], t.info.Types[expr], expr.Right)
 }
 
 func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
