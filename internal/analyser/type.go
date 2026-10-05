@@ -118,8 +118,11 @@ func (NullType) String() string {
 }
 
 func (NullType) Equals(other Type) bool {
-	_, ok := other.(PointerType)
-	return ok
+	switch other.(type) {
+	case PointerType, ErrorType:
+		return true
+	}
+	return false
 }
 
 type VoidType struct{}

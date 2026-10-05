@@ -76,18 +76,10 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 		}
 		first = false
 	}
-	prevCount, prevIdx := t.currentReturnCount, t.currentFallibleIndex
-	t.currentReturnCount = len(fd.ReturnTypes)
-	t.currentFallibleIndex = -1
-	for i, r := range fd.ReturnTypes {
-		if r.Fallible {
-			t.currentFallibleIndex = i
-			break
-		}
-	}
+	prevFallible, prevPayloads := t.currentFallible, t.currentPayloads
+	t.currentFallible, t.currentPayloads = fd.Fallible, t.info.FuncReturns[fd]
 	defer func() {
-		t.currentReturnCount = prevCount
-		t.currentFallibleIndex = prevIdx
+		t.currentFallible, t.currentPayloads = prevFallible, prevPayloads
 	}()
 	b.WriteString(")\n")
 

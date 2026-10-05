@@ -68,6 +68,10 @@ func intLiteralText(e *ast.IntLiteral) string {
 }
 
 func (t *LuaTarget) compileBinaryExpr(b *strings.Builder, e *ast.BinaryExpr) error {
+	if handled, err := t.compileErrorComparison(b, e); handled {
+		return err
+	}
+
 	left, err := t.compileExprScratch(e.Left)
 	if err != nil {
 		return err
@@ -158,12 +162,6 @@ func comparisonText(op, left, right string, operand analyser.Type) string {
 }
 
 func (t *LuaTarget) compileUnaryExpr(b *strings.Builder, e *ast.UnaryExpr) error {
-	if e.Operator == "!" {
-		if _, ok := t.info.Types[e.Value].(analyser.ErrorUnionType); ok {
-			return t.compilePropagate(b, e)
-		}
-	}
-
 	value, err := t.compileExprScratch(e.Value)
 	if err != nil {
 		return err

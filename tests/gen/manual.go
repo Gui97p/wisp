@@ -867,4 +867,344 @@ func main() {
     check(other == 300, "implicit ternary takes the common type");
 }
 `},
+
+	{dir: "err_basic", src: `enum Kind {
+    A,
+    B
+}
+
+func f(int x) !int {
+    if x == 0 {
+        return Error(B);
+    }
+    return x * 2;
+}
+
+func main() {
+    let v, e = f(5);
+    check(e == null, "err success has no error");
+    check(v == 10, "err success carries the value");
+    let w, e2 = f(0);
+    check(e2 != null, "err failure has an error");
+    check(w == 0, "err failure payload is zero");
+    check(e2 == B, "err failure is the member that was raised");
+}
+`},
+
+	{dir: "err_propagate", src: `enum Kind {
+    Neg,
+    Other
+}
+
+func inner(int x) !int {
+    if x < 0 {
+        return Error(Neg);
+    }
+    return x;
+}
+
+func outer(int x) !int {
+    let v = inner(x)!;
+    return v + 1;
+}
+
+func twice(int x) !int {
+    return inner(x)! + inner(x + 1)!;
+}
+
+func main() {
+    let a, ea = outer(1);
+    check(ea == null, "errprop success has no error");
+    check(a == 2, "errprop success unwraps the value");
+    let b, eb = outer(-1);
+    check(eb == Neg, "errprop keeps the original error");
+    check(b == 0, "errprop zeroes the payload");
+    let c, ec = twice(1);
+    check(ec == null, "errprop twice in one expression");
+    check(c == 3, "errprop twice sums both values");
+    let d, ed = twice(-1);
+    check(ed == Neg, "errprop stops at the first failure");
+}
+`},
+
+	{dir: "err_coalesce", src: `enum Kind {
+    A,
+    B
+}
+
+func f(int x) !int {
+    if x == 0 {
+        return Error(B);
+    }
+    return x * 2;
+}
+
+func main() {
+    int a = f(5) ?? 99;
+    check(a == 10, "errco default is skipped on success");
+    int b = f(0) ?? 99;
+    check(b == 99, "errco default is used on failure");
+    int c = f(0) ?? |e| e.code;
+    check(c == 1, "errco handler expression sees the error");
+    int d = f(3) ?? |e| 7;
+    check(d == 6, "errco handler is skipped on success");
+    int g = (f(1) ?? 0) + (f(0) ?? 5);
+    check(g == 7, "errco inside an expression");
+}
+`},
+
+	{dir: "err_handler_block", src: `enum Kind {
+    A
+}
+
+func f(int x) !int {
+    if x == 0 {
+        return Error(A);
+    }
+    return x * 2;
+}
+
+func g(int x) int {
+    let v = f(x) ?? |e| {
+        return -1;
+    };
+    return v + 100;
+}
+
+func h(int x) int {
+    int out = 0;
+    out = f(x) ?? |e| return -2;
+    return out;
+}
+
+func main() {
+    check(g(5) == 110, "errblock success continues");
+    check(g(0) == -1, "errblock return leaves the function");
+    check(h(4) == 8, "errblock return shorthand on success");
+    check(h(0) == -2, "errblock return shorthand on failure");
+}
+`},
+
+	{dir: "err_handler_loop", src: `enum Kind {
+    A
+}
+
+func f(int x) !int {
+    if x == 0 {
+        return Error(A);
+    }
+    return x * 2;
+}
+
+func main() {
+    int total = 0;
+    for i in 0..3 {
+        let v = f(i) ?? |e| {
+            continue;
+        };
+        total += v;
+    }
+    check(total == 12, "errloop continue skips the failing iteration");
+    int seen = 0;
+    for i in 0..3 {
+        let v = f(i) ?? |e| {
+            break;
+        };
+        seen += 1;
+    }
+    check(seen == 0, "errloop break leaves the loop");
+}
+`},
+
+	{dir: "err_void", src: `enum Kind {
+    A
+}
+
+func v(int x) ! {
+    if x == 0 {
+        return Error(A);
+    }
+}
+
+func caller(int x) ! {
+    v(x)!;
+}
+
+func main() {
+    let e1 = v(1);
+    check(e1 == null, "errvoid success falls off the end");
+    let e2 = v(0);
+    check(e2 == A, "errvoid failure");
+    let e3 = caller(1);
+    check(e3 == null, "errvoid propagates success");
+    let e4 = caller(0);
+    check(e4 == A, "errvoid propagates the failure");
+}
+`},
+
+	{dir: "err_multi", src: `enum Kind {
+    A
+}
+
+func pair(int x) !(int, int) {
+    if x == 0 {
+        return Error(A);
+    }
+    return x, x * 10;
+}
+
+func sum(int x) !int {
+    let a, b = pair(x)!;
+    return a + b;
+}
+
+func main() {
+    let a, b, e = pair(3);
+    check(e == null, "errmulti success has no error");
+    check(a == 3 && b == 30, "errmulti success carries both values");
+    let c, d, e2 = pair(0);
+    check(e2 == A, "errmulti failure");
+    check(c == 0 && d == 0, "errmulti failure zeroes every value");
+    let s, e3 = sum(2);
+    check(e3 == null && s == 22, "errmulti propagate keeps both values");
+    let t, e4 = sum(0);
+    check(e4 == A && t == 0, "errmulti propagate stops on failure");
+}
+`},
+
+	{dir: "err_domains", src: `enum First {
+    Alpha
+}
+
+enum Second {
+    Beta
+}
+
+func raise(int which) !int {
+    if which == 0 {
+        return Error(Alpha);
+    }
+    return Error(Beta);
+}
+
+func main() {
+    let a, ea = raise(0);
+    check(ea == Alpha, "errdomain matches its own member");
+    check(ea != Beta, "errdomain different enums with the same code differ");
+    let b, eb = raise(1);
+    check(eb == Beta, "errdomain second enum");
+    check(eb != Alpha, "errdomain does not match the other enum");
+    check(ea.code == eb.code, "errdomain both codes are zero");
+}
+`},
+
+	{dir: "err_switch", src: `enum Kind {
+    A,
+    B
+}
+
+func pick(int x) !int {
+    if x == 0 {
+        return Error(A);
+    }
+    if x < 0 {
+        return Error(B);
+    }
+    return x;
+}
+
+func classify(int x) int {
+    let v, e = pick(x);
+    return switch e {
+        case null => v,
+        case A => 100,
+        default => 200,
+    };
+}
+
+func label(int x) int {
+    let v, e = pick(x);
+    int out = 0;
+    switch e {
+        case null:
+            out = 1;
+        case B:
+            out = 2;
+        default:
+            out = 3;
+    }
+    return out;
+}
+
+func main() {
+    check(classify(5) == 5, "errswitch expression on success");
+    check(classify(0) == 100, "errswitch expression matches a member");
+    check(classify(-1) == 200, "errswitch expression default");
+    check(label(5) == 1, "errswitch statement on success");
+    check(label(-1) == 2, "errswitch statement matches a member");
+    check(label(0) == 3, "errswitch statement default");
+}
+`},
+
+	{dir: "err_info", src: `enum Kind {
+    A,
+    B
+}
+
+func plain() !int {
+    return Error(B);
+}
+
+func custom() !int {
+    return Error(A, "something went wrong");
+}
+
+func main() {
+    let x, e1 = plain();
+    check(e1.message == "Kind.B", "errinfo default message is the member name");
+    check(e1.code == 1, "errinfo code");
+    check(e1.line > 0, "errinfo records a line");
+    let y, e2 = custom();
+    check(e2.message == "something went wrong", "errinfo custom message");
+    check(e2.code == 0, "errinfo custom code");
+}
+`},
+
+	{dir: "err_discard", src: `enum Kind {
+    A
+}
+
+func f(int x) !int {
+    if x == 0 {
+        return Error(A);
+    }
+    return x;
+}
+
+func main() {
+    let v, _ = f(4);
+    check(v == 4, "errdiscard keeps the value");
+    let _, e = f(0);
+    check(e == A, "errdiscard keeps the error");
+    let w, _ = f(0);
+    check(w == 0, "errdiscard of a failure leaves zero");
+}
+`},
+
+	{dir: "err_main", src: `enum Kind {
+    A
+}
+
+func f(int x) !int {
+    if x == 0 {
+        return Error(A);
+    }
+    return x;
+}
+
+func main() ! {
+    let v = f(3)!;
+    check(v == 3, "errmain propagates inside main");
+}
+`},
 }

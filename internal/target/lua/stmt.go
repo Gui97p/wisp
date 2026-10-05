@@ -63,33 +63,24 @@ func (t *LuaTarget) compileGroupStatement(b *strings.Builder, group *ast.GroupSt
 }
 
 func (t *LuaTarget) compileReturnStatement(b *strings.Builder, stmt *ast.ReturnStmt) error {
-	if result, ok := t.currentCoalesceResult(); ok {
-		text, err := t.compileExprScratch(stmt.Values[0])
-		if err != nil {
-			return err
-		}
-
-		t.flushPending(b)
-
-		fmt.Fprintf(b, "%s = %s\n", result, text)
-		return nil
-	}
-
-	texts := make([]string, len(stmt.Values))
-	for k, value := range stmt.Values {
+	texts := make([]string, 0, len(stmt.Values)+len(t.currentPayloads)+1)
+	for _, value := range stmt.Values {
 		text, err := t.compileExprScratch(value)
 		if err != nil {
 			return err
 		}
+		texts = append(texts, text)
+	}
 
-		if k == t.currentFallibleIndex {
-			if isError(t.info.Types[value]) {
-				text = fmt.Sprintf("{value = nil, err = %s}", text)
-			} else {
-				text = fmt.Sprintf("{value = %s, err = nil}", text)
-			}
+	switch {
+	case t.info.ErrorReturns[stmt]:
+		zeros, err := t.payloadZeros()
+		if err != nil {
+			return err
 		}
-		texts[k] = text
+		texts = append(zeros, texts...)
+	case t.currentFallible:
+		texts = append(texts, "nil")
 	}
 
 	t.flushPending(b)
@@ -108,8 +99,10 @@ func (t *LuaTarget) compileExpressionStatement(b *strings.Builder, stmt *ast.Exp
 
 	t.flushPending(b)
 
-	b.WriteString(text)
-	b.WriteRune('\n')
+	if text != "" {
+		b.WriteString(text)
+		b.WriteRune('\n')
+	}
 	return nil
 }
 

@@ -17,11 +17,10 @@ type LuaTarget struct {
 	loopStack    []loopContext
 	labelCounter uint64
 
-	currentFallibleIndex int
-	currentReturnCount   int
+	currentFallible bool
+	currentPayloads []analyser.Type
 
-	pending       []string
-	coalesceStack []string
+	pending []string
 }
 
 func New(program *ast.Program, info *analyser.Info, isEntry bool) *LuaTarget {
@@ -51,7 +50,7 @@ func (t *LuaTarget) Compile() (string, error) {
 	}
 
 	if t.isEntry {
-		b.WriteString("main()\n")
+		b.WriteString(t.entryErrorCheck())
 	} else {
 		b.WriteString("local __wisp_module = {}\n")
 		t.writeExports(&b)

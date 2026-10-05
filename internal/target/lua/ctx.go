@@ -72,18 +72,3 @@ func (t *LuaTarget) findLoop(label string) *loopContext {
 	}
 	return nil
 }
-
-func (t *LuaTarget) pushCoalesceResult(varName string) {
-	t.coalesceStack = append(t.coalesceStack, varName)
-}
-
-func (t *LuaTarget) popCoalesceResult() {
-	t.coalesceStack = t.coalesceStack[:len(t.coalesceStack)-1]
-}
-
-func (t *LuaTarget) currentCoalesceResult() (string, bool) {
-	if len(t.coalesceStack) == 0 {
-		return "", false
-	}
-	return t.coalesceStack[len(t.coalesceStack)-1], true
-}

@@ -1,0 +1,194 @@
+package lua
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/Gui97p/wisp/internal/analyser"
+	"github.com/Gui97p/wisp/internal/ast"
+)
+
+func luaString(value string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, c := range value {
+		switch c {
+		case '\n':
+			b.WriteString("\\n")
+		case '\r':
+			b.WriteString("\\r")
+		default:
+			b.WriteRune(c)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
+
+func errorTable(lit *analyser.ErrorLiteral) string {
+	return fmt.Sprintf("{domain=%s, code=%d, message=%s, file=%s, line=%d}",
+		luaString(lit.Domain), lit.Code, luaString(lit.Message), luaString(lit.File), lit.Line)
+}
+
+func (t *LuaTarget) payloadZeros() ([]string, error) {
+	zeros := make([]string, 0, len(t.currentPayloads)+1)
+	for _, tp := range t.currentPayloads {
+		zero, err := zeroValue(tp)
+		if err != nil {
+			return nil, err
+		}
+		zeros = append(zeros, zero)
+	}
+	return zeros, nil
+}
+
+func (t *LuaTarget) compilePropagate(b *strings.Builder, expr *ast.PropagateExpr) error {
+	call, err := t.compileExprScratch(expr.Value)
+	if err != nil {
+		return err
+	}
+
+	fallible, ok := t.info.Types[expr.Value].(analyser.FallibleType)
+	if !ok {
+		return fmt.Errorf("lua: ! applied to a call that cannot fail")
+	}
+
+	names := make([]string, len(fallible.Values))
+	for i := range names {
+		names[i] = t.newLabel("p")
+	}
+	errName := t.newLabel("perr")
+
+	targets := append(append([]string{}, names...), errName)
+	t.emitPending(fmt.Sprintf("local %s = %s\n", strings.Join(targets, ", "), call))
+
+	zeros, err := t.payloadZeros()
+	if err != nil {
+		return err
+	}
+	zeros = append(zeros, errName)
+	t.emitPending(fmt.Sprintf("if %s ~= nil then return %s end\n", errName, strings.Join(zeros, ", ")))
+
+	b.WriteString(strings.Join(names, ", "))
+	return nil
+}
+
+func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceExpr) error {
+	call, err := t.compileExprScratch(expr.Left)
+	if err != nil {
+		return err
+	}
+
+	value := t.newLabel("co")
+	errName := t.newLabel("coerr")
+	result := t.newLabel("cor")
+	t.emitPending(fmt.Sprintf("local %s, %s = %s\n", value, errName, call))
+	t.emitPending(fmt.Sprintf("local %s\n", result))
+
+	outer := t.pending
+	t.pending = nil
+
+	var branch strings.Builder
+	fmt.Fprintf(&branch, "if %s ~= nil then\n", errName)
+
+	switch {
+	case expr.Block != nil:
+		block, ok := expr.Block.(*ast.BlockStmt)
+		if !ok {
+			t.pending = outer
+			return fmt.Errorf("lua: coalesce expects a block")
+		}
+
+		fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
+		if err := t.compileStatement(&branch, block); err != nil {
+			t.pending = outer
+			return err
+		}
+	default:
+		if expr.ErrorBind != "" {
+			fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
+		}
+
+		def, err := t.compileExprScratch(expr.Default)
+		if err != nil {
+			t.pending = outer
+			return err
+		}
+		t.flushPending(&branch)
+		fmt.Fprintf(&branch, "%s = %s\n", result, def)
+	}
+
+	fmt.Fprintf(&branch, "else\n%s = %s\nend\n", result, value)
+
+	t.pending = outer
+	t.emitPending(branch.String())
+
+	b.WriteString(result)
+	return nil
+}
+
+func (t *LuaTarget) compileErrorComparison(b *strings.Builder, e *ast.BinaryExpr) (bool, error) {
+	if e.Operator != "==" && e.Operator != "!=" {
+		return false, nil
+	}
+
+	_, leftErr := t.info.Types[e.Left].(analyser.ErrorType)
+	_, rightErr := t.info.Types[e.Right].(analyser.ErrorType)
+	if !leftErr && !rightErr {
+		return false, nil
+	}
+
+	errSide, otherSide := e.Left, e.Right
+	if rightErr {
+		errSide, otherSide = e.Right, e.Left
+	}
+
+	errText, err := t.compileExprScratch(errSide)
+	if err != nil {
+		return true, err
+	}
+
+	if _, isNull := t.info.Types[otherSide].(analyser.NullType); isNull {
+		op := "=="
+		if e.Operator == "!=" {
+			op = "~="
+		}
+		fmt.Fprintf(b, "(%s %s nil)", errText, op)
+		return true, nil
+	}
+
+	enum, ok := t.info.Types[otherSide].(analyser.NamedType)
+	ident, isIdent := otherSide.(*ast.IdentLiteral)
+	if !ok || !isIdent {
+		return true, fmt.Errorf("lua: an Error can only be compared with null or an enum member")
+	}
+	sym := t.info.Idents[ident]
+	if sym == nil || sym.Const == nil {
+		return true, fmt.Errorf("lua: %s is not a constant", ident.Value)
+	}
+
+	domain := luaString(enum.Module + "." + enum.Name)
+	if e.Operator == "==" {
+		fmt.Fprintf(b, "(%s ~= nil and %s.domain == %s and %s.code == %d)", errText, errText, domain, errText, sym.Const.Bits())
+	} else {
+		fmt.Fprintf(b, "(%s == nil or %s.domain ~= %s or %s.code ~= %d)", errText, errText, domain, errText, sym.Const.Bits())
+	}
+	return true, nil
+}
+
+func (t *LuaTarget) entryErrorCheck() string {
+	for _, d := range t.program.Declarations {
+		fd, ok := d.(*ast.FuncDecl)
+		if !ok || fd.Name != "main" || fd.Receiver != nil || !fd.Fallible {
+			continue
+		}
+		return `local __main_result = table.pack(main())
+local __main_error = __main_result[__main_result.n]
+if __main_error ~= nil then
+	io.stderr:write("error: ", __main_error.message, " (", __main_error.file, ":", __main_error.line, ")\n")
+	os.exit(1)
+end
+`
+	}
+	return "main()\n"
+}
