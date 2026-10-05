@@ -192,8 +192,14 @@ func (t *LuaTarget) compileCastExpr(b *strings.Builder, e *ast.CastExpr) error {
 	dst := t.info.Types[e]
 
 	switch {
+	case analyser.LosslessWidening(src, dst):
+		b.WriteString(value)
 	case isFloatType(dst) && isIntType(src):
-		fmt.Fprintf(b, "(%s + 0.0)", value)
+		if isUnsigned64(src) {
+			fmt.Fprintf(b, "__wisp_u2f(%s)", value)
+		} else {
+			fmt.Fprintf(b, "(%s + 0.0)", value)
+		}
 	case isIntType(dst) && isFloatType(src):
 		b.WriteString(wrapInt(fmt.Sprintf("__wisp_f2i(%s)", value), dst))
 	case isIntType(dst) && isIntType(src):

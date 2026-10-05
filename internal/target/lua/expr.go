@@ -198,6 +198,10 @@ func methodOwnerName(t analyser.Type) (string, bool) {
 }
 
 func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr) error {
+	if expr.Cast != nil {
+		return t.compileCastExpr(b, expr.Cast)
+	}
+
 	if ident, ok := expr.Name.(*ast.IdentLiteral); ok {
 		if _, ok := t.getBuiltin(ident.Value); ok {
 			return t.compileBuiltinCall(b, ident.Value, expr.Args)

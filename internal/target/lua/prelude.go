@@ -79,6 +79,11 @@ end
 	return math.ceil(x)
 end
 `},
+	{name: "__wisp_u2f", code: `local function __wisp_u2f(x)
+	if x >= 0 then return x + 0.0 end
+	return (x + 0.0) + 18446744073709551616.0
+end
+`},
 	{name: "__wisp_pack", code: `local function __wisp_pack(...)
 	local r = {}
 	for i = 1, select("#", ...) do
