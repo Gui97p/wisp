@@ -106,32 +106,16 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 			return err
 		}
 
-		size := sizeOf(t.info.Types[stmt.Targets[0]])
+		targetType := t.info.Types[stmt.Targets[0]]
+		valueType := t.info.Types[stmt.Values[0]]
 
-		switch stmt.Op {
-		case "=":
-			t.store(op, memSlot)
-		case "+=", "-=", "&=", "|=", "^=":
-			inst := mathOperators[stmt.Op[:1]]
-			reg := t.materialize(op, size)
-			t.text.printft("%s %s, %s\n", inst, t.memText(memSlot), t.ctx.GetRegister(reg, size))
-			t.ctx.FreeRegister(reg)
-		case "*=":
-			reg := t.materialize(op, size)
-			r2 := t.ctx.AllocFreeRegister()
-			if reg == x64context.NoReg {
-				return fmt.Errorf("x86-64: no avaiable registers")
-			}
-			t.loadWord(r2, memSlot)
-
-			t.text.printft("imul %s %s, %s\n", sizeLabels[size], t.ctx.GetRegister(r2, size), t.ctx.GetRegister(reg, size))
-			t.storeWord(memSlot, Reg{r2, size})
-
-			t.ctx.FreeRegister(reg)
-			t.ctx.FreeRegister(r2)
-		default:
-			return fmt.Errorf("x86-64: unsupported operator %s", stmt.Op)
+		res, err := t.emitBinary(stmt.Op[:len(stmt.Op)-1], memSlot, op, targetType, valueType, targetType)
+		if err != nil {
+			return err
 		}
+
+		t.store(res, memSlot)
+
 		return nil
 	}
 
@@ -153,7 +137,7 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 			reg := t.ctx.AllocFreeRegister()
 
 			if reg == x64context.NoReg {
-				return fmt.Errorf("x86-64: no avaiable registers")
+				return fmt.Errorf("x86-64: no available registers")
 			}
 			t.pop(reg)
 			t.storeWord(memSlot.at(8*w, min(8, size-8*w)), Reg{reg, 8})

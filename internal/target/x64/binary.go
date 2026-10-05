@@ -4,33 +4,26 @@ import (
 	"fmt"
 
 	"github.com/Gui97p/wisp/internal/analyser"
-	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
-func (t *X64Target) typedOperand(left, right ast.Expression) analyser.Type {
-	lt := t.info.Types[left]
-	rt := t.info.Types[right]
-
-	switch lt.(type) {
-	case analyser.UntypedFloatType, analyser.UntypedIntType:
-		return rt
+func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
+	switch op {
+	case "+", "-", "*", "/", "%":
+		return t.compileArithmetic(op, left, right, resultType)
+	case "==", "!=", ">", ">=", "<", "<=":
+		return t.compileComparison(op, left, right, leftType, rightType, resultType)
+	case "&", "|", "^", "<<", ">>":
+		return t.compileBitwise(op, left, right, leftType, resultType)
+	case "&&", "||":
+		return t.compileLogical(op, left, right, leftType, rightType, resultType)
 	default:
-		return lt
+		return nil, fmt.Errorf("x86-64: unsupported operator %s", op)
 	}
 }
 
-func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
-	left, err := t.compileExpr(expr.Left)
-	if err != nil {
-		return nil, err
-	}
-	right, err := t.compileExpr(expr.Right)
-	if err != nil {
-		return nil, err
-	}
-
-	size := sizeOf(t.info.Types[expr])
+func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyser.Type) (Operand, error) {
+	size := sizeOf(tp)
 	leftReg := t.materialize(left, size)
 	opText := t.opText(right, size)
 	if t.err != nil {
@@ -39,7 +32,7 @@ func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
 	t.freeOp(right)
 	reg := t.ctx.GetRegister(leftReg, size)
 
-	switch expr.Operator {
+	switch op {
 	case "+":
 		t.text.printft("add %s, %s\n", reg, opText)
 	case "-":
@@ -53,22 +46,19 @@ func (t *X64Target) compileArithmetic(expr *ast.BinaryExpr) (Operand, error) {
 			t.text.printft("imul %s, %s\n", reg, opText)
 		}
 	default:
-		return nil, fmt.Errorf("x86-64: binary operator %s not supported", expr.Operator)
+		return nil, fmt.Errorf("x86-64: binary operator %s not supported", op)
 	}
 	return Reg{Reg: leftReg, Size: size}, nil
 }
 
-func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
-	left, err := t.compileExpr(expr.Left)
-	if err != nil {
-		return nil, err
+func (t *X64Target) compileComparison(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
+	var tp analyser.Type
+	switch leftType.(type) {
+	case analyser.UntypedFloatType, analyser.UntypedIntType:
+		tp = rightType
+	default:
+		tp = leftType
 	}
-	right, err := t.compileExpr(expr.Right)
-	if err != nil {
-		return nil, err
-	}
-
-	tp := t.typedOperand(expr.Left, expr.Right)
 	opSize := sizeOf(tp)
 	leftReg := t.materialize(left, opSize)
 	opText := t.opText(right, opSize)
@@ -76,16 +66,16 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 		return nil, t.err
 	}
 
-	size := sizeOf(t.info.Types[expr])
+	size := sizeOf(resultType)
 	resultReg := t.ctx.AllocFreeRegister()
 	if resultReg == x64context.NoReg {
 		return nil, fmt.Errorf("x86-64: no available registers")
 	}
 	resultRegStr := t.ctx.GetRegister(resultReg, size)
 
-	ccop := usetccOperators[expr.Operator]
+	ccop := usetccOperators[op]
 	if isSigned(tp) {
-		ccop = setccOperators[expr.Operator]
+		ccop = setccOperators[op]
 	}
 
 	t.text.printft("xor %s, %s\n", resultRegStr, resultRegStr)
@@ -98,22 +88,17 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 	return Reg{Reg: resultReg, Size: size}, nil
 }
 
-func (t *X64Target) compileLogical(expr *ast.BinaryExpr) (Operand, error) {
-	left, err := t.compileExpr(expr.Left)
-	if err != nil {
-		return nil, err
-	}
-
+func (t *X64Target) compileLogical(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
 	condLabel := t.newLabel("logcond")
 	endLabel := t.newLabel("logend")
 
 	inst, n := "jz", 1
-	if expr.Operator == "||" {
+	if op == "||" {
 		inst = "jnz"
 		n = 0
 	}
 
-	size := sizeOf(t.info.Types[expr.Left])
+	size := sizeOf(leftType)
 	leftReg := t.materialize(left, size)
 	if t.err != nil {
 		return nil, t.err
@@ -122,12 +107,7 @@ func (t *X64Target) compileLogical(expr *ast.BinaryExpr) (Operand, error) {
 	t.text.printft("test %s, %s\n", leftRegStr, leftRegStr)
 	t.text.printft("%s %s\n", inst, condLabel)
 
-	right, err := t.compileExpr(expr.Right)
-	if err != nil {
-		return nil, err
-	}
-
-	size = sizeOf(t.info.Types[expr.Right])
+	size = sizeOf(rightType)
 	rightReg := t.materialize(right, size)
 	if t.err != nil {
 		return nil, t.err
@@ -146,20 +126,11 @@ func (t *X64Target) compileLogical(expr *ast.BinaryExpr) (Operand, error) {
 
 	t.text.printf("%s:\n", endLabel)
 
-	return Reg{Reg: leftReg, Size: sizeOf(t.info.Types[expr])}, nil
+	return Reg{Reg: leftReg, Size: sizeOf(resultType)}, nil
 }
 
-func (t *X64Target) compileBitwise(expr *ast.BinaryExpr) (Operand, error) {
-	left, err := t.compileExpr(expr.Left)
-	if err != nil {
-		return nil, err
-	}
-	right, err := t.compileExpr(expr.Right)
-	if err != nil {
-		return nil, err
-	}
-
-	size := sizeOf(t.info.Types[expr])
+func (t *X64Target) compileBitwise(op string, left, right Operand, leftType, resultType analyser.Type) (Operand, error) {
+	size := sizeOf(resultType)
 	leftReg := t.materialize(left, size)
 	opText := t.opText(right, size)
 	if t.err != nil {
@@ -168,11 +139,11 @@ func (t *X64Target) compileBitwise(expr *ast.BinaryExpr) (Operand, error) {
 	t.freeOp(right)
 	reg := t.ctx.GetRegister(leftReg, size)
 
-	switch expr.Operator {
+	switch op {
 	case "&", "|", "^":
-		t.text.printft("%s %s, %s\n", mathOperators[expr.Operator], reg, opText)
+		t.text.printft("%s %s, %s\n", mathOperators[op], reg, opText)
 	case "<<", ">>":
-		signed := isSigned(t.info.Types[expr.Left])
+		signed := isSigned(leftType)
 		allocated := false
 		length := size * 8
 		zeroLabel := t.newLabel("zero")
@@ -181,7 +152,7 @@ func (t *X64Target) compileBitwise(expr *ast.BinaryExpr) (Operand, error) {
 		switch o := right.(type) {
 		case Imm:
 			if int(o) >= length {
-				if expr.Operator == ">>" && signed {
+				if op == ">>" && signed {
 					t.text.printft("sar %s, %d\n", reg, length-1)
 				} else {
 					t.text.printft("xor %s, %s\n", reg, reg)
@@ -208,7 +179,7 @@ func (t *X64Target) compileBitwise(expr *ast.BinaryExpr) (Operand, error) {
 			opText = "cl"
 		}
 
-		if expr.Operator == "<<" {
+		if op == "<<" {
 			t.text.printft("shl %s, %s\n", reg, opText)
 		} else {
 			inst := "shr"
@@ -220,7 +191,7 @@ func (t *X64Target) compileBitwise(expr *ast.BinaryExpr) (Operand, error) {
 
 		t.text.printft("jmp %s\n", doneLabel)
 		t.text.printf("%s:\n", zeroLabel)
-		if expr.Operator == ">>" && signed {
+		if op == ">>" && signed {
 			t.text.printft("sar %s, %d\n", reg, length-1)
 		} else {
 			t.text.printft("xor %s, %s\n", reg, reg)
@@ -235,7 +206,7 @@ func (t *X64Target) compileBitwise(expr *ast.BinaryExpr) (Operand, error) {
 		}
 
 	default:
-		return nil, fmt.Errorf("x86-64: binary operator %s not supported", expr.Operator)
+		return nil, fmt.Errorf("x86-64: binary operator %s not supported", op)
 	}
 	return Reg{Reg: leftReg, Size: size}, nil
 }

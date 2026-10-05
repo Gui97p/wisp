@@ -71,18 +71,16 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 }
 
 func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
-	switch expr.Operator {
-	case "+", "-", "*", "/", "%":
-		return t.compileArithmetic(expr)
-	case "==", "!=", ">", ">=", "<", "<=":
-		return t.compileComparison(expr)
-	case "&", "|", "^", "<<", ">>":
-		return t.compileBitwise(expr)
-	case "&&", "||":
-		return t.compileLogical(expr)
-	default:
-		return nil, fmt.Errorf("x86-64: unsupported operator %s", expr.Operator)
+	left, err := t.compileExpr(expr.Left)
+	if err != nil {
+		return nil, err
 	}
+	right, err := t.compileExpr(expr.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	return t.emitBinary(expr.Operator, left, right, t.info.Types[expr.Left], t.info.Types[expr.Right], t.info.Types[expr])
 }
 
 func (t *X64Target) resolveCallee(expr ast.Expression) (*analyser.Symbol, error) {
