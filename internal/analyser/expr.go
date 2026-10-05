@@ -776,6 +776,12 @@ func (a *Analyser) isErrorConstructor(expr *ast.CallExpr) bool {
 }
 
 func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
+	if id, ok := expr.Name.(*ast.IdentLiteral); ok {
+		if sym, found := a.scope.Resolve("Error"); found {
+			a.info.Idents[id] = sym
+		}
+	}
+
 	if len(expr.Args) < 1 || len(expr.Args) > 2 {
 		a.error(expr, "Error expects an enum member and an optional message")
 		a.evalArgTypes(expr)
