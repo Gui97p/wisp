@@ -45,6 +45,7 @@ type FuncDecl struct {
 	Params      []Param
 	Body        *BlockStmt
 	ReturnTypes []TypeRef
+	Fallible    bool
 	Exported    bool
 
 	NodePos

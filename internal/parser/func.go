@@ -59,7 +59,12 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 		decl.ReturnTypes = []ast.TypeRef{}
 	} else {
 		p.advance()
-		decl.ReturnTypes = p.parseReturnTypes()
+		types, fallible, ok := p.parseReturnSpec()
+		if !ok {
+			return nil
+		}
+		decl.ReturnTypes = types
+		decl.Fallible = fallible
 	}
 
 	if p.peek.Type == lexer.TOKEN_SEMICOLON {
@@ -194,6 +199,24 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 	return params
 }
 
+func (p *Parser) parseReturnSpec() ([]ast.TypeRef, bool, bool) {
+	fallible := false
+	if p.current.Type == lexer.TOKEN_NOT {
+		fallible = true
+		switch p.peek.Type {
+		case lexer.TOKEN_LBRACE, lexer.TOKEN_ARROW, lexer.TOKEN_SEMICOLON:
+			return []ast.TypeRef{}, true, true
+		}
+		p.advance()
+	}
+
+	types := p.parseReturnTypes()
+	if types == nil {
+		return nil, false, false
+	}
+	return types, fallible, true
+}
+
 func (p *Parser) parseReturnTypes() []ast.TypeRef {
 	returnTypes := []ast.TypeRef{}
 
@@ -231,7 +254,7 @@ func (p *Parser) parseReturnTypes() []ast.TypeRef {
 
 			return returnTypes
 		}
-	} else if p.isStartType() || p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_NOT {
+	} else if p.isStartType() || p.current.Type == lexer.TOKEN_STAR {
 		rType := p.parseTypeDefinitionPrefix()
 		if rType == nil {
 			return nil
@@ -283,6 +306,11 @@ func (p *Parser) parseFuncTypePrefix() *ast.TypeRef {
 	p.advance()
 	p.advance()
 
-	ref.FuncReturns = p.parseReturnTypes()
+	types, fallible, ok := p.parseReturnSpec()
+	if !ok {
+		return nil
+	}
+	ref.FuncReturns = types
+	ref.FuncFallible = fallible
 	return ref
 }

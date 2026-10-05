@@ -84,11 +84,10 @@ type TypeRef struct {
 	MapKey   *TypeRef
 	MapValue *TypeRef
 
-	IsFunc      bool
-	FuncParams  []TypeRef
-	FuncReturns []TypeRef
-
-	Fallible bool
+	IsFunc       bool
+	FuncParams   []TypeRef
+	FuncReturns  []TypeRef
+	FuncFallible bool
 }
 
 func (t *TypeRef) Tree(indent string) string {

@@ -166,6 +166,7 @@ func (s *StructLiteral) Tree(indent string) string {
 type FuncLiteral struct {
 	Params      []Param
 	ReturnTypes []TypeRef
+	Fallible    bool
 	Block       *BlockStmt
 
 	NodePos

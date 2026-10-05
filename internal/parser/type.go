@@ -37,22 +37,16 @@ func (p *Parser) parseMapPrefix() *ast.TypeRef {
 }
 
 func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
-	fallible := p.current.Type == lexer.TOKEN_NOT
-	if fallible {
-		p.advance()
+	if p.current.Type == lexer.TOKEN_NOT {
+		p.error("`!` marks the whole return list: write `func f() !(int, string)`")
+		return nil
 	}
 
 	if p.current.Type == lexer.TOKEN_LPAREN {
-		ref := p.parseFuncTypePrefix()
-		if ref == nil {
-			return nil
-		}
-		ref.Fallible = fallible
-		return ref
+		return p.parseFuncTypePrefix()
 	}
 
 	ref := p.parseMapPrefix()
-	ref.Fallible = fallible
 
 	if !ref.IsMap {
 		ref.PointerDepth = p.parsePointerDepth()
@@ -135,7 +129,7 @@ func (p *Parser) looksLikeLambda() bool {
 
 	if p.peek.Type != lexer.TOKEN_ARROW {
 		p.advance()
-		if p.parseReturnTypes() == nil {
+		if _, _, ok := p.parseReturnSpec(); !ok {
 			return false
 		}
 	}

@@ -287,3 +287,21 @@ func (i *InExpr) Tree(indent string) string {
 
 	return b.String()
 }
+
+type PropagateExpr struct {
+	Value Expression
+
+	NodePos
+}
+
+func (*PropagateExpr) expr() {}
+func (p *PropagateExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sPropagateExpr\n", indent)
+	b.WriteString(indent)
+	b.WriteString("└─ Value\n")
+	b.WriteString(p.Value.Tree(indent + "   "))
+
+	return b.String()
+}

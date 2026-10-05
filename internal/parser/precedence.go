@@ -55,6 +55,7 @@ var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_SLASH:   PRODUCT,
 	lexer.TOKEN_PERCENT: PRODUCT,
 
+	lexer.TOKEN_NOT:      CALL,
 	lexer.TOKEN_LPAREN:   CALL,
 	lexer.TOKEN_LBRACE:   CALL,
 	lexer.TOKEN_LBRACKET: INDEX,
