@@ -200,6 +200,9 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		}
 
 		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: line, Col: col, File: a.currentFile}
+		if kind == CONST {
+			sym.Const = a.constantFor(node, values, len(vars), i, finalType)
+		}
 		if !a.scope.Define(sym) {
 			a.errorAlreadyDeclared(node, kind, v.Name)
 		}

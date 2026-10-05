@@ -42,6 +42,8 @@ type Symbol struct {
 	Col    int
 	File   string
 	Module string
+
+	Const *ConstValue
 }
 
 type Scope struct {

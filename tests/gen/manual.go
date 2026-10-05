@@ -694,10 +694,6 @@ func main() {
     Blue
 }
 
-struct Holder {
-    int64 v;
-}
-
 func take64(int64 x) int64 {
     return x;
 }
@@ -745,10 +741,6 @@ func main() {
     int8 inc = 5;
     acc += inc;
     check(acc == 6, "implicit compound assign value widens");
-    Holder h = Holder{v: a};
-    check(h.v == 100, "implicit struct field widening");
-    int16 pick = true ? a : b;
-    check(pick == 100, "implicit ternary branches widen");
     Color col = Green;
     int code = col;
     check(code == 1, "implicit enum to int");
@@ -811,6 +803,68 @@ func main() {
     map[string]int64 m = {"one": a, "big": c};
     check(m["one"] == 1, "literal map widens a value");
     check(m["big"] == 5000000000, "literal map keeps an int64 value");
+}
+`},
+
+	{dir: "const_decl", src: `const Limit = 100;
+const Double = Limit * 2;
+const Mask = 0xF0 | 0x0F;
+const Big = 5000000000;
+const int8 Small = 100;
+const Neg = -5;
+const uint8 Top = ~0;
+const Shifted = 1 << 10;
+const Mixed = Limit + 3 * 4;
+const Cmp = Limit > 50;
+
+enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+func main() {
+    int8 a = Limit;
+    int64 b = Limit;
+    check(a == 100, "const untyped adapts to int8");
+    check(b == 100, "const untyped adapts to int64");
+    check(Double == 200, "const derived from another const");
+    check(Mask == 255, "const bitwise expression");
+    int64 big = Big;
+    check(big == 5000000000, "const beyond 32 bits");
+    check(Small == 100, "const with an explicit type");
+    int n = Neg;
+    check(n + 5 == 0, "const negative");
+    check(Top == 255, "const complement of an unsigned type");
+    check(Shifted == 1024, "const shift");
+    check(Mixed == 112, "const precedence");
+    check(Cmp, "const boolean");
+    const Local = 7;
+    check(Local + 1 == 8, "local const");
+    check(Green == 1, "enum member is a const");
+    int code = Blue;
+    check(code == 2, "enum member converts to int");
+}
+`},
+
+	{dir: "conv_struct", src: `struct Holder {
+    int64 v;
+}
+
+func main() {
+    int8 a = 100;
+    Holder h = Holder{v: a};
+    check(h.v == 100, "implicit struct field widening");
+}
+`},
+
+	{dir: "conv_ternary", src: `func main() {
+    int8 a = 100;
+    int16 b = 300;
+    int16 pick = true ? a : b;
+    check(pick == 100, "implicit ternary branches widen");
+    int16 other = false ? a : b;
+    check(other == 300, "implicit ternary takes the common type");
 }
 `},
 }
