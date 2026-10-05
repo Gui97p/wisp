@@ -36,6 +36,11 @@ var mathOperators = map[string]string{
 	"^": "xor",
 }
 
+var incDecOperators = map[string]string{
+	"++": "inc",
+	"--": "dec",
+}
+
 var sizeLabels = map[int]string{
 	1: "byte",
 	2: "word",

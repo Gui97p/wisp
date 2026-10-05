@@ -34,6 +34,8 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		err = t.compileReturnStmt(s)
 	case *ast.AssignStmt:
 		err = t.compileAssignStmt(s)
+	case *ast.IncDecStmt:
+		err = t.compileIncDecStmt(s)
 	case *ast.IfStmt:
 		err = t.compileIfStmt(s)
 	default:
@@ -145,6 +147,15 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 		}
 	}
 
+	return nil
+}
+
+func (t *X64Target) compileIncDecStmt(stmt *ast.IncDecStmt) error {
+	memSlot, err := t.compileLValue(stmt.Target)
+	if err != nil {
+		return err
+	}
+	t.text.printft("%s %s\n", incDecOperators[stmt.Op], t.memText(memSlot))
 	return nil
 }
 
