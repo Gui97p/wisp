@@ -28,6 +28,14 @@ var usetccOperators = map[string]string{
 	">=": "setae",
 }
 
+var mathOperators = map[string]string{
+	"+": "add",
+	"-": "sub",
+	"&": "and",
+	"|": "or",
+	"^": "xor",
+}
+
 var sizeLabels = map[int]string{
 	1: "byte",
 	2: "word",

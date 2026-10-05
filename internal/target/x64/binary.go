@@ -149,6 +149,31 @@ func (t *X64Target) compileLogical(expr *ast.BinaryExpr) (Operand, error) {
 	return Reg{Reg: leftReg, Size: sizeOf(t.info.Types[expr])}, nil
 }
 
-func (t *X64Target) compileBitwise(_ *ast.BinaryExpr) (Operand, error) {
-	return nil, fmt.Errorf("x86-64: bitwise operations are not supported")
+func (t *X64Target) compileBitwise(expr *ast.BinaryExpr) (Operand, error) {
+	left, err := t.compileExpr(expr.Left)
+	if err != nil {
+		return nil, err
+	}
+	right, err := t.compileExpr(expr.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	size := sizeOf(t.info.Types[expr])
+	leftReg := t.materialize(left, size)
+	opText := t.opText(right, size)
+	if t.err != nil {
+		return nil, t.err
+	}
+	t.freeOp(right)
+	reg := t.ctx.GetRegister(leftReg, size)
+
+	switch expr.Operator {
+	case "&", "|", "^":
+		t.text.printft("%s %s, %s\n", mathOperators[expr.Operator], reg, opText)
+
+	default:
+		return nil, fmt.Errorf("x86-64: binary operator %s not supported", expr.Operator)
+	}
+	return Reg{Reg: leftReg, Size: size}, nil
 }

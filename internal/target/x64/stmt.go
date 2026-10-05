@@ -111,11 +111,8 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 		switch stmt.Op {
 		case "=":
 			t.store(op, memSlot)
-		case "+=", "-=":
-			inst := "add"
-			if stmt.Op == "-=" {
-				inst = "sub"
-			}
+		case "+=", "-=", "&=", "|=", "^=":
+			inst := mathOperators[stmt.Op[:1]]
 			reg := t.materialize(op, size)
 			t.text.printft("%s %s, %s\n", inst, t.memText(memSlot), t.ctx.GetRegister(reg, size))
 			t.ctx.FreeRegister(reg)
