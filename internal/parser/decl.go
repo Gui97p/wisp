@@ -238,7 +238,7 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 		return nil
 	}
 
-	decls = append(decls, &ast.TypeDecl{Name: name, Underlying: ast.TypeRef{Name: "int"}})
+	decls = append(decls, &ast.TypeDecl{Name: name, Underlying: ast.TypeRef{Name: "int"}, IsEnum: true})
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil

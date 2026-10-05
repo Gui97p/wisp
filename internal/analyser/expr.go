@@ -57,7 +57,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	case *ast.CoalesceExpr:
 		t = a.checkCoalesceExpr(e)
 	case *ast.CastExpr:
-		t = a.checkCastExpr(e)
+		t = a.info.Types[e]
 	case *ast.InExpr:
 		t = a.checkInExpr(e)
 	case *ast.StructLiteral:
@@ -188,6 +188,15 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	switch expr.Operator {
 	case "+", "-", "*", "/", "%", "==", "!=", ">", ">=", "<", "<=", "&", "|", "^":
 		a.checkBinaryConst(expr.Operator, expr.Left, expr.Right, left, right)
+		left, right = a.unifySlots(&expr.Left, &expr.Right, left, right)
+	case "<<", ">>":
+		if neg, mag, ok := intLiteralValue(expr.Right); ok && neg && mag != 0 {
+			a.error(expr.Right, "negative shift count")
+		}
+		a.fixUntyped(expr.Right, PrimitiveType{Name: "int"})
+		if isUntyped(right) {
+			right = PrimitiveType{Name: "int"}
+		}
 	}
 
 	switch expr.Operator {
@@ -286,6 +295,12 @@ func (a *Analyser) checkCallExprValue(expr *ast.CallExpr) Type {
 }
 
 func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
+	if target, ok := a.conversionTarget(expr); ok {
+		returns := []Type{a.checkConversion(expr, target)}
+		a.info.CallReturns[expr] = returns
+		return returns
+	}
+
 	returns := a.checkCallTypes(expr)
 	a.info.CallReturns[expr] = returns
 	return returns
@@ -352,7 +367,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 			if _, ok := argTypes[i].(InvalidType); ok {
 				continue
 			}
-			if !argTypes[i].Equals(ft.Params[i]) {
+			if !a.coerceAt(expr.Args, len(argTypes), i, argTypes[i], ft.Params[i]) {
 				a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), argTypes[i].String())
 				continue
 			}
@@ -364,7 +379,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 			if _, ok := argTypes[i].(InvalidType); ok {
 				continue
 			}
-			if !variadicType.Equals(argTypes[i]) {
+			if _, isAny := variadicType.(AnyType); !isAny && !a.coerceAt(expr.Args, len(argTypes), i, argTypes[i], variadicType) {
 				a.errorf(expr, "argument %d from %s: expected %s (variadic), got %s", i+1, ft.Name, variadicType.String(), argTypes[i].String())
 				continue
 			}
@@ -382,7 +397,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 		if _, ok := at.(InvalidType); ok {
 			continue
 		}
-		if !at.Equals(ft.Params[i]) {
+		if !a.coerceAt(expr.Args, len(argTypes), i, at, ft.Params[i]) {
 			a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String())
 			continue
 		}
@@ -529,6 +544,7 @@ func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 		return thenType
 	}
 
+	thenType, elseType = a.unifySlots(&expr.Then, &expr.Else, thenType, elseType)
 	if !thenType.Equals(elseType) {
 		a.errorf(expr, "incompatible ternary types (%s & %s)", thenType.String(), elseType.String())
 		return InvalidType{}
@@ -547,7 +563,7 @@ func (a *Analyser) checkCoalesceExpr(expr *ast.CoalesceExpr) Type {
 
 	if expr.Default != nil {
 		def := a.checkExpr(expr.Default)
-		if !def.Equals(eu.Payload) {
+		if !a.coerce(&expr.Default, def, eu.Payload) {
 			a.errorf(expr, "expected %s for default value, got %s", eu.Payload, def)
 			return InvalidType{}
 		}
@@ -581,37 +597,6 @@ func (a *Analyser) checkCoalesceExpr(expr *ast.CoalesceExpr) Type {
 	}
 
 	return eu.Payload
-}
-
-func (a *Analyser) checkCastExpr(expr *ast.CastExpr) Type {
-	valueType := a.checkExpr(expr.Value)
-	targetType := a.resolveTypeRef(expr, a.scope, expr.Type)
-	if targetType == nil {
-		return InvalidType{}
-	}
-	if _, ok := valueType.(InvalidType); ok {
-		return targetType
-	}
-
-	if isNumeric(valueType) && isNumeric(targetType) {
-		return targetType
-	}
-
-	if _, srcOk := valueType.(PointerType); srcOk {
-		if _, dstOk := targetType.(PointerType); dstOk {
-			return targetType
-		}
-	}
-
-	if nt, ok := valueType.(NamedType); ok && nt.Underlying.Equals(targetType) {
-		return targetType
-	}
-	if nt, ok := targetType.(NamedType); ok && nt.Underlying.Equals(valueType) {
-		return targetType
-	}
-
-	a.errorf(expr, "cannot cast %s to %s", valueType.String(), targetType.String())
-	return InvalidType{}
 }
 
 func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {

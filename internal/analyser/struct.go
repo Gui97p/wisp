@@ -85,7 +85,7 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 		if _, invalid := valueType.(InvalidType); invalid {
 			continue
 		}
-		if !valueType.Equals(fieldType) {
+		if !a.coerce(&expr.Values[i], valueType, fieldType) {
 			a.errorf(expr, "field %s expects %s, got %s", key, fieldType.String(), valueType.String())
 			continue
 		}

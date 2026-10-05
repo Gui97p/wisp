@@ -478,7 +478,7 @@ func cast(src ty) {
 			for _, v := range src.samples() {
 				g.open()
 				g.decl(src, "a", v)
-				g.line("%s r = a as %s;", dst.name, dst.name)
+				g.line("%s r = %s(a);", dst.name, dst.name)
 				g.decl(dst, "e", dst.wrap(v))
 				g.check("r == e", fmt.Sprintf("cast_%s to %s %s", src.name, dst.name, tag(v)))
 			}

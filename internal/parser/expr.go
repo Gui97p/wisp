@@ -82,6 +82,16 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		return &ast.BoolLiteral{Value: p.current.Type == lexer.TOKEN_TRUE}
 	case lexer.TOKEN_IDENT:
 		return &ast.IdentLiteral{Value: p.current.Literal}
+	case lexer.TOKEN_INT, lexer.TOKEN_UINT,
+		lexer.TOKEN_INT8, lexer.TOKEN_UINT8,
+		lexer.TOKEN_INT16, lexer.TOKEN_UINT16,
+		lexer.TOKEN_INT32, lexer.TOKEN_UINT32,
+		lexer.TOKEN_INT64, lexer.TOKEN_UINT64,
+		lexer.TOKEN_FLOAT32, lexer.TOKEN_FLOAT64,
+		lexer.TOKEN_BOOL, lexer.TOKEN_CHAR, lexer.TOKEN_STRING:
+		if p.peek.Type == lexer.TOKEN_LPAREN {
+			return &ast.IdentLiteral{Value: p.current.Literal}
+		}
 	case lexer.TOKEN_NULL:
 		return &ast.NullLiteral{}
 	case lexer.TOKEN_LBRACKET:
@@ -202,8 +212,6 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		return p.parseTernaryExpr(left)
 	case lexer.TOKEN_COALESCE:
 		return p.parseCoalesceExpr(left)
-	case lexer.TOKEN_AS:
-		return p.parseCastExpr(left)
 	case lexer.TOKEN_IN:
 		return p.parseInExpr(left)
 	}
@@ -549,16 +557,6 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 
 	expr.Default = def
 	return expr
-}
-
-func (p *Parser) parseCastExpr(left ast.Expression) ast.Expression {
-	p.advance()
-	ref := p.parseTypeDefinitionPrefix()
-	if ref == nil {
-		return nil
-	}
-
-	return &ast.CastExpr{Value: left, Type: *ref}
 }
 
 func (p *Parser) parseInExpr(left ast.Expression) ast.Expression {

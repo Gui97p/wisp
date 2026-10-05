@@ -50,6 +50,7 @@ func (a *Analyser) Analyze() *Info {
 	a.registerFuncSignatures()
 	a.registerConsts()
 	a.checkFuncBodies()
+	a.defaultUntyped()
 
 	return a.info
 }

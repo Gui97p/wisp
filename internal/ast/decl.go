@@ -116,6 +116,7 @@ type TypeDecl struct {
 	Name       string
 	Underlying TypeRef
 	Exported   bool
+	IsEnum     bool
 
 	NodePos
 }

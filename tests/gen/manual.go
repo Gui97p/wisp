@@ -313,34 +313,44 @@ func main() {
 `},
 
 	{dir: "cast_literal", src: `func main() {
-    uint8 a = 300 as uint8;
-    check(a == 44, "castlit 300 as uint8");
-    int8 b = 200 as int8;
-    check(b + 56 == 0, "castlit 200 as int8");
-    uint16 c = 70000 as uint16;
-    check(c == 4464, "castlit 70000 as uint16");
-    int32 d = 4294967295 as int32;
-    check(d + 1 == 0, "castlit 4294967295 as int32");
-    uint32 e = 5000000000 as uint32;
-    check(e == 705032704, "castlit 5000000000 as uint32");
-    int64 f = 18446744073709551615 as int64;
-    check(f + 1 == 0, "castlit uint64 max as int64");
+    int big = 300;
+    uint8 a = uint8(big);
+    check(a == 44, "castlit 300 to uint8");
+    int two = 200;
+    int8 b = int8(two);
+    check(b + 56 == 0, "castlit 200 to int8");
+    int wide = 70000;
+    uint16 c = uint16(wide);
+    check(c == 4464, "castlit 70000 to uint16");
+    int64 huge = 4294967295;
+    int32 d = int32(huge);
+    check(d + 1 == 0, "castlit 4294967295 to int32");
+    int64 five = 5000000000;
+    uint32 e = uint32(five);
+    check(e == 705032704, "castlit 5000000000 to uint32");
+    uint64 top = 18446744073709551615;
+    int64 f = int64(top);
+    check(f + 1 == 0, "castlit uint64 max to int64");
+    uint8 g = uint8(200);
+    check(g == 200, "castlit constant that fits");
+    int8 h = int8(0 + 100);
+    check(h == 100, "castlit constant expression");
 }
 `},
 
 	{dir: "float_future", src: `func main() {
     float64 f = 3.9;
-    int i = f as int;
+    int i = int(f);
     check(i == 3, "float to int truncates");
     int j = 5;
-    float64 g = j as float64;
+    float64 g = float64(j);
     check(g == 5.0, "int to float");
     float64 h = 2.5;
     check(h * 2.0 == 5.0, "float mul");
     check(h + 0.5 == 3.0, "float add");
     check(h > 2.0, "float compare");
     float64 neg = 0.0 - 1.5;
-    int k = neg as int;
+    int k = int(neg);
     check(k + 1 == 0, "float negative to int truncates toward zero");
 }
 `},
@@ -675,6 +685,115 @@ func main() {
     check((one64 << k64) == 8, "shiftreg uint64 count 3");
     check(((a1 + a2) << k) == 6, "shiftreg shifted value is a register");
     check((b << k) + (b << k) == 20, "shiftreg two shifts in one expression");
+}
+`},
+
+	{dir: "conv_implicit", src: `enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+struct Holder {
+    int64 v;
+}
+
+func take64(int64 x) int64 {
+    return x;
+}
+
+func ret64(int8 x) int64 {
+    return x;
+}
+
+func main() {
+    int8 a = 100;
+    int16 b = a;
+    check(b == 100, "implicit assign int8 to int16");
+    int64 c = b;
+    check(c == 100, "implicit assign int16 to int64");
+    uint8 u = 200;
+    int16 s = u;
+    check(s == 200, "implicit assign uint8 to int16");
+    uint16 w = u;
+    check(w == 200, "implicit assign uint8 to uint16");
+    uint32 big32 = 4000000000;
+    int64 asInt64 = big32;
+    check(asInt64 == 4000000000, "implicit assign uint32 to int64");
+    int32 m = 7;
+    int64 n = 1000;
+    check(m + n == 1007, "implicit binary int32 and int64");
+    int64 sum = m + n;
+    check(sum == 1007, "implicit binary result type");
+    int8 x8 = 10;
+    int16 y16 = 300;
+    int16 prod = x8 * y16;
+    check(prod == 3000, "implicit binary mul int8 and int16");
+    check(x8 < y16, "implicit compare int8 and int16");
+    check(y16 > x8, "implicit compare int16 and int8");
+    uint8 u8 = 250;
+    int8 i8 = 5;
+    int16 mixed = u8 + i8;
+    check(mixed == 255, "implicit mixed signedness widens to int16");
+    uint32 u32 = 4000000000;
+    int32 i32 = 1;
+    int64 mixed64 = u32 + i32;
+    check(mixed64 == 4000000001, "implicit mixed signedness widens to int64");
+    check(take64(a) == 100, "implicit argument int8 to int64");
+    check(ret64(a) == 100, "implicit return int8 to int64");
+    int64 acc = 1;
+    int8 inc = 5;
+    acc += inc;
+    check(acc == 6, "implicit compound assign value widens");
+    Holder h = Holder{v: a};
+    check(h.v == 100, "implicit struct field widening");
+    int16 pick = true ? a : b;
+    check(pick == 100, "implicit ternary branches widen");
+    Color col = Green;
+    int code = col;
+    check(code == 1, "implicit enum to int");
+    int64 wide = col;
+    check(wide == 1, "implicit enum to int64");
+    check(col == code, "implicit enum compared with int");
+    check(code == col, "implicit int compared with enum");
+    char ch = 'a';
+    int chi = ch;
+    check(chi == 97, "implicit char to int");
+}
+`},
+
+	{dir: "conv_explicit", src: `type UserID int;
+
+enum Level {
+    Low,
+    Mid,
+    High
+}
+
+func main() {
+    int64 big = 300;
+    uint8 n = uint8(big);
+    check(n == 44, "conv narrowing wraps");
+    uint8 u = 200;
+    int8 s = int8(u);
+    check(s + 56 == 0, "conv sign change wraps");
+    int64 wide = int64(s);
+    check(wide + 56 == 0, "conv widening keeps sign");
+    uint16 z = uint16(s);
+    check(z == 65480, "conv signed to wider unsigned");
+    UserID uid = 42;
+    int raw = int(uid);
+    check(raw == 42, "conv named to underlying");
+    UserID back = UserID(raw);
+    check(int(back) == 42, "conv underlying to named");
+    Level lv = Level(2);
+    check(int(lv) == 2, "conv int to enum");
+    int total = int(u) + int(s) * 2;
+    check(total == 88, "conv inside expressions");
+    int8 k = int8(100);
+    check(k == 100, "conv constant that fits");
+    int8 j = int8(int16(1000) - 900);
+    check(j == 100, "conv nested");
 }
 `},
 }

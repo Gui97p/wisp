@@ -73,7 +73,7 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 			continue
 		}
 		if eu, ok := a.currentReturns[i].(ErrorUnionType); ok {
-			if t.Equals(eu.Payload) {
+			if a.coerceAt(stmt.Values, len(types), i, t, eu.Payload) {
 				a.checkConstFits(a.valueAt(stmt.Values, len(types), i), eu.Payload)
 				continue
 			}
@@ -84,7 +84,7 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 			a.errorf(stmt, "return %d: expected %s or Error, got %s", i+1, eu.Payload, t)
 			continue
 		}
-		if !t.Equals(a.currentReturns[i]) {
+		if !a.coerceAt(stmt.Values, len(types), i, t, a.currentReturns[i]) {
 			a.errorf(stmt, "return %d: expected %s, got %s", i+1, a.currentReturns[i], t)
 			continue
 		}
@@ -260,7 +260,7 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 			if _, ok := valueTypes[i].(InvalidType); ok {
 				continue
 			}
-			if !valueTypes[i].Equals(targetType) {
+			if !a.coerceAt(s.Values, len(s.Targets), i, valueTypes[i], targetType) {
 				a.errorf(s.Targets[i], "assign expected %s, got %s", targetType.String(), valueTypes[i].String())
 				continue
 			}
@@ -277,14 +277,20 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 	}
 
 	baseOp := s.Op[:len(s.Op)-1]
+	valueType := valueTypes[0]
 	if baseOp != "<<" && baseOp != ">>" {
 		a.checkConstFits(s.Values[0], targetTypes[0])
+		if numericLike(targetTypes[0]) && numericLike(valueType) && a.coerce(&s.Values[0], valueType, targetTypes[0]) {
+			valueType = targetTypes[0]
+		}
+	} else {
+		a.fixUntyped(s.Values[0], PrimitiveType{Name: "int"})
 	}
 	switch baseOp {
 	case "&", "|", "^", "<<", ">>":
-		a.checkBitwise(s, baseOp, targetTypes[0], valueTypes[0])
+		a.checkBitwise(s, baseOp, targetTypes[0], valueType)
 	default:
-		a.checkArithmetic(s, baseOp, targetTypes[0], valueTypes[0])
+		a.checkArithmetic(s, baseOp, targetTypes[0], valueType)
 	}
 }
 

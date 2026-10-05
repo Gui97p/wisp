@@ -31,7 +31,9 @@ func typedSide(left, right Type) Type {
 	switch left.(type) {
 	case UntypedIntType, UntypedFloatType:
 		switch right.(type) {
-		case UntypedIntType, UntypedFloatType:
+		case UntypedFloatType:
+			return right
+		case UntypedIntType:
 		default:
 			return right
 		}
@@ -81,13 +83,14 @@ func (a *Analyser) checkBitwise(node ast.Node, op string, left, right Type) Type
 		return InvalidType{}
 	}
 
+	if op == "<<" || op == ">>" {
+		return left
+	}
+
 	if !left.Equals(right) {
 		a.errorf(node, "incompatible types: %s %s %s", left, op, right)
 		return InvalidType{}
 	}
 
-	if op == "<<" || op == ">>" {
-		return left
-	}
 	return typedSide(left, right)
 }

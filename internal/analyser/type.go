@@ -186,6 +186,7 @@ type NamedType struct {
 	Name       string
 	Underlying Type
 	Methods    map[string]*FuncType
+	Enum       bool
 }
 
 func (n NamedType) String() string {

@@ -21,6 +21,7 @@ func (a *Analyser) registerTypeAliases() {
 			Name:       td.Name,
 			Underlying: underlyingType,
 			Methods:    make(map[string]*FuncType),
+			Enum:       td.IsEnum,
 		}
 
 		line, col := td.Position()
@@ -159,12 +160,18 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 							a.errorf(node, "array %s declared with size %d, got %d elements", v.Name, declArr.Size, valArr.Size)
 						case !valArr.Element.Equals(declArr.Element):
 							a.errorf(node, "array %s expects element type %s, got %s", v.Name, declArr.Element.String(), valArr.Element.String())
+						default:
+							if slot := a.valueSlot(values, len(vars), i); slot != nil {
+								a.fixArrayLiteral(*slot, declArr.Element)
+							}
 						}
 					} else if declSpan, ok := declaredType.(SpanType); ok {
 						switch valT := valueType.(type) {
 						case ArrayType:
 							if !valT.Element.Equals(declSpan.Element) {
 								a.errorf(node, "span %s expects element type %s, got %s", v.Name, declSpan.Element.String(), valT.Element.String())
+							} else if slot := a.valueSlot(values, len(vars), i); slot != nil {
+								a.fixArrayLiteral(*slot, declSpan.Element)
 							}
 						case SpanType:
 							if !valT.Equals(declSpan) {
@@ -173,7 +180,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 						default:
 							a.errorDeclaredAs(node, v.Name, declaredType, valueType)
 						}
-					} else if !valueType.Equals(declaredType) {
+					} else if !a.coerceAt(values, len(vars), i, valueType, declaredType) {
 						a.errorDeclaredAs(node, v.Name, declaredType, valueType)
 					} else {
 						a.checkConstFits(a.valueAt(values, len(vars), i), declaredType)
@@ -181,11 +188,13 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 				}
 			}
 			finalType = declaredType
+		} else if kind == CONST {
+			finalType = valueType
 		} else {
 			if _, untyped := valueType.(UntypedIntType); untyped {
 				a.checkConstFits(a.valueAt(values, len(vars), i), PrimitiveType{Name: "int"})
 			}
-			finalType = valueType
+			finalType = defaultType(valueType)
 		}
 
 		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: line, Col: col, File: a.currentFile}

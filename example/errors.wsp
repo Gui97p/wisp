@@ -10,7 +10,7 @@ enum DivError {
 // branch returns the declared type.
 func divide(int a, b) !int {
   if b == 0 {
-    return Error{code: DivByZero as int, message: "cannot divide by zero"};
+    return Error{code: DivByZero, message: "cannot divide by zero"};
   }
   return a / b;
 }

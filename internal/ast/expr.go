@@ -57,6 +57,7 @@ func (u *UnaryExpr) Tree(indent string) string {
 type CallExpr struct {
 	Name Expression
 	Args []Expression
+	Cast *CastExpr
 
 	NodePos
 }
@@ -240,8 +241,9 @@ func (c *CoalesceExpr) Tree(indent string) string {
 }
 
 type CastExpr struct {
-	Value Expression
-	Type  TypeRef
+	Value    Expression
+	Type     TypeRef
+	Implicit bool
 
 	NodePos
 }
@@ -250,7 +252,11 @@ func (*CastExpr) expr() {}
 func (c *CastExpr) Tree(indent string) string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "%sCastExpr(as %s)\n", indent, c.Type.Name)
+	if c.Implicit {
+		fmt.Fprintf(&b, "%sCastExpr(implicit)\n", indent)
+	} else {
+		fmt.Fprintf(&b, "%sCastExpr(%s)\n", indent, c.Type.Name)
+	}
 	b.WriteString(indent)
 	b.WriteString("└─ Value\n")
 	b.WriteString(c.Value.Tree(indent + "   "))

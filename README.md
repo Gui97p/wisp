@@ -22,6 +22,7 @@ func main() {
 
 * Functions, multiple return values, variadic parameters, methods and function literals
 * Structs, enums and nominal type aliases
+* Integer types that wrap at their width. Lossless widening is implicit (`int8` to `int64`, an enum to `int`); every other conversion names the type, as in `int8(x)`
 * Fixed-size arrays, slices, maps and pointers
 * `let` inference next to explicit types, and zero-value declarations
 * `if`, `switch` (statement and expression), `for` ranges with steps, and `loop` in its while, do-while and infinite forms
