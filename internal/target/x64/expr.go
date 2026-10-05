@@ -14,7 +14,7 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		if int64(int32(e.Value)) != e.Value {
 			reg := t.ctx.AllocFreeRegister()
 			if reg == x64context.NoReg {
-				return nil, fmt.Errorf("x86-64: no avaiable registers")
+				return nil, fmt.Errorf("x86-64: no available registers")
 			}
 			t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, 8), e.Value)
 			return Reg{Reg: reg, Size: 8}, nil

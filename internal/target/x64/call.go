@@ -117,7 +117,7 @@ func (t *X64Target) captureReturn(types []analyser.Type, memSlot Mem) []Operand 
 		for range n {
 			reg := t.ctx.AllocFreeRegister()
 			if reg == x64context.NoReg {
-				t.fail("x86-64: no avaiable registers")
+				t.fail("x86-64: no available registers")
 				return nil
 			}
 			rs = append(rs, reg)
@@ -172,7 +172,7 @@ func (t *X64Target) returnValue(ops []Operand, types []analyser.Type, hidden Mem
 	if usesSret(types) {
 		p := t.ctx.AllocFreeRegister()
 		if p == x64context.NoReg {
-			t.fail("x86-64: no avaiable registers")
+			t.fail("x86-64: no available registers")
 			return
 		}
 		t.loadWord(p, hidden)

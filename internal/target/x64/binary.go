@@ -79,7 +79,7 @@ func (t *X64Target) compileComparison(expr *ast.BinaryExpr) (Operand, error) {
 	size := sizeOf(t.info.Types[expr])
 	resultReg := t.ctx.AllocFreeRegister()
 	if resultReg == x64context.NoReg {
-		return nil, fmt.Errorf("x86-64: no avaiable registers")
+		return nil, fmt.Errorf("x86-64: no available registers")
 	}
 	resultRegStr := t.ctx.GetRegister(resultReg, size)
 
@@ -171,6 +171,68 @@ func (t *X64Target) compileBitwise(expr *ast.BinaryExpr) (Operand, error) {
 	switch expr.Operator {
 	case "&", "|", "^":
 		t.text.printft("%s %s, %s\n", mathOperators[expr.Operator], reg, opText)
+	case "<<", ">>":
+		signed := isSigned(t.info.Types[expr.Left])
+		allocated := false
+		length := size * 8
+		zeroLabel := t.newLabel("zero")
+		doneLabel := t.newLabel("done")
+
+		switch o := right.(type) {
+		case Imm:
+			if int(o) >= length {
+				if expr.Operator == ">>" && signed {
+					t.text.printft("sar %s, %d\n", reg, length-1)
+				} else {
+					t.text.printft("xor %s, %s\n", reg, reg)
+				}
+				return Reg{leftReg, size}, nil
+			}
+		default:
+			if leftReg == x64context.CX {
+				leftReg = t.ctx.AllocFreeRegister()
+				t.text.printft("mov %s, %s\n", t.ctx.GetRegister(leftReg, size), reg)
+				reg = t.ctx.GetRegister(leftReg, size)
+				t.ctx.FreeRegister(x64context.CX)
+			}
+
+			allocated = !t.ctx.AllocRegister(x64context.CX)
+			if allocated {
+				t.push(x64context.CX)
+			}
+			cnt := t.materialize(right, size)
+			t.text.printft("cmp %s, %d\n", t.ctx.GetRegister(cnt, size), length)
+			t.text.printft("jae %s\n", zeroLabel)
+			t.text.printft("mov cl, %s\n", t.ctx.GetRegister(cnt, 1))
+			t.ctx.FreeRegister(cnt)
+			opText = "cl"
+		}
+
+		if expr.Operator == "<<" {
+			t.text.printft("shl %s, %s\n", reg, opText)
+		} else {
+			inst := "shr"
+			if signed {
+				inst = "sar"
+			}
+			t.text.printft("%s %s, %s\n", inst, reg, opText)
+		}
+
+		t.text.printft("jmp %s\n", doneLabel)
+		t.text.printf("%s:\n", zeroLabel)
+		if expr.Operator == ">>" && signed {
+			t.text.printft("sar %s, %d\n", reg, length-1)
+		} else {
+			t.text.printft("xor %s, %s\n", reg, reg)
+		}
+
+		t.text.printf("%s:", doneLabel)
+
+		if allocated {
+			t.pop(x64context.CX)
+		} else {
+			t.ctx.FreeRegister(x64context.CX)
+		}
 
 	default:
 		return nil, fmt.Errorf("x86-64: binary operator %s not supported", expr.Operator)

@@ -74,7 +74,7 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 			for k := range (size + 7) / 8 {
 				reg := t.ctx.AllocFreeRegister()
 				if reg == x64context.NoReg {
-					return fmt.Errorf("x86-64: no avaiable registers")
+					return fmt.Errorf("x86-64: no available registers")
 				}
 				t.loadWord(reg, deref(x64context.BP, 16+arg.Stack+8*k, 8))
 				t.storeWord(slot(offset, size).at(8*k, min(8, size-8*k)), Reg{reg, 8})

@@ -435,6 +435,32 @@ func main() {
     neg64 -= 1;
     int64 m64 = 64;
     check((neg64 >> m64) == neg64, "shiftovf int64 shr by 64 keeps sign");
+    uint8 n33 = 33;
+    check((one8 << n33) == 0, "shiftovf uint8 shl by 33 is zero");
+    uint8 n255 = 255;
+    check((top8 >> n255) == 0, "shiftovf uint8 shr by 255 is zero");
+    int8 pos8 = 100;
+    int8 m33 = 33;
+    check((pos8 >> m33) == 0, "shiftovf int8 shr positive by 33 is zero");
+    check((neg8 >> m33) == neg8, "shiftovf int8 shr negative by 33 keeps sign");
+    uint16 one16 = 1;
+    uint16 n16 = 16;
+    check((one16 << n16) == 0, "shiftovf uint16 shl by 16 is zero");
+    uint16 n40 = 40;
+    check((one16 << n40) == 0, "shiftovf uint16 shl by 40 is zero");
+    uint32 n33b = 33;
+    check((one32 << n33b) == 0, "shiftovf uint32 shl by 33 is zero");
+    int32 pos32 = 100;
+    int32 m32 = 32;
+    check((pos32 >> m32) == 0, "shiftovf int32 shr positive by 32 is zero");
+    uint64 top64 = 9223372036854775808;
+    check((top64 >> n64) == 0, "shiftovf uint64 shr by 64 is zero");
+    int64 pos64 = 5;
+    check((pos64 >> m64) == 0, "shiftovf int64 shr positive by 64 is zero");
+    check((one32 << 32) == 0, "shiftovf uint32 shl literal 32 is zero");
+    check((one64 << 64) == 0, "shiftovf uint64 shl literal 64 is zero");
+    check((pos32 >> 40) == 0, "shiftovf int32 shr literal 40 is zero");
+    check((neg64 >> 70) == neg64, "shiftovf int64 shr literal 70 keeps sign");
 }
 `},
 
@@ -615,6 +641,40 @@ func main() {
         x = 2;
     }
     check(x == 1, "if constant false");
+}
+`},
+
+	{dir: "shift_registers", src: `func main() {
+    uint32 a1 = 1;
+    uint32 a2 = 2;
+    uint32 b = 5;
+    uint32 k = 1;
+    check((a1 + a2) + (b << k) == 13, "shiftreg left operand lands in cx");
+    int32 c1 = 1;
+    int32 c2 = 2;
+    int32 d = 20;
+    int32 m = 2;
+    check((c1 + c2) + (d >> m) == 8, "shiftreg signed shr with ax busy");
+    uint32 e1 = 3;
+    uint32 e2 = 4;
+    uint32 f = 5;
+    check((a1 + a2) + ((e1 + e2) + (f << k)) == 20, "shiftreg cx live across shift");
+    uint32 n40 = 40;
+    check((a1 + a2) + ((e1 + e2) + (f << n40)) == 10, "shiftreg zero path with cx live");
+    check((a1 + a2) + (b << 40) == 3, "shiftreg literal overflow with ax busy");
+    check((c1 + c2) + (d >> 40) == 3, "shiftreg signed literal overflow with ax busy");
+    uint16 one = 1;
+    uint16 n256 = 256;
+    check((one << n256) == 0, "shiftreg uint16 count 256");
+    uint16 n512 = 512;
+    check((one << n512) == 0, "shiftreg uint16 count 512");
+    uint64 one64 = 1;
+    uint64 big = 256;
+    check((one64 << big) == 0, "shiftreg uint64 count 256");
+    uint64 k64 = 3;
+    check((one64 << k64) == 8, "shiftreg uint64 count 3");
+    check(((a1 + a2) << k) == 6, "shiftreg shifted value is a register");
+    check((b << k) + (b << k) == 20, "shiftreg two shifts in one expression");
 }
 `},
 }

@@ -13,6 +13,11 @@ func (t *X64Target) pop(reg x64context.Register) {
 	t.ctx.AddPushed(-1)
 }
 
+func (t *X64Target) push(reg x64context.Register) {
+	t.text.printft("push %s\n", t.ctx.GetRegister(reg, 8))
+	t.ctx.AddPushed(1)
+}
+
 func (t *X64Target) words(op Operand) []Operand {
 	switch o := op.(type) {
 	case Wide:
@@ -74,7 +79,7 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 	case Imm:
 		reg := t.ctx.AllocFreeRegister()
 		if reg == x64context.NoReg {
-			t.fail("x86-64: no avaiable registers")
+			t.fail("x86-64: no available registers")
 			return reg
 		}
 		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, size), o)
@@ -84,7 +89,7 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 	case Mem:
 		reg := t.ctx.AllocFreeRegister()
 		if reg == x64context.NoReg {
-			t.fail("x86-64: no avaiable registers")
+			t.fail("x86-64: no available registers")
 			return reg
 		}
 		t.loadWord(reg, o)
@@ -93,7 +98,7 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 	case Addr:
 		reg := t.ctx.AllocFreeRegister()
 		if reg == x64context.NoReg {
-			t.fail("x86-64: no avaiable registers")
+			t.fail("x86-64: no available registers")
 			return reg
 		}
 		t.loadWord(reg, o)
