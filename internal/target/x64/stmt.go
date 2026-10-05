@@ -38,6 +38,7 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		err = t.compileIncDecStmt(s)
 	case *ast.IfStmt:
 		err = t.compileIfStmt(s)
+	case *ast.ConstStmt:
 	default:
 		return fmt.Errorf("x86-64: unsupported statement %T", stmt)
 	}

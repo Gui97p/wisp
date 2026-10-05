@@ -28,6 +28,36 @@ var usetccOperators = map[string]string{
 	">=": "setae",
 }
 
+var castOperators = map[int]map[int]string{
+	1: {
+		2: "movsx",
+		4: "movsx",
+		8: "movsx",
+	},
+	2: {
+		4: "movsx",
+		8: "movsx",
+	},
+	4: {
+		8: "movsxd",
+	},
+}
+
+var ucastOperators = map[int]map[int]string{
+	1: {
+		2: "movzx",
+		4: "movzx",
+		8: "movzx",
+	},
+	2: {
+		4: "movzx",
+		8: "movzx",
+	},
+	4: {
+		8: "mov",
+	},
+}
+
 var mathOperators = map[string]string{
 	"+": "add",
 	"-": "sub",
@@ -82,6 +112,8 @@ func sizeOf(at analyser.Type) int {
 		return size
 	case analyser.SpanType:
 		return 16
+	case analyser.NamedType:
+		return sizeOf(tp.Underlying)
 	}
 
 	return 0

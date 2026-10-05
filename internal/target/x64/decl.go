@@ -17,7 +17,7 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		err := t.compileFunc(d)
 		t.ctx = ctx
 		return err
-	case *ast.ImportDecl, *ast.ReexportDecl:
+	case *ast.ImportDecl, *ast.ReexportDecl, *ast.TypeDecl, *ast.ConstDecl, *ast.StructDecl:
 		return nil
 	default:
 		return fmt.Errorf("x86-64: unsupported declaration %T", d)

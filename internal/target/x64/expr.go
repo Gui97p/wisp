@@ -8,38 +8,70 @@ import (
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
+func (t *X64Target) resolveIntLiteral(value int64) (Operand, error) {
+	if int64(int32(value)) != value {
+		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			return nil, fmt.Errorf("x86-64: no available registers")
+		}
+		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, 8), value)
+		return Reg{Reg: reg, Size: 8}, nil
+	}
+	return Imm(value), nil
+}
+
+func (*X64Target) resolveBoolLiteral(value bool) (Operand, error) {
+	if value {
+		return Imm(1), nil
+	} else {
+		return Imm(0), nil
+	}
+}
+
+func (t *X64Target) resolveStringLiteral(value string) (Operand, error) {
+	decoded, err := decodeEscapes(value)
+	if err != nil {
+		return nil, err
+	}
+	label, ok := t.createData("str", string(decoded))
+	if !ok {
+		t.rodata.printf("%s db %s\n", label, bytesToAsm(append(decoded, 0)))
+	}
+	return strLit(label, len(decoded)), nil
+}
+
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	switch e := expr.(type) {
 	case *ast.IntLiteral:
-		if int64(int32(e.Value)) != e.Value {
-			reg := t.ctx.AllocFreeRegister()
-			if reg == x64context.NoReg {
-				return nil, fmt.Errorf("x86-64: no available registers")
-			}
-			t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, 8), e.Value)
-			return Reg{Reg: reg, Size: 8}, nil
-		}
-		return Imm(e.Value), nil
+		return t.resolveIntLiteral(e.Value)
 	case *ast.BoolLiteral:
-		if e.Value {
-			return Imm(1), nil
-		} else {
-			return Imm(0), nil
-		}
+		return t.resolveBoolLiteral(e.Value)
 	case *ast.CharLiteral:
 		return Imm(e.Value), nil
 	case *ast.StringLiteral:
-		decoded, err := decodeEscapes(e.Value)
-		if err != nil {
-			return nil, err
-		}
-		label, ok := t.createData("str", string(decoded))
-		if !ok {
-			t.rodata.printf("%s db %s\n", label, bytesToAsm(append(decoded, 0)))
-		}
-		return strLit(label, len(decoded)), nil
+		return t.resolveStringLiteral(e.Value)
 	case *ast.IdentLiteral:
-		offset, ok := t.ctx.Get(t.info.Idents[e])
+		sym, ok := t.info.Idents[e]
+		if !ok {
+			return nil, fmt.Errorf("x86-64: undefined identifier literal")
+		}
+		if sym.Kind == analyser.CONST {
+			if sym.Const == nil {
+				return nil, fmt.Errorf("x86-64: null constant")
+			}
+			switch sym.Const.Kind {
+			case analyser.ConstInt:
+				return t.resolveIntLiteral(sym.Const.Bits())
+			case analyser.ConstBool:
+				return t.resolveBoolLiteral(sym.Const.Bool)
+			case analyser.ConstString:
+				return t.resolveStringLiteral(sym.Const.Str)
+			default:
+				return nil, fmt.Errorf("x86-64: invalid constant type")
+			}
+		}
+
+		offset, ok := t.ctx.Get(sym)
 		if !ok {
 			return nil, fmt.Errorf("x86-64: undefined literal")
 		}
@@ -53,6 +85,8 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		return t.compileUnaryExpr(e)
 	case *ast.CallExpr:
 		return t.compileCallExpr(e)
+	case *ast.CastExpr:
+		return t.compileCastExpr(e)
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
@@ -81,8 +115,8 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 	var right Operand
 	if expr.Operator != "&&" && expr.Operator != "||" {
 		right, err = t.compileExpr(expr.Right)
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -147,4 +181,38 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 		t.freeOp(op)
 	}
 	return nil, nil
+}
+
+func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
+	srcType := t.info.Types[expr.Value]
+	dstType := t.info.Types[expr]
+
+	srcSize := sizeOf(srcType)
+	dstSize := sizeOf(dstType)
+
+	op, err := t.compileExpr(expr.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	if dstSize <= srcSize {
+		reg := t.materialize(op, dstSize)
+		return Reg{reg, dstSize}, nil
+	}
+
+	reg := t.ctx.AllocFreeRegister()
+	srcReg := t.materialize(op, srcSize)
+
+	inst := ucastOperators[srcSize][dstSize]
+	if isSigned(srcType) {
+		inst = castOperators[srcSize][dstSize]
+	} else if dstSize == 8 && srcSize == 4 {
+		dstSize = 4
+	}
+
+	t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(reg, dstSize), t.ctx.GetRegister(srcReg, srcSize))
+	t.freeOp(op)
+	t.ctx.FreeRegister(srcReg)
+
+	return Reg{reg, dstSize}, nil
 }
