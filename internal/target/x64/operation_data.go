@@ -36,6 +36,11 @@ var mathOperators = map[string]string{
 	"^": "xor",
 }
 
+var unaryOperators = map[string]string{
+	"-": "neg",
+	"~": "not",
+}
+
 var incDecOperators = map[string]string{
 	"++": "inc",
 	"--": "dec",

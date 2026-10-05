@@ -49,6 +49,8 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 
 	case *ast.BinaryExpr:
 		return t.compileBinaryExpr(e)
+	case *ast.UnaryExpr:
+		return t.compileUnaryExpr(e)
 	case *ast.CallExpr:
 		return t.compileCallExpr(e)
 	default:
@@ -81,6 +83,31 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 	}
 
 	return t.emitBinary(expr.Operator, left, right, t.info.Types[expr.Left], t.info.Types[expr.Right], t.info.Types[expr])
+}
+
+func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
+	value, err := t.compileExpr(expr.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	size := sizeOf(t.info.Types[expr])
+	reg := t.materialize(value, size)
+	regStr := t.ctx.GetRegister(reg, size)
+
+	switch expr.Operator {
+	case "!":
+		t.text.printft("test %s, %s\n", regStr, regStr)
+		t.text.printft("sete %s\n", regStr)
+	default:
+		inst, ok := unaryOperators[expr.Operator]
+		if !ok {
+			return nil, fmt.Errorf("x86-64: unsupported unary operator %s", expr.Operator)
+		}
+		t.text.printft("%s %s\n", inst, regStr)
+	}
+
+	return Reg{reg, size}, nil
 }
 
 func (t *X64Target) resolveCallee(expr ast.Expression) (*analyser.Symbol, error) {
