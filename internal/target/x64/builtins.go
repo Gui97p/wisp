@@ -14,6 +14,8 @@ func (t *X64Target) compileBuiltin(name string, expr *ast.CallExpr) (Operand, er
 		return t.compileEmitBuiltin(expr)
 	case "len":
 		return t.compileLenBuiltin(expr)
+	case "panic":
+		return t.compilePanicBuiltin(expr)
 	default:
 		return nil, fmt.Errorf("x86-64: builtin %s not supported", name)
 	}
@@ -50,4 +52,21 @@ func (t *X64Target) compileLenBuiltin(expr *ast.CallExpr) (Operand, error) {
 	default:
 		return nil, fmt.Errorf("x86-64: cannot get length of %s", arg)
 	}
+}
+
+func (t *X64Target) compilePanicBuiltin(expr *ast.CallExpr) (Operand, error) {
+	mod, err := target.Lookup(t.target)
+	if err != nil {
+		return nil, err
+	}
+	if mod.RuntimeSource == "" {
+		return nil, fmt.Errorf("x86-64: target %s does not provide panic", mod.Name)
+	}
+
+	if len(expr.Args) != 1 {
+		return nil, fmt.Errorf("x86-64: panic only accepts 1 parameter")
+	}
+
+	t.compileCall("__wisp_panic", true, expr.Args, nil)
+	return nil, nil
 }
