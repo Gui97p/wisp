@@ -169,14 +169,22 @@ func (t *X64Target) compileIncDecStmt(stmt *ast.IncDecStmt) error {
 }
 
 func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
+	elseLabel := t.newLabel("else")
+	endLabel := t.newLabel("end")
+
+	if stmt.IsSwitch {
+		ctx := x64context.LoopContext{
+			BreakLabel:       endLabel,
+			SupportsContinue: false,
+		}
+		t.ctx.PushLoop(ctx)
+	}
+
 	op, err := t.compileExpr(stmt.Condition)
 	if err != nil {
 		return err
 	}
 	size := sizeOf(t.info.Types[stmt.Condition])
-
-	elseLabel := t.newLabel("else")
-	endLabel := t.newLabel("end")
 
 	reg := t.materialize(op, size)
 	opText := t.ctx.GetRegister(reg, size)
