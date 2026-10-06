@@ -1,12 +1,14 @@
 package x64
 
 import (
+	"fmt"
+
 	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
-	return nil
+	return fmt.Errorf("x86-64: for range not implemented")
 }
 
 func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {

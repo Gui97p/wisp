@@ -637,6 +637,10 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 
 	if p.peek.Type == lexer.TOKEN_UNTIL {
 		p.advance()
+		if stmt.Condition != nil {
+			p.error("a loop takes either a condition or an until, not both")
+			return nil
+		}
 		p.advance()
 		prev := p.allowStructLiteral
 		p.allowStructLiteral = false

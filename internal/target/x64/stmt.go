@@ -44,6 +44,8 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		err = t.compileBreakStmt(s)
 	case *ast.ContinueStmt:
 		err = t.compileContinueStmt(s)
+	case *ast.LoopStmt:
+		err = t.compileLoopStmt(s)
 	case *ast.ConstStmt:
 	default:
 		return fmt.Errorf("x86-64: unsupported statement %T", stmt)
@@ -223,6 +225,68 @@ func (t *X64Target) compileForStmt(stmt *ast.ForStmt) error {
 	default:
 		return t.compileForCount(stmt)
 	}
+}
+
+func (t *X64Target) loopCondition(cond ast.Expression, breakLabel string, until bool) error {
+	tp := t.info.Types[cond]
+	size := sizeOf(tp)
+
+	if cond == nil {
+		return nil
+	}
+	op, err := t.compileExpr(cond)
+	if err != nil {
+		return err
+	}
+	reg := t.materialize(op, size)
+	regStr := t.ctx.GetRegister(reg, size)
+
+	t.text.printft("test %s, %s\n", regStr, regStr)
+	t.ctx.FreeRegister(reg)
+
+	if until {
+		t.text.printft("jnz ")
+	} else {
+		t.text.printft("jz ")
+	}
+	t.text.println(breakLabel)
+
+	return nil
+}
+
+func (t *X64Target) compileLoopStmt(stmt *ast.LoopStmt) error {
+	condLabel := t.newLabel("cond")
+
+	ctx := x64context.LoopContext{
+		Label:            stmt.Label,
+		ContinueLabel:    t.newLabel("loop_continue"),
+		BreakLabel:       t.newLabel("loop_break"),
+		SupportsContinue: true,
+	}
+
+	t.ctx.PushLoop(ctx)
+	defer t.ctx.PopLoop()
+
+	t.text.printf("%s:\n", condLabel)
+
+	if err := t.loopCondition(stmt.Condition, ctx.BreakLabel, false); err != nil {
+		return err
+	}
+
+	if err := t.compileStatement(stmt.Body); err != nil {
+		return err
+	}
+
+	t.text.printf("%s:\n", ctx.ContinueLabel)
+
+	if err := t.loopCondition(stmt.UntilCondition, ctx.BreakLabel, true); err != nil {
+		return err
+	}
+
+	t.text.printft("jmp %s\n", condLabel)
+	t.text.printf("%s:\n", ctx.BreakLabel)
+
+	return nil
 }
 
 func (t *X64Target) compileBreakStmt(stmt *ast.BreakStmt) error {
