@@ -87,6 +87,8 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		return t.compileCallExpr(e)
 	case *ast.CastExpr:
 		return t.compileCastExpr(e)
+	case *ast.TernaryExpr:
+		return t.compileTernaryExpr(e)
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
@@ -215,4 +217,43 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 	t.ctx.FreeRegister(srcReg)
 
 	return Reg{reg, dstSize}, nil
+}
+
+func (t *X64Target) compileTernaryExpr(expr *ast.TernaryExpr) (Operand, error) {
+	elseLabel := t.newLabel("ternary_else")
+	endLabel := t.newLabel("ternary_end")
+
+	tp := t.info.Types[expr]
+	size := sizeOf(tp)
+
+	offset := t.ctx.Reserve(size)
+	dest := slot(offset, size)
+
+	cond, err := t.compileExpr(expr.Condition)
+	if err != nil {
+		return nil, err
+	}
+
+	reg := t.materialize(cond, size)
+	regStr := t.ctx.GetRegister(reg, size)
+	t.text.printft("test %s, %s\n", regStr, regStr)
+	t.ctx.FreeRegister(reg)
+	t.text.printft("jz %s\n", elseLabel)
+
+	thenOp, err := t.compileExpr(expr.Then)
+	if err != nil {
+		return nil, err
+	}
+	t.store(thenOp, dest)
+	t.text.printft("jmp %s\n", endLabel)
+
+	t.text.printf("%s:\n", elseLabel)
+	elseOp, err := t.compileExpr(expr.Else)
+	if err != nil {
+		return nil, err
+	}
+	t.store(elseOp, dest)
+
+	t.text.printf("%s:\n", endLabel)
+	return dest, nil
 }
