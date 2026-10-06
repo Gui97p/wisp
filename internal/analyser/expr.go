@@ -833,6 +833,15 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 	return ErrorType{}
 }
 
+func (a *Analyser) isErrorField(expr ast.Expression) bool {
+	member, ok := expr.(*ast.MemberExpr)
+	if !ok {
+		return false
+	}
+	_, isError := a.info.Types[member.Object].(ErrorType)
+	return isError
+}
+
 func (a *Analyser) checkErrorComparison(expr *ast.BinaryExpr, left, right Type) (Type, bool) {
 	_, leftErr := left.(ErrorType)
 	_, rightErr := right.(ErrorType)
@@ -846,9 +855,9 @@ func (a *Analyser) checkErrorComparison(expr *ast.BinaryExpr, left, right Type) 
 		return boolType, true
 	}
 
-	other, otherExpr := right, expr.Right
+	other := right
 	if rightErr {
-		other, otherExpr = left, expr.Left
+		other = left
 	}
 
 	switch o := other.(type) {
@@ -856,9 +865,6 @@ func (a *Analyser) checkErrorComparison(expr *ast.BinaryExpr, left, right Type) 
 		return boolType, true
 	case NamedType:
 		if o.Enum {
-			if _, isConst := a.evalConst(otherExpr); !isConst {
-				a.error(otherExpr, "an Error can only be compared with a constant enum member or null")
-			}
 			return boolType, true
 		}
 	}

@@ -1207,4 +1207,34 @@ func main() ! {
     check(v == 3, "errmain propagates inside main");
 }
 `},
+
+	{dir: "err_compare_value", src: `enum Kind {
+    A,
+    B
+}
+
+func raise(int which) !int {
+    if which == 0 {
+        return Error(A);
+    }
+    return Error(B);
+}
+
+func isKind(Error e, Kind k) bool {
+    return e == k;
+}
+
+func main() {
+    let x, e = raise(0);
+    Kind a = A;
+    Kind b = B;
+    check(e == a, "errvalue equals an enum variable");
+    check(e != b, "errvalue differs from another enum variable");
+    check(a == e, "errvalue enum variable on the left");
+    check(isKind(e, A), "errvalue through a parameter");
+    check(isKind(e, B) == false, "errvalue parameter mismatch");
+    let y, other = raise(1);
+    check(isKind(other, b), "errvalue second member");
+}
+`},
 }

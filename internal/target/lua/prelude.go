@@ -28,17 +28,29 @@ end
 	return r
 end
 `},
-	{name: "__wisp_idiv", code: `local function __wisp_idiv(a, b)
+	{name: "__wisp_panic", code: `local function __wisp_panic(message)
+	io.stderr:write("panic: ", message, "\n")
+	os.exit(1)
+end
+`},
+	{name: "__wisp_is", code: `local function __wisp_is(e, domain, code)
+	return e ~= nil and e.domain == domain and e.code == code
+end
+`},
+	{name: "__wisp_idiv", deps: []string{"__wisp_panic"}, code: `local function __wisp_idiv(a, b)
+	if b == 0 then __wisp_panic("integer divide by zero") end
 	local q = a // b
 	if q < 0 and q * b ~= a then q = q + 1 end
 	return q
 end
 `},
-	{name: "__wisp_imod", code: `local function __wisp_imod(a, b)
+	{name: "__wisp_imod", deps: []string{"__wisp_panic"}, code: `local function __wisp_imod(a, b)
+	if b == 0 then __wisp_panic("integer divide by zero") end
 	return math.fmod(a, b)
 end
 `},
-	{name: "__wisp_udiv", code: `local function __wisp_udiv(a, b)
+	{name: "__wisp_udiv", deps: []string{"__wisp_panic"}, code: `local function __wisp_udiv(a, b)
+	if b == 0 then __wisp_panic("integer divide by zero") end
 	if b < 0 then
 		if math.ult(a, b) then return 0 end
 		return 1

@@ -158,20 +158,20 @@ func (t *LuaTarget) compileErrorComparison(b *strings.Builder, e *ast.BinaryExpr
 	}
 
 	enum, ok := t.info.Types[otherSide].(analyser.NamedType)
-	ident, isIdent := otherSide.(*ast.IdentLiteral)
-	if !ok || !isIdent {
-		return true, fmt.Errorf("lua: an Error can only be compared with null or an enum member")
-	}
-	sym := t.info.Idents[ident]
-	if sym == nil || sym.Const == nil {
-		return true, fmt.Errorf("lua: %s is not a constant", ident.Value)
+	if !ok {
+		return true, fmt.Errorf("lua: an Error can only be compared with null or an enum value")
 	}
 
-	domain := luaString(enum.Module + "." + enum.Name)
+	other, err := t.compileExprScratch(otherSide)
+	if err != nil {
+		return true, err
+	}
+
+	call := fmt.Sprintf("__wisp_is(%s, %s, %s)", errText, luaString(enum.Module+"."+enum.Name), other)
 	if e.Operator == "==" {
-		fmt.Fprintf(b, "(%s ~= nil and %s.domain == %s and %s.code == %d)", errText, errText, domain, errText, sym.Const.Bits())
+		b.WriteString(call)
 	} else {
-		fmt.Fprintf(b, "(%s == nil or %s.domain ~= %s or %s.code ~= %d)", errText, errText, domain, errText, sym.Const.Bits())
+		fmt.Fprintf(b, "(not %s)", call)
 	}
 	return true, nil
 }

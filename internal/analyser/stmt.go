@@ -262,6 +262,12 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 	for i, target := range s.Targets {
 		targetTypes[i] = a.checkExpr(target)
 	}
+	for _, target := range s.Targets {
+		if a.isErrorField(target) {
+			a.error(target, "fields of Error are read-only")
+			return
+		}
+	}
 	valueTypes := a.checkExprList(s.Values)
 	valueTypes, _ = a.expandFallible(s.Values, valueTypes, len(targetTypes))
 	valueTypes = a.rejectFallible(s.Values, valueTypes)
@@ -347,6 +353,10 @@ func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 	}
 
 	t := a.checkExpr(s.Target)
+	if a.isErrorField(s.Target) {
+		a.error(s.Target, "fields of Error are read-only")
+		return
+	}
 	if _, ok := t.(InvalidType); ok {
 		return
 	}
