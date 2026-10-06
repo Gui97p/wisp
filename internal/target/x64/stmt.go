@@ -40,6 +40,10 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		err = t.compileIfStmt(s)
 	case *ast.ForStmt:
 		err = t.compileForStmt(s)
+	case *ast.BreakStmt:
+		err = t.compileBreakStmt(s)
+	case *ast.ContinueStmt:
+		err = t.compileContinueStmt(s)
 	case *ast.ConstStmt:
 	default:
 		return fmt.Errorf("x86-64: unsupported statement %T", stmt)
@@ -211,4 +215,40 @@ func (t *X64Target) compileForStmt(stmt *ast.ForStmt) error {
 	default:
 		return t.compileForCount(stmt)
 	}
+}
+
+func (t *X64Target) compileBreakStmt(stmt *ast.BreakStmt) error {
+	var loop *x64context.LoopContext
+
+	if stmt.Label == "" {
+		loop = t.ctx.CurrentLoop()
+	} else {
+		loop = t.ctx.FindLoop(stmt.Label)
+	}
+
+	if loop == nil {
+		return fmt.Errorf("break: no matching loop")
+	}
+
+	t.text.printft("jmp %s\n", loop.BreakLabel)
+
+	return nil
+}
+
+func (t *X64Target) compileContinueStmt(stmt *ast.ContinueStmt) error {
+	var loop *x64context.LoopContext
+
+	if stmt.Label == "" {
+		loop = t.ctx.CurrentContinuable()
+	} else {
+		loop = t.ctx.FindLoop(stmt.Label)
+	}
+
+	if loop == nil {
+		return fmt.Errorf("continue: no matching loop")
+	}
+
+	t.text.printft("jmp %s\n", loop.ContinueLabel)
+
+	return nil
 }
