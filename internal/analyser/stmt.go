@@ -303,6 +303,9 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 
 	baseOp := s.Op[:len(s.Op)-1]
 	valueType := valueTypes[0]
+	if baseOp == "/" || baseOp == "%" {
+		a.checkDivisor(s.Values[0], valueType)
+	}
 	if baseOp != "<<" && baseOp != ">>" {
 		a.checkConstFits(s.Values[0], targetTypes[0])
 		if numericLike(targetTypes[0]) && numericLike(valueType) && a.coerce(&s.Values[0], valueType, targetTypes[0]) {

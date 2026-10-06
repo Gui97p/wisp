@@ -4,6 +4,7 @@ type manualCase struct {
 	dir      string
 	src      string
 	expected []string
+	abort    string
 }
 
 var manual = []manualCase{
@@ -1235,6 +1236,132 @@ func main() {
     check(isKind(e, B) == false, "errvalue parameter mismatch");
     let y, other = raise(1);
     check(isKind(other, b), "errvalue second member");
+}
+`},
+
+	{dir: "divmod_registers", src: `func idiv(int a, int b) int {
+    return a / b;
+}
+
+func main() {
+    int a1 = 1;
+    int a2 = 2;
+    int b = 20;
+    int c = 4;
+    check((a1 + a2) + (b / c) == 8, "divreg ax busy while dividing");
+    check((a1 + a2) + (b % 7) == 9, "divreg ax busy while taking the remainder");
+    check((b / c) + (b / c) == 10, "divreg two divisions in one expression");
+    check((a1 + b) / (a2 + c) == 3, "divreg operands are registers");
+    check((b + c) % (a1 + a2) == 0, "divreg remainder of registers");
+    check(b / c / a2 == 2, "divreg chained divisions");
+    check((a1 + a2) + ((b / c) + ((a1 + a2) + (c / a2))) == 13, "divreg nested with live registers");
+    check(idiv(100, 7) + idiv(9, 2) == 18, "divreg through calls");
+    int8 s = 100;
+    int8 t = 7;
+    check(s / t == 14, "divreg int8 quotient");
+    check(s % t == 2, "divreg int8 remainder");
+    uint8 u = 200;
+    uint8 v = 7;
+    check(u / v == 28, "divreg uint8 quotient");
+    check(u % v == 4, "divreg uint8 remainder");
+    uint64 big = 18446744073709551615;
+    uint64 three = 3;
+    check(big / three == 6148914691236517205, "divreg uint64 high values");
+    check(big % three == 0, "divreg uint64 remainder");
+    int x = 100;
+    x /= c;
+    check(x == 25, "divreg compound division");
+    x %= 7;
+    check(x == 4, "divreg compound remainder");
+}
+`},
+
+	{dir: "abort_div_zero", src: `func main() {
+    int a = 10;
+    int z = 0;
+    check(a / 2 == 5, "abortdiv before the division by zero");
+    int r = a / z;
+    check(true, "abortdiv never printed");
+}
+`, expected: []string{"abortdiv before the division by zero"}, abort: "panic: integer divide by zero"},
+
+	{dir: "abort_mod_zero", src: `func main() {
+    int a = 10;
+    int z = 0;
+    check(a % 3 == 1, "abortmod before the remainder by zero");
+    int r = a % z;
+    check(true, "abortmod never printed");
+}
+`, expected: []string{"abortmod before the remainder by zero"}, abort: "panic: integer divide by zero"},
+
+	{dir: "abort_div_zero_int8", src: `func main() {
+    int8 a = 100;
+    int8 z = 0;
+    check(a / 2 == 50, "abortdiv8 before the division by zero");
+    int8 r = a / z;
+    check(true, "abortdiv8 never printed");
+}
+`, expected: []string{"abortdiv8 before the division by zero"}, abort: "panic: integer divide by zero"},
+
+	{dir: "abort_div_zero_uint64", src: `func main() {
+    uint64 a = 18446744073709551615;
+    uint64 z = 0;
+    check(a / 2 == 9223372036854775807, "abortdivu64 before the division by zero");
+    uint64 r = a / z;
+    check(true, "abortdivu64 never printed");
+}
+`, expected: []string{"abortdivu64 before the division by zero"}, abort: "panic: integer divide by zero"},
+
+	{dir: "abort_div_zero_compound", src: `func main() {
+    int a = 10;
+    int z = 0;
+    a /= 2;
+    check(a == 5, "abortdivc before the division by zero");
+    a /= z;
+    check(true, "abortdivc never printed");
+}
+`, expected: []string{"abortdivc before the division by zero"}, abort: "panic: integer divide by zero"},
+
+	{dir: "abort_div_zero_expression", src: `func main() {
+    int a = 10;
+    int b = 5;
+    check((a + b) / (a - 5) == 3, "abortdive before the division by zero");
+    int r = (a + b) / (a - a);
+    check(true, "abortdive never printed");
+}
+`, expected: []string{"abortdive before the division by zero"}, abort: "panic: integer divide by zero"},
+
+	{dir: "abort_panic_builtin", src: `func main() {
+    check(true, "abortpanic before the panic");
+    panic("custom message");
+    check(true, "abortpanic never printed");
+}
+`, expected: []string{"abortpanic before the panic"}, abort: "panic: custom message"},
+
+	{dir: "div_min_by_minus_one", src: `func main() {
+    int8 min8 = 0;
+    min8 -= 100;
+    min8 -= 28;
+    int8 neg8 = 0;
+    neg8 -= 1;
+    check(min8 / neg8 == min8, "minneg int8 quotient wraps to min");
+    check(min8 % neg8 == 0, "minneg int8 remainder is zero");
+    int32 min32 = 0;
+    min32 -= 2147483647;
+    min32 -= 1;
+    int32 neg32 = 0;
+    neg32 -= 1;
+    check(min32 / neg32 == min32, "minneg int32 quotient wraps to min");
+    check(min32 % neg32 == 0, "minneg int32 remainder is zero");
+    int64 min64 = 0;
+    min64 -= 9223372036854775807;
+    min64 -= 1;
+    int64 neg64 = 0;
+    neg64 -= 1;
+    check(min64 / neg64 == min64, "minneg int64 quotient wraps to min");
+    check(min64 % neg64 == 0, "minneg int64 remainder is zero");
+    int64 seven = 7;
+    check(seven / neg64 == 0 - 7, "minneg ordinary value by minus one");
 }
 `},
 }

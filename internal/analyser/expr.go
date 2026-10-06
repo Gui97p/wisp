@@ -226,6 +226,9 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	case "+", "-", "*", "/", "%", "==", "!=", ">", ">=", "<", "<=", "&", "|", "^":
 		a.checkBinaryConst(expr.Operator, expr.Left, expr.Right, left, right)
 		left, right = a.unifySlots(&expr.Left, &expr.Right, left, right)
+		if expr.Operator == "/" || expr.Operator == "%" {
+			a.checkDivisor(expr.Right, right)
+		}
 	case "<<", ">>":
 		if neg, mag, ok := intLiteralValue(expr.Right); ok && neg && mag != 0 {
 			a.error(expr.Right, "negative shift count")
@@ -831,6 +834,15 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 		Line:    line,
 	}
 	return ErrorType{}
+}
+
+func (a *Analyser) checkDivisor(divisor ast.Expression, tp Type) {
+	if !isInteger(tp) {
+		return
+	}
+	if value, ok := a.evalConst(divisor); ok && value.Kind == ConstInt && value.Int.Sign() == 0 {
+		a.error(divisor, "division by zero")
+	}
 }
 
 func (a *Analyser) isErrorField(expr ast.Expression) bool {

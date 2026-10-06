@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -25,6 +26,8 @@ func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightTy
 
 func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyser.Type) (Operand, error) {
 	size := sizeOf(tp)
+	signed := isSigned(tp)
+
 	leftReg := t.materialize(left, size)
 	opText := t.opText(right, size)
 	if t.err != nil {
@@ -46,6 +49,99 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 		} else {
 			t.text.printft("imul %s, %s\n", reg, opText)
 		}
+	case "/", "%":
+		savedRegisters := []x64context.Register{}
+		for _, reg := range []x64context.Register{x64context.AX, x64context.DX} {
+			if reg != leftReg && slices.Contains(t.ctx.AllocatedRegisters(), reg) {
+				t.push(reg)
+				t.ctx.FreeRegister(reg)
+				savedRegisters = append(savedRegisters, reg)
+			}
+		}
+
+		t.push(leftReg)
+		t.ctx.FreeRegister(leftReg)
+		t.pushValue(right)
+
+		t.ctx.AllocRegister(x64context.AX)
+		t.ctx.AllocRegister(x64context.DX)
+
+		divReg := t.ctx.AllocFreeRegister()
+		t.pop(divReg)
+		t.pop(x64context.AX)
+
+		width := 4
+		if size == 8 {
+			width = 8
+		}
+		divisor := t.ctx.GetRegister(divReg, width)
+		acc := t.ctx.GetRegister(x64context.AX, width)
+
+		if size < 4 {
+			inst := "movzx"
+			if signed {
+				inst = "movsx"
+			}
+			t.text.printft("%s eax, %s\n", inst, t.ctx.GetRegister(x64context.AX, size))
+			t.text.printft("%s %s, %s\n", inst, divisor, t.ctx.GetRegister(divReg, size))
+		}
+
+		notzeroLabel := t.newLabel("ok")
+		doneLabel := t.newLabel("done")
+
+		t.text.printft("test %s, %s\n", divisor, divisor)
+		t.text.printft("jnz %s\n", notzeroLabel)
+		t.prelude.define("__wisp_panic")
+		label, ok := t.createData("str", "integer divide by zero")
+		if !ok {
+			t.rodata.printf("%s db %s\n", label, bytesToAsm(append([]byte("integer divide by zero"), 0)))
+		}
+		t.text.printft("lea rdi, [rel %s]\n\tmov esi, 22\n\tcall __wisp_panic\n", label)
+		t.text.printf("%s:\n", notzeroLabel)
+
+		inst := "div"
+		if signed {
+			inst = "idiv"
+		}
+
+		if signed && size >= 4 {
+			normalLabel := t.newLabel("normal")
+			t.text.printft("cmp %s, -1\n", divisor)
+			t.text.printft("jne %s\n", normalLabel)
+			t.text.printft("neg %s\n", acc)
+			t.text.printlnt("xor edx, edx")
+			t.text.printft("jmp %s\n", doneLabel)
+			t.text.printf("%s:\n", normalLabel)
+		}
+
+		switch {
+		case !signed:
+			t.text.printlnt("xor edx, edx")
+		case size == 8:
+			t.text.printlnt("cqo")
+		default:
+			t.text.printlnt("cdq")
+		}
+
+		t.text.printft("%s %s\n", inst, divisor)
+		t.text.printf("%s:\n", doneLabel)
+
+		leftReg = t.ctx.AllocFreeRegister()
+		source := x64context.AX
+		if op == "%" {
+			source = x64context.DX
+		}
+		t.text.printft("mov %s, %s\n", t.ctx.GetRegister(leftReg, size), t.ctx.GetRegister(source, size))
+
+		t.ctx.FreeRegister(divReg)
+		t.ctx.FreeRegister(x64context.AX)
+		t.ctx.FreeRegister(x64context.DX)
+
+		for _, reg := range slices.Backward(savedRegisters) {
+			t.pop(reg)
+			t.ctx.AllocRegister(reg)
+		}
+
 	default:
 		return nil, fmt.Errorf("x86-64: binary operator %s not supported", op)
 	}

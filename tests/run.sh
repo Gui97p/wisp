@@ -35,14 +35,24 @@ for dir in "$ROOT"/*/; do
     clean <"$out.raw" | grep -v '^\[\(lua\|x64\)\]' >"$out"
     clean <"$err" >"$err.clean"
 
-    if diff -q "$out" "$dir/expected.txt" >/dev/null; then
-        printf 'PASS  %s\n' "$name" >>"$RESULTS"
+    if grep -q -E '>> error|^Error:|nasm|ld:|goroutine [0-9]+' "$err.clean" && ! grep -q '^FAIL$' "$out"; then
+        detail="$(grep -m1 -E '>> error|^Error:|nasm|goroutine|panic:' "$err.clean" | sed 's/^Error: //; s/^>> error: //' | cut -c1-110)"
+        printf 'BUILD %s  %s\n' "$name" "$detail" >>"$RESULTS"
         continue
     fi
 
-    if grep -q -E '>> error|^Error:|nasm|ld:|panic' "$err.clean" && ! grep -q '^FAIL$' "$out"; then
-        detail="$(grep -m1 -E '>> error|^Error:|nasm|panic' "$err.clean" | sed 's/^Error: //; s/^>> error: //' | cut -c1-110)"
-        printf 'BUILD %s  %s\n' "$name" "$detail" >>"$RESULTS"
+    if [[ -f "$dir/abort.txt" ]]; then
+        want="$(cat "$dir/abort.txt")"
+        if diff -q "$out" "$dir/expected.txt" >/dev/null && [[ "$code" -eq 1 ]] && grep -qF -- "$want" "$err.clean"; then
+            printf 'PASS  %s\n' "$name" >>"$RESULTS"
+        else
+            printf 'WRONG %s  abort expected (exit 1, "%s"), got exit %s\n' "$name" "$want" "$code" >>"$RESULTS"
+        fi
+        continue
+    fi
+
+    if diff -q "$out" "$dir/expected.txt" >/dev/null; then
+        printf 'PASS  %s\n' "$name" >>"$RESULTS"
         continue
     fi
 
