@@ -134,6 +134,29 @@ func (t *X64Target) opText(op Operand, size int) string {
 	return ""
 }
 
+func (t *X64Target) spill(op Operand) Operand {
+	switch o := op.(type) {
+	case Imm, Mem:
+		return op
+	case Reg:
+		offset := t.ctx.Reserve(o.Size)
+		memSlot := slot(offset, o.Size)
+		t.store(op, memSlot)
+		return memSlot
+	case Addr:
+		memSlot := slot(t.ctx.Reserve(8), 8)
+		t.store(op, memSlot)
+		return memSlot
+	case Wide:
+		offset := t.ctx.Reserve(o.Size)
+		memSlot := slot(offset, o.Size)
+		t.store(op, memSlot)
+		return memSlot
+	}
+	t.fail("spill failed: invalid operand %s", op)
+	return nil
+}
+
 func (t *X64Target) valueTypes(exprs []ast.Expression) []analyser.Type {
 	types := []analyser.Type{}
 

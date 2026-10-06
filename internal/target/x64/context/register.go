@@ -1,5 +1,7 @@
 package x64context
 
+import "slices"
+
 type Register int
 
 const (
@@ -68,6 +70,16 @@ func (c *Context) AllocatedRegisters() []Register {
 	regs := []Register{}
 	for reg := range c.registers {
 		regs = append(regs, reg)
+	}
+	return regs
+}
+
+func (c *Context) AllocatedOrderRegisters() []Register {
+	regs := []Register{}
+	for reg := range c.registers {
+		if slices.Contains(RegisterOrder, reg) {
+			regs = append(regs, reg)
+		}
 	}
 	return regs
 }

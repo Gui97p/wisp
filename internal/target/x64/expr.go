@@ -116,6 +116,10 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 
 	var right Operand
 	if expr.Operator != "&&" && expr.Operator != "||" {
+		if regsNeeded(expr.Right) > len(t.ctx.AllocatedOrderRegisters()) {
+			left = t.spill(left)
+		}
+
 		right, err = t.compileExpr(expr.Right)
 		if err != nil {
 			return nil, err

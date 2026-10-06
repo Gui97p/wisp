@@ -421,6 +421,82 @@ func main() {
 }
 `},
 
+	{dir: "register_spill_left", src: `func main() {
+    int a1 = 1;
+    int a2 = 2;
+    int a3 = 3;
+    int a4 = 4;
+    int a5 = 5;
+    int a6 = 6;
+    int a7 = 7;
+    int a8 = 8;
+    int a9 = 9;
+    int a10 = 10;
+    int a11 = 11;
+    int a12 = 12;
+    int q = (((((((((((a1 + a2) + a3) + a4) + a5) + a6) + a7) + a8) + a9) + a10) + a11) + a12);
+    check(q == 78, "spill left nested sum");
+}
+`},
+
+	{dir: "register_spill_sub", src: `func main() {
+    int a1 = 1;
+    int a2 = 2;
+    int a3 = 3;
+    int a4 = 4;
+    int a5 = 5;
+    int a6 = 6;
+    int a7 = 7;
+    int a8 = 8;
+    int a9 = 9;
+    int a10 = 10;
+    int a11 = 11;
+    int a12 = 12;
+    int q = (a1 - (a2 - (a3 - (a4 - (a5 - (a6 - (a7 - (a8 - (a9 - (a10 - (a11 - a12)))))))))));
+    check(q == -6, "spill right nested subtraction keeps order");
+}
+`},
+
+	{dir: "register_spill_mixed", src: `func main() {
+    int a1 = 1;
+    int a2 = 2;
+    int a3 = 3;
+    int a4 = 4;
+    int a5 = 5;
+    int a6 = 6;
+    int a7 = 7;
+    int a8 = 8;
+    int a9 = 9;
+    int a10 = 10;
+    int a11 = 11;
+    int a12 = 12;
+    int q = (a1 * (a2 + (a3 * (a4 + (a5 * (a6 + (a7 * (a8 + (a9 * (a10 + (a11 * a12)))))))))));
+    check(q == 135134, "spill right nested mul and add");
+}
+`},
+
+	{dir: "register_spill_call", src: `func tag(string s, int n) int {
+    return n + 1;
+}
+
+func main() {
+    int a1 = 1;
+    int a2 = 2;
+    int a3 = 3;
+    int a4 = 4;
+    int a5 = 5;
+    int a6 = 6;
+    int a7 = 7;
+    int a8 = 8;
+    int a9 = 9;
+    int a10 = 10;
+    int a11 = 11;
+    int a12 = 12;
+    int q = (a1 + (a2 + (a3 + (a4 + (a5 + (a6 + (a7 + (a8 + (a9 + tag("x", (a10 + (a11 + tag("y", a12)))))))))))));
+    check(q == 80, "spill with calls and string args in the chain");
+}
+`},
+
 	{dir: "shift_count_overflow", src: `func main() {
     uint8 one8 = 1;
     uint8 n8 = 8;

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
+	"github.com/Gui97p/wisp/internal/ast"
 )
 
 func abs(n int) int {
@@ -29,6 +30,36 @@ func isSigned(tp analyser.Type) bool {
 	default:
 		return false
 	}
+}
+
+func regsNeeded(expr ast.Expression) int {
+	switch e := expr.(type) {
+	case *ast.ArrayLiteral,
+		*ast.BoolLiteral,
+		*ast.CharLiteral,
+		*ast.FloatLiteral,
+		*ast.FuncLiteral,
+		*ast.IdentLiteral,
+		*ast.IntLiteral,
+		*ast.MapLiteral,
+		*ast.NullLiteral,
+		*ast.StringLiteral,
+		*ast.StructLiteral:
+		return 0
+	case *ast.BinaryExpr:
+		return max(regsNeeded(e.Left), 1+regsNeeded(e.Right), 1)
+	case *ast.UnaryExpr:
+		return max(regsNeeded(e.Value), 1)
+	case *ast.CastExpr:
+		return max(regsNeeded(e.Value), 2)
+	case *ast.CallExpr:
+		maxRegs := 1
+		for _, arg := range e.Args {
+			maxRegs = max(regsNeeded(arg), maxRegs)
+		}
+		return maxRegs
+	}
+	return 0
 }
 
 func decodeEscapes(s string) ([]byte, error) {
