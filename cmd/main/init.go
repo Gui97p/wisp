@@ -116,9 +116,17 @@ section .note.GNU-stack noalloc noexec nowrite progbits
 const targetRuntimeContent = `; Runtime of the %[1]s target: routines the compiler calls on its own.
 ; __wisp_emit backs the emit builtin: rdi holds the address of the text and
 ; rsi its length. It writes the text and a line feed to the standard output.
-; The Linux write below is only a placeholder, replace it with your kernel's.
+; __wisp_panic backs the panic builtin and the checks the compiler inserts, such
+; as division by zero: rdi holds the address of the message and rsi its length.
+; It writes "panic: ", the message and a line feed to the error output, then
+; ends the program with a failure status. It never returns.
+; The Linux calls below are only placeholders, replace them with your kernel's.
 
 global __wisp_emit
+global __wisp_panic
+
+section .rodata
+__wisp_panic_prefix: db "panic: "
 
 section .text
 __wisp_emit:
@@ -135,6 +143,29 @@ __wisp_emit:
     syscall
     pop rax
     ret
+
+__wisp_panic:
+    push rdi
+    push rsi
+    mov eax, 1
+    mov edi, 2
+    lea rsi, [rel __wisp_panic_prefix]
+    mov edx, 7
+    syscall
+    pop rdx
+    pop rsi
+    mov eax, 1
+    mov edi, 2
+    syscall
+    push 10
+    mov rsi, rsp
+    mov edx, 1
+    mov edi, 2
+    mov eax, 1
+    syscall
+    mov edi, 1
+    mov eax, 60
+    syscall
 
 section .note.GNU-stack noalloc noexec nowrite progbits
 `

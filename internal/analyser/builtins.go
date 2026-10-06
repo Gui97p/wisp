@@ -7,11 +7,11 @@ func (a *Analyser) registerBuiltins() {
 	a.universe.Define(&Symbol{Name: "emit", Kind: FUNC, Type: &FuncType{
 		Name: "emit", Params: []Type{strType}, Returns: nil, Variadic: true,
 	}})
-	a.universe.Define(&Symbol{Name: "emitf", Kind: FUNC, Type: &FuncType{
-		Name: "emitf", Params: []Type{strType, AnyType{}}, Returns: nil, Variadic: true,
-	}})
 	a.universe.Define(&Symbol{Name: "len", Kind: FUNC, Type: &FuncType{
 		Name: "len", Params: []Type{AnyType{}}, Returns: []Type{intType},
+	}})
+	a.universe.Define(&Symbol{Name: "panic", Kind: FUNC, Type: &FuncType{
+		Name: "panic", Params: []Type{strType}, Returns: nil,
 	}})
 
 	a.universe.Define(&Symbol{Name: "malloc", Kind: FUNC, Type: &FuncType{

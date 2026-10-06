@@ -37,6 +37,10 @@ section .note.GNU-stack noalloc noexec nowrite progbits
 `
 
 const linuxRuntime = `global __wisp_emit
+global __wisp_panic
+
+section .rodata
+__wisp_panic_prefix: db "panic: "
 
 section .text
 __wisp_emit:
@@ -53,11 +57,38 @@ __wisp_emit:
 	syscall
 	pop rax
 	ret
+
+__wisp_panic:
+	push rdi
+	push rsi
+	mov eax, 1
+	mov edi, 2
+	lea rsi, [rel __wisp_panic_prefix]
+	mov edx, 7
+	syscall
+	pop rdx
+	pop rsi
+	mov eax, 1
+	mov edi, 2
+	syscall
+	push 10
+	mov rsi, rsp
+	mov edx, 1
+	mov edi, 2
+	mov eax, 1
+	syscall
+	mov edi, 1
+	mov eax, 60
+	syscall
 
 section .note.GNU-stack noalloc noexec nowrite progbits
 `
 
 const sineRuntime = `global __wisp_emit
+global __wisp_panic
+
+section .rodata
+__wisp_panic_prefix: db "panic: "
 
 section .text
 __wisp_emit:
@@ -74,6 +105,29 @@ __wisp_emit:
 	syscall
 	pop rax
 	ret
+
+__wisp_panic:
+	push rdi
+	push rsi
+	mov eax, 5
+	mov edi, 1
+	lea rsi, [rel __wisp_panic_prefix]
+	mov edx, 7
+	syscall
+	pop rdx
+	pop rsi
+	mov eax, 5
+	mov edi, 1
+	syscall
+	push 10
+	mov rsi, rsp
+	mov edx, 1
+	mov edi, 1
+	mov eax, 5
+	syscall
+	mov rax, 19
+	mov rdi, 3
+	syscall
 
 section .note.GNU-stack noalloc noexec nowrite progbits
 `

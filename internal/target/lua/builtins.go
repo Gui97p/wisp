@@ -12,8 +12,8 @@ func (t *LuaTarget) getBuiltin(name string) (func(*strings.Builder, []ast.Expres
 	switch name {
 	case "emit":
 		return t.compileEmit, true
-	case "emitf":
-		return t.compileEmitf, true
+	case "panic":
+		return t.compilePanic, true
 	case "len":
 		return t.compileLen, true
 	default:
@@ -47,23 +47,6 @@ func (t *LuaTarget) compileEmit(b *strings.Builder, args []ast.Expression) error
 	return nil
 }
 
-func (t *LuaTarget) compileEmitf(b *strings.Builder, args []ast.Expression) error {
-	b.WriteString("print(string.format(")
-
-	for i, arg := range args {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-
-		if err := t.compileExpression(b, arg); err != nil {
-			return err
-		}
-	}
-
-	b.WriteString("))\n")
-	return nil
-}
-
 func (t *LuaTarget) compileLen(b *strings.Builder, args []ast.Expression) error {
 	if pt, ok := t.info.Types[args[0]].(analyser.PrimitiveType); ok && pt.Name == "string" {
 		b.WriteByte('#')
@@ -75,5 +58,16 @@ func (t *LuaTarget) compileLen(b *strings.Builder, args []ast.Expression) error 
 		return err
 	}
 	b.WriteByte(')')
+	return nil
+}
+
+func (t *LuaTarget) compilePanic(b *strings.Builder, args []ast.Expression) error {
+	b.WriteString("__wisp_panic(")
+
+	if err := t.compileExpression(b, args[0]); err != nil {
+		return err
+	}
+
+	b.WriteString(")\n")
 	return nil
 }
