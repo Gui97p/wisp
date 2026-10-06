@@ -28,6 +28,13 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 				break
 			}
 		}
+	case *ast.GroupStmt:
+		for _, stmt := range s.Statements {
+			err = t.compileStatement(stmt)
+			if err != nil {
+				break
+			}
+		}
 	case *ast.VarStmt:
 		err = t.compileVarStmt(s)
 	case *ast.ReturnStmt:

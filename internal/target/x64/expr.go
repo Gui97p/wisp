@@ -234,8 +234,9 @@ func (t *X64Target) compileTernaryExpr(expr *ast.TernaryExpr) (Operand, error) {
 		return nil, err
 	}
 
-	reg := t.materialize(cond, size)
-	regStr := t.ctx.GetRegister(reg, size)
+	condSize := sizeOf(t.info.Types[expr.Condition])
+	reg := t.materialize(cond, condSize)
+	regStr := t.ctx.GetRegister(reg, condSize)
 	t.text.printft("test %s, %s\n", regStr, regStr)
 	t.ctx.FreeRegister(reg)
 	t.text.printft("jz %s\n", elseLabel)

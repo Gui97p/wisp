@@ -107,6 +107,10 @@ func (t *X64Target) collectVariables(stmt ast.Statement) {
 		for _, stmt := range s.Statements {
 			t.collectVariables(stmt)
 		}
+	case *ast.GroupStmt:
+		for _, stmt := range s.Statements {
+			t.collectVariables(stmt)
+		}
 	case *ast.VarStmt:
 		for i := range s.Vars {
 			t.ctx.Set(t.info.VarSymbols[s][i], sizeOf(t.info.VarTypes[s][i]))
