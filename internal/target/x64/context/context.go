@@ -9,10 +9,12 @@ type Context struct {
 	registers map[Register]bool
 
 	pushed int
+
+	loopStack []LoopContext
 }
 
 func NewContext() *Context {
-	return &Context{stackOffset: map[*analyser.Symbol]int{}, registers: map[Register]bool{}}
+	return &Context{stackOffset: map[*analyser.Symbol]int{}, registers: map[Register]bool{}, loopStack: []LoopContext{}}
 }
 
 func (c *Context) Get(ident *analyser.Symbol) (int, bool) {

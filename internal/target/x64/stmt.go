@@ -38,6 +38,8 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		err = t.compileIncDecStmt(s)
 	case *ast.IfStmt:
 		err = t.compileIfStmt(s)
+	case *ast.ForStmt:
+		err = t.compileForStmt(s)
 	case *ast.ConstStmt:
 	default:
 		return fmt.Errorf("x86-64: unsupported statement %T", stmt)
@@ -196,4 +198,17 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 
 	t.text.printf("%s:\n", endLabel)
 	return nil
+}
+
+func (t *X64Target) compileForStmt(stmt *ast.ForStmt) error {
+	switch {
+	case stmt.Range != nil:
+		return t.compileForRange(stmt)
+
+	case stmt.Start != nil:
+		return t.compileForNumeric(stmt)
+
+	default:
+		return t.compileForCount(stmt)
+	}
 }

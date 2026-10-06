@@ -155,7 +155,6 @@ func (t *LuaTarget) compileForStatement(b *strings.Builder, stmt *ast.ForStmt) e
 	default:
 		return t.compileForCount(b, stmt)
 	}
-
 }
 
 func (t *LuaTarget) compileForCount(b *strings.Builder, stmt *ast.ForStmt) error {
@@ -373,24 +372,13 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 	}
 	fmt.Fprintf(b, "local %s = %s\n", stmt.Var, start)
 
-	fmt.Fprintf(b, "::%s::\n", conditionLabel)
-
 	end, err := t.compileExprScratch(stmt.End)
 	if err != nil {
 		return err
 	}
 	t.flushPending(b)
-	fmt.Fprintf(b, "if %s > %s then goto %s end\n", stmt.Var, end, ctx.BreakLabel)
-
-	b.WriteString("do\n")
-
-	if err := t.compileStatement(b, stmt.Body); err != nil {
-		return err
-	}
-
-	b.WriteString("end\n")
-
-	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
+	endVar := t.newLabel("for_end")
+	fmt.Fprintf(b, "local %s = %s\n", endVar, end)
 
 	step := "1"
 	if stmt.Step != nil {
@@ -401,7 +389,29 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 		t.flushPending(b)
 		step = text
 	}
-	fmt.Fprintf(b, "%s = %s + %s\n", stmt.Var, stmt.Var, step)
+	stepVar := t.newLabel("for_step")
+	fmt.Fprintf(b, "local %s = %s\n", stepVar, step)
+	if stmt.Step != nil {
+		fmt.Fprintf(b, "if %s <= 0 then __wisp_panic(\"range step must be positive\") end\n", stepVar)
+	}
+
+	upVar := t.newLabel("for_up")
+	fmt.Fprintf(b, "local %s = %s <= %s\n", upVar, stmt.Var, endVar)
+
+	fmt.Fprintf(b, "::%s::\n", conditionLabel)
+	fmt.Fprintf(b, "if %s then\nif %s > %s then goto %s end\nelse\nif %s < %s then goto %s end\nend\n",
+		upVar, stmt.Var, endVar, ctx.BreakLabel, stmt.Var, endVar, ctx.BreakLabel)
+
+	b.WriteString("do\n")
+
+	if err := t.compileStatement(b, stmt.Body); err != nil {
+		return err
+	}
+
+	b.WriteString("end\n")
+
+	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
+	fmt.Fprintf(b, "if %s then %s = %s + %s else %s = %s - %s end\n", upVar, stmt.Var, stmt.Var, stepVar, stmt.Var, stmt.Var, stepVar)
 
 	fmt.Fprintf(b, "goto %s\n", conditionLabel)
 	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)

@@ -176,7 +176,9 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 	if stmt.Var == "" {
 		if stmt.End != nil {
 			t := a.checkExpr(stmt.End)
-			a.requireNumeric(stmt.End, t, "for iteration count")
+			if _, bad := t.(InvalidType); !bad && !isInteger(underlying(t)) {
+				a.errorf(stmt.End, "for iteration count must be an integer, got %s", t)
+			}
 		}
 
 		a.pushLoop(stmt.Label)
@@ -188,13 +190,18 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 	}
 
 	if stmt.Start != nil {
-		a.requireNumeric(stmt.Start, a.checkExpr(stmt.Start), "for start")
+		a.coerceRangeValue(&stmt.Start, "for start")
 	}
 	if stmt.End != nil {
-		a.requireNumeric(stmt.End, a.checkExpr(stmt.End), "for end")
+		a.coerceRangeValue(&stmt.End, "for end")
 	}
 	if stmt.Step != nil {
-		a.requireNumeric(stmt.Step, a.checkExpr(stmt.Step), "for step")
+		a.coerceRangeValue(&stmt.Step, "for step")
+		if step, ok := a.evalConst(stmt.Step); ok {
+			if (step.Kind == ConstInt && step.Int.Sign() <= 0) || (step.Kind == ConstFloat && step.Float <= 0) {
+				a.error(stmt.Step, "range step must be positive: the direction comes from the bounds, as in 10..1:2")
+			}
+		}
 	}
 
 	a.pushLoop(stmt.Label)
@@ -203,6 +210,23 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 	a.checkBlock(stmt.Body)
 	a.exitScope()
 	a.popLoop()
+}
+
+func (a *Analyser) coerceRangeValue(slot *ast.Expression, what string) {
+	t := a.checkExpr(*slot)
+	if _, bad := t.(InvalidType); bad {
+		return
+	}
+	if !isInteger(underlying(t)) {
+		a.errorf(*slot, "%s must be an integer, got %s", what, t)
+		return
+	}
+	intType := PrimitiveType{Name: "int"}
+	if !a.coerce(slot, t, intType) {
+		a.errorf(*slot, "%s must be an int, got %s: convert it explicitly", what, t)
+		return
+	}
+	a.checkConstFits(*slot, intType)
 }
 
 func (a *Analyser) defineLoopVar(stmt *ast.ForStmt, name string, tp Type, line, col int) {

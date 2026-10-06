@@ -117,6 +117,12 @@ func (t *X64Target) collectVariables(stmt ast.Statement) {
 			t.collectVariables(s.Else)
 		}
 	case *ast.ForStmt:
+		if s.Var != "" {
+			t.ctx.Set(t.info.VarSymbols[s][0], sizeOf(t.info.VarTypes[s][0]))
+		}
+		if s.Var2 != "" {
+			t.ctx.Set(t.info.VarSymbols[s][1], sizeOf(t.info.VarTypes[s][1]))
+		}
 		t.collectVariables(s.Body)
 	case *ast.LoopStmt:
 		t.collectVariables(s.Body)

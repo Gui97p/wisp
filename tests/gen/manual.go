@@ -1364,4 +1364,139 @@ func main() {
     check(seven / neg64 == 0 - 7, "minneg ordinary value by minus one");
 }
 `},
+
+	{dir: "flow_range_directions", src: `func main() {
+    int up = 0;
+    for i in 1..4 {
+        up = up * 10 + i;
+    }
+    check(up == 1234, "range ascending visits every value");
+    int down = 0;
+    for i in 4..1 {
+        down = down * 10 + i;
+    }
+    check(down == 4321, "range descending counts down");
+    int once = 0;
+    for i in 5..5 {
+        once += 1;
+    }
+    check(once == 1, "range with equal bounds runs once");
+    int stepUp = 0;
+    for i in 1..10:4 {
+        stepUp = stepUp * 100 + i;
+    }
+    check(stepUp == 10509, "range ascending with a step");
+    int stepDown = 0;
+    for i in 10..1:3 {
+        stepDown = stepDown * 100 + i;
+    }
+    check(stepDown == 10070401, "range descending with a step");
+    int skip = 0;
+    for i in 10..1:20 {
+        skip += 1;
+    }
+    check(skip == 1, "range step larger than the distance visits only the start");
+}
+`},
+
+	{dir: "flow_range_evaluation", src: `func bound(int v) int {
+    return v;
+}
+
+func main() {
+    int n = 5;
+    int seen = 0;
+    for i in 1..n {
+        seen += 1;
+        n = 2;
+    }
+    check(seen == 5, "range end is read once");
+    int calls = 0;
+    for i in 1..bound(3) {
+        calls += 1;
+    }
+    check(calls == 3, "range with a call as its end runs the right number of times");
+    int step = 2;
+    int stepped = 0;
+    for i in 1..9:step {
+        stepped += 1;
+        step = 100;
+    }
+    check(stepped == 5, "range step is read once");
+    int edits = 0;
+    for j in 1..3 {
+        j += 1;
+        edits += 1;
+    }
+    check(edits == 2, "changing the loop variable in the body changes the iteration");
+    int a = 3;
+    int b = 1;
+    int dir = 0;
+    for i in a..b {
+        dir += 1;
+    }
+    check(dir == 3, "range direction comes from variables");
+}
+`},
+
+	{dir: "abort_range_step_zero", src: `func main() {
+    int step = 0;
+    check(true, "abortstep before the loop");
+    for i in 1..5:step {
+        check(true, "abortstep never printed");
+    }
+}
+`, expected: []string{"abortstep before the loop"}, abort: "panic: range step must be positive"},
+
+	{dir: "flow_switch_in_loop", src: `func main() {
+    int hits = 0;
+    for i in 1..5 {
+        switch i {
+            case 2:
+                continue;
+            case 4:
+                break;
+            default:
+                hits += 10;
+        }
+        hits += 1;
+    }
+    check(hits == 34, "switchloop break leaves the switch and continue skips the rest of the iteration");
+    int outer = 0;
+    :rows for i in 1..3 {
+        for j in 1..3 {
+            switch j {
+                case 2:
+                    continue rows;
+                default:
+                    outer += 1;
+            }
+        }
+    }
+    check(outer == 3, "switchloop continue with a label crosses the switch");
+}
+`},
+
+	{dir: "flow_range_types", src: `func main() {
+    int8 lo = 2;
+    int16 hi = 5;
+    int acc = 0;
+    for i in lo..hi {
+        acc = acc * 10 + i;
+    }
+    check(acc == 2345, "rangetypes bounds of narrower types widen to int");
+    uint8 count = 3;
+    int turns = 0;
+    for count {
+        turns += 1;
+    }
+    check(turns == 3, "rangetypes iteration count of a narrow type");
+    int8 step = 3;
+    int seen = 0;
+    for i in 1..10:step {
+        seen += 1;
+    }
+    check(seen == 4, "rangetypes step of a narrow type");
+}
+`},
 }

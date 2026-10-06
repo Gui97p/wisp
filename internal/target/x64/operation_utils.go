@@ -18,6 +18,17 @@ func (t *X64Target) push(reg x64context.Register) {
 	t.ctx.AddPushed(1)
 }
 
+func (t *X64Target) panic(message string) {
+	t.prelude.define("__wisp_panic")
+	label, ok := t.createData("str", message)
+	if !ok {
+		t.rodata.printf("%s db %s\n", label, bytesToAsm(append([]byte(message), 0)))
+	}
+	t.text.printft("lea rdi, [rel %s]\n", label)
+	t.text.printft("mov esi, %d\n", len(message))
+	t.text.printlnt("call __wisp_panic")
+}
+
 func (t *X64Target) words(op Operand) []Operand {
 	switch o := op.(type) {
 	case Wide:

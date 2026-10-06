@@ -91,12 +91,7 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 
 		t.text.printft("test %s, %s\n", divisor, divisor)
 		t.text.printft("jnz %s\n", notzeroLabel)
-		t.prelude.define("__wisp_panic")
-		label, ok := t.createData("str", "integer divide by zero")
-		if !ok {
-			t.rodata.printf("%s db %s\n", label, bytesToAsm(append([]byte("integer divide by zero"), 0)))
-		}
-		t.text.printft("lea rdi, [rel %s]\n\tmov esi, 22\n\tcall __wisp_panic\n", label)
+		t.panic("integer divide by zero")
 		t.text.printf("%s:\n", notzeroLabel)
 
 		inst := "div"
