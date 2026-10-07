@@ -5,6 +5,7 @@ type manualCase struct {
 	src      string
 	expected []string
 	abort    string
+	x64Only  bool
 }
 
 var manual = []manualCase{
@@ -494,6 +495,217 @@ func main() {
     int a12 = 12;
     int q = (a1 + (a2 + (a3 + (a4 + (a5 + (a6 + (a7 + (a8 + (a9 + tag("x", (a10 + (a11 + tag("y", a12)))))))))))));
     check(q == 80, "spill with calls and string args in the chain");
+}
+`},
+
+	{dir: "agg_struct_basic", x64Only: true, src: `struct P {
+    int x;
+    int y;
+}
+
+struct Mixed {
+    int8 a;
+    int64 b;
+    int16 c;
+    bool d;
+}
+
+func main() {
+    P p = P{x: 1, y: 2};
+    check(p.x == 1, "struct literal first field");
+    check(p.y == 2, "struct literal second field");
+    p.x = 10;
+    p.y += 5;
+    check(p.x == 10, "struct field assignment");
+    check(p.y == 7, "struct field compound assignment");
+    P q = p;
+    p.x = 99;
+    check(q.x == 10, "struct copy is independent");
+    Mixed m = Mixed{a: 3, b: 5000000000, c: 300, d: true};
+    check(m.a == 3, "mixed int8 field");
+    check(m.b == 5000000000, "mixed int64 field");
+    check(m.c == 300, "mixed int16 field");
+    check(m.d, "mixed bool field");
+    m.c = 7;
+    check(m.b == 5000000000, "writing one field leaves the neighbour alone");
+    check(m.c == 7, "mixed field rewritten");
+}
+`},
+
+	{dir: "agg_struct_zero", src: `struct P {
+    int x;
+    int y;
+}
+
+func main() {
+    P blank;
+    check(blank.x == 0, "uninitialised struct first field is zero");
+    check(blank.y == 0, "uninitialised struct second field is zero");
+}
+`},
+
+	{dir: "agg_struct_nested", src: `struct P {
+    int x;
+    int y;
+}
+
+struct Line {
+    P a;
+    P b;
+    int tag;
+}
+
+func main() {
+    Line l = Line{a: P{x: 1, y: 2}, b: P{x: 3, y: 4}, tag: 9};
+    check(l.a.x == 1, "nested first x");
+    check(l.b.y == 4, "nested second y");
+    check(l.tag == 9, "field after nested structs");
+    l.b.x = 30;
+    check(l.b.x == 30, "nested field assignment");
+    check(l.a.y == 2, "nested assignment leaves the sibling alone");
+    P inner = l.b;
+    check(inner.x == 30, "copy a nested struct out");
+}
+`},
+
+	{dir: "agg_struct_abi", src: `struct P {
+    int x;
+    int y;
+}
+
+struct Big {
+    int a;
+    int b;
+    int c;
+}
+
+func sum(P p) int {
+    return p.x + p.y;
+}
+
+func make(int x, int y) P {
+    return P{x: x, y: y};
+}
+
+func total(Big b) int {
+    return b.a + b.b + b.c;
+}
+
+func build(int a) Big {
+    return Big{a: a, b: a + 1, c: a + 2};
+}
+
+func main() {
+    P p = P{x: 3, y: 4};
+    check(sum(p) == 7, "struct passed by value in registers");
+    P r = make(5, 6);
+    check(r.x == 5, "struct returned in registers first");
+    check(r.y == 6, "struct returned in registers second");
+    Big b = Big{a: 1, b: 2, c: 3};
+    check(total(b) == 6, "big struct passed by value");
+    Big c = build(10);
+    check(c.c == 12, "big struct returned through sret");
+    check(sum(make(1, 2)) == 3, "struct returned and passed on");
+}
+`},
+
+	{dir: "agg_array_basic", x64Only: true, src: `func main() {
+    int[5] nums = [124, 512, 1, 5, 2];
+    check(nums[0] == 124, "array literal first");
+    check(nums[4] == 2, "array literal last");
+    int i = 2;
+    check(nums[i] == 1, "array read with a variable index");
+    nums[0] = 999;
+    nums[1]++;
+    nums[2] += 10;
+    check(nums[0] == 999, "array element assignment");
+    check(nums[1] == 513, "array element increment");
+    check(nums[2] == 11, "array element compound assignment");
+    nums[i + 1] = 77;
+    check(nums[3] == 77, "array write with a computed index");
+    int[5] copy = nums;
+    nums[0] = 0;
+    check(copy[0] == 999, "array copy is independent");
+    int total = 0;
+    for k in 0..4 {
+        total += copy[k];
+    }
+    check(total == 999 + 513 + 11 + 77 + 2, "array walked by a loop");
+}
+`},
+
+	{dir: "agg_array_partial", src: `func main() {
+    int[5] partial = [7, 8];
+    check(partial[0] == 7, "partial array first");
+    check(partial[1] == 8, "partial array second");
+    check(partial[2] == 0, "partial array fills with zero");
+    check(partial[4] == 0, "partial array last is zero");
+    int8[6] small = [1, 2, 3];
+    check(small[2] == 3, "narrow elements are packed");
+    check(small[5] == 0, "narrow partial fills with zero");
+    small[5] = 9;
+    int8[4] bytes;
+    check(bytes[0] == 0, "uninitialised array element is zero");
+    check(bytes[3] == 0, "uninitialised array last element is zero");
+    check(small[4] == 0, "narrow write leaves the neighbour alone");
+    check(small[5] == 9, "narrow write lands");
+}
+`},
+
+	{dir: "agg_array_of_struct", src: `struct P {
+    int x;
+    int y;
+}
+
+struct Bag {
+    int[3] items;
+    int count;
+}
+
+func main() {
+    P[2] ps = [P{x: 1, y: 2}, P{x: 3, y: 4}];
+    check(ps[0].x == 1, "array of struct first x");
+    check(ps[1].y == 4, "array of struct second y");
+    ps[1].x = 30;
+    check(ps[1].x == 30, "array of struct field write");
+    check(ps[0].y == 2, "array of struct write leaves the first alone");
+    Bag b = Bag{items: [5, 6, 7], count: 3};
+    check(b.items[1] == 6, "array field read");
+    b.items[2] = 70;
+    check(b.items[2] == 70, "array field write");
+    check(b.count == 3, "field after an array field");
+}
+`},
+
+	{dir: "agg_span_slice", x64Only: true, src: `func first(int[] xs) int {
+    return xs[0];
+}
+
+func main() {
+    int[5] nums = [10, 20, 30, 40, 50];
+    int[] middle = nums[1:3];
+    int[] head = nums[:2];
+    int[] tail = nums[3:];
+    check(len(middle) == 2, "slice length");
+    check(middle[0] == 20, "slice first element");
+    check(middle[1] == 30, "slice second element");
+    check(len(head) == 2, "open start length");
+    check(len(tail) == 2, "open end length");
+    check(tail[1] == 50, "open end last element");
+    nums[1] = 21;
+    check(middle[0] == 21, "a slice is a view of the array");
+    middle[1] = 31;
+    check(nums[2] == 31, "writing through a slice changes the array");
+    check(first(tail) == 40, "slice passed to a function");
+}
+`},
+
+	{dir: "agg_null_pointer", x64Only: true, src: `func main() {
+    *int p = null;
+    check(p == null, "null pointer equals null");
+    int v = 5;
+    p = &v;
+    check(p != null, "address is not null");
 }
 `},
 
@@ -1523,6 +1735,66 @@ func main() {
     }
 }
 `, expected: []string{"abortstep before the loop"}, abort: "panic: range step must be positive"},
+
+	{dir: "abort_index_array", x64Only: true, src: `func main() {
+    int[5] nums = [1, 2, 3, 4, 5];
+    int i = 4;
+    check(nums[i] == 5, "abortidx last element is readable");
+    i = 5;
+    check(true, "abortidx before the bad read");
+    int x = nums[i];
+    check(false, "abortidx never printed");
+}
+`, expected: []string{"abortidx last element is readable", "abortidx before the bad read"}, abort: "panic: index out of range"},
+
+	{dir: "abort_index_negative", x64Only: true, src: `func main() {
+    int[5] nums = [1, 2, 3, 4, 5];
+    int i = 0;
+    i -= 1;
+    check(true, "abortneg before the bad read");
+    int x = nums[i];
+    check(false, "abortneg never printed");
+}
+`, expected: []string{"abortneg before the bad read"}, abort: "panic: index out of range"},
+
+	{dir: "abort_index_write", x64Only: true, src: `func main() {
+    int[3] nums = [1, 2, 3];
+    int i = 3;
+    check(true, "abortwrite before the bad write");
+    nums[i] = 9;
+    check(false, "abortwrite never printed");
+}
+`, expected: []string{"abortwrite before the bad write"}, abort: "panic: index out of range"},
+
+	{dir: "abort_index_span", x64Only: true, src: `func main() {
+    int[5] nums = [1, 2, 3, 4, 5];
+    int[] part = nums[1:3];
+    int i = 2;
+    check(part[1] == 3, "abortspan last element is readable");
+    check(true, "abortspan before the bad read");
+    int x = part[i];
+    check(false, "abortspan never printed");
+}
+`, expected: []string{"abortspan last element is readable", "abortspan before the bad read"}, abort: "panic: index out of range"},
+
+	{dir: "abort_slice_end", x64Only: true, src: `func main() {
+    int[5] nums = [1, 2, 3, 4, 5];
+    int end = 6;
+    check(true, "abortslice before the bad slice");
+    int[] part = nums[1:end];
+    check(false, "abortslice never printed");
+}
+`, expected: []string{"abortslice before the bad slice"}, abort: "panic: slice out of range"},
+
+	{dir: "abort_slice_order", x64Only: true, src: `func main() {
+    int[5] nums = [1, 2, 3, 4, 5];
+    int start = 3;
+    int end = 2;
+    check(true, "abortorder before the bad slice");
+    int[] part = nums[start:end];
+    check(false, "abortorder never printed");
+}
+`, expected: []string{"abortorder before the bad slice"}, abort: "panic: slice out of range"},
 
 	{dir: "flow_switch_in_loop", src: `func main() {
     int hits = 0;

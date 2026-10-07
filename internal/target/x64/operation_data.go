@@ -83,6 +83,98 @@ var sizeLabels = map[int]string{
 	8: "qword",
 }
 
+func alignUp(n, a int) int {
+	if a <= 1 {
+		return n
+	}
+	return (n + a - 1) / a * a
+}
+
+type fieldLayout struct {
+	Offset int
+	Size   int
+	Type   analyser.Type
+}
+
+type structLayout struct {
+	Size   int
+	Align  int
+	Fields map[string]fieldLayout
+}
+
+var layouts = map[*analyser.StructType]*structLayout{}
+
+func layoutOf(st *analyser.StructType) *structLayout {
+	if l, ok := layouts[st]; ok {
+		return l
+	}
+
+	l := &structLayout{Align: 1, Fields: make(map[string]fieldLayout, len(st.Order))}
+	pos := 0
+	for _, name := range st.Order {
+		tp := st.Fields[name]
+		align := alignOf(tp)
+		size := sizeOf(tp)
+		pos = alignUp(pos, align)
+		l.Fields[name] = fieldLayout{Offset: pos, Size: size, Type: tp}
+		pos += size
+		l.Align = max(l.Align, align)
+	}
+	l.Size = alignUp(pos, l.Align)
+
+	layouts[st] = l
+	return l
+}
+
+func structOf(tp analyser.Type) *analyser.StructType {
+	switch t := tp.(type) {
+	case *analyser.StructType:
+		return t
+	case analyser.NamedType:
+		return structOf(t.Underlying)
+	case analyser.PointerType:
+		return structOf(t.Element)
+	}
+	return nil
+}
+
+func arrayOf(tp analyser.Type) (analyser.ArrayType, bool) {
+	switch t := tp.(type) {
+	case analyser.ArrayType:
+		return t, true
+	case analyser.NamedType:
+		return arrayOf(t.Underlying)
+	}
+	return analyser.ArrayType{}, false
+}
+
+func alignOf(at analyser.Type) int {
+	switch tp := at.(type) {
+	case analyser.PrimitiveType:
+		switch tp.Name {
+		case "int8", "uint8", "bool", "char":
+			return 1
+		case "int16", "uint16":
+			return 2
+		case "int32", "uint32", "float32":
+			return 4
+		case "int", "int64", "uint", "uint64", "float64", "string":
+			return 8
+		}
+	case analyser.UntypedIntType, analyser.UntypedFloatType:
+		return 8
+	case analyser.PointerType, analyser.SpanType:
+		return 8
+	case analyser.ArrayType:
+		return alignOf(tp.Element)
+	case *analyser.StructType:
+		return layoutOf(tp).Align
+	case analyser.NamedType:
+		return alignOf(tp.Underlying)
+	}
+	return 1
+}
+
 func sizeOf(at analyser.Type) int {
 	switch tp := at.(type) {
 	case analyser.PrimitiveType:
@@ -105,11 +197,7 @@ func sizeOf(at analyser.Type) int {
 	case analyser.ArrayType:
 		return int(tp.Size) * sizeOf(tp.Element)
 	case *analyser.StructType:
-		size := 0
-		for _, field := range tp.Fields {
-			size += sizeOf(field)
-		}
-		return size
+		return layoutOf(tp).Size
 	case analyser.SpanType:
 		return 16
 	case analyser.NamedType:

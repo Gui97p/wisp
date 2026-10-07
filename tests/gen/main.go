@@ -182,6 +182,7 @@ type testcase struct {
 	src      string
 	expected []string
 	abort    string
+	x64Only  bool
 }
 
 var cases []testcase
@@ -518,7 +519,7 @@ func main() {
 				exp = append(exp, match[1])
 			}
 		}
-		cases = append(cases, testcase{dir: m.dir, src: header + m.src, expected: exp, abort: m.abort})
+		cases = append(cases, testcase{dir: m.dir, src: header + m.src, expected: exp, abort: m.abort, x64Only: m.x64Only})
 	}
 
 	os.RemoveAll(root)
@@ -539,6 +540,12 @@ func main() {
 		if err := os.WriteFile(filepath.Join(dir, "expected.txt"), []byte(expected), 0644); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
+		}
+		if c.x64Only {
+			if err := os.WriteFile(filepath.Join(dir, "x64-only"), nil, 0644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 		}
 		if c.abort != "" {
 			if err := os.WriteFile(filepath.Join(dir, "abort.txt"), []byte(c.abort+"\n"), 0644); err != nil {

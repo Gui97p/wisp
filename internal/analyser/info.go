@@ -13,6 +13,7 @@ type Info struct {
 	ErrorReturns  map[*ast.ReturnStmt]bool
 	ErrorLiterals map[*ast.CallExpr]*ErrorLiteral
 	Idents        map[*ast.IdentLiteral]*Symbol
+	Members       map[*ast.MemberExpr]*MemberInfo
 	Scopes        map[ast.Node]*Scope
 	Reexports     map[*ast.ReexportDecl][]string
 }
@@ -27,9 +28,24 @@ func NewInfo() *Info {
 		ErrorReturns:  make(map[*ast.ReturnStmt]bool),
 		ErrorLiterals: make(map[*ast.CallExpr]*ErrorLiteral),
 		Idents:        make(map[*ast.IdentLiteral]*Symbol),
+		Members:       make(map[*ast.MemberExpr]*MemberInfo),
 		Scopes:        make(map[ast.Node]*Scope),
 		Reexports:     make(map[*ast.ReexportDecl][]string),
 	}
+}
+
+type MemberKind int
+
+const (
+	MemberField MemberKind = iota
+	MemberModule
+	MemberErrorField
+)
+
+type MemberInfo struct {
+	Kind      MemberKind
+	Struct    *StructType
+	ByPointer bool
 }
 
 type ErrorLiteral struct {

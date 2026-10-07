@@ -1,6 +1,8 @@
 package analyser
 
 import (
+	"math/big"
+
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
@@ -510,6 +512,7 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 			a.errorf(expr, "module has no exported %s", expr.Field)
 			return InvalidType{}
 		}
+		a.info.Members[expr] = &MemberInfo{Kind: MemberModule}
 		return sym.Type
 	}
 
@@ -519,11 +522,14 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 			a.errorf(expr, "Error has no field %s", expr.Field)
 			return InvalidType{}
 		}
+		a.info.Members[expr] = &MemberInfo{Kind: MemberErrorField}
 		return fieldType
 	}
 
+	byPointer := false
 	if ptr, ok := objType.(PointerType); ok {
 		objType = ptr.Element
+		byPointer = true
 	}
 
 	st, ok := objType.(*StructType)
@@ -538,6 +544,7 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 		return InvalidType{}
 	}
 
+	a.info.Members[expr] = &MemberInfo{Kind: MemberField, Struct: st, ByPointer: byPointer}
 	return fieldType
 }
 
@@ -552,9 +559,11 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 	switch t := arrType.(type) {
 	case ArrayType:
 		a.requireNumeric(expr, idxType, "array index")
+		a.checkConstIndex(expr.Index, t.Size)
 		return t.Element
 	case SpanType:
 		a.requireNumeric(expr, idxType, "span index")
+		a.checkConstIndex(expr.Index, -1)
 		return t.Element
 	case *MapType:
 		if _, invalid := idxType.(InvalidType); !invalid && !idxType.Equals(t.Key) {
@@ -567,6 +576,7 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 			return InvalidType{}
 		}
 		a.requireNumeric(expr, idxType, "string index")
+		a.checkConstIndex(expr.Index, -1)
 		return PrimitiveType{Name: "char"}
 	default:
 		a.errorf(expr, "%s can't be indexed", arrType.String())
@@ -585,8 +595,10 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 
 	switch t := arrType.(type) {
 	case ArrayType:
+		a.checkConstSlice(expr, t.Size)
 		return SpanType{Element: t.Element}
 	case SpanType:
+		a.checkConstSlice(expr, -1)
 		return t
 	case PrimitiveType:
 		if t.Name == "string" {
@@ -834,6 +846,49 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 		Line:    line,
 	}
 	return ErrorType{}
+}
+
+func (a *Analyser) checkConstIndex(index ast.Expression, size int64) {
+	value, ok := a.evalConst(index)
+	if !ok || value.Kind != ConstInt {
+		return
+	}
+	if value.Int.Sign() < 0 {
+		a.error(index, "index out of range: negative index")
+		return
+	}
+	if size >= 0 && value.Int.Cmp(big.NewInt(size)) >= 0 {
+		a.errorf(index, "index out of range: %s is not below the array size %d", value.Int, size)
+	}
+}
+
+func (a *Analyser) checkConstSlice(expr *ast.SliceExpr, size int64) {
+	var start, end *big.Int
+	for i, bound := range []ast.Expression{expr.Start, expr.End} {
+		if bound == nil {
+			continue
+		}
+		value, ok := a.evalConst(bound)
+		if !ok || value.Kind != ConstInt {
+			continue
+		}
+		if value.Int.Sign() < 0 {
+			a.error(bound, "slice out of range: negative bound")
+			return
+		}
+		if size >= 0 && value.Int.Cmp(big.NewInt(size)) > 0 {
+			a.errorf(bound, "slice out of range: %s is above the array size %d", value.Int, size)
+			return
+		}
+		if i == 0 {
+			start = value.Int
+		} else {
+			end = value.Int
+		}
+	}
+	if start != nil && end != nil && start.Cmp(end) > 0 {
+		a.error(expr.End, "slice out of range: the start is above the end")
+	}
 }
 
 func (a *Analyser) checkDivisor(divisor ast.Expression, tp Type) {

@@ -22,6 +22,10 @@ for dir in "$ROOT"/*/; do
         continue
     fi
 
+    if [[ "$TARGET" == "lua" && -f "$dir/x64-only" ]]; then
+        continue
+    fi
+
     out="$OUT/$name.out"
     err="$OUT/$name.err"
     if [[ "$TARGET" == "lua" ]]; then

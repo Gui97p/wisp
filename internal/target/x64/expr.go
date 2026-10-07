@@ -40,6 +40,38 @@ func (t *X64Target) resolveStringLiteral(value string) (Operand, error) {
 	return strLit(label, len(decoded)), nil
 }
 
+func (t *X64Target) compileInto(expr ast.Expression, dst Mem, tp analyser.Type) error {
+	switch e := expr.(type) {
+	case *ast.StructLiteral:
+		st := structOf(tp)
+		layout := layoutOf(st)
+		for i, key := range e.Keys {
+			f := layout.Fields[key]
+			if err := t.compileInto(e.Values[i], dst.at(f.Offset, f.Size), f.Type); err != nil {
+				return err
+			}
+		}
+	case *ast.ArrayLiteral:
+		ar, ok := arrayOf(tp)
+		if !ok {
+			return fmt.Errorf("x86-64: not an array")
+		}
+		size := sizeOf(tp)
+		for n := range ar.Size {
+			if err := t.compileInto(e.Elements[n], dst.at(int(int64(size)/ar.Size*n), size), ar.Element); err != nil {
+				return err
+			}
+		}
+	default:
+		op, err := t.compileExpr(expr)
+		if err != nil {
+			return err
+		}
+		t.store(op, dst)
+	}
+	return nil
+}
+
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	switch e := expr.(type) {
 	case *ast.IntLiteral:
@@ -50,6 +82,16 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		return Imm(e.Value), nil
 	case *ast.StringLiteral:
 		return t.resolveStringLiteral(e.Value)
+	case *ast.StructLiteral, *ast.ArrayLiteral:
+		tp := t.info.Types[e]
+		size := sizeOf(tp)
+		offset := t.ctx.Reserve(size)
+
+		memSlot := slot(offset, size)
+		if err := t.compileInto(e, memSlot, tp); err != nil {
+			return nil, err
+		}
+		return memSlot, nil
 	case *ast.IdentLiteral:
 		sym, ok := t.info.Idents[e]
 		if !ok {
@@ -89,6 +131,8 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		return t.compileCastExpr(e)
 	case *ast.TernaryExpr:
 		return t.compileTernaryExpr(e)
+	case *ast.MemberExpr:
+		return t.compileMemberExpr(e)
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
@@ -103,6 +147,18 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 		}
 		size := sizeOf(t.info.Types[e])
 		return slot(offset, size), nil
+	case *ast.MemberExpr:
+		op, err := t.compileExpr(e.Object)
+		if err != nil {
+			return Mem{}, err
+		}
+		memSlot, ok := op.(Mem)
+		if !ok {
+			return Mem{}, fmt.Errorf("x86-64: operator is not a Mem")
+		}
+		info := t.info.Members[e]
+		f := layoutOf(info.Struct).Fields[e.Field]
+		return memSlot.at(f.Offset, f.Size), nil
 	default:
 		return Mem{}, fmt.Errorf("x86-64: unsupported assignment target %T", expr)
 	}
@@ -261,4 +317,8 @@ func (t *X64Target) compileTernaryExpr(expr *ast.TernaryExpr) (Operand, error) {
 
 	t.text.printf("%s:\n", endLabel)
 	return dest, nil
+}
+
+func (t *X64Target) compileMemberExpr(expr *ast.MemberExpr) (Operand, error) {
+	return t.compileLValue(expr)
 }
