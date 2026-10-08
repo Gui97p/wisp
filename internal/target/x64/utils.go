@@ -32,21 +32,24 @@ func isSigned(tp analyser.Type) bool {
 
 func regsNeeded(expr ast.Expression) int {
 	switch e := expr.(type) {
-	case *ast.ArrayLiteral,
-		*ast.BoolLiteral,
-		*ast.CharLiteral,
-		*ast.FloatLiteral,
-		*ast.FuncLiteral,
-		*ast.IdentLiteral,
-		*ast.IntLiteral,
-		*ast.MapLiteral,
-		*ast.NullLiteral,
-		*ast.StringLiteral,
-		*ast.StructLiteral:
-		return 0
+	case *ast.ArrayLiteral:
+		needed := 0
+		for _, el := range e.Elements {
+			needed = max(regsNeeded(el), needed)
+		}
+		return needed
+	case *ast.StructLiteral:
+		needed := 0
+		for _, v := range e.Values {
+			needed = max(regsNeeded(v), needed)
+		}
+		return needed
 	case *ast.BinaryExpr:
 		return max(regsNeeded(e.Left), 1+regsNeeded(e.Right), 1)
 	case *ast.UnaryExpr:
+		if e.Operator == "*" {
+			return max(regsNeeded(e.Value), 2)
+		}
 		return max(regsNeeded(e.Value), 1)
 	case *ast.CastExpr:
 		return max(regsNeeded(e.Value), 2)
@@ -56,6 +59,14 @@ func regsNeeded(expr ast.Expression) int {
 			maxRegs = max(regsNeeded(arg), maxRegs)
 		}
 		return maxRegs
+	case *ast.MemberExpr:
+		return max(regsNeeded(e.Object), 2)
+	case *ast.IndexExpr:
+		return max(regsNeeded(e.Array), 1+regsNeeded(e.Index), 2)
+	case *ast.SliceExpr:
+		return max(regsNeeded(e.Array), 1+regsNeeded(e.Start), 2+regsNeeded(e.End), 3)
+	case *ast.TernaryExpr:
+		return max(regsNeeded(e.Condition), regsNeeded(e.Then), regsNeeded(e.Else))
 	}
 	return 0
 }

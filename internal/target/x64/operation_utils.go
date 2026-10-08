@@ -212,7 +212,15 @@ func (t *X64Target) opText(op Operand, size int) string {
 
 func (t *X64Target) spill(op Operand) Operand {
 	switch o := op.(type) {
-	case Imm, Mem:
+	case Imm:
+		return op
+	case Mem:
+		if slices.Contains(x64context.RegisterOrder, o.Base) || slices.Contains(x64context.RegisterOrder, o.Index) {
+			offset := t.ctx.Reserve(o.Size)
+			memSlot := slot(offset, o.Size)
+			t.store(op, memSlot)
+			return memSlot
+		}
 		return op
 	case Reg:
 		offset := t.ctx.Reserve(o.Size)

@@ -162,7 +162,8 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 
 	var right Operand
 	if expr.Operator != "&&" && expr.Operator != "||" {
-		if regsNeeded(expr.Right) > len(t.ctx.AllocatedOrderRegisters()) {
+		free := len(x64context.RegisterOrder) - len(t.ctx.AllocatedOrderRegisters())
+		if regsNeeded(expr.Right) > free {
 			left = t.spill(left)
 		}
 

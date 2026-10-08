@@ -477,6 +477,43 @@ func main() {
 }
 `},
 
+	{dir: "register_spill_index", src: `func main() {
+    int[4] xs = [10, 20, 30, 40];
+    int i1 = 1;
+    int i2 = 2;
+    int i3 = 3;
+    int i4 = 0;
+    int i5 = 1;
+    int i6 = 2;
+    int i7 = 3;
+    int i8 = 0;
+    int i9 = 1;
+    int i10 = 2;
+    int i11 = 3;
+    int i12 = 0;
+    int a = (xs[i1] + (xs[i2] + (xs[i3] + (xs[i4] + (xs[i5] + (xs[i6] + (xs[i7] + (xs[i8] + (xs[i9] + (xs[i10] + (xs[i11] + xs[i12])))))))))));
+    check(a == 300, "spill with indexed elements pending");
+    int b = ((i1 == 0 ? xs[i1] : 5) + ((i2 == 0 ? xs[i2] : 5) + ((i3 == 0 ? xs[i3] : 5) + ((i4 == 0 ? xs[i4] : 5) + ((i5 == 0 ? xs[i5] : 5) + ((i6 == 0 ? xs[i6] : 5) + ((i7 == 0 ? xs[i7] : 5) + ((i8 == 0 ? xs[i8] : 5) + ((i9 == 0 ? xs[i9] : 5) + ((i10 == 0 ? xs[i10] : 5) + ((i11 == 0 ? xs[i11] : 5) + (i12 == 0 ? xs[i12] : 5))))))))))));
+    check(b == 75, "spill with ternaries and indexed elements pending");
+    int[] part = xs[1:4];
+    int d = (part[0] + (part[1] + (part[2] + (part[0] + (part[1] + (part[2] + (part[0] + (part[1] + (part[2] + (part[0] + (part[1] + part[2])))))))))));
+    check(d == 360, "spill with span elements pending");
+}
+`},
+
+	{dir: "register_spill_member", x64Only: true, src: `struct P {
+    int x;
+    int y;
+}
+
+func main() {
+    P s = P{x: 3, y: 4};
+    *P p = &s;
+    int c = (p.x + (p.x + (p.x + (p.x + (p.x + (p.x + (p.x + (p.x + (p.x + (p.x + (p.x + p.y)))))))))));
+    check(c == 37, "spill with members read through a pointer pending");
+}
+`},
+
 	{dir: "register_spill_call", src: `func tag(string s, int n) int {
     return n + 1;
 }
@@ -1008,6 +1045,26 @@ func main() {
     check(cs[2] == .Blue, "array literal inferred");
     check(fav == Color.Blue, "const holding an enum member");
     check(int(fav) == 10, "const enum converts to int");
+}
+`},
+
+	{dir: "ternary_falsy", src: `func pickBool(bool c) bool {
+    return c ? false : true;
+}
+
+func main() {
+    bool yes = true;
+    bool no = false;
+    bool a = yes ? false : true;
+    check(a == false, "ternary yields false from the then branch");
+    bool b = no ? false : true;
+    check(b == true, "ternary yields true from the else branch");
+    check(pickBool(true) == false, "ternary with false in a return");
+    check(pickBool(false) == true, "ternary with true in a return");
+    int n = (yes ? 1 : 2) + (no ? 10 : 20);
+    check(n == 21, "ternaries joined by an operator");
+    int m = (yes ? 1 : 2) * (yes ? 3 : 4) + (no ? 5 : 6);
+    check(m == 9, "ternaries inside arithmetic");
 }
 `},
 

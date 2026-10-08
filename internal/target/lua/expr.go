@@ -57,13 +57,23 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 		return t.compileInExpression(b, e)
 
 	case *ast.TernaryExpr:
-		b.WriteByte('(')
+		if canBeFalsy(t.info.Types[e.Then]) {
+			b.WriteString("(function() if ")
+			t.compileExpression(b, e.Condition)
+			b.WriteString(" then return ")
+			t.compileExpression(b, e.Then)
+			b.WriteString(" else return ")
+			t.compileExpression(b, e.Else)
+			b.WriteString(" end end)()")
+			break
+		}
+		b.WriteString("((")
 		t.compileExpression(b, e.Condition)
 		b.WriteString(") and (")
 		t.compileExpression(b, e.Then)
 		b.WriteString(") or (")
 		t.compileExpression(b, e.Else)
-		b.WriteRune(')')
+		b.WriteString("))")
 	case *ast.CastExpr:
 		return t.compileCastExpr(b, e)
 
@@ -342,4 +352,14 @@ func (t *LuaTarget) compileInExpression(b *strings.Builder, expr *ast.InExpr) er
 		b.WriteByte(')')
 	}
 	return nil
+}
+
+func canBeFalsy(tp analyser.Type) bool {
+	switch tt := tp.(type) {
+	case analyser.PrimitiveType:
+		return tt.Name == "bool"
+	case analyser.PointerType, analyser.ErrorType, analyser.NullType:
+		return true
+	}
+	return false
 }
