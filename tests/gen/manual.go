@@ -910,6 +910,32 @@ func main() {
 }
 `},
 
+	{dir: "type_modules", files: map[string]string{"units.wsp": `export type Meters int;
+
+export enum Level {
+    Low,
+    High,
+}
+
+export func twice(Meters m) Meters {
+    return Meters(int(m) * 2);
+}
+`}, src: `import "units";
+
+func grow(units.Meters m) units.Meters {
+    return units.twice(m);
+}
+
+func main() {
+    units.Meters a = units.Meters(21);
+    check(int(a) == 21, "conversion to an imported nominal type");
+    units.Meters b = grow(a);
+    check(int(b) == 42, "imported nominal type through a function");
+    int raw = int(units.twice(units.Meters(4)));
+    check(raw == 8, "conversion chain across a module boundary");
+}
+`},
+
 	{dir: "ptr_double", x64Only: true, src: `struct P {
     int x;
     int y;

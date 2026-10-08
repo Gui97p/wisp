@@ -381,6 +381,17 @@ func (a *Analyser) defaultUntyped() {
 }
 
 func (a *Analyser) conversionTarget(expr *ast.CallExpr) (Type, bool) {
+	if member, ok := expr.Name.(*ast.MemberExpr); ok {
+		module, isIdent := member.Object.(*ast.IdentLiteral)
+		if !isIdent {
+			return nil, false
+		}
+		if sym, found := a.lookupType(a.scope, module.Value, member.Field); found && sym.Kind == TYPE {
+			return sym.Type, true
+		}
+		return nil, false
+	}
+
 	id, ok := expr.Name.(*ast.IdentLiteral)
 	if !ok {
 		return nil, false
