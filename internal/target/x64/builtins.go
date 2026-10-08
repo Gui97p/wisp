@@ -34,8 +34,8 @@ func (t *X64Target) compileEmitBuiltin(expr *ast.CallExpr) (Operand, error) {
 		return nil, fmt.Errorf("x86-64: emit only accepts 1 parameter")
 	}
 
-	t.compileCall("__wisp_emit", true, expr.Args, nil)
-	return nil, nil
+	_, err = t.compileCall("__wisp_emit", true, expr.Args, nil)
+	return nil, err
 }
 
 func (t *X64Target) compileLenBuiltin(expr *ast.CallExpr) (Operand, error) {
@@ -67,6 +67,6 @@ func (t *X64Target) compilePanicBuiltin(expr *ast.CallExpr) (Operand, error) {
 		return nil, fmt.Errorf("x86-64: panic only accepts 1 parameter")
 	}
 
-	t.compileCall("__wisp_panic", true, expr.Args, nil)
-	return nil, nil
+	_, err = t.compileCall("__wisp_panic", true, expr.Args, nil)
+	return nil, err
 }

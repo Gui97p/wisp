@@ -143,8 +143,9 @@ func (t *X64Target) compileIndex(expr *ast.IndexExpr) (Mem, error) {
 	indexTp := t.info.Types[expr.Index]
 	indexSize := sizeOf(indexTp)
 	reg := t.materialize(index, indexSize)
+	dstSize := 8
+	indexReg := t.ctx.GetRegister(reg, dstSize)
 	if indexSize < 8 {
-		dstSize := 8
 		inst := ucastOperators[indexSize][dstSize]
 		if isSigned(indexTp) {
 			inst = castOperators[indexSize][dstSize]
@@ -152,7 +153,7 @@ func (t *X64Target) compileIndex(expr *ast.IndexExpr) (Mem, error) {
 			dstSize = 4
 		}
 
-		t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(reg, dstSize), t.ctx.GetRegister(reg, indexSize))
+		t.text.printft("%s %s, %s\n", inst, indexReg, t.ctx.GetRegister(reg, indexSize))
 	}
 
 	okLabel := t.newLabel("index_ok")
@@ -162,7 +163,13 @@ func (t *X64Target) compileIndex(expr *ast.IndexExpr) (Mem, error) {
 	t.panic("index out of range")
 	t.text.printf("%s:\n", okLabel)
 
-	return indexed(base.Base, reg, elemSize, base.Disp, elemSize)
+	scale := elemSize
+	if !slices.Contains([]int{1, 2, 4, 8}, elemSize) {
+		t.text.printft("imul %s, %s, %d\n", indexReg, indexReg, elemSize)
+		scale = 1
+	}
+
+	return indexed(base.Base, reg, scale, base.Disp, elemSize)
 }
 
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
