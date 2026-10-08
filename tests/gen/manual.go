@@ -910,6 +910,107 @@ func main() {
 }
 `},
 
+	{dir: "conv_nominal_string", src: `type Name string;
+
+func greet(Name n) string {
+    return string(n);
+}
+
+func main() {
+    Name a = Name("ana");
+    Name b = Name("ana");
+    Name c = Name("bob");
+    check(a == b, "nominal strings compare equal");
+    check(a != c, "nominal strings compare different");
+    check(greet(a) == "ana", "conversion back to string");
+    string raw = string(c);
+    check(raw == "bob", "string from a nominal string");
+    int hits = 0;
+    switch a {
+        case Name("ana"):
+            hits = 1;
+        case Name("bob"):
+            hits = 2;
+        default:
+            hits = 3;
+    }
+    check(hits == 1, "switch on a nominal string");
+    Name[2] names = [Name("x"), Name("y")];
+    check(names[1] == Name("y"), "array of nominal strings");
+}
+`},
+
+	{dir: "enum_inferred", src: `enum Color {
+    Red,
+    Green,
+    Blue = 10,
+    Alpha,
+}
+
+struct Paint {
+    Color c;
+    int n;
+}
+
+const fav = Color.Blue;
+
+func pick(bool b) Color {
+    if b {
+        return .Red;
+    }
+    return .Blue;
+}
+
+func code(Color c) int {
+    switch c {
+        case .Red:
+            return 1;
+        case .Green:
+            return 2;
+        default:
+            return 3;
+    }
+}
+
+func band(Color c) int {
+    switch c {
+        case Color.Red..Color.Green:
+            return 1;
+        case .Blue..Color.Alpha:
+            return 2;
+        default:
+            return 3;
+    }
+}
+
+func main() {
+    Color a = .Green;
+    check(a == Color.Green, "inferred member equals the qualified one");
+    check(a == .Green, "comparison with an inferred member");
+    check(.Green == a, "inferred member on the left");
+    check(a != .Red, "inequality with an inferred member");
+    a = .Blue;
+    check(int(a) == 10, "assignment infers the enum");
+    check(pick(true) == .Red, "return infers the enum");
+    check(pick(false) == .Blue, "second return infers the enum");
+    check(code(.Green) == 2, "argument infers the enum");
+    check(code(Color.Red) == 1, "qualified argument");
+    check(code(.Alpha) == 3, "switch default");
+    check(band(.Green) == 1, "range of members");
+    check(band(.Alpha) == 2, "range from an inferred start");
+    check(band(a) == 2, "range with a variable");
+    Paint p = Paint{c: .Alpha, n: 1};
+    check(p.c == .Alpha, "struct field infers the enum");
+    check(int(p.c) == 11, "implicit numbering after an explicit value");
+    Color[3] cs = [.Red, Color.Green, .Blue];
+    check(cs[0] == .Red, "array literal first");
+    check(cs[1] == .Green, "array literal mixed");
+    check(cs[2] == .Blue, "array literal inferred");
+    check(fav == Color.Blue, "const holding an enum member");
+    check(int(fav) == 10, "const enum converts to int");
+}
+`},
+
 	{dir: "type_modules", files: map[string]string{"units.wsp": `export type Meters int;
 
 export enum Level {
@@ -919,6 +1020,10 @@ export enum Level {
 
 export func twice(Meters m) Meters {
     return Meters(int(m) * 2);
+}
+
+export func isHigh(Level l) bool {
+    return l == .High;
 }
 `}, src: `import "units";
 
@@ -933,6 +1038,13 @@ func main() {
     check(int(b) == 42, "imported nominal type through a function");
     int raw = int(units.twice(units.Meters(4)));
     check(raw == 8, "conversion chain across a module boundary");
+    units.Level lv = units.Level.High;
+    check(lv == units.Level.High, "qualified member of an imported enum");
+    check(units.isHigh(lv), "imported enum through a function");
+    check(units.isHigh(.High), "inferred member for an imported enum parameter");
+    check(!units.isHigh(.Low), "the other member");
+    units.Level other = .Low;
+    check(other != lv, "inferred member assigned to an imported enum type");
 }
 `},
 
@@ -1546,7 +1658,7 @@ func main() {
     int8 inc = 5;
     acc += inc;
     check(acc == 6, "implicit compound assign value widens");
-    Color col = Green;
+    Color col = Color.Green;
     int code = col;
     check(code == 1, "implicit enum to int");
     int64 wide = col;
@@ -1646,8 +1758,8 @@ func main() {
     check(Cmp, "const boolean");
     const Local = 7;
     check(Local + 1 == 8, "local const");
-    check(Green == 1, "enum member is a const");
-    int code = Blue;
+    check(Color.Green == 1, "enum member is a const");
+    int code = Color.Blue;
     check(code == 2, "enum member converts to int");
 }
 `},
@@ -1680,7 +1792,7 @@ func main() {
 
 func f(int x) !int {
     if x == 0 {
-        return Error(B);
+        return Error(Kind.B);
     }
     return x * 2;
 }
@@ -1692,7 +1804,7 @@ func main() {
     let w, e2 = f(0);
     check(e2 != null, "err failure has an error");
     check(w == 0, "err failure payload is zero");
-    check(e2 == B, "err failure is the member that was raised");
+    check(e2 == Kind.B, "err failure is the member that was raised");
 }
 `},
 
@@ -1703,7 +1815,7 @@ func main() {
 
 func inner(int x) !int {
     if x < 0 {
-        return Error(Neg);
+        return Error(Kind.Neg);
     }
     return x;
 }
@@ -1722,13 +1834,13 @@ func main() {
     check(ea == null, "errprop success has no error");
     check(a == 2, "errprop success unwraps the value");
     let b, eb = outer(-1);
-    check(eb == Neg, "errprop keeps the original error");
+    check(eb == Kind.Neg, "errprop keeps the original error");
     check(b == 0, "errprop zeroes the payload");
     let c, ec = twice(1);
     check(ec == null, "errprop twice in one expression");
     check(c == 3, "errprop twice sums both values");
     let d, ed = twice(-1);
-    check(ed == Neg, "errprop stops at the first failure");
+    check(ed == Kind.Neg, "errprop stops at the first failure");
 }
 `},
 
@@ -1739,7 +1851,7 @@ func main() {
 
 func f(int x) !int {
     if x == 0 {
-        return Error(B);
+        return Error(Kind.B);
     }
     return x * 2;
 }
@@ -1764,7 +1876,7 @@ func main() {
 
 func f(int x) !int {
     if x == 0 {
-        return Error(A);
+        return Error(Kind.A);
     }
     return x * 2;
 }
@@ -1796,7 +1908,7 @@ func main() {
 
 func f(int x) !int {
     if x == 0 {
-        return Error(A);
+        return Error(Kind.A);
     }
     return x * 2;
 }
@@ -1827,7 +1939,7 @@ func main() {
 
 func v(int x) ! {
     if x == 0 {
-        return Error(A);
+        return Error(Kind.A);
     }
 }
 
@@ -1839,11 +1951,11 @@ func main() {
     let e1 = v(1);
     check(e1 == null, "errvoid success falls off the end");
     let e2 = v(0);
-    check(e2 == A, "errvoid failure");
+    check(e2 == Kind.A, "errvoid failure");
     let e3 = caller(1);
     check(e3 == null, "errvoid propagates success");
     let e4 = caller(0);
-    check(e4 == A, "errvoid propagates the failure");
+    check(e4 == Kind.A, "errvoid propagates the failure");
 }
 `},
 
@@ -1853,7 +1965,7 @@ func main() {
 
 func pair(int x) !(int, int) {
     if x == 0 {
-        return Error(A);
+        return Error(Kind.A);
     }
     return x, x * 10;
 }
@@ -1868,12 +1980,12 @@ func main() {
     check(e == null, "errmulti success has no error");
     check(a == 3 && b == 30, "errmulti success carries both values");
     let c, d, e2 = pair(0);
-    check(e2 == A, "errmulti failure");
+    check(e2 == Kind.A, "errmulti failure");
     check(c == 0 && d == 0, "errmulti failure zeroes every value");
     let s, e3 = sum(2);
     check(e3 == null && s == 22, "errmulti propagate keeps both values");
     let t, e4 = sum(0);
-    check(e4 == A && t == 0, "errmulti propagate stops on failure");
+    check(e4 == Kind.A && t == 0, "errmulti propagate stops on failure");
 }
 `},
 
@@ -1887,18 +1999,18 @@ enum Second {
 
 func raise(int which) !int {
     if which == 0 {
-        return Error(Alpha);
+        return Error(First.Alpha);
     }
-    return Error(Beta);
+    return Error(Second.Beta);
 }
 
 func main() {
     let a, ea = raise(0);
-    check(ea == Alpha, "errdomain matches its own member");
-    check(ea != Beta, "errdomain different enums with the same code differ");
+    check(ea == First.Alpha, "errdomain matches its own member");
+    check(ea != Second.Beta, "errdomain different enums with the same code differ");
     let b, eb = raise(1);
-    check(eb == Beta, "errdomain second enum");
-    check(eb != Alpha, "errdomain does not match the other enum");
+    check(eb == Second.Beta, "errdomain second enum");
+    check(eb != First.Alpha, "errdomain does not match the other enum");
     check(ea.code == eb.code, "errdomain both codes are zero");
 }
 `},
@@ -1910,10 +2022,10 @@ func main() {
 
 func pick(int x) !int {
     if x == 0 {
-        return Error(A);
+        return Error(Kind.A);
     }
     if x < 0 {
-        return Error(B);
+        return Error(Kind.B);
     }
     return x;
 }
@@ -1922,7 +2034,7 @@ func classify(int x) int {
     let v, e = pick(x);
     return switch e {
         case null => v,
-        case A => 100,
+        case Kind.A => 100,
         default => 200,
     };
 }
@@ -1933,7 +2045,7 @@ func label(int x) int {
     switch e {
         case null:
             out = 1;
-        case B:
+        case Kind.B:
             out = 2;
         default:
             out = 3;
@@ -1957,11 +2069,11 @@ func main() {
 }
 
 func plain() !int {
-    return Error(B);
+    return Error(Kind.B);
 }
 
 func custom() !int {
-    return Error(A, "something went wrong");
+    return Error(Kind.A, "something went wrong");
 }
 
 func main() {
@@ -1981,7 +2093,7 @@ func main() {
 
 func f(int x) !int {
     if x == 0 {
-        return Error(A);
+        return Error(Kind.A);
     }
     return x;
 }
@@ -1990,7 +2102,7 @@ func main() {
     let v, _ = f(4);
     check(v == 4, "errdiscard keeps the value");
     let _, e = f(0);
-    check(e == A, "errdiscard keeps the error");
+    check(e == Kind.A, "errdiscard keeps the error");
     let w, _ = f(0);
     check(w == 0, "errdiscard of a failure leaves zero");
 }
@@ -2002,7 +2114,7 @@ func main() {
 
 func f(int x) !int {
     if x == 0 {
-        return Error(A);
+        return Error(Kind.A);
     }
     return x;
 }
@@ -2020,9 +2132,9 @@ func main() ! {
 
 func raise(int which) !int {
     if which == 0 {
-        return Error(A);
+        return Error(Kind.A);
     }
-    return Error(B);
+    return Error(Kind.B);
 }
 
 func isKind(Error e, Kind k) bool {
@@ -2031,13 +2143,13 @@ func isKind(Error e, Kind k) bool {
 
 func main() {
     let x, e = raise(0);
-    Kind a = A;
-    Kind b = B;
+    Kind a = Kind.A;
+    Kind b = Kind.B;
     check(e == a, "errvalue equals an enum variable");
     check(e != b, "errvalue differs from another enum variable");
     check(a == e, "errvalue enum variable on the left");
-    check(isKind(e, A), "errvalue through a parameter");
-    check(isKind(e, B) == false, "errvalue parameter mismatch");
+    check(isKind(e, Kind.A), "errvalue through a parameter");
+    check(isKind(e, Kind.B) == false, "errvalue parameter mismatch");
     let y, other = raise(1);
     check(isKind(other, b), "errvalue second member");
 }

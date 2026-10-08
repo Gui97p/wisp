@@ -67,6 +67,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkInExpr(e)
 	case *ast.StructLiteral:
 		t = a.checkStructLiteral(e)
+	case *ast.DotIdent:
+		t = a.checkDotIdent(e)
 	default:
 		t = InvalidType{}
 	}
@@ -540,6 +542,10 @@ func (a *Analyser) evalArgTypes(expr *ast.CallExpr) []Type {
 }
 
 func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
+	if enum, ok := a.enumTypeExpr(expr.Object); ok {
+		return a.checkEnumMember(expr, enum)
+	}
+
 	objType := a.checkExpr(expr.Object)
 
 	if _, ok := objType.(InvalidType); ok {
@@ -844,6 +850,11 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 	}
 
 	codeType := a.checkExpr(expr.Args[0])
+	if dot, isDot := codeType.(ImplicitEnumType); isDot {
+		a.dropDot(expr.Args[0])
+		a.errorf(expr.Args[0], "cannot infer the enum of .%s inside Error: write Enum.%s", dot.Name, dot.Name)
+		return ErrorType{}
+	}
 	enum, ok := codeType.(NamedType)
 	if _, bad := codeType.(InvalidType); bad {
 		return ErrorType{}
@@ -860,8 +871,8 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 	}
 
 	member := enum.Name
-	if id, ok := expr.Args[0].(*ast.IdentLiteral); ok {
-		member = id.Value
+	if value, isMember := a.info.EnumValues[expr.Args[0]]; isMember {
+		member = value.Name
 	}
 	message := enum.Name + "." + member
 
@@ -970,6 +981,11 @@ func (a *Analyser) checkErrorComparison(expr *ast.BinaryExpr, left, right Type) 
 	a.retypeNull(expr.Right, right, left)
 
 	switch o := other.(type) {
+	case ImplicitEnumType:
+		a.dropDot(expr.Left)
+		a.dropDot(expr.Right)
+		a.errorf(expr, "cannot infer the enum of .%s when comparing an Error: write Enum.%s", o.Name, o.Name)
+		return boolType, true
 	case NullType, InvalidType:
 		return boolType, true
 	case NamedType:

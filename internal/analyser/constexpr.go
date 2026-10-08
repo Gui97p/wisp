@@ -86,6 +86,10 @@ func (a *Analyser) evalConst(expr ast.Expression) (ConstValue, bool) {
 		if e.Cast != nil {
 			return a.evalConversion(e.Cast)
 		}
+	case *ast.MemberExpr, *ast.DotIdent:
+		if value, ok := a.info.EnumValues[e]; ok {
+			return constInt(big.NewInt(value.Value)), true
+		}
 	case *ast.UnaryExpr:
 		return a.evalUnary(e)
 	case *ast.BinaryExpr:

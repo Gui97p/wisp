@@ -113,11 +113,21 @@ func (s *StructDecl) Tree(indent string) string {
 	return b.String()
 }
 
+type EnumMember struct {
+	Name    string
+	Value   int64
+	Line    int
+	Col     int
+	EndLine int
+	EndCol  int
+}
+
 type TypeDecl struct {
 	Name       string
 	Underlying TypeRef
 	Exported   bool
 	IsEnum     bool
+	Members    []EnumMember
 
 	NodePos
 }

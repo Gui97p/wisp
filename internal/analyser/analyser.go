@@ -17,8 +17,9 @@ type Analyser struct {
 	currentFallible bool
 	loopFrames      []loopFrame
 
-	mustUse   []*Symbol
-	handlerOK map[ast.Expression]bool
+	mustUse     []*Symbol
+	handlerOK   map[ast.Expression]bool
+	pendingDots map[*ast.DotIdent]bool
 
 	modules map[string]*ModuleInfo
 	module  string
@@ -34,14 +35,15 @@ type Analyser struct {
 func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string, module string) *Analyser {
 	universe := NewScope(nil)
 	return &Analyser{
-		program:   program,
-		info:      NewInfo(),
-		universe:  universe,
-		scope:     NewScope(universe),
-		modules:   modules,
-		declFiles: declFiles,
-		module:    module,
-		handlerOK: map[ast.Expression]bool{},
+		program:     program,
+		info:        NewInfo(),
+		universe:    universe,
+		scope:       NewScope(universe),
+		modules:     modules,
+		declFiles:   declFiles,
+		module:      module,
+		handlerOK:   map[ast.Expression]bool{},
+		pendingDots: map[*ast.DotIdent]bool{},
 	}
 }
 
@@ -56,6 +58,7 @@ func (a *Analyser) Analyze() *Info {
 	a.registerConsts()
 	a.checkFuncBodies()
 	a.defaultUntyped()
+	a.reportUnresolvedDots()
 	a.checkMustUse()
 
 	return a.info

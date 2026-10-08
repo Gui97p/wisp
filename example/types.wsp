@@ -4,8 +4,10 @@
 // mixing them needs an explicit conversion.
 type UserID int;
 
-// An enum is a nominal type plus typed constants. Numbering starts at 0 and
-// continues from the last explicit value.
+// An enum is a nominal type with named members, written Color.Green. Numbering
+// starts at 0 and continues from the last explicit value. Where the enum is
+// known (an assignment, an argument, a return, a comparison, a case) the type
+// name can be left out: `.Green`.
 enum Color {
   Red,
   Green,
@@ -22,8 +24,8 @@ export func demo() {
   int raw = int(uid);
   emitf("uid=%d raw=%d", int(uid), raw);
 
-  Color favorite = Green;
-  emitf("Red=%d Green=%d Blue=%d Alpha=%d Beta=%d", int(Red), int(Green), int(Blue), int(Alpha), int(Beta));
+  Color favorite = .Green;
+  emitf("Red=%d Green=%d Blue=%d Alpha=%d Beta=%d", int(Color.Red), int(Color.Green), int(Color.Blue), int(Color.Alpha), int(Color.Beta));
   emitf("favorite=%d", int(favorite));
 
   // Primitive types: int, uint, int8..int64, uint8..uint64, float32,

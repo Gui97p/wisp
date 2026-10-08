@@ -17,9 +17,7 @@ func abs(n int) int {
 }
 
 func isSigned(tp analyser.Type) bool {
-	switch t := tp.(type) {
-	case analyser.NamedType:
-		return isSigned(t.Underlying)
+	switch t := underlying(tp).(type) {
 	case analyser.PrimitiveType:
 		switch t.Name {
 		case "int", "int8", "int16", "int32", "int64", "float", "float32", "float64":
@@ -147,4 +145,13 @@ func bytesToAsm(b []byte) string {
 	}
 
 	return sb.String()
+}
+
+func underlying(tp analyser.Type) analyser.Type {
+	switch t := tp.(type) {
+	case analyser.NamedType:
+		return underlying(t.Underlying)
+	default:
+		return t
+	}
 }

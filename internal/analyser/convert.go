@@ -219,6 +219,10 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 		return true
 	}
 
+	if isImplicitEnum(from) {
+		return a.resolveDot(*slot, to)
+	}
+
 	if from.Equals(to) {
 		if isUntyped(from) {
 			a.fixUntyped(*slot, to)
@@ -292,6 +296,14 @@ func (a *Analyser) retypeNull(expr ast.Expression, from, to Type) bool {
 }
 
 func (a *Analyser) unifySlots(left, right *ast.Expression, lt, rt Type) (Type, Type) {
+	if isImplicitEnum(lt) && isEnumType(rt) {
+		a.resolveDot(*left, rt)
+		return rt, rt
+	}
+	if isImplicitEnum(rt) && isEnumType(lt) {
+		a.resolveDot(*right, lt)
+		return lt, lt
+	}
 	if a.retypeNull(*left, lt, rt) {
 		return rt, rt
 	}
@@ -335,6 +347,14 @@ func (a *Analyser) unifySlots(left, right *ast.Expression, lt, rt Type) (Type, T
 }
 
 func (a *Analyser) commonElement(current, next Type) (Type, bool) {
+	switch {
+	case isImplicitEnum(current) && isImplicitEnum(next):
+		return current, true
+	case isImplicitEnum(current) && isEnumType(next):
+		return next, true
+	case isImplicitEnum(next) && isEnumType(current):
+		return current, true
+	}
 	if isUntyped(current) && isUntyped(next) {
 		return typedSide(current, next), true
 	}
@@ -410,11 +430,27 @@ func (a *Analyser) conversionTarget(expr *ast.CallExpr) (Type, bool) {
 	return nil, false
 }
 
+func underlyingOf(t Type) Type {
+	for {
+		nt, ok := t.(NamedType)
+		if !ok {
+			return t
+		}
+		t = nt.Underlying
+	}
+}
+
 func explicitConversion(from, to Type) bool {
 	if from.Equals(to) {
 		return true
 	}
-	return numericLike(from) && numericLike(to)
+	if numericLike(from) && numericLike(to) {
+		return true
+	}
+	fu, tu := underlyingOf(from), underlyingOf(to)
+	_, fromNamed := from.(NamedType)
+	_, toNamed := to.(NamedType)
+	return (fromNamed || toNamed) && fu.Equals(tu) && tu.Equals(fu)
 }
 
 func (a *Analyser) checkConversion(expr *ast.CallExpr, target Type) Type {

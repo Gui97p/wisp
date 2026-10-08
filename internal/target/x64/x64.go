@@ -20,10 +20,11 @@ type X64Target struct {
 
 	ctx *x64context.Context
 
-	prelude *prelude
-	data    *dataSection
-	rodata  *rodataSection
-	text    *textSection
+	prelude  *prelude
+	data     *dataSection
+	rodata   *rodataSection
+	text     *textSection
+	postlude *postlude
 
 	dataLabel  map[any]string
 	labelCount int
@@ -43,10 +44,11 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, target string,
 		module:  module,
 		target:  target,
 
-		prelude: NewPrelude(),
-		data:    NewData(),
-		rodata:  NewRodata(),
-		text:    NewText(),
+		prelude:  NewPrelude(),
+		data:     NewData(),
+		rodata:   NewRodata(),
+		text:     NewText(),
+		postlude: NewPostlude(),
 
 		dataLabel: map[any]string{},
 
@@ -67,7 +69,7 @@ func (t *X64Target) Compile() (string, error) {
 		}
 	}
 
-	code := fmt.Sprintf("%s\n%s\n%s\n%s", t.prelude.b.String(), t.rodata.b.String(), t.data.b.String(), t.text.b.String())
+	code := fmt.Sprintf("%s\n%s\n%s\n%s\n%s", t.prelude.b.String(), t.rodata.b.String(), t.data.b.String(), t.text.b.String(), t.postlude.b.String())
 
 	return code, nil
 }

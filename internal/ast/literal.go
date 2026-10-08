@@ -202,3 +202,14 @@ func (f *FuncLiteral) Tree(indent string) string {
 
 	return b.String()
 }
+
+type DotIdent struct {
+	Name string
+
+	NodePos
+}
+
+func (*DotIdent) expr() {}
+func (d *DotIdent) Tree(indent string) string {
+	return indent + fmt.Sprintf("DotIdent(.%s)\n", d.Name)
+}

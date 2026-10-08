@@ -186,12 +186,27 @@ func (m *MapType) Equals(other Type) bool {
 }
 
 type NamedType struct {
-	Name       string
-	Underlying Type
-	Methods    map[string]*FuncType
-	Enum       bool
-	Module     string
-	Exported   bool
+	Name        string
+	Underlying  Type
+	Methods     map[string]*FuncType
+	Enum        bool
+	Module      string
+	Exported    bool
+	Members     map[string]int64
+	MemberOrder []string
+}
+
+type ImplicitEnumType struct {
+	Name string
+}
+
+func (i ImplicitEnumType) String() string {
+	return "." + i.Name
+}
+
+func (ImplicitEnumType) Equals(other Type) bool {
+	_, ok := other.(ImplicitEnumType)
+	return ok
 }
 
 func (n NamedType) String() string {

@@ -8,6 +8,24 @@ import (
 	"github.com/Gui97p/wisp/internal/target"
 )
 
+func (t *X64Target) useStreq() {
+	if !t.postlude.define("streq") {
+		return
+	}
+
+	t.postlude.println("__wisp_streq:")
+	t.postlude.printlnt("xor eax, eax")
+	t.postlude.printlnt("cmp rsi, rcx")
+	t.postlude.printlnt("jne .done")
+	t.postlude.printlnt("mov rcx, rsi")
+	t.postlude.printlnt("mov rsi, rdi")
+	t.postlude.printlnt("mov rdi, rdx")
+	t.postlude.printlnt("repe cmpsb")
+	t.postlude.printlnt("sete al")
+	t.postlude.println(".done")
+	t.postlude.printlnt("ret")
+}
+
 func (t *X64Target) compileBuiltin(name string, expr *ast.CallExpr) (Operand, error) {
 	switch name {
 	case "emit":

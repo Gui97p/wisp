@@ -238,7 +238,8 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 		return nil
 	}
 
-	decls = append(decls, &ast.TypeDecl{Name: name, Underlying: ast.TypeRef{Name: "int"}, IsEnum: true})
+	enum := &ast.TypeDecl{Name: name, Underlying: ast.TypeRef{Name: "int"}, IsEnum: true}
+	decls = append(decls, enum)
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
@@ -249,8 +250,6 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return nil
 		}
-		decl := &ast.ConstDecl{}
-
 		memberName := p.current.Literal
 		memberLine, memberCol, memberEndLine, memberEndCol := p.currentIdentPos()
 
@@ -258,14 +257,12 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 			return nil
 		}
 
-		decl.Vars = append(decl.Vars, ast.Param{
-			Name:    memberName,
-			Type:    ast.TypeRef{Name: name},
-			Line:    memberLine,
-			Col:     memberCol,
-			EndLine: memberEndLine,
-			EndCol:  memberEndCol,
-		})
+		for _, existing := range enum.Members {
+			if existing.Name == memberName {
+				p.errorf("duplicated enum member %s", memberName)
+				return nil
+			}
+		}
 
 		if p.peek.Type == lexer.TOKEN_ASSIGN {
 			p.advance()
@@ -282,10 +279,15 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 			}
 			current = num
 		}
-		decl.Values = append(decl.Values, &ast.IntLiteral{Value: current})
+		enum.Members = append(enum.Members, ast.EnumMember{
+			Name:    memberName,
+			Value:   current,
+			Line:    memberLine,
+			Col:     memberCol,
+			EndLine: memberEndLine,
+			EndCol:  memberEndCol,
+		})
 		current++
-
-		decls = append(decls, decl)
 
 		if p.peek.Type != lexer.TOKEN_RBRACE {
 			if !p.expect(lexer.TOKEN_COMMA) {

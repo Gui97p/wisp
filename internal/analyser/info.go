@@ -16,6 +16,7 @@ type Info struct {
 	Members       map[*ast.MemberExpr]*MemberInfo
 	MethodCalls   map[*ast.CallExpr]*MethodCall
 	MethodVisible map[*ast.FuncDecl]bool
+	EnumValues    map[ast.Expression]EnumValue
 	Scopes        map[ast.Node]*Scope
 	Reexports     map[*ast.ReexportDecl][]string
 }
@@ -33,9 +34,16 @@ func NewInfo() *Info {
 		Members:       make(map[*ast.MemberExpr]*MemberInfo),
 		MethodCalls:   make(map[*ast.CallExpr]*MethodCall),
 		MethodVisible: make(map[*ast.FuncDecl]bool),
+		EnumValues:    make(map[ast.Expression]EnumValue),
 		Scopes:        make(map[ast.Node]*Scope),
 		Reexports:     make(map[*ast.ReexportDecl][]string),
 	}
+}
+
+type EnumValue struct {
+	Type  NamedType
+	Name  string
+	Value int64
 }
 
 type MethodCall struct {
@@ -53,6 +61,7 @@ const (
 	MemberField MemberKind = iota
 	MemberModule
 	MemberErrorField
+	MemberEnum
 )
 
 type MemberInfo struct {

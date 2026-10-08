@@ -6,12 +6,12 @@ enum DivError {
 }
 
 // A `!` before the return list marks a function that can fail. Inside it,
-// `return value` succeeds and `return Error(Member)` fails. The error keeps
+// `return value` succeeds and `return Error(Enum.Member)` fails. The error keeps
 // its enum, the member, a message (the member's name unless you give one) and
 // the file and line where it was raised.
 func divide(int a, b) !int {
   if b == 0 {
-    return Error(DivByZero, "cannot divide by zero");
+    return Error(DivError.DivByZero, "cannot divide by zero");
   }
   return a / b;
 }
@@ -59,11 +59,12 @@ export func demo() {
   }
 
   // An error compares with null and with enum members, so a switch can sort
-  // failures out.
+  // failures out. The member is written in full here: an Error does not know
+  // which enum to look in, so `.DivByZero` would be ambiguous.
   let result, err = divide(7, 0);
   string what = switch err {
     case null => "no error",
-    case DivByZero => "divided by zero",
+    case DivError.DivByZero => "divided by zero",
     default => err.message,
   };
   emit(what);

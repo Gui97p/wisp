@@ -17,8 +17,18 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 	case *ast.CallExpr:
 		return t.compileCallExpression(b, e)
 	case *ast.MemberExpr:
+		if value, ok := t.info.EnumValues[e]; ok {
+			fmt.Fprintf(b, "%d", value.Value)
+			return nil
+		}
 		t.compileExpression(b, e.Object)
 		fmt.Fprintf(b, ".%s", e.Field)
+	case *ast.DotIdent:
+		value, ok := t.info.EnumValues[e]
+		if !ok {
+			return fmt.Errorf("lua: unresolved enum member .%s", e.Name)
+		}
+		fmt.Fprintf(b, "%d", value.Value)
 	case *ast.IndexExpr:
 		if pt, ok := t.info.Types[e.Array].(analyser.PrimitiveType); ok && pt.Name == "string" {
 			b.WriteString("string.byte(")

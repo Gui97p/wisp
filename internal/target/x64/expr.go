@@ -70,7 +70,16 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	case *ast.TernaryExpr:
 		return t.compileTernaryExpr(e)
 	case *ast.MemberExpr:
+		if value, ok := t.info.EnumValues[e]; ok {
+			return t.resolveIntLiteral(value.Value)
+		}
 		return t.compileLValue(e)
+	case *ast.DotIdent:
+		value, ok := t.info.EnumValues[e]
+		if !ok {
+			return nil, fmt.Errorf("x86-64: unresolved enum member .%s", e.Name)
+		}
+		return t.resolveIntLiteral(value.Value)
 	case *ast.IndexExpr:
 		return t.compileLValue(e)
 	case *ast.SliceExpr:
@@ -130,6 +139,22 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 }
 
 func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
+	if p, ok := underlying(t.info.Types[expr.Left]).(analyser.PrimitiveType); ok && p.Name == "string" {
+		t.useStreq()
+		ops, err := t.compileCall("__wisp_streq", false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
+		if err != nil {
+			return nil, err
+		}
+		switch expr.Operator {
+		case "==":
+		case "!=":
+			t.text.printft("xor %s, 1\n", t.opText(ops[0], 8))
+		default:
+			return nil, fmt.Errorf("x86-64: string ordering not supported")
+		}
+		return ops[0], nil
+	}
+
 	left, err := t.compileExpr(expr.Left)
 	if err != nil {
 		return nil, err
@@ -224,6 +249,10 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 	srcType := t.info.Types[expr.Value]
 	dstType := t.info.Types[expr]
+
+	if underlying(srcType) == underlying(dstType) {
+		return t.compileExpr(expr.Value)
+	}
 
 	srcSize := sizeOf(srcType)
 	dstSize := sizeOf(dstType)

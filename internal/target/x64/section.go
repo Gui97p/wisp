@@ -55,6 +55,24 @@ func NewPrelude() *prelude {
 	return p
 }
 
+type postlude struct {
+	defined map[string]bool
+	Writable
+}
+
+func (p *postlude) define(ident string) bool {
+	if _, ok := p.defined[ident]; ok {
+		return false
+	}
+	p.defined[ident] = true
+	return true
+}
+
+func NewPostlude() *postlude {
+	p := &postlude{defined: map[string]bool{}}
+	return p
+}
+
 type rodataSection struct {
 	Writable
 }

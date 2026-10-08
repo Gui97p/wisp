@@ -94,6 +94,11 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		}
 	case lexer.TOKEN_NULL:
 		return &ast.NullLiteral{}
+	case lexer.TOKEN_DOT:
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil
+		}
+		return &ast.DotIdent{Name: p.current.Literal}
 	case lexer.TOKEN_LBRACKET:
 		return p.parseArrayLiteral()
 	case lexer.TOKEN_LBRACE:

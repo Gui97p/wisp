@@ -25,6 +25,13 @@ func (a *Analyser) registerTypeAliases() {
 			Module:     a.module,
 			Exported:   td.Exported,
 		}
+		if td.IsEnum {
+			nt.Members = make(map[string]int64, len(td.Members))
+			for _, m := range td.Members {
+				nt.Members[m.Name] = m.Value
+				nt.MemberOrder = append(nt.MemberOrder, m.Name)
+			}
+		}
 
 		line, col := td.Position()
 		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col, File: a.currentFile}
@@ -220,6 +227,9 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 func (a *Analyser) arrayElementAssignable(values []ast.Expression, n, i int, from, to Type) bool {
 	if from.Equals(to) {
 		return true
+	}
+	if isImplicitEnum(from) {
+		return isEnumType(to)
 	}
 	slot := a.valueSlot(values, n, i)
 	if slot == nil {
