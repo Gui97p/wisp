@@ -139,7 +139,8 @@ func (t *LuaTarget) compileErrorComparison(b *strings.Builder, e *ast.BinaryExpr
 	}
 
 	errSide, otherSide := e.Left, e.Right
-	if rightErr {
+	_, leftNull := e.Left.(*ast.NullLiteral)
+	if leftNull || (rightErr && !isNullLiteral(e.Right)) {
 		errSide, otherSide = e.Right, e.Left
 	}
 
@@ -148,7 +149,7 @@ func (t *LuaTarget) compileErrorComparison(b *strings.Builder, e *ast.BinaryExpr
 		return true, err
 	}
 
-	if _, isNull := t.info.Types[otherSide].(analyser.NullType); isNull {
+	if isNullLiteral(otherSide) {
 		op := "=="
 		if e.Operator == "!=" {
 			op = "~="
@@ -191,4 +192,9 @@ end
 `
 	}
 	return "main()\n"
+}
+
+func isNullLiteral(expr ast.Expression) bool {
+	_, ok := expr.(*ast.NullLiteral)
+	return ok
 }

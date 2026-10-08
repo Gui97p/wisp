@@ -367,6 +367,17 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 		}
 		if methods := MethodsOf(objType); methods != nil {
 			if ft, ok := methods[member.Field]; ok {
+				_, pointerRecv := ft.Receiver.(PointerType)
+				_, objectPtr := objType.(PointerType)
+				if pointerRecv && !objectPtr && !isAddressable(member.Object) {
+					a.errorf(expr, "method %s needs a pointer receiver, but the value is a temporary", member.Field)
+				}
+				a.info.MethodCalls[expr] = &MethodCall{
+					Owner:           methodOwner(objType),
+					Func:            ft,
+					PointerReceiver: pointerRecv,
+					ObjectIsPointer: objectPtr,
+				}
 				a.checkCallArgs(expr, ft)
 				return callResults(ft)
 			}
@@ -926,6 +937,8 @@ func (a *Analyser) checkErrorComparison(expr *ast.BinaryExpr, left, right Type) 
 	if rightErr {
 		other = left
 	}
+	a.retypeNull(expr.Left, left, right)
+	a.retypeNull(expr.Right, right, left)
 
 	switch o := other.(type) {
 	case NullType, InvalidType:

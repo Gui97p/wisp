@@ -728,6 +728,384 @@ func main() {
 }
 `},
 
+	{dir: "ptr_basic", x64Only: true, src: `func swap(*int a, *int b) {
+    int t = *a;
+    *a = *b;
+    *b = t;
+}
+
+func set(*int p, int v) {
+    *p = v;
+}
+
+func main() {
+    int v = 5;
+    *int p = &v;
+    check(*p == 5, "deref read");
+    *p = 7;
+    check(v == 7, "deref write reaches the variable");
+    v = 9;
+    check(*p == 9, "variable write is seen through the pointer");
+    *p += 1;
+    check(v == 10, "compound write through a pointer");
+    int a = 1;
+    int b = 2;
+    swap(&a, &b);
+    check(a == 2, "swap first");
+    check(b == 1, "swap second");
+    set(&a, 40);
+    check(a == 40, "write through a pointer parameter");
+    *int q = p;
+    check(*q == 10, "pointer copy points at the same variable");
+    **int pp = &p;
+    check(**pp == 10, "double pointer read");
+    **pp = 1;
+    check(v == 1, "double pointer write");
+    int8 first = 3;
+    int8 second = 4;
+    *int8 sp = &first;
+    *sp = 100;
+    check(first == 100, "narrow pointer write lands");
+    check(second == 4, "narrow pointer write leaves the neighbour alone");
+}
+`},
+
+	{dir: "ptr_elements", x64Only: true, src: `struct P {
+    int x;
+    int y;
+}
+
+func main() {
+    int[3] a = [1, 2, 3];
+    *int q = &a[1];
+    *q = 20;
+    check(a[1] == 20, "pointer to a constant index element");
+    int i = 2;
+    *int r = &a[i];
+    *r = 30;
+    check(a[2] == 30, "pointer to a variable index element");
+    check(a[0] == 1, "element pointers leave the others alone");
+    P s = P{x: 1, y: 2};
+    *int py = &s.y;
+    *py = 9;
+    check(s.y == 9, "pointer to a struct field");
+    check(s.x == 1, "field pointer leaves the other field alone");
+    P[2] ps = [P{x: 1, y: 2}, P{x: 3, y: 4}];
+    *int px = &ps[1].x;
+    *px = 33;
+    check(ps[1].x == 33, "pointer to a field of an array element");
+    check(ps[0].x == 1, "that leaves the first element alone");
+}
+`},
+
+	{dir: "ptr_struct", x64Only: true, src: `struct P {
+    int x;
+    int y;
+}
+
+struct Line {
+    P a;
+    P b;
+}
+
+func bump(*P p) {
+    p.x += 1;
+    p.y = p.x * 2;
+}
+
+func same(*P p) *P {
+    return p;
+}
+
+func main() {
+    P s = P{x: 1, y: 1};
+    *P p = &s;
+    check(p.x == 1, "member read through a pointer");
+    p.x = 5;
+    check(s.x == 5, "member write through a pointer");
+    bump(p);
+    check(s.x == 6, "pointer parameter member compound");
+    check(s.y == 12, "pointer parameter member assignment");
+    bump(&s);
+    check(s.x == 7, "address passed directly");
+    *P r = same(&s);
+    r.y = 100;
+    check(s.y == 100, "returned pointer reaches the original");
+    P[2] ps = [P{x: 1, y: 2}, P{x: 3, y: 4}];
+    *P e = &ps[1];
+    e.y = 7;
+    check(ps[1].y == 7, "pointer to an array element struct");
+    check(ps[0].y == 2, "that leaves the first element alone");
+    Line l = Line{a: P{x: 1, y: 2}, b: P{x: 3, y: 4}};
+    *P pb = &l.b;
+    pb.x = 40;
+    check(l.b.x == 40, "pointer to a nested struct");
+    check(l.a.x == 1, "nested pointer leaves the sibling alone");
+    P copy = *p;
+    p.x = 0;
+    check(copy.x == 7, "dereferenced struct copy is independent");
+}
+`},
+
+	{dir: "ptr_null", x64Only: true, src: `struct Node {
+    *int p;
+    int tag;
+}
+
+func pick(bool yes, *int p) *int {
+    if yes {
+        return p;
+    }
+    return null;
+}
+
+func isNull(*int p) bool {
+    return p == null;
+}
+
+func main() {
+    int v = 1;
+    *int a = null;
+    check(a == null, "null pointer equals null");
+    check(null == a, "null on the left");
+    a = &v;
+    check(a != null, "address is not null");
+    check(null != a, "null on the left, not equal");
+    check(isNull(null), "null passed as an argument");
+    check(!isNull(&v), "address passed as an argument");
+    Node n = Node{tag: 5};
+    check(n.p == null, "omitted pointer field is null");
+    n.p = &v;
+    check(n.p != null, "assigned pointer field is not null");
+    *n.p = 8;
+    check(v == 8, "write through a pointer field");
+    check(pick(false, &v) == null, "returned null");
+    check(pick(true, &v) != null, "returned pointer");
+    a = null;
+    check(a == null, "null assigned back");
+}
+`},
+
+	{dir: "method_basic", src: `struct Counter {
+    int n;
+}
+
+func (*Counter c) bump(int by) {
+    c.n += by;
+}
+
+func (*Counter c) get() int {
+    return c.n;
+}
+
+func (*Counter c) twice() {
+    c.bump(1);
+    c.bump(1);
+}
+
+func (*Counter c) pair() (int, int) {
+    return c.n, c.n * 2;
+}
+
+struct Pair {
+    Counter a;
+    Counter b;
+}
+
+func main() {
+    Counter c = Counter{n: 1};
+    c.bump(2);
+    check(c.get() == 3, "method changes the receiver");
+    c.twice();
+    check(c.n == 5, "method calling methods");
+    let x, y = c.pair();
+    check(x == 5, "method multiple return first");
+    check(y == 10, "method multiple return second");
+    Counter[2] cs = [Counter{n: 1}, Counter{n: 2}];
+    cs[1].bump(5);
+    check(cs[1].n == 7, "method on an array element");
+    check(cs[0].n == 1, "that leaves the other element alone");
+    Pair p = Pair{a: Counter{n: 1}, b: Counter{n: 2}};
+    p.b.bump(10);
+    check(p.b.n == 12, "method on a nested field");
+    check(p.a.n == 1, "that leaves the sibling alone");
+}
+`},
+
+	{dir: "method_pointer", x64Only: true, src: `struct Counter {
+    int n;
+}
+
+func (*Counter c) bump(int by) {
+    c.n += by;
+}
+
+func (*Counter c) get() int {
+    return c.n;
+}
+
+func (Counter c) peek() int {
+    return c.n;
+}
+
+func (Counter c) reset() int {
+    c.n = 0;
+    return c.n;
+}
+
+func main() {
+    Counter c = Counter{n: 1};
+    *Counter p = &c;
+    p.bump(10);
+    check(c.n == 11, "method called through a pointer");
+    check(p.get() == 11, "getter through a pointer");
+    check(c.peek() == 11, "value receiver read");
+    check(p.peek() == 11, "value receiver through a pointer");
+    check(c.reset() == 0, "value receiver sees its own change");
+    check(c.n == 11, "value receiver works on a copy");
+}
+`},
+
+	{dir: "string_eq", src: `func main() {
+    check("abc" == "abc", "equal strings");
+    check("abc" != "abd", "same length, different last byte");
+    check("abc" != "ab", "different length");
+    check("ab" != "abc", "prefix is not equal");
+    check("" == "", "empty strings are equal");
+    check("a" != "", "empty differs from non-empty");
+    string s = "hello";
+    string t = "hel";
+    check(s != t, "variables of different length");
+    check(s[0:3] == t, "a slice compares equal to its text");
+    check(s[1:3] == "el", "a middle slice");
+    check(s[2:2] == "", "an empty slice is the empty string");
+    string[2] arr = ["x", "y"];
+    check(arr[0] == "x", "array element equals");
+    check(arr[1] != "x", "array element differs");
+    string u = "hello";
+    check(s == u, "equal contents in two variables");
+    check(!(s == t), "not of equality");
+}
+`},
+
+	{dir: "switch_string", src: `func name(string s) int {
+    int r = 0;
+    switch s {
+        case "a":
+            r = 1;
+        case "bc":
+            r = 2;
+        case "":
+            r = 3;
+        default:
+            r = 4;
+    }
+    return r;
+}
+
+func main() {
+    check(name("a") == 1, "switch string first");
+    check(name("bc") == 2, "switch string second");
+    check(name("") == 3, "switch on the empty string");
+    check(name("zz") == 4, "switch string default");
+    check(name("b") == 4, "a prefix of a case is not a match");
+    check(name("bcd") == 4, "an extension of a case is not a match");
+}
+`},
+
+	{dir: "for_in_collection", src: `func main() {
+    int[4] a = [10, 20, 30, 40];
+    int total = 0;
+    int idx = 0;
+    for i, v in a {
+        total += v;
+        idx += i;
+    }
+    check(total == 100, "for in array sums the values");
+    check(idx == 6, "for in array indexes");
+    int count = 0;
+    for i in a {
+        count += 1;
+    }
+    check(count == 4, "single name walks the indexes");
+    int[] part = a[1:3];
+    int sum = 0;
+    for v in part {
+        sum += 1;
+    }
+    check(sum == 2, "for in span visits the span length");
+    int psum = 0;
+    for i, v in part {
+        psum += v;
+    }
+    check(psum == 50, "for in span values");
+    string word = "abc";
+    int chars = 0;
+    int last = 0;
+    for i, c in word {
+        chars += 1;
+        last = i;
+    }
+    check(chars == 3, "for in string visits every byte");
+    check(last == 2, "for in string last index");
+    int empty = 0;
+    int[] none = a[2:2];
+    for i, v in none {
+        empty += 1;
+    }
+    check(empty == 0, "for in an empty span runs zero times");
+    int stop = 0;
+    for i, v in a {
+        if v == 30 {
+            break;
+        }
+        stop += 1;
+    }
+    check(stop == 2, "break leaves a for in");
+    int skipped = 0;
+    for i, v in a {
+        if v == 20 {
+            continue;
+        }
+        skipped += v;
+    }
+    check(skipped == 80, "continue skips an element");
+    int pairs = 0;
+    for i, v in a {
+        for j, w in a {
+            pairs += 1;
+        }
+    }
+    check(pairs == 16, "nested for in");
+    check(a[0] == 10, "the collection is not modified");
+}
+`},
+
+	{dir: "in_expr", src: `func main() {
+    int[4] a = [10, 20, 30, 40];
+    check(30 in a, "in finds a middle element");
+    check(10 in a, "in finds the first element");
+    check(40 in a, "in finds the last element");
+    check(!(50 in a), "in does not find a missing value");
+    int8 small = 20;
+    check(small in a, "in widens the left operand");
+    int[] part = a[1:3];
+    check(20 in part, "in finds an element of a span");
+    check(!(10 in part), "in is limited to the span");
+    check(!(40 in part), "in stops at the end of the span");
+    int[] none = a[2:2];
+    check(!(10 in none), "in an empty span finds nothing");
+    string word = "hello";
+    check('e' in word, "in finds a char in a string");
+    check(!('z' in word), "in does not find a missing char");
+    check("ell" in word, "in finds a substring");
+    check(!("elx" in word), "in does not find a near substring");
+    check("hello" in word, "in finds the whole string");
+    check(!("hellos" in word), "in does not find a longer string");
+    check("" in word, "the empty string is in every string");
+}
+`},
+
 	{dir: "shift_count_overflow", src: `func main() {
     uint8 one8 = 1;
     uint8 n8 = 8;

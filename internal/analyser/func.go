@@ -84,11 +84,13 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 			return
 		}
 
+		recvSym := &Symbol{Name: fd.Receiver.Name, Kind: PARAM, Type: recvType, Line: line, Col: col, File: a.currentFile}
 		if fd.Receiver.Name != "" {
-			if !a.scope.Define(&Symbol{Name: fd.Receiver.Name, Kind: PARAM, Type: recvType, Line: line, Col: col, File: a.currentFile}) {
+			if !a.scope.Define(recvSym) {
 				a.errorf(fd, "duplicated receiver %s", fd.Receiver.Name)
 			}
 		}
+		a.info.VarSymbols[fd] = append(a.info.VarSymbols[fd], recvSym)
 	} else {
 		symbol, _ := a.scope.Resolve(fd.Name)
 		ft = symbol.Type.(*FuncType)

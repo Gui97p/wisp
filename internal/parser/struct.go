@@ -39,7 +39,7 @@ func (p *Parser) parseStructParamList() []ast.Param {
 
 	for p.peek.Type != lexer.TOKEN_RBRACE && p.peek.Type != lexer.TOKEN_EOF {
 		p.advance()
-		if !p.isStartType() {
+		if !p.isPointerType() {
 			p.errorType(p.current.Type)
 			return params
 		}

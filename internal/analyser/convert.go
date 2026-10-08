@@ -215,6 +215,10 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 		return true
 	}
 
+	if a.retypeNull(*slot, from, to) {
+		return true
+	}
+
 	if from.Equals(to) {
 		if isUntyped(from) {
 			a.fixUntyped(*slot, to)
@@ -271,7 +275,29 @@ func (a *Analyser) fixArrayLiteral(expr ast.Expression, elem Type, size int64) {
 	}
 }
 
+func (a *Analyser) retypeNull(expr ast.Expression, from, to Type) bool {
+	if _, isNull := from.(NullType); !isNull {
+		return false
+	}
+	lit, ok := expr.(*ast.NullLiteral)
+	if !ok {
+		return false
+	}
+	switch to.(type) {
+	case PointerType, ErrorType:
+		a.info.Types[lit] = to
+		return true
+	}
+	return false
+}
+
 func (a *Analyser) unifySlots(left, right *ast.Expression, lt, rt Type) (Type, Type) {
+	if a.retypeNull(*left, lt, rt) {
+		return rt, rt
+	}
+	if a.retypeNull(*right, rt, lt) {
+		return lt, lt
+	}
 	if !numericLike(lt) || !numericLike(rt) {
 		return lt, rt
 	}

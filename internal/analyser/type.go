@@ -247,6 +247,7 @@ type FuncType struct {
 	Returns  []Type
 	Variadic bool
 	Fallible bool
+	Receiver Type
 }
 
 func (f *FuncType) String() string {
@@ -373,6 +374,19 @@ func MethodsOf(t Type) map[string]*FuncType {
 	default:
 		return nil
 	}
+}
+
+func methodOwner(t Type) string {
+	if pt, ok := t.(PointerType); ok {
+		t = pt.Element
+	}
+	switch tt := t.(type) {
+	case *StructType:
+		return tt.Name
+	case NamedType:
+		return tt.Name
+	}
+	return ""
 }
 
 func isString(t Type) bool {

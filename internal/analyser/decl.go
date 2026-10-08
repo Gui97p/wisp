@@ -90,7 +90,7 @@ func (a *Analyser) registerMethods() {
 			}
 		}
 
-		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic, Fallible: fd.Fallible}
+		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType}
 		a.info.FuncReturns[fd] = returns
 	}
 }

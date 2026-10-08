@@ -10,6 +10,8 @@ import (
 
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	switch e := expr.(type) {
+	case *ast.NullLiteral:
+		return Imm(0), nil
 	case *ast.IntLiteral:
 		return t.resolveIntLiteral(e.Value)
 	case *ast.BoolLiteral:
@@ -92,15 +94,36 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 		if err != nil {
 			return Mem{}, err
 		}
-		memSlot, ok := op.(Mem)
-		if !ok {
-			return Mem{}, fmt.Errorf("x86-64: operator is not a Mem")
-		}
 		info := t.info.Members[e]
+
+		var base Mem
+		if info.ByPointer {
+			reg := t.materialize(op, 8)
+			base = deref(reg, 0, sizeOf(info.Struct))
+		} else {
+			memSlot, ok := op.(Mem)
+			if !ok {
+				return Mem{}, fmt.Errorf("x86-64: operator is not a Mem")
+			}
+			base = memSlot
+		}
+
 		f := layoutOf(info.Struct).Fields[e.Field]
-		return memSlot.at(f.Offset, f.Size), nil
+		return base.at(f.Offset, f.Size), nil
 	case *ast.IndexExpr:
 		return t.compileIndex(e)
+	case *ast.UnaryExpr:
+		if e.Operator != "*" {
+			return Mem{}, fmt.Errorf("x86-64: unsupported assignment target %T", expr)
+		}
+		value, err := t.compileExpr(e.Value)
+		if err != nil {
+			return Mem{}, err
+		}
+
+		size := sizeOf(t.info.Types[expr])
+		reg := t.materialize(value, size)
+		return Mem{Base: reg, Size: size}, nil
 	default:
 		return Mem{}, fmt.Errorf("x86-64: unsupported assignment target %T", expr)
 	}
@@ -128,6 +151,15 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 }
 
 func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
+	switch expr.Operator {
+	case "&":
+		mem, err := t.compileLValue(expr.Value)
+		if err != nil {
+			return nil, err
+		}
+		return Addr{Of: mem}, nil
+	}
+
 	value, err := t.compileExpr(expr.Value)
 	if err != nil {
 		return nil, err
@@ -141,6 +173,8 @@ func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
 	case "!":
 		t.text.printft("test %s, %s\n", regStr, regStr)
 		t.text.printft("sete %s\n", regStr)
+	case "*":
+		return Mem{Base: reg, Size: size}, nil
 	default:
 		inst, ok := unaryOperators[expr.Operator]
 		if !ok {
@@ -302,8 +336,17 @@ func (t *X64Target) compileSliceExpr(expr *ast.SliceExpr) (Operand, error) {
 	t.checkIndexOk(start, end, "jbe", "slice out of range")
 	t.freeOp(limit)
 
-	tp := t.info.Types[expr].(analyser.SpanType)
-	elemSize := sizeOf(tp.Element)
+	elemSize := 1
+	switch tp := t.info.Types[expr].(type) {
+	case analyser.SpanType:
+		elemSize = sizeOf(tp.Element)
+	case analyser.PrimitiveType:
+		if tp.Name != "string" {
+			return nil, fmt.Errorf("x86-64: unsupported slice expression")
+		}
+	default:
+		return nil, fmt.Errorf("x86-64: unsupported slice expression")
+	}
 	t.text.printft("sub %s, %s\n", t.opText(end, end.Size), t.opText(start, start.Size))
 	mem, err := t.elementAt(base, start, elemSize)
 	if err != nil {

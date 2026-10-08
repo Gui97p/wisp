@@ -107,7 +107,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 
 	p.advance()
 	for p.peek.Type != lexer.TOKEN_RPAREN && p.peek.Type != lexer.TOKEN_EOF {
-		if !p.isStartType() {
+		if !p.isPointerType() {
 			p.errorType(p.current.Type)
 			return params
 		}
@@ -157,7 +157,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.advance()
 			p.advance()
 
-			if p.current.Type == lexer.TOKEN_LPAREN ||
+			if p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_STAR ||
 				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC)) {
 				break
 			}
@@ -278,7 +278,7 @@ func (p *Parser) parseFuncTypePrefix() *ast.TypeRef {
 	if p.peek.Type != lexer.TOKEN_RPAREN {
 		p.advance()
 		for {
-			if !p.isStartType() {
+			if !p.isPointerType() {
 				p.errorType(p.current.Type)
 				return nil
 			}
