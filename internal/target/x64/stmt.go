@@ -78,9 +78,7 @@ func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 				return fmt.Errorf("x86-64: undeclared variable %s", sym.Name)
 			}
 			size := sizeOf(t.info.VarTypes[stmt][i])
-			for w := 0; w < (size+7)/8; w++ {
-				t.storeWord(slot(offset, size).at(8*w, min(8, size-8*w)), Imm(0))
-			}
+			t.zero(slot(offset, size))
 		}
 		return nil
 	}
@@ -135,6 +133,7 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 			}
 			t.store(res, memSlot)
 		}
+		t.freeOp(memSlot)
 
 		return nil
 	}
@@ -163,6 +162,7 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 			t.storeWord(memSlot.at(8*w, min(8, size-8*w)), Reg{reg, 8})
 			t.ctx.FreeRegister(reg)
 		}
+		t.freeOp(memSlot)
 	}
 
 	return nil
@@ -174,6 +174,7 @@ func (t *X64Target) compileIncDecStmt(stmt *ast.IncDecStmt) error {
 		return err
 	}
 	t.text.printft("%s %s\n", incDecOperators[stmt.Op], t.memText(memSlot))
+	t.freeOp(memSlot)
 	return nil
 }
 

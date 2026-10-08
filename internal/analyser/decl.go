@@ -156,7 +156,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 							a.errorf(node, "array %s expects element type %s, got %s", v.Name, declArr.Element.String(), valArr.Element.String())
 						default:
 							if slot := a.valueSlot(values, len(vars), i); slot != nil {
-								a.fixArrayLiteral(*slot, declArr.Element)
+								a.fixArrayLiteral(*slot, declArr.Element, declArr.Size)
 							}
 						}
 					} else if declSpan, ok := declaredType.(SpanType); ok {
@@ -165,7 +165,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 							if !a.arrayElementAssignable(values, len(vars), i, valT.Element, declSpan.Element) {
 								a.errorf(node, "span %s expects element type %s, got %s", v.Name, declSpan.Element.String(), valT.Element.String())
 							} else if slot := a.valueSlot(values, len(vars), i); slot != nil {
-								a.fixArrayLiteral(*slot, declSpan.Element)
+								a.fixArrayLiteral(*slot, declSpan.Element, -1)
 							}
 						case SpanType:
 							if !valT.Equals(declSpan) {

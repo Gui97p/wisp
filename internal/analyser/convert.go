@@ -245,7 +245,7 @@ func (a *Analyser) coerceAt(values []ast.Expression, n, i int, from, to Type) bo
 	return a.coerce(slot, from, to)
 }
 
-func (a *Analyser) fixArrayLiteral(expr ast.Expression, elem Type) {
+func (a *Analyser) fixArrayLiteral(expr ast.Expression, elem Type, size int64) {
 	lit, ok := expr.(*ast.ArrayLiteral)
 	if !ok {
 		return
@@ -255,15 +255,18 @@ func (a *Analyser) fixArrayLiteral(expr ast.Expression, elem Type) {
 		et := a.info.Types[lit.Elements[i]]
 		switch inner := elem.(type) {
 		case ArrayType:
-			a.fixArrayLiteral(lit.Elements[i], inner.Element)
+			a.fixArrayLiteral(lit.Elements[i], inner.Element, inner.Size)
 		case SpanType:
-			a.fixArrayLiteral(lit.Elements[i], inner.Element)
+			a.fixArrayLiteral(lit.Elements[i], inner.Element, -1)
 		}
 		a.coerce(&lit.Elements[i], et, elem)
 	}
 
 	if at, isArray := a.info.Types[lit].(ArrayType); isArray {
 		at.Element = elem
+		if size >= 0 {
+			at.Size = size
+		}
 		a.info.Types[lit] = at
 	}
 }

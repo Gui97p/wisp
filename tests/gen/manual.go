@@ -609,6 +609,25 @@ func main() {
 }
 `},
 
+	{dir: "agg_index_const", src: `func main() {
+    int[3] a;
+    a[0] = 10;
+    a[1] = 20;
+    a[2] = 30;
+    check(a[0] == 10, "constant index first");
+    check(a[1] == 20, "constant index middle");
+    check(a[2] == 30, "constant index last");
+    a[1] += 5;
+    check(a[1] == 25, "constant index compound");
+    a[2]++;
+    check(a[2] == 31, "constant index increment");
+    int8[4] b;
+    b[3] = 7;
+    check(b[3] == 7, "constant index narrow element");
+    check(b[2] == 0, "constant index neighbour stays zero");
+}
+`},
+
 	{dir: "agg_array_basic", x64Only: true, src: `func main() {
     int[5] nums = [124, 512, 1, 5, 2];
     check(nums[0] == 124, "array literal first");

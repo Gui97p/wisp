@@ -29,28 +29,60 @@ func (t *X64Target) panic(message string) {
 	t.text.printlnt("call __wisp_panic")
 }
 
+func (t *X64Target) pieces(size int) []int {
+	var pieces []int
+
+	for size > 0 {
+		piece := 1
+		for piece*2 <= size && piece < 8 {
+			piece *= 2
+		}
+
+		pieces = append(pieces, piece)
+		size -= piece
+	}
+
+	return pieces
+}
+
+func (t *X64Target) zero(dst Mem) {
+	off := 0
+	for _, p := range t.pieces(dst.Size) {
+		t.store(Imm(0), dst.at(off, p))
+		off += p
+	}
+}
+
 func (t *X64Target) words(op Operand) []Operand {
 	switch o := op.(type) {
 	case Wide:
 		return o.Words
 	case Mem:
-		if o.Size <= 8 {
-			return []Operand{op}
-		} else {
-			ops := []Operand{}
-			for i := 0; i < (o.Size+7)/8; i++ {
-				ops = append(ops, o.at(8*i, min(8, o.Size-8*i)))
-			}
-			return ops
+		ops := []Operand{}
+		off := 0
+		for _, p := range t.pieces(o.Size) {
+			ops = append(ops, o.at(off, p))
+			off += p
 		}
+		return ops
 	default:
 		return []Operand{op}
 	}
 }
 
 func (t *X64Target) store(op Operand, dst Mem) {
-	for i, w := range t.words(op) {
-		t.storeWord(dst.at(8*i, min(8, dst.Size-8*i)), w)
+	off := 0
+	for _, w := range t.words(op) {
+		size := min(8, dst.Size-off)
+		switch wo := w.(type) {
+		case Reg:
+			size = wo.Size
+		case Mem:
+			size = wo.Size
+		}
+		size = min(size, dst.Size-off)
+		t.storeWord(dst.at(off, size), w)
+		off += size
 		t.freeWord(w)
 	}
 }

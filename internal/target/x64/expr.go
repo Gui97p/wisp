@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -45,10 +46,16 @@ func (t *X64Target) compileInto(expr ast.Expression, dst Mem, tp analyser.Type) 
 	case *ast.StructLiteral:
 		st := structOf(tp)
 		layout := layoutOf(st)
-		for i, key := range e.Keys {
-			f := layout.Fields[key]
-			if err := t.compileInto(e.Values[i], dst.at(f.Offset, f.Size), f.Type); err != nil {
-				return err
+		for _, field := range st.Order {
+			f := layout.Fields[field]
+			mem := dst.at(f.Offset, f.Size)
+			index := slices.Index(e.Keys, field)
+			if index != -1 {
+				if err := t.compileInto(e.Values[index], mem, f.Type); err != nil {
+					return err
+				}
+			} else {
+				t.zero(mem)
 			}
 		}
 	case *ast.ArrayLiteral:
@@ -56,10 +63,15 @@ func (t *X64Target) compileInto(expr ast.Expression, dst Mem, tp analyser.Type) 
 		if !ok {
 			return fmt.Errorf("x86-64: not an array")
 		}
-		size := sizeOf(tp)
+		size := sizeOf(ar.Element)
 		for n := range ar.Size {
-			if err := t.compileInto(e.Elements[n], dst.at(int(int64(size)/ar.Size*n), size), ar.Element); err != nil {
-				return err
+			mem := dst.at(int(n)*size, size)
+			if int(n) < len(e.Elements) {
+				if err := t.compileInto(e.Elements[n], mem, ar.Element); err != nil {
+					return err
+				}
+			} else {
+				t.zero(mem)
 			}
 		}
 	default:
@@ -70,6 +82,87 @@ func (t *X64Target) compileInto(expr ast.Expression, dst Mem, tp analyser.Type) 
 		t.store(op, dst)
 	}
 	return nil
+}
+
+func (t *X64Target) compileIndex(expr *ast.IndexExpr) (Mem, error) {
+	var base Mem
+	var limit Operand
+
+	info := t.info.Types[expr.Array]
+	switch tp := info.(type) {
+	case analyser.ArrayType:
+		mem, err := t.compileLValue(expr.Array)
+		if err != nil {
+			return Mem{}, err
+		}
+		base = mem
+		limit = Imm(tp.Size)
+	case analyser.SpanType:
+		op, err := t.compileExpr(expr.Array)
+		if err != nil {
+			return Mem{}, err
+		}
+		words := t.words(op)
+		reg := t.ctx.AllocFreeRegister()
+		t.loadWord(reg, words[0])
+		base = Mem{Base: reg}
+		limit = words[1]
+	case analyser.PrimitiveType:
+		if tp.Name != "string" {
+			return Mem{}, fmt.Errorf("x86-64: unsupported index expression")
+		}
+		op, err := t.compileExpr(expr.Array)
+		if err != nil {
+			return Mem{}, err
+		}
+		words := t.words(op)
+		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			return Mem{}, fmt.Errorf("x86-64: no available registers")
+		}
+		t.loadWord(reg, words[0])
+		base = Mem{Base: reg}
+		limit = words[1]
+	default:
+		return Mem{}, fmt.Errorf("x86-64: unsupported index expression")
+	}
+
+	elemSize := sizeOf(t.info.Types[expr])
+
+	index, err := t.compileExpr(expr.Index)
+	if err != nil {
+		return Mem{}, err
+	}
+	ar, isArray := info.(analyser.ArrayType)
+	if imm, ok := index.(Imm); ok && isArray {
+		size := sizeOf(ar.Element)
+		mem := base.at(int(imm)*size, size)
+		return mem, nil
+	}
+
+	indexTp := t.info.Types[expr.Index]
+	indexSize := sizeOf(indexTp)
+	reg := t.materialize(index, indexSize)
+	if indexSize < 8 {
+		dstSize := 8
+		inst := ucastOperators[indexSize][dstSize]
+		if isSigned(indexTp) {
+			inst = castOperators[indexSize][dstSize]
+		} else if indexSize == 4 {
+			dstSize = 4
+		}
+
+		t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(reg, dstSize), t.ctx.GetRegister(reg, indexSize))
+	}
+
+	okLabel := t.newLabel("index_ok")
+	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(reg, 8), t.opText(limit, 8))
+	t.freeOp(limit)
+	t.text.printft("jb %s\n", okLabel)
+	t.panic("index out of range")
+	t.text.printf("%s:\n", okLabel)
+
+	return indexed(base.Base, reg, elemSize, base.Disp, elemSize)
 }
 
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
@@ -132,7 +225,9 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	case *ast.TernaryExpr:
 		return t.compileTernaryExpr(e)
 	case *ast.MemberExpr:
-		return t.compileMemberExpr(e)
+		return t.compileLValue(e)
+	case *ast.IndexExpr:
+		return t.compileLValue(e)
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
@@ -159,6 +254,8 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 		info := t.info.Members[e]
 		f := layoutOf(info.Struct).Fields[e.Field]
 		return memSlot.at(f.Offset, f.Size), nil
+	case *ast.IndexExpr:
+		return t.compileIndex(e)
 	default:
 		return Mem{}, fmt.Errorf("x86-64: unsupported assignment target %T", expr)
 	}
@@ -317,8 +414,4 @@ func (t *X64Target) compileTernaryExpr(expr *ast.TernaryExpr) (Operand, error) {
 
 	t.text.printf("%s:\n", endLabel)
 	return dest, nil
-}
-
-func (t *X64Target) compileMemberExpr(expr *ast.MemberExpr) (Operand, error) {
-	return t.compileLValue(expr)
 }
