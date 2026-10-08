@@ -290,6 +290,12 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		return []Operand{op}, nil
 	}
 
+	if mc, ok := t.info.MethodCalls[expr]; ok {
+		sym := t.funcSymbol(mc.Module, fmt.Sprintf("%s_%s", mc.Owner, expr.Name.(*ast.MemberExpr).Field))
+		args := append([]ast.Expression{mc.Receiver}, expr.Args...)
+		return t.compileCall(sym, mc.Module != t.module, args, t.info.CallReturns[expr])
+	}
+
 	sym, err := t.resolveCallee(expr.Name)
 	if err != nil {
 		return nil, err

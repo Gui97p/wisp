@@ -372,11 +372,17 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 				if pointerRecv && !objectPtr && !isAddressable(member.Object) {
 					a.errorf(expr, "method %s needs a pointer receiver, but the value is a temporary", member.Field)
 				}
+				owner, ownerModule, ownerExported := methodOwner(objType)
+				if ownerModule != a.module && !(ft.Exported && ownerExported) {
+					a.errorf(expr, "method %s of %s is not exported", member.Field, owner)
+				}
 				a.info.MethodCalls[expr] = &MethodCall{
-					Owner:           methodOwner(objType),
+					Owner:           owner,
+					Module:          ownerModule,
 					Func:            ft,
 					PointerReceiver: pointerRecv,
 					ObjectIsPointer: objectPtr,
+					Receiver:        a.receiverArgument(member.Object, objType, pointerRecv, objectPtr),
 				}
 				a.checkCallArgs(expr, ft)
 				return callResults(ft)
@@ -398,6 +404,29 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 		a.evalArgTypes(expr)
 		return nil
 	}
+}
+
+func (a *Analyser) receiverArgument(object ast.Expression, objType Type, pointerRecv, objectPtr bool) ast.Expression {
+	var node *ast.UnaryExpr
+	var tp Type
+
+	switch {
+	case pointerRecv && !objectPtr:
+		node = &ast.UnaryExpr{Operator: "&", Value: object}
+		tp = PointerType{Element: objType}
+	case !pointerRecv && objectPtr:
+		node = &ast.UnaryExpr{Operator: "*", Value: object}
+		tp = objType.(PointerType).Element
+	default:
+		return object
+	}
+
+	line, col := object.Position()
+	endLine, endCol := object.EndPosition()
+	node.SetPos(line, col)
+	node.SetEndPos(endLine, endCol)
+	a.info.Types[node] = tp
+	return node
 }
 
 func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {

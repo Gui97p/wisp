@@ -191,6 +191,7 @@ type NamedType struct {
 	Methods    map[string]*FuncType
 	Enum       bool
 	Module     string
+	Exported   bool
 }
 
 func (n NamedType) String() string {
@@ -210,10 +211,12 @@ func (n NamedType) Equals(other Type) bool {
 }
 
 type StructType struct {
-	Name    string
-	Fields  map[string]Type
-	Order   []string
-	Methods map[string]*FuncType
+	Name     string
+	Fields   map[string]Type
+	Order    []string
+	Methods  map[string]*FuncType
+	Module   string
+	Exported bool
 }
 
 func (s *StructType) String() string {
@@ -248,6 +251,7 @@ type FuncType struct {
 	Variadic bool
 	Fallible bool
 	Receiver Type
+	Exported bool
 }
 
 func (f *FuncType) String() string {
@@ -376,17 +380,17 @@ func MethodsOf(t Type) map[string]*FuncType {
 	}
 }
 
-func methodOwner(t Type) string {
+func methodOwner(t Type) (name, module string, exported bool) {
 	if pt, ok := t.(PointerType); ok {
 		t = pt.Element
 	}
 	switch tt := t.(type) {
 	case *StructType:
-		return tt.Name
+		return tt.Name, tt.Module, tt.Exported
 	case NamedType:
-		return tt.Name
+		return tt.Name, tt.Module, tt.Exported
 	}
-	return ""
+	return "", "", false
 }
 
 func isString(t Type) bool {

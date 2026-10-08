@@ -87,7 +87,13 @@ func (t *LuaTarget) writeExports(b *strings.Builder) {
 	for _, d := range t.program.Declarations {
 		switch decl := d.(type) {
 		case *ast.FuncDecl:
-			if !decl.Exported || decl.Receiver != nil {
+			if decl.Receiver != nil {
+				if t.info.MethodVisible[decl] {
+					fmt.Fprintf(b, "__wisp_module.%s = %s\n", funcName(decl), funcName(decl))
+				}
+				continue
+			}
+			if !decl.Exported {
 				continue
 			}
 			fmt.Fprintf(b, "__wisp_module.%s = %s\n", decl.Name, decl.Name)
@@ -108,4 +114,13 @@ func (t *LuaTarget) writeExports(b *strings.Builder) {
 			}
 		}
 	}
+}
+
+func (t *LuaTarget) importAlias(path string) (string, bool) {
+	for _, d := range t.program.Declarations {
+		if imp, ok := d.(*ast.ImportDecl); ok && imp.Path == path {
+			return imp.Alias, true
+		}
+	}
+	return "", false
 }

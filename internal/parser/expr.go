@@ -460,12 +460,21 @@ func (p *Parser) parseMapLiteral() ast.Expression {
 }
 
 func (p *Parser) parseStructLiteral(left ast.Expression) ast.Expression {
-	ident, ok := left.(*ast.IdentLiteral)
-	if !ok {
+	var lit *ast.StructLiteral
+	switch l := left.(type) {
+	case *ast.IdentLiteral:
+		lit = &ast.StructLiteral{Name: l.Value}
+	case *ast.MemberExpr:
+		module, ok := l.Object.(*ast.IdentLiteral)
+		if !ok {
+			p.error("expected identifier before {")
+			return nil
+		}
+		lit = &ast.StructLiteral{Module: module.Value, Name: l.Field}
+	default:
 		p.error("expected identifier before {")
 		return nil
 	}
-	lit := &ast.StructLiteral{Name: ident.Value}
 
 	if p.peek.Type == lexer.TOKEN_RBRACE {
 		p.advance()

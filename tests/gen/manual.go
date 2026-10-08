@@ -6,6 +6,7 @@ type manualCase struct {
 	expected []string
 	abort    string
 	x64Only  bool
+	files    map[string]string
 }
 
 var manual = []manualCase{
@@ -844,6 +845,98 @@ func main() {
     P copy = *p;
     p.x = 0;
     check(copy.x == 7, "dereferenced struct copy is independent");
+}
+`},
+
+	{dir: "method_modules", files: map[string]string{"counter.wsp": `export struct Counter {
+    int n;
+}
+
+export func (*Counter c) bump(int by) {
+    c.n += by;
+}
+
+export func (*Counter c) get() int {
+    return c.n;
+}
+
+func (*Counter c) doubled() int {
+    return c.n * 2;
+}
+
+export func (*Counter c) twice() int {
+    return c.doubled();
+}
+
+export func start(int n) Counter {
+    return Counter{n: n};
+}
+`}, src: `import "counter";
+
+struct Holder {
+    counter.Counter inner;
+}
+
+func read(counter.Counter c) int {
+    return c.get();
+}
+
+func make(int n) counter.Counter {
+    return counter.start(n);
+}
+
+func main() {
+    let c = counter.start(1);
+    c.bump(2);
+    check(c.get() == 3, "exported method of an imported struct");
+    check(c.twice() == 6, "exported method that calls a private one");
+    let d = counter.start(10);
+    d.bump(5);
+    check(d.get() == 15, "method on a variable of the imported type");
+    check(c.get() == 3, "the other value is untouched");
+    counter.Counter e = counter.Counter{n: 7};
+    e.bump(1);
+    check(e.get() == 8, "declared with the qualified type and literal");
+    check(read(e) == 8, "qualified type as a parameter");
+    let m = make(4);
+    check(m.get() == 4, "qualified type as a return type");
+    Holder h = Holder{inner: e};
+    h.inner.bump(2);
+    check(h.inner.get() == 10, "qualified type as a struct field");
+    counter.Counter[2] pair = [counter.start(1), counter.start(2)];
+    pair[1].bump(5);
+    check(pair[1].get() == 7, "array of a qualified type");
+    check(pair[0].get() == 1, "that leaves the other element alone");
+}
+`},
+
+	{dir: "ptr_double", x64Only: true, src: `struct P {
+    int x;
+    int y;
+}
+
+func setAll(**P pp, int v) {
+    (*pp).x = v;
+    (**pp).y = v + 1;
+}
+
+func main() {
+    P s = P{x: 1, y: 2};
+    *P p = &s;
+    **P pp = &p;
+    check((*pp).x == 1, "member through a double pointer");
+    check((**pp).y == 2, "member of a fully dereferenced pointer");
+    (*pp).x = 10;
+    check(s.x == 10, "write through a double pointer");
+    (**pp).y += 5;
+    check(s.y == 7, "compound write of a fully dereferenced pointer");
+    setAll(pp, 40);
+    check(s.x == 40, "double pointer parameter first field");
+    check(s.y == 41, "double pointer parameter second field");
+    P other = P{x: 100, y: 200};
+    *pp = &other;
+    check(p.x == 100, "writing the inner pointer redirects the pointer");
+    check(s.x == 40, "the old target is untouched");
 }
 `},
 

@@ -23,6 +23,7 @@ func (a *Analyser) registerTypeAliases() {
 			Methods:    make(map[string]*FuncType),
 			Enum:       td.IsEnum,
 			Module:     a.module,
+			Exported:   td.Exported,
 		}
 
 		line, col := td.Position()
@@ -90,8 +91,10 @@ func (a *Analyser) registerMethods() {
 			}
 		}
 
-		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType}
+		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported}
 		a.info.FuncReturns[fd] = returns
+		_, _, ownerExported := methodOwner(recvType)
+		a.info.MethodVisible[fd] = fd.Exported && ownerExported
 	}
 }
 

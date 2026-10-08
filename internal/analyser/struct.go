@@ -11,10 +11,12 @@ func (a *Analyser) registerStructNames() {
 		}
 
 		st := &StructType{
-			Name:    sd.Name,
-			Fields:  make(map[string]Type),
-			Order:   make([]string, 0, len(sd.Members)),
-			Methods: make(map[string]*FuncType),
+			Name:     sd.Name,
+			Fields:   make(map[string]Type),
+			Order:    make([]string, 0, len(sd.Members)),
+			Methods:  make(map[string]*FuncType),
+			Module:   a.module,
+			Exported: sd.Exported,
 		}
 
 		line, col := sd.Position()
@@ -55,15 +57,15 @@ func (a *Analyser) registerStructFields() {
 }
 
 func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
-	symbol, ok := a.scope.Resolve(expr.Name)
+	symbol, ok := a.lookupType(a.scope, expr.Module, expr.Name)
 	if !ok {
-		a.errorf(expr, "unknown type %s", expr.Name)
+		a.errorf(expr, "unknown type %s", qualified(expr.Module, expr.Name))
 		return InvalidType{}
 	}
 
 	st, ok := symbol.Type.(*StructType)
 	if !ok {
-		a.errorf(expr, "%s is not a struct", expr.Name)
+		a.errorf(expr, "%s is not a struct", qualified(expr.Module, expr.Name))
 		return InvalidType{}
 	}
 

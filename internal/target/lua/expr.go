@@ -216,7 +216,13 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 		if methods := analyser.MethodsOf(objType); methods != nil {
 			if _, isMethod := methods[member.Field]; isMethod {
 				typeName, _ := methodOwnerName(objType)
-				fmt.Fprintf(b, "%s_%s(", typeName, member.Field)
+				prefix := ""
+				if mc, ok := t.info.MethodCalls[expr]; ok {
+					if alias, imported := t.importAlias(mc.Module); imported {
+						prefix = alias + "."
+					}
+				}
+				fmt.Fprintf(b, "%s%s_%s(", prefix, typeName, member.Field)
 				if err := t.compileExpression(b, member.Object); err != nil {
 					return err
 				}

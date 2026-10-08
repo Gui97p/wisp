@@ -15,6 +15,7 @@ type Info struct {
 	Idents        map[*ast.IdentLiteral]*Symbol
 	Members       map[*ast.MemberExpr]*MemberInfo
 	MethodCalls   map[*ast.CallExpr]*MethodCall
+	MethodVisible map[*ast.FuncDecl]bool
 	Scopes        map[ast.Node]*Scope
 	Reexports     map[*ast.ReexportDecl][]string
 }
@@ -31,6 +32,7 @@ func NewInfo() *Info {
 		Idents:        make(map[*ast.IdentLiteral]*Symbol),
 		Members:       make(map[*ast.MemberExpr]*MemberInfo),
 		MethodCalls:   make(map[*ast.CallExpr]*MethodCall),
+		MethodVisible: make(map[*ast.FuncDecl]bool),
 		Scopes:        make(map[ast.Node]*Scope),
 		Reexports:     make(map[*ast.ReexportDecl][]string),
 	}
@@ -38,9 +40,11 @@ func NewInfo() *Info {
 
 type MethodCall struct {
 	Owner           string
+	Module          string
 	Func            *FuncType
 	PointerReceiver bool
 	ObjectIsPointer bool
+	Receiver        ast.Expression
 }
 
 type MemberKind int

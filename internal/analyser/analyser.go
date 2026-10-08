@@ -93,16 +93,16 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 	if primitives[ref.Name] {
 		result = PrimitiveType{Name: ref.Name}
 	} else {
-		symbol, ok := scope.Resolve(ref.Name)
+		symbol, ok := a.lookupType(scope, ref.Module, ref.Name)
 		if !ok {
-			a.errorf(node, "unknown type %s", ref.Name)
+			a.errorf(node, "unknown type %s", qualified(ref.Module, ref.Name))
 			return nil
 		}
 		switch symbol.Kind {
 		case STRUCT, TYPE:
 			result = symbol.Type
 		default:
-			a.errorf(node, "%s is not a type", ref.Name)
+			a.errorf(node, "%s is not a type", qualified(ref.Module, ref.Name))
 			return nil
 		}
 	}
@@ -189,4 +189,27 @@ func rootIdentifier(expr ast.Expression) *ast.IdentLiteral {
 		}
 	}
 	return nil
+}
+
+func qualified(module, name string) string {
+	if module == "" {
+		return name
+	}
+	return module + "." + name
+}
+
+func (a *Analyser) lookupType(scope *Scope, module, name string) (*Symbol, bool) {
+	if module == "" {
+		return scope.Resolve(name)
+	}
+	modSym, ok := scope.Resolve(module)
+	if !ok || modSym.Kind != MODULE {
+		return nil, false
+	}
+	mt, ok := modSym.Type.(*ModuleType)
+	if !ok {
+		return nil, false
+	}
+	sym, ok := mt.Exports[name]
+	return sym, ok
 }

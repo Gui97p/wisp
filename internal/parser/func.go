@@ -158,7 +158,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.advance()
 
 			if p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_STAR ||
-				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC)) {
+				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC || p.peek.Type == lexer.TOKEN_DOT)) {
 				break
 			}
 

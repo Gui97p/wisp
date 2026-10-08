@@ -31,9 +31,17 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		}
 	}
 
-	name := t.funcSymbol(t.module, fd.Name)
+	fdName := fd.Name
+	if fd.Receiver != nil {
+		fdName = fmt.Sprintf("%s_%s", fd.Receiver.Type.Name, fd.Name)
+	}
+	name := t.funcSymbol(t.module, fdName)
 
-	if fd.Exported {
+	visible := fd.Exported
+	if fd.Receiver != nil {
+		visible = t.info.MethodVisible[fd]
+	}
+	if visible {
 		t.text.printf("global %s\n", name)
 	}
 

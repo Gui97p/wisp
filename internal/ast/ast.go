@@ -75,6 +75,7 @@ type ArrayDim struct {
 }
 
 type TypeRef struct {
+	Module       string
 	Name         string
 	PointerDepth int
 
@@ -95,6 +96,9 @@ func (t *TypeRef) Tree(indent string) string {
 
 	fmt.Fprintf(&b, "%sTypeRef\n", indent)
 
+	if t.Module != "" {
+		fmt.Fprintf(&b, "%s├─ Module\n%s│  %s\n", indent, indent, t.Module)
+	}
 	fmt.Fprintf(&b, "%s├─ Name\n%s│  %s\n", indent, indent, t.Name)
 	fmt.Fprintf(&b, "%s├─ PointerDepth\n%s│  %d\n", indent, indent, t.PointerDepth)
 
