@@ -2,175 +2,11 @@ package x64
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
-
-func (t *X64Target) resolveIntLiteral(value int64) (Operand, error) {
-	if int64(int32(value)) != value {
-		reg := t.ctx.AllocFreeRegister()
-		if reg == x64context.NoReg {
-			return nil, fmt.Errorf("x86-64: no available registers")
-		}
-		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, 8), value)
-		return Reg{Reg: reg, Size: 8}, nil
-	}
-	return Imm(value), nil
-}
-
-func (*X64Target) resolveBoolLiteral(value bool) (Operand, error) {
-	if value {
-		return Imm(1), nil
-	} else {
-		return Imm(0), nil
-	}
-}
-
-func (t *X64Target) resolveStringLiteral(value string) (Operand, error) {
-	decoded, err := decodeEscapes(value)
-	if err != nil {
-		return nil, err
-	}
-	label, ok := t.createData("str", string(decoded))
-	if !ok {
-		t.rodata.printf("%s db %s\n", label, bytesToAsm(append(decoded, 0)))
-	}
-	return strLit(label, len(decoded)), nil
-}
-
-func (t *X64Target) compileInto(expr ast.Expression, dst Mem, tp analyser.Type) error {
-	switch e := expr.(type) {
-	case *ast.StructLiteral:
-		st := structOf(tp)
-		layout := layoutOf(st)
-		for _, field := range st.Order {
-			f := layout.Fields[field]
-			mem := dst.at(f.Offset, f.Size)
-			index := slices.Index(e.Keys, field)
-			if index != -1 {
-				if err := t.compileInto(e.Values[index], mem, f.Type); err != nil {
-					return err
-				}
-			} else {
-				t.zero(mem)
-			}
-		}
-	case *ast.ArrayLiteral:
-		ar, ok := arrayOf(tp)
-		if !ok {
-			return fmt.Errorf("x86-64: not an array")
-		}
-		size := sizeOf(ar.Element)
-		for n := range ar.Size {
-			mem := dst.at(int(n)*size, size)
-			if int(n) < len(e.Elements) {
-				if err := t.compileInto(e.Elements[n], mem, ar.Element); err != nil {
-					return err
-				}
-			} else {
-				t.zero(mem)
-			}
-		}
-	default:
-		op, err := t.compileExpr(expr)
-		if err != nil {
-			return err
-		}
-		t.store(op, dst)
-	}
-	return nil
-}
-
-func (t *X64Target) compileIndex(expr *ast.IndexExpr) (Mem, error) {
-	var base Mem
-	var limit Operand
-
-	info := t.info.Types[expr.Array]
-	switch tp := info.(type) {
-	case analyser.ArrayType:
-		mem, err := t.compileLValue(expr.Array)
-		if err != nil {
-			return Mem{}, err
-		}
-		base = mem
-		limit = Imm(tp.Size)
-	case analyser.SpanType:
-		op, err := t.compileExpr(expr.Array)
-		if err != nil {
-			return Mem{}, err
-		}
-		words := t.words(op)
-		reg := t.ctx.AllocFreeRegister()
-		t.loadWord(reg, words[0])
-		base = Mem{Base: reg}
-		limit = words[1]
-	case analyser.PrimitiveType:
-		if tp.Name != "string" {
-			return Mem{}, fmt.Errorf("x86-64: unsupported index expression")
-		}
-		op, err := t.compileExpr(expr.Array)
-		if err != nil {
-			return Mem{}, err
-		}
-		words := t.words(op)
-		reg := t.ctx.AllocFreeRegister()
-		if reg == x64context.NoReg {
-			return Mem{}, fmt.Errorf("x86-64: no available registers")
-		}
-		t.loadWord(reg, words[0])
-		base = Mem{Base: reg}
-		limit = words[1]
-	default:
-		return Mem{}, fmt.Errorf("x86-64: unsupported index expression")
-	}
-
-	elemSize := sizeOf(t.info.Types[expr])
-
-	index, err := t.compileExpr(expr.Index)
-	if err != nil {
-		return Mem{}, err
-	}
-	ar, isArray := info.(analyser.ArrayType)
-	if imm, ok := index.(Imm); ok && isArray {
-		size := sizeOf(ar.Element)
-		mem := base.at(int(imm)*size, size)
-		return mem, nil
-	}
-
-	indexTp := t.info.Types[expr.Index]
-	indexSize := sizeOf(indexTp)
-	reg := t.materialize(index, indexSize)
-	dstSize := 8
-	indexReg := t.ctx.GetRegister(reg, dstSize)
-	if indexSize < 8 {
-		inst := ucastOperators[indexSize][dstSize]
-		if isSigned(indexTp) {
-			inst = castOperators[indexSize][dstSize]
-		} else if indexSize == 4 {
-			dstSize = 4
-		}
-
-		t.text.printft("%s %s, %s\n", inst, indexReg, t.ctx.GetRegister(reg, indexSize))
-	}
-
-	okLabel := t.newLabel("index_ok")
-	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(reg, 8), t.opText(limit, 8))
-	t.freeOp(limit)
-	t.text.printft("jb %s\n", okLabel)
-	t.panic("index out of range")
-	t.text.printf("%s:\n", okLabel)
-
-	scale := elemSize
-	if !slices.Contains([]int{1, 2, 4, 8}, elemSize) {
-		t.text.printft("imul %s, %s, %d\n", indexReg, indexReg, elemSize)
-		scale = 1
-	}
-
-	return indexed(base.Base, reg, scale, base.Disp, elemSize)
-}
 
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	switch e := expr.(type) {
@@ -235,6 +71,8 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		return t.compileLValue(e)
 	case *ast.IndexExpr:
 		return t.compileLValue(e)
+	case *ast.SliceExpr:
+		return t.compileSliceExpr(e)
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
@@ -421,4 +259,56 @@ func (t *X64Target) compileTernaryExpr(expr *ast.TernaryExpr) (Operand, error) {
 
 	t.text.printf("%s:\n", endLabel)
 	return dest, nil
+}
+
+func (t *X64Target) compileSliceExpr(expr *ast.SliceExpr) (Operand, error) {
+	base, limit, err := t.baseMem(expr.Array)
+	if err != nil {
+		return nil, err
+	}
+
+	var start Reg
+	if expr.Start != nil {
+		start, err = t.baseIndex(expr.Start)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			return nil, fmt.Errorf("x86-64: no available registers")
+		}
+		reg4 := t.ctx.GetRegister(reg, 4)
+		t.text.printft("xor %s, %s\n", reg4, reg4)
+		start = Reg{reg, 8}
+	}
+
+	var end Reg
+	if expr.End != nil {
+		end, err = t.baseIndex(expr.End)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		reg := t.ctx.AllocFreeRegister()
+		if reg == x64context.NoReg {
+			return nil, fmt.Errorf("x86-64: no available registers")
+		}
+		t.text.printft("mov %s, %s\n", t.ctx.GetRegister(reg, 8), t.opText(limit, 8))
+		end = Reg{reg, 8}
+	}
+
+	t.checkIndexOk(end, limit, "jbe", "slice out of range")
+	t.checkIndexOk(start, end, "jbe", "slice out of range")
+	t.freeOp(limit)
+
+	tp := t.info.Types[expr].(analyser.SpanType)
+	elemSize := sizeOf(tp.Element)
+	t.text.printft("sub %s, %s\n", t.opText(end, end.Size), t.opText(start, start.Size))
+	mem, err := t.elementAt(base, start, elemSize)
+	if err != nil {
+		return nil, err
+	}
+
+	return Wide{Words: []Operand{Addr{Of: mem}, Reg{end.Reg, 8}}, Size: 16}, nil
 }

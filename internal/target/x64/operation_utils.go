@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -150,6 +151,49 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 		t.fail("x86-64: unsupported operand %s", o)
 	}
 	return x64context.NoReg
+}
+
+func (t *X64Target) compileInto(expr ast.Expression, dst Mem, tp analyser.Type) error {
+	switch e := expr.(type) {
+	case *ast.StructLiteral:
+		st := structOf(tp)
+		layout := layoutOf(st)
+		for _, field := range st.Order {
+			f := layout.Fields[field]
+			mem := dst.at(f.Offset, f.Size)
+			index := slices.Index(e.Keys, field)
+			if index != -1 {
+				if err := t.compileInto(e.Values[index], mem, f.Type); err != nil {
+					return err
+				}
+			} else {
+				t.zero(mem)
+			}
+		}
+	case *ast.ArrayLiteral:
+		ar, ok := arrayOf(tp)
+		if !ok {
+			return fmt.Errorf("x86-64: not an array")
+		}
+		size := sizeOf(ar.Element)
+		for n := range ar.Size {
+			mem := dst.at(int(n)*size, size)
+			if int(n) < len(e.Elements) {
+				if err := t.compileInto(e.Elements[n], mem, ar.Element); err != nil {
+					return err
+				}
+			} else {
+				t.zero(mem)
+			}
+		}
+	default:
+		op, err := t.compileExpr(expr)
+		if err != nil {
+			return err
+		}
+		t.store(op, dst)
+	}
+	return nil
 }
 
 func (t *X64Target) opText(op Operand, size int) string {

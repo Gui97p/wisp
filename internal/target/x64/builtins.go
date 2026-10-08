@@ -42,7 +42,17 @@ func (t *X64Target) compileLenBuiltin(expr *ast.CallExpr) (Operand, error) {
 	switch arg := t.info.Types[expr.Args[0]].(type) {
 	case analyser.ArrayType:
 		return Imm(arg.Size), nil
-	case analyser.PrimitiveType, *analyser.SpanType:
+	case analyser.PrimitiveType:
+		if arg.Name != "string" {
+			return nil, fmt.Errorf("x86-64: cannot get length of %s", arg)
+		}
+		op, err := t.compileExpr(expr.Args[0])
+		if err != nil {
+			return nil, err
+		}
+
+		return t.field(op, 1), nil
+	case analyser.SpanType:
 		op, err := t.compileExpr(expr.Args[0])
 		if err != nil {
 			return nil, err
