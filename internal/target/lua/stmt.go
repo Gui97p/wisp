@@ -10,6 +10,10 @@ import (
 )
 
 func (t *LuaTarget) compileStatement(b *strings.Builder, stmt ast.Statement) error {
+	return t.locate(stmt, t.compileStatementNode(b, stmt))
+}
+
+func (t *LuaTarget) compileStatementNode(b *strings.Builder, stmt ast.Statement) error {
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
 		return t.compileBlockStatement(b, s)
@@ -40,7 +44,7 @@ func (t *LuaTarget) compileStatement(b *strings.Builder, stmt ast.Statement) err
 	case *ast.IncDecStmt:
 		return t.compileIncDecStatement(b, s)
 	default:
-		return fmt.Errorf("lua: unsupported statement %T", stmt)
+		return fmt.Errorf("%s is not supported yet", ast.Describe(stmt))
 	}
 }
 

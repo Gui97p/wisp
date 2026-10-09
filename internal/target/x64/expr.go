@@ -9,6 +9,14 @@ import (
 )
 
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
+	line, col := t.enter(expr)
+	defer t.leave(line, col)
+
+	op, err := t.compileExprNode(expr)
+	return op, t.locate(expr, err)
+}
+
+func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 	switch e := expr.(type) {
 	case *ast.NullLiteral:
 		return Imm(0), nil
@@ -109,8 +117,17 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 
 		return ops[0], nil
 	default:
-		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
+		return nil, fmt.Errorf("%s is not supported yet", ast.Describe(expr))
 	}
+}
+
+func (t *X64Target) checkNotNull(reg x64context.Register) {
+	ok := t.newLabel("not_null")
+	regStr := t.ctx.GetRegister(reg, 8)
+	t.text.printft("test %s, %s\n", regStr, regStr)
+	t.text.printft("jnz %s\n", ok)
+	t.panic("null pointer dereference")
+	t.text.printf("%s:\n", ok)
 }
 
 func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
@@ -130,12 +147,14 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 		info := t.info.Members[e]
 		if info.Kind == analyser.MemberErrorField {
 			reg := t.materialize(op, 8)
+			t.checkNotNull(reg)
 			return deref(reg, errFieldOffset[e.Field], sizeOf(t.info.Types[e])), nil
 		}
 
 		var base Mem
 		if info.ByPointer {
 			reg := t.materialize(op, 8)
+			t.checkNotNull(reg)
 			base = deref(reg, 0, sizeOf(info.Struct))
 		} else {
 			memSlot, ok := op.(Mem)
@@ -160,6 +179,7 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 
 		size := sizeOf(t.info.Types[expr])
 		reg := t.materialize(value, size)
+		t.checkNotNull(reg)
 		return Mem{Base: reg, Size: size}, nil
 	default:
 		return Mem{}, fmt.Errorf("x86-64: unsupported assignment target %T", expr)
@@ -218,6 +238,7 @@ func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
 		t.text.printft("test %s, %s\n", regStr, regStr)
 		t.text.printft("sete %s\n", regStr)
 	case "*":
+		t.checkNotNull(reg)
 		return Mem{Base: reg, Size: size}, nil
 	default:
 		inst, ok := unaryOperators[expr.Operator]

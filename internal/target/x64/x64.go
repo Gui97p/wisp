@@ -8,6 +8,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/diag"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
@@ -29,7 +30,11 @@ type X64Target struct {
 	dataLabel  map[any]string
 	labelCount int
 
-	err error
+	err   error
+	files map[ast.Declaration]string
+
+	file      string
+	line, col int
 
 	labels      map[string]int
 	funcReturns []analyser.Type
@@ -57,6 +62,45 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, target string,
 	}
 }
 
+func (t *X64Target) SetFiles(files map[ast.Declaration]string) {
+	t.files = files
+}
+
+func (t *X64Target) enter(node ast.Node) (line, col int) {
+	line, col = t.line, t.col
+	t.line, t.col = node.Position()
+	return line, col
+}
+
+func (t *X64Target) leave(line, col int) {
+	t.line, t.col = line, col
+}
+
+func (t *X64Target) where() string {
+	if t.line == 0 {
+		return ""
+	}
+	file := t.file
+	if cwd, err := os.Getwd(); err == nil && file != "" {
+		if rel, err := filepath.Rel(cwd, file); err == nil {
+			file = rel
+		}
+	}
+	if file == "" {
+		return fmt.Sprintf(" (line %d:%d)", t.line, t.col)
+	}
+	return fmt.Sprintf(" (%s:%d:%d)", file, t.line, t.col)
+}
+
+func (t *X64Target) locate(node ast.Node, err error) error {
+	if err == nil {
+		return nil
+	}
+	line, col := node.Position()
+	endLine, endCol := node.EndPosition()
+	return diag.Locate("x86-64", err, line, col, endLine, endCol)
+}
+
 func (t *X64Target) fail(message string, args ...any) {
 	if t.err == nil {
 		t.err = fmt.Errorf(message, args...)
@@ -66,7 +110,7 @@ func (t *X64Target) fail(message string, args ...any) {
 func (t *X64Target) Compile() (string, error) {
 	for _, decl := range t.program.Declarations {
 		if err := t.compileDeclaration(decl); err != nil {
-			return "", err
+			return "", diag.InFile(err, t.files[decl])
 		}
 	}
 

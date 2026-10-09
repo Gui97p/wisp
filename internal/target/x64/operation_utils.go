@@ -20,6 +20,7 @@ func (t *X64Target) push(reg x64context.Register) {
 }
 
 func (t *X64Target) panic(message string) {
+	message += t.where()
 	t.prelude.define("__wisp_panic")
 	label, ok := t.createData("str", message)
 	if !ok {

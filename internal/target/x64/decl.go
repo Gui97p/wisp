@@ -13,6 +13,7 @@ import (
 func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 	switch d := decl.(type) {
 	case *ast.FuncDecl:
+		t.file = t.files[decl]
 		ctx := t.ctx
 		t.ctx = x64context.NewContext()
 		err := t.compileFunc(d)

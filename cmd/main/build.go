@@ -234,9 +234,11 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 			}
 			c := c
 			obj, err := stdc.object(c.mod.Path, func(objPath string) error {
-				source, err := x64.New(c.merged, c.info, false, tgt.Name, c.mod.Path).Compile()
+				std := x64.New(c.merged, c.info, false, tgt.Name, c.mod.Path)
+				std.SetFiles(c.declFiles)
+				source, err := std.Compile()
 				if err != nil {
-					return fmt.Errorf("%s: %w", c.mod.Path, err)
+					return fmt.Errorf("%s: %w", c.mod.Path, c.reportFailure(err))
 				}
 				tmp, err := os.MkdirTemp("", "wisp-std-")
 				if err != nil {
@@ -254,9 +256,11 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
-		source, err := x64.New(c.merged, c.info, isEntry, tgt.Name, c.mod.Path).Compile()
+		backend := x64.New(c.merged, c.info, isEntry, tgt.Name, c.mod.Path)
+		backend.SetFiles(c.declFiles)
+		source, err := backend.Compile()
 		if err != nil {
-			return nil, err
+			return nil, c.reportFailure(err)
 		}
 
 		name := c.mod.Path

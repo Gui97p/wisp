@@ -9,6 +9,13 @@ import (
 )
 
 func (t *X64Target) compileStatement(stmt ast.Statement) error {
+	line, col := t.enter(stmt)
+	defer t.leave(line, col)
+
+	return t.locate(stmt, t.compileStatementNode(stmt))
+}
+
+func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 	var err error
 
 	switch s := stmt.(type) {
@@ -55,7 +62,7 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 		err = t.compileLoopStmt(s)
 	case *ast.ConstStmt:
 	default:
-		return fmt.Errorf("x86-64: unsupported statement %T", stmt)
+		return fmt.Errorf("%s is not supported yet", ast.Describe(stmt))
 	}
 
 	if t.err != nil {

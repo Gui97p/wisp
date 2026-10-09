@@ -79,19 +79,15 @@ func runDebug(cmd *cobra.Command, args []string) error {
 
 			a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 			a.Analyze()
+			if a.HasDiagnostics() {
+				fmt.Printf("<<Analyser Diagnostics: %s>>\n", name)
+				diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
+			}
 			if a.HasErrors() {
 				anyErrors = true
-				fmt.Printf("<<Analyser Errors: %s>>\n", name)
-				diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
 				continue
 			}
 			modExports := a.Exports()
-			if a.HasErrors() {
-				anyErrors = true
-				fmt.Printf("<<Analyser Errors: %s>>\n", name)
-				diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
-				continue
-			}
 			exports[mod.Path] = &analyser.ModuleInfo{Exports: modExports}
 		}
 

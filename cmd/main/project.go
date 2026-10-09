@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,9 +14,20 @@ import (
 )
 
 type compiledModule struct {
-	mod    *module.Module
-	merged *ast.Program
-	info   *analyser.Info
+	mod       *module.Module
+	merged    *ast.Program
+	info      *analyser.Info
+	declFiles map[ast.Declaration]string
+}
+
+func (c compiledModule) reportFailure(err error) error {
+	var located *diag.Error
+	if errors.As(err, &located) {
+		fmt.Fprintf(os.Stderr, "<<  %s  >>\n", c.mod.Path)
+		diag.RenderError(os.Stderr, c.mod.BufferMap(), located)
+		os.Exit(1)
+	}
+	return err
 }
 
 type project struct {
@@ -36,7 +48,7 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 
 	for _, mod := range modules {
 		if mod.ParseError != nil {
-			diag.Render(os.Stdout, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
+			diag.Render(os.Stderr, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
 			hadErrors = true
 			continue
 		}
@@ -45,23 +57,19 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 
 		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 		info := a.Analyze()
+		if a.HasDiagnostics() {
+			fmt.Fprintf(os.Stderr, "<<  %s  >>\n", mod.Path)
+			diag.RenderGrouped(os.Stderr, mod.BufferMap(), a.Errors())
+		}
 		if a.HasErrors() {
-			fmt.Printf("<<  %s  >>\n", mod.Path)
-			diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
 			hadErrors = true
 			continue
 		}
 
 		modExports := a.Exports()
-		if a.HasErrors() {
-			fmt.Printf("<<  %s  >>\n", mod.Path)
-			diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
-			hadErrors = true
-			continue
-		}
 
 		exports[mod.Path] = &analyser.ModuleInfo{Exports: modExports}
-		compiled = append(compiled, compiledModule{mod: mod, merged: merged, info: info})
+		compiled = append(compiled, compiledModule{mod: mod, merged: merged, info: info, declFiles: declFiles})
 	}
 
 	if hadErrors {

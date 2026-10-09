@@ -9,6 +9,10 @@ import (
 )
 
 func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) error {
+	return t.locate(expr, t.compileExpressionNode(b, expr))
+}
+
+func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expression) error {
 	switch e := expr.(type) {
 	case *ast.BinaryExpr:
 		return t.compileBinaryExpr(b, e)
@@ -133,7 +137,7 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 	case *ast.NullLiteral:
 		b.WriteString("nil")
 	default:
-		return fmt.Errorf("lua: unsupported expression %T", expr)
+		return fmt.Errorf("%s is not supported yet", ast.Describe(expr))
 	}
 	return nil
 }

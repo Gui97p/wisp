@@ -46,9 +46,11 @@ func buildLua(root string, cfg *module.Config, forRun bool) (*buildResult, error
 	for _, c := range proj.compiled {
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
-		source, err := lua.New(c.merged, c.info, isEntry).Compile()
+		backend := lua.New(c.merged, c.info, isEntry)
+		backend.SetFiles(c.declFiles)
+		source, err := backend.Compile()
 		if err != nil {
-			return nil, err
+			return nil, c.reportFailure(err)
 		}
 
 		id := lua.ModuleID(c.mod.Path)

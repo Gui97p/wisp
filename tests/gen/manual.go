@@ -2562,6 +2562,43 @@ func main() {
 }
 `, expected: []string{"abortspan last element is readable", "abortspan before the bad read"}, abort: "panic: index out of range"},
 
+	{dir: "abort_null_deref", x64Only: true, src: `func main() {
+    *int p = null;
+    check(true, "abortnull before the dereference");
+    int v = *p;
+    check(false, "abortnull never printed");
+}
+`, expected: []string{"abortnull before the dereference"}, abort: "panic: null pointer dereference"},
+
+	{dir: "abort_null_field", x64Only: true, src: `struct P {
+    int x;
+    int y;
+}
+
+func main() {
+    *P p = null;
+    check(true, "abortnullfield before the access");
+    int v = p.y;
+    check(false, "abortnullfield never printed");
+}
+`, expected: []string{"abortnullfield before the access"}, abort: "panic: null pointer dereference"},
+
+	{dir: "abort_null_error", x64Only: true, src: `enum Kind {
+    A
+}
+
+func ok() !int {
+    return 1;
+}
+
+func main() {
+    let v, e = ok();
+    check(v == 1, "abortnullerr before the access");
+    string m = e.message;
+    check(false, "abortnullerr never printed");
+}
+`, expected: []string{"abortnullerr before the access"}, abort: "panic: null pointer dereference"},
+
 	{dir: "abort_slice_end", x64Only: true, src: `func main() {
     int[5] nums = [1, 2, 3, 4, 5];
     int end = 6;

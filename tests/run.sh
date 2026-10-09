@@ -40,7 +40,7 @@ for dir in "$ROOT"/*/; do
     clean <"$err" >"$err.clean"
 
     if grep -q -E '>> error|^Error:|nasm|ld:|goroutine [0-9]+' "$err.clean" && ! grep -q '^FAIL$' "$out"; then
-        detail="$(grep -m1 -E '>> error|^Error:|nasm|goroutine|panic:' "$err.clean" | sed 's/^Error: //; s/^>> error: //' | cut -c1-110)"
+        detail="$(grep -m1 -E '>> error|^Error:|nasm|goroutine|panic:' "$err.clean" | sed 's/^Error: //; s/^>> error\(\[[^]]*\]\)\?: //' | cut -c1-110)"
         printf 'BUILD %s  %s\n' "$name" "$detail" >>"$RESULTS"
         continue
     fi

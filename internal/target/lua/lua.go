@@ -7,6 +7,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/diag"
 )
 
 type LuaTarget struct {
@@ -21,6 +22,21 @@ type LuaTarget struct {
 	currentPayloads []analyser.Type
 
 	pending []string
+
+	files map[ast.Declaration]string
+}
+
+func (t *LuaTarget) SetFiles(files map[ast.Declaration]string) {
+	t.files = files
+}
+
+func (t *LuaTarget) locate(node ast.Node, err error) error {
+	if err == nil {
+		return nil
+	}
+	line, col := node.Position()
+	endLine, endCol := node.EndPosition()
+	return diag.Locate("lua", err, line, col, endLine, endCol)
 }
 
 func New(program *ast.Program, info *analyser.Info, isEntry bool) *LuaTarget {
@@ -45,8 +61,10 @@ func (t *LuaTarget) Compile() (string, error) {
 		fmt.Fprintf(&b, "local %s\n", strings.Join(names, ", "))
 	}
 
-	if err := t.compileDeclarations(&b, t.program.Declarations); err != nil {
-		return "", err
+	for _, d := range t.program.Declarations {
+		if err := t.compileDeclarations(&b, []ast.Declaration{d}); err != nil {
+			return "", diag.InFile(err, t.files[d])
+		}
 	}
 
 	if t.isEntry {
