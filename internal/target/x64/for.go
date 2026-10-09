@@ -3,12 +3,94 @@ package x64
 import (
 	"fmt"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
-	return fmt.Errorf("x86-64: for range not implemented")
+	tp := t.info.Types[stmt.Range]
+	if _, ok := tp.(*analyser.MapType); ok {
+		return fmt.Errorf("x86-64: for over map not supported")
+	}
+	base, limit, err := t.baseMem(stmt.Range)
+	if err != nil {
+		return err
+	}
+
+	p := slot(t.ctx.Reserve(8), 8)
+	n := slot(t.ctx.Reserve(8), 8)
+	i := slot(t.ctx.Reserve(8), 8)
+
+	t.store(Addr{Of: base}, p)
+	t.store(limit, n)
+	t.store(Imm(0), i)
+
+	t.freeWord(base)
+	t.freeOp(limit)
+
+	cond := t.newLabel("for_condition")
+	ctx := x64context.LoopContext{
+		Label:            stmt.Label,
+		ContinueLabel:    t.newLabel("for_continue"),
+		BreakLabel:       t.newLabel("for_break"),
+		SupportsContinue: true,
+	}
+
+	t.ctx.PushLoop(ctx)
+	defer t.ctx.PopLoop()
+
+	t.text.printf("%s:\n", cond)
+	reg := t.materialize(i, 8)
+	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(reg, 8), t.memText(n))
+	t.text.printft("jae %s\n", ctx.BreakLabel)
+
+	syms := t.info.VarSymbols[stmt]
+	if stmt.Var != "" {
+		offset, ok := t.ctx.Get(syms[0])
+		if !ok {
+			return fmt.Errorf("x86-64: undeclared variable")
+		}
+		s := slot(offset, 8)
+		t.store(i, s)
+	}
+
+	if stmt.Var2 != "" {
+		pReg := t.materialize(p, 8)
+		iReg := t.materialize(i, 8)
+
+		elemSize := 1
+		switch t := tp.(type) {
+		case analyser.ArrayType:
+			elemSize = sizeOf(t.Element)
+		case analyser.SpanType:
+			elemSize = sizeOf(t.Element)
+		}
+		mem, err := t.elementAt(Mem{Base: pReg}, Reg{iReg, 8}, elemSize)
+		if err != nil {
+			return err
+		}
+
+		offset, ok := t.ctx.Get(syms[1])
+		if !ok {
+			return fmt.Errorf("x86-64: undeclared variable")
+		}
+		s := slot(offset, elemSize)
+		t.store(mem, s)
+		t.freeWord(mem)
+	}
+
+	t.ctx.FreeRegister(reg)
+	if err := t.compileStatement(stmt.Body); err != nil {
+		return err
+	}
+
+	t.text.printf("%s:\n", ctx.ContinueLabel)
+	t.text.printft("inc %s\n", t.memText(i))
+	t.text.printft("jmp %s\n", cond)
+	t.text.printf("%s:\n", ctx.BreakLabel)
+
+	return nil
 }
 
 func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
@@ -53,7 +135,7 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 	reg := t.ctx.AllocFreeRegister()
 	regStr := t.ctx.GetRegister(reg, size)
 
-	condLabel := t.newLabel("cond")
+	condLabel := t.newLabel("for_condition")
 	dirOffset := t.ctx.Reserve(8)
 	t.text.printft("mov qword [rbp-%d], 0\n", dirOffset)
 	t.text.printft("mov %s, %s\n", regStr, t.memText(startSlot))
@@ -119,7 +201,7 @@ func (t *X64Target) compileForCount(stmt *ast.ForStmt) error {
 	memSlot := slot(offset, size)
 	t.store(op, memSlot)
 
-	condLabel := t.newLabel("cond")
+	condLabel := t.newLabel("for_condition")
 	ctx := x64context.LoopContext{
 		Label:            stmt.Label,
 		ContinueLabel:    t.newLabel("for_continue"),
