@@ -1031,7 +1031,7 @@ func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {
 			a.errorf(expr, "'in' not supported for %s", right)
 			break
 		}
-		if !left.Equals(PrimitiveType{Name: "char"}) && !left.Equals(PrimitiveType{Name: "string"}) {
+		if _, untyped := left.(UntypedIntType); untyped || (!isChar(left) && !isString(left)) {
 			a.errorf(expr, "'in' expects char or string, got %s", left)
 		}
 	default:

@@ -142,8 +142,7 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 
 func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 	if p, ok := underlying(t.info.Types[expr.Left]).(analyser.PrimitiveType); ok && p.Name == "string" {
-		t.useStreq()
-		ops, err := t.compileCall("__wisp_streq", false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
+		ops, err := t.compileCall(t.useStreq(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
 		if err != nil {
 			return nil, err
 		}
@@ -389,12 +388,61 @@ func (t *X64Target) compileSliceExpr(expr *ast.SliceExpr) (Operand, error) {
 }
 
 func (t *X64Target) compileInExpr(expr *ast.InExpr) (Operand, error) {
+	lTp := t.info.Types[expr.Left]
+	rTp := t.info.Types[expr.Right]
+
+	switch l := lTp.(type) {
+	case analyser.PrimitiveType:
+		if l.Name != "string" {
+			break
+		}
+
+		b := analyser.PrimitiveType{Name: "bool"}
+
+		switch r := rTp.(type) {
+		case analyser.PrimitiveType:
+			if r.Name != "string" {
+				break
+			}
+
+			ops, err := t.compileCall(t.useStrfind(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{b})
+			if err != nil {
+				return nil, err
+			}
+			return ops[0], nil
+		case analyser.ArrayType:
+			st, ok := r.Element.(analyser.PrimitiveType)
+			if !ok || st.Name != "string" {
+				break
+			}
+
+			syn := &ast.SliceExpr{Array: expr.Right}
+			t.info.Types[syn] = analyser.SpanType{Element: r.Element}
+
+			ops, err := t.compileCall(t.useStrinstrings(), false, []ast.Expression{expr.Left, syn}, []analyser.Type{b})
+			if err != nil {
+				return nil, err
+			}
+			return ops[0], nil
+		case analyser.SpanType:
+			st, ok := r.Element.(analyser.PrimitiveType)
+			if !ok || st.Name != "string" {
+				break
+			}
+
+			ops, err := t.compileCall(t.useStrinstrings(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{b})
+			if err != nil {
+				return nil, err
+			}
+			return ops[0], nil
+		}
+	}
+
 	op, err := t.compileExpr(expr.Left)
 	if err != nil {
 		return nil, err
 	}
 
-	lTp := t.info.Types[expr.Left]
 	lSize := sizeOf(lTp)
 	if lSize > 8 {
 		return nil, fmt.Errorf("x86-64: unsupported in expression")

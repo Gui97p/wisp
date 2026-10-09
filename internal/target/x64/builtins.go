@@ -8,22 +8,88 @@ import (
 	"github.com/Gui97p/wisp/internal/target"
 )
 
-func (t *X64Target) useStreq() {
+func (t *X64Target) useStreq() string {
 	if !t.postlude.define("streq") {
-		return
+		return "__wisp_streq"
 	}
+	t.postlude.print(`__wisp_streq:
+	xor eax, eax
+	cmp rsi, rcx
+	jne .done
+	mov rcx, rsi
+	mov rsi, rdi
+	mov rdi, rdx
+	repe cmpsb
+	sete al
+.done:
+	ret
+`)
+	return "__wisp_streq"
+}
 
-	t.postlude.println("__wisp_streq:")
-	t.postlude.printlnt("xor eax, eax")
-	t.postlude.printlnt("cmp rsi, rcx")
-	t.postlude.printlnt("jne .done")
-	t.postlude.printlnt("mov rcx, rsi")
-	t.postlude.printlnt("mov rsi, rdi")
-	t.postlude.printlnt("mov rdi, rdx")
-	t.postlude.printlnt("repe cmpsb")
-	t.postlude.printlnt("sete al")
-	t.postlude.println(".done")
-	t.postlude.printlnt("ret")
+func (t *X64Target) useStrfind() string {
+	if !t.postlude.define("strfind") {
+		return "__wisp_strfind"
+	}
+	t.postlude.print(`__wisp_strfind:
+	mov r8, rdi
+	mov r9, rsi
+    mov r10, rdx
+    mov r11, rcx
+    sub r11, r9
+    jb .no
+    inc r11
+.loop:
+    mov rdi, r8
+    mov rsi, r10
+    mov rcx, r9
+    xor eax, eax
+    repe cmpsb
+    je .yes
+    inc r10
+    dec r11
+    jnz .loop
+.no:
+    xor eax, eax
+    ret
+.yes:
+    mov eax, 1
+    ret
+`)
+	return "__wisp_strfind"
+}
+
+func (t *X64Target) useStrinstrings() string {
+	if !t.postlude.define("strinstrings") {
+		return "__wisp_in_strings"
+	}
+	t.postlude.print(`__wisp_in_strings:
+    mov r8, rdi
+    mov r9, rsi
+    mov r10, rcx
+.loop:
+    test r10, r10
+    jz .no
+    cmp [rdx+8], r9
+    jne .next
+    mov rdi, r8
+    mov rsi, [rdx]
+    mov rcx, r9
+    xor eax, eax
+    repe cmpsb
+    je .yes
+.next:
+    add rdx, 16
+    dec r10
+    jmp .loop
+.no:
+    xor eax, eax
+    ret
+.yes:
+    mov eax, 1
+    ret
+`)
+	return "__wisp_in_strings"
 }
 
 func (t *X64Target) compileBuiltin(name string, expr *ast.CallExpr) (Operand, error) {
