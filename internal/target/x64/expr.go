@@ -151,41 +151,32 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 	}
 }
 
+func (t *X64Target) errorMember(expr *ast.BinaryExpr) (errExpr, member ast.Expression, enum analyser.NamedType, ok bool) {
+	try := func(e, m ast.Expression) bool {
+		if _, isErr := t.info.Types[e].(analyser.ErrorType); !isErr {
+			return false
+		}
+		nt, isNamed := t.info.Types[m].(analyser.NamedType)
+		if !isNamed || !nt.Enum {
+			return false
+		}
+		errExpr, member, enum = e, m, nt
+		return true
+	}
+	if try(expr.Left, expr.Right) || try(expr.Right, expr.Left) {
+		return errExpr, member, enum, true
+	}
+	return nil, nil, analyser.NamedType{}, false
+}
+
 func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
-	if p, ok := underlying(t.info.Types[expr.Left]).(analyser.PrimitiveType); ok && p.Name == "string" {
-		ops, err := t.compileCall(t.useStreq(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
-		if err != nil {
-			return nil, err
-		}
-		switch expr.Operator {
-		case "==":
-		case "!=":
-			t.text.printft("xor %s, 1\n", t.opText(ops[0], 8))
-		default:
-			return nil, fmt.Errorf("x86-64: string ordering not supported")
-		}
-		return ops[0], nil
+	if isString(t.info.Types[expr.Left]) || isString(t.info.Types[expr.Right]) {
+		return t.compileStringBinary(expr)
 	}
-
-	left, err := t.compileExpr(expr.Left)
-	if err != nil {
-		return nil, err
+	if errExpr, member, ev, ok := t.errorMember(expr); ok {
+		return t.compileErrorBinary(expr, errExpr, member, ev)
 	}
-
-	var right Operand
-	if expr.Operator != "&&" && expr.Operator != "||" {
-		free := len(x64context.RegisterOrder) - len(t.ctx.AllocatedOrderRegisters())
-		if regsNeeded(expr.Right) > free {
-			left = t.spill(left)
-		}
-
-		right, err = t.compileExpr(expr.Right)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return t.emitBinary(expr.Operator, left, right, t.info.Types[expr.Left], t.info.Types[expr.Right], t.info.Types[expr], expr.Right)
+	return t.compileScalarBinary(expr)
 }
 
 func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {

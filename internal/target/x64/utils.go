@@ -75,6 +75,11 @@ func regsNeeded(expr ast.Expression) int {
 	return 0
 }
 
+func isString(tp analyser.Type) bool {
+	p, ok := underlying(tp).(analyser.PrimitiveType)
+	return ok && p.Name == "string"
+}
+
 func decodeEscapes(s string) ([]byte, error) {
 	out := make([]byte, 0, len(s))
 

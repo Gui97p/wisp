@@ -190,7 +190,7 @@ func sizeOf(at analyser.Type) int {
 		case "string":
 			return 16
 		}
-	case analyser.UntypedIntType, analyser.UntypedFloatType, *analyser.PointerType, analyser.ErrorType:
+	case analyser.UntypedIntType, analyser.UntypedFloatType, analyser.PointerType, analyser.ErrorType:
 		return 8
 	case analyser.ArrayType:
 		return int(tp.Size) * sizeOf(tp.Element)

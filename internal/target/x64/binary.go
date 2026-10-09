@@ -24,6 +24,61 @@ func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightTy
 	}
 }
 
+func (t *X64Target) compileScalarBinary(expr *ast.BinaryExpr) (Operand, error) {
+	left, err := t.compileExpr(expr.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	var right Operand
+	if expr.Operator != "&&" && expr.Operator != "||" {
+		free := len(x64context.RegisterOrder) - len(t.ctx.AllocatedOrderRegisters())
+		if regsNeeded(expr.Right) > free {
+			left = t.spill(left)
+		}
+
+		right, err = t.compileExpr(expr.Right)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return t.emitBinary(expr.Operator, left, right, t.info.Types[expr.Left], t.info.Types[expr.Right], t.info.Types[expr], expr.Right)
+}
+
+func (t *X64Target) compileErrorBinary(expr *ast.BinaryExpr, errExpr, member ast.Expression, enum analyser.NamedType) (Operand, error) {
+	syn := &ast.StringLiteral{Value: enum.Module + "." + enum.Name}
+	t.info.Types[syn] = analyser.PrimitiveType{Name: "string"}
+
+	ops, err := t.compileCall(t.useErreq(), false, []ast.Expression{errExpr, syn, member}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
+	if err != nil {
+		return nil, err
+	}
+	switch expr.Operator {
+	case "==":
+	case "!=":
+		t.text.printft("xor %s, 1\n", t.opText(ops[0], 8))
+	default:
+		return nil, fmt.Errorf("x86-64: unsupported error comparison")
+	}
+	return ops[0], nil
+}
+
+func (t *X64Target) compileStringBinary(expr *ast.BinaryExpr) (Operand, error) {
+	ops, err := t.compileCall(t.useStreq(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
+	if err != nil {
+		return nil, err
+	}
+	switch expr.Operator {
+	case "==":
+	case "!=":
+		t.text.printft("xor %s, 1\n", t.opText(ops[0], 8))
+	default:
+		return nil, fmt.Errorf("x86-64: string ordering not supported")
+	}
+	return ops[0], nil
+}
+
 func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyser.Type) (Operand, error) {
 	size := sizeOf(tp)
 	signed := isSigned(tp)

@@ -20,6 +20,29 @@ func (t *X64Target) useChars() string {
 	return label
 }
 
+func (t *X64Target) useErreq() string {
+	if !t.postlude.define("erreq") {
+		return "__wisp_erreq"
+	}
+	t.postlude.print(`__wisp_erreq:
+	xor eax, eax
+	test rdi, rdi
+	jz .done
+	cmp [rdi+16], rcx
+	jne .done
+	cmp [rdi+8], rdx
+	jne .done
+	mov rdi, [rdi]
+	mov rcx, rdx
+	xor eax, eax
+	repe cmpsb
+	sete al
+.done:
+	ret
+`)
+	return "__wisp_erreq"
+}
+
 func (t *X64Target) useStreq() string {
 	if !t.postlude.define("streq") {
 		return "__wisp_streq"
