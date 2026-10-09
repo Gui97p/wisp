@@ -267,6 +267,11 @@ func (t *X64Target) eachValue(exprs []ast.Expression, callback func(i int, op Op
 			if err != nil {
 				return err
 			}
+		case *ast.PropagateExpr:
+			ops, err = t.compilePropagate(e)
+			if err != nil {
+				return err
+			}
 		default:
 			op, err := t.compileExpr(e)
 			if err != nil {

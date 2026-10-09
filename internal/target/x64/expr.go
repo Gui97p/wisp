@@ -86,6 +86,17 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		return t.compileSliceExpr(e)
 	case *ast.InExpr:
 		return t.compileInExpr(e)
+	case *ast.PropagateExpr:
+		ops, err := t.compilePropagate(e)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(ops) == 0 {
+			return nil, nil
+		}
+
+		return ops[0], nil
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
@@ -508,4 +519,43 @@ func (t *X64Target) compileInExpr(expr *ast.InExpr) (Operand, error) {
 	t.ctx.FreeRegister(n)
 
 	return Reg{r, 1}, nil
+}
+
+func (t *X64Target) returnError(errOp Operand) {
+	ops := []Operand{}
+	for _, tp := range t.funcReturns[:len(t.funcReturns)-1] {
+		size := sizeOf(tp)
+		if size <= 8 {
+			ops = append(ops, Imm(0))
+			continue
+		}
+		m := slot(t.ctx.Reserve(size), size)
+		t.zero(m)
+		ops = append(ops, m)
+	}
+	ops = append(ops, errOp)
+	t.returnValue(ops, t.funcReturns, t.hidden)
+	t.text.printlnt("jmp .return")
+}
+
+func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error) {
+	ops, err := t.compileCallValues(expr.Value.(*ast.CallExpr))
+	if err != nil {
+		return nil, err
+	}
+	errOp := ops[len(ops)-1]
+
+	okLabel := t.newLabel("propagate_ok")
+
+	reg := t.materialize(errOp, 8)
+	regStr := t.ctx.GetRegister(reg, 8)
+
+	t.text.printft("test %s, %s\n", regStr, regStr)
+	t.text.printft("jz %s\n", okLabel)
+
+	t.returnError(Reg{reg, 8})
+
+	t.text.printf("%s:\n", okLabel)
+	t.ctx.FreeRegister(reg)
+	return ops[:len(ops)-1], nil
 }

@@ -95,8 +95,16 @@ func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 }
 
 func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
-	ops := []Operand{}
+	if t.info.ErrorReturns[stmt] {
+		op, err := t.compileExpr(stmt.Values[0])
+		if err != nil {
+			return err
+		}
+		t.returnError(op)
+		return nil
+	}
 
+	ops := []Operand{}
 	if err := t.eachValue(stmt.Values, func(i int, op Operand) error {
 		ops = append(ops, op)
 		return nil
@@ -104,26 +112,7 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 		return err
 	}
 
-	er := t.info.ErrorReturns[stmt]
-	if er {
-		for _, tp := range t.funcReturns[:len(t.funcReturns)-1] {
-			size := sizeOf(tp)
-			if size <= 8 {
-				ops = append(ops, Imm(0))
-				continue
-			}
-			m := slot(t.ctx.Reserve(size), size)
-			t.zero(m)
-			ops = append(ops, m)
-		}
-		op, err := t.compileExpr(stmt.Values[0])
-		if err != nil {
-			return err
-		}
-		ops = append(ops, op)
-	}
-
-	if t.fallible && !er {
+	if t.fallible {
 		ops = append(ops, Imm(0))
 	}
 	t.returnValue(ops, t.funcReturns, t.hidden)
