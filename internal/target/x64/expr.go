@@ -97,6 +97,17 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		}
 
 		return ops[0], nil
+	case *ast.CoalesceExpr:
+		ops, err := t.compileCoalesce(e)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(ops) == 0 {
+			return nil, nil
+		}
+
+		return ops[0], nil
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
@@ -117,6 +128,10 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 			return Mem{}, err
 		}
 		info := t.info.Members[e]
+		if info.Kind == analyser.MemberErrorField {
+			reg := t.materialize(op, 8)
+			return deref(reg, errFieldOffset[e.Field], sizeOf(t.info.Types[e])), nil
+		}
 
 		var base Mem
 		if info.ByPointer {
@@ -549,4 +564,61 @@ func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error)
 	t.text.printf("%s:\n", okLabel)
 	t.ctx.FreeRegister(reg)
 	return ops[:len(ops)-1], nil
+}
+
+func (t *X64Target) compileCoalesce(expr *ast.CoalesceExpr) ([]Operand, error) {
+	ops, err := t.compileCallValues(expr.Left.(*ast.CallExpr))
+	if err != nil {
+		return nil, err
+	}
+
+	tps := t.info.Types[expr.Left].(analyser.FallibleType).Values
+	slots := make([]Mem, len(tps))
+	for i, tp := range tps {
+		size := sizeOf(tp)
+		slots[i] = slot(t.ctx.Reserve(size), size)
+		t.store(ops[i], slots[i])
+	}
+
+	endLabel := t.newLabel("coalesce_end")
+
+	errOp := ops[len(tps)]
+	reg := t.materialize(errOp, 8)
+	regStr := t.ctx.GetRegister(reg, 8)
+
+	if expr.ErrorBind != "" {
+		offset := t.ctx.Set(t.info.VarSymbols[expr][0], 8)
+		t.store(Reg{reg, 8}, slot(offset, 8))
+	}
+
+	t.text.printft("test %s, %s\n", regStr, regStr)
+	t.text.printft("jz %s\n", endLabel)
+	t.ctx.FreeRegister(reg)
+
+	if expr.Block != nil {
+		t.collectVariables(expr.Block)
+		if err := t.compileStatement(expr.Block); err != nil {
+			return nil, err
+		}
+	} else {
+		defaults := []ast.Expression{expr.Default}
+		if e, ok := expr.Default.(*ast.TupleExpr); ok {
+			defaults = e.Elements
+		}
+		for i, def := range defaults {
+			op, err := t.compileExpr(def)
+			if err != nil {
+				return nil, err
+			}
+			t.store(op, slots[i])
+		}
+	}
+
+	t.text.printf("%s:\n", endLabel)
+
+	res := make([]Operand, len(slots))
+	for i, s := range slots {
+		res[i] = s
+	}
+	return res, nil
 }

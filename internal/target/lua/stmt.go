@@ -99,7 +99,7 @@ func (t *LuaTarget) compileExpressionStatement(b *strings.Builder, stmt *ast.Exp
 
 	t.flushPending(b)
 
-	if text != "" {
+	if _, isCall := stmt.Expr.(*ast.CallExpr); isCall && text != "" {
 		b.WriteString(text)
 		b.WriteRune('\n')
 	}

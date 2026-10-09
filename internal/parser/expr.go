@@ -249,14 +249,35 @@ func (p *Parser) parseBinaryExpression(left ast.Expression) ast.Expression {
 func (p *Parser) parseGroupedExpression() ast.Expression {
 	p.advance()
 
+	line, col := p.current.Line, p.current.Column
+
 	prev := p.allowStructLiteral
 	p.allowStructLiteral = true
 	expr := p.parseExpression()
+	if expr != nil && p.peek.Type == lexer.TOKEN_COMMA {
+		tuple := &ast.TupleExpr{Elements: []ast.Expression{expr}}
+		tuple.SetPos(line, col)
+		for p.peek.Type == lexer.TOKEN_COMMA {
+			p.advance()
+			p.advance()
+			element := p.parseExpression()
+			if element == nil {
+				p.allowStructLiteral = prev
+				return nil
+			}
+			tuple.Elements = append(tuple.Elements, element)
+		}
+		expr = tuple
+	}
 	p.allowStructLiteral = prev
 
 	if !p.expect(lexer.TOKEN_RPAREN) {
 		p.errorExpected(lexer.TOKEN_RPAREN, p.current.Type)
 		return nil
+	}
+
+	if tuple, ok := expr.(*ast.TupleExpr); ok {
+		tuple.SetEndPos(p.currentEnd())
 	}
 
 	return expr

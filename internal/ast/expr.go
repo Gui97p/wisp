@@ -240,6 +240,31 @@ func (c *CoalesceExpr) Tree(indent string) string {
 	return b.String()
 }
 
+type TupleExpr struct {
+	Elements []Expression
+
+	NodePos
+}
+
+func (*TupleExpr) expr() {}
+func (t *TupleExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sTupleExpr\n", indent)
+	for i, e := range t.Elements {
+		branch, pad := "├─ ", "│  "
+		if i == len(t.Elements)-1 {
+			branch, pad = "└─ ", "   "
+		}
+		b.WriteString(indent)
+		b.WriteString(branch)
+		b.WriteString("\n")
+		b.WriteString(e.Tree(indent + pad))
+	}
+
+	return b.String()
+}
+
 type CastExpr struct {
 	Value    Expression
 	Type     TypeRef

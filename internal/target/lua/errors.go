@@ -79,11 +79,24 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 		return err
 	}
 
-	value := t.newLabel("co")
+	fallible, ok := t.info.Types[expr.Left].(analyser.FallibleType)
+	if !ok {
+		return fmt.Errorf("lua: ?? applied to a call that cannot fail")
+	}
+
+	values := make([]string, len(fallible.Values))
+	results := make([]string, len(fallible.Values))
+	for i := range values {
+		values[i] = t.newLabel("co")
+		results[i] = t.newLabel("cor")
+	}
 	errName := t.newLabel("coerr")
-	result := t.newLabel("cor")
-	t.emitPending(fmt.Sprintf("local %s, %s = %s\n", value, errName, call))
-	t.emitPending(fmt.Sprintf("local %s\n", result))
+
+	targets := append(append([]string{}, values...), errName)
+	t.emitPending(fmt.Sprintf("local %s = %s\n", strings.Join(targets, ", "), call))
+	if len(results) > 0 {
+		t.emitPending(fmt.Sprintf("local %s\n", strings.Join(results, ", ")))
+	}
 
 	outer := t.pending
 	t.pending = nil
@@ -109,21 +122,35 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 			fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
 		}
 
-		def, err := t.compileExprScratch(expr.Default)
-		if err != nil {
-			t.pending = outer
-			return err
+		defaults := []ast.Expression{expr.Default}
+		if tuple, isTuple := expr.Default.(*ast.TupleExpr); isTuple {
+			defaults = tuple.Elements
+		}
+
+		texts := make([]string, len(defaults))
+		for i, d := range defaults {
+			text, err := t.compileExprScratch(d)
+			if err != nil {
+				t.pending = outer
+				return err
+			}
+			texts[i] = text
 		}
 		t.flushPending(&branch)
-		fmt.Fprintf(&branch, "%s = %s\n", result, def)
+		fmt.Fprintf(&branch, "%s = %s\n", strings.Join(results, ", "), strings.Join(texts, ", "))
 	}
 
-	fmt.Fprintf(&branch, "else\n%s = %s\nend\n", result, value)
+	if len(results) > 0 {
+		fmt.Fprintf(&branch, "else\n%s = %s\n", strings.Join(results, ", "), strings.Join(values, ", "))
+	} else {
+		branch.WriteString("else\n")
+	}
+	branch.WriteString("end\n")
 
 	t.pending = outer
 	t.emitPending(branch.String())
 
-	b.WriteString(result)
+	b.WriteString(strings.Join(results, ", "))
 	return nil
 }
 

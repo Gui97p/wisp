@@ -61,6 +61,9 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkCoalesceExpr(e)
 	case *ast.PropagateExpr:
 		t = a.checkPropagateExpr(e)
+	case *ast.TupleExpr:
+		a.error(e, "a tuple is only valid as the value of ??")
+		t = InvalidType{}
 	case *ast.CastExpr:
 		t = a.info.Types[e]
 	case *ast.InExpr:
@@ -505,11 +508,14 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 	for _, e := range exprs {
 		if pe, ok := e.(*ast.PropagateExpr); ok {
 			values := a.checkPropagate(pe)
-			if len(values) > 0 {
-				a.info.Types[pe] = values[0]
-			} else {
-				a.info.Types[pe] = VoidType{}
-			}
+			a.recordValues(pe, values)
+			types = append(types, values...)
+			continue
+		}
+
+		if ce, ok := e.(*ast.CoalesceExpr); ok {
+			values := a.checkCoalesce(ce)
+			a.recordValues(ce, values)
 			types = append(types, values...)
 			continue
 		}
@@ -531,6 +537,14 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 	}
 
 	return types
+}
+
+func (a *Analyser) recordValues(expr ast.Expression, values []Type) {
+	if len(values) > 0 {
+		a.info.Types[expr] = values[0]
+	} else {
+		a.info.Types[expr] = VoidType{}
+	}
 }
 
 func (a *Analyser) evalArgTypes(expr *ast.CallExpr) []Type {
@@ -723,63 +737,113 @@ func (a *Analyser) defineErrorBind(expr *ast.CoalesceExpr) {
 }
 
 func (a *Analyser) checkCoalesceExpr(expr *ast.CoalesceExpr) Type {
+	values := a.checkCoalesce(expr)
+	switch len(values) {
+	case 1:
+		return values[0]
+	case 0:
+		a.error(expr, "this call has no value to use")
+	default:
+		a.errorf(expr, "call yields %d values, expected 1 in this context", len(values))
+	}
+	return InvalidType{}
+}
+
+func (a *Analyser) checkCoalesce(expr *ast.CoalesceExpr) []Type {
+	invalid := []Type{InvalidType{}}
+
 	left := a.checkExpr(expr.Left)
 	if _, bad := left.(InvalidType); bad {
-		return InvalidType{}
+		return invalid
 	}
 
 	ft, ok := left.(FallibleType)
 	if !ok {
 		a.errorf(expr, "?? can only be used on a call that can fail, got %s", left)
-		return InvalidType{}
+		return invalid
 	}
-	if len(ft.Values) != 1 {
-		a.errorf(expr, "?? needs a call that yields exactly one value, got %d", len(ft.Values))
-		return InvalidType{}
+
+	if expr.Block != nil {
+		if !a.checkHandlerBlock(expr) {
+			return invalid
+		}
+		return ft.Values
 	}
-	payload := ft.Values[0]
 
-	switch {
-	case expr.Block != nil:
-		b, ok := expr.Block.(*ast.BlockStmt)
-		if !ok {
-			a.errorf(expr, "expected valid block for coalesce")
-			return InvalidType{}
-		}
-		if !a.handlerOK[expr] {
-			a.error(expr, "a handler block can only be the value of a let, an assignment, a return or a statement")
-		}
+	if len(ft.Values) == 0 {
+		a.error(expr, "?? on a call without a value needs a handler block")
+		return invalid
+	}
+	if !a.checkDefaults(expr, ft.Values) {
+		return invalid
+	}
+	return ft.Values
+}
 
-		a.enterScope()
-		a.defineErrorBind(expr)
-		a.checkBlock(b)
-		a.exitScope()
+func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr) bool {
+	b, ok := expr.Block.(*ast.BlockStmt)
+	if !ok {
+		a.errorf(expr, "expected valid block for coalesce")
+		return false
+	}
+	if !a.handlerOK[expr] {
+		a.error(expr, "a handler block can only be the value of a let, an assignment, a return or a statement")
+	}
 
-		if !blockDiverges(b) {
-			a.error(expr, "the handler block must end with return, break or continue")
-			return InvalidType{}
-		}
-	case expr.Default != nil && expr.ErrorBind != "":
-		a.enterScope()
-		a.defineErrorBind(expr)
-		handler := a.checkExpr(expr.Default)
-		a.exitScope()
-		if !a.coerce(&expr.Default, handler, payload) {
-			a.errorf(expr, "expected %s for the handler value, got %s", payload, handler)
-			return InvalidType{}
-		}
-	case expr.Default != nil:
-		def := a.checkExpr(expr.Default)
-		if !a.coerce(&expr.Default, def, payload) {
-			a.errorf(expr, "expected %s for default value, got %s", payload, def)
-			return InvalidType{}
-		}
-	default:
+	a.enterScope()
+	a.defineErrorBind(expr)
+	a.checkBlock(b)
+	a.exitScope()
+
+	if !blockDiverges(b) {
+		a.error(expr, "the handler block must end with return, break or continue")
+		return false
+	}
+	return true
+}
+
+func (a *Analyser) checkDefaults(expr *ast.CoalesceExpr, values []Type) bool {
+	if expr.Default == nil {
 		a.error(expr, "expected default value or block in coalesce")
-		return InvalidType{}
+		return false
 	}
 
-	return payload
+	slots := []*ast.Expression{&expr.Default}
+	if tuple, isTuple := expr.Default.(*ast.TupleExpr); isTuple {
+		slots = make([]*ast.Expression, len(tuple.Elements))
+		for i := range tuple.Elements {
+			slots[i] = &tuple.Elements[i]
+		}
+	}
+
+	if len(slots) != len(values) {
+		if len(values) > 1 {
+			a.errorf(expr, "?? needs %d values for this call, written as a tuple (a, b), got %d", len(values), len(slots))
+		} else {
+			a.errorf(expr, "?? needs 1 value for this call, got %d", len(slots))
+		}
+		return false
+	}
+
+	if expr.ErrorBind != "" {
+		a.enterScope()
+		a.defineErrorBind(expr)
+		defer a.exitScope()
+	}
+
+	valid := true
+	for i, slot := range slots {
+		got := a.checkExpr(*slot)
+		if !a.coerce(slot, got, values[i]) {
+			if expr.ErrorBind != "" {
+				a.errorf(expr, "expected %s for the handler value, got %s", values[i], got)
+			} else {
+				a.errorf(expr, "expected %s for default value, got %s", values[i], got)
+			}
+			valid = false
+		}
+	}
+	return valid
 }
 
 func blockDiverges(block *ast.BlockStmt) bool {

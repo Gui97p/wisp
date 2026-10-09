@@ -178,6 +178,8 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 		if child == nil {
 			child = exprInStmt(e.Block, line, col)
 		}
+	case *ast.TupleExpr:
+		child = firstExpr(line, col, e.Elements...)
 	case *ast.CastExpr:
 		child = exprAt(e.Value, line, col)
 	case *ast.InExpr:

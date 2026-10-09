@@ -30,12 +30,9 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 			returns := a.checkCallExpr(e)
 			a.rejectFallible([]ast.Expression{e}, returns)
 		case *ast.PropagateExpr:
-			values := a.checkPropagate(e)
-			if len(values) > 0 {
-				a.info.Types[e] = values[0]
-			} else {
-				a.info.Types[e] = VoidType{}
-			}
+			a.recordValues(e, a.checkPropagate(e))
+		case *ast.CoalesceExpr:
+			a.recordValues(e, a.checkCoalesce(e))
 		default:
 			a.checkExpr(s.Expr)
 		}

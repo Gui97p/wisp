@@ -1955,6 +1955,52 @@ func main() {
 }
 `},
 
+	{dir: "err_coalesce_multi", src: `enum Kind {
+    A,
+    B
+}
+
+func h(int x) !(int, int) {
+    if x == 0 {
+        return Error(Kind.B);
+    }
+    return x, x * 2;
+}
+
+func v(int x) ! {
+    if x == 0 {
+        return Error(Kind.A);
+    }
+}
+
+func k(int x) int {
+    let a, b = h(x) ?? |e| {
+        return -1;
+    };
+    return a + b;
+}
+
+func w(int x) int {
+    v(x) ?? |e| {
+        return -2;
+    };
+    return 1;
+}
+
+func main() {
+    let a, b = h(3) ?? (7, 8);
+    check(a == 3 && b == 6, "tuple default is skipped on success");
+    let c, d = h(0) ?? (7, 8);
+    check(c == 7 && d == 8, "tuple default is used on failure");
+    let p, q = h(0) ?? |e| (e.code, 5);
+    check(p == 1 && q == 5, "tuple handler sees the error");
+    check(k(2) == 6, "block handler with two values on success");
+    check(k(0) == -1, "block handler with two values on failure");
+    check(w(1) == 1, "block handler without a value on success");
+    check(w(0) == -2, "block handler without a value on failure");
+}
+`},
+
 	{dir: "err_coalesce", src: `enum Kind {
     A,
     B

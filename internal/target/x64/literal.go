@@ -63,3 +63,11 @@ func (t *X64Target) compileErrorLiteral(e *analyser.ErrorLiteral) (Operand, erro
 	t.text.printft("lea %s, [rel %s]\n", t.ctx.GetRegister(reg, 8), l)
 	return Reg{reg, 8}, nil
 }
+
+var errFieldOffset = map[string]int{
+	"domain":  0,
+	"code":    16,
+	"message": 24,
+	"file":    40,
+	"line":    56,
+}

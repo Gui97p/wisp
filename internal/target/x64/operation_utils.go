@@ -272,6 +272,11 @@ func (t *X64Target) eachValue(exprs []ast.Expression, callback func(i int, op Op
 			if err != nil {
 				return err
 			}
+		case *ast.CoalesceExpr:
+			ops, err = t.compileCoalesce(e)
+			if err != nil {
+				return err
+			}
 		default:
 			op, err := t.compileExpr(e)
 			if err != nil {
