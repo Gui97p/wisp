@@ -1,6 +1,8 @@
 package lsp
 
 import (
+	"fmt"
+
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/module"
@@ -34,7 +36,7 @@ func diagnoseFile(path string) map[string][]protocol.Diagnostic {
 		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 		a.Analyze()
 
-		if a.HasErrors() {
+		if a.HasDiagnostics() {
 			addDiagnostics(result, "", a.Errors())
 		}
 
@@ -70,13 +72,23 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 		}
 
 		severity := protocol.DiagnosticSeverityError
+		if d.Severity == diag.SeverityWarning {
+			severity = protocol.DiagnosticSeverityWarning
+		}
+		message := d.Message
+		for _, n := range d.Notes {
+			message += fmt.Sprintf("\nnote: %s (%d:%d)", n.Message, n.Line, n.Col)
+		}
+		if d.Help != "" {
+			message += "\nhelp: " + d.Help
+		}
 		result[file] = append(result[file], protocol.Diagnostic{
 			Range: protocol.Range{
 				Start: protocol.Position{Line: line, Character: col},
 				End:   protocol.Position{Line: endLine, Character: endCol},
 			},
 			Severity: &severity,
-			Message:  d.Message,
+			Message:  message,
 		})
 	}
 }

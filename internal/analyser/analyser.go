@@ -2,6 +2,7 @@ package analyser
 
 import (
 	"slices"
+	"sort"
 
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
@@ -57,6 +58,7 @@ func (a *Analyser) Analyze() *Info {
 	a.registerFuncSignatures()
 	a.registerConsts()
 	a.checkFuncBodies()
+	a.warnUnusedImports()
 	a.defaultUntyped()
 	a.reportUnresolvedDots()
 	a.checkMustUse()
@@ -98,7 +100,9 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 	} else {
 		symbol, ok := a.lookupType(scope, ref.Module, ref.Name)
 		if !ok {
-			a.errorf(node, "unknown type %s", qualified(ref.Module, ref.Name))
+			a.suggest(a.errorf(node, "unknown type %s", qualified(ref.Module, ref.Name)), ref.Name, append(scope.names(func(sym *Symbol) bool {
+				return sym.Kind == STRUCT || sym.Kind == TYPE
+			}), "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "char", "string", "bool"))
 			return nil
 		}
 		switch symbol.Kind {
@@ -131,7 +135,48 @@ func (a *Analyser) enterScope() *Scope {
 }
 
 func (a *Analyser) exitScope() {
+	a.warnUnused(a.scope)
 	a.scope = a.scope.parent
+}
+
+func (a *Analyser) warnUnused(scope *Scope) {
+	var unused []*Symbol
+	for _, sym := range scope.symbols {
+		if (sym.Kind == VAR || sym.Kind == CONST) && !sym.Used && sym.Name != "_" && sym.Line > 0 {
+			unused = append(unused, sym)
+		}
+	}
+	sort.Slice(unused, func(i, j int) bool {
+		if unused[i].Line != unused[j].Line {
+			return unused[i].Line < unused[j].Line
+		}
+		return unused[i].Col < unused[j].Col
+	})
+	for _, sym := range unused {
+		a.errors.Warn(sym.File, sym.Line, sym.Col, sym.Line, sym.Col+len(sym.Name)-1, "%s %s is never used", sym.Kind, sym.Name)
+	}
+}
+
+func (a *Analyser) warnUnusedImports() {
+	reexported := map[string]bool{}
+	for _, d := range a.program.Declarations {
+		if re, ok := d.(*ast.ReexportDecl); ok {
+			reexported[re.Name] = true
+		}
+	}
+
+	for _, d := range a.program.Declarations {
+		imp, ok := d.(*ast.ImportDecl)
+		if !ok || reexported[imp.Alias] {
+			continue
+		}
+		sym, ok := a.scope.symbols[imp.Alias]
+		if !ok || sym.Used || sym.Kind != MODULE || imp.Alias == "_" {
+			continue
+		}
+		a.currentFile = a.declFiles[d]
+		a.warnf(imp, "import %s is never used", imp.Alias)
+	}
 }
 
 func (a *Analyser) requireBool(node ast.Node, t Type, context string) {
@@ -209,6 +254,7 @@ func (a *Analyser) lookupType(scope *Scope, module, name string) (*Symbol, bool)
 	if !ok || modSym.Kind != MODULE {
 		return nil, false
 	}
+	modSym.Used = true
 	mt, ok := modSym.Type.(*ModuleType)
 	if !ok {
 		return nil, false

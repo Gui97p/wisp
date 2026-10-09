@@ -75,7 +75,7 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 
 		fieldType, ok := st.Fields[key]
 		if !ok {
-			a.errorf(expr, "unknown field %s in struct %s", key, st.Name)
+			a.suggest(a.errorf(expr, "unknown field %s in struct %s", key, st.Name), key, st.Order)
 			continue
 		}
 		if seen[key] {

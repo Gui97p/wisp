@@ -10,14 +10,25 @@ import (
 func (a *Analyser) checkBlock(block *ast.BlockStmt) {
 	a.info.Scopes[block] = a.scope
 
-	for _, stmt := range block.Statements {
-		a.checkStmt(stmt)
-	}
+	a.checkStatements(block.Statements)
 }
 
 func (a *Analyser) checkGroup(group *ast.GroupStmt) {
-	for _, stmt := range group.Statements {
+	a.checkStatements(group.Statements)
+}
+
+func (a *Analyser) checkStatements(stmts []ast.Statement) {
+	terminated, warned := false, false
+	for _, stmt := range stmts {
+		if terminated && !warned {
+			a.warnf(stmt, "unreachable code")
+			warned = true
+		}
 		a.checkStmt(stmt)
+		switch stmt.(type) {
+		case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt:
+			terminated = true
+		}
 	}
 }
 
@@ -227,7 +238,7 @@ func (a *Analyser) coerceRangeValue(slot *ast.Expression, what string) {
 }
 
 func (a *Analyser) defineLoopVar(stmt *ast.ForStmt, name string, tp Type, line, col int) {
-	sym := &Symbol{Name: name, Kind: VAR, Type: tp, Line: line, Col: col, File: a.currentFile}
+	sym := &Symbol{Name: name, Kind: VAR, Type: tp, Line: line, Col: col, File: a.currentFile, Used: true}
 	a.scope.Define(sym)
 	a.info.VarSymbols[stmt] = append(a.info.VarSymbols[stmt], sym)
 	a.info.VarTypes[stmt] = append(a.info.VarTypes[stmt], tp)

@@ -2,6 +2,8 @@ package analyser
 
 import (
 	"math/big"
+	"sort"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -28,7 +30,9 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	case *ast.IdentLiteral:
 		symbol, ok := a.scope.Resolve(e.Value)
 		if !ok {
-			a.errorf(expr, "identifier %s not declared in this scope", e.Value)
+			a.suggest(a.errorf(expr, "identifier %s not declared in this scope", e.Value), e.Value, a.scope.names(func(sym *Symbol) bool {
+				return sym.Kind == VAR || sym.Kind == CONST || sym.Kind == PARAM || sym.Kind == FUNC || sym.Kind == MODULE
+			}))
 			t = InvalidType{}
 			break
 		}
@@ -569,7 +573,7 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 	if mod, ok := objType.(*ModuleType); ok {
 		sym, ok := mod.Exports[expr.Field]
 		if !ok {
-			a.errorf(expr, "module has no exported %s", expr.Field)
+			a.suggest(a.errorf(expr, "module has no exported %s", expr.Field), expr.Field, exportNames(mod.Exports))
 			return InvalidType{}
 		}
 		a.info.Members[expr] = &MemberInfo{Kind: MemberModule}
@@ -579,7 +583,16 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 	if _, ok := objType.(ErrorType); ok {
 		fieldType, ok := errorFields[expr.Field]
 		if !ok {
-			a.errorf(expr, "Error has no field %s", expr.Field)
+			names := make([]string, 0, len(errorFields))
+			for name := range errorFields {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			d := a.errorf(expr, "Error has no field %s", expr.Field)
+			a.suggest(d, expr.Field, names)
+			if d.Help == "" {
+				d.WithHelp("the fields of Error are %s", strings.Join(names, ", "))
+			}
 			return InvalidType{}
 		}
 		a.info.Members[expr] = &MemberInfo{Kind: MemberErrorField}
@@ -600,7 +613,7 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 
 	fieldType, ok := st.Fields[expr.Field]
 	if !ok {
-		a.errorf(expr, "invalid field %s in struct %s", expr.Field, st.Name)
+		a.suggest(a.errorf(expr, "invalid field %s in struct %s", expr.Field, st.Name), expr.Field, st.Order)
 		return InvalidType{}
 	}
 
