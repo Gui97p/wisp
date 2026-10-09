@@ -67,6 +67,8 @@ func regsNeeded(expr ast.Expression) int {
 		return max(regsNeeded(e.Array), 1+regsNeeded(e.Start), 2+regsNeeded(e.End), 3)
 	case *ast.TernaryExpr:
 		return max(regsNeeded(e.Condition), regsNeeded(e.Then), regsNeeded(e.Else))
+	case *ast.InExpr:
+		return max(regsNeeded(e.Left), 1+regsNeeded(e.Right), 1)
 	}
 	return 0
 }

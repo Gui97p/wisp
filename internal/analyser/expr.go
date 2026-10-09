@@ -1015,14 +1015,17 @@ func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {
 		if !a.coerce(&expr.Left, left, rt.Element) {
 			a.errorf(expr, "'in' expects %s, got %s", rt.Element, left)
 		}
+		a.checkConstFits(expr.Left, rt.Element)
 	case SpanType:
 		if !a.coerce(&expr.Left, left, rt.Element) {
 			a.errorf(expr, "'in' expects %s, got %s", rt.Element, left)
 		}
+		a.checkConstFits(expr.Left, rt.Element)
 	case *MapType:
 		if !a.coerce(&expr.Left, left, rt.Key) {
 			a.errorf(expr, "'in' expects %s, got %s", rt.Key, left)
 		}
+		a.checkConstFits(expr.Left, rt.Key)
 	case PrimitiveType:
 		if rt.Name != "string" {
 			a.errorf(expr, "'in' not supported for %s", right)

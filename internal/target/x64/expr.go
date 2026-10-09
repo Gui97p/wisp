@@ -84,6 +84,8 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 		return t.compileLValue(e)
 	case *ast.SliceExpr:
 		return t.compileSliceExpr(e)
+	case *ast.InExpr:
+		return t.compileInExpr(e)
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported expression %T", expr)
 	}
@@ -384,4 +386,61 @@ func (t *X64Target) compileSliceExpr(expr *ast.SliceExpr) (Operand, error) {
 	}
 
 	return Wide{Words: []Operand{Addr{Of: mem}, Reg{end.Reg, 8}}, Size: 16}, nil
+}
+
+func (t *X64Target) compileInExpr(expr *ast.InExpr) (Operand, error) {
+	op, err := t.compileExpr(expr.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	lTp := t.info.Types[expr.Left]
+	lSize := sizeOf(lTp)
+	if lSize > 8 {
+		return nil, fmt.Errorf("x86-64: unsupported in expression")
+	}
+	l := t.materialize(op, lSize)
+	lS := t.ctx.GetRegister(l, lSize)
+
+	base, limit, err := t.baseMem(expr.Right)
+	if err != nil {
+		return nil, err
+	}
+
+	p := t.ctx.AllocFreeRegister()
+	pS := t.ctx.GetRegister(p, 8)
+	t.loadWord(p, Addr{Of: base})
+
+	n := t.ctx.AllocFreeRegister()
+	nS := t.ctx.GetRegister(n, 8)
+	t.loadWord(n, limit)
+
+	t.freeWord(base)
+	t.freeOp(limit)
+
+	r := t.ctx.AllocFreeRegister()
+	rS := t.ctx.GetRegister(r, 1)
+	t.text.printft("xor %s, %s\n", rS, rS)
+
+	loop := t.newLabel("in_loop")
+	found := t.newLabel("in_found")
+	end := t.newLabel("in_end")
+
+	t.text.printf("%s:\n", loop)
+	t.text.printft("test %s, %s\n", nS, nS)
+	t.text.printft("jz %s\n", end)
+	t.text.printft("cmp %s, %s\n", lS, t.memText(deref(p, 0, lSize)))
+	t.text.printft("je %s\n", found)
+	t.text.printft("add %s, %d\n", pS, lSize)
+	t.text.printft("dec %s\n", nS)
+	t.text.printft("jmp %s\n", loop)
+	t.text.printf("%s:\n", found)
+	t.text.printft("mov %s, 1\n", rS)
+	t.text.printf("%s:\n", end)
+
+	t.ctx.FreeRegister(l)
+	t.ctx.FreeRegister(p)
+	t.ctx.FreeRegister(n)
+
+	return Reg{r, 1}, nil
 }

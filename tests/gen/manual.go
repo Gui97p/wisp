@@ -1369,7 +1369,13 @@ func main() {
 }
 `},
 
-	{dir: "in_expr", src: `func main() {
+	{dir: "in_scalar", src: `enum Color {
+    Red,
+    Green,
+    Blue,
+}
+
+func main() {
     int[4] a = [10, 20, 30, 40];
     check(30 in a, "in finds a middle element");
     check(10 in a, "in finds the first element");
@@ -1385,12 +1391,48 @@ func main() {
     check(!(10 in none), "in an empty span finds nothing");
     string word = "hello";
     check('e' in word, "in finds a char in a string");
+    check('h' in word, "in finds the first char");
+    check('o' in word, "in finds the last char");
     check(!('z' in word), "in does not find a missing char");
+    int8[3] bytes = [1, 2, 3];
+    check(2 in bytes, "in over narrow elements");
+    check(!(4 in bytes), "in over narrow elements, missing");
+    bool[2] flags = [true, true];
+    check(true in flags, "in over bool elements");
+    check(!(false in flags), "in over bool elements, missing");
+    Color[2] cols = [Color.Red, Color.Blue];
+    check(Color.Blue in cols, "in over enum elements");
+    check(!(Color.Green in cols), "in over enum elements, missing");
+    int target = 40;
+    check(target in a, "in with a variable on the left");
+    check((10 + 20) in a, "in with an expression on the left");
+}
+`},
+
+	{dir: "in_string", src: `func main() {
+    string word = "hello";
     check("ell" in word, "in finds a substring");
-    check(!("elx" in word), "in does not find a near substring");
     check("hello" in word, "in finds the whole string");
+    check("h" in word, "in finds a one byte substring");
+    check("lo" in word, "in finds a suffix");
+    check(!("elx" in word), "in does not find a near substring");
     check(!("hellos" in word), "in does not find a longer string");
     check("" in word, "the empty string is in every string");
+    check("" in "", "the empty string is in the empty string");
+    string[3] names = ["ann", "bob", "cy"];
+    check("bob" in names, "in finds a string element");
+    check("ann" in names, "in finds the first string element");
+    check("cy" in names, "in finds the last string element");
+    check(!("zed" in names), "in does not find a missing string");
+    check(!("bo" in names), "a prefix of an element is not an element");
+    check(!("bobby" in names), "an extension of an element is not an element");
+    string[] part = names[1:3];
+    check("cy" in part, "in finds a string in a span");
+    check(!("ann" in part), "in is limited to the span of strings");
+    string[] none = names[1:1];
+    check(!("bob" in none), "in an empty span of strings finds nothing");
+    string first = names[0];
+    check(first in names, "in with a string variable");
 }
 `},
 
