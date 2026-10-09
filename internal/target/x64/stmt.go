@@ -104,6 +104,28 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 		return err
 	}
 
+	er := t.info.ErrorReturns[stmt]
+	if er {
+		for _, tp := range t.funcReturns[:len(t.funcReturns)-1] {
+			size := sizeOf(tp)
+			if size <= 8 {
+				ops = append(ops, Imm(0))
+				continue
+			}
+			m := slot(t.ctx.Reserve(size), size)
+			t.zero(m)
+			ops = append(ops, m)
+		}
+		op, err := t.compileExpr(stmt.Values[0])
+		if err != nil {
+			return err
+		}
+		ops = append(ops, op)
+	}
+
+	if t.fallible && !er {
+		ops = append(ops, Imm(0))
+	}
 	t.returnValue(ops, t.funcReturns, t.hidden)
 	t.text.printlnt("jmp .return")
 

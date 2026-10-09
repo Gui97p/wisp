@@ -190,9 +190,7 @@ func sizeOf(at analyser.Type) int {
 		case "string":
 			return 16
 		}
-	case analyser.UntypedIntType, analyser.UntypedFloatType:
-		return 8
-	case analyser.PointerType:
+	case analyser.UntypedIntType, analyser.UntypedFloatType, *analyser.PointerType, analyser.ErrorType:
 		return 8
 	case analyser.ArrayType:
 		return int(tp.Size) * sizeOf(tp.Element)
@@ -238,4 +236,13 @@ func (t *X64Target) createData(key string, value any) (string, bool) {
 	t.dataLabel[value] = label
 	t.labelCount++
 	return label, false
+}
+
+func (t *X64Target) stringData(s string) (string, int, error) {
+	op, err := t.resolveStringLiteral(s)
+	if err != nil {
+		return "", 0, err
+	}
+	w := op.(Wide)
+	return w.Words[0].(Addr).Of.Label, int(w.Words[1].(Imm)), nil
 }

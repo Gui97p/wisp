@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -57,7 +58,11 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	t.collectVariables(fd.Body)
 	t.text.printlnt("sub rsp, .frame\n")
 
-	t.funcReturns = t.info.FuncReturns[fd]
+	t.funcReturns = slices.Clone(t.info.FuncReturns[fd])
+	t.fallible = fd.Fallible
+	if fd.Fallible {
+		t.funcReturns = append(t.funcReturns, analyser.ErrorType{})
+	}
 	sret := usesSret(t.funcReturns)
 	if sret {
 		t.hidden = slot(t.ctx.Reserve(8), 8)
@@ -96,6 +101,9 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	}
 
 	t.text.newLine()
+	if fd.Fallible && len(t.funcReturns) == 1 {
+		t.text.printlnt("xor eax, eax")
+	}
 	t.text.println(".return:")
 	t.text.printlnt("mov rsp, rbp")
 	t.text.printlnt("pop rbp")

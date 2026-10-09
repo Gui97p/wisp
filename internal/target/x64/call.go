@@ -282,6 +282,14 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 }
 
 func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
+	if e, ok := t.info.ErrorLiterals[expr]; ok {
+		op, err := t.compileErrorLiteral(e)
+		if err != nil {
+			return nil, err
+		}
+		return []Operand{op}, nil
+	}
+
 	if expr.Cast != nil {
 		op, err := t.compileExpr(expr.Cast)
 		if err != nil {

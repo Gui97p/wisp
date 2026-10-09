@@ -3,6 +3,7 @@ package x64
 import (
 	"fmt"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
@@ -36,4 +37,29 @@ func (t *X64Target) resolveStringLiteral(value string) (Operand, error) {
 		t.rodata.printf("%s db %s\n", label, bytesToAsm(append(decoded, 0)))
 	}
 	return strLit(label, len(decoded)), nil
+}
+
+func (t *X64Target) compileErrorLiteral(e *analyser.ErrorLiteral) (Operand, error) {
+	dl, dn, err := t.stringData(e.Domain)
+	if err != nil {
+		return nil, err
+	}
+	ml, mn, err := t.stringData(e.Message)
+	if err != nil {
+		return nil, err
+	}
+	fl, fn, err := t.stringData(e.File)
+	if err != nil {
+		return nil, err
+	}
+
+	key := fmt.Sprintf("%s|%d|%s|%s|%d", e.Domain, e.Code, e.Message, e.File, e.Line)
+	l, ok := t.createData("err", key)
+	if !ok {
+		t.rodata.printf("%s: dq %s, %d, %d, %s, %d, %s, %d, %d\n", l, dl, dn, e.Code, ml, mn, fl, fn, e.Line)
+	}
+
+	reg := t.ctx.AllocFreeRegister()
+	t.text.printft("lea %s, [rel %s]\n", t.ctx.GetRegister(reg, 8), l)
+	return Reg{reg, 8}, nil
 }

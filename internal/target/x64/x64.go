@@ -33,6 +33,7 @@ type X64Target struct {
 
 	labels      map[string]int
 	funcReturns []analyser.Type
+	fallible    bool
 	hidden      Mem
 }
 
