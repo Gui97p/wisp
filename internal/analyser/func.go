@@ -97,6 +97,9 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 	}
 
 	for i, p := range fd.Params {
+		if i >= len(ft.Params) {
+			break
+		}
 		paramType := ft.Params[i]
 		if p.Variadic {
 			paramType = SpanType{Element: paramType}
@@ -133,7 +136,9 @@ func (a *Analyser) checkMainFunc(fd *ast.FuncDecl) {
 		if t != nil && !t.Equals(PrimitiveType{Name: "int"}) {
 			a.errorf(fd, "main function must return int, got %s", t.String())
 		}
-		returns = append(returns, t)
+		if t != nil {
+			returns = append(returns, t)
+		}
 	default:
 		a.errorf(fd, "main function must return nothing or a single int, got %d values", len(fd.ReturnTypes))
 	}
