@@ -259,6 +259,23 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 	srcSize := sizeOf(srcType)
 	dstSize := sizeOf(dstType)
 
+	if c, ok := srcType.(analyser.PrimitiveType); ok && c.Name == "char" {
+		if s, ok := dstType.(analyser.PrimitiveType); ok && s.Name == "string" {
+			ptr, err := t.baseIndex(expr.Value)
+			if err != nil {
+				return nil, err
+			}
+
+			reg := t.ctx.AllocFreeRegister()
+			regStr := t.ctx.GetRegister(reg, 8)
+			t.text.printft("lea %s, [rel %s]\n", regStr, t.useChars())
+			t.text.printft("add %s, %s\n", t.ctx.GetRegister(ptr.Reg, 8), regStr)
+			t.ctx.FreeRegister(reg)
+
+			return Wide{Words: []Operand{Reg{ptr.Reg, 8}, Imm(1)}, Size: 16}, nil
+		}
+	}
+
 	op, err := t.compileExpr(expr.Value)
 	if err != nil {
 		return nil, err

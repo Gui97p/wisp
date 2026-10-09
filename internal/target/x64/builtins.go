@@ -8,6 +8,18 @@ import (
 	"github.com/Gui97p/wisp/internal/target"
 )
 
+func (t *X64Target) useChars() string {
+	label, ok := t.createData("__wisp_chars", "")
+	if !ok {
+		t.rodata.printf("%s db ", label)
+		for i := range 255 {
+			t.rodata.printf("%d, ", i)
+		}
+		t.rodata.printf("%d\n", 255)
+	}
+	return label
+}
+
 func (t *X64Target) useStreq() string {
 	if !t.postlude.define("streq") {
 		return "__wisp_streq"
