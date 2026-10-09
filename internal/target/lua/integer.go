@@ -190,6 +190,8 @@ func (t *LuaTarget) compileCastExpr(b *strings.Builder, e *ast.CastExpr) error {
 	dst := t.info.Types[e]
 
 	switch {
+	case isCharType(src) && isStringType(dst):
+		fmt.Fprintf(b, "string.char(%s)", value)
 	case analyser.LosslessWidening(src, dst):
 		b.WriteString(value)
 	case isFloatType(dst) && isIntType(src):
@@ -206,4 +208,14 @@ func (t *LuaTarget) compileCastExpr(b *strings.Builder, e *ast.CastExpr) error {
 		b.WriteString(value)
 	}
 	return nil
+}
+
+func isCharType(tp analyser.Type) bool {
+	p, ok := tp.(analyser.PrimitiveType)
+	return ok && p.Name == "char"
+}
+
+func isStringType(tp analyser.Type) bool {
+	p, ok := tp.(analyser.PrimitiveType)
+	return ok && p.Name == "string"
 }

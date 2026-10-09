@@ -447,6 +447,9 @@ func explicitConversion(from, to Type) bool {
 	if numericLike(from) && numericLike(to) {
 		return true
 	}
+	if isChar(from) && isString(to) {
+		return true
+	}
 	fu, tu := underlyingOf(from), underlyingOf(to)
 	_, fromNamed := from.(NamedType)
 	_, toNamed := to.(NamedType)

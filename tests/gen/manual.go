@@ -1409,6 +1409,18 @@ func main() {
 }
 `},
 
+	{dir: "conv_char_string", src: `func main() {
+    char c = 'a';
+    string s = string(c);
+    check(s == "a", "char converts to a one byte string");
+    check(len(s) == 1, "the string has length one");
+    check(string('z') == "z", "converted char literal");
+    string word = "hey";
+    string first = string(word[0]);
+    check(first == "h", "indexing a string then converting");
+}
+`},
+
 	{dir: "in_string", src: `func main() {
     string word = "hello";
     check("ell" in word, "in finds a substring");
