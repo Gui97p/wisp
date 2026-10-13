@@ -1,6 +1,7 @@
 package target
 
 import (
+	_ "embed"
 	"fmt"
 	"regexp"
 	"sort"
@@ -22,67 +23,11 @@ type Target struct {
 	Builtin bool
 }
 
-const linuxStart = `global _start
-extern main
+//go:embed asm/linux_x64_start.asm
+var linuxStart string
 
-section .text
-_start:
-	xor ebp, ebp
-	call main
-	mov rdi, rax
-	mov eax, 60
-	syscall
-
-section .note.GNU-stack noalloc noexec nowrite progbits
-`
-
-const linuxRuntime = `global __wisp_emit
-global __wisp_panic
-
-section .rodata
-__wisp_panic_prefix: db "panic: "
-
-section .text
-__wisp_emit:
-	mov rdx, rsi
-	mov rsi, rdi
-	mov edi, 1
-	mov eax, 1
-	syscall
-	push 10
-	mov rsi, rsp
-	mov edx, 1
-	mov edi, 1
-	mov eax, 1
-	syscall
-	pop rax
-	ret
-
-__wisp_panic:
-	push rdi
-	push rsi
-	mov eax, 1
-	mov edi, 2
-	lea rsi, [rel __wisp_panic_prefix]
-	mov edx, 7
-	syscall
-	pop rdx
-	pop rsi
-	mov eax, 1
-	mov edi, 2
-	syscall
-	push 10
-	mov rsi, rsp
-	mov edx, 1
-	mov edi, 2
-	mov eax, 1
-	syscall
-	mov edi, 1
-	mov eax, 60
-	syscall
-
-section .note.GNU-stack noalloc noexec nowrite progbits
-`
+//go:embed asm/linux_x64_runtime.asm
+var linuxRuntime string
 
 var builtin = []Target{
 	{Name: "linux_x64", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
