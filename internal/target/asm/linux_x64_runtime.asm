@@ -1,6 +1,9 @@
 global __wisp_emit
 global __wisp_error_emit
 global __wisp_panic
+global __wisp_alloc
+global __wisp_free
+global __wisp_realloc
 
 %macro lit 1
 	section .rodata
@@ -11,6 +14,23 @@ global __wisp_panic
 	mov edx, %%end - %%text
 	call __wisp_write_error
 %endmacro
+
+section .rodata
+__wisp_oom_domain: db "runtime.AllocError"
+__wisp_oom_message: db "out of memory"
+__wisp_oom_file: db "runtime"
+__wisp_oom_file_len equ $ - __wisp_oom_file
+
+align 8
+__wisp_oom_error:
+        dq __wisp_oom_domain
+        dq __wisp_oom_message - __wisp_oom_domain
+        dq 1
+        dq __wisp_oom_message
+        dq __wisp_oom_file - __wisp_oom_message
+        dq __wisp_oom_file
+        dq __wisp_oom_file_len
+        dq 0
 
 section .bss
 __wisp_heap_list: resq 11
@@ -34,6 +54,7 @@ __wisp_mmap:
 	ret
 
 __wisp_alloc:
+	push rbx
 	mov rbx, rdi
 	cmp rdi, 0
 	jl .fail
@@ -61,6 +82,7 @@ __wisp_alloc:
 	mov [r9+r8*8], rax
 	mov rax, rdx
 	xor edx, edx
+	pop rbx
 	ret
 .zero:
 	mov r9d, 32
@@ -92,6 +114,7 @@ __wisp_alloc:
 	mov [rax], r8
 	add rax, 16
 	xor edx, edx
+	pop rbx
 	ret
 
 .greater:
@@ -106,10 +129,13 @@ __wisp_alloc:
 	mov [rax], rbx
 	add rax, 16
 	xor edx, edx
+	pop rbx
 	ret
 
 .fail:
-	call __wisp_error_emit
+	pop rbx
+	xor eax, eax
+	lea rdx, [rel __wisp_oom_error]
 	ret
 
 __wisp_free:
@@ -134,6 +160,52 @@ __wisp_free:
 	mov eax, 11
 	syscall
 .ok:
+	ret
+
+__wisp_realloc:
+	test rdi, rdi
+	jnz .notzero
+	mov rdi, rsi
+	jmp __wisp_alloc
+
+.notzero:
+	mov rax, [rdi-16]
+	cmp rax, 11
+	jae .lower
+	
+	mov r9d, 32
+	mov ecx, eax
+	shl r9, cl
+	mov rax, r9
+.lower:
+	sub rax, 16
+
+	cmp rsi, rax
+	ja .need
+
+	mov rax, rdi
+	xor edx, edx
+	ret
+
+.need:
+	push rdi
+	push rax
+	mov rdi, rsi
+	call __wisp_alloc
+	mov rdi, rax
+	pop rcx
+	pop rsi
+	test rdx, rdx
+	jnz .done
+
+	push rax
+	push rsi
+	rep movsb
+	pop rdi
+	call __wisp_free
+	pop rax
+	xor edx, edx
+.done:
 	ret
 
 __wisp_emit:
