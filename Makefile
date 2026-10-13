@@ -1,4 +1,4 @@
-.PHONY: build prod run clean version sync-vscode check-version testgen test test-lua test-x64
+.PHONY: build prod ext run clean version testgen test test-lua test-x64
 APP=wisp
 
 VERSION = $(shell go run ./cmd/main version --short)
@@ -10,13 +10,7 @@ build:
 version:
 	@go run ./cmd/main version
 
-sync-vscode:
-	sed -i 's/^    "version": ".*"/    "version": "$(VERSION)"/' vscode/package.json
-
-check-version:
-	@grep -q '^    "version": "$(VERSION)"' vscode/package.json || { echo "vscode/package.json is out of sync with $(VERSION), run: make sync-vscode"; exit 1; }
-
-prod: check-version
+prod:
 	rm -rf dist/$(APP)
 	mkdir -p dist/$(APP)
 
@@ -29,9 +23,8 @@ prod: check-version
 
 ext:
 	mkdir -p dist/vscode
-	cd vscode
-	npx @vscode/vsce package
-	cp *.vsix ../dist/vscode
+	cd vscode && npx @vscode/vsce package
+	cp vscode/*.vsix dist/vscode
 
 run:
 	go run ./cmd/main
