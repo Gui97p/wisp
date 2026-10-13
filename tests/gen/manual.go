@@ -2670,6 +2670,51 @@ func main() {
     check(seen == 4, "rangetypes step of a narrow type");
 }
 `},
+	{dir: "alloc_basic", x64Only: true, src: `func main() ! {
+    *int p = malloc(sizeof(int) * 4)!;
+    *p = 42;
+    check(*p == 42, "malloc write and read");
+    free(p);
+    check(sizeof(int) == 8, "sizeof int");
+    check(sizeof(int8) == 1, "sizeof int8");
+    check(sizeof(int32) == 4, "sizeof int32");
+}
+`, expected: []string{"malloc write and read", "sizeof int", "sizeof int8", "sizeof int32"}},
+
+	{dir: "alloc_reuse", x64Only: true, src: `func main() ! {
+    *int a = malloc(24)!;
+    free(a);
+    *int b = malloc(24)!;
+    check(a == b, "freed block is reused");
+    free(b);
+    free(null);
+    check(true, "free null is a no-op");
+}
+`, expected: []string{"freed block is reused", "free null is a no-op"}},
+
+	{dir: "alloc_realloc", x64Only: true, src: `func main() ! {
+    *int p = malloc(8)!;
+    *p = 1234;
+    *int same = realloc(p, 8)!;
+    check(same == p, "realloc within capacity keeps the block");
+    *int big = realloc(p, 100)!;
+    check(*big == 1234, "realloc keeps the contents");
+    *int fresh = realloc(null, 50)!;
+    check(fresh != null, "realloc of null allocates");
+    *int huge = realloc(big, 100000)!;
+    check(*huge == 1234, "realloc to a large block keeps the contents");
+    free(huge);
+    free(fresh);
+}
+`, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc of null allocates", "realloc to a large block keeps the contents"}},
+
+	{dir: "abort_malloc_oom", x64Only: true, exit: 1, src: `func main() ! {
+    check(true, "oom before the failure");
+    *int p = malloc(-1)!;
+    free(p);
+}
+`, expected: []string{"oom before the failure"}, abort: "error[runtime.AllocError]: out of memory"},
+
 	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
     a,
     b,

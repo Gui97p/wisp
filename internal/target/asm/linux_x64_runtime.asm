@@ -1,7 +1,7 @@
 global __wisp_emit
 global __wisp_error_emit
 global __wisp_panic
-global __wisp_alloc
+global __wisp_malloc
 global __wisp_free
 global __wisp_realloc
 
@@ -53,7 +53,7 @@ __wisp_mmap:
 .ok:
 	ret
 
-__wisp_alloc:
+__wisp_malloc:
 	push rbx
 	mov rbx, rdi
 	cmp rdi, 0
@@ -166,7 +166,7 @@ __wisp_realloc:
 	test rdi, rdi
 	jnz .notzero
 	mov rdi, rsi
-	jmp __wisp_alloc
+	jmp __wisp_malloc
 
 .notzero:
 	mov rax, [rdi-16]
@@ -191,7 +191,7 @@ __wisp_realloc:
 	push rdi
 	push rax
 	mov rdi, rsi
-	call __wisp_alloc
+	call __wisp_malloc
 	mov rdi, rax
 	pop rcx
 	pop rsi

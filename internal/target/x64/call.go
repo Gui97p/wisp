@@ -309,14 +309,7 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		return nil, err
 	}
 	if sym.Module == "" {
-		op, err := t.compileBuiltin(sym.Name, expr)
-		if err != nil {
-			return nil, err
-		}
-		if op == nil {
-			return nil, nil
-		}
-		return []Operand{op}, nil
+		return t.compileBuiltin(sym.Name, expr)
 	}
 
 	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), sym.Module != t.module, expr.Args, t.info.CallReturns[expr])

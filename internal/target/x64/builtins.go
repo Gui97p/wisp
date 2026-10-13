@@ -127,7 +127,7 @@ func (t *X64Target) useStrinstrings() string {
 	return "__wisp_in_strings"
 }
 
-func (t *X64Target) compileBuiltin(name string, expr *ast.CallExpr) (Operand, error) {
+func (t *X64Target) compileBuiltin(name string, expr *ast.CallExpr) ([]Operand, error) {
 	switch name {
 	case "emit":
 		return t.compileEmitBuiltin(expr)
@@ -135,12 +135,17 @@ func (t *X64Target) compileBuiltin(name string, expr *ast.CallExpr) (Operand, er
 		return t.compileLenBuiltin(expr)
 	case "panic":
 		return t.compilePanicBuiltin(expr)
+	case "sizeof":
+		tp := t.info.SizeOf[expr]
+		return []Operand{Imm(sizeOf(tp))}, nil
+	case "malloc", "realloc", "free":
+		return t.compileAllocatorBuiltin(name, expr)
 	default:
 		return nil, fmt.Errorf("x86-64: builtin %s not supported", name)
 	}
 }
 
-func (t *X64Target) compileEmitBuiltin(expr *ast.CallExpr) (Operand, error) {
+func (t *X64Target) compileEmitBuiltin(expr *ast.CallExpr) ([]Operand, error) {
 	mod, err := target.Lookup(t.target)
 	if err != nil {
 		return nil, err
@@ -157,33 +162,38 @@ func (t *X64Target) compileEmitBuiltin(expr *ast.CallExpr) (Operand, error) {
 	return nil, err
 }
 
-func (t *X64Target) compileLenBuiltin(expr *ast.CallExpr) (Operand, error) {
+func (t *X64Target) compileLenBuiltin(expr *ast.CallExpr) ([]Operand, error) {
+	var op Operand
+	var err error
+
 	switch arg := t.info.Types[expr.Args[0]].(type) {
 	case analyser.ArrayType:
-		return Imm(arg.Size), nil
+		op = Imm(arg.Size)
 	case analyser.PrimitiveType:
 		if arg.Name != "string" {
 			return nil, fmt.Errorf("x86-64: cannot get length of %s", arg)
 		}
-		op, err := t.compileExpr(expr.Args[0])
+		op, err = t.compileExpr(expr.Args[0])
 		if err != nil {
 			return nil, err
 		}
 
-		return t.field(op, 1), nil
+		op = t.field(op, 1)
 	case analyser.SpanType:
-		op, err := t.compileExpr(expr.Args[0])
+		op, err = t.compileExpr(expr.Args[0])
 		if err != nil {
 			return nil, err
 		}
 
-		return t.field(op, 1), nil
+		op = t.field(op, 1)
 	default:
 		return nil, fmt.Errorf("x86-64: cannot get length of %s", arg)
 	}
+
+	return []Operand{op}, nil
 }
 
-func (t *X64Target) compilePanicBuiltin(expr *ast.CallExpr) (Operand, error) {
+func (t *X64Target) compilePanicBuiltin(expr *ast.CallExpr) ([]Operand, error) {
 	mod, err := target.Lookup(t.target)
 	if err != nil {
 		return nil, err
@@ -198,4 +208,16 @@ func (t *X64Target) compilePanicBuiltin(expr *ast.CallExpr) (Operand, error) {
 
 	_, err = t.compileCall("__wisp_panic", true, expr.Args, nil)
 	return nil, err
+}
+
+func (t *X64Target) compileAllocatorBuiltin(name string, expr *ast.CallExpr) ([]Operand, error) {
+	mod, err := target.Lookup(t.target)
+	if err != nil {
+		return nil, err
+	}
+	if mod.RuntimeSource == "" {
+		return nil, fmt.Errorf("x86-64: target %s does not provide %s", mod.Name, name)
+	}
+
+	return t.compileCall(fmt.Sprintf("__wisp_%s", name), true, expr.Args, t.info.CallReturns[expr])
 }

@@ -1135,7 +1135,11 @@ func (a *Analyser) isBuiltinCall(expr *ast.CallExpr, name string) bool {
 		return false
 	}
 	sym, found := a.scope.Resolve(name)
-	return found && a.universe.symbols[name] == sym
+	if !found || a.universe.symbols[name] != sym {
+		return false
+	}
+	a.info.Idents[id] = sym
+	return true
 }
 
 func (a *Analyser) checkSizeof(expr *ast.CallExpr) Type {
