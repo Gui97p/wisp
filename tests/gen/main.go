@@ -182,6 +182,7 @@ type testcase struct {
 	src      string
 	expected []string
 	abort    string
+	exit     int
 	x64Only  bool
 	files    map[string]string
 }
@@ -520,7 +521,7 @@ func main() {
 				exp = append(exp, match[1])
 			}
 		}
-		cases = append(cases, testcase{dir: m.dir, src: header + m.src, expected: exp, abort: m.abort, x64Only: m.x64Only, files: m.files})
+		cases = append(cases, testcase{dir: m.dir, src: header + m.src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, files: m.files})
 	}
 
 	os.RemoveAll(root)
@@ -558,6 +559,12 @@ func main() {
 			if err := os.WriteFile(filepath.Join(dir, "abort.txt"), []byte(c.abort+"\n"), 0644); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
+			}
+			if c.exit != 0 {
+				if err := os.WriteFile(filepath.Join(dir, "exit.txt"), []byte(fmt.Sprintln(c.exit)), 0644); err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					os.Exit(1)
+				}
 			}
 		}
 	}

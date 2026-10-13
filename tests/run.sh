@@ -47,10 +47,12 @@ for dir in "$ROOT"/*/; do
 
     if [[ -f "$dir/abort.txt" ]]; then
         want="$(cat "$dir/abort.txt")"
-        if diff -q "$out" "$dir/expected.txt" >/dev/null && [[ "$code" -eq 1 ]] && grep -qF -- "$want" "$err.clean"; then
+        want_code=1
+        [[ -f "$dir/exit.txt" ]] && want_code="$(cat "$dir/exit.txt")"
+        if diff -q "$out" "$dir/expected.txt" >/dev/null && [[ "$code" -eq "$want_code" ]] && grep -qF -- "$want" "$err.clean"; then
             printf 'PASS  %s\n' "$name" >>"$RESULTS"
         else
-            printf 'WRONG %s  abort expected (exit 1, "%s"), got exit %s\n' "$name" "$want" "$code" >>"$RESULTS"
+            printf 'WRONG %s  abort expected (exit %s, "%s"), got exit %s\n' "$name" "$want_code" "$want" "$code" >>"$RESULTS"
         fi
         continue
     fi

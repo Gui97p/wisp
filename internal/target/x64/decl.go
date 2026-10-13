@@ -106,6 +106,27 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		t.text.printlnt("xor eax, eax")
 	}
 	t.text.println(".return:")
+
+	if t.isEntry && fd.Name == "main" && fd.Fallible {
+		reg := "rax"
+		if len(fd.ReturnTypes) > 0 {
+			reg = "rdx"
+		}
+
+		t.prelude.define("__wisp_error_emit")
+		t.text.printft(`test %s, %s
+	jz .ok
+	mov rbx, %s
+	mov rdi, %s
+	call __wisp_error_emit
+	mov rdi, [rbx+16]
+	mov eax, 60
+	syscall
+
+	.ok:
+`, reg, reg, reg, reg)
+	}
+
 	t.text.printlnt("mov rsp, rbp")
 	t.text.printlnt("pop rbp")
 	t.text.printlnt("ret")

@@ -76,20 +76,24 @@ func (t *X64Target) leave(line, col int) {
 	t.line, t.col = line, col
 }
 
+func displayFile(file string) string {
+	if cwd, err := os.Getwd(); err == nil && file != "" {
+		if rel, err := filepath.Rel(cwd, file); err == nil {
+			return rel
+		}
+	}
+	return file
+}
+
 func (t *X64Target) where() string {
 	if t.line == 0 {
 		return ""
 	}
-	file := t.file
-	if cwd, err := os.Getwd(); err == nil && file != "" {
-		if rel, err := filepath.Rel(cwd, file); err == nil {
-			file = rel
-		}
-	}
+	file := displayFile(t.file)
 	if file == "" {
-		return fmt.Sprintf(" (line %d:%d)", t.line, t.col)
+		return fmt.Sprintf("\n  at line %d:%d", t.line, t.col)
 	}
-	return fmt.Sprintf(" (%s:%d:%d)", file, t.line, t.col)
+	return fmt.Sprintf("\n  at %s:%d:%d", file, t.line, t.col)
 }
 
 func (t *X64Target) locate(node ast.Node, err error) error {

@@ -5,6 +5,7 @@ type manualCase struct {
 	src      string
 	expected []string
 	abort    string
+	exit     int
 	x64Only  bool
 	files    map[string]string
 }
@@ -2669,4 +2670,37 @@ func main() {
     check(seen == 4, "rangetypes step of a narrow type");
 }
 `},
+	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
+    a,
+    b,
+    DivByZero
+}
+
+func divide(int a, int b) !int {
+    if b == 0 {
+        return Error(MathError.DivByZero, "division by zero");
+    }
+    return a / b;
+}
+
+func main() ! {
+    check(divide(8, 2)! == 4, "mainerr before the failure");
+    divide(4, 0)!;
+    check(false, "mainerr never printed");
+}
+`, expected: []string{"mainerr before the failure"}, abort: "error[main.MathError]: division by zero"},
+
+	{dir: "abort_main_error_int", x64Only: true, exit: 1, src: `enum Kind {
+    Bad = 1
+}
+
+func fail() !int {
+    return Error(Kind.Bad, "bad thing");
+}
+
+func main() !int {
+    check(true, "mainerrint before the failure");
+    return fail()!;
+}
+`, expected: []string{"mainerrint before the failure"}, abort: "error[main.Kind]: bad thing"},
 }

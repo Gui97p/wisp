@@ -48,12 +48,12 @@ func (t *X64Target) compileErrorLiteral(e *analyser.ErrorLiteral) (Operand, erro
 	if err != nil {
 		return nil, err
 	}
-	fl, fn, err := t.stringData(e.File)
+	fl, fn, err := t.stringData(displayFile(e.File))
 	if err != nil {
 		return nil, err
 	}
 
-	key := fmt.Sprintf("%s|%d|%s|%s|%d", e.Domain, e.Code, e.Message, e.File, e.Line)
+	key := fmt.Sprintf("%s|%d|%s|%s|%d", e.Domain, e.Code, e.Message, displayFile(e.File), e.Line)
 	l, ok := t.createData("err", key)
 	if !ok {
 		t.rodata.printf("%s: dq %s, %d, %d, %s, %d, %s, %d, %d\n", l, dl, dn, e.Code, ml, mn, fl, fn, e.Line)
