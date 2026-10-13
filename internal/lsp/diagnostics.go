@@ -3,6 +3,7 @@ package lsp
 import (
 	"fmt"
 	"log"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/diag"
@@ -41,7 +42,10 @@ func diagnoseFile(path string) (result map[string][]protocol.Diagnostic) {
 
 		merged, declFiles := mod.Merge()
 		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
-		a.Analyze()
+		info := a.Analyze()
+		if mod.ParseError == nil && slices.Contains(mod.FilePaths, path) {
+			setLastGood(path, analysis{merged, info})
+		}
 
 		if a.HasDiagnostics() {
 			addDiagnostics(result, "", a.Errors())

@@ -23,6 +23,9 @@ func NewHandler() *protocol.Handler {
 
 		capabilities.CompletionProvider = &protocol.CompletionOptions{TriggerCharacters: []string{"."}}
 
+		capabilities.SignatureHelpProvider = &protocol.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}}
+		capabilities.DocumentSymbolProvider = true
+
 		return protocol.InitializeResult{
 			Capabilities: capabilities,
 			ServerInfo: &protocol.InitializeResultServerInfo{
@@ -80,6 +83,14 @@ func NewHandler() *protocol.Handler {
 
 	handler.TextDocumentCompletion = func(context *glsp.Context, params *protocol.CompletionParams) (any, error) {
 		return completion(params.TextDocument.URI, params.Position), nil
+	}
+
+	handler.TextDocumentDocumentSymbol = func(context *glsp.Context, params *protocol.DocumentSymbolParams) (any, error) {
+		return documentSymbols(params.TextDocument.URI), nil
+	}
+
+	handler.TextDocumentSignatureHelp = func(context *glsp.Context, params *protocol.SignatureHelpParams) (*protocol.SignatureHelp, error) {
+		return signatureHelp(params.TextDocument.URI, params.Position), nil
 	}
 
 	handler.Shutdown = func(context *glsp.Context) error {

@@ -3,6 +3,7 @@ package lsp
 import (
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -25,19 +26,30 @@ type analysis struct {
 	info    *analyser.Info
 }
 
-var lastGood = map[string]analysis{}
+var (
+	lastGood   = map[string]analysis{}
+	lastGoodMu sync.Mutex
+)
+
+func setLastGood(path string, a analysis) {
+	lastGoodMu.Lock()
+	defer lastGoodMu.Unlock()
+	lastGood[path] = a
+}
+
+func getLastGood(path string) (analysis, bool) {
+	lastGoodMu.Lock()
+	defer lastGoodMu.Unlock()
+	a, ok := lastGood[path]
+	return a, ok
+}
 
 func completion(uri protocol.DocumentUri, pos protocol.Position) []protocol.CompletionItem {
 	path := uriToPath(uri)
 	line := int(pos.Line) + 1
 	col := int(pos.Character) + 1
 
-	program, info, clean := analyseEntryChecked(path)
-	if program != nil && info != nil && clean {
-		lastGood[path] = analysis{program, info}
-	} else if prev, ok := lastGood[path]; ok {
-		program, info = prev.program, prev.info
-	}
+	info := currentInfo(path)
 
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
 
@@ -62,6 +74,18 @@ func completion(uri protocol.DocumentUri, pos protocol.Position) []protocol.Comp
 		}
 	}
 	return items
+}
+
+func currentInfo(path string) *analyser.Info {
+	program, info, clean := analyseEntryChecked(path)
+	if program != nil && info != nil && clean {
+		setLastGood(path, analysis{program, info})
+		return info
+	}
+	if prev, ok := getLastGood(path); ok {
+		return prev.info
+	}
+	return info
 }
 
 func linePrefix(path string, line, character int) string {
