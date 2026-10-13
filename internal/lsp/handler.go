@@ -21,6 +21,8 @@ func NewHandler() *protocol.Handler {
 		syncKind := protocol.TextDocumentSyncKindFull
 		capabilities.TextDocumentSync = syncKind
 
+		capabilities.CompletionProvider = &protocol.CompletionOptions{TriggerCharacters: []string{"."}}
+
 		return protocol.InitializeResult{
 			Capabilities: capabilities,
 			ServerInfo: &protocol.InitializeResultServerInfo{
@@ -74,6 +76,10 @@ func NewHandler() *protocol.Handler {
 			return nil, nil
 		}
 		return loc, nil
+	}
+
+	handler.TextDocumentCompletion = func(context *glsp.Context, params *protocol.CompletionParams) (any, error) {
+		return completion(params.TextDocument.URI, params.Position), nil
 	}
 
 	handler.Shutdown = func(context *glsp.Context) error {

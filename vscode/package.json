@@ -82,6 +82,15 @@
                 "command": "wisp.restartLSP",
                 "title": "Restart Wisp Language Server"
             }
-        ]
+        ],
+        "configurationDefaults": {
+            "[wisp]": {
+                "editor.insertSpaces": false,
+                "editor.tabSize": 4,
+                "editor.detectIndentation": false,
+                "editor.stickyTabStops": true,
+                "editor.autoIndent": "full"
+            }
+        }
     }
 }

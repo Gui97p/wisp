@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/diag"
@@ -9,10 +10,16 @@ import (
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
-func diagnoseFile(path string) map[string][]protocol.Diagnostic {
-	result := map[string][]protocol.Diagnostic{
+func diagnoseFile(path string) (result map[string][]protocol.Diagnostic) {
+	result = map[string][]protocol.Diagnostic{
 		path: {},
 	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("analyser panic: %v", r)
+		}
+	}()
 
 	modules, err := module.BuildGraphWithOverrides(resolveProjectEntry(path), fileBuffer)
 	if err != nil {

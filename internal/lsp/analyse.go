@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"log"
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -9,9 +10,21 @@ import (
 )
 
 func analyseEntry(path string) (*ast.Program, *analyser.Info) {
+	program, info, _ := analyseEntryChecked(path)
+	return program, info
+}
+
+func analyseEntryChecked(path string) (program *ast.Program, info *analyser.Info, clean bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("analyser panic: %v", r)
+			program, info, clean = nil, nil, false
+		}
+	}()
+
 	modules, err := module.BuildGraphWithOverrides(resolveProjectEntry(path), fileBuffer)
 	if err != nil {
-		return nil, nil
+		return nil, nil, false
 	}
 
 	exports := map[string]*analyser.ModuleInfo{}
@@ -22,11 +35,11 @@ func analyseEntry(path string) (*ast.Program, *analyser.Info) {
 		info := a.Analyze()
 
 		if slices.Contains(mod.FilePaths, path) {
-			return merged, info
+			return merged, info, mod.ParseError == nil
 		}
 
 		exports[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
 	}
 
-	return nil, nil
+	return nil, nil, false
 }

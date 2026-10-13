@@ -78,3 +78,18 @@ func (s *Scope) Resolve(name string) (*Symbol, bool) {
 	}
 	return nil, false
 }
+
+func (s *Scope) Visible() []*Symbol {
+	seen := map[string]bool{}
+	var out []*Symbol
+	for scope := s; scope != nil; scope = scope.parent {
+		for name, sym := range scope.symbols {
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			out = append(out, sym)
+		}
+	}
+	return out
+}

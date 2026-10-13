@@ -122,6 +122,7 @@ func (p *Parser) parseConstStatement() ast.Statement {
 
 func (p *Parser) parseBlockStatement() *ast.BlockStmt {
 	block := &ast.BlockStmt{}
+	block.SetPos(p.current.Line, p.current.Column)
 
 	for p.peek.Type != lexer.TOKEN_RBRACE && p.current.Type != lexer.TOKEN_EOF {
 		p.advance()
@@ -132,6 +133,8 @@ func (p *Parser) parseBlockStatement() *ast.BlockStmt {
 			block.Statements = append(block.Statements, stmt)
 		}
 	}
+
+	block.SetEndPos(p.peek.Line, p.peek.Column)
 
 	return block
 }
