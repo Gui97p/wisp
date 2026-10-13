@@ -19,11 +19,13 @@ type Info struct {
 	EnumValues    map[ast.Expression]EnumValue
 	Scopes        map[ast.Node]*Scope
 	Reexports     map[*ast.ReexportDecl][]string
+	SizeOf        map[*ast.CallExpr]Type
 }
 
 func NewInfo() *Info {
 	return &Info{
 		VarTypes:      make(map[ast.Node][]Type),
+		SizeOf:        make(map[*ast.CallExpr]Type),
 		VarSymbols:    make(map[ast.Node][]*Symbol),
 		Types:         make(map[ast.Expression]Type),
 		CallReturns:   make(map[*ast.CallExpr][]Type),
