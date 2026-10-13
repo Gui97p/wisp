@@ -84,71 +84,8 @@ __wisp_panic:
 section .note.GNU-stack noalloc noexec nowrite progbits
 `
 
-const sineRuntime = `global __wisp_emit
-global __wisp_panic
-
-section .rodata
-__wisp_panic_prefix: db "panic: "
-
-section .text
-__wisp_emit:
-	mov rdx, rsi
-	mov rsi, rdi
-	mov edi, 1
-	mov eax, 5
-	syscall
-	push 10
-	mov rsi, rsp
-	mov edx, 1
-	mov edi, 1
-	mov eax, 5
-	syscall
-	pop rax
-	ret
-
-__wisp_panic:
-	push rdi
-	push rsi
-	mov eax, 5
-	mov edi, 1
-	lea rsi, [rel __wisp_panic_prefix]
-	mov edx, 7
-	syscall
-	pop rdx
-	pop rsi
-	mov eax, 5
-	mov edi, 1
-	syscall
-	push 10
-	mov rsi, rsp
-	mov edx, 1
-	mov edi, 1
-	mov eax, 5
-	syscall
-	mov rax, 19
-	mov rdi, 3
-	syscall
-
-section .note.GNU-stack noalloc noexec nowrite progbits
-`
-
-const sineStart = `global _start
-extern main
-
-section .text
-_start:
-	xor ebp, ebp
-	call main
-	mov rax, 19
-	mov rdi, 3
-	syscall
-
-section .note.GNU-stack noalloc noexec nowrite progbits
-`
-
 var builtin = []Target{
 	{Name: "linux_x64", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
-	{Name: "sine_x64", Arch: "x64", OS: "sine", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: sineStart, RuntimeSource: sineRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
 	{Name: "lua", Arch: "lua", Builtin: true},
 }
 
