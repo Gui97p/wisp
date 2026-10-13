@@ -25,6 +25,8 @@ func NewHandler() *protocol.Handler {
 
 		capabilities.SignatureHelpProvider = &protocol.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}}
 		capabilities.DocumentSymbolProvider = true
+		capabilities.RenameProvider = protocol.RenameOptions{PrepareProvider: boolPtr(true)}
+		capabilities.CodeActionProvider = protocol.CodeActionOptions{CodeActionKinds: []protocol.CodeActionKind{protocol.CodeActionKindQuickFix}}
 
 		return protocol.InitializeResult{
 			Capabilities: capabilities,
@@ -93,6 +95,21 @@ func NewHandler() *protocol.Handler {
 		return signatureHelp(params.TextDocument.URI, params.Position), nil
 	}
 
+	handler.TextDocumentPrepareRename = func(context *glsp.Context, params *protocol.PrepareRenameParams) (any, error) {
+		if r := prepareRename(params.TextDocument.URI, params.Position); r != nil {
+			return r, nil
+		}
+		return nil, nil
+	}
+
+	handler.TextDocumentRename = func(context *glsp.Context, params *protocol.RenameParams) (*protocol.WorkspaceEdit, error) {
+		return rename(params.TextDocument.URI, params.Position, params.NewName)
+	}
+
+	handler.TextDocumentCodeAction = func(context *glsp.Context, params *protocol.CodeActionParams) (any, error) {
+		return codeActions(params.TextDocument.URI, params.Context.Diagnostics), nil
+	}
+
 	handler.Shutdown = func(context *glsp.Context) error {
 		return nil
 	}
@@ -115,3 +132,5 @@ func publish(context *glsp.Context, uri protocol.DocumentUri) {
 		})
 	}
 }
+
+func boolPtr(b bool) *bool { return &b }
