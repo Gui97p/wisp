@@ -95,14 +95,45 @@ __wisp_alloc:
 	ret
 
 .greater:
-	add r9, 4095
-	and r9, 4095
-	mov [rel __wisp_heap_cur], r9
-	mov rax, r9
+	add rbx, 4095
+	and rbx, -4096
+	push rbx
+	mov rdi, rbx
+	call __wisp_mmap
+	pop rbx
+	test rax, rax
+	jz .fail
+	mov [rax], rbx
+	add rax, 16
+	xor edx, edx
 	ret
 
 .fail:
 	call __wisp_error_emit
+	ret
+
+__wisp_free:
+	test rdi, rdi
+	jz .ok
+
+	mov rax, rdi
+	sub rax, 16
+	mov r8, [rax]
+	cmp r8, 11
+	jae .large
+
+	lea r9, [rel __wisp_heap_list]
+	mov rdx, [r9 + r8*8]
+	mov [rdi], rdx
+	mov [r9 + r8*8], rdi
+	ret
+
+.large:
+	mov rsi, [rax]
+	mov rdi, rax
+	mov eax, 11
+	syscall
+.ok:
 	ret
 
 __wisp_emit:
