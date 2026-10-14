@@ -1,0 +1,89 @@
+// Tour - Pointers and manual memory.
+//
+// The star is always a prefix of the type: *int, **int, *Point. It is never
+// written after the type, which keeps `Point *p` from being mistaken for a
+// multiplication. There is no garbage collector: memory you ask for is
+// memory you give back.
+
+import "expect";
+
+struct Pair {
+  int a, b;
+}
+
+export func demo() ! {
+  int x = 1;
+  *int px = &x;
+  **int ppx = &px;
+  expect.expect(*px == 1 && **ppx == 1, "reading through a pointer and a pointer to a pointer");
+
+  // Writing through a pointer changes the original.
+  *px = 7;
+  expect.expect(x == 7, "writing through a pointer");
+
+  // Pointers to structs reach their fields directly.
+  Pair pair = Pair{a: 1, b: 2};
+  *Pair pp = &pair;
+  pp.a = 10;
+  expect.expect(pair.a == 10 && pp.b == 2, "a pointer to a struct reaches its fields");
+
+  // `null` is the empty pointer. Dereferencing it stops the program with a
+  // panic.
+  *int nothing = null;
+  expect.expect(nothing == null, "null is the empty pointer");
+
+  // `malloc` asks for a number of bytes and can fail, so it is a fallible
+  // call: the error is AllocError.OutOfMemory. `sizeof` takes a type or an
+  // expression. The result is a *void, which converts to any pointer type.
+  *int heap = malloc(sizeof(int) * 4)!;
+
+  // A pointer can be indexed and sliced. A slice of a pointer is a span, so
+  // the usual span operations apply. Pointer indexing is not bounds-checked:
+  // the size is yours to keep track of.
+  heap[0] = 10;
+  heap[1] = 20;
+  heap[2] = 30;
+  heap[3] = 40;
+  int[] view = heap[0:4];
+  expect.expect(len(view) == 4 && view[2] == 30, "a slice of a pointer is a span");
+
+  // Arithmetic steps in elements, not bytes: p + 1 is the next int.
+  *int second = heap + 1;
+  expect.expect(*second == 20, "pointer plus one is the next element");
+  expect.expect(second - heap == 1, "subtracting pointers counts elements");
+  second++;
+  expect.expect(*second == 30, "increment steps one element");
+  expect.expect(heap < second, "pointers compare by address");
+
+  // `realloc` resizes a block and keeps its contents. If it cannot, the
+  // original block is left untouched.
+  heap = realloc(heap, sizeof(int) * 8)!;
+  heap[7] = 80;
+  expect.expect(heap[0] == 10 && heap[3] == 40 && heap[7] == 80, "realloc keeps the contents");
+
+  // `free` takes pointers, strings and maps, any number of them at once. All
+  // the arguments are evaluated before anything is released.
+  free(heap);
+
+  // Pointers and integers convert explicitly, and so do pointers of
+  // different types. Because `*Pair(p)` reads like a dereference, writing a
+  // dereference of a converted value takes two stars: **int(addr).
+  int8 raw = 65;
+  uint64 address = uint64(&raw);
+  expect.expect(address != 0, "a pointer converts to an integer");
+  expect.expect(**int8(address) == 65, "an integer converts to a pointer");
+
+  // Bytes become a string without a copy, and a string gives the address of
+  // its bytes. The second one is only safe to hand to C when the string ends
+  // in a zero byte, which string literals do and slices of them do not.
+  *int8 bytes = malloc(3)!;
+  bytes[0] = 104;
+  bytes[1] = 105;
+  bytes[2] = 0;
+  string text = string(bytes[0:2]);
+  expect.expect(text == "hi", "string(bytes) views the bytes as a string");
+
+  *int8 literal = *int8("hey");
+  expect.expect(literal[0] == 104 && literal[3] == 0, "a string literal ends in a zero byte");
+  free(bytes);
+}

@@ -5,12 +5,15 @@
 //
 //     wisp run
 
+import "expect";
+
 // A top-level constant. It is visible to the whole file and can never be
 // assigned again.
 const MaxScore = 100;
 
 export func demo() {
-  // `let` infers the type from the value; an explicit type works too.
+  // `let` infers the type from the value; an explicit type works too. The
+  // type always comes first, as in `int limit`.
   let total = 2 + 3;
   int limit = 10;
 
@@ -18,25 +21,40 @@ export func demo() {
   limit += 2;
   limit *= 2;
   total++;
-  emitf("total=%d limit=%d MaxScore=%d", total, limit, MaxScore);
+  expect.expect(total == 6, "total is 6");
+  expect.expect(limit == 24, "limit is 24");
+  expect.expect(MaxScore == 100, "the constant keeps its value");
 
   // A variable declared without a value starts zeroed.
   int zeroed;
-  emitf("zeroed=%d", zeroed);
+  expect.expect(zeroed == 0, "a declaration without a value is zero");
+
+  // Several variables can be declared together.
+  int first, second = 4, 5;
+  expect.expect(first + second == 9, "two variables, two values");
 
   // `const` also works inside a function.
   const Greeting = "hi";
-  emit(Greeting);
+  expect.expect(Greeting == "hi", "a local constant");
 
   // Integer division truncates toward zero, and `%` keeps the sign of the
-  // dividend, so (a / b) * b + a % b is always a.
-  emitf("17/5=%d -17/5=%d 17%%5=%d -17%%5=%d", 17 / 5, -17 / 5, 17 % 5, -17 % 5);
+  // dividend, so (a / b) * b + a % b is always a. Dividing by zero is not a
+  // compile error when the divisor is only known at run time: it panics.
+  expect.expect(17 / 5 == 3, "17 / 5 is 3");
+  expect.expect(-17 / 5 == -3, "-17 / 5 truncates toward zero");
+  expect.expect(17 % 5 == 2, "17 % 5 is 2");
+  expect.expect(-17 % 5 == -2, "% keeps the sign of the dividend");
 
   // Bitwise operators: & | ^ ~ << >>. They only work on integers.
   // `~` is unary (bitwise not), so there is no `~=`.
   int a = 6;
   int b = 3;
-  emitf("a&b=%d a|b=%d a^b=%d ~a=%d a<<1=%d a>>1=%d", a & b, a | b, a ^ b, ~a, a << 1, a >> 1);
+  expect.expect((a & b) == 2, "6 & 3 is 2");
+  expect.expect((a | b) == 7, "6 | 3 is 7");
+  expect.expect((a ^ b) == 5, "6 ^ 3 is 5");
+  expect.expect(~a == -7, "~6 is -7");
+  expect.expect(a << 1 == 12, "6 << 1 is 12");
+  expect.expect(a >> 1 == 3, "6 >> 1 is 3");
 
   // Every binary bitwise operator has a compound form.
   int flags = 6;
@@ -45,9 +63,13 @@ export func demo() {
   flags ^= 1;
   flags <<= 1;
   flags >>= 1;
-  emitf("flags=%d", flags);
+  expect.expect(flags == 11, "compound bitwise operators");
+
+  // Comparisons give a bool, and `&&`, `||` and `!` combine them. The
+  // right side of `&&` and `||` is only evaluated when it has to be.
+  expect.expect(a > b && !(a == b), "logic operators");
 
   // The ternary operator.
   int bigger = 1 > 2 ? 42 : 21;
-  emitf("bigger=%d", bigger);
+  expect.expect(bigger == 21, "the ternary picks the second value");
 }

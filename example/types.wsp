@@ -1,4 +1,6 @@
-// Tour - Types: aliases, enums and casts.
+// Tour - Types: aliases, enums, sizes and conversions.
+
+import "expect";
 
 // `type` creates a new nominal type. UserID and int are different types, so
 // mixing them needs an explicit conversion.
@@ -22,16 +24,35 @@ export func demo() {
 
   // ...but going back to int needs a conversion: the type name used as a function.
   int raw = int(uid);
-  emitf("uid=%d raw=%d", int(uid), raw);
+  expect.expect(raw == 42, "an alias converts back with the type name");
 
   Color favorite = .Green;
-  emitf("Red=%d Green=%d Blue=%d Alpha=%d Beta=%d", int(Color.Red), int(Color.Green), int(Color.Blue), int(Color.Alpha), int(Color.Beta));
-  emitf("favorite=%d", int(favorite));
+  expect.expect(favorite == Color.Green, "an enum member, with or without the type");
+  expect.expect(int(Color.Blue) == 2, "enum numbering starts at zero");
+  expect.expect(int(Color.Alpha) == 10 && int(Color.Beta) == 11, "numbering continues after an explicit value");
 
   // Primitive types: int, uint, int8..int64, uint8..uint64, float32,
-  // float64, bool, char and string.
-  float64 ratio = 2.5;
+  // float64, bool, char and string. `int` and `uint` are 64 bits wide.
   bool ready = true;
   char letter = 'w';
-  emitf("ratio=%f ready=%s letter=%c", ratio, ready, letter);
+  expect.expect(ready && letter == 'w', "bool and char");
+
+  // Integers wrap at their width.
+  int8 small = 127;
+  small++;
+  expect.expect(small == -128, "int8 wraps around");
+
+  uint8 byte = 255;
+  byte++;
+  expect.expect(byte == 0, "uint8 wraps around");
+
+  // A widening conversion is implicit; any other conversion names the type.
+  int8 narrow = 5;
+  int64 wide = narrow;
+  expect.expect(wide == 5, "int8 widens to int64 on its own");
+  int big = 300;
+  expect.expect(int8(big) == 44, "a narrowing conversion keeps the low bits");
+
+  // `sizeof` takes a type or an expression and gives its size in bytes.
+  expect.expect(sizeof(int8) == 1 && sizeof(int32) == 4 && sizeof(int) == 8, "sizeof of the integer types");
 }

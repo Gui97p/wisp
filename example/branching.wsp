@@ -1,24 +1,26 @@
 // Tour - Branching: `if` and `switch`.
 
+import "expect";
+
 export func demo() {
   int limit = 12;
 
   // `if` needs no parentheses around the condition.
   if limit >= 10 {
-    emit("limit is at least ten");
+    expect.expect(true, "limit is at least ten");
   } else {
-    emit("limit is below ten");
+    expect.expect(false, "limit is below ten");
   }
 
   // `switch` as a statement. Cases end with `:`, there is no fallthrough,
   // and a range like `11..20` includes both ends.
   switch limit {
     case 10:
-      emit("ten");
+      expect.expect(false, "ten");
     case 11..20:
-      emit("between eleven and twenty");
+      expect.expect(true, "between eleven and twenty");
     default:
-      emit("something else");
+      expect.expect(false, "something else");
   }
 
   // `switch` as an expression. Cases use `=>` and `default` is mandatory,
@@ -28,12 +30,12 @@ export func demo() {
     case 10 => "ten",
     default => "other",
   };
-  emit(label);
+  expect.expect(label == "other", "a switch expression yields a string");
 
   int doubled;
   doubled = switch limit {
     case 12 => 24,
     default => 0,
   };
-  emitf("doubled=%d", doubled);
+  expect.expect(doubled == 24, "a switch expression yields an integer");
 }

@@ -1,5 +1,7 @@
 // Tour - Structs and methods.
 
+import "expect";
+
 struct Point {
   int x, y;
 }
@@ -21,17 +23,27 @@ export func demo() {
   let origin = Point{x: 0, y: 0};
 
   let px, py = p.pos();
-  emitf("p=(%d, %d) origin=(%d, %d)", px, py, origin.x, origin.y);
+  expect.expect(px == 3 && py == 4, "a method returning two values");
+  expect.expect(origin.x == 0 && origin.y == 0, "a literal with every field");
 
   // The method changes `p` itself because the receiver is a pointer.
   p.scale(2);
-  emitf("scaled=(%d, %d)", p.x, p.y);
+  expect.expect(p.x == 6 && p.y == 8, "a method with a pointer receiver changes the struct");
 
   // Fields can be assigned, including with compound operators.
   p.x += 5;
-  emitf("p.x=%d", p.x);
+  expect.expect(p.x == 11, "a compound assignment on a field");
 
   // A struct that is not initialised starts with every field zeroed.
   Point blank;
-  emitf("blank=(%d, %d)", blank.x, blank.y);
+  expect.expect(blank.x == 0 && blank.y == 0, "an uninitialised struct is zeroed");
+
+  // A field left out of a literal is zero too.
+  Point partial = Point{y: 9};
+  expect.expect(partial.x == 0 && partial.y == 9, "a field left out of a literal is zero");
+
+  // Structs can sit in arrays.
+  Point[2] corners;
+  corners[1].x = 7;
+  expect.expect(corners[1].x == 7 && corners[0].x == 0, "an array of structs");
 }

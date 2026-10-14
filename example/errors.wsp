@@ -1,7 +1,12 @@
 // Tour - Error handling.
 
-// An enum is the family of an error: each member is one kind of failure.
+import "expect";
+
+// An enum is the family of an error: each member is one kind of failure. The
+// member's number is the exit code if the error ends the program, so the
+// first member is the "all fine" one and the failures start after it.
 enum DivError {
+  Ok,
   DivByZero
 }
 
@@ -39,33 +44,34 @@ export func demo() {
   // `??` unwraps the result, falling back to a default value on failure.
   int ok = divide(10, 2) ?? -1;
   int fallback = divide(10, 0) ?? -1;
-  emitf("ok=%d fallback=%d", ok, fallback);
+  expect.expect(ok == 5 && fallback == -1, "?? unwraps or falls back");
 
   // `?? |e| value` computes the fallback from the error.
   int code = divide(10, 0) ?? |e| e.line;
-  emitf("raised on line %d", code);
+  expect.expect(code > 0, "the fallback can read the error, here its line");
 
   int propagated = halveThenDouble(10, 0) ?? -1;
-  emitf("propagated=%d", propagated);
-  emit(describe(10, 0));
-  emit(describe(10, 5));
+  expect.expect(propagated == -1, "a postfix ! passes the error up");
+  expect.expect(describe(10, 0) == "cannot divide by zero", "a handler block returns from the function");
+  expect.expect(describe(10, 5) == "positive", "the handler is skipped on success");
 
   // Destructuring gives the value and the error. The value is zero on
   // failure, and an error you never read is a compile error (bind it to `_`
   // to drop it on purpose).
   let value, e = divide(10, 0);
-  if e != null {
-    emitf("failed: %s (value=%d)", e.message, value);
-  }
+  expect.expect(e != null && value == 0, "destructuring a failure");
 
   // An error compares with null and with enum members, so a switch can sort
   // failures out. The member is written in full here: an Error does not know
   // which enum to look in, so `.DivByZero` would be ambiguous.
-  let result, err = divide(7, 0);
+  let _, err = divide(7, 0);
   string what = switch err {
     case null => "no error",
     case DivError.DivByZero => "divided by zero",
     default => err.message,
   };
-  emit(what);
+  expect.expect(what == "divided by zero", "a switch sorts the failures out");
+
+  // `main` can be fallible too: `func main() !int`. If it ends in an error,
+  // the program prints it and exits with the error's code.
 }

@@ -1,0 +1,46 @@
+// Tour - Global variables.
+//
+// A declaration outside any function is a global: one variable for the whole
+// program, alive from the start. Its initializer must be a constant
+// expression (literals, constants, enum members, and arrays or structs made
+// of those), so nothing has to run before `main` and the order of
+// declarations does not matter. Without an initializer it starts zeroed.
+
+import "expect";
+
+struct Settings {
+  int retries;
+  bool verbose;
+}
+
+int counter = 0;
+string name = "wisp";
+int[3] table = [1, 2, 3];
+Settings settings = Settings{retries: 3, verbose: true};
+int untouched;
+
+// `export` makes a global visible to other modules, which can read it and
+// write it.
+export int shared = 100;
+
+func bump() int {
+  counter++;
+  return counter;
+}
+
+export func demo() {
+  expect.expect(untouched == 0, "a global without a value starts zeroed");
+  expect.expect(bump() == 1 && bump() == 2, "a global keeps its value between calls");
+
+  table[1] = counter;
+  settings.retries += 1;
+  name = "other";
+  expect.expect(table[1] == 2 && settings.retries == 4 && name == "other", "arrays, structs and strings can be globals");
+
+  shared = shared + 1;
+  expect.expect(shared == 101, "an exported global");
+
+  // A global that nothing uses gets a warning, unless its name starts with an
+  // underscore. That goes for any unused variable or constant. Exported
+  // globals are never reported, since other modules may use them.
+}

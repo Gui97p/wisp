@@ -1,0 +1,8 @@
+# Build lib.c into lib.o first (see main.wsp), then `wisp run`.
+link = ["lib.o"]
+
+[output]
+bin = "bin/interop"
+
+# To call the C library (printf, strlen, ...) as well:
+# libc = true

@@ -3,7 +3,9 @@
 // `native` embeds code written for one backend. The name after `native`
 // picks the backend: `lua`, or a machine target such as `linux_x64`. Blocks
 // for other backends are skipped, so one function can carry an
-// implementation for each target.
+// implementation for each target. A function with native blocks but none
+// for the target being built is an error, so a missing port is never a
+// silently empty function.
 //
 // The bindings in parentheses say which Wisp variables the block reads
 // (`in`) and writes (`out`). They are checked like any other use of a
@@ -11,16 +13,21 @@
 //
 // In Lua the native code uses the variable names directly. For x86-64 the
 // code refers to a binding with `{name}`, which becomes a sized memory
-// operand, and `;` separates instructions:
+// operand, and `;` separates instructions. A string also has parts you can
+// name: `{s.ptr}` and `{s.len}`.
 //
-//     native linux_x64(in x, out r) "mov rax, {x}; add rax, rax; mov {r}, rax";
+// Calling functions written in C is a separate feature, `extern`; see the
+// _c folder.
+
+import "expect";
 
 export func abs(int x) int {
   int r;
   native lua(out r, in x) "r = x < 0 and -x or x";
+  native linux_x64(in x, out r) "mov rax, {x}; mov rcx, rax; sar rcx, 63; xor rax, rcx; sub rax, rcx; mov {r}, rax";
   return r;
 }
 
 export func demo() {
-  emitf("abs(-5)=%d abs(5)=%d", abs(-5), abs(5));
+  expect.expect(abs(-5) == 5 && abs(5) == 5, "a native block per target");
 }

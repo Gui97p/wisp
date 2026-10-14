@@ -1,0 +1,30 @@
+// Tour - Variadic functions.
+//
+// A variadic parameter is a real span inside the body: indexable, iterable
+// and measurable with `len`. The analyser checks this file, but the x86-64
+// backend does not build that span yet, so it lives in a folder starting
+// with `_`, which project discovery skips. The Lua backend runs it: copy this
+// file and expect.wsp into a project of its own and use
+// `wisp run --target lua`.
+//
+// Do not confuse this with a C variadic such as printf, which is declared
+// with `extern` and does work on x86-64.
+
+import "expect";
+
+func sum(int ...values) int {
+  int total;
+  for i, v in values {
+    total += v;
+  }
+  return total;
+}
+
+export func demo() {
+  expect.expect(sum(1, 2, 3, 4) == 10, "a variadic function");
+  expect.expect(sum() == 0, "a variadic function with no arguments");
+}
+
+func main() {
+  demo();
+}

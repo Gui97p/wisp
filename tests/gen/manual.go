@@ -3095,6 +3095,49 @@ func main() {
 }
 `, expected: []string{"literal string data pointer first byte", "literal string data pointer last byte", "literal strings end with a zero byte", "char pointer from a string", "uint8 pointer from a string", "pointer from a string variable", "deref of a converted string"}},
 
+	{dir: "module_const", files: map[string]string{"consts.wsp": `export const Limit = 7;
+export const Name = "w";
+export const On = true;
+`}, src: `import "consts";
+
+func main() {
+    check(consts.Limit == 7, "an imported integer constant");
+    check(consts.Name == "w", "an imported string constant");
+    check(consts.On, "an imported bool constant");
+    int[3] values = [1, 2, 3];
+    check(values[consts.Limit - 6] == 2, "an imported constant as an index");
+}
+`, expected: []string{"an imported integer constant", "an imported string constant", "an imported bool constant", "an imported constant as an index"}},
+
+	{dir: "variadic_basic", src: `func sum(int ...values) int {
+    int total;
+    for i, v in values {
+        total += v;
+    }
+    return total;
+}
+
+func count(int ...values) int {
+    return len(values);
+}
+
+func first(int ...values) int {
+    return values[0];
+}
+
+func withBase(int base, int ...rest) int {
+    return base + sum(rest[0], rest[1]);
+}
+
+func main() {
+    check(sum(1, 2, 3, 4) == 10, "a variadic function sums its arguments");
+    check(sum() == 0, "a variadic function with no arguments");
+    check(count(5, 6, 7) == 3, "len of a variadic parameter");
+    check(first(7, 8) == 7, "indexing a variadic parameter");
+    check(withBase(100, 1, 2) == 103, "fixed parameters before the variadic one");
+}
+`, expected: []string{"a variadic function sums its arguments", "a variadic function with no arguments", "len of a variadic parameter", "indexing a variadic parameter", "fixed parameters before the variadic one"}},
+
 	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
     a,
     b,
