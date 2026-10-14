@@ -40,6 +40,8 @@ type X64Target struct {
 	funcReturns []analyser.Type
 	fallible    bool
 	hidden      Mem
+
+	libc bool
 }
 
 func New(program *ast.Program, info *analyser.Info, isEntry bool, target string, module string) *X64Target {
@@ -60,6 +62,10 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, target string,
 
 		labels: map[string]int{},
 	}
+}
+
+func (t *X64Target) SetLibc(libc bool) {
+	t.libc = libc
 }
 
 func (t *X64Target) SetFiles(files map[ast.Declaration]string) {

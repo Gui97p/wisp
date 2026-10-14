@@ -42,6 +42,15 @@ func (a *Analyser) registerFuncSignatures() {
 		a.info.FuncReturns[fd] = returns
 		line, col := fd.Position()
 		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module}
+		if fd.Extern {
+			a.checkCSignature(fd, "an extern function", params, returns, variadic)
+			symbol.CName = fd.ExternName
+			symbol.Extern = true
+		}
+		if fd.CExport != "" {
+			a.checkCExport(fd, params, returns, variadic)
+			symbol.CName = fd.CExport
+		}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(fd, FUNC, fd.Name)
@@ -159,5 +168,48 @@ func (a *Analyser) checkMustUse() {
 			continue
 		}
 		a.errors.Add(sym.File, sym.Line, sym.Col, sym.Line, sym.Col+len(sym.Name), "error %s is never used: handle it, or bind it to _", sym.Name)
+	}
+}
+
+func cCompatible(t Type) bool {
+	switch u := underlyingOf(t).(type) {
+	case PrimitiveType:
+		return u.Name != "string"
+	case PointerType:
+		return true
+	}
+	return false
+}
+
+func (a *Analyser) checkCExport(fd *ast.FuncDecl, params, returns []Type, variadic bool) {
+	if !fd.Exported {
+		a.errorf(fd, "as %s gives a C name to an exported function: write export func %s", fd.CExport, fd.Name)
+	}
+	if fd.Receiver != nil {
+		a.error(fd, "a method cannot have a C name")
+	}
+	a.checkCSignature(fd, "a function with a C name", params, returns, variadic)
+}
+
+func (a *Analyser) checkCSignature(fd *ast.FuncDecl, what string, params, returns []Type, variadic bool) {
+	if fd.Fallible {
+		a.errorf(fd, "%s cannot be fallible: C has no Wisp error values", what)
+	}
+	if variadic {
+		a.errorf(fd, "%s cannot be variadic yet", what)
+	}
+	if len(fd.ReturnTypes) > 1 {
+		a.errorf(fd, "%s returns at most one value", what)
+	}
+
+	for i, t := range params {
+		if !cCompatible(t) && i < len(fd.Params) {
+			a.errorf(fd, "parameter %s has type %s, which C cannot take: use integers, bool, char, floats or pointers", fd.Params[i].Name, t.String())
+		}
+	}
+	for _, t := range returns {
+		if !cCompatible(t) {
+			a.errorf(fd, "function %s returns %s, which C cannot return: use an integer, bool, char, float or pointer", fd.Name, t.String())
+		}
 	}
 }

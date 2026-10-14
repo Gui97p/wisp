@@ -99,7 +99,7 @@ func canonicalModulePath(root, file string) (string, error) {
 func resolveImportPath(projectRoot, path string) (key, dir string, files []string, err error) {
 	isStd := strings.HasPrefix(path, "std/")
 	if isStd && stdlibDisabled {
-		return "", "", nil, fmt.Errorf("import %q: this build does not use the standard library (--no-std); provide one with --std <path>", path)
+		return "", "", nil, fmt.Errorf("import %q: this build does not use the standard library (--ffreestanding); provide one with --std <path>", path)
 	}
 	base := filepath.Join(projectRoot, path)
 	if after, ok := strings.CutPrefix(path, "std/"); ok {

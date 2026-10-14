@@ -81,6 +81,9 @@ type FuncDecl struct {
 	ReturnTypes []TypeRef
 	Fallible    bool
 	Exported    bool
+	Extern      bool
+	ExternName  string
+	CExport     string
 
 	NodePos
 }

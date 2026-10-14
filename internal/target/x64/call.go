@@ -233,6 +233,9 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 			if len(argLocs[i].Regs) == 0 {
 				t.store(op, Mem{Base: x64context.SP, Disp: 8*(t.ctx.Pushed()-base) + argLocs[i].Stack, Size: size})
 			} else {
+				if _, ok := underlying(types[i]).(analyser.PrimitiveType); ok && size < 4 && size > 0 {
+					op = t.widen(op, types[i], 4)
+				}
 				t.pushValue(op)
 			}
 		} else {
@@ -307,6 +310,9 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 	sym, err := t.resolveCallee(expr.Name)
 	if err != nil {
 		return nil, err
+	}
+	if sym.CName != "" {
+		return t.compileCall(sym.CName, sym.Extern || sym.Module != t.module, expr.Args, t.info.CallReturns[expr])
 	}
 	if sym.Module == "" {
 		return t.compileBuiltin(sym.Name, expr)

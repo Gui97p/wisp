@@ -40,6 +40,7 @@ const (
 	TOKEN_LET
 	TOKEN_CONST
 	TOKEN_FUNC
+	TOKEN_EXTERN
 	TOKEN_STRUCT
 	TOKEN_TYPE
 	TOKEN_ENUM
@@ -134,6 +135,7 @@ var keywords = map[string]TokenType{
 	"let":      TOKEN_LET,
 	"const":    TOKEN_CONST,
 	"func":     TOKEN_FUNC,
+	"extern":   TOKEN_EXTERN,
 	"struct":   TOKEN_STRUCT,
 	"type":     TOKEN_TYPE,
 	"enum":     TOKEN_ENUM,

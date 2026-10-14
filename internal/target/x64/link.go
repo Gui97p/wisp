@@ -9,7 +9,12 @@ import (
 	"github.com/Gui97p/wisp/internal/target"
 )
 
-func Link(t target.Target, root string, objPaths, libPaths []string, outputPath string, keepObj bool) error {
+type LinkOptions struct {
+	Extra []string
+	Libc  bool
+}
+
+func Link(t target.Target, root string, objPaths, libPaths []string, outputPath string, keepObj bool, opts LinkOptions) error {
 	tmp, err := os.MkdirTemp("", "wisp-link-")
 	if err != nil {
 		return fmt.Errorf("failed to create temp dir: %w", err)
@@ -21,13 +26,25 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 		return err
 	}
 
-	args := append([]string{}, t.LinkArgs...)
-	if t.Entry != "" && t.Entry != "_start" {
-		args = append(args, "-e", t.Entry)
+	linker := "ld"
+	args := []string{}
+	if opts.Libc {
+		cc, err := exec.LookPath("cc")
+		if err != nil {
+			return fmt.Errorf("--libc links through a C compiler driver, but cc was not found in PATH")
+		}
+		linker = cc
+		args = append(args, "-no-pie")
+		args = append(args, t.LinkArgs...)
+	} else {
+		args = append(args, t.LinkArgs...)
+		if t.Entry != "" && t.Entry != "_start" {
+			args = append(args, "-e", t.Entry)
+		}
 	}
 	args = append(args, "-o", outputPath)
 
-	if t.StartSource != "" {
+	if t.StartSource != "" && !opts.Libc {
 		startObj := filepath.Join(tmp, "start.o")
 		if err := Assemble(t.StartSource, startObj, filepath.Join(tmp, "start.asm"), false, t.Format); err != nil {
 			return err
@@ -51,11 +68,13 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 		args = append(args, abs)
 	}
 
-	ldCmd := exec.Command("ld", args...)
+	args = append(args, opts.Extra...)
+
+	ldCmd := exec.Command(linker, args...)
 	ldCmd.Dir = root
 	ldCmd.Stderr = os.Stderr
 	if err := ldCmd.Run(); err != nil {
-		return fmt.Errorf("ld failed: %w", err)
+		return fmt.Errorf("%s failed: %w", filepath.Base(linker), err)
 	}
 
 	if !keepObj {

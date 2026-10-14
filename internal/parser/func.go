@@ -6,6 +6,28 @@ import (
 )
 
 func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
+	return p.parseFunc(false)
+}
+
+func (p *Parser) parseExternDeclaration() *ast.FuncDecl {
+	if !p.expect(lexer.TOKEN_FUNC) {
+		return nil
+	}
+
+	decl := p.parseFunc(true)
+	if decl == nil {
+		return nil
+	}
+	if decl.Receiver != nil {
+		p.error("an extern function cannot have a receiver")
+		return nil
+	}
+
+	decl.Extern = true
+	return decl
+}
+
+func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 	decl := &ast.FuncDecl{}
 
 	if p.peek.Type == lexer.TOKEN_LPAREN {
@@ -55,7 +77,7 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 		return nil
 	}
 
-	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW || p.peek.Type == lexer.TOKEN_SEMICOLON {
+	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW || p.peek.Type == lexer.TOKEN_SEMICOLON || p.peek.Type == lexer.TOKEN_AS {
 		decl.ReturnTypes = []ast.TypeRef{}
 	} else {
 		p.advance()
@@ -67,9 +89,40 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 		decl.Fallible = fallible
 	}
 
-	if p.peek.Type == lexer.TOKEN_SEMICOLON {
+	if p.peek.Type == lexer.TOKEN_AS {
 		p.advance()
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil
+		}
+		alias := p.current.Literal
+		if !p.checkReservedName(alias) {
+			return nil
+		}
+		if extern {
+			decl.ExternName = decl.Name
+			decl.Name = alias
+		} else {
+			decl.CExport = alias
+		}
+	} else if extern {
+		decl.ExternName = decl.Name
+	}
+
+	if extern {
+		if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW {
+			p.error("an extern function is defined in C and cannot have a body")
+			return nil
+		}
+		if !p.expect(lexer.TOKEN_SEMICOLON) {
+			return nil
+		}
 		return decl
+	}
+
+	if p.peek.Type == lexer.TOKEN_SEMICOLON {
+		p.errorf("function %s has no body: declare a function defined in C with extern", decl.Name)
+		p.advance()
+		return nil
 	}
 
 	if p.peek.Type == lexer.TOKEN_ARROW {

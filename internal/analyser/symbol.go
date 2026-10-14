@@ -45,6 +45,8 @@ type Symbol struct {
 
 	Const  *ConstValue
 	Global bool
+	CName  string
+	Extern bool
 
 	MustUse bool
 	Used    bool

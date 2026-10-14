@@ -59,6 +59,8 @@ func (t TokenType) DisplayName() string {
 		return "const"
 	case TOKEN_FUNC:
 		return "func"
+	case TOKEN_EXTERN:
+		return "extern"
 	case TOKEN_STRUCT:
 		return "struct"
 	case TOKEN_ENUM:

@@ -48,6 +48,9 @@ func collectFuncNames(decls []ast.Declaration) []string {
 }
 
 func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl) error {
+	if fd.Extern {
+		return fmt.Errorf("lua: extern function %s is not available on the lua target", fd.Name)
+	}
 	if fd.Body == nil {
 		return nil
 	}

@@ -154,7 +154,7 @@ The compiler looks for it in a `std` folder next to the `bin` folder that holds 
 The `std/` prefix always means the current standard library, and two options change which one that is:
 
 * `--std <path>` (or `std = "path"` in `wisp.toml`) makes `std/` point at another folder. Its contents are treated exactly like the bundled library, so a kernel or another operating system can ship its own.
-* `--no-std` (or `nostd = true`) builds without one: any `import "std/..."` is an error. Your own modules are unaffected, and can use any other prefix.
+* `--ffreestanding` (or `freestanding = true`) builds without one: any `import "std/..."` is an error. Your own modules are unaffected, and can use any other prefix.
 
 The two cannot be combined in the same place. A flag takes priority over `wisp.toml`.
 

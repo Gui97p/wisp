@@ -11,12 +11,14 @@ import (
 )
 
 type Config struct {
-	Entry   string                  `toml:"entry"`
-	Target  string                  `toml:"target"`
-	Std     string                  `toml:"std"`
-	NoStd   bool                    `toml:"nostd"`
-	Output  OutputConfig            `toml:"output"`
-	Targets map[string]TargetConfig `toml:"targets"`
+	Entry        string                  `toml:"entry"`
+	Target       string                  `toml:"target"`
+	Std          string                  `toml:"std"`
+	Freestanding bool                    `toml:"freestanding"`
+	Link         []string                `toml:"link"`
+	Libc         bool                    `toml:"libc"`
+	Output       OutputConfig            `toml:"output"`
+	Targets      map[string]TargetConfig `toml:"targets"`
 }
 
 type TargetConfig struct {
@@ -100,15 +102,15 @@ func (c *Config) registerTargets(root string) error {
 }
 
 func (c *Config) StdlibSettings(root string) (string, bool, error) {
-	if c.Std != "" && c.NoStd {
-		return "", false, fmt.Errorf("wisp.toml: std and nostd cannot be used together")
+	if c.Std != "" && c.Freestanding {
+		return "", false, fmt.Errorf("wisp.toml: std and freestanding cannot be used together")
 	}
 
 	path := c.Std
 	if path != "" && !filepath.IsAbs(path) {
 		path = filepath.Join(root, path)
 	}
-	return path, c.NoStd, nil
+	return path, c.Freestanding, nil
 }
 
 func LoadStdlibSettings(root string) (string, bool, error) {

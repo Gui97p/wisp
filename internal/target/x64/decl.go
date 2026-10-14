@@ -13,6 +13,9 @@ import (
 func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 	switch d := decl.(type) {
 	case *ast.FuncDecl:
+		if d.Extern {
+			return nil
+		}
 		t.file = t.files[decl]
 		ctx := t.ctx
 		t.ctx = x64context.NewContext()
@@ -141,6 +144,9 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		fdName = fmt.Sprintf("%s_%s", fd.Receiver.Type.Name, fd.Name)
 	}
 	name := t.funcSymbol(t.module, fdName)
+	if fd.CExport != "" {
+		name = fd.CExport
+	}
 
 	visible := fd.Exported
 	if fd.Receiver != nil {
@@ -219,12 +225,11 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		t.prelude.define("__wisp_error_emit")
 		t.text.printft(`test %s, %s
 	jz .ok
-	mov rbx, %s
+	push %s
 	mov rdi, %s
 	call __wisp_error_emit
-	mov rdi, [rbx+16]
-	mov eax, 60
-	syscall
+	pop rax
+	mov rax, [rax+16]
 
 	.ok:
 `, reg, reg, reg, reg)

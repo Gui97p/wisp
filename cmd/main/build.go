@@ -16,13 +16,15 @@ import (
 )
 
 var (
-	asmOut    string
-	objOut    string
-	binOut    string
-	luaOut    string
-	targetOpt string
-	stdOpt    string
-	noStdOpt  bool
+	asmOut          string
+	objOut          string
+	binOut          string
+	luaOut          string
+	targetOpt       string
+	stdOpt          string
+	linkOpt         []string
+	libcOpt         bool
+	freestandingOpt bool
 )
 
 var buildCmd = &cobra.Command{
@@ -53,8 +55,10 @@ func addBuildFlags(cmd *cobra.Command) {
 	f.StringVar(&binOut, "bin", "", "output path for the final binary (x86-64 targets)")
 	f.StringVar(&luaOut, "lua", "", "output directory for generated .lua files (lua target)")
 	f.StringVar(&targetOpt, "target", "", "target name (e.g. linux_x64, lua)")
+	f.StringArrayVar(&linkOpt, "link", nil, "extra argument for the linker, repeatable (object files, archives, -L, -l); x86-64 targets")
+	f.BoolVar(&libcOpt, "libc", false, "link the system C library and use its startup code instead of the Wisp start stub (x86-64 targets)")
 	f.StringVar(&stdOpt, "std", "", "folder to use as the standard library (the std/ import prefix)")
-	f.BoolVar(&noStdOpt, "no-std", false, "build without a standard library: importing std/... is an error")
+	f.BoolVar(&freestandingOpt, "ffreestanding", false, "build without a standard library: importing std/... is an error")
 }
 
 func resolveTarget(cfg *module.Config) (target.Target, error) {
@@ -121,7 +125,7 @@ func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
 		}
 		return buildX64(root, cfg, tgt, forRun)
 	case "lua":
-		if err := rejectFlags(cmd, tgt, "asm", "obj", "bin"); err != nil {
+		if err := rejectFlags(cmd, tgt, "asm", "obj", "bin", "link", "libc"); err != nil {
 			return nil, err
 		}
 		return buildLua(root, cfg, forRun)
@@ -266,6 +270,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 
 		backend := x64.New(c.merged, c.info, isEntry, tgt.Name, c.mod.Path)
 		backend.SetFiles(c.declFiles)
+		backend.SetLibc(cfg.Libc || libcOpt)
 		source, err := backend.Compile()
 		if err != nil {
 			return nil, c.reportFailure(err)
@@ -331,7 +336,8 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 		if err := os.MkdirAll(filepath.Dir(targets.binPath), 0755); err != nil {
 			return nil, err
 		}
-		if err := x64.Link(tgt, root, objPaths, libPaths, targets.binPath, targets.wantObj); err != nil {
+		opts := x64.LinkOptions{Extra: append(append([]string{}, cfg.Link...), linkOpt...), Libc: cfg.Libc || libcOpt}
+		if err := x64.Link(tgt, root, objPaths, libPaths, targets.binPath, targets.wantObj, opts); err != nil {
 			return nil, err
 		}
 		fmt.Printf("[x64] bin: %s\n", targets.binPath)
