@@ -125,6 +125,11 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 func (p *Parser) parseFuncLiteral() ast.Expression {
 	lit := &ast.FuncLiteral{}
 	lit.Params = p.parseFuncParamList()
+	if p.cVariadic {
+		p.cVariadic = false
+		p.error("a variadic without a name is only for extern functions")
+		return nil
+	}
 
 	if !p.expect(lexer.TOKEN_RPAREN) {
 		return nil

@@ -200,7 +200,7 @@ func (t *X64Target) returnValue(ops []Operand, types []analyser.Type, hidden Mem
 	}
 }
 
-func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, rets []analyser.Type) ([]Operand, error) {
+func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, rets []analyser.Type, cVariadic bool) ([]Operand, error) {
 	pushed := t.ctx.Pushed()
 
 	types := t.valueTypes(args)
@@ -268,6 +268,9 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 		t.prelude.define(sym)
 	}
 
+	if cVariadic {
+		t.text.printlnt("xor eax, eax")
+	}
 	t.text.printft("call %s\n", sym)
 
 	ops := t.captureReturn(rets, memSlot)
@@ -304,7 +307,7 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 	if mc, ok := t.info.MethodCalls[expr]; ok {
 		sym := t.funcSymbol(mc.Module, fmt.Sprintf("%s_%s", mc.Owner, expr.Name.(*ast.MemberExpr).Field))
 		args := append([]ast.Expression{mc.Receiver}, expr.Args...)
-		return t.compileCall(sym, mc.Module != t.module, args, t.info.CallReturns[expr])
+		return t.compileCall(sym, mc.Module != t.module, args, t.info.CallReturns[expr], false)
 	}
 
 	sym, err := t.resolveCallee(expr.Name)
@@ -312,11 +315,15 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		return nil, err
 	}
 	if sym.CName != "" {
-		return t.compileCall(sym.CName, sym.Extern || sym.Module != t.module, expr.Args, t.info.CallReturns[expr])
+		cVariadic := false
+		if ft, ok := sym.Type.(*analyser.FuncType); ok {
+			cVariadic = ft.CVariadic
+		}
+		return t.compileCall(sym.CName, sym.Extern || sym.Module != t.module, expr.Args, t.info.CallReturns[expr], cVariadic)
 	}
 	if sym.Module == "" {
 		return t.compileBuiltin(sym.Name, expr)
 	}
 
-	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), sym.Module != t.module, expr.Args, t.info.CallReturns[expr])
+	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), sym.Module != t.module, expr.Args, t.info.CallReturns[expr], false)
 }

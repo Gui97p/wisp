@@ -72,6 +72,14 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 		return nil
 	}
 	decl.Params = p.parseFuncParamList()
+	if p.cVariadic {
+		p.cVariadic = false
+		if !extern {
+			p.error("a variadic without a name is only for extern functions")
+			return nil
+		}
+		decl.CVariadic = true
+	}
 
 	if !p.expect(lexer.TOKEN_RPAREN) {
 		return nil
@@ -151,6 +159,7 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 
 func (p *Parser) parseFuncParamList() []ast.Param {
 	params := []ast.Param{}
+	p.cVariadic = false
 
 	if p.peek.Type == lexer.TOKEN_RPAREN {
 		return params
@@ -216,6 +225,10 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			}
 
 			if p.current.Type == lexer.TOKEN_VARIADIC {
+				if p.peek.Type == lexer.TOKEN_RPAREN {
+					p.cVariadic = true
+					return params
+				}
 				if !p.expect(lexer.TOKEN_IDENT) {
 					return nil
 				}

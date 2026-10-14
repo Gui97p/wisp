@@ -207,7 +207,7 @@ func (t *X64Target) compileEmitBuiltin(expr *ast.CallExpr) ([]Operand, error) {
 		return nil, fmt.Errorf("x86-64: emit only accepts 1 parameter")
 	}
 
-	_, err = t.compileCall("__wisp_emit", true, expr.Args, nil)
+	_, err = t.compileCall("__wisp_emit", true, expr.Args, nil, false)
 	return nil, err
 }
 
@@ -255,7 +255,7 @@ func (t *X64Target) compilePanicBuiltin(expr *ast.CallExpr) ([]Operand, error) {
 		return nil, fmt.Errorf("x86-64: panic only accepts 1 parameter")
 	}
 
-	_, err = t.compileCall("__wisp_panic", true, expr.Args, nil)
+	_, err = t.compileCall("__wisp_panic", true, expr.Args, nil, false)
 	return nil, err
 }
 
@@ -268,7 +268,7 @@ func (t *X64Target) compileAllocatorBuiltin(name string, expr *ast.CallExpr) ([]
 		return nil, fmt.Errorf("x86-64: target %s does not provide %s", mod.Name, name)
 	}
 
-	return t.compileCall(fmt.Sprintf("__wisp_%s", name), true, expr.Args, t.info.CallReturns[expr])
+	return t.compileCall(fmt.Sprintf("__wisp_%s", name), true, expr.Args, t.info.CallReturns[expr], false)
 }
 
 func (t *X64Target) compileFreeBuiltin(expr *ast.CallExpr) ([]Operand, error) {
@@ -281,7 +281,7 @@ func (t *X64Target) compileFreeBuiltin(expr *ast.CallExpr) ([]Operand, error) {
 	}
 
 	if len(expr.Args) == 1 {
-		return t.compileCall("__wisp_free", true, expr.Args, nil)
+		return t.compileCall("__wisp_free", true, expr.Args, nil, false)
 	}
 
 	regs := t.ctx.AllocatedRegisters()

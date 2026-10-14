@@ -55,7 +55,7 @@ func (t *X64Target) compileErrorBinary(expr *ast.BinaryExpr, errExpr, member ast
 	syn := &ast.StringLiteral{Value: enum.Module + "." + enum.Name}
 	t.info.Types[syn] = analyser.PrimitiveType{Name: "string"}
 
-	ops, err := t.compileCall(t.useErreq(), false, []ast.Expression{errExpr, syn, member}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
+	ops, err := t.compileCall(t.useErreq(), false, []ast.Expression{errExpr, syn, member}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}}, false)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (t *X64Target) compileErrorBinary(expr *ast.BinaryExpr, errExpr, member ast
 func (t *X64Target) compileStringBinary(expr *ast.BinaryExpr) (Operand, error) {
 	switch expr.Operator {
 	case "==", "!=":
-		ops, err := t.compileCall(t.useStreq(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
+		ops, err := t.compileCall(t.useStreq(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}}, false)
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +84,7 @@ func (t *X64Target) compileStringBinary(expr *ast.BinaryExpr) (Operand, error) {
 		return ops[0], nil
 	case "<", "<=", ">", ">=":
 		intType := analyser.PrimitiveType{Name: "int"}
-		ops, err := t.compileCall(t.useStrcmp(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{intType})
+		ops, err := t.compileCall(t.useStrcmp(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{intType}, false)
 		if err != nil {
 			return nil, err
 		}

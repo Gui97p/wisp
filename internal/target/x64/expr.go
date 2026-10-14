@@ -477,7 +477,7 @@ func (t *X64Target) compileInExpr(expr *ast.InExpr) (Operand, error) {
 				break
 			}
 
-			ops, err := t.compileCall(t.useStrfind(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{b})
+			ops, err := t.compileCall(t.useStrfind(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{b}, false)
 			if err != nil {
 				return nil, err
 			}
@@ -491,7 +491,7 @@ func (t *X64Target) compileInExpr(expr *ast.InExpr) (Operand, error) {
 			syn := &ast.SliceExpr{Array: expr.Right}
 			t.info.Types[syn] = analyser.SpanType{Element: r.Element}
 
-			ops, err := t.compileCall(t.useStrinstrings(), false, []ast.Expression{expr.Left, syn}, []analyser.Type{b})
+			ops, err := t.compileCall(t.useStrinstrings(), false, []ast.Expression{expr.Left, syn}, []analyser.Type{b}, false)
 			if err != nil {
 				return nil, err
 			}
@@ -502,7 +502,7 @@ func (t *X64Target) compileInExpr(expr *ast.InExpr) (Operand, error) {
 				break
 			}
 
-			ops, err := t.compileCall(t.useStrinstrings(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{b})
+			ops, err := t.compileCall(t.useStrinstrings(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{b}, false)
 			if err != nil {
 				return nil, err
 			}

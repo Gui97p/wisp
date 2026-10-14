@@ -485,6 +485,11 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 		return
 	}
 
+	if ft.CVariadic {
+		a.checkCVariadicArgs(expr, ft, argTypes)
+		return
+	}
+
 	if ft.Variadic {
 		fixedCount := len(ft.Params) - 1
 		if len(argTypes) < fixedCount {
@@ -1244,6 +1249,43 @@ func (a *Analyser) checkFree(expr *ast.CallExpr) {
 			}
 		default:
 			a.errorf(arg, "free expects a pointer, string or map, got %s", t.String())
+		}
+	}
+}
+
+func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes []Type) {
+	if len(argTypes) < len(ft.Params) {
+		a.errorf(expr, "function %s expects at least %d arguments, got %d", ft.Name, len(ft.Params), len(argTypes))
+		return
+	}
+
+	for i, at := range argTypes {
+		if _, ok := at.(InvalidType); ok {
+			continue
+		}
+
+		if i < len(ft.Params) {
+			if !a.coerceAt(expr.Args, len(argTypes), i, at, ft.Params[i]) {
+				a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String())
+				continue
+			}
+			a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), ft.Params[i])
+			continue
+		}
+
+		value := a.valueAt(expr.Args, len(argTypes), i)
+		switch at.(type) {
+		case UntypedIntType:
+			a.fixUntyped(value, PrimitiveType{Name: "int"})
+		case UntypedFloatType:
+			a.fixUntyped(value, PrimitiveType{Name: "float64"})
+		default:
+			if !cCompatible(at) {
+				d := a.errorf(expr, "argument %d from %s has type %s, which C cannot take", i+1, ft.Name, at.String())
+				if isString(at) {
+					d.WithHelp("pass the address of the bytes instead, as in *int8(s)")
+				}
+			}
 		}
 	}
 }
