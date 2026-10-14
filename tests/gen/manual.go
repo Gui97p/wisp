@@ -2939,6 +2939,32 @@ func main() ! {
 }
 `, expected: []string{"free reads every argument before releasing any"}},
 
+	{dir: "string_order", src: `func main() {
+    check("a" < "b", "string less");
+    check("b" > "a", "string greater");
+    check("abc" < "abd", "string less than prefix extension");
+    check("ab" < "abc", "string prefix is smaller");
+    check("abc" > "ab", "string longer is greater");
+    check("" < "a", "empty is smaller");
+    checkEq("a" < "a", false, "equal is not less");
+    checkEq("a" > "a", false, "equal is not greater");
+    check("a" <= "a", "equal is less or equal");
+    check("a" >= "a", "equal is greater or equal");
+    check("a" <= "b", "less is less or equal");
+    check("b" >= "a", "greater is greater or equal");
+    checkEq("b" <= "a", false, "greater is not less or equal");
+    checkEq("a" >= "b", false, "less is not greater or equal");
+    check("abc" > "abb", "last byte decides");
+    check("b" > "abc", "first byte decides over length");
+    string word = "xxcdxx";
+    check(word[2:4] < "ce", "ordering on a slice");
+    string left = "apple";
+    string right = "apricot";
+    check(left < right, "ordering with variables");
+    check("" >= "", "empty equals empty");
+}
+`, expected: []string{"string less", "string greater", "string less than prefix extension", "string prefix is smaller", "string longer is greater", "empty is smaller", "equal is not less", "equal is not greater", "equal is less or equal", "equal is greater or equal", "less is less or equal", "greater is greater or equal", "greater is not less or equal", "less is not greater or equal", "last byte decides", "first byte decides over length", "ordering on a slice", "ordering with variables", "empty equals empty"}},
+
 	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
     a,
     b,

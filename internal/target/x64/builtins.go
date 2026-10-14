@@ -56,6 +56,7 @@ func (t *X64Target) useStreq() string {
 	mov rcx, rsi
 	mov rsi, rdi
 	mov rdi, rdx
+	cld
 	repe cmpsb
 	sete al
 .done:
@@ -80,6 +81,7 @@ func (t *X64Target) useStrfind() string {
     mov rdi, r8
     mov rsi, r10
     mov rcx, r9
+	cld
     xor eax, eax
     repe cmpsb
     je .yes
@@ -127,6 +129,49 @@ func (t *X64Target) useStrinstrings() string {
     ret
 `)
 	return "__wisp_in_strings"
+}
+
+func (t *X64Target) useStrcmp() string {
+	if !t.postlude.define("strcmp") {
+		return "__wisp_strcmp"
+	}
+	t.postlude.print(`__wisp_strcmp:
+	mov r8, rsi
+	mov r9, rcx
+
+	cmp r8, r9
+	cmovb rcx, r8
+
+	mov rsi, rdi
+	mov rdi, rdx
+
+	cld
+	xor eax, eax
+	repe cmpsb
+	jne .diff
+
+	cmp r8, r9
+	je .equal
+	jb .less
+
+	mov rax, 1
+	ret
+
+.less:
+	mov rax, -1
+	ret
+
+.diff:
+	movzx eax, byte [rsi-1]
+	movzx edx, byte [rdi-1]
+	sub rax, rdx
+	ret
+
+.equal:
+	xor eax, eax
+	ret
+`)
+	return "__wisp_strcmp"
 }
 
 func (t *X64Target) compileBuiltin(name string, expr *ast.CallExpr) ([]Operand, error) {

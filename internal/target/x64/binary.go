@@ -70,18 +70,29 @@ func (t *X64Target) compileErrorBinary(expr *ast.BinaryExpr, errExpr, member ast
 }
 
 func (t *X64Target) compileStringBinary(expr *ast.BinaryExpr) (Operand, error) {
-	ops, err := t.compileCall(t.useStreq(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
-	if err != nil {
-		return nil, err
-	}
 	switch expr.Operator {
-	case "==":
-	case "!=":
-		t.text.printft("xor %s, 1\n", t.opText(ops[0], 8))
+	case "==", "!=":
+		ops, err := t.compileCall(t.useStreq(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{analyser.PrimitiveType{Name: "bool"}})
+		if err != nil {
+			return nil, err
+		}
+		switch expr.Operator {
+		case "==":
+		case "!=":
+			t.text.printft("xor %s, 1\n", t.opText(ops[0], 8))
+		}
+		return ops[0], nil
+	case "<", "<=", ">", ">=":
+		intType := analyser.PrimitiveType{Name: "int"}
+		ops, err := t.compileCall(t.useStrcmp(), false, []ast.Expression{expr.Left, expr.Right}, []analyser.Type{intType})
+		if err != nil {
+			return nil, err
+		}
+
+		return t.compileComparison(expr.Operator, ops[0], Imm(0), intType, intType, t.info.Types[expr])
 	default:
-		return nil, fmt.Errorf("x86-64: string ordering not supported")
+		return nil, fmt.Errorf("x86-64: operator %s not supported", expr.Operator)
 	}
-	return ops[0], nil
 }
 
 func (t *X64Target) compilePointerArithmetic(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
