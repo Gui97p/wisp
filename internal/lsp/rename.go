@@ -7,7 +7,6 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
-	"github.com/Gui97p/wisp/internal/module"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
@@ -148,7 +147,7 @@ func renamable(path string, sym *analyser.Symbol, program *ast.Program) error {
 }
 
 func singleFileModule(path string) bool {
-	modules, err := module.BuildGraphWithOverrides(resolveProjectEntry(path), fileBuffer)
+	modules, err := buildProjectGraph(resolveProjectEntry(path), fileBuffer)
 	if err != nil {
 		return false
 	}

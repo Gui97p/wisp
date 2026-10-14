@@ -21,6 +21,8 @@ var (
 	binOut    string
 	luaOut    string
 	targetOpt string
+	stdOpt    string
+	noStdOpt  bool
 )
 
 var buildCmd = &cobra.Command{
@@ -51,6 +53,8 @@ func addBuildFlags(cmd *cobra.Command) {
 	f.StringVar(&binOut, "bin", "", "output path for the final binary (x86-64 targets)")
 	f.StringVar(&luaOut, "lua", "", "output directory for generated .lua files (lua target)")
 	f.StringVar(&targetOpt, "target", "", "target name (e.g. linux_x64, lua)")
+	f.StringVar(&stdOpt, "std", "", "folder to use as the standard library (the std/ import prefix)")
+	f.BoolVar(&noStdOpt, "no-std", false, "build without a standard library: importing std/... is an error")
 }
 
 func resolveTarget(cfg *module.Config) (target.Target, error) {
@@ -98,6 +102,10 @@ func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
 
 	cfg, err := module.LoadConfig(root)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := configureStdlib(cmd, root, cfg); err != nil {
 		return nil, err
 	}
 

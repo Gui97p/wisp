@@ -13,6 +13,8 @@ import (
 type Config struct {
 	Entry   string                  `toml:"entry"`
 	Target  string                  `toml:"target"`
+	Std     string                  `toml:"std"`
+	NoStd   bool                    `toml:"nostd"`
 	Output  OutputConfig            `toml:"output"`
 	Targets map[string]TargetConfig `toml:"targets"`
 }
@@ -95,4 +97,29 @@ func (c *Config) registerTargets(root string) error {
 	}
 
 	return nil
+}
+
+func (c *Config) StdlibSettings(root string) (string, bool, error) {
+	if c.Std != "" && c.NoStd {
+		return "", false, fmt.Errorf("wisp.toml: std and nostd cannot be used together")
+	}
+
+	path := c.Std
+	if path != "" && !filepath.IsAbs(path) {
+		path = filepath.Join(root, path)
+	}
+	return path, c.NoStd, nil
+}
+
+func LoadStdlibSettings(root string) (string, bool, error) {
+	path := filepath.Join(root, "wisp.toml")
+	if _, err := os.Stat(path); err != nil {
+		return "", false, nil
+	}
+
+	var cfg Config
+	if _, err := toml.DecodeFile(path, &cfg); err != nil {
+		return "", false, err
+	}
+	return cfg.StdlibSettings(root)
 }

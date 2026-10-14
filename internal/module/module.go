@@ -44,7 +44,21 @@ func (m *Module) BufferMap() map[string][]byte {
 	return buffers
 }
 
+var (
+	stdlibOverride string
+	stdlibDisabled bool
+)
+
+func ConfigureStdlib(path string, disabled bool) {
+	stdlibOverride = path
+	stdlibDisabled = disabled
+}
+
 func StdlibRoot() (string, error) {
+	if stdlibOverride != "" {
+		return stdlibOverride, nil
+	}
+
 	exe, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -84,6 +98,9 @@ func canonicalModulePath(root, file string) (string, error) {
 
 func resolveImportPath(projectRoot, path string) (key, dir string, files []string, err error) {
 	isStd := strings.HasPrefix(path, "std/")
+	if isStd && stdlibDisabled {
+		return "", "", nil, fmt.Errorf("import %q: this build does not use the standard library (--no-std); provide one with --std <path>", path)
+	}
 	base := filepath.Join(projectRoot, path)
 	if after, ok := strings.CutPrefix(path, "std/"); ok {
 		stdRoot, err := StdlibRoot()

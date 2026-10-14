@@ -9,6 +9,11 @@ import (
 )
 
 func resolveModules(inputPath string) ([]*module.Module, bool) {
+	root := module.FindProjectRoot(filepath.Dir(inputPath))
+	if path, disabled, err := module.LoadStdlibSettings(root); err == nil {
+		module.ConfigureStdlib(path, disabled)
+	}
+
 	modules, err := module.BuildGraph(inputPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

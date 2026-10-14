@@ -6,7 +6,6 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
-	"github.com/Gui97p/wisp/internal/module"
 )
 
 func analyseEntry(path string) (*ast.Program, *analyser.Info) {
@@ -22,7 +21,7 @@ func analyseEntryChecked(path string) (program *ast.Program, info *analyser.Info
 		}
 	}()
 
-	modules, err := module.BuildGraphWithOverrides(resolveProjectEntry(path), fileBuffer)
+	modules, err := buildProjectGraph(resolveProjectEntry(path), fileBuffer)
 	if err != nil {
 		return nil, nil, false
 	}

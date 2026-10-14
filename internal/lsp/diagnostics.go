@@ -7,7 +7,6 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/diag"
-	"github.com/Gui97p/wisp/internal/module"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
@@ -22,7 +21,7 @@ func diagnoseFile(path string) (result map[string][]protocol.Diagnostic) {
 		}
 	}()
 
-	modules, err := module.BuildGraphWithOverrides(resolveProjectEntry(path), fileBuffer)
+	modules, err := buildProjectGraph(resolveProjectEntry(path), fileBuffer)
 	if err != nil {
 		return result
 	}

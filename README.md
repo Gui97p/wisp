@@ -90,6 +90,7 @@ Optional. Its presence marks the project root, and every key has a command line 
 ```toml
 entry = "src/main.wsp"
 target = "linux_x64"
+std = "kernel/std"
 
 [output]
 bin = "bin/app"
@@ -149,6 +150,13 @@ import "std/strings" as strings;
 ```
 
 The compiler looks for it in a `std` folder next to the `bin` folder that holds the `wisp` executable, which is the layout `make prod` packages.
+
+The `std/` prefix always means the current standard library, and two options change which one that is:
+
+* `--std <path>` (or `std = "path"` in `wisp.toml`) makes `std/` point at another folder. Its contents are treated exactly like the bundled library, so a kernel or another operating system can ship its own.
+* `--no-std` (or `nostd = true`) builds without one: any `import "std/..."` is an error. Your own modules are unaffected, and can use any other prefix.
+
+The two cannot be combined in the same place. A flag takes priority over `wisp.toml`.
 
 ## Builtins
 
