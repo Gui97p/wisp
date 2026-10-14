@@ -61,12 +61,45 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 	case lexer.TOKEN_ENUM:
 		return p.parseEnumDeclaration()
 	default:
+		if p.startsVarDeclaration() {
+			decl := p.parseVarDeclaration()
+			if decl == nil {
+				return nil
+			}
+			decls = append(decls, decl)
+			break
+		}
 		p.errorf("expected declaration, got %s", p.current.Type.DisplayName())
 		p.advance()
 		return nil
 	}
 
 	return decls
+}
+
+func (p *Parser) startsVarDeclaration() bool {
+	switch p.current.Type {
+	case lexer.TOKEN_LET, lexer.TOKEN_MAP:
+		return true
+	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN:
+		return p.looksLikeTypeDeclaration()
+	}
+	return p.isPrimitiveType()
+}
+
+func (p *Parser) parseVarDeclaration() *ast.VarDecl {
+	stmt := p.parseVarStatement()
+	if stmt == nil {
+		return nil
+	}
+
+	vs, ok := stmt.(*ast.VarStmt)
+	if !ok {
+		p.error("a switch expression cannot initialize a global")
+		return nil
+	}
+
+	return &ast.VarDecl{Vars: vs.Vars, Values: vs.Values}
 }
 
 func (p *Parser) parseImportDeclaration() *ast.ImportDecl {
@@ -114,6 +147,14 @@ func (p *Parser) parseExportDeclaration() []ast.Declaration {
 		decl.Exported = true
 		decls = append(decls, decl)
 
+	case lexer.TOKEN_LET, lexer.TOKEN_MAP, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN:
+		decl := p.parseVarDeclaration()
+		if decl == nil {
+			return nil
+		}
+		decl.Exported = true
+		decls = append(decls, decl)
+
 	case lexer.TOKEN_ENUM:
 		decls = p.parseEnumDeclaration()
 		if decls == nil {
@@ -147,6 +188,16 @@ func (p *Parser) parseExportDeclaration() []ast.Declaration {
 		decls = append(decls, decl)
 
 	case lexer.TOKEN_IDENT:
+		if p.looksLikeTypeDeclaration() {
+			decl := p.parseVarDeclaration()
+			if decl == nil {
+				return nil
+			}
+			decl.Exported = true
+			decls = append(decls, decl)
+			break
+		}
+
 		decl := &ast.ReexportDecl{Name: p.current.Literal}
 
 		if p.peek.Type == lexer.TOKEN_AS {
@@ -163,6 +214,15 @@ func (p *Parser) parseExportDeclaration() []ast.Declaration {
 		decls = append(decls, decl)
 
 	default:
+		if p.isPrimitiveType() {
+			decl := p.parseVarDeclaration()
+			if decl == nil {
+				return nil
+			}
+			decl.Exported = true
+			decls = append(decls, decl)
+			break
+		}
 		p.error("expected declaration after export")
 		return nil
 	}

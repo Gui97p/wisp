@@ -101,16 +101,15 @@ func (t *X64Target) memText(m Mem) string {
 	fmt.Fprintf(&b, "%s [", sizeLabels[min(m.Size, 8)])
 
 	if m.Label != "" {
-		fmt.Fprintf(&b, "rel %s]", m.Label)
-		return b.String()
-	}
+		fmt.Fprintf(&b, "rel %s", m.Label)
+	} else {
+		if m.Base != x64context.NoReg {
+			b.WriteString(t.ctx.GetRegister(m.Base, 8))
+		}
 
-	if m.Base != x64context.NoReg {
-		b.WriteString(t.ctx.GetRegister(m.Base, 8))
-	}
-
-	if m.Index != x64context.NoReg {
-		fmt.Fprintf(&b, "+%s*%d", t.ctx.GetRegister(m.Index, 8), m.Scale)
+		if m.Index != x64context.NoReg {
+			fmt.Fprintf(&b, "+%s*%d", t.ctx.GetRegister(m.Index, 8), m.Scale)
+		}
 	}
 
 	if m.Disp != 0 {

@@ -61,16 +61,21 @@ func (t *LuaTarget) Compile() (string, error) {
 		fmt.Fprintf(&b, "local %s\n", strings.Join(names, ", "))
 	}
 
-	for _, d := range t.program.Declarations {
-		if err := t.compileDeclarations(&b, []ast.Declaration{d}); err != nil {
-			return "", diag.InFile(err, t.files[d])
+	for _, hoisted := range []bool{true, false} {
+		for _, d := range t.program.Declarations {
+			if isDataDecl(d) != hoisted {
+				continue
+			}
+			if err := t.compileDeclarations(&b, []ast.Declaration{d}); err != nil {
+				return "", diag.InFile(err, t.files[d])
+			}
 		}
 	}
 
 	if t.isEntry {
 		b.WriteString(t.entryErrorCheck())
 	} else {
-		b.WriteString("local __wisp_module = {}\n")
+		b.WriteString(t.moduleTable())
 		t.writeExports(&b)
 		b.WriteString("return __wisp_module\n")
 	}
@@ -122,6 +127,7 @@ func (t *LuaTarget) writeExports(b *strings.Builder) {
 			for _, v := range decl.Vars {
 				fmt.Fprintf(b, "__wisp_module.%s = %s\n", v.Name, v.Name)
 			}
+		case *ast.VarDecl:
 		case *ast.ReexportDecl:
 			if decl.Alias != "" {
 				fmt.Fprintf(b, "__wisp_module.%s = %s\n", decl.Alias, decl.Name)
@@ -141,4 +147,42 @@ func (t *LuaTarget) importAlias(path string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func isDataDecl(d ast.Declaration) bool {
+	switch d.(type) {
+	case *ast.ConstDecl, *ast.VarDecl:
+		return true
+	}
+	return false
+}
+
+func (t *LuaTarget) moduleTable() string {
+	var names []string
+	for _, d := range t.program.Declarations {
+		if vd, ok := d.(*ast.VarDecl); ok && vd.Exported {
+			for _, v := range vd.Vars {
+				names = append(names, v.Name)
+			}
+		}
+	}
+	if len(names) == 0 {
+		return "local __wisp_module = {}\n"
+	}
+
+	var b strings.Builder
+	b.WriteString("local __wisp_module = setmetatable({}, {\n")
+	b.WriteString("  __index = function(_, k)\n")
+	for _, name := range names {
+		fmt.Fprintf(&b, "    if k == %q then return %s end\n", name, name)
+	}
+	b.WriteString("  end,\n")
+	b.WriteString("  __newindex = function(_, k, v)\n")
+	for _, name := range names {
+		fmt.Fprintf(&b, "    if k == %q then %s = v return end\n", name, name)
+	}
+	b.WriteString("    rawset(_, k, v)\n")
+	b.WriteString("  end,\n")
+	b.WriteString("})\n")
+	return b.String()
 }

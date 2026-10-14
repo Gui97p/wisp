@@ -20,6 +20,11 @@ func (t *X64Target) baseMem(expr ast.Expression) (Mem, Operand, error) {
 		if err != nil {
 			return Mem{}, nil, err
 		}
+		if mem.Label != "" {
+			reg := t.ctx.AllocFreeRegister()
+			t.loadWord(reg, Addr{Of: mem})
+			mem = Mem{Base: reg}
+		}
 		base = mem
 		limit = Imm(tp.Size)
 	case analyser.SpanType:

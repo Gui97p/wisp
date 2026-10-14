@@ -45,12 +45,73 @@ func (a *Analyser) registerTypeAliases() {
 func (a *Analyser) registerConsts() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
-		cd, ok := d.(*ast.ConstDecl)
-		if !ok {
+		switch decl := d.(type) {
+		case *ast.ConstDecl:
+			a.checkConstDecl(decl)
+		case *ast.VarDecl:
+			a.checkGlobalDecl(decl)
+		}
+	}
+}
+
+func (a *Analyser) checkGlobalDecl(decl *ast.VarDecl) {
+	a.checkVarsAndValues(decl, decl.Vars, decl.Values, VAR)
+
+	for _, sym := range a.info.VarSymbols[decl] {
+		sym.Global = true
+		sym.Module = a.module
+	}
+
+	for _, value := range decl.Values {
+		if !a.constantInitializer(value) {
+			a.error(value, "the initializer of a global must be a constant expression")
 			continue
 		}
-		a.checkConstDecl(cd)
+		a.recordConstLeaves(value)
 	}
+}
+
+func (a *Analyser) recordConstLeaves(expr ast.Expression) {
+	switch e := expr.(type) {
+	case *ast.ArrayLiteral:
+		for _, element := range e.Elements {
+			a.recordConstLeaves(element)
+		}
+	case *ast.StructLiteral:
+		for _, value := range e.Values {
+			a.recordConstLeaves(value)
+		}
+	default:
+		if value, ok := a.evalConst(expr); ok {
+			a.info.ConstValues[expr] = value
+		}
+	}
+}
+
+func (a *Analyser) constantInitializer(expr ast.Expression) bool {
+	switch e := expr.(type) {
+	case *ast.IntLiteral, *ast.FloatLiteral, *ast.StringLiteral, *ast.CharLiteral, *ast.BoolLiteral, *ast.NullLiteral, *ast.DotIdent:
+		return true
+	case *ast.ArrayLiteral:
+		for _, element := range e.Elements {
+			if !a.constantInitializer(element) {
+				return false
+			}
+		}
+		return true
+	case *ast.StructLiteral:
+		for _, value := range e.Values {
+			if !a.constantInitializer(value) {
+				return false
+			}
+		}
+		return true
+	case *ast.MapLiteral:
+		return false
+	}
+
+	_, ok := a.evalConst(expr)
+	return ok
 }
 
 func (a *Analyser) registerMethods() {
@@ -256,4 +317,33 @@ func (a *Analyser) mapLiteralAssignable(values []ast.Expression, n, i int, from 
 	keyOK := vm.Key.Equals(to.Key) || implicitConversion(vm.Key, to.Key)
 	valueOK := vm.Value.Equals(to.Value) || implicitConversion(vm.Value, to.Value)
 	return keyOK && valueOK
+}
+
+func (a *Analyser) warnUnusedGlobals() {
+	for _, d := range a.program.Declarations {
+		var vars []ast.Param
+		var exported bool
+		var kind SymbolKind
+
+		switch decl := d.(type) {
+		case *ast.VarDecl:
+			vars, exported, kind = decl.Vars, decl.Exported, VAR
+		case *ast.ConstDecl:
+			vars, exported, kind = decl.Vars, decl.Exported, CONST
+		default:
+			continue
+		}
+		if exported {
+			continue
+		}
+
+		for _, v := range vars {
+			sym, ok := a.scope.symbols[v.Name]
+			if !ok || sym.Used || silencesUnused(v.Name) {
+				continue
+			}
+			a.errors.Warn(a.declFiles[d], v.Line, v.Col, v.EndLine, v.EndCol, "%s %s is never used", kind, v.Name).
+				WithHelp("remove it, or export it if other modules use it")
+		}
+	}
 }

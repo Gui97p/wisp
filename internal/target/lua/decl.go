@@ -19,6 +19,10 @@ func (t *LuaTarget) compileDeclarations(b *strings.Builder, decls []ast.Declarat
 			if err := t.compileDefinition(b, d, d.Vars, d.Values); err != nil {
 				return err
 			}
+		case *ast.VarDecl:
+			if err := t.compileDefinition(b, d, d.Vars, d.Values); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

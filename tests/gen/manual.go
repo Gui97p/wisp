@@ -2965,6 +2965,120 @@ func main() ! {
 }
 `, expected: []string{"string less", "string greater", "string less than prefix extension", "string prefix is smaller", "string longer is greater", "empty is smaller", "equal is not less", "equal is not greater", "equal is less or equal", "equal is greater or equal", "less is less or equal", "greater is greater or equal", "greater is not less or equal", "less is not greater or equal", "last byte decides", "first byte decides over length", "ordering on a slice", "ordering with variables", "empty equals empty"}},
 
+	{dir: "global_basic", src: `const Base = 10;
+
+enum Mode {
+    Off,
+    On
+}
+
+struct P {
+    int x;
+    int y;
+}
+
+int counter = 0;
+int8 small;
+int sized = Base * 2 + 1;
+string name = "wisp";
+let inferred = 7;
+Mode mode = Mode.On;
+int[3] table = [1, 2, 3];
+P origin = P{x: 1, y: 2};
+int first, second = 4, 5;
+bool flag = true;
+char letter = 'q';
+
+func above() int {
+    return later;
+}
+
+int later = 99;
+
+func bump() {
+    counter += 1;
+    counter++;
+}
+
+func main() {
+    check(counter == 0 && small == 0, "global zero initializer");
+    check(sized == 21, "global constant expression initializer");
+    check(name == "wisp", "global string initializer");
+    check(inferred == 7, "global inferred initializer");
+    check(mode == Mode.On, "global enum initializer");
+    check(table[0] == 1 && table[2] == 3, "global array initializer");
+    check(origin.x == 1 && origin.y == 2, "global struct initializer");
+    check(first == 4 && second == 5, "global multiple declaration");
+    check(flag && letter == 'q', "global bool and char");
+    counter += 5;
+    check(counter == 5, "global compound assign");
+    counter++;
+    check(counter == 6, "global increment");
+    table[1] = 20;
+    check(table[1] == 20, "global array element write");
+    origin.x = 9;
+    check(origin.x == 9 && origin.y == 2, "global struct field write");
+    name = "other";
+    check(name == "other", "global string write");
+    check(above() == 99, "global used by a function above it");
+    flag = false;
+    check(!flag, "global bool write");
+    bump();
+    bump();
+    check(counter == 10, "global is shared across calls");
+}
+`, expected: []string{"global zero initializer", "global constant expression initializer", "global string initializer", "global inferred initializer", "global enum initializer", "global array initializer", "global struct initializer", "global multiple declaration", "global bool and char", "global compound assign", "global increment", "global array element write", "global struct field write", "global string write", "global used by a function above it", "global bool write", "global is shared across calls"}},
+
+	{dir: "global_modules", files: map[string]string{"store.wsp": `export int hits = 0;
+export string tag = "a";
+int hidden = 100;
+
+export func bump() {
+    hits++;
+    hidden++;
+}
+
+export func read() int {
+    return hits;
+}
+
+export func peek() int {
+    return hidden;
+}
+`}, src: `import "store";
+
+func main() {
+    check(store.hits == 0, "imported global initial value");
+    store.bump();
+    check(store.hits == 1, "imported global changed by its module");
+    store.hits = 10;
+    check(store.read() == 10, "imported global written from outside is seen by the module");
+    store.hits += 5;
+    check(store.hits == 15 && store.read() == 15, "compound write on an imported global");
+    check(store.tag == "a", "imported string global");
+    store.tag = "b";
+    check(store.tag == "b", "imported string global written");
+    check(store.peek() == 101, "private global stays private");
+    store.hits++;
+    check(store.read() == 16, "increment on an imported global");
+}
+`, expected: []string{"imported global initial value", "imported global changed by its module", "imported global written from outside is seen by the module", "compound write on an imported global", "imported string global", "imported string global written", "private global stays private", "increment on an imported global"}},
+
+	{dir: "global_pointer", x64Only: true, src: `int slot = 5;
+*int cell = null;
+int[4] buffer;
+
+func main() {
+    check(cell == null, "global null pointer");
+    cell = &slot;
+    *cell = 6;
+    check(slot == 6, "write through a global pointer");
+    cell = &buffer[2];
+    *cell = 7;
+    check(buffer[2] == 7, "global pointer to a global array element");
+}
+`, expected: []string{"global null pointer", "write through a global pointer", "global pointer to a global array element"}},
+
 	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
     a,
     b,

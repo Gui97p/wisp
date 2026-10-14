@@ -50,6 +50,15 @@ func (a *Analyser) Exports() map[string]*Symbol {
 					add(decl, v.Name, sym)
 				}
 			}
+		case *ast.VarDecl:
+			if !decl.Exported {
+				continue
+			}
+			for _, v := range decl.Vars {
+				if sym, ok := a.scope.Resolve(v.Name); ok {
+					add(decl, v.Name, sym)
+				}
+			}
 		case *ast.ReexportDecl:
 			sym, ok := a.scope.Resolve(decl.Name)
 			if !ok {

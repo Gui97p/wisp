@@ -19,11 +19,114 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		err := t.compileFunc(d)
 		t.ctx = ctx
 		return err
+	case *ast.VarDecl:
+		syms := t.info.VarSymbols[d]
+		for i := range d.Vars {
+			sym := syms[i]
+			l := symbolName(sym.Module, sym.Name)
+			if d.Exported {
+				t.data.printft("global %s\n", l)
+			}
+			t.data.printft("align 8\n%s:\n", l)
+
+			var init ast.Expression
+			if len(d.Values) > 0 {
+				init = d.Values[i]
+			}
+			if err := t.emitData(init, sym.Type); err != nil {
+				return err
+			}
+		}
+		return nil
 	case *ast.ImportDecl, *ast.ReexportDecl, *ast.TypeDecl, *ast.ConstDecl, *ast.StructDecl:
 		return nil
 	default:
 		return fmt.Errorf("x86-64: unsupported declaration %T", d)
 	}
+}
+
+func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
+	size := sizeOf(tp)
+
+	if expr == nil {
+		t.data.printft("times %d db 0\n", size)
+		return nil
+	}
+
+	switch u := underlying(tp).(type) {
+	case analyser.PrimitiveType:
+		value, ok := t.info.ConstValues[expr]
+		if !ok {
+			return fmt.Errorf("x86-64: unsupported global initializer")
+		}
+		if u.Name == "string" {
+			dl, dn, err := t.stringData(value.Str)
+			if err != nil {
+				return err
+			}
+			t.data.printft("dq %s\n\tdq %d\n", dl, dn)
+			return nil
+		}
+		t.data.printft("%s ", directive[size])
+		switch value.Kind {
+		case analyser.ConstBool:
+			if value.Bool {
+				t.data.println("1")
+			} else {
+				t.data.println("0")
+			}
+		case analyser.ConstInt:
+			t.data.printf("%d\n", value.Bits())
+		}
+		return nil
+	case analyser.PointerType:
+		t.data.printlnt("dq 0")
+		return nil
+	case analyser.ArrayType:
+		lit, ok := expr.(*ast.ArrayLiteral)
+		if !ok {
+			return fmt.Errorf("x86-64: unsupported global initializer")
+		}
+		for _, element := range lit.Elements {
+			if err := t.emitData(element, u.Element); err != nil {
+				return err
+			}
+		}
+		if missing := int(u.Size) - len(lit.Elements); missing > 0 {
+			t.data.printft("times %d db 0\n", missing*sizeOf(u.Element))
+		}
+		return nil
+	case *analyser.StructType:
+		lit, ok := expr.(*ast.StructLiteral)
+		if !ok {
+			return fmt.Errorf("x86-64: unsupported global initializer")
+		}
+		st := structOf(u)
+		layout := layoutOf(st)
+
+		values := map[string]ast.Expression{}
+		for i, key := range lit.Keys {
+			values[key] = lit.Values[i]
+		}
+
+		pos := 0
+		for _, field := range st.Order {
+			lField := layout.Fields[field]
+			if lField.Offset > pos {
+				t.data.printft("times %d db 0\n", lField.Offset-pos)
+			}
+			if err := t.emitData(values[field], lField.Type); err != nil {
+				return err
+			}
+			pos = lField.Offset + lField.Size
+		}
+		if layout.Size > pos {
+			t.data.printft("times %d db 0\n", layout.Size-pos)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("x86-64: unsupported global initializer")
 }
 
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {

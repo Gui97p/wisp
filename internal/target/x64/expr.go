@@ -43,6 +43,10 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		if !ok {
 			return nil, fmt.Errorf("x86-64: undefined identifier literal")
 		}
+		size := sizeOf(t.info.Types[e])
+		if sym.Global {
+			return t.globalMem(sym, size), nil
+		}
 		if sym.Kind == analyser.CONST {
 			if sym.Const == nil {
 				return nil, fmt.Errorf("x86-64: null constant")
@@ -63,7 +67,6 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		if !ok {
 			return nil, fmt.Errorf("x86-64: undefined literal")
 		}
-		size := sizeOf(t.info.Types[e])
 
 		return slot(offset, size), nil
 
@@ -121,6 +124,14 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 	}
 }
 
+func (t *X64Target) globalMem(sym *analyser.Symbol, size int) Mem {
+	l := symbolName(sym.Module, sym.Name)
+	if sym.Module != t.module {
+		t.prelude.define(l)
+	}
+	return label(l, size)
+}
+
 func (t *X64Target) checkNotNull(reg x64context.Register) {
 	ok := t.newLabel("not_null")
 	regStr := t.ctx.GetRegister(reg, 8)
@@ -133,13 +144,25 @@ func (t *X64Target) checkNotNull(reg x64context.Register) {
 func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 	switch e := expr.(type) {
 	case *ast.IdentLiteral:
-		offset, ok := t.ctx.Get(t.info.Idents[e])
+		size := sizeOf(t.info.Types[e])
+		sym := t.info.Idents[e]
+		if sym.Global {
+			return t.globalMem(sym, size), nil
+		}
+		offset, ok := t.ctx.Get(sym)
 		if !ok {
 			return Mem{}, fmt.Errorf("x86-64: undeclared variable %s", e.Value)
 		}
-		size := sizeOf(t.info.Types[e])
+
 		return slot(offset, size), nil
 	case *ast.MemberExpr:
+		if t.info.Members[e].Kind == analyser.MemberModule {
+			sym, err := t.resolveCallee(e)
+			if err != nil {
+				return Mem{}, err
+			}
+			return t.globalMem(sym, sizeOf(t.info.Types[e])), nil
+		}
 		op, err := t.compileExpr(e.Object)
 		if err != nil {
 			return Mem{}, err

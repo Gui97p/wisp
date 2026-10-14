@@ -66,6 +66,12 @@ func paramAt(program *ast.Program, line, col int) (*ast.Param, ast.Node, int) {
 					return &d.Vars[i], d, i
 				}
 			}
+		case *ast.VarDecl:
+			for i := range d.Vars {
+				if paramContains(&d.Vars[i], line, col) {
+					return &d.Vars[i], d, i
+				}
+			}
 		}
 	}
 	return nil, nil, -1
@@ -128,6 +134,10 @@ func exprInProgram(program *ast.Program, line, col int) ast.Expression {
 				}
 			}
 		case *ast.ConstDecl:
+			if r := firstExpr(line, col, d.Values...); r != nil {
+				return r
+			}
+		case *ast.VarDecl:
 			if r := firstExpr(line, col, d.Values...); r != nil {
 				return r
 			}

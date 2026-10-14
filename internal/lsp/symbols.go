@@ -62,6 +62,10 @@ func documentSymbols(uri protocol.DocumentUri) []protocol.DocumentSymbol {
 			for _, v := range d.Vars {
 				symbols = append(symbols, symbol(v.Name, protocol.SymbolKindConstant, v.Line, v.Col, v.EndLine, v.EndCol))
 			}
+		case *ast.VarDecl:
+			for _, v := range d.Vars {
+				symbols = append(symbols, symbol(v.Name, protocol.SymbolKindVariable, v.Line, v.Col, v.EndLine, v.EndCol))
+			}
 		}
 	}
 	return symbols

@@ -3,6 +3,7 @@ package analyser
 import (
 	"slices"
 	"sort"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
@@ -58,6 +59,7 @@ func (a *Analyser) Analyze() *Info {
 	a.registerFuncSignatures()
 	a.registerConsts()
 	a.checkFuncBodies()
+	a.warnUnusedGlobals()
 	a.warnUnusedImports()
 	a.defaultUntyped()
 	a.reportUnresolvedDots()
@@ -144,7 +146,7 @@ func (a *Analyser) exitScope() {
 func (a *Analyser) warnUnused(scope *Scope) {
 	var unused []*Symbol
 	for _, sym := range scope.symbols {
-		if (sym.Kind == VAR || sym.Kind == CONST) && !sym.Used && sym.Name != "_" && sym.Line > 0 {
+		if (sym.Kind == VAR || sym.Kind == CONST) && !sym.Used && !silencesUnused(sym.Name) && sym.Line > 0 {
 			unused = append(unused, sym)
 		}
 	}
@@ -173,7 +175,7 @@ func (a *Analyser) warnUnusedImports() {
 			continue
 		}
 		sym, ok := a.scope.symbols[imp.Alias]
-		if !ok || sym.Used || sym.Kind != MODULE || imp.Alias == "_" {
+		if !ok || sym.Used || sym.Kind != MODULE || silencesUnused(imp.Alias) {
 			continue
 		}
 		a.currentFile = a.declFiles[d]
@@ -263,4 +265,8 @@ func (a *Analyser) lookupType(scope *Scope, module, name string) (*Symbol, bool)
 	}
 	sym, ok := mt.Exports[name]
 	return sym, ok
+}
+
+func silencesUnused(name string) bool {
+	return strings.HasPrefix(name, "_")
 }

@@ -45,6 +45,8 @@ func declSite(sym *analyser.Symbol, info *analyser.Info, src []byte) (site, bool
 				params = n.Vars
 			case *ast.ConstDecl:
 				params = n.Vars
+			case *ast.VarDecl:
+				params = n.Vars
 			case *ast.ConstStmt:
 				params = n.Vars
 			case *ast.FuncDecl:
@@ -131,6 +133,12 @@ func renamable(path string, sym *analyser.Symbol, program *ast.Program) error {
 			if decl.Name == sym.Name && decl.Exported {
 				return fmt.Errorf("cannot rename exported %s: other modules may use it", sym.Name)
 			}
+		case *ast.VarDecl:
+			for _, v := range decl.Vars {
+				if v.Name == sym.Name && decl.Exported {
+					return fmt.Errorf("cannot rename exported %s: other modules may use it", sym.Name)
+				}
+			}
 		}
 	}
 	if sym.Kind == analyser.STRUCT || sym.Kind == analyser.TYPE || sym.Kind == analyser.MODULE {
@@ -201,7 +209,7 @@ func rename(uri protocol.DocumentUri, pos protocol.Position, newName string) (*p
 	if err := renamable(path, sym, program); err != nil {
 		return nil, err
 	}
-	if sym.Kind == analyser.FUNC && !singleFileModule(path) {
+	if (sym.Kind == analyser.FUNC || sym.Global) && !singleFileModule(path) {
 		return nil, fmt.Errorf("cannot rename %s: the module has several files", sym.Name)
 	}
 	if existing, ok := scopeForSymbol(info, sym).Resolve(newName); ok && existing != sym {

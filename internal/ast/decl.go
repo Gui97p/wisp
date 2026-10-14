@@ -39,6 +39,40 @@ func (c *ConstDecl) Tree(indent string) string {
 	return b.String()
 }
 
+type VarDecl struct {
+	Vars     []Param
+	Values   []Expression
+	Exported bool
+
+	NodePos
+}
+
+func (*VarDecl) decl() {}
+func (c *VarDecl) Tree(indent string) string {
+	var b strings.Builder
+	b.WriteString(indent)
+	b.WriteString("VarDecl\n")
+
+	total := len(c.Vars) + len(c.Values)
+	n := 0
+	branch := func() string {
+		n++
+		if n == total {
+			return "└─ "
+		}
+		return "├─ "
+	}
+
+	for _, v := range c.Vars {
+		b.WriteString(v.Tree(indent + branch()))
+	}
+	for _, value := range c.Values {
+		b.WriteString(value.Tree(indent + branch()))
+	}
+
+	return b.String()
+}
+
 type FuncDecl struct {
 	Name        string
 	Receiver    *Param

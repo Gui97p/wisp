@@ -20,11 +20,13 @@ type Info struct {
 	Scopes        map[ast.Node]*Scope
 	Reexports     map[*ast.ReexportDecl][]string
 	SizeOf        map[*ast.CallExpr]Type
+	ConstValues   map[ast.Expression]ConstValue
 }
 
 func NewInfo() *Info {
 	return &Info{
 		VarTypes:      make(map[ast.Node][]Type),
+		ConstValues:   make(map[ast.Expression]ConstValue),
 		SizeOf:        make(map[*ast.CallExpr]Type),
 		VarSymbols:    make(map[ast.Node][]*Symbol),
 		Types:         make(map[ast.Expression]Type),

@@ -83,6 +83,13 @@ var sizeLabels = map[int]string{
 	8: "qword",
 }
 
+var directive = map[int]string{
+	1: "db",
+	2: "dw",
+	4: "dd",
+	8: "dq",
+}
+
 func alignUp(n, a int) int {
 	if a <= 1 {
 		return n

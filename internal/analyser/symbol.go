@@ -43,7 +43,8 @@ type Symbol struct {
 	File   string
 	Module string
 
-	Const *ConstValue
+	Const  *ConstValue
+	Global bool
 
 	MustUse bool
 	Used    bool
