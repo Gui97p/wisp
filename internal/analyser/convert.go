@@ -554,6 +554,7 @@ func (a *Analyser) checkPointerConversion(expr *ast.UnaryExpr) (Type, bool) {
 		a.checkConstFits(arg, PrimitiveType{Name: "uint64"})
 		a.fixUntyped(arg, PrimitiveType{Name: "uint64"})
 	case isWideInteger(underlyingOf(from)):
+	case isString(underlyingOf(from)) && isByteLike(target):
 	default:
 		if _, isPtr := underlyingOf(from).(PointerType); !isPtr {
 			a.errorf(expr, "cannot convert %s to %s", from.String(), result.String())

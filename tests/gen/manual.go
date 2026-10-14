@@ -3079,6 +3079,22 @@ func main() {
 }
 `, expected: []string{"global null pointer", "write through a global pointer", "global pointer to a global array element"}},
 
+	{dir: "string_pointer", x64Only: true, src: `func main() {
+    *int8 p = *int8("hello");
+    check(p[0] == 104, "literal string data pointer first byte");
+    check(p[4] == 111, "literal string data pointer last byte");
+    check(p[5] == 0, "literal strings end with a zero byte");
+    *char c = *char("hi");
+    check(c[1] == 'i', "char pointer from a string");
+    *uint8 u = *uint8("A");
+    check(u[0] == 65, "uint8 pointer from a string");
+    string s = "xyz";
+    *int8 q = *int8(s);
+    check(q[2] == 122, "pointer from a string variable");
+    check(**int8("z") == 122, "deref of a converted string");
+}
+`, expected: []string{"literal string data pointer first byte", "literal string data pointer last byte", "literal strings end with a zero byte", "char pointer from a string", "uint8 pointer from a string", "pointer from a string variable", "deref of a converted string"}},
+
 	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
     a,
     b,
