@@ -80,9 +80,24 @@ func regsNeeded(expr ast.Expression) int {
 	return 0
 }
 
+func isPointer(tp analyser.Type) bool {
+	_, ok := underlying(tp).(analyser.PointerType)
+	return ok
+}
+
 func isString(tp analyser.Type) bool {
 	p, ok := underlying(tp).(analyser.PrimitiveType)
 	return ok && p.Name == "string"
+}
+
+func isChar(tp analyser.Type) bool {
+	p, ok := underlying(tp).(analyser.PrimitiveType)
+	return ok && p.Name == "char"
+}
+
+func isSpan(tp analyser.Type) bool {
+	_, ok := underlying(tp).(analyser.SpanType)
+	return ok
 }
 
 func decodeEscapes(s string) ([]byte, error) {

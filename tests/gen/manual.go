@@ -2856,6 +2856,89 @@ func main() ! {
 }
 `, expected: []string{"pointer plus offset", "pointer difference", "offset plus pointer", "pointer ordering", "pointer ordering reversed", "pointer minus assign", "pointer plus assign", "pointer minus offset", "byte pointer difference", "byte pointer address step", "struct pointer difference", "struct pointer steps by sizeof", "pointer plus variable", "pointer plus narrow integer", "pointer increment steps one element", "pointer decrement steps one element", "byte pointer increment", "struct pointer increment"}},
 
+	{dir: "string_from_bytes", x64Only: true, src: `func main() ! {
+    *int8 b = malloc(8)!;
+    b[0] = 104;
+    b[1] = 105;
+    string s = string(b[0:2]);
+    check(len(s) == 2, "string from int8 pointer slice length");
+    check(s == "hi", "string from int8 pointer slice content");
+    b[1] = 111;
+    check(s == "ho", "string is a view of the buffer");
+
+    *char c = malloc(4)!;
+    c[0] = 'o';
+    c[1] = 'k';
+    char[] cs = c[0:2];
+    check(string(cs) == "ok", "string from char slice");
+
+    uint8[4] arr;
+    arr[0] = 65;
+    arr[1] = 66;
+    arr[2] = 67;
+    uint8[] us = arr[0:3];
+    check(string(us) == "ABC", "string from uint8 array slice");
+    check(string(arr[1:3]) == "BC", "string from inline slice");
+    check(len(string(us)) == 3, "string from bytes length");
+    free(b);
+    free(c);
+}
+`, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string is a view of the buffer", "string from char slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
+
+	{dir: "free_string", x64Only: true, src: `func main() ! {
+    *int8 b = malloc(24)!;
+    b[0] = 120;
+    string s = string(b[0:5]);
+    free(s);
+    *int8 c = malloc(24)!;
+    check(b == c, "free of a string releases its block");
+    free(c);
+    free(null);
+    check(true, "free of null still works");
+}
+`, expected: []string{"free of a string releases its block", "free of null still works"}},
+
+	{dir: "free_many", x64Only: true, src: `func main() ! {
+    *int a = malloc(24)!;
+    *int b = malloc(24)!;
+    *int c = malloc(100)!;
+    free(a, b, c);
+    *int x = malloc(24)!;
+    *int y = malloc(24)!;
+    *int z = malloc(100)!;
+    check((x == a && y == b) || (x == b && y == a), "free of many releases every small block");
+    check(z == c, "free of many releases the last block");
+
+    *int8 raw = malloc(40)!;
+    string s = string(raw[0:3]);
+    *int d = malloc(40)!;
+    free(s, d);
+    *int8 raw2 = malloc(40)!;
+    *int d2 = malloc(40)!;
+    check((raw2 == raw && uint64(d2) == uint64(d)) || (uint64(raw2) == uint64(d) && d2 == *int(raw)), "free of mixed string and pointer");
+    free(raw2, d2, null);
+    check(true, "free of many accepts null");
+}
+`, expected: []string{"free of many releases every small block", "free of many releases the last block", "free of mixed string and pointer", "free of many accepts null"}},
+
+	{dir: "free_node_next", x64Only: true, src: `struct Node {
+    *Node next;
+    int v;
+}
+
+func main() ! {
+    *Node first = malloc(sizeof(Node))!;
+    *Node second = malloc(sizeof(Node))!;
+    first.next = second;
+    second.v = 42;
+    second.next = null;
+    free(first, first.next);
+    *Node a = malloc(sizeof(Node))!;
+    *Node b = malloc(sizeof(Node))!;
+    check((a == first && b == second) || (a == second && b == first), "free reads every argument before releasing any");
+}
+`, expected: []string{"free reads every argument before releasing any"}},
+
 	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
     a,
     b,

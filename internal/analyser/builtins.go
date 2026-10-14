@@ -36,7 +36,7 @@ func (a *Analyser) registerBuiltins() {
 		Name: "realloc", Params: []Type{PointerType{Element: VoidType{}}, intType}, Returns: []Type{PointerType{Element: VoidType{}}}, Fallible: true,
 	}})
 	a.universe.Define(&Symbol{Name: "free", Kind: FUNC, Type: &FuncType{
-		Name: "free", Params: []Type{PointerType{Element: VoidType{}}}, Returns: nil,
+		Name: "free", Params: []Type{AnyType{}}, Returns: nil, Variadic: true,
 	}})
 
 	a.universe.Define(&Symbol{Name: "Error", Kind: TYPE, Type: ErrorType{}})

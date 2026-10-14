@@ -458,6 +458,9 @@ func explicitConversion(from, to Type) bool {
 	if isChar(from) && isString(to) {
 		return true
 	}
+	if span, ok := from.(SpanType); ok && isString(to) && isByteLike(span.Element) {
+		return true
+	}
 	fu, tu := underlyingOf(from), underlyingOf(to)
 	if _, ok := fu.(PointerType); ok && isWideInteger(tu) {
 		return true
@@ -572,4 +575,16 @@ func (a *Analyser) checkPointerConversion(expr *ast.UnaryExpr) (Type, bool) {
 func isInvalidType(t Type) bool {
 	_, bad := t.(InvalidType)
 	return bad
+}
+
+func isByteLike(t Type) bool {
+	p, ok := underlyingOf(t).(PrimitiveType)
+	if !ok {
+		return false
+	}
+	switch p.Name {
+	case "char", "int8", "uint8":
+		return true
+	}
+	return false
 }

@@ -10,13 +10,8 @@ import (
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
-func isPointerType(tp analyser.Type) bool {
-	_, ok := underlying(tp).(analyser.PointerType)
-	return ok
-}
-
 func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightType, resultType analyser.Type, rightExpr ast.Expression) (Operand, error) {
-	if (op == "+" || op == "-") && (isPointerType(leftType) || isPointerType(rightType)) {
+	if (op == "+" || op == "-") && (isPointer(leftType) || isPointer(rightType)) {
 		return t.compilePointerArithmetic(op, left, right, leftType, rightType, resultType)
 	}
 
@@ -90,8 +85,8 @@ func (t *X64Target) compileStringBinary(expr *ast.BinaryExpr) (Operand, error) {
 }
 
 func (t *X64Target) compilePointerArithmetic(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
-	leftPtr := isPointerType(leftType)
-	rightPtr := isPointerType(rightType)
+	leftPtr := isPointer(leftType)
+	rightPtr := isPointer(rightType)
 
 	switch {
 	case leftPtr && rightPtr:
