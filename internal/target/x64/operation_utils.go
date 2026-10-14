@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"math/bits"
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -295,4 +296,52 @@ func (t *X64Target) eachValue(exprs []ast.Expression, callback func(i int, op Op
 	}
 
 	return nil
+}
+
+func (t *X64Target) widen(op Operand, tp analyser.Type, size int) Operand {
+	if _, ok := op.(Imm); ok {
+		return op
+	}
+
+	srcSize := sizeOf(tp)
+	reg := t.materialize(op, srcSize)
+	if srcSize >= size {
+		return Reg{reg, size}
+	}
+
+	dstSize := size
+	if srcSize < 8 {
+		inst := ucastOperators[srcSize][dstSize]
+		if isSigned(tp) {
+			inst = castOperators[srcSize][dstSize]
+		} else if srcSize == 4 && size == 8 {
+			dstSize = 4
+		}
+
+		dstReg := t.ctx.GetRegister(reg, dstSize)
+		t.text.printft("%s %s, %s\n", inst, dstReg, t.ctx.GetRegister(reg, srcSize))
+	}
+
+	return Reg{reg, size}
+}
+
+func (t *X64Target) scale(op Operand, size int) Operand {
+	switch o := op.(type) {
+	case Imm:
+		return Imm(int64(o) * int64(size))
+	case Reg:
+		reg := t.ctx.GetRegister(o.Reg, 8)
+		switch {
+		case size == 1:
+		case size&(size-1) == 0:
+			t.text.printft("shl %s, %d\n", reg, bits.TrailingZeros(uint(size)))
+		default:
+			t.text.printft("imul %s, %s, %d\n", reg, reg, size)
+		}
+	}
+	return op
+}
+
+func (t *X64Target) offset(op Operand, tp analyser.Type, size int) Operand {
+	return t.scale(t.widen(op, tp, 8), size)
 }

@@ -2715,6 +2715,147 @@ func main() {
 }
 `, expected: []string{"oom before the failure"}, abort: "error[runtime.AllocError]: out of memory"},
 
+	{dir: "ptr_index", x64Only: true, src: `struct P {
+    int a;
+    int8 b;
+}
+
+func main() ! {
+    *int p = malloc(sizeof(int) * 4)!;
+    p[0] = 10;
+    p[1] = 20;
+    p[3] = 40;
+    check(p[0] == 10, "pointer index first");
+    check(p[1] == 20, "pointer index second");
+    check(p[3] == 40, "pointer index last");
+    p[1] += 5;
+    check(p[1] == 25, "pointer index compound assign");
+    *int mid = *int(p);
+    check(mid[3] == 40, "pointer index through a converted pointer");
+
+    *int8 b = malloc(16)!;
+    b[4] = 7;
+    *int8 q = *int8(b);
+    check(q[4] == 7, "pointer index on bytes");
+    int i = 4;
+    check(b[i] == 7, "pointer index with a variable");
+
+    *P ps = malloc(sizeof(P) * 3)!;
+    ps[2].a = 99;
+    ps[2].b = 5;
+    check(ps[2].a == 99, "pointer index struct field a");
+    check(ps[2].b == 5, "pointer index struct field b");
+    free(ps);
+    free(b);
+    free(p);
+}
+`, expected: []string{"pointer index first", "pointer index second", "pointer index last", "pointer index compound assign", "pointer index through a converted pointer", "pointer index on bytes", "pointer index with a variable", "pointer index struct field a", "pointer index struct field b"}},
+
+	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
+    *int8 b = malloc(16)!;
+    for i in 0..15 {
+        b[i] = int8(i * 2);
+    }
+    int8[] s = b[2:6];
+    check(len(s) == 4, "pointer slice length");
+    check(s[0] == 4, "pointer slice first");
+    check(s[3] == 10, "pointer slice last");
+    s[1] = 99;
+    check(b[3] == 99, "pointer slice writes through to the buffer");
+    int8[] t = s[1:3];
+    check(t[0] == 99, "slice of a pointer slice");
+    int lo = 4;
+    int hi = 9;
+    int8[] u = b[lo:hi];
+    check(len(u) == 5, "pointer slice with variable bounds");
+    free(b);
+}
+`, expected: []string{"pointer slice length", "pointer slice first", "pointer slice last", "pointer slice writes through to the buffer", "slice of a pointer slice", "pointer slice with variable bounds"}},
+
+	{dir: "ptr_convert", x64Only: true, src: `struct P {
+    int a;
+    int b;
+}
+
+func main() ! {
+    *int p = malloc(32)!;
+    p[0] = 1234;
+    uint64 addr = uint64(p);
+    check(addr != 0, "pointer to integer is not null");
+    int signed = int(p);
+    check(uint64(signed) == addr, "pointer to int matches uint64");
+    *int q = *int(addr);
+    check(*q == 1234, "integer to pointer round trip");
+    **int(addr) = 77;
+    check(p[0] == 77, "write through a converted integer");
+    int v = **int(addr);
+    check(v == 77, "read through a converted integer");
+
+    *P sp = *P(p);
+    sp.b = 5;
+    check(p[1] == 5, "struct pointer reinterpreted from int pointer");
+    *int8 bytes = *int8(sp);
+    check(bytes[0] == 77, "bytes view of a struct pointer");
+    check(*int(0) == null, "converted zero is the null pointer");
+    free(p);
+}
+`, expected: []string{"pointer to integer is not null", "pointer to int matches uint64", "integer to pointer round trip", "write through a converted integer", "read through a converted integer", "struct pointer reinterpreted from int pointer", "bytes view of a struct pointer", "converted zero is the null pointer"}},
+
+	{dir: "ptr_arith", x64Only: true, src: `struct P {
+    int a;
+    int8 b;
+}
+
+func main() ! {
+    *int p = malloc(sizeof(int) * 8)!;
+    *int q = p + 2;
+    *q = 7;
+    check(p[2] == 7, "pointer plus offset");
+    check(q - p == 2, "pointer difference");
+    check(2 + p == q, "offset plus pointer");
+    check(q > p, "pointer ordering");
+    check(p < q, "pointer ordering reversed");
+    q -= 1;
+    check(q - p == 1, "pointer minus assign");
+    q += 3;
+    check(q - p == 4, "pointer plus assign");
+    check(q - 4 == p, "pointer minus offset");
+
+    *int8 b = malloc(16)!;
+    *int8 c = b + 5;
+    check(c - b == 5, "byte pointer difference");
+    check(uint64(c) - uint64(b) == 5, "byte pointer address step");
+
+    *P ps = malloc(sizeof(P) * 4)!;
+    *P p2 = ps + 1;
+    check(p2 - ps == 1, "struct pointer difference");
+    check(uint64(p2) - uint64(ps) == uint64(sizeof(P)), "struct pointer steps by sizeof");
+
+    int n = 3;
+    check((p + n) - p == 3, "pointer plus variable");
+    int32 small = 2;
+    check((p + small) - p == 2, "pointer plus narrow integer");
+
+    *int w = p;
+    w++;
+    check(w - p == 1, "pointer increment steps one element");
+    w++;
+    w--;
+    check(w - p == 1, "pointer decrement steps one element");
+
+    *int8 bw = b;
+    bw++;
+    check(bw - b == 1, "byte pointer increment");
+
+    *P sw = ps;
+    sw++;
+    check(uint64(sw) - uint64(ps) == uint64(sizeof(P)), "struct pointer increment");
+    free(ps);
+    free(b);
+    free(p);
+}
+`, expected: []string{"pointer plus offset", "pointer difference", "offset plus pointer", "pointer ordering", "pointer ordering reversed", "pointer minus assign", "pointer plus assign", "pointer minus offset", "byte pointer difference", "byte pointer address step", "struct pointer difference", "struct pointer steps by sizeof", "pointer plus variable", "pointer plus narrow integer", "pointer increment steps one element", "pointer decrement steps one element", "byte pointer increment", "struct pointer increment"}},
+
 	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
     a,
     b,

@@ -30,6 +30,11 @@ func isSigned(tp analyser.Type) bool {
 	}
 }
 
+func elemSize(tp analyser.Type) int {
+	p := underlying(tp).(analyser.PointerType)
+	return sizeOf(p.Element)
+}
+
 func regsNeeded(expr ast.Expression) int {
 	switch e := expr.(type) {
 	case *ast.ArrayLiteral:

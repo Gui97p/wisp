@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
@@ -191,7 +192,20 @@ func (t *X64Target) compileIncDecStmt(stmt *ast.IncDecStmt) error {
 	if err != nil {
 		return err
 	}
-	t.text.printft("%s %s\n", incDecOperators[stmt.Op], t.memText(memSlot))
+	var inst, op string
+
+	switch tp := t.info.Types[stmt.Target].(type) {
+	case analyser.PointerType:
+		inst = "add"
+		if stmt.Op == "--" {
+			inst = "sub"
+		}
+		op = fmt.Sprintf("%s, %d", t.memText(memSlot), sizeOf(tp.Element))
+	default:
+		inst = incDecOperators[stmt.Op]
+		op = t.memText(memSlot)
+	}
+	t.text.printft("%s %s\n", inst, op)
 	t.freeOp(memSlot)
 	return nil
 }

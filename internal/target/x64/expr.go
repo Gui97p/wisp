@@ -215,6 +215,10 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 }
 
 func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
+	if expr.Cast != nil {
+		return t.compileExpr(expr.Cast)
+	}
+
 	switch expr.Operator {
 	case "&":
 		mem, err := t.compileLValue(expr.Value)
@@ -294,7 +298,6 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 		return t.compileExpr(expr.Value)
 	}
 
-	srcSize := sizeOf(srcType)
 	dstSize := sizeOf(dstType)
 
 	if c, ok := srcType.(analyser.PrimitiveType); ok && c.Name == "char" {
@@ -319,25 +322,7 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 		return nil, err
 	}
 
-	if dstSize <= srcSize {
-		reg := t.materialize(op, dstSize)
-		return Reg{reg, dstSize}, nil
-	}
-
-	reg := t.ctx.AllocFreeRegister()
-	srcReg := t.materialize(op, srcSize)
-
-	inst := ucastOperators[srcSize][dstSize]
-	if isSigned(srcType) {
-		inst = castOperators[srcSize][dstSize]
-	} else if dstSize == 8 && srcSize == 4 {
-		dstSize = 4
-	}
-
-	t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(reg, dstSize), t.ctx.GetRegister(srcReg, srcSize))
-	t.freeOp(op)
-	t.ctx.FreeRegister(srcReg)
-
+	reg := t.materialize(t.widen(op, srcType, dstSize), dstSize)
 	return Reg{reg, dstSize}, nil
 }
 
@@ -418,9 +403,11 @@ func (t *X64Target) compileSliceExpr(expr *ast.SliceExpr) (Operand, error) {
 		end = Reg{reg, 8}
 	}
 
-	t.checkIndexOk(end, limit, "jbe", "slice out of range")
+	if limit != nil {
+		t.checkIndexOk(end, limit, "jbe", "slice out of range")
+		t.freeOp(limit)
+	}
 	t.checkIndexOk(start, end, "jbe", "slice out of range")
-	t.freeOp(limit)
 
 	elemSize := 1
 	switch tp := t.info.Types[expr].(type) {

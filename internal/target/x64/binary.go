@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"math/bits"
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -9,7 +10,16 @@ import (
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
+func isPointerType(tp analyser.Type) bool {
+	_, ok := underlying(tp).(analyser.PointerType)
+	return ok
+}
+
 func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightType, resultType analyser.Type, rightExpr ast.Expression) (Operand, error) {
+	if (op == "+" || op == "-") && (isPointerType(leftType) || isPointerType(rightType)) {
+		return t.compilePointerArithmetic(op, left, right, leftType, rightType, resultType)
+	}
+
 	switch op {
 	case "+", "-", "*", "/", "%":
 		return t.compileArithmetic(op, left, right, resultType)
@@ -77,6 +87,37 @@ func (t *X64Target) compileStringBinary(expr *ast.BinaryExpr) (Operand, error) {
 		return nil, fmt.Errorf("x86-64: string ordering not supported")
 	}
 	return ops[0], nil
+}
+
+func (t *X64Target) compilePointerArithmetic(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
+	leftPtr := isPointerType(leftType)
+	rightPtr := isPointerType(rightType)
+
+	switch {
+	case leftPtr && rightPtr:
+		diff, err := t.compileArithmetic("-", left, right, resultType)
+		if err != nil {
+			return nil, err
+		}
+		size := elemSize(leftType)
+
+		switch {
+		case size == 1:
+			return diff, nil
+		case size&(size-1) == 0:
+			reg := t.materialize(diff, 8)
+			t.text.printft("sar %s, %d\n", t.ctx.GetRegister(reg, 8), bits.TrailingZeros(uint(size)))
+			return Reg{reg, 8}, nil
+		default:
+			return t.compileArithmetic("/", diff, Imm(size), resultType)
+		}
+	case leftPtr:
+		off := t.offset(right, rightType, elemSize(leftType))
+		return t.compileArithmetic(op, left, off, resultType)
+	default:
+		off := t.offset(left, leftType, elemSize(rightType))
+		return t.compileArithmetic("+", right, off, resultType)
+	}
 }
 
 func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyser.Type) (Operand, error) {

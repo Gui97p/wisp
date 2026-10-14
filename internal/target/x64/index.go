@@ -32,6 +32,13 @@ func (t *X64Target) baseMem(expr ast.Expression) (Mem, Operand, error) {
 		t.loadWord(reg, words[0])
 		base = Mem{Base: reg}
 		limit = words[1]
+	case analyser.PointerType:
+		op, err := t.compileExpr(expr)
+		if err != nil {
+			return Mem{}, nil, err
+		}
+		reg := t.materialize(op, 8)
+		base = Mem{Base: reg}
 	case analyser.PrimitiveType:
 		if tp.Name != "string" {
 			return Mem{}, nil, fmt.Errorf("x86-64: unsupported index expression")
@@ -62,21 +69,10 @@ func (t *X64Target) baseIndex(expr ast.Expression) (Reg, error) {
 	}
 	indexTp := t.info.Types[expr]
 	indexSize := sizeOf(indexTp)
+	index = t.widen(index, indexTp, 8)
 	reg := t.materialize(index, indexSize)
-	dstSize := 8
-	indexReg := t.ctx.GetRegister(reg, dstSize)
-	if indexSize < 8 {
-		inst := ucastOperators[indexSize][dstSize]
-		if isSigned(indexTp) {
-			inst = castOperators[indexSize][dstSize]
-		} else if indexSize == 4 {
-			dstSize = 4
-		}
 
-		t.text.printft("%s %s, %s\n", inst, indexReg, t.ctx.GetRegister(reg, indexSize))
-	}
-
-	return Reg{reg, dstSize}, nil
+	return Reg{reg, 8}, nil
 }
 
 func (t *X64Target) checkIndexOk(reg Reg, limit Operand, inst, message string) {
@@ -90,8 +86,7 @@ func (t *X64Target) checkIndexOk(reg Reg, limit Operand, inst, message string) {
 func (t *X64Target) elementAt(base Mem, index Reg, elemSize int) (Mem, error) {
 	scale := elemSize
 	if !slices.Contains([]int{1, 2, 4, 8}, elemSize) {
-		indexReg := t.ctx.GetRegister(index.Reg, index.Size)
-		t.text.printft("imul %s, %s, %d\n", indexReg, indexReg, elemSize)
+		t.scale(index, scale)
 		scale = 1
 	}
 
@@ -119,7 +114,9 @@ func (t *X64Target) compileIndex(expr *ast.IndexExpr) (Mem, error) {
 		return Mem{}, err
 	}
 
-	t.checkIndexOk(index, limit, "jb", "index out of range")
-	t.freeOp(limit)
+	if limit != nil {
+		t.checkIndexOk(index, limit, "jb", "index out of range")
+		t.freeOp(limit)
+	}
 	return t.elementAt(base, index, elemSize)
 }
