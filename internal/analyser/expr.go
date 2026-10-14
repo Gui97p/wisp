@@ -233,6 +233,10 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 		}
 	}
 
+	if t, handled := a.pointerArithmetic(expr, left, right); handled {
+		return t
+	}
+
 	switch expr.Operator {
 	case "+", "-", "*", "/", "%", "==", "!=", ">", ">=", "<", "<=", "&", "|", "^":
 		a.checkBinaryConst(expr.Operator, expr.Left, expr.Right, left, right)
@@ -266,6 +270,12 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 }
 
 func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
+	if expr.Operator == "*" {
+		if t, handled := a.checkPointerConversion(expr); handled {
+			return t
+		}
+	}
+
 	value := a.checkExpr(expr.Value)
 
 	if _, ok := value.(InvalidType); ok {
@@ -309,6 +319,10 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 		ptr, ok := value.(PointerType)
 		if !ok {
 			a.errorf(expr, "expected pointer for *, got %s", value.String())
+			return InvalidType{}
+		}
+		if isVoidPointer(ptr) {
+			a.error(expr, "cannot dereference *void: convert it to a typed pointer first")
 			return InvalidType{}
 		}
 		return ptr.Element
@@ -644,6 +658,15 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 		a.requireNumeric(expr, idxType, "span index")
 		a.checkConstIndex(expr.Index, -1)
 		return t.Element
+	case PointerType:
+		if isVoidPointer(t) {
+			a.error(expr, "cannot index *void: convert it to a typed pointer first")
+			return InvalidType{}
+		}
+		if _, invalid := idxType.(InvalidType); !invalid && !isInteger(idxType) {
+			a.errorf(expr, "pointer index must be an integer, got %s", idxType.String())
+		}
+		return t.Element
 	case *MapType:
 		if _, invalid := idxType.(InvalidType); !invalid && !idxType.Equals(t.Key) {
 			a.errorf(expr, "map index expected %s, got %s", t.Key.String(), idxType.String())
@@ -679,6 +702,17 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 	case SpanType:
 		a.checkConstSlice(expr, -1)
 		return t
+	case PointerType:
+		if isVoidPointer(t) {
+			a.error(expr, "cannot slice *void: convert it to a typed pointer first")
+			return InvalidType{}
+		}
+		if expr.Start == nil || expr.End == nil {
+			a.error(expr, "slicing a pointer needs both bounds, as in p[a:b]")
+			return InvalidType{}
+		}
+		a.checkConstSlice(expr, -1)
+		return SpanType{Element: t.Element}
 	case PrimitiveType:
 		if t.Name == "string" {
 			return t

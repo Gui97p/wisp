@@ -97,6 +97,8 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 
 	if primitives[ref.Name] {
 		result = PrimitiveType{Name: ref.Name}
+	} else if ref.Name == "void" && ref.Module == "" && ref.PointerDepth > 0 && len(ref.Dims) == 0 {
+		result = VoidType{}
 	} else {
 		symbol, ok := a.lookupType(scope, ref.Module, ref.Name)
 		if !ok {

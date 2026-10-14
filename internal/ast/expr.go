@@ -37,6 +37,7 @@ func (b *BinaryExpr) Tree(indent string) string {
 type UnaryExpr struct {
 	Value    Expression
 	Operator string
+	Cast     *CastExpr
 
 	NodePos
 }

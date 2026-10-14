@@ -401,12 +401,20 @@ func (a *Analyser) defaultUntyped() {
 }
 
 func (a *Analyser) conversionTarget(expr *ast.CallExpr) (Type, bool) {
+	return a.typeCallee(expr, false)
+}
+
+func (a *Analyser) typeCallee(expr *ast.CallExpr, allowStruct bool) (Type, bool) {
+	isType := func(sym *Symbol) bool {
+		return sym.Kind == TYPE || (allowStruct && sym.Kind == STRUCT)
+	}
+
 	if member, ok := expr.Name.(*ast.MemberExpr); ok {
 		module, isIdent := member.Object.(*ast.IdentLiteral)
 		if !isIdent {
 			return nil, false
 		}
-		if sym, found := a.lookupType(a.scope, module.Value, member.Field); found && sym.Kind == TYPE {
+		if sym, found := a.lookupType(a.scope, module.Value, member.Field); found && isType(sym) {
 			return sym.Type, true
 		}
 		return nil, false
@@ -418,7 +426,7 @@ func (a *Analyser) conversionTarget(expr *ast.CallExpr) (Type, bool) {
 	}
 
 	if sym, found := a.scope.Resolve(id.Value); found {
-		if sym.Kind == TYPE {
+		if isType(sym) {
 			return sym.Type, true
 		}
 		return nil, false
@@ -451,6 +459,9 @@ func explicitConversion(from, to Type) bool {
 		return true
 	}
 	fu, tu := underlyingOf(from), underlyingOf(to)
+	if _, ok := fu.(PointerType); ok && isWideInteger(tu) {
+		return true
+	}
 	_, fromNamed := from.(NamedType)
 	_, toNamed := to.(NamedType)
 	return (fromNamed || toNamed) && fu.Equals(tu) && tu.Equals(fu)
@@ -496,4 +507,69 @@ func (a *Analyser) checkConversion(expr *ast.CallExpr, target Type) Type {
 func isFloatType(t Type) bool {
 	p, ok := underlying(t).(PrimitiveType)
 	return ok && (p.Name == "float32" || p.Name == "float64")
+}
+
+func isWideInteger(t Type) bool {
+	p, ok := t.(PrimitiveType)
+	if !ok {
+		return false
+	}
+	switch p.Name {
+	case "int", "int64", "uint", "uint64":
+		return true
+	}
+	return false
+}
+
+func (a *Analyser) checkPointerConversion(expr *ast.UnaryExpr) (Type, bool) {
+	call, ok := expr.Value.(*ast.CallExpr)
+	if !ok {
+		return nil, false
+	}
+	target, ok := a.typeCallee(call, true)
+	if !ok {
+		return nil, false
+	}
+	if _, alreadyPointer := underlyingOf(target).(PointerType); alreadyPointer {
+		return nil, false
+	}
+
+	result := PointerType{Element: target}
+
+	if len(call.Args) != 1 {
+		a.errorf(expr, "conversion to %s expects 1 argument, got %d", result.String(), len(call.Args))
+		a.evalArgTypes(call)
+		return result, true
+	}
+
+	arg := call.Args[0]
+	from := a.checkExpr(arg)
+	switch {
+	case isInvalidType(from):
+		return result, true
+	case isUntyped(from) && isInteger(from):
+		a.checkConstFits(arg, PrimitiveType{Name: "uint64"})
+		a.fixUntyped(arg, PrimitiveType{Name: "uint64"})
+	case isWideInteger(underlyingOf(from)):
+	default:
+		if _, isPtr := underlyingOf(from).(PointerType); !isPtr {
+			a.errorf(expr, "cannot convert %s to %s", from.String(), result.String())
+			return InvalidType{}, true
+		}
+	}
+
+	cast := &ast.CastExpr{Value: arg}
+	line, col := expr.Position()
+	cast.SetPos(line, col)
+	endLine, endCol := expr.EndPosition()
+	cast.SetEndPos(endLine, endCol)
+
+	a.info.Types[cast] = result
+	expr.Cast = cast
+	return result, true
+}
+
+func isInvalidType(t Type) bool {
+	_, bad := t.(InvalidType)
+	return bad
 }

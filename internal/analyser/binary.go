@@ -94,3 +94,72 @@ func (a *Analyser) checkBitwise(node ast.Node, op string, left, right Type) Type
 
 	return typedSide(left, right)
 }
+
+func isVoidPointer(t Type) bool {
+	p, ok := t.(PointerType)
+	if !ok {
+		return false
+	}
+	_, void := p.Element.(VoidType)
+	return void
+}
+
+func (a *Analyser) pointerArithmetic(expr *ast.BinaryExpr, left, right Type) (Type, bool) {
+	lp, leftPtr := left.(PointerType)
+	rp, rightPtr := right.(PointerType)
+	if !leftPtr && !rightPtr {
+		return nil, false
+	}
+	if expr.Operator != "+" && expr.Operator != "-" {
+		return nil, false
+	}
+	if _, bad := left.(InvalidType); bad {
+		return InvalidType{}, true
+	}
+	if _, bad := right.(InvalidType); bad {
+		return InvalidType{}, true
+	}
+
+	if isVoidPointer(left) || isVoidPointer(right) {
+		a.errorf(expr, "arithmetic on %s: convert it to a typed pointer first", a.pointerName(left, right))
+		return InvalidType{}, true
+	}
+
+	switch {
+	case leftPtr && rightPtr:
+		if expr.Operator == "+" {
+			a.error(expr, "cannot add two pointers")
+			return InvalidType{}, true
+		}
+		if !lp.Element.Equals(rp.Element) {
+			a.errorf(expr, "cannot subtract %s from %s", right.String(), left.String())
+			return InvalidType{}, true
+		}
+		return PrimitiveType{Name: "int"}, true
+	case leftPtr:
+		if !isInteger(right) {
+			a.errorf(expr, "pointer offset must be an integer, got %s", right.String())
+			return InvalidType{}, true
+		}
+		a.fixUntyped(expr.Right, PrimitiveType{Name: "int"})
+		return left, true
+	default:
+		if expr.Operator == "-" {
+			a.error(expr, "cannot subtract a pointer from an integer")
+			return InvalidType{}, true
+		}
+		if !isInteger(left) {
+			a.errorf(expr, "pointer offset must be an integer, got %s", left.String())
+			return InvalidType{}, true
+		}
+		a.fixUntyped(expr.Left, PrimitiveType{Name: "int"})
+		return right, true
+	}
+}
+
+func (a *Analyser) pointerName(left, right Type) string {
+	if isVoidPointer(left) {
+		return left.String()
+	}
+	return right.String()
+}

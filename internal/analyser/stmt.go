@@ -335,6 +335,10 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 
 	baseOp := s.Op[:len(s.Op)-1]
 	valueType := valueTypes[0]
+	if ptr, isPtr := targetTypes[0].(PointerType); isPtr {
+		a.checkPointerStep(s, baseOp, ptr, valueType, s.Values[0])
+		return
+	}
 	if baseOp == "/" || baseOp == "%" {
 		a.checkDivisor(s.Values[0], valueType)
 	}
@@ -395,9 +399,31 @@ func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 	if _, ok := t.(InvalidType); ok {
 		return
 	}
+	if ptr, isPtr := t.(PointerType); isPtr {
+		if isVoidPointer(ptr) {
+			a.errorf(s.Target, "arithmetic on %s: convert it to a typed pointer first", ptr.String())
+		}
+		return
+	}
 	if !isNumeric(t) {
 		a.errorf(s.Target, "operator %s invalid for %s", s.Op, t.String())
 	}
+}
+
+func (a *Analyser) checkPointerStep(node ast.Node, op string, ptr PointerType, value Type, expr ast.Expression) {
+	if op != "+" && op != "-" {
+		a.errorf(node, "operator %s= invalid for %s", op, ptr.String())
+		return
+	}
+	if isVoidPointer(ptr) {
+		a.errorf(node, "arithmetic on %s: convert it to a typed pointer first", ptr.String())
+		return
+	}
+	if !isInteger(value) {
+		a.errorf(node, "pointer offset must be an integer, got %s", value.String())
+		return
+	}
+	a.fixUntyped(expr, PrimitiveType{Name: "int"})
 }
 
 func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {

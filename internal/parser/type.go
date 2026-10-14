@@ -101,8 +101,10 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 	p.parsePointerDepth()
 
 	switch {
-	case p.current.Type == lexer.TOKEN_MAP, p.isPrimitiveType():
+	case p.current.Type == lexer.TOKEN_MAP:
 		return true
+	case p.isPrimitiveType():
+		return p.peek.Type != lexer.TOKEN_LPAREN
 	case p.current.Type == lexer.TOKEN_LPAREN:
 		ref := p.parseFuncTypePrefix()
 		if ref == nil {
