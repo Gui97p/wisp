@@ -106,7 +106,7 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		if !ok {
 			a.suggest(a.errorf(node, "unknown type %s", qualified(ref.Module, ref.Name)), ref.Name, append(scope.names(func(sym *Symbol) bool {
 				return sym.Kind == STRUCT || sym.Kind == TYPE
-			}), "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "char", "string", "bool"))
+			}), "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float", "float32", "float64", "char", "string", "bool"))
 			return nil
 		}
 		switch symbol.Kind {

@@ -15,6 +15,11 @@ func (a *Analyser) checkArithmetic(node ast.Node, op string, left, right Type) T
 		return InvalidType{}
 	}
 
+	if op == "%" && (isFloat(left) || isFloat(right)) {
+		a.errorf(node, "operator %% is not defined for floating point numbers")
+		return InvalidType{}
+	}
+
 	if !left.Equals(right) {
 		a.errorf(node, "incompatible types: %s %s %s", left.String(), op, right.String())
 		return InvalidType{}

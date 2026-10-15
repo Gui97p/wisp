@@ -22,7 +22,7 @@ func isFloatType(tp analyser.Type) bool {
 		tp = nt.Underlying
 	}
 	p, ok := tp.(analyser.PrimitiveType)
-	return ok && (p.Name == "float32" || p.Name == "float64")
+	return ok && (p.Name == "float" || p.Name == "float32" || p.Name == "float64")
 }
 
 func isUnsigned64(tp analyser.Type) bool {

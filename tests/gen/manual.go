@@ -358,6 +358,16 @@ func main() {
     float64 neg = 0.0 - 1.5;
     int k = int(neg);
     check(k + 1 == 0, "float negative to int truncates toward zero");
+    float a = 2.5;
+    float64 b = a;
+    float c = b * 2.0;
+    check(c == 5.0, "float is another name for float64");
+    let inferred = 1.5;
+    float e = inferred;
+    check(e == 1.5, "an untyped float literal infers float");
+    float32 s = 1.5;
+    float widened = s;
+    check(widened == 1.5, "float32 widens to float");
 }
 `},
 

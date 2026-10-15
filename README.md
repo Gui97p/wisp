@@ -26,7 +26,7 @@ func main() int {
 
 * Functions, multiple return values, variadic parameters, methods and function literals
 * Structs, enums and nominal type aliases. An enum member is written `Color.Green`, or `.Green` where the enum is already known (assignment, argument, return, comparison, `case`)
-* Integer types that wrap at their width. `int` and `uint` are 64 bits wide. Lossless widening is implicit (`int8` to `int64`, an enum to `int`); every other conversion names the type, as in `int8(x)`
+* Integer types that wrap at their width. `int` and `uint` are 64 bits wide, and `float` is another name for `float64`, in the same way. A literal with a decimal point is a `float`, and `%` is only defined for integers. Lossless widening is implicit (`int8` to `int64`, an enum to `int`); every other conversion names the type, as in `int8(x)`
 * Fixed-size arrays, slices (views that share the elements), strings and maps. Indexing arrays, slices and strings is bounds-checked and panics on a violation
 * Pointers with address-of, dereference, arithmetic, indexing and slicing, and manual memory with `malloc`, `realloc` and `free`
 * Global variables with constant initializers

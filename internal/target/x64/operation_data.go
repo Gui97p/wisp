@@ -165,7 +165,7 @@ func alignOf(at analyser.Type) int {
 			return 2
 		case "int32", "uint32", "float32":
 			return 4
-		case "int", "int64", "uint", "uint64", "float64", "string":
+		case "int", "int64", "uint", "uint64", "float", "float64", "string":
 			return 8
 		}
 	case analyser.UntypedIntType, analyser.UntypedFloatType:
@@ -192,7 +192,7 @@ func sizeOf(at analyser.Type) int {
 			return 2
 		case "int32", "uint32", "float32":
 			return 4
-		case "int", "int64", "uint", "uint64", "float64":
+		case "int", "int64", "uint", "uint64", "float", "float64":
 			return 8
 		case "string":
 			return 16

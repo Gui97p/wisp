@@ -33,7 +33,7 @@ func defaultType(t Type) Type {
 	case UntypedIntType:
 		return PrimitiveType{Name: "int"}
 	case UntypedFloatType:
-		return PrimitiveType{Name: "float64"}
+		return PrimitiveType{Name: "float"}
 	case ArrayType:
 		v.Element = defaultType(v.Element)
 		return v
@@ -68,7 +68,10 @@ func LosslessWidening(from, to Type) bool {
 	if !ok1 || !ok2 || fp.Name == tp.Name {
 		return false
 	}
-	if fp.Name == "float32" && tp.Name == "float64" {
+	if fp.Name == "float32" && (tp.Name == "float64" || tp.Name == "float") {
+		return true
+	}
+	if (fp.Name == "float" && tp.Name == "float64") || (fp.Name == "float64" && tp.Name == "float") {
 		return true
 	}
 
@@ -489,7 +492,7 @@ func (a *Analyser) checkConversion(expr *ast.CallExpr, target Type) Type {
 
 	if isUntyped(from) {
 		if _, isFloat := from.(UntypedFloatType); isFloat && !isFloatType(target) {
-			a.fixUntyped(expr.Args[0], PrimitiveType{Name: "float64"})
+			a.fixUntyped(expr.Args[0], PrimitiveType{Name: "float"})
 		} else {
 			a.checkConstFits(expr.Args[0], target)
 			a.fixUntyped(expr.Args[0], target)
@@ -509,7 +512,7 @@ func (a *Analyser) checkConversion(expr *ast.CallExpr, target Type) Type {
 
 func isFloatType(t Type) bool {
 	p, ok := underlying(t).(PrimitiveType)
-	return ok && (p.Name == "float32" || p.Name == "float64")
+	return ok && isFloatName(p.Name)
 }
 
 func isWideInteger(t Type) bool {

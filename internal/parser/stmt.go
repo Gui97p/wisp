@@ -35,6 +35,7 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		lexer.TOKEN_UINT16,
 		lexer.TOKEN_UINT32,
 		lexer.TOKEN_UINT64,
+		lexer.TOKEN_FLOAT,
 		lexer.TOKEN_FLOAT32,
 		lexer.TOKEN_FLOAT64,
 		lexer.TOKEN_STRING,

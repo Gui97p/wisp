@@ -31,8 +31,9 @@ export func demo() {
   expect.expect(int(Color.Blue) == 2, "enum numbering starts at zero");
   expect.expect(int(Color.Alpha) == 10 && int(Color.Beta) == 11, "numbering continues after an explicit value");
 
-  // Primitive types: int, uint, int8..int64, uint8..uint64, float32,
-  // float64, bool, char and string. `int` and `uint` are 64 bits wide.
+  // Primitive types: int, uint, int8..int64, uint8..uint64, float, float32,
+  // float64, bool, char and string. `int` and `uint` are 64 bits wide, and
+  // `float` is another name for float64, the way `int` is for int64.
   bool ready = true;
   char letter = 'w';
   expect.expect(ready && letter == 'w', "bool and char");

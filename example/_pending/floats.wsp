@@ -1,6 +1,7 @@
 // Tour - Floating point numbers.
 //
-// The language has float32 and float64, and the analyser checks this file,
+// The language has float32 and float64, with `float` as another name for
+// float64 (the way `int` is for int64), and the analyser checks this file,
 // but the x86-64 backend does not generate floating point yet, so it lives
 // in a folder starting with `_`, which project discovery skips. The Lua
 // backend does run it: copy this file and expect.wsp into a project of its
@@ -9,21 +10,23 @@
 import "expect";
 
 export func demo() {
-  float64 ratio = 2.5;
+  float ratio = 2.5;
   expect.expect(ratio * 2 == 5.0, "float arithmetic");
   expect.expect(ratio > 2 && ratio < 3, "float comparison");
 
   // An integer converts to a float and back by naming the type. Going back
   // drops the fraction.
   int whole = 3;
-  float64 widened = float64(whole);
+  float widened = float(whole);
   expect.expect(widened / 2 == 1.5, "an integer converts to a float");
   expect.expect(int(3.9) == 3, "a float converts to an integer by truncating");
 
-  // float32 widens to float64 on its own.
+  // float32 widens to float on its own, and float and float64 are the same
+  // type for every purpose.
   float32 small = 1.5;
   float64 big = small;
-  expect.expect(big == 1.5, "float32 widens to float64");
+  float same = big;
+  expect.expect(same == 1.5, "float32 widens, and float is float64"); 
 }
 
 func main() {

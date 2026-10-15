@@ -27,6 +27,7 @@ const (
 	TOKEN_INT64
 	TOKEN_UINT64
 
+	TOKEN_FLOAT
 	TOKEN_FLOAT32
 	TOKEN_FLOAT64
 
@@ -167,6 +168,7 @@ var keywords = map[string]TokenType{
 	"int64":  TOKEN_INT64,
 	"uint64": TOKEN_UINT64,
 
+	"float":   TOKEN_FLOAT,
 	"float32": TOKEN_FLOAT32,
 	"float64": TOKEN_FLOAT64,
 	"bool":    TOKEN_BOOL,

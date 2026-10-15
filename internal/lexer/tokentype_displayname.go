@@ -38,6 +38,8 @@ func (t TokenType) DisplayName() string {
 		return "int64"
 	case TOKEN_UINT64:
 		return "uint64"
+	case TOKEN_FLOAT:
+		return "float"
 	case TOKEN_FLOAT32:
 		return "float32"
 	case TOKEN_FLOAT64:

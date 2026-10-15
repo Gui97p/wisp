@@ -35,7 +35,7 @@ func (p PrimitiveType) Equals(other Type) bool {
 		return isNumeric(p)
 	}
 	if _, ok := other.(UntypedFloatType); ok {
-		return p.Name == "float32" || p.Name == "float64"
+		return isFloatName(p.Name)
 	}
 	o, ok := other.(PrimitiveType)
 	if !ok {
@@ -102,13 +102,13 @@ func (UntypedFloatType) Equals(other Type) bool {
 		return true
 	}
 	if nt, ok := other.(NamedType); ok {
-		return nt.Underlying.Equals(PrimitiveType{Name: "float32"}) || nt.Underlying.Equals(PrimitiveType{Name: "float64"})
+		return isFloat(nt.Underlying)
 	}
 	p, ok := other.(PrimitiveType)
 	if !ok {
 		return false
 	}
-	return p.Name == "float32" || p.Name == "float64"
+	return isFloatName(p.Name)
 }
 
 type NullType struct{}
@@ -218,7 +218,7 @@ func (n NamedType) Equals(other Type) bool {
 		return isNumeric(n.Underlying)
 	}
 	if _, ok := other.(UntypedFloatType); ok {
-		return n.Underlying.Equals(PrimitiveType{Name: "float32"}) || n.Underlying.Equals(PrimitiveType{Name: "float64"})
+		return isFloat(n.Underlying)
 	}
 
 	o, ok := other.(NamedType)
@@ -377,7 +377,7 @@ var errorFields = map[string]Type{
 var primitives = map[string]bool{
 	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
 	"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
-	"float32": true, "float64": true,
+	"float": true, "float32": true, "float64": true,
 	"char": true, "string": true,
 	"bool": true,
 }
@@ -458,11 +458,11 @@ func isFloat(t Type) bool {
 	if !ok {
 		return false
 	}
-	switch p.Name {
-	case "float32", "float64":
-		return true
-	}
-	return false
+	return isFloatName(p.Name)
+}
+
+func isFloatName(name string) bool {
+	return name == "float" || name == "float32" || name == "float64"
 }
 
 func isAddressable(expr ast.Expression) bool {
