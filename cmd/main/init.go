@@ -38,14 +38,21 @@ var initLibCmd = &cobra.Command{
 }
 
 var initTargetCmd = &cobra.Command{
-	Use:          "target <name>",
-	Short:        "Add a target of your own (kernel userspace) to the current project",
+	Use:   "target <name>",
+	Short: "Add a target of your own (kernel userspace), creating the project if there is none",
+	Long: `Adds a target of your own (kernel userspace) to the project and writes its
+start and runtime files. Without a wisp.toml it creates the project too, with
+the new target as its default. In an existing project the default target is
+kept, unless --default is given.`,
 	Args:         cobra.ExactArgs(1),
 	RunE:         runInitTarget,
 	SilenceUsage: true,
 }
 
+var makeDefault bool
+
 func init() {
+	initTargetCmd.Flags().BoolVar(&makeDefault, "default", false, "make the new target the default of the project")
 	initCmd.AddCommand(initLuaCmd, initLibCmd, initTargetCmd)
 }
 
@@ -88,7 +95,7 @@ const libContent = `export func add(int a, b) int => a + b;
 const targetTomlContent = `
 [targets.%[1]s]
 arch = "x64"
-os = "%[1]s"
+os = "%[2]s"
 entry = "_start"
 runtime = "targets/%[1]s/runtime.asm"
 start = "targets/%[1]s/start.asm"
@@ -113,13 +120,28 @@ _start:
 section .note.GNU-stack noalloc noexec nowrite progbits
 `
 
-const targetRuntimeContent = `; Runtime of the %[1]s target: routines the compiler calls on its own.
+const targetRuntimeContent = `; Runtime of the %[1]s target: routines the compiler calls on its own. Only the
+; ones a program uses are needed, so start with the first two.
+;
 ; __wisp_emit backs the emit builtin: rdi holds the address of the text and
 ; rsi its length. It writes the text and a line feed to the standard output.
 ; __wisp_panic backs the panic builtin and the checks the compiler inserts, such
 ; as division by zero: rdi holds the address of the message and rsi its length.
 ; It writes "panic: ", the message and a line feed to the error output, then
 ; ends the program with a failure status. It never returns.
+;
+; Needed only when the program uses them:
+; __wisp_error_emit, for a main that can fail and ends in an error: rdi holds the
+; address of an error record. It writes the error to the error output and returns.
+; __wisp_malloc backs malloc: rdi holds the size in bytes. It returns the address
+; in rax and 0 in rdx, or 0 in rax and the address of an error record in rdx
+; when it fails (a negative size fails too).
+; __wisp_realloc backs realloc: rdi holds the address (or 0) and rsi the new
+; size. It returns like malloc and keeps the old block when it fails.
+; __wisp_free backs free: rdi holds the address (or 0). It returns nothing.
+;
+; They follow the System V calling convention and must keep rbx, rbp and r12
+; to r15. The README describes the layout of an error record.
 ; The Linux calls below are only placeholders, replace them with your kernel's.
 
 global __wisp_emit
@@ -224,16 +246,19 @@ func runInitTarget(cmd *cobra.Command, args []string) error {
 
 	tomlPath := filepath.Join(root, "wisp.toml")
 	existing, err := os.ReadFile(tomlPath)
-	if err != nil {
-		return fmt.Errorf("no wisp.toml found, run `wisp init` first")
-	}
-
-	cfg, err := module.LoadConfig(root)
-	if err != nil {
-		return err
-	}
-	if _, ok := cfg.Targets[name]; ok {
-		return fmt.Errorf("target %q is already defined in wisp.toml", name)
+	fresh := err != nil
+	if fresh {
+		root = cwd
+		tomlPath = filepath.Join(root, "wisp.toml")
+		existing = fmt.Appendf(nil, nativeTomlContent, name)
+	} else {
+		cfg, err := module.LoadConfig(root)
+		if err != nil {
+			return err
+		}
+		if _, ok := cfg.Targets[name]; ok {
+			return fmt.Errorf("target %q is already defined in wisp.toml", name)
+		}
 	}
 
 	dir := filepath.Join(root, "targets", name)
@@ -259,14 +284,43 @@ func runInitTarget(cmd *cobra.Command, args []string) error {
 	if !strings.HasSuffix(toml, "\n") {
 		toml += "\n"
 	}
-	toml += fmt.Sprintf(targetTomlContent, name)
+	if makeDefault && !fresh {
+		toml = setDefaultTarget(toml, name)
+	}
+	toml += fmt.Sprintf(targetTomlContent, name, strings.TrimSuffix(name, "_x64"))
 	if err := os.WriteFile(tomlPath, []byte(toml), 0644); err != nil {
 		return err
 	}
 
-	fmt.Printf("added target %q to %s\n", name, tomlPath)
+	if fresh {
+		mainPath := filepath.Join(root, "main.wsp")
+		if _, err := os.Stat(mainPath); err != nil {
+			if err := os.WriteFile(mainPath, []byte(nativeMainContent), 0644); err != nil {
+				return err
+			}
+		}
+		fmt.Printf("created a project in %s, with %q as its target\n", root, name)
+	} else {
+		fmt.Printf("added target %q to %s\n", name, tomlPath)
+	}
 	fmt.Printf("  %s\n  %s\n", startPath, runtimePath)
 	fmt.Println("both files use Linux syscalls as a placeholder, adjust them to your kernel")
 	fmt.Printf("then: wisp build --target %s\n", name)
 	return nil
+}
+
+func setDefaultTarget(toml, name string) string {
+	line := fmt.Sprintf("target = %q", name)
+	lines := strings.Split(toml, "\n")
+	for i, l := range lines {
+		trimmed := strings.TrimSpace(l)
+		if strings.HasPrefix(trimmed, "[") {
+			break
+		}
+		if strings.HasPrefix(trimmed, "target") && strings.Contains(trimmed, "=") && !strings.HasPrefix(trimmed, "#") {
+			lines[i] = line
+			return strings.Join(lines, "\n")
+		}
+	}
+	return line + "\n" + toml
 }

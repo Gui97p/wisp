@@ -54,7 +54,7 @@ The x86-64 backend emits NASM assembly, assembles it with `nasm` and links with 
 wisp init                  # native project for the host target
 wisp init lua              # project that targets Lua
 wisp init lib              # library project: object files, no main
-wisp init target <name>    # add a target of your own (kernel userspace)
+wisp init target <name>    # add a target of your own (kernel userspace), creating the project if needed
 wisp build                 # compile for the target (x86-64 for the host by default)
 wisp run                   # build, then run the result
 wisp run --target lua      # transpile to Lua and run it
@@ -75,75 +75,95 @@ Directories starting with `.` or `_` are skipped when looking for source files.
 
 `main` can return nothing or an `int`, which becomes the exit code. It can also be fallible (`func main() !` or `func main() !int`): if it ends in an error, the program prints it as `error[domain]: message` with the file and line, and exits with the error's code. A warning tells you when that code is 0, since an unhandled error would then exit as a success.
 
-### Targets and pipelines
+### Targets
 
-`wisp build` and `wisp run` work for every target; the target picks the pipeline. It comes from `--target`, then `target = "..."` in `wisp.toml`, then the host x86-64 target. An x86-64 target goes through assembly, object files and linking, a `lua` target writes one `.lua` file per module. Setting `target = "lua"` in `wisp.toml` makes plain `wisp run` run a Lua project.
+The built-in targets are `linux_x64` and `lua`. A project can define its own, for instance to write a userspace for a kernel of its own, and a single `wisp.toml` can hold as many as you like. A target is data:
 
-### Build outputs
+```toml
+target = "hakura_x64"
 
-Each stage of the x86-64 pipeline is produced only when asked for, and each takes the path it should be written to:
+[targets.hakura_x64]
+arch = "x64"
+os = "hakura"
+start = "targets/hakura_x64/start.asm"
+runtime = "targets/hakura_x64/runtime.asm"
+entry = "_start"
+link = ["-T", "targets/hakura_x64/link.ld", "-z", "noexecstack"]
+```
+
+`wisp init target <name>` writes this block and starter files for you (the files use Linux system calls as placeholders to replace with your kernel's). It works in an empty folder, where it creates the whole project with the new target as its default, and in an existing project, where it adds the target and keeps the default unless you pass `--default`. Then `wisp build --target hakura_x64` uses it.
+
+| Field | Required | Default | What goes in it |
+| --- | --- | --- | --- |
+| *the table name* | yes | | the target's name: lowercase letters, digits and underscores, starting with a letter. It cannot be `linux`, `x64` or `lua`, which are taken by the built-in targets |
+| `arch` | yes | | the instruction set. Only `"x64"` exists for now |
+| `os` | no | none | the operating system, a second name that `native` blocks can select (see below). Same character rules as the name |
+| `start` | yes | | a path to an assembly file: the program's entry point. It defines the `entry` symbol, calls `main`, and then leaves the program the way this kernel requires, with the value `main` left in `rax` |
+| `runtime` | no | none | a path to an assembly file with the routines the compiler calls on its own (the table below) |
+| `entry` | no | `_start` | the symbol the linker starts at. When it is not `_start`, it is passed to `ld` as `-e` |
+| `link` | no | none | extra arguments for `ld`, such as a linker script (`-T`), placed before the output and the objects |
+| `abi` | no | `"sysv"` | the calling convention. Only `"sysv"` exists |
+| `format` | no | `"elf64"` | the object format. Only `"elf64"` exists |
+
+Paths are relative to the folder that holds `wisp.toml`, and the linker runs from there. `start` and `runtime` are assembled with `nasm` only when linking, so `--asm` and `--obj` never need them.
+
+### Naming a target
+
+The built-in target `linux_x64` is called after its operating system and architecture, and has `os = "linux"`. Do the same for yours: a kernel called Hakura on x86-64 is `hakura_x64` with `os = "hakura"`. The name then picks the exact target and the `os` is shared by every architecture of that kernel, so a later `hakura_arm64` would reuse the same `native hakura` blocks.
+
+A `native` block can name any of the three selectors of a target, from the narrowest to the widest:
+
+```wsp
+native hakura_x64(...) "...";   // this target only
+native hakura(...) "...";       // every target whose os is hakura
+native x64(...) "...";          // every x86-64 target, including linux_x64
+```
+
+A function that carries `native` blocks but none that matches the target being built is an error, so a port that was not done yet is never a silently empty function.
+
+### The runtime
+
+The compiler calls these routines on its own. Only the ones a program uses are linked in, and a missing one is an undefined-symbol error from the linker, so a new kernel can start with the first two. They follow the System V convention and must keep `rbx`, `rbp` and `r12` to `r15`.
+
+| Routine | Used by | Input | What it does |
+| --- | --- | --- | --- |
+| `__wisp_emit` | `emit` | `rdi` text address, `rsi` length | writes the text and a line feed to the standard output |
+| `__wisp_panic` | `panic` and the compiler's checks (index, division, null) | `rdi` message address, `rsi` length | writes `panic: `, the message and a line feed to the error output, then ends the program with a failure status. Never returns |
+| `__wisp_error_emit` | a `main` that can fail and ends in an error | `rdi` address of an error record | writes `error[domain]: message`, a line feed and `  at file:line` to the error output, then returns |
+| `__wisp_malloc` | `malloc` | `rdi` size in bytes | returns the address in `rax` and `0` in `rdx`; on failure `0` in `rax` and the address of an error record in `rdx`. A negative size fails |
+| `__wisp_realloc` | `realloc` | `rdi` address or `0`, `rsi` new size | returns like `malloc`, and keeps the old block when it fails |
+| `__wisp_free` | `free` | `rdi` address or `0` | releases the block |
+
+An error record is 64 bytes: the domain as address (offset 0) and length (8), the code (16), the message as address (24) and length (32), the file as address (40) and length (48), and the line (56). The built-in `linux_x64` runtime is a complete example, and its allocator asks the system for memory in 1 MiB chunks, which a kernel would replace with its own page allocation.
+
+### Several kernels in one project
+
+Put one `[targets.name]` block per kernel in the same `wisp.toml`. The top-level `target = "..."` is the default, and `--target` picks another for a single build:
+
+```toml
+target = "hakura_x64"
+
+[targets.hakura_x64]
+arch = "x64"
+os = "hakura"
+start = "targets/hakura/start.asm"
+runtime = "targets/hakura/runtime.asm"
+
+[targets.kinoko_x64]
+arch = "x64"
+os = "kinoko"
+start = "targets/kinoko/start.asm"
+runtime = "targets/kinoko/runtime.asm"
+link = ["-T", "targets/kinoko/link.ld"]
+```
 
 ```bash
-wisp build --asm build/asm --obj build/obj --bin bin/app
+wisp build                          # hakura_x64, from `target`
+wisp build --target kinoko_x64      # the other kernel
+wisp build --target linux_x64       # and the host, from the same sources
 ```
 
-With none of the three given, `wisp build` produces just the binary.
-
-Those folders only ever contain your own modules. Standard library modules are built on demand into a cache (`~/.cache/wisp`, or the folder in `WISP_CACHE_DIR`), keyed by the compiler and the contents of the standard library, and `--bin` links them from there. That is the same role `libc` plays for a C program: it is an input of the toolchain, not a file of your project. Asking only for `--asm` or `--obj` never needs a `main`, which is how you produce `.o` files to link into a C project.
-
-`wisp build` and `wisp run` also take `--target` (for example `linux_x64`), which selects the matching `native` blocks. Targets are checked: an unknown or misspelled name, in the flag, in `wisp.toml` or in a `native` block, is an error that suggests the closest known one. A `native` block can name a full target (`linux_x64`), an architecture (`x64`) or an operating system (`linux`). A flag for another pipeline is an error, never silently ignored: `--asm`, `--obj`, `--bin`, `--link` and `--libc` do not apply to `lua`, and `--lua <dir>`, the output folder of the Lua pipeline (default `dist`), does not apply to x86-64 targets.
-
-### `wisp.toml`
-
-Optional. Its presence marks the project root, and every key has a command line counterpart that takes priority:
-
-```toml
-entry = "src/main.wsp"
-target = "linux_x64"
-std = "kernel/std"
-freestanding = false
-link = ["lib.o", "-lm"]
-libc = false
-
-[output]
-bin = "bin/app"
-obj = "build/obj"
-asm = "build/asm"
-lua = "dist"
-```
-
-| Key | Flag | Meaning |
-| --- | --- | --- |
-| `entry` | | the file holding `main`, when several exist |
-| `target` | `--target` | the target to build for |
-| `std` | `--std <path>` | a folder to use as the standard library |
-| `freestanding` | `--ffreestanding` | build without a standard library |
-| `link` | `--link <arg>` (repeatable) | extra linker arguments, in order |
-| `libc` | `--libc` | link the system C library |
-| `[output]` | `--bin`, `--obj`, `--asm`, `--lua` | where each stage is written |
-
-Relative paths in `wisp.toml` resolve from the folder that holds it. Setting both `std` and `freestanding` in the same place is an error.
-
-## Targets
-
-Besides the built-in targets (`linux_x64`, `sine_x64`, `lua`), a project can define its own, for instance to write a userspace for a kernel of its own. A target is data in `wisp.toml`:
-
-```toml
-[targets.mykernel]
-arch = "x64"
-os = "mykernel"
-entry = "kstart"
-runtime = "targets/mykernel/runtime.asm"
-start = "targets/start.asm"
-link = ["-T", "targets/link.ld"]
-```
-
-* `arch` is required and only `x64` exists for now; `abi` (`sysv`) and `format` (`elf64`) default to the only supported values.
-* `start` is required: the assembly that calls `main` and leaves the program on this kernel. It is assembled only when linking, and `entry` is the symbol the linker starts at (default `_start`).
-* `link` holds extra `ld` arguments. They run from the project root, so relative paths resolve there.
-* `runtime` is optional: an assembly file with the routines the compiler calls on its own. Today that is `__wisp_emit` (backs `emit`; `rdi` holds the address of the text and `rsi` its length), `__wisp_panic`, `__wisp_error_emit` and the allocator (`__wisp_malloc`, `__wisp_realloc`, `__wisp_free`). The built-in `linux_x64` target ships all of them. Like `start`, it is assembled only when linking.
-
-Then `wisp build --target mykernel` uses it, and `native mykernel "..."` blocks apply to it. Names are lowercase letters, digits and underscores, and cannot reuse a built-in target, architecture or operating system name. `wisp init target <name>` writes this block and starter files for you.
+The source code is shared, and what differs between kernels is written in `native` blocks, one per target or per operating system. The standard library is built once per target (the cache is keyed by it), and if it has no port for your kernel, `--ffreestanding` leaves it out, and `--std <folder>` points `std/` at a library of your own.
 
 ## Modules
 
