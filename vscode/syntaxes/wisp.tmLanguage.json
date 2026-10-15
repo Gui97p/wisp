@@ -292,7 +292,7 @@
                 },
                 {
                     "name": "keyword.control.import.wisp",
-                    "match": "\\b(import|export|as)\\b"
+                    "match": "\\b(import|export|extern|as)\\b"
                 },
                 {
                     "name": "keyword.other.native.wisp",

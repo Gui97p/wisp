@@ -6,7 +6,9 @@ func walkProgram(program *ast.Program, fn func(ast.Expression)) {
 	for _, decl := range program.Declarations {
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
-			walkStmt(d.Body, fn)
+			if d.Body != nil {
+				walkStmt(d.Body, fn)
+			}
 		case *ast.ConstDecl:
 			walkExprs(d.Values, fn)
 		case *ast.VarDecl:

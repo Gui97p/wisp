@@ -2,7 +2,7 @@
     "name": "wisp",
     "displayName": "Wisp Language Support",
     "description": "Syntax highlighting, snippets and file icon for the Wisp programming language.",
-    "version": "0.6.0",
+    "version": "0.6.1",
     "publisher": "gui97p",
     "license": "MIT",
     "repository": {

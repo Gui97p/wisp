@@ -12,7 +12,7 @@ build:
 version:
 	@go run ./cmd/main version
 
-prod:
+prod: build
 	rm -f $(DIST)/$(NAME).tar.gz
 	rm -rf $(STAGE)
 	mkdir -p $(DIST) $(STAGE)/$(APP)
