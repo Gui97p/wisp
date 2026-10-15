@@ -47,6 +47,7 @@ type Symbol struct {
 	Global bool
 	CName  string
 	Extern bool
+	Doc    string
 
 	MustUse bool
 	Used    bool

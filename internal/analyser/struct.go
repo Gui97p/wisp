@@ -20,7 +20,7 @@ func (a *Analyser) registerStructNames() {
 		}
 
 		line, col := sd.Position()
-		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile}
+		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: sd.Doc}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(sd, STRUCT, sd.Name)

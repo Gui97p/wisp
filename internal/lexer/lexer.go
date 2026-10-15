@@ -16,6 +16,9 @@ type Lexer struct {
 	tokenLine int
 	tokenCol  int
 
+	comments     []Comment
+	lastTokenEnd int
+
 	ch byte
 }
 
@@ -94,12 +97,15 @@ func (l *Lexer) NextToken() Token {
 			l.advance()
 			t = l.token(TOKEN_SLASH_ASSIGN, "/=")
 		case '/':
+			start, startLine := l.pos, l.line
 			for l.peek() != '\n' && l.peek() != EOF {
 				l.advance()
 			}
+			l.addComment(start, startLine)
 			l.advance()
 			return l.NextToken()
 		case '*':
+			start, startLine := l.pos, l.line
 			for {
 				if l.peek() == EOF {
 					return l.token(TOKEN_ILLEGAL, "unterminated block comment")
@@ -113,6 +119,7 @@ func (l *Lexer) NextToken() Token {
 
 				l.advance()
 			}
+			l.addComment(start, startLine)
 			l.advance()
 			return l.NextToken()
 		default:
@@ -367,6 +374,7 @@ func (l *Lexer) NextToken() Token {
 }
 
 func (l *Lexer) token(t TokenType, lit string) Token {
+	l.lastTokenEnd = l.line
 	return Token{Type: t, Literal: lit, Line: l.tokenLine, Column: l.tokenCol, EndLine: l.line, EndColumn: l.column}
 }
 

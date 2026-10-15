@@ -6,6 +6,7 @@ import (
 )
 
 type ConstDecl struct {
+	Doc      string
 	Vars     []Param
 	Values   []Expression
 	Exported bool
@@ -40,6 +41,7 @@ func (c *ConstDecl) Tree(indent string) string {
 }
 
 type VarDecl struct {
+	Doc      string
 	Vars     []Param
 	Values   []Expression
 	Exported bool
@@ -74,6 +76,7 @@ func (c *VarDecl) Tree(indent string) string {
 }
 
 type FuncDecl struct {
+	Doc         string
 	Name        string
 	Receiver    *Param
 	Params      []Param
@@ -127,6 +130,7 @@ func (f *FuncDecl) Tree(indent string) string {
 }
 
 type StructDecl struct {
+	Doc      string
 	Name     string
 	Members  []Param
 	Exported bool
@@ -161,6 +165,7 @@ type EnumMember struct {
 }
 
 type TypeDecl struct {
+	Doc        string
 	Name       string
 	Underlying TypeRef
 	Exported   bool

@@ -34,7 +34,7 @@ func (a *Analyser) registerTypeAliases() {
 		}
 
 		line, col := td.Position()
-		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col, File: a.currentFile}
+		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col, File: a.currentFile, Doc: td.Doc}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(td, TYPE, td.Name)
@@ -181,7 +181,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 				t = InvalidType{}
 			}
 			symLine, symCol := identPos(v, line, col)
-			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: symLine, Col: symCol, File: a.currentFile}
+			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node)}
 			if !a.scope.Define(sym) {
 				a.errorAlreadyDeclared(node, kind, v.Name)
 			}
@@ -266,7 +266,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		}
 
 		symLine, symCol := identPos(v, line, col)
-		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: symLine, Col: symCol, File: a.currentFile}
+		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node)}
 		if kind == CONST {
 			sym.Const = a.constantFor(node, values, len(vars), i, finalType)
 		}
@@ -355,4 +355,14 @@ func identPos(p ast.Param, line, col int) (int, int) {
 		return p.Line, p.Col
 	}
 	return line, col
+}
+
+func docOf(node ast.Node) string {
+	switch n := node.(type) {
+	case *ast.ConstDecl:
+		return n.Doc
+	case *ast.VarDecl:
+		return n.Doc
+	}
+	return ""
 }

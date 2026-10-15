@@ -9,11 +9,13 @@ import (
 
 func (p *Parser) parseDeclaration() []ast.Declaration {
 	line, col := p.current.Line, p.current.Column
+	doc := p.docBefore(line)
 
 	decls := p.parseDeclarationInner()
 	if decls == nil {
 		return nil
 	}
+	setDoc(decls[0], doc)
 	for _, decl := range decls {
 		decl.SetPos(line, col)
 		decl.SetEndPos(p.currentEnd())
@@ -375,4 +377,59 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 	}
 
 	return decls
+}
+
+func setDoc(decl ast.Declaration, doc string) {
+	switch d := decl.(type) {
+	case *ast.FuncDecl:
+		d.Doc = doc
+	case *ast.StructDecl:
+		d.Doc = doc
+	case *ast.TypeDecl:
+		d.Doc = doc
+	case *ast.ConstDecl:
+		d.Doc = doc
+	case *ast.VarDecl:
+		d.Doc = doc
+	}
+}
+
+func (p *Parser) docBefore(line int) string {
+	comments := p.l.Comments()
+
+	var block []lexer.Comment
+	want := line - 1
+	for i := len(comments) - 1; i >= 0; i-- {
+		c := comments[i]
+		if c.Line >= line {
+			continue
+		}
+		if !c.Standalone || c.EndLine != want {
+			break
+		}
+		block = append(block, c)
+		want = c.Line - 1
+	}
+
+	lines := make([]string, 0, len(block))
+	for i := len(block) - 1; i >= 0; i-- {
+		lines = append(lines, commentText(block[i].Text))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func commentText(raw string) string {
+	if text, ok := strings.CutPrefix(raw, "//"); ok {
+		text = strings.TrimPrefix(text, " ")
+		return strings.TrimRight(text, " \r")
+	}
+
+	inner := strings.TrimSuffix(strings.TrimPrefix(raw, "/*"), "*/")
+	rows := strings.Split(inner, "\n")
+	for i, row := range rows {
+		row = strings.TrimSpace(row)
+		row = strings.TrimPrefix(row, "*")
+		rows[i] = strings.TrimPrefix(row, " ")
+	}
+	return strings.Trim(strings.Join(rows, "\n"), "\n")
 }

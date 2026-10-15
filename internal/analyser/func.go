@@ -44,7 +44,7 @@ func (a *Analyser) registerFuncSignatures() {
 			continue
 		}
 		line, col := fd.Position()
-		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module}
+		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc}
 		ft.CVariadic = fd.CVariadic
 		if fd.Extern {
 			a.checkCSignature(fd, "an extern function", params, returns, variadic)
@@ -161,7 +161,7 @@ func (a *Analyser) checkMainFunc(fd *ast.FuncDecl) {
 	ft := &FuncType{Name: fd.Name, Params: []Type{}, Returns: returns, Variadic: false, Fallible: fd.Fallible}
 	a.info.FuncReturns[fd] = returns
 	line, col := fd.Position()
-	symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module}
+	symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc}
 
 	if !a.scope.Define(symbol) {
 		a.errorAlreadyDeclared(fd, FUNC, fd.Name)
