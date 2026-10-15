@@ -67,16 +67,45 @@ func declSite(sym *analyser.Symbol, info *analyser.Info, src []byte) (site, bool
 	for l := sym.Line - 1; l >= 0 && l < len(lines) && l < sym.Line+3; l++ {
 		start := 0
 		if l == sym.Line-1 {
-			start = max(sym.Col-1, 0)
+			start = byteOffset(lines[l], max(sym.Col-1, 0))
 		}
 		if start > len(lines[l]) {
 			continue
 		}
 		if idx := wordIndex(lines[l][start:], sym.Name); idx >= 0 {
-			return site{l + 1, start + idx + 1}, true
+			return site{l + 1, columnOf(lines[l], start+idx) + 1}, true
 		}
 	}
 	return site{}, false
+}
+
+func byteOffset(line string, column int) int {
+	units := 0
+	for offset, r := range line {
+		if units >= column {
+			return offset
+		}
+		units += utf16Units(r)
+	}
+	return len(line)
+}
+
+func columnOf(line string, offset int) int {
+	units := 0
+	for position, r := range line {
+		if position >= offset {
+			break
+		}
+		units += utf16Units(r)
+	}
+	return units
+}
+
+func utf16Units(r rune) int {
+	if r >= 0x10000 {
+		return 2
+	}
+	return 1
 }
 
 func wordIndex(text, word string) int {

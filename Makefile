@@ -1,5 +1,7 @@
-.PHONY: build prod ext run clean version testgen test test-lua test-x64
+.PHONY: build prod install ext run clean version testgen test test-lua test-x64
 APP=wisp
+DIST=dist/wisp
+STAGE=dist/wisp-tmp
 
 VERSION = $(shell go run ./cmd/main version --short)
 NAME = wisp-$(VERSION)-linux-amd64
@@ -11,20 +13,25 @@ version:
 	@go run ./cmd/main version
 
 prod:
-	rm -rf dist/$(APP)
-	mkdir -p dist/$(APP)
+	rm -f $(DIST)/$(NAME).tar.gz
+	rm -rf $(STAGE)
+	mkdir -p $(DIST) $(STAGE)/$(APP)
 
-	cp -r bin dist/$(APP)
-	cp -r std dist/$(APP)
-	
-	tar -C dist -czf dist/$(NAME).tar.gz $(APP)
+	cp -r bin $(STAGE)/$(APP)
+	cp -r std $(STAGE)/$(APP)
 
-	rm -rf dist/$(APP)
+	tar -C $(STAGE) -czf $(DIST)/$(NAME).tar.gz $(APP)
+
+	rm -rf $(STAGE)
+
+install: prod
+	sudo rm -rf /usr/local/$(APP)
+	sudo tar -C /usr/local -xzf $(DIST)/$(NAME).tar.gz
 
 ext:
 	mkdir -p dist/vscode
 	cd vscode && npx @vscode/vsce package
-	cp vscode/*.vsix dist/vscode
+	mv vscode/*.vsix dist/vscode
 
 run:
 	go run ./cmd/main

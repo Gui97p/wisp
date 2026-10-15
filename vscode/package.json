@@ -2,7 +2,7 @@
     "name": "wisp",
     "displayName": "Wisp Language Support",
     "description": "Syntax highlighting, snippets and file icon for the Wisp programming language.",
-    "version": "0.5.1",
+    "version": "0.6.0",
     "publisher": "gui97p",
     "license": "MIT",
     "repository": {
@@ -89,8 +89,22 @@
                 "editor.tabSize": 4,
                 "editor.detectIndentation": false,
                 "editor.stickyTabStops": true,
-                "editor.autoIndent": "full"
+                "editor.autoIndent": "full",
+                "editor.semanticHighlighting.enabled": true
             }
-        }
+        },
+        "semanticTokenScopes": [
+            {
+                "language": "wisp",
+                "scopes": {
+                    "property": [
+                        "variable.other.property.wisp"
+                    ],
+                    "enumMember": [
+                        "variable.other.enummember.wisp"
+                    ]
+                }
+            }
+        ]
     }
 }

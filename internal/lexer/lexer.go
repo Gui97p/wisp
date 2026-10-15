@@ -390,10 +390,14 @@ func (l *Lexer) advance() byte {
 	l.pos++
 	l.ch = l.read(l.pos)
 
-	if l.ch == '\n' {
+	switch {
+	case l.ch == '\n':
 		l.line++
 		l.column = 0
-	} else {
+	case l.ch&0xC0 == 0x80:
+	case l.ch >= 0xF0:
+		l.column += 2
+	default:
 		l.column++
 	}
 

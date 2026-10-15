@@ -214,6 +214,10 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 		if value, ok := info.EnumValues[e]; ok {
 			return enumMemberHover(value)
 		}
+	case *ast.StructLiteral:
+		if text := structLiteralHover(e, program, info, line, col); text != "" {
+			return text
+		}
 	case *ast.IdentLiteral:
 		if sym := identSymbol(e, info, line, col); sym != nil {
 			if text := symbolHover(sym, program); text != "" {
@@ -226,6 +230,43 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 		return renderHover(typeText(t))
 	}
 	return ""
+}
+
+func structLiteralHover(e *ast.StructLiteral, program *ast.Program, info *analyser.Info, line, col int) string {
+	st, ok := info.Types[e].(*analyser.StructType)
+	if !ok {
+		return ""
+	}
+
+	for i, at := range e.KeyAt {
+		if i < len(e.Keys) && positionContains(at, line, col) {
+			field, exists := st.Fields[e.Keys[i]]
+			if !exists {
+				return renderDoc(e.Keys[i], fmt.Sprintf("Struct `%s` has no field `%s`.", st.Name, e.Keys[i]))
+			}
+			return renderDoc(fmt.Sprintf("%s %s", typeText(field), e.Keys[i]), fmt.Sprintf("Field of struct `%s`.", st.Name))
+		}
+	}
+
+	if e.Module == "" {
+		if sym, found := scopeFor(info, line, col).Resolve(e.Name); found && sym.Kind == analyser.STRUCT {
+			return symbolHover(sym, program)
+		}
+	}
+	return structHover(st, "")
+}
+
+func positionContains(at ast.Position, line, col int) bool {
+	if at.Line == 0 {
+		return false
+	}
+	if line < at.Line || (line == at.Line && col < at.Col) {
+		return false
+	}
+	if line > at.EndLine || (line == at.EndLine && col > at.EndCol) {
+		return false
+	}
+	return true
 }
 
 func identSymbol(ident *ast.IdentLiteral, info *analyser.Info, line, col int) *analyser.Symbol {

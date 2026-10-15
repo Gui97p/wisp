@@ -21,10 +21,14 @@ func NewHandler() *protocol.Handler {
 		syncKind := protocol.TextDocumentSyncKindFull
 		capabilities.TextDocumentSync = syncKind
 
-		capabilities.CompletionProvider = &protocol.CompletionOptions{TriggerCharacters: []string{"."}}
+		capabilities.CompletionProvider = &protocol.CompletionOptions{TriggerCharacters: []string{".", "{", ","}}
 
 		capabilities.SignatureHelpProvider = &protocol.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}}
 		capabilities.DocumentSymbolProvider = true
+		capabilities.SemanticTokensProvider = &protocol.SemanticTokensOptions{
+			Legend: protocol.SemanticTokensLegend{TokenTypes: semanticTokenTypes, TokenModifiers: []string{}},
+			Full:   true,
+		}
 		capabilities.RenameProvider = protocol.RenameOptions{PrepareProvider: boolPtr(true)}
 		capabilities.CodeActionProvider = protocol.CodeActionOptions{CodeActionKinds: []protocol.CodeActionKind{protocol.CodeActionKindQuickFix}}
 
@@ -83,8 +87,14 @@ func NewHandler() *protocol.Handler {
 		return loc, nil
 	}
 
+	handler.TextDocumentSemanticTokensFull = semanticTokens
+
 	handler.TextDocumentCompletion = func(context *glsp.Context, params *protocol.CompletionParams) (any, error) {
-		return completion(params.TextDocument.URI, params.Position), nil
+		trigger := ""
+		if params.Context != nil && params.Context.TriggerCharacter != nil {
+			trigger = *params.Context.TriggerCharacter
+		}
+		return completion(params.TextDocument.URI, params.Position, trigger), nil
 	}
 
 	handler.TextDocumentDocumentSymbol = func(context *glsp.Context, params *protocol.DocumentSymbolParams) (any, error) {

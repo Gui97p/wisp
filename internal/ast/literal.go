@@ -142,6 +142,7 @@ type StructLiteral struct {
 	Module string
 	Name   string
 	Keys   []string
+	KeyAt  []Position
 	Values []Expression
 
 	NodePos

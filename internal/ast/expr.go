@@ -84,8 +84,9 @@ func (c *CallExpr) Tree(indent string) string {
 }
 
 type MemberExpr struct {
-	Object Expression
-	Field  string
+	Object  Expression
+	Field   string
+	FieldAt Position
 
 	NodePos
 }

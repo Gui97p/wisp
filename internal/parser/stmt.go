@@ -195,10 +195,7 @@ func (p *Parser) parseSimpleStatement() ast.Statement {
 }
 
 func (p *Parser) finishExpressionStatement(expr ast.Expression) ast.Statement {
-	if p.peek.Type == lexer.TOKEN_SEMICOLON {
-		p.advance()
-	} else if p.peek.Type != lexer.TOKEN_RBRACE {
-		p.errorExpected(lexer.TOKEN_SEMICOLON, p.peek.Type)
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
 	}
 

@@ -293,7 +293,7 @@ func (p *Parser) parseMemberExpression(object ast.Expression) ast.Expression {
 		return nil
 	}
 
-	return &ast.MemberExpr{Object: object, Field: p.current.Literal}
+	return &ast.MemberExpr{Object: object, Field: p.current.Literal, FieldAt: p.currentPosition()}
 }
 
 func (p *Parser) parseCallExpression(name ast.Expression) ast.Expression {
@@ -517,6 +517,7 @@ func (p *Parser) parseStructLiteral(left ast.Expression) ast.Expression {
 			return nil
 		}
 		key := p.current.Literal
+		keyAt := p.currentPosition()
 		if !p.expect(lexer.TOKEN_COLON) {
 			return nil
 		}
@@ -526,6 +527,7 @@ func (p *Parser) parseStructLiteral(left ast.Expression) ast.Expression {
 			return nil
 		}
 		lit.Keys = append(lit.Keys, key)
+		lit.KeyAt = append(lit.KeyAt, keyAt)
 		lit.Values = append(lit.Values, value)
 
 		if p.peek.Type != lexer.TOKEN_COMMA {

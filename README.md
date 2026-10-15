@@ -317,6 +317,7 @@ Requirements:
 ```bash
 make build         # writes bin/wisp
 make prod          # packages bin/ and std/ into dist/
+make install       # make prod, then installs it into /usr/local/wisp (asks for sudo)
 make ext           # packages the VS Code extension into dist/vscode
 make test-x64      # runs the generated test programs on the x86-64 backend, including the C interop ones
 make test-lua      # the same programs on the Lua backend

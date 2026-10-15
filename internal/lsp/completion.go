@@ -44,7 +44,7 @@ func getLastGood(path string) (analysis, bool) {
 	return a, ok
 }
 
-func completion(uri protocol.DocumentUri, pos protocol.Position) []protocol.CompletionItem {
+func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string) []protocol.CompletionItem {
 	path := uriToPath(uri)
 	line := int(pos.Line) + 1
 	col := int(pos.Character) + 1
@@ -52,12 +52,22 @@ func completion(uri protocol.DocumentUri, pos protocol.Position) []protocol.Comp
 	info := currentInfo(path)
 
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
+	suffix := lineSuffix(path, int(pos.Line), int(pos.Character))
+
+	if info != nil {
+		if fields, ok := structLiteralItems(textBefore(path, int(pos.Line), int(pos.Character)), scopeFor(info, line, col)); ok {
+			return fields
+		}
+	}
+	if trigger == "{" || trigger == "," {
+		return nil
+	}
 
 	if base, ok := memberBase(prefix); ok {
 		if info == nil {
 			return nil
 		}
-		return memberItems(base, scopeAt(info, line, col))
+		return memberItems(base, scopeAt(info, line, col), suffix)
 	}
 
 	items := []protocol.CompletionItem{}
@@ -70,7 +80,7 @@ func completion(uri protocol.DocumentUri, pos protocol.Position) []protocol.Comp
 
 	if info != nil {
 		for _, sym := range scopeAt(info, line, col).Visible() {
-			items = append(items, symbolItem(sym))
+			items = append(items, symbolItem(sym, suffix))
 		}
 	}
 	return items
@@ -133,7 +143,7 @@ func scopeAt(info *analyser.Info, line, col int) *analyser.Scope {
 	return analyser.NewScope(nil)
 }
 
-func memberItems(base string, scope *analyser.Scope) []protocol.CompletionItem {
+func memberItems(base string, scope *analyser.Scope, suffix string) []protocol.CompletionItem {
 	sym, ok := scope.Resolve(base)
 	if !ok {
 		return nil
@@ -144,7 +154,7 @@ func memberItems(base string, scope *analyser.Scope) []protocol.CompletionItem {
 	switch t := sym.Type.(type) {
 	case *analyser.ModuleType:
 		for _, ex := range t.Exports {
-			items = append(items, symbolItem(ex))
+			items = append(items, symbolItem(ex, suffix))
 		}
 		return items
 	}
@@ -180,12 +190,12 @@ func memberItems(base string, scope *analyser.Scope) []protocol.CompletionItem {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		items = append(items, item(name, protocol.CompletionItemKindMethod, methods[name].String()))
+		items = append(items, callable(item(name, protocol.CompletionItemKindMethod, methods[name].String()), len(methods[name].Params), suffix))
 	}
 	return items
 }
 
-func symbolItem(sym *analyser.Symbol) protocol.CompletionItem {
+func symbolItem(sym *analyser.Symbol, suffix string) protocol.CompletionItem {
 	kind := protocol.CompletionItemKindVariable
 	switch sym.Kind {
 	case analyser.CONST:
@@ -203,7 +213,30 @@ func symbolItem(sym *analyser.Symbol) protocol.CompletionItem {
 	if sym.Type != nil {
 		detail = sym.Type.String()
 	}
-	return item(sym.Name, kind, detail)
+	it := item(sym.Name, kind, detail)
+	if ft, ok := sym.Type.(*analyser.FuncType); ok && sym.Kind == analyser.FUNC {
+		return callable(it, len(ft.Params), suffix)
+	}
+	return it
+}
+
+func callable(it protocol.CompletionItem, params int, suffix string) protocol.CompletionItem {
+	if strings.HasPrefix(strings.TrimLeft(suffix, " \t"), "(") {
+		return it
+	}
+
+	snippet := protocol.InsertTextFormatSnippet
+	it.InsertTextFormat = &snippet
+	if params == 0 {
+		text := it.Label + "()"
+		it.InsertText = &text
+		return it
+	}
+
+	text := it.Label + "($0)"
+	it.InsertText = &text
+	it.Command = &protocol.Command{Title: "Parameter hints", Command: "editor.action.triggerParameterHints"}
+	return it
 }
 
 func item(label string, kind protocol.CompletionItemKind, detail string) protocol.CompletionItem {
@@ -212,4 +245,187 @@ func item(label string, kind protocol.CompletionItemKind, detail string) protoco
 		it.Detail = &detail
 	}
 	return it
+}
+
+func lineSuffix(path string, line, character int) string {
+	src, ok := fileBuffer[path]
+	if !ok {
+		return ""
+	}
+	lines := strings.Split(string(src), "\n")
+	if line >= len(lines) {
+		return ""
+	}
+	runes := []rune(lines[line])
+	if character > len(runes) {
+		character = len(runes)
+	}
+	return string(runes[character:])
+}
+
+func textBefore(path string, line, character int) string {
+	src, ok := fileBuffer[path]
+	if !ok {
+		return ""
+	}
+	lines := strings.Split(string(src), "\n")
+	if line >= len(lines) {
+		return ""
+	}
+	runes := []rune(lines[line])
+	if character > len(runes) {
+		character = len(runes)
+	}
+	return strings.Join(lines[:line], "\n") + "\n" + string(runes[:character])
+}
+
+func innermostOpen(text string) (int, bool) {
+	type open struct {
+		char  byte
+		index int
+	}
+	var stack []open
+
+	for i := 0; i < len(text); i++ {
+		switch c := text[i]; c {
+		case '"', '`', '\'':
+			for i++; i < len(text) && text[i] != c; i++ {
+				if text[i] == '\\' && c != '`' {
+					i++
+				}
+			}
+		case '/':
+			if i+1 < len(text) && text[i+1] == '/' {
+				for i < len(text) && text[i] != '\n' {
+					i++
+				}
+			} else if i+1 < len(text) && text[i+1] == '*' {
+				end := strings.Index(text[i+2:], "*/")
+				if end < 0 {
+					return 0, false
+				}
+				i += end + 3
+			}
+		case '{', '(', '[':
+			stack = append(stack, open{c, i})
+		case '}', ')', ']':
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+		}
+	}
+
+	if len(stack) == 0 || stack[len(stack)-1].char != '{' {
+		return 0, false
+	}
+	return stack[len(stack)-1].index, true
+}
+
+func literalType(text string, brace int, scope *analyser.Scope) (*analyser.StructType, bool) {
+	end := brace
+	for end > 0 && (text[end-1] == ' ' || text[end-1] == '\t' || text[end-1] == '\n') {
+		end--
+	}
+
+	start := end
+	for start > 0 && (isIdentByte(text[start-1]) || text[start-1] == '.') {
+		start--
+	}
+	chain := text[start:end]
+	if chain == "" {
+		return nil, false
+	}
+
+	before := start
+	for before > 0 && (text[before-1] == ' ' || text[before-1] == '\t' || text[before-1] == '\n') {
+		before--
+	}
+	if before > 0 && !strings.ContainsRune("=(,:[{;>", rune(text[before-1])) && !strings.HasSuffix(text[:before], "return") {
+		return nil, false
+	}
+
+	var sym *analyser.Symbol
+	var found bool
+	if module, name, qualified := strings.Cut(chain, "."); qualified {
+		owner, ok := scope.Resolve(module)
+		if !ok {
+			return nil, false
+		}
+		mt, isModule := owner.Type.(*analyser.ModuleType)
+		if !isModule {
+			return nil, false
+		}
+		sym, found = mt.Exports[name], mt.Exports[name] != nil
+	} else {
+		sym, found = scope.Resolve(chain)
+	}
+	if !found || sym.Kind != analyser.STRUCT {
+		return nil, false
+	}
+
+	st, ok := sym.Type.(*analyser.StructType)
+	return st, ok
+}
+
+func structLiteralItems(text string, scope *analyser.Scope) ([]protocol.CompletionItem, bool) {
+	brace, ok := innermostOpen(text)
+	if !ok {
+		return nil, false
+	}
+	st, ok := literalType(text, brace, scope)
+	if !ok {
+		return nil, false
+	}
+
+	used := map[string]bool{}
+	depth := 0
+	segment := strings.Builder{}
+	body := text[brace+1:]
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		switch c {
+		case '"', '`', '\'':
+			segment.WriteByte(c)
+			for i++; i < len(body) && body[i] != c; i++ {
+				segment.WriteByte(body[i])
+				if body[i] == '\\' && c != '`' && i+1 < len(body) {
+					i++
+					segment.WriteByte(body[i])
+				}
+			}
+			if i < len(body) {
+				segment.WriteByte(c)
+			}
+			continue
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		case ',':
+			if depth == 0 {
+				if key, _, hasKey := strings.Cut(segment.String(), ":"); hasKey {
+					used[strings.TrimSpace(key)] = true
+				}
+				segment.Reset()
+				continue
+			}
+		}
+		segment.WriteByte(c)
+	}
+
+	if strings.Contains(segment.String(), ":") {
+		return nil, false
+	}
+
+	items := []protocol.CompletionItem{}
+	for _, field := range st.Order {
+		if used[field] {
+			continue
+		}
+		it := item(field, protocol.CompletionItemKindField, typeText(st.Fields[field]))
+		text := field + ": "
+		it.InsertText = &text
+		items = append(items, it)
+	}
+	return items, true
 }
