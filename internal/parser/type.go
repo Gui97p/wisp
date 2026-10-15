@@ -10,6 +10,7 @@ func (p *Parser) parseMapPrefix() *ast.TypeRef {
 	if p.current.Type == lexer.TOKEN_MAP {
 		ref.Name = "map"
 		ref.IsMap = true
+		ref.Line, ref.Col, ref.EndLine, ref.EndCol = p.currentIdentPos()
 		if !p.expect(lexer.TOKEN_LBRACKET) {
 			return nil
 		}
@@ -51,6 +52,7 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 	if !ref.IsMap {
 		ref.PointerDepth = p.parsePointerDepth()
 		ref.Name = p.current.Literal
+		ref.Line, ref.Col, ref.EndLine, ref.EndCol = p.currentIdentPos()
 		if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_DOT {
 			p.advance()
 			if !p.expect(lexer.TOKEN_IDENT) {
@@ -58,6 +60,7 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 			}
 			ref.Module = ref.Name
 			ref.Name = p.current.Literal
+			_, _, ref.EndLine, ref.EndCol = p.currentIdentPos()
 		}
 	}
 

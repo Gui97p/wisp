@@ -40,6 +40,9 @@ func (a *Analyser) registerFuncSignatures() {
 		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic, Fallible: fd.Fallible}
 		a.info.VarTypes[fd] = params
 		a.info.FuncReturns[fd] = returns
+		if fd.Receiver != nil {
+			continue
+		}
 		line, col := fd.Position()
 		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module}
 		ft.CVariadic = fd.CVariadic

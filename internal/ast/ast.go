@@ -79,6 +79,8 @@ type TypeRef struct {
 	Name         string
 	PointerDepth int
 
+	Line, Col, EndLine, EndCol int
+
 	Dims []ArrayDim
 
 	IsMap    bool

@@ -127,23 +127,10 @@ func isIdentByte(b byte) bool {
 }
 
 func scopeAt(info *analyser.Info, line, col int) *analyser.Scope {
-	var best *analyser.Scope
-	var bestSize int
-	for node, scope := range info.Scopes {
-		if !contains(node, line, col) {
-			continue
-		}
-		sl, _ := node.Position()
-		el, _ := node.EndPosition()
-		size := el - sl
-		if best == nil || size < bestSize {
-			best, bestSize = scope, size
-		}
+	if scope := innermostScope(info, line, col); scope != nil {
+		return scope
 	}
-	if best == nil {
-		return analyser.NewScope(nil)
-	}
-	return best
+	return analyser.NewScope(nil)
 }
 
 func memberItems(base string, scope *analyser.Scope) []protocol.CompletionItem {

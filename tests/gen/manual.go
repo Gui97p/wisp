@@ -3255,6 +3255,40 @@ func main() !int {
 }
 `, expected: []string{"hi"}, abort: "error[main.E]: boom"},
 
+	{dir: "method_same_name", src: `struct A {
+    int x;
+}
+
+struct B {
+    int y;
+}
+
+func (*A a) get() int {
+    return a.x;
+}
+
+func (*B b) get() int {
+    return b.y;
+}
+
+func (*A a) twice() int {
+    return a.get() * 2;
+}
+
+func get() int {
+    return 100;
+}
+
+func main() {
+    A a = A{x: 1};
+    B b = B{y: 2};
+    check(a.get() == 1, "a method on the first struct");
+    check(b.get() == 2, "a method with the same name on another struct");
+    check(a.twice() == 2, "a method calling a method of its own type");
+    check(get() == 100, "a function with the same name as the methods");
+}
+`, expected: []string{"a method on the first struct", "a method with the same name on another struct", "a method calling a method of its own type", "a function with the same name as the methods"}},
+
 	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
     a,
     b,
