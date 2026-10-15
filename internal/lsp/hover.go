@@ -47,7 +47,7 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	}
 
 	if param, owner, idx := paramAt(program, line, col); param != nil {
-		text := paramHoverText(param, owner, idx, info)
+		text := paramHoverText(param, owner, idx, program, info)
 		if text == "" {
 			return nil
 		}
@@ -178,21 +178,30 @@ func renderDoc(code, doc string) string {
 	if doc == "" {
 		return renderHover(code)
 	}
-	return renderHover(code) + "\n\n" + doc
+	return renderHover(code) + "\n\n" + strings.ReplaceAll(doc, "\n", "  \n")
 }
 
-func paramHoverText(param *ast.Param, owner ast.Node, idx int, info *analyser.Info) string {
+func paramHoverText(param *ast.Param, owner ast.Node, idx int, program *ast.Program, info *analyser.Info) string {
+	for _, sym := range info.VarSymbols[owner] {
+		if sym.Name == param.Name && sym.Line == param.Line && sym.Col == param.Col {
+			if idx == -1 {
+				return renderDoc(fmt.Sprintf("%s %s", typeText(sym.Type), sym.Name), "Receiver of the method.")
+			}
+			return symbolHover(sym, program)
+		}
+	}
+
 	typeStr := param.Type.Name
 	if typeStr == "" {
 		if types, ok := info.VarTypes[owner]; ok && idx >= 0 && idx < len(types) {
-			typeStr = types[idx].String()
+			typeStr = typeText(types[idx])
 		}
 	}
 	if typeStr == "" {
 		return ""
 	}
 
-	return renderDoc(fmt.Sprintf("%s %s", typeStr, param.Name), "Parameter.")
+	return renderHover(fmt.Sprintf("%s %s", typeStr, param.Name))
 }
 
 func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, line, col int) string {
