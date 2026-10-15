@@ -539,6 +539,7 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 	switch {
 	case p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_COMMA:
 		stmt.Var = p.current.Literal
+		stmt.VarAt = p.currentPosition()
 
 		if !p.checkReservedName(stmt.Var) {
 			return nil
@@ -550,6 +551,7 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 			return nil
 		}
 		stmt.Var2 = p.current.Literal
+		stmt.Var2At = p.currentPosition()
 
 		if !p.checkReservedName(stmt.Var2) {
 			return nil
@@ -566,6 +568,7 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 
 	case p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_IN:
 		stmt.Var = p.current.Literal
+		stmt.VarAt = p.currentPosition()
 
 		if !p.checkReservedName(stmt.Var) {
 			return nil

@@ -97,7 +97,8 @@ func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
 	line, col := expr.Position()
 	a.enterScope()
 	for i, p := range expr.Params {
-		a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: params[i], Line: line, Col: col, File: a.currentFile})
+		paramLine, paramCol := identPos(p, line, col)
+		a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: params[i], Line: paramLine, Col: paramCol, File: a.currentFile})
 	}
 
 	if len(returns) == 0 {
@@ -795,7 +796,10 @@ func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
 
 func (a *Analyser) defineErrorBind(expr *ast.CoalesceExpr) {
 	line, col := expr.Position()
-	sym := &Symbol{Name: expr.ErrorBind, Kind: VAR, Type: ErrorType{}, Line: line, Col: col, File: a.currentFile, Used: true}
+	if expr.ErrorBindAt.Line != 0 {
+		line, col = expr.ErrorBindAt.Line, expr.ErrorBindAt.Col
+	}
+	sym := &Symbol{Name: expr.ErrorBind, Kind: VAR, Type: ErrorType{}, Line: line, Col: col, File: a.currentFile}
 	a.scope.Define(sym)
 	a.info.VarSymbols[expr] = []*Symbol{sym}
 	a.info.VarTypes[expr] = []Type{ErrorType{}}

@@ -67,10 +67,11 @@ export func demo() {
 
   // `for ... in` walks any collection. With two names you get the index
   // (or the key, for a map) and the element; with a single name you get
-  // just the index.
+  // just the index. A variable you never use is reported, and a name that is
+  // just `_` (or starts with one) says you meant to leave it out.
   int[3] values = [10, 20, 30];
   int total;
-  for i, v in values {
+  for _, v in values {
     total += v;
   }
   expect.expect(total == 60, "for in with index and element");

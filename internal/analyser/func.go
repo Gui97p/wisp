@@ -97,7 +97,8 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 			return
 		}
 
-		recvSym := &Symbol{Name: fd.Receiver.Name, Kind: PARAM, Type: recvType, Line: line, Col: col, File: a.currentFile}
+		recvLine, recvCol := identPos(*fd.Receiver, line, col)
+		recvSym := &Symbol{Name: fd.Receiver.Name, Kind: PARAM, Type: recvType, Line: recvLine, Col: recvCol, File: a.currentFile}
 		if fd.Receiver.Name != "" {
 			if !a.scope.Define(recvSym) {
 				a.errorf(fd, "duplicated receiver %s", fd.Receiver.Name)
@@ -117,7 +118,8 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 		if p.Variadic {
 			paramType = SpanType{Element: paramType}
 		}
-		paramSym := &Symbol{Name: p.Name, Kind: PARAM, Type: paramType, Line: line, Col: col, File: a.currentFile}
+		paramLine, paramCol := identPos(p, line, col)
+		paramSym := &Symbol{Name: p.Name, Kind: PARAM, Type: paramType, Line: paramLine, Col: paramCol, File: a.currentFile}
 		if !a.scope.Define(paramSym) {
 			a.errorf(fd, "duplicated %s parameter", p.Name)
 		}

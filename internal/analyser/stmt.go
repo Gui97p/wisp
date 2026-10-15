@@ -146,25 +146,25 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 
 		switch t := rangeType.(type) {
 		case ArrayType:
-			a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, line, col)
+			a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, stmt.VarAt, line, col)
 			if stmt.Var2 != "" {
-				a.defineLoopVar(stmt, stmt.Var2, t.Element, line, col)
+				a.defineLoopVar(stmt, stmt.Var2, t.Element, stmt.Var2At, line, col)
 			}
 		case SpanType:
-			a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, line, col)
+			a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, stmt.VarAt, line, col)
 			if stmt.Var2 != "" {
-				a.defineLoopVar(stmt, stmt.Var2, t.Element, line, col)
+				a.defineLoopVar(stmt, stmt.Var2, t.Element, stmt.Var2At, line, col)
 			}
 		case *MapType:
-			a.defineLoopVar(stmt, stmt.Var, t.Key, line, col)
+			a.defineLoopVar(stmt, stmt.Var, t.Key, stmt.VarAt, line, col)
 			if stmt.Var2 != "" {
-				a.defineLoopVar(stmt, stmt.Var2, t.Value, line, col)
+				a.defineLoopVar(stmt, stmt.Var2, t.Value, stmt.Var2At, line, col)
 			}
 		case PrimitiveType:
 			if t.Name == "string" {
-				a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, line, col)
+				a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, stmt.VarAt, line, col)
 				if stmt.Var2 != "" {
-					a.defineLoopVar(stmt, stmt.Var2, PrimitiveType{Name: "char"}, line, col)
+					a.defineLoopVar(stmt, stmt.Var2, PrimitiveType{Name: "char"}, stmt.Var2At, line, col)
 				}
 			} else {
 				a.errorf(stmt.Range, "cannot range over %s", rangeType)
@@ -214,7 +214,7 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 
 	a.pushLoop(stmt.Label)
 	a.enterScope()
-	a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, line, col)
+	a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, stmt.VarAt, line, col)
 	a.checkBlock(stmt.Body)
 	a.exitScope()
 	a.popLoop()
@@ -237,8 +237,11 @@ func (a *Analyser) coerceRangeValue(slot *ast.Expression, what string) {
 	a.checkConstFits(*slot, intType)
 }
 
-func (a *Analyser) defineLoopVar(stmt *ast.ForStmt, name string, tp Type, line, col int) {
-	sym := &Symbol{Name: name, Kind: VAR, Type: tp, Line: line, Col: col, File: a.currentFile, Used: true}
+func (a *Analyser) defineLoopVar(stmt *ast.ForStmt, name string, tp Type, at ast.Position, line, col int) {
+	if at.Line != 0 {
+		line, col = at.Line, at.Col
+	}
+	sym := &Symbol{Name: name, Kind: VAR, Type: tp, Line: line, Col: col, File: a.currentFile}
 	a.scope.Define(sym)
 	a.info.VarSymbols[stmt] = append(a.info.VarSymbols[stmt], sym)
 	a.info.VarTypes[stmt] = append(a.info.VarTypes[stmt], tp)

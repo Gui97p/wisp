@@ -14,7 +14,7 @@ import "expect";
 
 func sum(int ...values) int {
   int total;
-  for i, v in values {
+  for _, v in values {
     total += v;
   }
   return total;

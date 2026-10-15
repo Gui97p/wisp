@@ -69,6 +69,10 @@ func (p *Program) Tree(indent string) string {
 	return b.String()
 }
 
+type Position struct {
+	Line, Col, EndLine, EndCol int
+}
+
 type ArrayDim struct {
 	IsSpan bool
 	Size   int64

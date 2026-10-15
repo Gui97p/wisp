@@ -572,6 +572,7 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 			return nil
 		}
 		expr.ErrorBind = p.current.Literal
+		expr.ErrorBindAt = p.currentPosition()
 
 		if !p.checkReservedName(expr.ErrorBind) {
 			return nil

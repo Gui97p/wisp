@@ -213,7 +213,8 @@ type CoalesceExpr struct {
 	Default Expression
 	Block   Statement
 
-	ErrorBind string
+	ErrorBind   string
+	ErrorBindAt Position
 
 	NodePos
 }

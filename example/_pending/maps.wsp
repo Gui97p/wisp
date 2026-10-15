@@ -15,7 +15,7 @@ export func demo() {
 
   // Iterating a map gives the key and the value. The order is not specified.
   int total;
-  for name, score in scores {
+  for _, score in scores {
     total += score;
   }
   expect.expect(total == 20, "iterating a map");

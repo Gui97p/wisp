@@ -180,7 +180,8 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 			if t == nil {
 				t = InvalidType{}
 			}
-			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: line, Col: col, File: a.currentFile}
+			symLine, symCol := identPos(v, line, col)
+			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: symLine, Col: symCol, File: a.currentFile}
 			if !a.scope.Define(sym) {
 				a.errorAlreadyDeclared(node, kind, v.Name)
 			}
@@ -264,7 +265,8 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 			finalType = defaultType(valueType)
 		}
 
-		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: line, Col: col, File: a.currentFile}
+		symLine, symCol := identPos(v, line, col)
+		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: symLine, Col: symCol, File: a.currentFile}
 		if kind == CONST {
 			sym.Const = a.constantFor(node, values, len(vars), i, finalType)
 		}
@@ -346,4 +348,11 @@ func (a *Analyser) warnUnusedGlobals() {
 				WithHelp("remove it, or export it if other modules use it")
 		}
 	}
+}
+
+func identPos(p ast.Param, line, col int) (int, int) {
+	if p.Line != 0 {
+		return p.Line, p.Col
+	}
+	return line, col
 }

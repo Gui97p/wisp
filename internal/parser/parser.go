@@ -37,6 +37,11 @@ func (p *Parser) currentIdentPos() (line, col, endLine, endCol int) {
 	return
 }
 
+func (p *Parser) currentPosition() ast.Position {
+	line, col, endLine, endCol := p.currentIdentPos()
+	return ast.Position{Line: line, Col: col, EndLine: endLine, EndCol: endCol}
+}
+
 func (p *Parser) currentEnd() (int, int) {
 	if p.current.EndLine != 0 {
 		return p.current.EndLine, p.current.EndColumn

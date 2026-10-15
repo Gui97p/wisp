@@ -200,14 +200,16 @@ func (i *IfStmt) Tree(indent string) string {
 }
 
 type ForStmt struct {
-	Label string
-	Var   string
-	Var2  string
-	Start Expression
-	End   Expression
-	Step  Expression
-	Range Expression
-	Body  *BlockStmt
+	Label  string
+	Var    string
+	Var2   string
+	VarAt  Position
+	Var2At Position
+	Start  Expression
+	End    Expression
+	Step   Expression
+	Range  Expression
+	Body   *BlockStmt
 
 	NodePos
 }

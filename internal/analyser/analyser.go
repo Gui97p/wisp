@@ -146,7 +146,7 @@ func (a *Analyser) exitScope() {
 func (a *Analyser) warnUnused(scope *Scope) {
 	var unused []*Symbol
 	for _, sym := range scope.symbols {
-		if (sym.Kind == VAR || sym.Kind == CONST) && !sym.Used && !silencesUnused(sym.Name) && sym.Line > 0 {
+		if (sym.Kind == VAR || sym.Kind == CONST) && !sym.Used && sym.Name != "" && !silencesUnused(sym.Name) && sym.Line > 0 {
 			unused = append(unused, sym)
 		}
 	}
