@@ -349,8 +349,9 @@ func (l *Lexer) NextToken() Token {
 						}
 						builder.WriteByte(c)
 					}
+					t = l.token(TOKEN_FLOAT_LITERAL, builder.String())
 					l.advance()
-					return l.token(TOKEN_FLOAT_LITERAL, builder.String())
+					return t
 				} else {
 					return l.token(TOKEN_ILLEGAL, "invalid float definition")
 				}
@@ -366,7 +367,7 @@ func (l *Lexer) NextToken() Token {
 }
 
 func (l *Lexer) token(t TokenType, lit string) Token {
-	return Token{Type: t, Literal: lit, Line: l.tokenLine, Column: l.tokenCol}
+	return Token{Type: t, Literal: lit, Line: l.tokenLine, Column: l.tokenCol, EndLine: l.line, EndColumn: l.column}
 }
 
 func (l *Lexer) read(pos int) byte {

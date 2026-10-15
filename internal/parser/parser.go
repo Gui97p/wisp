@@ -38,6 +38,10 @@ func (p *Parser) currentIdentPos() (line, col, endLine, endCol int) {
 }
 
 func (p *Parser) currentEnd() (int, int) {
+	if p.current.EndLine != 0 {
+		return p.current.EndLine, p.current.EndColumn
+	}
+
 	lit := p.current.Literal
 	if lit == "" {
 		return p.current.Line, p.current.Column

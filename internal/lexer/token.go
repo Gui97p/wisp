@@ -182,8 +182,10 @@ var keywords = map[string]TokenType{
 }
 
 type Token struct {
-	Type    TokenType
-	Literal string
-	Line    int
-	Column  int
+	Type      TokenType
+	Literal   string
+	Line      int
+	Column    int
+	EndLine   int
+	EndColumn int
 }
