@@ -216,23 +216,27 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	}
 	t.text.println(".return:")
 
-	if t.isEntry && fd.Name == "main" && fd.Fallible {
-		reg := "rax"
-		if len(fd.ReturnTypes) > 0 {
-			reg = "rdx"
+	if t.isEntry && fd.Name == "main" {
+		if fd.Fallible {
+			reg := "rax"
+			if len(fd.ReturnTypes) > 0 {
+				reg = "rdx"
+			}
+
+			t.prelude.define("__wisp_error_emit")
+			t.text.printft(`test %s, %s
+		jz .ok
+		push %s
+		mov rdi, %s
+		call __wisp_error_emit
+		pop rax
+		mov rax, [rax+16]
+	
+		.ok:
+	`, reg, reg, reg, reg)
+		} else if len(fd.ReturnTypes) == 0 {
+			t.text.printlnt("xor eax, eax")
 		}
-
-		t.prelude.define("__wisp_error_emit")
-		t.text.printft(`test %s, %s
-	jz .ok
-	push %s
-	mov rdi, %s
-	call __wisp_error_emit
-	pop rax
-	mov rax, [rax+16]
-
-	.ok:
-`, reg, reg, reg, reg)
 	}
 
 	t.text.printlnt("mov rsp, rbp")

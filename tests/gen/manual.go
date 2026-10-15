@@ -7,6 +7,8 @@ type manualCase struct {
 	abort    string
 	exit     int
 	x64Only  bool
+	libc     bool
+	cmain    bool
 	files    map[string]string
 }
 
@@ -3137,6 +3139,111 @@ func main() {
     check(withBase(100, 1, 2) == 103, "fixed parameters before the variadic one");
 }
 `, expected: []string{"a variadic function sums its arguments", "a variadic function with no arguments", "len of a variadic parameter", "indexing a variadic parameter", "fixed parameters before the variadic one"}},
+
+	{dir: "interop_extern", x64Only: true, files: map[string]string{"lib.c": `int add(int a, int b) { return a + b; }
+long mul64(long a, long b) { return a * b; }
+int sum_bytes(const char *p, int n) {
+    int t = 0;
+    for (int i = 0; i < n; i++) t += (unsigned char)p[i];
+    return t;
+}
+int twice(int x) { return 2 * x; }
+unsigned char low_byte(unsigned int v) { return (unsigned char)(v & 0xff); }
+int count_calls(void) { static int n = 0; return ++n; }
+`}, src: `extern func add(int32 a, int32 b) int32;
+extern func mul64(int64 a, int64 b) int64;
+extern func sum_bytes(*int8 p, int32 n) int32;
+extern func twice(int32 x) int32 as c_twice;
+extern func low_byte(uint32 v) uint8;
+extern func count_calls() int32;
+
+func main() ! {
+    check(add(2, 3) == 5, "extern function with two arguments");
+    check(mul64(6, 7) == 42, "extern function with 64-bit arguments");
+    *int8 b = malloc(4)!;
+    b[0] = 1;
+    b[1] = 2;
+    b[2] = 3;
+    b[3] = 4;
+    check(sum_bytes(b, 4) == 10, "extern function taking a pointer");
+    free(b);
+    check(c_twice(21) == 42, "extern function renamed with as");
+    check(low_byte(0x1234) == 0x34, "extern function returning uint8");
+    count_calls();
+    check(count_calls() == 2, "C keeps its own static state");
+    int8 small = 7;
+    check(add(int32(small), 1) == 8, "narrow argument widened for C");
+    check(sum_bytes(*int8("abc"), 3) == 294, "pointer to the bytes of a string");
+}
+`},
+
+	{dir: "interop_export", x64Only: true, cmain: true, files: map[string]string{"lib.wsp": `export func add(int32 a, int32 b) int32 as wisp_add {
+    return a + b;
+}
+
+export func scale(int64 v, int64 k) int64 as wisp_scale => v * k;
+
+func local() int32 {
+    return 1;
+}
+
+export func next(int32 a) int32 as wisp_next {
+    return add(a, local());
+}
+
+export func plain(int32 a) int32 {
+    return a;
+}
+`, "main.c": `#include <stdio.h>
+
+extern int wisp_add(int, int);
+extern long wisp_scale(long, long);
+extern int wisp_next(int);
+
+int main(void) {
+    printf("%d %ld %d\n", wisp_add(2, 3), wisp_scale(6, 7), wisp_next(9));
+    return 0;
+}
+`}, expected: []string{"5 42 10"}},
+
+	{dir: "interop_libc_puts", x64Only: true, libc: true, src: `extern func puts(*int8 s) int32;
+extern func strlen(*int8 s) int64;
+
+func main() {
+    check(strlen(*int8("hello")) == 5, "libc strlen on a string literal");
+    puts(*int8("hi"));
+}
+`, expected: []string{"libc strlen on a string literal", "hi"}},
+
+	{dir: "interop_libc_printf", x64Only: true, libc: true, src: `extern func printf(*int8 fmt, ...) int32;
+
+func main() int {
+    string name = "wisp";
+    printf(*int8("%d %s %c|%ld\n"), 42, *int8(name), 'x', 5000000000);
+    printf(*int8("no args\n"));
+    printf(*int8("%d %d %d %d %d %d %d\n"), 1, 2, 3, 4, 5, 6, 7);
+    return 0;
+}
+`, expected: []string{"42 wisp x|5000000000", "no args", "1 2 3 4 5 6 7"}},
+
+	{dir: "interop_libc_main_error", x64Only: true, libc: true, exit: 3, src: `extern func puts(*int8 s) int32;
+
+enum E {
+    Ok,
+    Other,
+    Again,
+    Bad
+}
+
+func fail() !int {
+    return Error(E.Bad, "boom");
+}
+
+func main() !int {
+    puts(*int8("hi"));
+    return fail()!;
+}
+`, expected: []string{"hi"}, abort: "error[main.E]: boom"},
 
 	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
     a,

@@ -200,6 +200,51 @@ func (t *X64Target) returnValue(ops []Operand, types []analyser.Type, hidden Mem
 	}
 }
 
+func (t *X64Target) hiddenArg(tp analyser.Type, value Operand) *ast.IdentLiteral {
+	size := sizeOf(tp)
+	vsym := &analyser.Symbol{Kind: analyser.VAR, Type: tp}
+	off := t.ctx.Set(vsym, size)
+	t.store(value, slot(off, size))
+
+	ident := &ast.IdentLiteral{Value: "__wisp_arg"}
+	t.info.Idents[ident] = vsym
+	t.info.Types[ident] = tp
+	return ident
+}
+
+func (t *X64Target) compileVariadicCall(sym *analyser.Symbol, extern bool, expr *ast.CallExpr, ft *analyser.FuncType, rets []analyser.Type) ([]Operand, error) {
+	fixed := len(ft.Params) - 1
+	elem := ft.Params[fixed]
+	esize := sizeOf(elem)
+	extra := len(expr.Args) - fixed
+
+	args := make([]ast.Expression, 0, fixed+1)
+	for _, arg := range expr.Args[:fixed] {
+		op, err := t.compileExpr(arg)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, t.hiddenArg(t.info.Types[arg], op))
+	}
+
+	block := slot(t.ctx.Reserve((extra*esize+7)/8*8), extra*esize)
+	for i := range extra {
+		op, err := t.compileExpr(expr.Args[fixed+i])
+		if err != nil {
+			return nil, err
+		}
+		t.store(op, block.at(i*esize, esize))
+	}
+
+	var ptr Operand = Imm(0)
+	if extra > 0 {
+		ptr = Addr{Of: block}
+	}
+
+	args = append(args, t.hiddenArg(analyser.SpanType{Element: elem}, Wide{Words: []Operand{ptr, Imm(extra)}}))
+	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), extern, args, rets, false)
+}
+
 func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, rets []analyser.Type, cVariadic bool) ([]Operand, error) {
 	pushed := t.ctx.Pushed()
 
@@ -323,6 +368,12 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 	}
 	if sym.Module == "" {
 		return t.compileBuiltin(sym.Name, expr)
+	}
+
+	if ft, ok := sym.Type.(*analyser.FuncType); ok {
+		if ft.Variadic {
+			return t.compileVariadicCall(sym, sym.Module != t.module, expr, ft, t.info.CallReturns[expr])
+		}
 	}
 
 	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), sym.Module != t.module, expr.Args, t.info.CallReturns[expr], false)

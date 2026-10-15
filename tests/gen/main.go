@@ -184,6 +184,8 @@ type testcase struct {
 	abort    string
 	exit     int
 	x64Only  bool
+	libc     bool
+	cmain    bool
 	files    map[string]string
 }
 
@@ -515,13 +517,17 @@ func main() {
 
 	for _, m := range manual {
 		exp := m.expected
-		if exp == nil {
+		if exp == nil && !m.cmain {
 			body := m.src[strings.Index(m.src, "func main()"):]
 			for _, match := range checkName.FindAllStringSubmatch(body, -1) {
 				exp = append(exp, match[1])
 			}
 		}
-		cases = append(cases, testcase{dir: m.dir, src: header + m.src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, files: m.files})
+		src := header + m.src
+		if m.cmain {
+			src = ""
+		}
+		cases = append(cases, testcase{dir: m.dir, src: src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, libc: m.libc, cmain: m.cmain, files: m.files})
 	}
 
 	os.RemoveAll(root)
@@ -531,9 +537,11 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		if err := os.WriteFile(filepath.Join(dir, "main.wsp"), []byte(c.src), 0644); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+		if !c.cmain {
+			if err := os.WriteFile(filepath.Join(dir, "main.wsp"), []byte(c.src), 0644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 		}
 		expected := strings.Join(c.expected, "\n")
 		if expected != "" {
@@ -551,6 +559,12 @@ func main() {
 		}
 		if c.x64Only {
 			if err := os.WriteFile(filepath.Join(dir, "x64-only"), nil, 0644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+		if c.libc {
+			if err := os.WriteFile(filepath.Join(dir, "libc"), nil, 0644); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

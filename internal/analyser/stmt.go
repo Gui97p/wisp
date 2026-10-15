@@ -285,6 +285,10 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 				valid = false
 			}
 		}
+		if name, ok := a.importedConst(target); ok {
+			a.errorConstAssign(target, name)
+			valid = false
+		}
 	}
 	if !valid {
 		return
@@ -390,6 +394,10 @@ func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 			return
 		}
 	}
+	if name, ok := a.importedConst(s.Target); ok {
+		a.errorConstAssign(s.Target, name)
+		return
+	}
 
 	t := a.checkExpr(s.Target)
 	if a.isErrorField(s.Target) {
@@ -474,4 +482,27 @@ func blockTerminates(block *ast.BlockStmt) bool {
 	}
 	last := block.Statements[len(block.Statements)-1]
 	return stmtTerminates(last)
+}
+
+func (a *Analyser) importedConst(expr ast.Expression) (string, bool) {
+	for {
+		switch e := expr.(type) {
+		case *ast.IndexExpr:
+			expr = e.Array
+		case *ast.MemberExpr:
+			if id, ok := e.Object.(*ast.IdentLiteral); ok {
+				if sym, found := a.scope.Resolve(id.Value); found {
+					if mod, isModule := sym.Type.(*ModuleType); isModule {
+						if exp, exported := mod.Exports[e.Field]; exported && exp.Kind == CONST {
+							return id.Value + "." + e.Field, true
+						}
+						return "", false
+					}
+				}
+			}
+			expr = e.Object
+		default:
+			return "", false
+		}
+	}
 }

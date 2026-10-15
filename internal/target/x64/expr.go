@@ -44,23 +44,12 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 			return nil, fmt.Errorf("x86-64: undefined identifier literal")
 		}
 		size := sizeOf(t.info.Types[e])
-		if sym.Global {
+
+		switch {
+		case sym.Global:
 			return t.globalMem(sym, size), nil
-		}
-		if sym.Kind == analyser.CONST {
-			if sym.Const == nil {
-				return nil, fmt.Errorf("x86-64: null constant")
-			}
-			switch sym.Const.Kind {
-			case analyser.ConstInt:
-				return t.resolveIntLiteral(sym.Const.Bits())
-			case analyser.ConstBool:
-				return t.resolveBoolLiteral(sym.Const.Bool)
-			case analyser.ConstString:
-				return t.resolveStringLiteral(sym.Const.Str)
-			default:
-				return nil, fmt.Errorf("x86-64: invalid constant type")
-			}
+		case sym.Kind == analyser.CONST:
+			return t.constOperand(sym)
 		}
 
 		offset, ok := t.ctx.Get(sym)
@@ -83,6 +72,15 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 	case *ast.MemberExpr:
 		if value, ok := t.info.EnumValues[e]; ok {
 			return t.resolveIntLiteral(value.Value)
+		}
+		if info := t.info.Members[e]; info != nil && info.Kind == analyser.MemberModule {
+			sym, err := t.resolveCallee(e)
+			if err != nil {
+				return nil, err
+			}
+			if sym.Kind == analyser.CONST {
+				return t.constOperand(sym)
+			}
 		}
 		return t.compileLValue(e)
 	case *ast.DotIdent:
@@ -130,6 +128,22 @@ func (t *X64Target) globalMem(sym *analyser.Symbol, size int) Mem {
 		t.prelude.define(l)
 	}
 	return label(l, size)
+}
+
+func (t *X64Target) constOperand(sym *analyser.Symbol) (Operand, error) {
+	if sym.Const == nil {
+		return nil, fmt.Errorf("x86-64: null constant")
+	}
+	switch sym.Const.Kind {
+	case analyser.ConstInt:
+		return t.resolveIntLiteral(sym.Const.Bits())
+	case analyser.ConstBool:
+		return t.resolveBoolLiteral(sym.Const.Bool)
+	case analyser.ConstString:
+		return t.resolveStringLiteral(sym.Const.Str)
+	default:
+		return nil, fmt.Errorf("x86-64: invalid constant type")
+	}
 }
 
 func (t *X64Target) checkNotNull(reg x64context.Register) {

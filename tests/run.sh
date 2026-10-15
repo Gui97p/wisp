@@ -33,13 +33,37 @@ for dir in "$ROOT"/*/; do
     else
         flags=(--bin "$OUT/bin/$name" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name")
     fi
-    (cd "$dir" && timeout 120 "$WISP" run --target "$TARGET" "${flags[@]}") >"$out.raw" 2>"$err"
+    if [[ "$TARGET" != "lua" ]]; then
+        if [[ -f "$dir/lib.c" ]]; then
+            mkdir -p "$OUT/c"
+            if ! cc -c -O1 -fno-stack-protector -fno-pic -ffreestanding "$dir/lib.c" -o "$OUT/c/$name.o" 2>"$err"; then
+                printf 'BUILD %s  cc failed\n' "$name" >>"$RESULTS"
+                continue
+            fi
+            flags+=(--link "$OUT/c/$name.o")
+        fi
+        if [[ -f "$dir/libc" ]]; then
+            flags+=(--libc)
+        fi
+    fi
+
+    if [[ -f "$dir/main.c" ]]; then
+        mkdir -p "$OUT/bin"
+        (
+            cd "$dir" &&
+                timeout 120 "$WISP" build --target "$TARGET" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name" >"$out.raw" &&
+                cc -no-pie main.c "$OUT/obj/$name"/*.o -o "$OUT/bin/$name" &&
+                "$OUT/bin/$name" >>"$out.raw"
+        ) 2>"$err"
+    else
+        (cd "$dir" && timeout 120 "$WISP" run --target "$TARGET" "${flags[@]}") >"$out.raw" 2>"$err"
+    fi
     code=$?
 
     clean <"$out.raw" | grep -v '^\[\(lua\|x64\)\]' >"$out"
     clean <"$err" >"$err.clean"
 
-    if grep -q -E '>> error|^Error:|nasm|ld:|goroutine [0-9]+' "$err.clean" && ! grep -q '^FAIL$' "$out"; then
+    if grep -q -E '>> error|^Error:|nasm|ld:|collect2|goroutine [0-9]+' "$err.clean" && ! grep -q '^FAIL$' "$out"; then
         detail="$(grep -m1 -E '>> error|^Error:|nasm|goroutine|panic:' "$err.clean" | sed 's/^Error: //; s/^>> error\(\[[^]]*\]\)\?: //' | cut -c1-110)"
         printf 'BUILD %s  %s\n' "$name" "$detail" >>"$RESULTS"
         continue

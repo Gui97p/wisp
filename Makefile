@@ -1,4 +1,4 @@
-.PHONY: build prod ext run clean version testgen test test-lua test-x64 test-interop
+.PHONY: build prod ext run clean version testgen test test-lua test-x64
 APP=wisp
 
 VERSION = $(shell go run ./cmd/main version --short)
@@ -37,9 +37,6 @@ test-lua: build testgen
 
 test-x64: build testgen
 	WISP=bin/$(APP) tests/run.sh linux_x64 $(FILTER)
-
-test-interop: build
-	WISP=bin/$(APP) tests/interop/run.sh $(FILTER)
 
 test: test-lua test-x64
 

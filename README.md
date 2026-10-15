@@ -291,16 +291,15 @@ Requirements:
 
 * Go, to build the compiler
 * `nasm` and `ld` (binutils), for the x86-64 backend
-* a C compiler driver (`cc`), for `--libc` and the interop tests
+* a C compiler driver (`cc`), for `--libc` and the tests that build C code
 * `lua` 5.4, for `wisp run --target lua`
 
 ```bash
 make build         # writes bin/wisp
 make prod          # packages bin/ and std/ into dist/
 make ext           # packages the VS Code extension into dist/vscode
-make test-x64      # runs the generated test programs on the x86-64 backend
+make test-x64      # runs the generated test programs on the x86-64 backend, including the C interop ones
 make test-lua      # the same programs on the Lua backend
-make test-interop  # builds C code and links it with Wisp, in both directions
 make test          # test-lua and test-x64
 ```
 
@@ -333,7 +332,7 @@ internal/
     └── x64/         x86-64 backend
 std/                 standard library
 example/             guided tour of the language
-tests/               test generator and runners (generated, interop)
+tests/               test generator (gen) and the runner (run.sh)
 vscode/              VS Code extension (syntax, snippets, icon)
 ```
 

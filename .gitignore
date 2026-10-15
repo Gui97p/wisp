@@ -35,8 +35,9 @@ Thumbs.db
 
 # Development Files
 dev/
-tests/numeric/
-tests/interop/
+tests/*
+!tests/gen
+!tests/run.sh
 *.vsix
 
 # VS Code extension build
