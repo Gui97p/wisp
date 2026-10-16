@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/diag"
@@ -71,7 +72,7 @@ func diagnoseFile(path string) (result map[string][]protocol.Diagnostic) {
 			setLastGood(path, analysis{merged, info})
 		}
 
-		if a.HasDiagnostics() {
+		if mod.ParseError == nil && a.HasDiagnostics() {
 			addDiagnostics(result, "", a.Errors())
 		}
 
@@ -110,12 +111,14 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 		if d.Severity == diag.SeverityWarning {
 			severity = protocol.DiagnosticSeverityWarning
 		}
-		message := d.Message
+		var message strings.Builder
+		message.WriteString(d.Message)
 		for _, n := range d.Notes {
-			message += fmt.Sprintf("\nnote: %s (%d:%d)", n.Message, n.Line, n.Col)
+			message.WriteString(fmt.Sprintf("\nnote: %s (%d:%d)", n.Message, n.Line, n.Col))
 		}
 		if d.Help != "" {
-			message += "\nhelp: " + d.Help
+			message.WriteString("\nhelp: ")
+			message.WriteString(d.Help)
 		}
 		result[file] = append(result[file], protocol.Diagnostic{
 			Range: protocol.Range{
@@ -123,7 +126,7 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 				End:   protocol.Position{Line: endLine, Character: endCol},
 			},
 			Severity: &severity,
-			Message:  message,
+			Message:  message.String(),
 		})
 	}
 }
@@ -166,8 +169,7 @@ func configDiagnostics(entry string) (string, []protocol.Diagnostic, bool) {
 		}
 	}
 
-	var configErr *module.ConfigError
-	if errors.As(err, &configErr) {
+	if configErr, ok := errors.AsType[*module.ConfigError](err); ok {
 		for _, i := range configErr.Issues {
 			diags = append(diags, issue(i.Line, i.Message))
 		}
