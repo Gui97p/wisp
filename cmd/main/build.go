@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 
 	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/target"
@@ -161,6 +162,11 @@ func runRun(cmd *cobra.Command, args []string) error {
 	run.Stdout, run.Stderr = os.Stdout, os.Stderr
 	if err := run.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
+			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() {
+				msg := status.Signal().String()
+				fmt.Fprintf(os.Stderr, "%s%s\n", strings.ToUpper(msg[:1]), msg[1:])
+				os.Exit(128 + int(status.Signal()))
+			}
 			os.Exit(exitErr.ExitCode())
 		}
 		return err
