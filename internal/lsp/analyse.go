@@ -31,6 +31,7 @@ func analyseEntryChecked(path string) (program *ast.Program, info *analyser.Info
 	for _, mod := range modules {
 		merged, declFiles := mod.Merge()
 		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
+		a.SetImportErrors(mod.ImportErrors)
 		info := a.Analyze()
 
 		if slices.Contains(mod.FilePaths, path) {

@@ -1,6 +1,10 @@
 package analyser
 
-import "github.com/Gui97p/wisp/internal/ast"
+import (
+	"fmt"
+
+	"github.com/Gui97p/wisp/internal/ast"
+)
 
 type ModuleInfo struct {
 	Exports map[string]*Symbol
@@ -104,12 +108,17 @@ func (a *Analyser) registerImports() {
 		if !ok {
 			continue
 		}
+		line, col := imp.Position()
 		mod, ok := a.modules[imp.Path]
 		if !ok {
-			a.errorf(imp, "unresolved import %q", imp.Path)
+			message, known := a.importErrors[imp.Path]
+			if !known {
+				message = fmt.Sprintf("unresolved import %q", imp.Path)
+			}
+			a.error(imp, message)
+			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
 			continue
 		}
-		line, col := imp.Position()
 		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: &ModuleType{Exports: mod.Exports}, Line: line, Col: col, File: a.currentFile}
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(imp, MODULE, imp.Alias)

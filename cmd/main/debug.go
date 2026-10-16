@@ -78,6 +78,8 @@ func runDebug(cmd *cobra.Command, args []string) error {
 			merged, declFiles := mod.Merge()
 
 			a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
+
+			a.SetImportErrors(mod.ImportErrors)
 			a.Analyze()
 			if a.HasDiagnostics() {
 				fmt.Printf("<<Analyser Diagnostics: %s>>\n", name)

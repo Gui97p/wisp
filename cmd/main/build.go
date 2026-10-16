@@ -58,7 +58,7 @@ func addBuildFlags(cmd *cobra.Command) {
 	f.StringArrayVar(&linkOpt, "link", nil, "extra argument for the linker, repeatable (object files, archives, -L, -l); x86-64 targets")
 	f.BoolVar(&libcOpt, "libc", false, "link the system C library and use its startup code instead of the Wisp start stub (x86-64 targets)")
 	f.StringVar(&stdOpt, "std", "", "folder to use as the standard library (the std/ import prefix)")
-	f.BoolVar(&freestandingOpt, "ffreestanding", false, "build without a standard library: importing std/... is an error")
+	f.BoolVar(&freestandingOpt, "freestanding", false, "build without a standard library: importing std/... is an error")
 }
 
 func resolveTarget(cfg *module.Config) (target.Target, error) {

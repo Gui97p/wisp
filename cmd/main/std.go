@@ -16,10 +16,10 @@ func configureStdlib(cmd *cobra.Command, root string, cfg *module.Config) error 
 	}
 
 	stdFlag := cmd.Flags().Changed("std")
-	freestandingFlag := cmd.Flags().Changed("ffreestanding") && freestandingOpt
+	freestandingFlag := cmd.Flags().Changed("freestanding") && freestandingOpt
 
 	if stdFlag && freestandingFlag {
-		return fmt.Errorf("--std and --ffreestanding cannot be used together")
+		return fmt.Errorf("--std and --freestanding cannot be used together")
 	}
 
 	switch {

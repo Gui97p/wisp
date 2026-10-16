@@ -163,7 +163,7 @@ wisp build --target kinoko_x64      # the other kernel
 wisp build --target linux_x64       # and the host, from the same sources
 ```
 
-The source code is shared, and what differs between kernels is written in `native` blocks, one per target or per operating system. The standard library is built once per target (the cache is keyed by it), and if it has no port for your kernel, `--ffreestanding` leaves it out, and `--std <folder>` points `std/` at a library of your own.
+The source code is shared, and what differs between kernels is written in `native` blocks, one per target or per operating system. The standard library is built once per target (the cache is keyed by it), and if it has no port for your kernel, `--freestanding` leaves it out, and `--std <folder>` points `std/` at a library of your own.
 
 ## Modules
 
@@ -197,7 +197,7 @@ The compiler looks for it in a `std` folder next to the `bin` folder that holds 
 The `std/` prefix always means the current standard library, and two options change which one that is:
 
 * `--std <path>` (or `std = "path"` in `wisp.toml`) makes `std/` point at another folder. Its contents are treated exactly like the bundled library, so a kernel or another operating system can ship its own.
-* `--ffreestanding` (or `freestanding = true`) builds without one: any `import "std/..."` is an error. Your own modules are unaffected, and can use any other prefix.
+* `--freestanding` (or `freestanding = true`) builds without one: any `import "std/..."` is an error. Your own modules are unaffected, and can use any other prefix.
 
 The two cannot be combined in the same place. A flag takes priority over `wisp.toml`.
 

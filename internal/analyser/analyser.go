@@ -24,7 +24,9 @@ type Analyser struct {
 	pendingDots map[*ast.DotIdent]bool
 
 	modules map[string]*ModuleInfo
-	module  string
+
+	importErrors map[string]string
+	module       string
 
 	universe *Scope
 
@@ -32,6 +34,10 @@ type Analyser struct {
 	currentFile string
 
 	errors diag.List
+}
+
+func (a *Analyser) SetImportErrors(errors map[string]string) {
+	a.importErrors = errors
 }
 
 func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string, module string) *Analyser {

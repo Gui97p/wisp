@@ -46,16 +46,26 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 	hadErrors := false
 	var compiled []compiledModule
 
+	failed := map[string]bool{}
+
 	for _, mod := range modules {
+		for _, imp := range mod.Imports {
+			if failed[imp.Path] {
+				mod.FailImport(imp.Path, fmt.Sprintf("module %q has errors", imp.Path))
+			}
+		}
+
 		if mod.ParseError != nil {
 			diag.Render(os.Stderr, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
 			hadErrors = true
+			failed[mod.Path] = true
 			continue
 		}
 
 		merged, declFiles := mod.Merge()
 
 		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
+		a.SetImportErrors(mod.ImportErrors)
 		info := a.Analyze()
 		if a.HasDiagnostics() {
 			fmt.Fprintf(os.Stderr, "<<  %s  >>\n", mod.Path)
@@ -63,6 +73,7 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 		}
 		if a.HasErrors() {
 			hadErrors = true
+			failed[mod.Path] = true
 			continue
 		}
 

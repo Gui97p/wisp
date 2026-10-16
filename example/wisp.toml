@@ -1,17 +1,12 @@
 # Every key is optional, and each one has a command line counterpart that
-# takes priority. Paths are relative to this file.
+# takes priority. Paths are relative to this file. The keys on top come before
+# any [table], because a key written after a [table] line belongs to it.
 
 # Without a target the project builds for the host: x86-64 on Linux.
 # target = "linux_x64"
 
 # `wisp run` finds `main` by itself; set this when a project has several.
 # entry = "main.wsp"
-
-[output]
-bin = "bin/tour"
-# obj = "build/obj"
-# asm = "build/asm"
-# lua = "dist"
 
 # The standard library. `std/` imports resolve to the bundled one unless you
 # point them at a folder of your own, or turn the library off altogether:
@@ -26,6 +21,12 @@ bin = "bin/tour"
 # Link the system C library and start the program through its startup code,
 # so C functions such as printf work. Needs the `cc` driver.
 # libc = true
+
+[output]
+bin = "bin/tour"
+# obj = "build/obj"
+# asm = "build/asm"
+# lua = "dist"
 
 # A target of your own, for instance a userspace for a kernel.
 # `wisp init target mykernel` creates this block and its files.

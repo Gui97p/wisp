@@ -20,6 +20,8 @@ type Module struct {
 	FilePaths  []string
 	Imports    []*ast.ImportDecl
 	ParseError *SourceError
+
+	ImportErrors map[string]string
 }
 
 func (m *Module) Merge() (*ast.Program, map[ast.Declaration]string) {
@@ -99,7 +101,7 @@ func canonicalModulePath(root, file string) (string, error) {
 func resolveImportPath(projectRoot, path string) (key, dir string, files []string, err error) {
 	isStd := strings.HasPrefix(path, "std/")
 	if isStd && stdlibDisabled {
-		return "", "", nil, fmt.Errorf("import %q: this build does not use the standard library (--ffreestanding); provide one with --std <path>", path)
+		return "", "", nil, fmt.Errorf("import %q: this build does not use the standard library (--freestanding); provide one with --std <path>", path)
 	}
 	base := filepath.Join(projectRoot, path)
 	if after, ok := strings.CutPrefix(path, "std/"); ok {
@@ -153,45 +155,54 @@ func BuildGraph(entryFile string) ([]*Module, error) {
 func BuildGraphWithOverrides(entryFile string, overrides map[string][]byte) ([]*Module, error) {
 	root := FindProjectRoot(filepath.Dir(entryFile))
 
-	modules := map[string]*Module{}
+	return buildOrder(root, []moduleRoot{{path: "", dir: filepath.Dir(entryFile), files: []string{entryFile}}}, overrides), nil
+}
+
+func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []*Module {
 	visiting := map[string]bool{}
 	visited := map[string]bool{}
 	var order []*Module
 
-	var visit func(path, dir string, files []string) error
-	visit = func(path, dir string, files []string) error {
+	var visit func(path, dir string, files []string)
+	visit = func(path, dir string, files []string) {
 		if visited[path] {
-			return nil
-		}
-		if visiting[path] {
-			return fmt.Errorf("cyclic import: %q", path)
+			return
 		}
 		visiting[path] = true
 
 		mod := loadModule(path, dir, files, overrides)
-		modules[path] = mod
 
 		for _, imp := range mod.Imports {
 			key, depDir, depFiles, err := resolveImportPath(root, imp.Path)
 			if err != nil {
-				return err
+				mod.FailImport(imp.Path, err.Error())
+				continue
+			}
+			if visiting[key] {
+				mod.FailImport(imp.Path, fmt.Sprintf("cyclic import: %q", key))
+				continue
 			}
 			imp.Path = key
-			if err := visit(key, depDir, depFiles); err != nil {
-				return err
-			}
+			visit(key, depDir, depFiles)
 		}
 
 		visiting[path] = false
 		visited[path] = true
 		order = append(order, mod)
-		return nil
 	}
 
-	if err := visit("", filepath.Dir(entryFile), []string{entryFile}); err != nil {
-		return nil, err
+	for _, r := range roots {
+		visit(r.path, r.dir, r.files)
 	}
-	return order, nil
+
+	return order
+}
+
+func (m *Module) FailImport(path, message string) {
+	if m.ImportErrors == nil {
+		m.ImportErrors = map[string]string{}
+	}
+	m.ImportErrors[path] = message
 }
 
 type moduleRoot struct {
@@ -232,53 +243,12 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 }
 
 func DiscoverProject(root string) ([]*Module, error) {
-	modules := map[string]*Module{}
-	visiting := map[string]bool{}
-	visited := map[string]bool{}
-	var order []*Module
-
-	var visit func(path, dir string, files []string) error
-	visit = func(path, dir string, files []string) error {
-		if visited[path] {
-			return nil
-		}
-		if visiting[path] {
-			return fmt.Errorf("cyclic import: %q", path)
-		}
-		visiting[path] = true
-
-		mod := loadModule(path, dir, files, nil)
-		modules[path] = mod
-
-		for _, imp := range mod.Imports {
-			key, depDir, depFiles, err := resolveImportPath(root, imp.Path)
-			if err != nil {
-				return err
-			}
-			imp.Path = key
-			if err := visit(key, depDir, depFiles); err != nil {
-				return err
-			}
-		}
-
-		visiting[path] = false
-		visited[path] = true
-		order = append(order, mod)
-		return nil
-	}
-
 	roots, err := discoverModuleRoots(root)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, r := range roots {
-		if err := visit(r.path, r.dir, r.files); err != nil {
-			return nil, err
-		}
-	}
-
-	return order, nil
+	return buildOrder(root, roots, nil), nil
 }
 
 func loadModule(path, dir string, files []string, overrides map[string][]byte) *Module {

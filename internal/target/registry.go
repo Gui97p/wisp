@@ -182,6 +182,10 @@ func Selectors() []string {
 	return selectors
 }
 
+func Hint(name string, candidates []string) string {
+	return hint(name, candidates)
+}
+
 func hint(name string, candidates []string) string {
 	best, bestDist := "", 3
 	for _, c := range candidates {
