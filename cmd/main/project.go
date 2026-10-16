@@ -47,6 +47,7 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 	var compiled []compiledModule
 
 	failed := map[string]bool{}
+	totalErrors, totalWarnings := 0, 0
 
 	for _, mod := range modules {
 		for _, imp := range mod.Imports {
@@ -57,6 +58,8 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 
 		if mod.ParseError != nil {
 			diag.Render(os.Stderr, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
+			e, w := diag.Count(mod.ParseError.Errors)
+			totalErrors, totalWarnings = totalErrors+e, totalWarnings+w
 			hadErrors = true
 			failed[mod.Path] = true
 			continue
@@ -70,6 +73,8 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 		if a.HasDiagnostics() {
 			fmt.Fprintf(os.Stderr, "<<  %s  >>\n", mod.Path)
 			diag.RenderGrouped(os.Stderr, mod.BufferMap(), a.Errors())
+			e, w := diag.Count(a.Errors())
+			totalErrors, totalWarnings = totalErrors+e, totalWarnings+w
 		}
 		if a.HasErrors() {
 			hadErrors = true
@@ -84,7 +89,11 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 	}
 
 	if hadErrors {
+		diag.Summary(os.Stderr, totalErrors, totalWarnings)
 		os.Exit(1)
+	}
+	if totalWarnings > 0 && !quietOpt {
+		diag.Summary(os.Stderr, 0, totalWarnings)
 	}
 
 	mainDecl, mainMod, mainCount := findMain(compiled, root, cfg.Entry)

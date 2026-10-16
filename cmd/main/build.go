@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/target"
@@ -58,8 +59,33 @@ func addBuildFlags(cmd *cobra.Command) {
 	f.StringVar(&targetOpt, "target", "", "target name (e.g. linux_x64, lua)")
 	f.StringArrayVar(&linkOpt, "link", nil, "extra argument for the linker, repeatable (object files, archives, -L, -l); x86-64 targets")
 	f.BoolVar(&libcOpt, "libc", false, "link the system C library and use its startup code instead of the Wisp start stub (x86-64 targets)")
+	addProjectFlags(cmd)
+	addOutputFlags(cmd)
+}
+
+func addProjectFlags(cmd *cobra.Command) {
+	f := cmd.Flags()
 	f.StringVar(&stdOpt, "std", "", "folder to use as the standard library (the std/ import prefix)")
 	f.BoolVar(&freestandingOpt, "freestanding", false, "build without a standard library: importing std/... is an error")
+}
+
+func openProject(cmd *cobra.Command) (string, *module.Config, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", nil, err
+	}
+	root := module.FindProjectRoot(cwd)
+
+	cfg, err := module.LoadConfig(root)
+	if err != nil {
+		return "", nil, err
+	}
+
+	if err := configureStdlib(cmd, root, cfg); err != nil {
+		return "", nil, err
+	}
+
+	return root, cfg, nil
 }
 
 func resolveTarget(cfg *module.Config) (target.Target, error) {
@@ -93,24 +119,16 @@ func rejectFlags(cmd *cobra.Command, tgt target.Target, names ...string) error {
 }
 
 type buildResult struct {
+	target   string
+	product  string
 	binPath  string
 	luaDir   string
 	luaEntry string
 }
 
 func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
-	cwd, err := os.Getwd()
+	root, cfg, err := openProject(cmd)
 	if err != nil {
-		return nil, err
-	}
-	root := module.FindProjectRoot(cwd)
-
-	cfg, err := module.LoadConfig(root)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := configureStdlib(cmd, root, cfg); err != nil {
 		return nil, err
 	}
 
@@ -119,32 +137,51 @@ func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
 		return nil, err
 	}
 
+	if verboseOpt {
+		x64.Trace = func(name string, args []string) {
+			detail("  $ %s %s", name, strings.Join(args, " "))
+		}
+	}
+
+	var res *buildResult
 	switch tgt.Arch {
 	case "x64":
 		if err := rejectFlags(cmd, tgt, "lua"); err != nil {
 			return nil, err
 		}
-		return buildX64(root, cfg, tgt, forRun)
+		res, err = buildX64(root, cfg, tgt, forRun)
 	case "lua":
 		if err := rejectFlags(cmd, tgt, "asm", "obj", "bin", "link", "libc"); err != nil {
 			return nil, err
 		}
-		return buildLua(root, cfg, tgt, forRun)
+		res, err = buildLua(root, cfg, tgt, forRun)
 	default:
 		return nil, fmt.Errorf("target %q has no build pipeline", tgt.Name)
 	}
+	if err != nil {
+		return nil, err
+	}
+	res.target = tgt.Name
+	return res, nil
 }
 
 func runBuild(cmd *cobra.Command, args []string) error {
-	_, err := build(cmd, false)
-	return err
+	start := time.Now()
+	res, err := build(cmd, false)
+	if err != nil {
+		return err
+	}
+	status("Finished %s -> %s in %s", res.target, relPath(res.product), elapsed(start))
+	return nil
 }
 
 func runRun(cmd *cobra.Command, args []string) error {
+	start := time.Now()
 	res, err := build(cmd, true)
 	if err != nil {
 		return err
 	}
+	detail("Finished %s -> %s in %s", res.target, relPath(res.product), elapsed(start))
 
 	var run *exec.Cmd
 	if res.binPath != "" {
@@ -154,7 +191,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("[lua] running %s\n", res.luaEntry)
+		detail("Running %s", relPath(res.luaEntry))
 		run = exec.Command("lua", rel)
 		run.Dir = res.luaDir
 	}
@@ -183,6 +220,13 @@ type buildTargets struct {
 	wantBin bool
 }
 
+func rooted(root, p string) string {
+	if p == "" || filepath.IsAbs(p) {
+		return p
+	}
+	return filepath.Join(root, p)
+}
+
 func pick(values ...string) string {
 	for _, v := range values {
 		if v != "" {
@@ -203,13 +247,13 @@ func useLibc(cfg *module.Config, tgt target.Target) bool {
 func resolveBuildTargets(root string, cfg *module.Config, tgt target.Target, forceBin bool) buildTargets {
 	var t buildTargets
 
-	t.asmDir = pick(asmOut, tgt.Output.Asm, cfg.Output.Asm)
+	t.asmDir = pick(asmOut, rooted(root, pick(tgt.Output.Asm, cfg.Output.Asm)))
 	t.wantAsm = t.asmDir != ""
 
-	t.objDir = pick(objOut, tgt.Output.Obj, cfg.Output.Obj)
+	t.objDir = pick(objOut, rooted(root, pick(tgt.Output.Obj, cfg.Output.Obj)))
 	t.wantObj = t.objDir != ""
 
-	t.binPath = pick(binOut, tgt.Output.Bin, cfg.Output.Bin)
+	t.binPath = pick(binOut, rooted(root, pick(tgt.Output.Bin, cfg.Output.Bin)))
 	t.wantBin = t.binPath != "" || forceBin
 
 	if !t.wantAsm && !t.wantObj && !t.wantBin {
@@ -232,10 +276,13 @@ func resolveBuildTargets(root string, cfg *module.Config, tgt target.Target, for
 func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (*buildResult, error) {
 	targets := resolveBuildTargets(root, cfg, tgt, forRun)
 
+	analyseStart := time.Now()
 	proj, err := loadProject(root, cfg)
 	if err != nil {
 		return nil, err
 	}
+	detail("Analysed %s in %s", count(len(proj.compiled), "module"), elapsed(analyseStart))
+	codegenStart := time.Now()
 
 	if targets.wantBin {
 		if err := proj.requireMain(); err != nil {
@@ -337,24 +384,35 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 		}
 	}
 
+	detail("Generated code and objects in %s", elapsed(codegenStart))
 	if targets.wantAsm {
-		fmt.Printf("[x64] asm: %s\n", targets.asmDir)
+		detail("asm: %s", relPath(targets.asmDir))
 	}
 	if targets.wantObj {
-		fmt.Printf("[x64] obj: %s\n", targets.objDir)
+		detail("obj: %s", relPath(targets.objDir))
 	}
 
 	res := &buildResult{}
+	switch {
+	case targets.wantBin:
+		res.product = targets.binPath
+	case targets.wantObj:
+		res.product = targets.objDir
+	default:
+		res.product = targets.asmDir
+	}
 
 	if targets.wantBin {
 		if err := os.MkdirAll(filepath.Dir(targets.binPath), 0755); err != nil {
 			return nil, err
 		}
+		linkStart := time.Now()
 		opts := x64.LinkOptions{Extra: append(append([]string{}, cfg.Link...), linkOpt...), Libc: useLibc(cfg, tgt)}
 		if err := x64.Link(tgt, root, objPaths, libPaths, targets.binPath, targets.wantObj, opts); err != nil {
 			return nil, err
 		}
-		fmt.Printf("[x64] bin: %s\n", targets.binPath)
+		detail("Linked in %s", elapsed(linkStart))
+		detail("bin: %s", relPath(targets.binPath))
 		res.binPath = targets.binPath
 	}
 

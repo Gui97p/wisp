@@ -22,7 +22,8 @@ type Target struct {
 	Libc          *bool
 	Output        Output
 
-	Builtin bool
+	Builtin  bool
+	Modified bool
 }
 
 type Output struct {
@@ -79,6 +80,10 @@ func all() []Target {
 		}
 	}
 	return out
+}
+
+func List() []Target {
+	return all()
 }
 
 func isBuiltinName(name string) bool {
@@ -156,6 +161,7 @@ func Override(name string, patch Patch) error {
 		t.Libc = patch.Libc
 	}
 	t.Output = patch.Output
+	t.Modified = true
 
 	for i, p := range project {
 		if p.Name == name {

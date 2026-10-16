@@ -51,11 +51,18 @@ wisp init lib              # library: object files, no main
 wisp init target <name>    # add a target of your own, creating the project if needed
 wisp build                 # compile
 wisp run                   # compile and run
+wisp check                 # parse and analyse only, no assembler or linker
+wisp clean                 # remove binaries, objects, assembly and Lua output (-n lists only)
+wisp env [key]             # what the compiler resolved: root, target, std, output paths
+wisp targets               # built-in and project targets, the default marked
+wisp doc [module [symbol]] # exported API with doc comments; no argument lists the modules
 wisp cache dir|clean       # the standard library object cache
 wisp version
 wisp debug <lexer|parser|analyser> <file.wsp>
 wisp lsp                   # language server
 ```
+
+`run` prints nothing of its own, so its output can be piped. `build` and `check` end with one line on stderr, such as `Finished linux_x64 -> bin/linux_x64/app in 0.4s`. `-q` hides it, and `-v` shows every step with timings and the `nasm` and `ld` commands. Diagnostics are colored only on a terminal, and `NO_COLOR` turns the color off.
 
 The compiler reads every `.wsp` file under the project root (the folder with `wisp.toml`) and looks for `main`. With no `main` the project is a library and asking for a binary is an error. With several, set `entry` in `wisp.toml`. Folders starting with `.` or `_` are skipped.
 

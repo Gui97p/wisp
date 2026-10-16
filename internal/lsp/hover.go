@@ -146,24 +146,6 @@ func paramRange(param *ast.Param) *protocol.Range {
 	}
 }
 
-func typeText(t analyser.Type) string {
-	switch v := t.(type) {
-	case *analyser.StructType:
-		return v.Name
-	case analyser.PointerType:
-		return "*" + typeText(v.Element)
-	case analyser.ArrayType:
-		return fmt.Sprintf("%s[%d]", typeText(v.Element), v.Size)
-	case analyser.SpanType:
-		return typeText(v.Element) + "[]"
-	case analyser.UntypedIntType:
-		return "int"
-	case analyser.UntypedFloatType:
-		return "float"
-	}
-	return t.String()
-}
-
 func renderHover(code string) string {
 	return fmt.Sprintf("```wisp\n%s\n```", code)
 }
@@ -189,7 +171,7 @@ func paramHoverText(param *ast.Param, owner ast.Node, idx int, program *ast.Prog
 	for _, sym := range info.VarSymbols[owner] {
 		if sym.Name == param.Name && sym.Line == param.Line && sym.Col == param.Col {
 			if idx == -1 {
-				return renderDoc(fmt.Sprintf("%s %s", typeText(sym.Type), sym.Name), "Receiver of the method.")
+				return renderDoc(fmt.Sprintf("%s %s", analyser.TypeText(sym.Type), sym.Name), "Receiver of the method.")
 			}
 			return symbolHover(sym, program)
 		}
@@ -198,7 +180,7 @@ func paramHoverText(param *ast.Param, owner ast.Node, idx int, program *ast.Prog
 	typeStr := param.Type.Name
 	if typeStr == "" {
 		if types, ok := info.VarTypes[owner]; ok && idx >= 0 && idx < len(types) {
-			typeStr = typeText(types[idx])
+			typeStr = analyser.TypeText(types[idx])
 		}
 	}
 	if typeStr == "" {
@@ -231,7 +213,7 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 	}
 
 	if t, ok := info.Types[expr]; ok {
-		return renderHover(typeText(t))
+		return renderHover(analyser.TypeText(t))
 	}
 	return ""
 }
@@ -248,7 +230,7 @@ func structLiteralHover(e *ast.StructLiteral, program *ast.Program, info *analys
 			if !exists {
 				return renderDoc(e.Keys[i], fmt.Sprintf("Struct `%s` has no field `%s`.", st.Name, e.Keys[i]))
 			}
-			return renderDoc(fmt.Sprintf("%s %s", typeText(field), e.Keys[i]), joinDocs(st.FieldDocs[e.Keys[i]], fmt.Sprintf("Field of struct `%s`.", st.Name)))
+			return renderDoc(fmt.Sprintf("%s %s", analyser.TypeText(field), e.Keys[i]), joinDocs(st.FieldDocs[e.Keys[i]], fmt.Sprintf("Field of struct `%s`.", st.Name)))
 		}
 	}
 
@@ -303,13 +285,13 @@ func memberHover(e *ast.MemberExpr, program *ast.Program, info *analyser.Info) s
 		if member.Struct != nil {
 			doc = joinDocs(member.Struct.FieldDocs[e.Field], fmt.Sprintf("Field of struct `%s`.", member.Struct.Name))
 		}
-		return renderDoc(fmt.Sprintf("%s %s", typeText(t), e.Field), doc)
+		return renderDoc(fmt.Sprintf("%s %s", analyser.TypeText(t), e.Field), doc)
 	case analyser.MemberErrorField:
 		t, ok := info.Types[e]
 		if !ok {
 			return ""
 		}
-		return renderDoc(fmt.Sprintf("%s %s", typeText(t), e.Field), errorFieldDocs[e.Field])
+		return renderDoc(fmt.Sprintf("%s %s", analyser.TypeText(t), e.Field), errorFieldDocs[e.Field])
 	case analyser.MemberModule:
 		if sym := resolveSymbol(e, info); sym != nil {
 			return symbolHover(sym, program)
@@ -326,7 +308,7 @@ func methodHover(e *ast.MemberExpr, program *ast.Program, info *analyser.Info) s
 			if decl != nil {
 				doc = decl.Doc
 			}
-			return renderDoc(funcSignature(e.Field, method.Func, decl), joinDocs(doc, "Method."))
+			return renderDoc(analyser.FuncSignature(e.Field, method.Func, decl), joinDocs(doc, "Method."))
 		}
 	}
 	return ""
@@ -376,7 +358,7 @@ func funcHover(sym *analyser.Symbol, program *ast.Program) string {
 		doc = fmt.Sprintf("Exported to C as `%s`.", sym.CName)
 	}
 
-	return renderDoc(funcSignature(sym.Name, ft, funcDecl(program, sym)), joinDocs(sym.Doc, doc))
+	return renderDoc(analyser.FuncSignature(sym.Name, ft, funcDecl(program, sym)), joinDocs(sym.Doc, doc))
 }
 
 func funcDecl(program *ast.Program, sym *analyser.Symbol) *ast.FuncDecl {
@@ -414,86 +396,8 @@ func receiverName(t analyser.Type) string {
 	return t.String()
 }
 
-func funcSignature(name string, ft *analyser.FuncType, decl *ast.FuncDecl) string {
-	receiver := ""
-	if ft.Receiver != nil {
-		receiver = "(" + typeText(ft.Receiver)
-		if decl != nil && decl.Receiver != nil && decl.Receiver.Name != "" {
-			receiver += " " + decl.Receiver.Name
-		}
-		receiver += ") "
-	}
-
-	params := make([]string, 0, len(ft.Params)+1)
-	for i, p := range ft.Params {
-		label := typeText(p)
-		paramName := ""
-		if decl != nil && i < len(decl.Params) {
-			paramName = decl.Params[i].Name
-		}
-		if ft.Variadic && i == len(ft.Params)-1 {
-			label += " ..."
-		}
-		if paramName != "" {
-			label += " " + paramName
-		}
-		params = append(params, label)
-	}
-	if ft.CVariadic {
-		params = append(params, "...")
-	}
-
-	return fmt.Sprintf("func %s%s(%s)%s", receiver, name, strings.Join(params, ", "), returnsText(ft))
-}
-
-func returnsText(ft *analyser.FuncType) string {
-	var b strings.Builder
-	if ft.Fallible {
-		b.WriteString(" !")
-	}
-	switch len(ft.Returns) {
-	case 0:
-	case 1:
-		if !ft.Fallible {
-			b.WriteString(" ")
-		}
-		b.WriteString(typeText(ft.Returns[0]))
-	default:
-		if !ft.Fallible {
-			b.WriteString(" ")
-		}
-		parts := make([]string, len(ft.Returns))
-		for i, r := range ft.Returns {
-			parts[i] = typeText(r)
-		}
-		b.WriteString("(")
-		b.WriteString(strings.Join(parts, ", "))
-		b.WriteString(")")
-	}
-	return b.String()
-}
-
 func structHover(st *analyser.StructType, doc string) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "struct %s {\n", st.Name)
-	for _, field := range st.Order {
-		fmt.Fprintf(&b, "  %s %s\n", typeText(st.Fields[field]), field)
-	}
-	b.WriteString("}")
-
-	names := make([]string, 0, len(st.Methods))
-	for name := range st.Methods {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	if len(names) > 0 {
-		b.WriteString("\n")
-		for _, name := range names {
-			fmt.Fprintf(&b, "\n%s", funcSignature(name, st.Methods[name], nil))
-		}
-	}
-
-	return renderDoc(b.String(), doc)
+	return renderDoc(analyser.StructText(st), doc)
 }
 
 func typeHover(sym *analyser.Symbol) string {
@@ -502,21 +406,11 @@ func typeHover(sym *analyser.Symbol) string {
 		return renderDoc("Error(Enum.Member, \"message\")", errorDoc)
 	case analyser.NamedType:
 		if t.Enum {
-			return renderDoc(enumText(t), joinDocs(sym.Doc, fmt.Sprintf("Enum with %d members.", len(t.MemberOrder))))
+			return renderDoc(analyser.EnumText(t), joinDocs(sym.Doc, fmt.Sprintf("Enum with %d members.", len(t.MemberOrder))))
 		}
-		return renderDoc(fmt.Sprintf("type %s %s", t.Name, typeText(t.Underlying)), joinDocs(sym.Doc, "A distinct type: converting to and from it names the type."))
+		return renderDoc(fmt.Sprintf("type %s %s", t.Name, analyser.TypeText(t.Underlying)), joinDocs(sym.Doc, "A distinct type: converting to and from it names the type."))
 	}
 	return renderHover(sym.Type.String())
-}
-
-func enumText(t analyser.NamedType) string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "enum %s {\n", t.Name)
-	for _, name := range t.MemberOrder {
-		fmt.Fprintf(&b, "  %s = %d,\n", name, t.Members[name])
-	}
-	b.WriteString("}")
-	return b.String()
 }
 
 func moduleHover(name string, mt *analyser.ModuleType) string {
@@ -540,7 +434,7 @@ func exportLine(name string, sym *analyser.Symbol) string {
 	switch sym.Kind {
 	case analyser.FUNC:
 		if ft, ok := sym.Type.(*analyser.FuncType); ok {
-			return funcSignature(name, ft, nil)
+			return analyser.FuncSignature(name, ft, nil)
 		}
 	case analyser.STRUCT:
 		return "struct " + name
@@ -554,7 +448,7 @@ func exportLine(name string, sym *analyser.Symbol) string {
 	case analyser.MODULE:
 		return "module " + name
 	}
-	return fmt.Sprintf("%s %s", typeText(sym.Type), name)
+	return fmt.Sprintf("%s %s", analyser.TypeText(sym.Type), name)
 }
 
 func variableHover(sym *analyser.Symbol) string {
@@ -567,7 +461,7 @@ func variableHover(sym *analyser.Symbol) string {
 		if sym.Const.Kind == analyser.ConstString {
 			value = strconv.Quote(sym.Const.Str)
 		}
-		return renderDoc(fmt.Sprintf("const %s = %s", sym.Name, value), joinDocs(sym.Doc, fmt.Sprintf("Constant of type `%s`.", typeText(sym.Type))))
+		return renderDoc(fmt.Sprintf("const %s = %s", sym.Name, value), joinDocs(sym.Doc, fmt.Sprintf("Constant of type `%s`.", analyser.TypeText(sym.Type))))
 	}
 
 	doc := ""
@@ -583,5 +477,5 @@ func variableHover(sym *analyser.Symbol) string {
 		doc = "An error value, or `null` when there is no error."
 	}
 
-	return renderDoc(fmt.Sprintf("%s %s", typeText(sym.Type), sym.Name), joinDocs(sym.Doc, doc))
+	return renderDoc(fmt.Sprintf("%s %s", analyser.TypeText(sym.Type), sym.Name), joinDocs(sym.Doc, doc))
 }

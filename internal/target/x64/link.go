@@ -9,6 +9,14 @@ import (
 	"github.com/Gui97p/wisp/internal/target"
 )
 
+var Trace func(name string, args []string)
+
+func trace(name string, args []string) {
+	if Trace != nil {
+		Trace(name, args)
+	}
+}
+
 type LinkOptions struct {
 	Extra []string
 	Libc  bool
@@ -70,6 +78,7 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 
 	args = append(args, opts.Extra...)
 
+	trace(linker, args)
 	ldCmd := exec.Command(linker, args...)
 	ldCmd.Dir = root
 	ldCmd.Stderr = os.Stderr

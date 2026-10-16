@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/target"
@@ -25,10 +26,12 @@ func resolveLuaOutDir(root string, cfg *module.Config, tgt target.Target) string
 func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (*buildResult, error) {
 	outDir := resolveLuaOutDir(root, cfg, tgt)
 
+	analyseStart := time.Now()
 	proj, err := loadProject(root, cfg)
 	if err != nil {
 		return nil, err
 	}
+	detail("Analysed %s in %s", count(len(proj.compiled), "module"), elapsed(analyseStart))
 
 	if forRun {
 		if err := proj.requireMain(); err != nil {
@@ -66,7 +69,7 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 		}
 	}
 
-	fmt.Printf("[lua] built %s\n", outDir)
+	detail("lua: %s", relPath(outDir))
 
-	return &buildResult{luaDir: outDir, luaEntry: entryOutputPath}, nil
+	return &buildResult{product: outDir, luaDir: outDir, luaEntry: entryOutputPath}, nil
 }

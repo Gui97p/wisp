@@ -382,7 +382,7 @@ func structLiteralItems(text string, scope *analyser.Scope) ([]protocol.Completi
 		if used[field] {
 			continue
 		}
-		it := item(field, protocol.CompletionItemKindField, typeText(st.Fields[field]))
+		it := item(field, protocol.CompletionItemKindField, analyser.TypeText(st.Fields[field]))
 		text := field + ": "
 		it.InsertText = &text
 		items = append(items, it)
