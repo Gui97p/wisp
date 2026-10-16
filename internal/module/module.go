@@ -290,3 +290,57 @@ func loadModule(path, dir string, files []string, overrides map[string][]byte) *
 
 	return mod
 }
+
+type ImportCandidate struct {
+	Path string
+	File string
+}
+
+func ImportablePaths(projectRoot string) []ImportCandidate {
+	candidates := importableUnder(projectRoot, "", true)
+
+	if !stdlibDisabled {
+		if stdRoot, err := StdlibRoot(); err == nil {
+			candidates = append(candidates, importableUnder(stdRoot, "std/", false)...)
+		}
+	}
+
+	return candidates
+}
+
+func importableUnder(root, prefix string, skipNested bool) []ImportCandidate {
+	var out []ImportCandidate
+
+	filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			name := d.Name()
+			if p != root && (strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
+				return filepath.SkipDir
+			}
+			if skipNested && p != root {
+				if _, err := os.Stat(filepath.Join(p, "wisp.toml")); err == nil {
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+		if !strings.HasSuffix(p, ".wsp") {
+			return nil
+		}
+
+		path, err := canonicalModulePath(root, p)
+		if err != nil {
+			return nil
+		}
+		if dir, base := filepath.Split(path); strings.HasSuffix(dir, base+"/") {
+			path = strings.TrimSuffix(dir, "/")
+		}
+		out = append(out, ImportCandidate{Path: prefix + path, File: p})
+		return nil
+	})
+
+	return out
+}

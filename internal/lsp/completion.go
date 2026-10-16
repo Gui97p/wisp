@@ -49,6 +49,14 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 	line := int(pos.Line) + 1
 	col := int(pos.Character) + 1
 
+	if items, ok := importItems(path, pos); ok {
+		return items
+	}
+
+	if trigger == "[" || trigger == "=" || trigger == "\"" || trigger == "/" {
+		return nil
+	}
+
 	info := currentInfo(path)
 
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
