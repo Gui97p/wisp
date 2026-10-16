@@ -116,7 +116,7 @@ func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
 	a.exitScope()
 
 	if len(returns) > 0 && !blockTerminates(expr.Block) {
-		a.error(expr, "missing return at end of lambda")
+		a.errorAtEnd(expr.Block, "missing return at end of lambda")
 	}
 
 	return &FuncType{Params: params, Returns: returns, Fallible: expr.Fallible}

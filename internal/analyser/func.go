@@ -133,7 +133,7 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 	a.checkBlock(fd.Body)
 
 	if len(ft.Returns) > 0 && !blockTerminates(fd.Body) {
-		a.errorf(fd, "missing return at end of function %s", fd.Name)
+		a.errorAtEnd(fd.Body, "missing return at end of function %s", fd.Name)
 	}
 }
 

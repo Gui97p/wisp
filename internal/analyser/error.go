@@ -23,6 +23,11 @@ func (a *Analyser) errorf(node ast.Node, format string, args ...any) *diag.Diagn
 	return a.errors.Add(a.currentFile, line, col, endLine, endCol, format, args...)
 }
 
+func (a *Analyser) errorAtEnd(node ast.Node, format string, args ...any) *diag.Diagnostic {
+	endLine, endCol := node.EndPosition()
+	return a.errors.Add(a.currentFile, endLine, endCol, endLine, endCol, format, args...)
+}
+
 func (a *Analyser) warnf(node ast.Node, format string, args ...any) *diag.Diagnostic {
 	line, col := node.Position()
 	endLine, endCol := node.EndPosition()
