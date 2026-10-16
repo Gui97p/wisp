@@ -3,6 +3,7 @@ package lsp
 import (
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -41,6 +42,7 @@ func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem,
 	}
 
 	root := module.FindProjectRoot(filepath.Dir(path))
+	cyclic := dependentFiles(path)
 	candidates := module.ImportablePaths(root)
 	sort.SliceStable(candidates, func(i, j int) bool {
 		si, sj := strings.HasPrefix(candidates[i].Path, "std/"), strings.HasPrefix(candidates[j].Path, "std/")
@@ -53,7 +55,7 @@ func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem,
 	kind := protocol.CompletionItemKindModule
 	items := []protocol.CompletionItem{}
 	for _, c := range candidates {
-		if c.File == path || imported[c.Path] {
+		if c.File == path || imported[c.Path] || cyclic[c.File] {
 			continue
 		}
 
@@ -69,4 +71,86 @@ func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem,
 		})
 	}
 	return items, true
+}
+
+func importHover(path string, pos protocol.Position) *protocol.Hover {
+	lines, ok := configLines(path)
+	if !ok || int(pos.Line) >= len(lines) {
+		return nil
+	}
+
+	line := lines[pos.Line]
+	loc := importLinePattern.FindStringSubmatchIndex(line)
+	if loc == nil {
+		return nil
+	}
+
+	start := utf16Len(line[:loc[2]])
+	end := utf16Len(line[:loc[3]])
+	if int(pos.Character) < start || int(pos.Character) > end {
+		return nil
+	}
+
+	importPath := line[loc[2]:loc[3]]
+	root := module.FindProjectRoot(filepath.Dir(path))
+
+	text := ""
+	if files, err := module.ResolveImport(root, importPath); err != nil {
+		text = err.Error()
+	} else {
+		file := files[0]
+		if rel, err := filepath.Rel(root, file); err == nil && !strings.HasPrefix(rel, "..") {
+			file = filepath.ToSlash(rel)
+		}
+		text = renderDoc("import \""+importPath+"\"", "Module file: `"+file+"`")
+	}
+
+	return &protocol.Hover{
+		Contents: protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: text},
+		Range: &protocol.Range{
+			Start: protocol.Position{Line: pos.Line, Character: uint32(start)},
+			End:   protocol.Position{Line: pos.Line, Character: uint32(end)},
+		},
+	}
+}
+
+func dependentFiles(path string) map[string]bool {
+	files := map[string]bool{}
+
+	modules, err := buildProjectGraph(resolveProjectEntry(path), fileBuffer)
+	if err != nil {
+		return files
+	}
+
+	dependents := map[string]bool{}
+	for _, mod := range modules {
+		if slices.Contains(mod.FilePaths, path) {
+			dependents[mod.Path] = true
+		}
+	}
+
+	for changed := true; changed; {
+		changed = false
+		for _, mod := range modules {
+			if dependents[mod.Path] {
+				continue
+			}
+			for _, imp := range mod.Imports {
+				if dependents[imp.Path] {
+					dependents[mod.Path] = true
+					changed = true
+					break
+				}
+			}
+		}
+	}
+
+	for _, mod := range modules {
+		if dependents[mod.Path] {
+			for _, f := range mod.FilePaths {
+				files[f] = true
+			}
+		}
+	}
+	return files
 }

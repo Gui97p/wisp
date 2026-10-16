@@ -27,7 +27,9 @@ func (a *Analyser) registerTypeAliases() {
 		}
 		if td.IsEnum {
 			nt.Members = make(map[string]int64, len(td.Members))
+			nt.MemberDocs = make(map[string]string, len(td.Members))
 			for _, m := range td.Members {
+				nt.MemberDocs[m.Name] = m.Doc
 				nt.Members[m.Name] = m.Value
 				nt.MemberOrder = append(nt.MemberOrder, m.Name)
 			}

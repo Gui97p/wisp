@@ -344,3 +344,8 @@ func importableUnder(root, prefix string, skipNested bool) []ImportCandidate {
 
 	return out
 }
+
+func ResolveImport(projectRoot, path string) ([]string, error) {
+	_, _, files, err := resolveImportPath(projectRoot, path)
+	return files, err
+}

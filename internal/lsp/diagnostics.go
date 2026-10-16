@@ -30,6 +30,18 @@ func diagnoseFile(path string) (result map[string][]protocol.Diagnostic) {
 	}
 
 	if filepath.Base(path) == "wisp.toml" {
+		root := filepath.Dir(path)
+		for open := range fileBuffer {
+			if filepath.Ext(open) != ".wsp" || module.FindProjectRoot(filepath.Dir(open)) != root {
+				continue
+			}
+			for file, diags := range diagnoseFile(open) {
+				if file != path {
+					result[file] = diags
+				}
+			}
+			break
+		}
 		return result
 	}
 

@@ -323,6 +323,7 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 
 	var current int64 = 0
 	for p.peek.Type != lexer.TOKEN_EOF && p.peek.Type != lexer.TOKEN_RBRACE {
+		memberDoc := p.docBefore(p.peek.Line)
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return nil
 		}
@@ -358,6 +359,7 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 		enum.Members = append(enum.Members, ast.EnumMember{
 			Name:    memberName,
 			Value:   current,
+			Doc:     memberDoc,
 			Line:    memberLine,
 			Col:     memberCol,
 			EndLine: memberEndLine,

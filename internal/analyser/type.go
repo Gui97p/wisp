@@ -194,6 +194,7 @@ type NamedType struct {
 	Exported    bool
 	Members     map[string]int64
 	MemberOrder []string
+	MemberDocs  map[string]string
 }
 
 type ImplicitEnumType struct {
@@ -226,12 +227,13 @@ func (n NamedType) Equals(other Type) bool {
 }
 
 type StructType struct {
-	Name     string
-	Fields   map[string]Type
-	Order    []string
-	Methods  map[string]*FuncType
-	Module   string
-	Exported bool
+	Name      string
+	Fields    map[string]Type
+	Order     []string
+	Methods   map[string]*FuncType
+	FieldDocs map[string]string
+	Module    string
+	Exported  bool
 }
 
 func (s *StructType) String() string {

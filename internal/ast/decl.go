@@ -158,6 +158,7 @@ func (s *StructDecl) Tree(indent string) string {
 type EnumMember struct {
 	Name    string
 	Value   int64
+	Doc     string
 	Line    int
 	Col     int
 	EndLine int

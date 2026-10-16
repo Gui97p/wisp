@@ -11,12 +11,13 @@ func (a *Analyser) registerStructNames() {
 		}
 
 		st := &StructType{
-			Name:     sd.Name,
-			Fields:   make(map[string]Type),
-			Order:    make([]string, 0, len(sd.Members)),
-			Methods:  make(map[string]*FuncType),
-			Module:   a.module,
-			Exported: sd.Exported,
+			Name:      sd.Name,
+			Fields:    make(map[string]Type),
+			Order:     make([]string, 0, len(sd.Members)),
+			Methods:   make(map[string]*FuncType),
+			FieldDocs: make(map[string]string),
+			Module:    a.module,
+			Exported:  sd.Exported,
 		}
 
 		line, col := sd.Position()
@@ -51,6 +52,7 @@ func (a *Analyser) registerStructFields() {
 			}
 
 			st.Fields[member.Name] = fieldType
+			st.FieldDocs[member.Name] = member.Doc
 			st.Order = append(st.Order, member.Name)
 		}
 	}

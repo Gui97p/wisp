@@ -41,6 +41,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	line := int(pos.Line) + 1
 	col := int(pos.Character) + 1
 
+	if h := importHover(path, pos); h != nil {
+		return h
+	}
+
 	program, info := analyseEntry(path)
 	if program == nil || info == nil {
 		return nil
@@ -244,7 +248,7 @@ func structLiteralHover(e *ast.StructLiteral, program *ast.Program, info *analys
 			if !exists {
 				return renderDoc(e.Keys[i], fmt.Sprintf("Struct `%s` has no field `%s`.", st.Name, e.Keys[i]))
 			}
-			return renderDoc(fmt.Sprintf("%s %s", typeText(field), e.Keys[i]), fmt.Sprintf("Field of struct `%s`.", st.Name))
+			return renderDoc(fmt.Sprintf("%s %s", typeText(field), e.Keys[i]), joinDocs(st.FieldDocs[e.Keys[i]], fmt.Sprintf("Field of struct `%s`.", st.Name)))
 		}
 	}
 
@@ -297,7 +301,7 @@ func memberHover(e *ast.MemberExpr, program *ast.Program, info *analyser.Info) s
 		}
 		doc := ""
 		if member.Struct != nil {
-			doc = fmt.Sprintf("Field of struct `%s`.", member.Struct.Name)
+			doc = joinDocs(member.Struct.FieldDocs[e.Field], fmt.Sprintf("Field of struct `%s`.", member.Struct.Name))
 		}
 		return renderDoc(fmt.Sprintf("%s %s", typeText(t), e.Field), doc)
 	case analyser.MemberErrorField:
@@ -329,7 +333,7 @@ func methodHover(e *ast.MemberExpr, program *ast.Program, info *analyser.Info) s
 }
 
 func enumMemberHover(value analyser.EnumValue) string {
-	return renderDoc(fmt.Sprintf("%s.%s = %d", value.Type.Name, value.Name, value.Value), fmt.Sprintf("Member of enum `%s`.", value.Type.Name))
+	return renderDoc(fmt.Sprintf("%s.%s = %d", value.Type.Name, value.Name, value.Value), joinDocs(value.Type.MemberDocs[value.Name], fmt.Sprintf("Member of enum `%s`.", value.Type.Name)))
 }
 
 func symbolHover(sym *analyser.Symbol, program *ast.Program) string {

@@ -139,6 +139,7 @@ type Param struct {
 	Name     string
 	Type     TypeRef
 	Variadic bool
+	Doc      string
 
 	Line, Col       int
 	EndLine, EndCol int
