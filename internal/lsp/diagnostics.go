@@ -3,30 +3,21 @@ package lsp
 import (
 	"errors"
 	"fmt"
-	"log"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
-	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/module"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
-func diagnoseFile(path string) (result map[string][]protocol.Diagnostic) {
-	result = map[string][]protocol.Diagnostic{
+func diagnoseFile(path string) map[string][]protocol.Diagnostic {
+	result := map[string][]protocol.Diagnostic{
 		path: {},
 	}
 
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("analyser panic: %v", r)
-		}
-	}()
-
-	if file, diags, ok := configDiagnostics(resolveProjectEntry(path)); ok {
+	if file, diags, ok := configDiagnostics(path); ok {
 		result[file] = diags
 	}
 
@@ -46,14 +37,13 @@ func diagnoseFile(path string) (result map[string][]protocol.Diagnostic) {
 		return result
 	}
 
-	modules, err := buildProjectGraph(resolveProjectEntry(path), fileBuffer)
-	if err != nil {
+	pa, err := analyseProject(path)
+	if err != nil || pa == nil {
 		return result
 	}
 
-	exports := map[string]*analyser.ModuleInfo{}
-
-	for _, mod := range modules {
+	for _, m := range pa.modules {
+		mod := m.mod
 		for _, f := range mod.FilePaths {
 			if _, ok := result[f]; !ok {
 				result[f] = []protocol.Diagnostic{}
@@ -64,19 +54,13 @@ func diagnoseFile(path string) (result map[string][]protocol.Diagnostic) {
 			addDiagnostics(result, mod.ParseError.Path, mod.ParseError.Errors)
 		}
 
-		merged, declFiles := mod.Merge()
-		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
-		a.SetImportErrors(mod.ImportErrors)
-		info := a.Analyze()
 		if mod.ParseError == nil && slices.Contains(mod.FilePaths, path) {
-			setLastGood(path, analysis{merged, info})
+			setLastGood(path, analysis{m.merged, m.info})
 		}
 
-		if mod.ParseError == nil && a.HasDiagnostics() {
-			addDiagnostics(result, "", a.Errors())
+		if mod.ParseError == nil && len(m.diags) > 0 {
+			addDiagnostics(result, "", m.diags)
 		}
-
-		exports[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
 	}
 
 	return result
@@ -131,27 +115,16 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 	}
 }
 
-func configDiagnostics(entry string) (string, []protocol.Diagnostic, bool) {
-	root := module.FindProjectRoot(filepath.Dir(entry))
-	tomlPath := filepath.Join(root, "wisp.toml")
-	_, buffered := fileBuffer[tomlPath]
-	if _, err := os.Stat(tomlPath); err != nil && !buffered {
+func configDiagnostics(path string) (string, []protocol.Diagnostic, bool) {
+	s := loadSettings(path)
+	if !s.hasConfig {
 		return "", nil, false
 	}
 
 	diags := []protocol.Diagnostic{}
-	var cfg *module.Config
-	var err error
-	if text, ok := fileBuffer[tomlPath]; ok {
-		cfg, err = module.LoadConfigSource(root, string(text))
-	} else {
-		cfg, err = module.LoadConfig(root)
-	}
+	err := s.configErr
 	if err == nil {
-		_, _, err = cfg.StdlibSettings(root)
-	}
-	if err == nil {
-		return tomlPath, diags, true
+		return s.tomlPath, diags, true
 	}
 
 	severity := protocol.DiagnosticSeverityError
@@ -169,12 +142,13 @@ func configDiagnostics(entry string) (string, []protocol.Diagnostic, bool) {
 		}
 	}
 
-	if configErr, ok := errors.AsType[*module.ConfigError](err); ok {
+	var configErr *module.ConfigError
+	if errors.As(err, &configErr) {
 		for _, i := range configErr.Issues {
 			diags = append(diags, issue(i.Line, i.Message))
 		}
-		return tomlPath, diags, true
+		return s.tomlPath, diags, true
 	}
 
-	return tomlPath, append(diags, issue(0, err.Error())), true
+	return s.tomlPath, append(diags, issue(0, err.Error())), true
 }

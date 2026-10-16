@@ -23,14 +23,6 @@ func isConfigURI(uri protocol.DocumentUri) bool {
 	return filepath.Base(uriToPath(uri)) == "wisp.toml"
 }
 
-func configLines(path string) ([]string, bool) {
-	src, ok := fileBuffer[path]
-	if !ok {
-		return nil, false
-	}
-	return strings.Split(strings.ReplaceAll(string(src), "\r", ""), "\n"), true
-}
-
 func configSection(parts []string) string {
 	if len(parts) == 0 {
 		return ""
@@ -130,7 +122,7 @@ func valueChoices(section, key string, declared []string) []string {
 
 func configCompletion(uri protocol.DocumentUri, pos protocol.Position) []protocol.CompletionItem {
 	path := uriToPath(uri)
-	lines, ok := configLines(path)
+	lines, ok := bufferLines(path)
 	if !ok || int(pos.Line) >= len(lines) {
 		return nil
 	}
@@ -280,7 +272,7 @@ func valueItems(ctx configContext, key, prefix string) []protocol.CompletionItem
 
 func configHover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	path := uriToPath(uri)
-	lines, ok := configLines(path)
+	lines, ok := bufferLines(path)
 	if !ok || int(pos.Line) >= len(lines) {
 		return nil
 	}

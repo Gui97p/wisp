@@ -37,12 +37,7 @@ type TargetConfig struct {
 	Output  OutputConfig `toml:"output" doc:"Where this target writes its artifacts. Overrides the top-level [output]."`
 }
 
-type OutputConfig struct {
-	Bin string `toml:"bin" doc:"Path of the linked executable."`
-	Obj string `toml:"obj" doc:"Path of the object file."`
-	Asm string `toml:"asm" doc:"Path of the generated assembly."`
-	Lua string `toml:"lua" doc:"Path of the generated Lua file."`
-}
+type OutputConfig = target.Output
 
 type ConfigField struct {
 	Key   string
@@ -161,8 +156,6 @@ func (c *Config) registerTargets(root string) error {
 			runtimeSource = string(data)
 		}
 
-		output := target.Output{Bin: tc.Output.Bin, Obj: tc.Output.Obj, Asm: tc.Output.Asm, Lua: tc.Output.Lua}
-
 		if target.IsBuiltin(name) {
 			err := target.Override(name, target.Patch{
 				Arch:          tc.Arch,
@@ -174,7 +167,7 @@ func (c *Config) registerTargets(root string) error {
 				RuntimeSource: runtimeSource,
 				LinkArgs:      tc.Link,
 				Libc:          tc.Libc,
-				Output:        output,
+				Output:        tc.Output,
 			})
 			if err != nil {
 				return err
@@ -193,7 +186,7 @@ func (c *Config) registerTargets(root string) error {
 			RuntimeSource: runtimeSource,
 			LinkArgs:      tc.Link,
 			Libc:          tc.Libc,
-			Output:        output,
+			Output:        tc.Output,
 		})
 		if err != nil {
 			return err

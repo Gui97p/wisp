@@ -74,7 +74,7 @@ func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem,
 }
 
 func importHover(path string, pos protocol.Position) *protocol.Hover {
-	lines, ok := configLines(path)
+	lines, ok := bufferLines(path)
 	if !ok || int(pos.Line) >= len(lines) {
 		return nil
 	}
@@ -117,9 +117,14 @@ func importHover(path string, pos protocol.Position) *protocol.Hover {
 func dependentFiles(path string) map[string]bool {
 	files := map[string]bool{}
 
-	modules, err := buildProjectGraph(resolveProjectEntry(path), fileBuffer)
-	if err != nil {
+	pa, err := analyseProject(path)
+	if err != nil || pa == nil {
 		return files
+	}
+
+	modules := make([]*module.Module, len(pa.modules))
+	for i, m := range pa.modules {
+		modules[i] = m.mod
 	}
 
 	dependents := map[string]bool{}

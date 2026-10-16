@@ -106,22 +106,6 @@ func currentInfo(path string) *analyser.Info {
 	return info
 }
 
-func linePrefix(path string, line, character int) string {
-	src, ok := fileBuffer[path]
-	if !ok {
-		return ""
-	}
-	lines := strings.Split(string(src), "\n")
-	if line >= len(lines) {
-		return ""
-	}
-	runes := []rune(lines[line])
-	if character > len(runes) {
-		character = len(runes)
-	}
-	return string(runes[:character])
-}
-
 func memberBase(prefix string) (string, bool) {
 	end := len(prefix)
 	for end > 0 && isIdentByte(prefix[end-1]) {
@@ -253,38 +237,6 @@ func item(label string, kind protocol.CompletionItemKind, detail string) protoco
 		it.Detail = &detail
 	}
 	return it
-}
-
-func lineSuffix(path string, line, character int) string {
-	src, ok := fileBuffer[path]
-	if !ok {
-		return ""
-	}
-	lines := strings.Split(string(src), "\n")
-	if line >= len(lines) {
-		return ""
-	}
-	runes := []rune(lines[line])
-	if character > len(runes) {
-		character = len(runes)
-	}
-	return string(runes[character:])
-}
-
-func textBefore(path string, line, character int) string {
-	src, ok := fileBuffer[path]
-	if !ok {
-		return ""
-	}
-	lines := strings.Split(string(src), "\n")
-	if line >= len(lines) {
-		return ""
-	}
-	runes := []rune(lines[line])
-	if character > len(runes) {
-		character = len(runes)
-	}
-	return strings.Join(lines[:line], "\n") + "\n" + string(runes[:character])
 }
 
 func innermostOpen(text string) (int, bool) {

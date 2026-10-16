@@ -95,8 +95,3 @@ func BuildInfo() Build {
 
 	return b
 }
-
-func Env() []string {
-	info := current()
-	return []string{"WISP_VERSION=" + info.Version, "WISP_CODENAME=" + info.Codename}
-}

@@ -44,6 +44,7 @@ func NewHandler() *protocol.Handler {
 	handler.TextDocumentDidOpen = func(context *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
 		path := uriToPath(params.TextDocument.URI)
 		fileBuffer[path] = []byte(params.TextDocument.Text)
+		invalidateAnalysis()
 
 		publish(context, params.TextDocument.URI)
 		return nil
@@ -61,17 +62,20 @@ func NewHandler() *protocol.Handler {
 
 		uri := params.TextDocument.URI
 		fileBuffer[uriToPath(uri)] = []byte(change.Text)
+		invalidateAnalysis()
 		publish(context, uri)
 		return nil
 	}
 
 	handler.TextDocumentDidSave = func(context *glsp.Context, params *protocol.DidSaveTextDocumentParams) error {
+		invalidateAnalysis()
 		publish(context, params.TextDocument.URI)
 		return nil
 	}
 
 	handler.TextDocumentDidClose = func(context *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
 		delete(fileBuffer, uriToPath(params.TextDocument.URI))
+		invalidateAnalysis()
 		return nil
 	}
 

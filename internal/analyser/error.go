@@ -34,12 +34,6 @@ func (a *Analyser) warnf(node ast.Node, format string, args ...any) *diag.Diagno
 	return a.errors.Warn(a.currentFile, line, col, endLine, endCol, format, args...)
 }
 
-func (a *Analyser) noteAt(d *diag.Diagnostic, node ast.Node, format string, args ...any) {
-	line, col := node.Position()
-	endLine, endCol := node.EndPosition()
-	d.Note(a.currentFile, line, col, endLine, endCol, format, args...)
-}
-
 func (a *Analyser) error(node ast.Node, msg string) *diag.Diagnostic {
 	return a.errorf(node, "%s", msg)
 }

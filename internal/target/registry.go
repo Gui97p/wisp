@@ -26,10 +26,10 @@ type Target struct {
 }
 
 type Output struct {
-	Bin string
-	Obj string
-	Asm string
-	Lua string
+	Bin string `toml:"bin" doc:"Path of the linked executable."`
+	Obj string `toml:"obj" doc:"Path of the object file."`
+	Asm string `toml:"asm" doc:"Path of the generated assembly."`
+	Lua string `toml:"lua" doc:"Path of the generated Lua file."`
 }
 
 type Patch struct {
@@ -237,7 +237,7 @@ func Lookup(name string) (Target, error) {
 		}
 	}
 
-	return Target{}, fmt.Errorf("unknown target %q%s", name, hint(name, Names()))
+	return Target{}, fmt.Errorf("unknown target %q%s", name, Hint(name, Names()))
 }
 
 func (t Target) Matches(selector string) bool {
@@ -276,7 +276,7 @@ func ValidateSelector(selector string) error {
 		}
 	}
 
-	return fmt.Errorf("unknown target %q%s", selector, hint(selector, Selectors()))
+	return fmt.Errorf("unknown target %q%s", selector, Hint(selector, Selectors()))
 }
 
 func Names() []string {
@@ -306,10 +306,6 @@ func Selectors() []string {
 }
 
 func Hint(name string, candidates []string) string {
-	return hint(name, candidates)
-}
-
-func hint(name string, candidates []string) string {
 	best, bestDist := "", 3
 	for _, c := range candidates {
 		if d := distance(name, c); d < bestDist {

@@ -3,6 +3,7 @@ package lsp
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -63,7 +64,7 @@ func declSite(sym *analyser.Symbol, info *analyser.Info, src []byte) (site, bool
 		}
 	}
 
-	lines := strings.Split(string(src), "\n")
+	lines := splitLines(src)
 	for l := sym.Line - 1; l >= 0 && l < len(lines) && l < sym.Line+3; l++ {
 		start := 0
 		if l == sym.Line-1 {
@@ -176,15 +177,13 @@ func renamable(path string, sym *analyser.Symbol, program *ast.Program) error {
 }
 
 func singleFileModule(path string) bool {
-	modules, err := buildProjectGraph(resolveProjectEntry(path), fileBuffer)
-	if err != nil {
+	pa, err := analyseProject(path)
+	if err != nil || pa == nil {
 		return false
 	}
-	for _, mod := range modules {
-		for _, f := range mod.FilePaths {
-			if f == path {
-				return len(mod.FilePaths) == 1
-			}
+	for _, m := range pa.modules {
+		if slices.Contains(m.mod.FilePaths, path) {
+			return len(m.mod.FilePaths) == 1
 		}
 	}
 	return false
