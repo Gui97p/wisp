@@ -58,7 +58,7 @@ wisp targets               # built-in and project targets, the default marked
 wisp doc [module [symbol]] # exported API with doc comments; no argument lists the modules
 wisp cache dir|clean       # the standard library object cache
 wisp version
-wisp debug <lexer|parser|analyser> <file.wsp>
+wisp debug lexer|parser|analyser [file.wsp]
 wisp lsp                   # language server
 ```
 

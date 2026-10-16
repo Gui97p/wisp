@@ -12,16 +12,48 @@ import (
 )
 
 var debugCmd = &cobra.Command{
-	Use:          "debug <mod> <file.wsp>",
-	Short:        "Debug command that shows the compiler intermediate steps",
-	Long:         "Debug command that shows the compiler intermediate steps.\nAvailable modules: lexer, parser, analyser",
-	Args:         cobra.RangeArgs(1, 2),
-	RunE:         runDebug,
+	Use:   "debug",
+	Short: "Show the compiler intermediate steps",
+	Args:  cobra.ArbitraryArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 0 {
+			return fmt.Errorf("unknown command %q for %q", args[0], cmd.CommandPath())
+		}
+		return cmd.Help()
+	},
 	SilenceUsage: true,
 }
 
-func runDebug(cmd *cobra.Command, args []string) error {
-	inputPath, err := resolveEntry(args[1:])
+var debugLexerCmd = &cobra.Command{
+	Use:          "lexer [file.wsp]",
+	Short:        "Print the tokens of a file",
+	Args:         cobra.MaximumNArgs(1),
+	RunE:         func(cmd *cobra.Command, args []string) error { return runDebug("lexer", args) },
+	SilenceUsage: true,
+}
+
+var debugParserCmd = &cobra.Command{
+	Use:          "parser [file.wsp]",
+	Short:        "Print the syntax tree of a file",
+	Args:         cobra.MaximumNArgs(1),
+	RunE:         func(cmd *cobra.Command, args []string) error { return runDebug("parser", args) },
+	SilenceUsage: true,
+}
+
+var debugAnalyserCmd = &cobra.Command{
+	Use:          "analyser [file.wsp]",
+	Short:        "Run the analyser over a file and its imports and print the diagnostics",
+	Args:         cobra.MaximumNArgs(1),
+	RunE:         func(cmd *cobra.Command, args []string) error { return runDebug("analyser", args) },
+	SilenceUsage: true,
+}
+
+func init() {
+	debugCmd.AddCommand(debugLexerCmd, debugParserCmd, debugAnalyserCmd)
+}
+
+func runDebug(step string, args []string) error {
+	inputPath, err := resolveEntry(args)
 	if err != nil {
 		return err
 	}
@@ -31,7 +63,7 @@ func runDebug(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	switch args[0] {
+	switch step {
 	case "lexer":
 		l := lexer.NewLexer(buffer)
 		token := l.NextToken()
