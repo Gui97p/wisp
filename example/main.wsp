@@ -11,6 +11,7 @@ import "basics";
 import "branching";
 import "loops";
 import "functions";
+import "variadics";
 import "types";
 import "structs";
 import "collections";
@@ -35,6 +36,9 @@ func main() !int {
 
   emit("== functions ==");
   functions.demo();
+
+  emit("== variadics ==");
+  variadics.demo();
 
   emit("== types ==");
   types.demo();

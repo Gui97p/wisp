@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -35,6 +36,9 @@ func configSection(parts []string) string {
 		return ""
 	}
 	if parts[0] == "targets" {
+		if len(parts) >= 3 && parts[2] == "output" {
+			return "targets.output"
+		}
 		return "targets"
 	}
 	return parts[0]
@@ -53,6 +57,7 @@ func headerParts(header string) []string {
 
 type configContext struct {
 	section  string
+	name     string
 	present  map[string]bool
 	declared []string
 }
@@ -71,6 +76,10 @@ func configContextAt(lines []string, line int) configContext {
 			if i < line {
 				current = configSection(parts)
 				ctx.section = current
+				ctx.name = ""
+				if len(parts) >= 2 && parts[0] == "targets" {
+					ctx.name = parts[1]
+				}
 				ctx.present = map[string]bool{}
 			}
 			continue
@@ -178,8 +187,20 @@ func headerItems(declared []string, pos protocol.Position, prefix string) []prot
 
 	add("output", "output", "table")
 	add("targets.<name>", "targets.${1:name}", "custom target")
-	for _, d := range declared {
-		add("targets."+d, "targets."+d, "custom target")
+
+	names := append([]string{}, declared...)
+	for _, n := range target.Names() {
+		if target.IsBuiltin(n) && !slices.Contains(names, n) {
+			names = append(names, n)
+		}
+	}
+	for _, n := range names {
+		detail := "custom target"
+		if target.IsBuiltin(n) {
+			detail = "built-in target"
+		}
+		add("targets."+n, "targets."+n, detail)
+		add("targets."+n+".output", "targets."+n+".output", "output of "+n)
 	}
 	return items
 }
@@ -192,8 +213,19 @@ func keyItems(ctx configContext, pos protocol.Position, prefix string) []protoco
 	start := uint32(utf16Len(prefix[:len(prefix)-len(word)]))
 	rng := protocol.Range{Start: protocol.Position{Line: pos.Line, Character: start}, End: pos}
 
+	builtin := ctx.section == "targets" && target.IsBuiltin(ctx.name)
+	builtinLua := false
+	if builtin {
+		if t, err := target.Lookup(ctx.name); err == nil {
+			builtinLua = t.Arch != "x64"
+		}
+	}
+
 	for _, f := range module.ConfigFields(ctx.section) {
 		if f.Table || ctx.present[f.Key] {
+			continue
+		}
+		if builtin && (f.Key == "arch" || builtinLua) {
 			continue
 		}
 		var text string
@@ -290,6 +322,11 @@ func configHover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hove
 			return nil
 		}
 		parts := headerParts(m[1])
+		if len(parts) >= 3 && parts[0] == "targets" && parts[2] == "output" && word == "output" {
+			if f, ok := module.ConfigFieldNamed("targets", "output"); ok {
+				return result(fmt.Sprintf("**[targets.%s.output]**\n\n%s", parts[1], f.Doc), utf16Len(string(runes[:start])), utf16Len(string(runes[:end])))
+			}
+		}
 		if len(parts) > 0 && word == parts[0] {
 			if f, ok := module.ConfigFieldNamed("", word); ok && f.Table {
 				return result(fmt.Sprintf("**[%s]**\n\n%s", word, f.Doc), utf16Len(string(runes[:start])), utf16Len(string(runes[:end])))

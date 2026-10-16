@@ -22,6 +22,9 @@
 # so C functions such as printf work. Needs the `cc` driver.
 # libc = true
 
+# Where a build writes its files. Without this table, everything goes under a
+# folder named after the target: bin/<target>/, build/<target>/, dist/<target>/.
+# A target can have its own, with the same keys: [targets.linux_x64.output].
 [output]
 bin = "bin/tour"
 # obj = "build/obj"

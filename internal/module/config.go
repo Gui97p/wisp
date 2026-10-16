@@ -25,14 +25,16 @@ type Config struct {
 }
 
 type TargetConfig struct {
-	Arch    string   `toml:"arch" doc:"CPU architecture of the target. Only x64 is supported."`
-	OS      string   `toml:"os" doc:"Operating system name. It is also a selector for native blocks."`
-	ABI     string   `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
-	Format  string   `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
-	Entry   string   `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
-	Runtime string   `toml:"runtime" doc:"Assembly file with the runtime routines (allocation, panic, I/O) for this target."`
-	Start   string   `toml:"start" doc:"Assembly file that calls main and leaves the program. Required for custom targets."`
-	Link    []string `toml:"link" doc:"Extra linker arguments for this target, such as -T linker.ld."`
+	Arch    string       `toml:"arch" doc:"CPU architecture of the target. Only x64 is supported."`
+	OS      string       `toml:"os" doc:"Operating system name. It is also a selector for native blocks."`
+	ABI     string       `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
+	Format  string       `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
+	Entry   string       `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
+	Runtime string       `toml:"runtime" doc:"Assembly file with the runtime routines (allocation, panic, I/O) for this target."`
+	Start   string       `toml:"start" doc:"Assembly file that calls main and leaves the program. Required for custom targets."`
+	Link    []string     `toml:"link" doc:"Extra linker arguments for this target, such as -T linker.ld. On a built-in target they are added to the built-in ones."`
+	Libc    *bool        `toml:"libc" doc:"Link against the C library for this target. Overrides the top-level libc."`
+	Output  OutputConfig `toml:"output" doc:"Where this target writes its artifacts. Overrides the top-level [output]."`
 }
 
 type OutputConfig struct {
@@ -58,6 +60,8 @@ func ConfigFields(section string) []ConfigField {
 		t = reflect.TypeOf(OutputConfig{})
 	case "targets":
 		t = reflect.TypeOf(TargetConfig{})
+	case "targets.output":
+		t = reflect.TypeOf(OutputConfig{})
 	default:
 		return nil
 	}
@@ -71,7 +75,11 @@ func ConfigFields(section string) []ConfigField {
 		}
 
 		field := ConfigField{Key: key, Doc: f.Tag.Get("doc")}
-		switch f.Type.Kind() {
+		kind := f.Type.Kind()
+		if kind == reflect.Ptr {
+			kind = f.Type.Elem().Kind()
+		}
+		switch kind {
 		case reflect.Bool:
 			field.Type = "bool"
 		case reflect.Slice:
@@ -100,6 +108,7 @@ func LoadConfig(root string) (*Config, error) {
 	path := filepath.Join(root, "wisp.toml")
 
 	if _, err := os.Stat(path); err != nil {
+		target.ResetProject()
 		return &Config{}, nil
 	}
 
@@ -125,6 +134,8 @@ func LoadConfigSource(root, text string) (*Config, error) {
 }
 
 func (c *Config) registerTargets(root string) error {
+	target.ResetProject()
+
 	names := make([]string, 0, len(c.Targets))
 	for name := range c.Targets {
 		names = append(names, name)
@@ -150,6 +161,27 @@ func (c *Config) registerTargets(root string) error {
 			runtimeSource = string(data)
 		}
 
+		output := target.Output{Bin: tc.Output.Bin, Obj: tc.Output.Obj, Asm: tc.Output.Asm, Lua: tc.Output.Lua}
+
+		if target.IsBuiltin(name) {
+			err := target.Override(name, target.Patch{
+				Arch:          tc.Arch,
+				OS:            tc.OS,
+				ABI:           tc.ABI,
+				Format:        tc.Format,
+				Entry:         tc.Entry,
+				StartSource:   start,
+				RuntimeSource: runtimeSource,
+				LinkArgs:      tc.Link,
+				Libc:          tc.Libc,
+				Output:        output,
+			})
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
 		err := target.Register(target.Target{
 			Name:          name,
 			Arch:          tc.Arch,
@@ -160,6 +192,8 @@ func (c *Config) registerTargets(root string) error {
 			StartSource:   start,
 			RuntimeSource: runtimeSource,
 			LinkArgs:      tc.Link,
+			Libc:          tc.Libc,
+			Output:        output,
 		})
 		if err != nil {
 			return err
@@ -263,6 +297,8 @@ func coveredBy(key toml.Key, reported []toml.Key) bool {
 
 func knownKeys(key toml.Key) []string {
 	switch {
+	case len(key) >= 4 && key[0] == "targets" && key[2] == "output":
+		return tomlTags(reflect.TypeOf(OutputConfig{}))
 	case len(key) >= 3 && key[0] == "targets":
 		return tomlTags(reflect.TypeOf(TargetConfig{}))
 	case len(key) >= 2 && key[0] == "output":

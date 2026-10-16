@@ -1,0 +1,23 @@
+// Tour - Variadic functions.
+//
+// A variadic parameter is written `type ...name`. Inside the body it is a
+// real span: indexable, iterable and measurable with `len`. Callers pass any
+// number of arguments, including none.
+//
+// Do not confuse this with a C variadic such as printf, which is declared
+// with `extern`.
+
+import "expect";
+
+func sum(int ...values) int {
+  int total;
+  for _, v in values {
+    total += v;
+  }
+  return total;
+}
+
+export func demo() {
+  expect.expect(sum(1, 2, 3, 4) == 10, "a variadic function");
+  expect.expect(sum() == 0, "a variadic function with no arguments");
+}

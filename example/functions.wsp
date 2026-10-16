@@ -30,7 +30,7 @@ export func demo() {
 
   expect.expect(later() == 7, "order of declaration does not matter");
 
-  // Variadic parameters and function values exist in the language, but the
-  // x86-64 backend does not generate them yet: see _pending/variadics.wsp
-  // and _pending/lambdas.wsp.
+  // Variadic parameters are in variadics.wsp. Function values exist in the
+  // language, but the x86-64 backend does not generate them yet: see
+  // _pending/lambdas.wsp.
 }

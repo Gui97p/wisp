@@ -19,8 +19,30 @@ type Target struct {
 	StartSource   string
 	RuntimeSource string
 	LinkArgs      []string
+	Libc          *bool
+	Output        Output
 
 	Builtin bool
+}
+
+type Output struct {
+	Bin string
+	Obj string
+	Asm string
+	Lua string
+}
+
+type Patch struct {
+	Arch          string
+	OS            string
+	ABI           string
+	Format        string
+	Entry         string
+	StartSource   string
+	RuntimeSource string
+	LinkArgs      []string
+	Libc          *bool
+	Output        Output
 }
 
 //go:embed asm/linux_x64_start.asm
@@ -42,7 +64,108 @@ var (
 )
 
 func all() []Target {
-	return append(append([]Target{}, builtin...), project...)
+	out := make([]Target, 0, len(builtin)+len(project))
+	for _, b := range builtin {
+		out = append(out, b)
+		for _, p := range project {
+			if p.Name == b.Name {
+				out[len(out)-1] = p
+			}
+		}
+	}
+	for _, p := range project {
+		if !isBuiltinName(p.Name) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func isBuiltinName(name string) bool {
+	for _, b := range builtin {
+		if b.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func IsBuiltin(name string) bool {
+	return isBuiltinName(name)
+}
+
+func ResetProject() {
+	project = nil
+}
+
+func Override(name string, patch Patch) error {
+	var base Target
+	found := false
+	for _, b := range builtin {
+		if b.Name == name {
+			base, found = b, true
+		}
+	}
+	if !found {
+		return fmt.Errorf("target %q is not a built-in target", name)
+	}
+
+	if patch.Arch != "" && patch.Arch != base.Arch {
+		return fmt.Errorf("target %q: the arch of a built-in target cannot be changed", name)
+	}
+
+	if base.Arch != "x64" {
+		if patch.OS != "" || patch.ABI != "" || patch.Format != "" || patch.Entry != "" || patch.StartSource != "" || patch.RuntimeSource != "" || len(patch.LinkArgs) > 0 || patch.Libc != nil {
+			return fmt.Errorf("target %q only accepts \"output\"", name)
+		}
+	}
+
+	t := base
+	if patch.OS != "" {
+		if !namePattern.MatchString(patch.OS) {
+			return fmt.Errorf("target %q: invalid os %q (lowercase letters, digits and underscores)", name, patch.OS)
+		}
+		t.OS = patch.OS
+	}
+	if patch.ABI != "" {
+		if patch.ABI != "sysv" {
+			return fmt.Errorf("target %q: unsupported abi %q (only \"sysv\")", name, patch.ABI)
+		}
+		t.ABI = patch.ABI
+	}
+	if patch.Format != "" {
+		if patch.Format != "elf64" {
+			return fmt.Errorf("target %q: unsupported format %q (only \"elf64\")", name, patch.Format)
+		}
+		t.Format = patch.Format
+	}
+	if patch.Entry != "" {
+		if !entryPattern.MatchString(patch.Entry) {
+			return fmt.Errorf("target %q: invalid entry symbol %q", name, patch.Entry)
+		}
+		t.Entry = patch.Entry
+	}
+	if patch.StartSource != "" {
+		t.StartSource = patch.StartSource
+	}
+	if patch.RuntimeSource != "" {
+		t.RuntimeSource = patch.RuntimeSource
+	}
+	t.LinkArgs = append(append([]string{}, base.LinkArgs...), patch.LinkArgs...)
+	if patch.Libc != nil {
+		t.Libc = patch.Libc
+	}
+	t.Output = patch.Output
+
+	for i, p := range project {
+		if p.Name == name {
+			project[i] = t
+			return nil
+		}
+	}
+	project = append(project, t)
+
+	return nil
 }
 
 func CheckName(name string) error {

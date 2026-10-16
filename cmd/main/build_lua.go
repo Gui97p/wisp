@@ -7,16 +7,14 @@ import (
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/module"
+	"github.com/Gui97p/wisp/internal/target"
 	"github.com/Gui97p/wisp/internal/target/lua"
 )
 
-func resolveLuaOutDir(root string, cfg *module.Config) string {
-	dir := luaOut
+func resolveLuaOutDir(root string, cfg *module.Config, tgt target.Target) string {
+	dir := pick(luaOut, tgt.Output.Lua, cfg.Output.Lua)
 	if dir == "" {
-		dir = cfg.Output.Lua
-	}
-	if dir == "" {
-		return filepath.Join(root, "dist")
+		return filepath.Join(root, "dist", tgt.Name)
 	}
 	if filepath.IsAbs(dir) {
 		return dir
@@ -24,8 +22,8 @@ func resolveLuaOutDir(root string, cfg *module.Config) string {
 	return filepath.Join(root, dir)
 }
 
-func buildLua(root string, cfg *module.Config, forRun bool) (*buildResult, error) {
-	outDir := resolveLuaOutDir(root, cfg)
+func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (*buildResult, error) {
+	outDir := resolveLuaOutDir(root, cfg, tgt)
 
 	proj, err := loadProject(root, cfg)
 	if err != nil {

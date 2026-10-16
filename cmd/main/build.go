@@ -129,7 +129,7 @@ func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
 		if err := rejectFlags(cmd, tgt, "asm", "obj", "bin", "link", "libc"); err != nil {
 			return nil, err
 		}
-		return buildLua(root, cfg, forRun)
+		return buildLua(root, cfg, tgt, forRun)
 	default:
 		return nil, fmt.Errorf("target %q has no build pipeline", tgt.Name)
 	}
@@ -183,25 +183,33 @@ type buildTargets struct {
 	wantBin bool
 }
 
-func resolveBuildTargets(root string, cfg *module.Config, forceBin bool) buildTargets {
+func pick(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func useLibc(cfg *module.Config, tgt target.Target) bool {
+	libc := cfg.Libc
+	if tgt.Libc != nil {
+		libc = *tgt.Libc
+	}
+	return libc || libcOpt
+}
+
+func resolveBuildTargets(root string, cfg *module.Config, tgt target.Target, forceBin bool) buildTargets {
 	var t buildTargets
 
-	t.asmDir = asmOut
-	if t.asmDir == "" {
-		t.asmDir = cfg.Output.Asm
-	}
+	t.asmDir = pick(asmOut, tgt.Output.Asm, cfg.Output.Asm)
 	t.wantAsm = t.asmDir != ""
 
-	t.objDir = objOut
-	if t.objDir == "" {
-		t.objDir = cfg.Output.Obj
-	}
+	t.objDir = pick(objOut, tgt.Output.Obj, cfg.Output.Obj)
 	t.wantObj = t.objDir != ""
 
-	t.binPath = binOut
-	if t.binPath == "" {
-		t.binPath = cfg.Output.Bin
-	}
+	t.binPath = pick(binOut, tgt.Output.Bin, cfg.Output.Bin)
 	t.wantBin = t.binPath != "" || forceBin
 
 	if !t.wantAsm && !t.wantObj && !t.wantBin {
@@ -209,20 +217,20 @@ func resolveBuildTargets(root string, cfg *module.Config, forceBin bool) buildTa
 	}
 
 	if t.asmDir == "" {
-		t.asmDir = filepath.Join(root, "build", "asm")
+		t.asmDir = filepath.Join(root, "build", tgt.Name, "asm")
 	}
 	if t.objDir == "" {
-		t.objDir = filepath.Join(root, "build", "obj")
+		t.objDir = filepath.Join(root, "build", tgt.Name, "obj")
 	}
 	if t.binPath == "" {
-		t.binPath = filepath.Join(root, "bin", filepath.Base(root))
+		t.binPath = filepath.Join(root, "bin", tgt.Name, filepath.Base(root))
 	}
 
 	return t
 }
 
 func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (*buildResult, error) {
-	targets := resolveBuildTargets(root, cfg, forRun)
+	targets := resolveBuildTargets(root, cfg, tgt, forRun)
 
 	proj, err := loadProject(root, cfg)
 	if err != nil {
@@ -276,7 +284,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 
 		backend := x64.New(c.merged, c.info, isEntry, tgt.Name, c.mod.Path)
 		backend.SetFiles(c.declFiles)
-		backend.SetLibc(cfg.Libc || libcOpt)
+		backend.SetLibc(useLibc(cfg, tgt))
 		source, err := backend.Compile()
 		if err != nil {
 			return nil, c.reportFailure(err)
@@ -342,7 +350,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 		if err := os.MkdirAll(filepath.Dir(targets.binPath), 0755); err != nil {
 			return nil, err
 		}
-		opts := x64.LinkOptions{Extra: append(append([]string{}, cfg.Link...), linkOpt...), Libc: cfg.Libc || libcOpt}
+		opts := x64.LinkOptions{Extra: append(append([]string{}, cfg.Link...), linkOpt...), Libc: useLibc(cfg, tgt)}
 		if err := x64.Link(tgt, root, objPaths, libPaths, targets.binPath, targets.wantObj, opts); err != nil {
 			return nil, err
 		}
