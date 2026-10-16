@@ -29,6 +29,10 @@ func diagnoseFile(path string) (result map[string][]protocol.Diagnostic) {
 		result[file] = diags
 	}
 
+	if filepath.Base(path) == "wisp.toml" {
+		return result
+	}
+
 	modules, err := buildProjectGraph(resolveProjectEntry(path), fileBuffer)
 	if err != nil {
 		return result
@@ -115,12 +119,19 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 func configDiagnostics(entry string) (string, []protocol.Diagnostic, bool) {
 	root := module.FindProjectRoot(filepath.Dir(entry))
 	tomlPath := filepath.Join(root, "wisp.toml")
-	if _, err := os.Stat(tomlPath); err != nil {
+	_, buffered := fileBuffer[tomlPath]
+	if _, err := os.Stat(tomlPath); err != nil && !buffered {
 		return "", nil, false
 	}
 
 	diags := []protocol.Diagnostic{}
-	cfg, err := module.LoadConfig(root)
+	var cfg *module.Config
+	var err error
+	if text, ok := fileBuffer[tomlPath]; ok {
+		cfg, err = module.LoadConfigSource(root, string(text))
+	} else {
+		cfg, err = module.LoadConfig(root)
+	}
 	if err == nil {
 		_, _, err = cfg.StdlibSettings(root)
 	}

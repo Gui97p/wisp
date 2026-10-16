@@ -21,7 +21,7 @@ func NewHandler() *protocol.Handler {
 		syncKind := protocol.TextDocumentSyncKindFull
 		capabilities.TextDocumentSync = syncKind
 
-		capabilities.CompletionProvider = &protocol.CompletionOptions{TriggerCharacters: []string{".", "{", ","}}
+		capabilities.CompletionProvider = &protocol.CompletionOptions{TriggerCharacters: []string{".", "{", ",", "[", "=", "\""}}
 
 		capabilities.SignatureHelpProvider = &protocol.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}}
 		capabilities.DocumentSymbolProvider = true
@@ -76,6 +76,9 @@ func NewHandler() *protocol.Handler {
 	}
 
 	handler.TextDocumentHover = func(context *glsp.Context, params *protocol.HoverParams) (*protocol.Hover, error) {
+		if isConfigURI(params.TextDocument.URI) {
+			return configHover(params.TextDocument.URI, params.Position), nil
+		}
 		return hover(params.TextDocument.URI, params.Position), nil
 	}
 
@@ -93,6 +96,12 @@ func NewHandler() *protocol.Handler {
 		trigger := ""
 		if params.Context != nil && params.Context.TriggerCharacter != nil {
 			trigger = *params.Context.TriggerCharacter
+		}
+		if isConfigURI(params.TextDocument.URI) {
+			return configCompletion(params.TextDocument.URI, params.Position), nil
+		}
+		if trigger == "[" || trigger == "=" || trigger == "\"" {
+			return nil, nil
 		}
 		return completion(params.TextDocument.URI, params.Position, trigger), nil
 	}

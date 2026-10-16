@@ -1,0 +1,6 @@
+{
+    "scopeName": "source.wisp-config",
+    "patterns": [
+        { "include": "source.toml" }
+    ]
+}

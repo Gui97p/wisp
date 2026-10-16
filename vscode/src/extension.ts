@@ -63,7 +63,10 @@ export function activate(context: vscode.ExtensionContext) {
     };
 
     const clientOptions: LanguageClientOptions = {
-        documentSelector: [{ scheme: "file", language: "wisp" }],
+        documentSelector: [
+            { scheme: "file", language: "wisp" },
+            { scheme: "file", language: "wisp-config" },
+        ],
     };
 
     client = new LanguageClient(

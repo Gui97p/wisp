@@ -2,7 +2,7 @@
     "name": "wisp",
     "displayName": "Wisp Language Support",
     "description": "Syntax highlighting, snippets and file icon for the Wisp programming language.",
-    "version": "0.6.1",
+    "version": "0.8.0",
     "publisher": "gui97p",
     "license": "MIT",
     "repository": {
@@ -62,6 +62,20 @@
                     "light": "./icons/wisp-small.svg",
                     "dark": "./icons/wisp-small.svg"
                 }
+            },
+            {
+                "id": "wisp-config",
+                "aliases": [
+                    "Wisp Config"
+                ],
+                "filenames": [
+                    "wisp.toml"
+                ],
+                "configuration": "./toml-configuration.json",
+                "icon": {
+                    "light": "./icons/wisp-small.svg",
+                    "dark": "./icons/wisp-small.svg"
+                }
             }
         ],
         "grammars": [
@@ -69,6 +83,12 @@
                 "language": "wisp",
                 "scopeName": "source.wisp",
                 "path": "./syntaxes/wisp.tmLanguage.json"
+            },
+            {
+                "language": "wisp-config",
+                "scopeName": "source.wisp-config",
+                "path": "./syntaxes/wisp-config.tmLanguage.json",
+                "embeddedLanguages": {}
             }
         ],
         "snippets": [

@@ -14,32 +14,86 @@ import (
 )
 
 type Config struct {
-	Entry        string                  `toml:"entry"`
-	Target       string                  `toml:"target"`
-	Std          string                  `toml:"std"`
-	Freestanding bool                    `toml:"freestanding"`
-	Link         []string                `toml:"link"`
-	Libc         bool                    `toml:"libc"`
-	Output       OutputConfig            `toml:"output"`
-	Targets      map[string]TargetConfig `toml:"targets"`
+	Entry        string                  `toml:"entry" doc:"Entry file of the project, relative to the project root. Defaults to main.wsp."`
+	Target       string                  `toml:"target" doc:"Default compilation target. Built-in: linux_x64, lua, or a name declared in [targets.<name>]."`
+	Std          string                  `toml:"std" doc:"Path to a standard library folder that replaces the bundled one. Cannot be combined with freestanding."`
+	Freestanding bool                    `toml:"freestanding" doc:"Compile without any standard library. Cannot be combined with std."`
+	Link         []string                `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`
+	Libc         bool                    `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
+	Output       OutputConfig            `toml:"output" doc:"Where build artifacts are written."`
+	Targets      map[string]TargetConfig `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
 }
 
 type TargetConfig struct {
-	Arch    string   `toml:"arch"`
-	OS      string   `toml:"os"`
-	ABI     string   `toml:"abi"`
-	Format  string   `toml:"format"`
-	Entry   string   `toml:"entry"`
-	Runtime string   `toml:"runtime"`
-	Start   string   `toml:"start"`
-	Link    []string `toml:"link"`
+	Arch    string   `toml:"arch" doc:"CPU architecture of the target. Only x64 is supported."`
+	OS      string   `toml:"os" doc:"Operating system name. It is also a selector for native blocks."`
+	ABI     string   `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
+	Format  string   `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
+	Entry   string   `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
+	Runtime string   `toml:"runtime" doc:"Assembly file with the runtime routines (allocation, panic, I/O) for this target."`
+	Start   string   `toml:"start" doc:"Assembly file that calls main and leaves the program. Required for custom targets."`
+	Link    []string `toml:"link" doc:"Extra linker arguments for this target, such as -T linker.ld."`
 }
 
 type OutputConfig struct {
-	Bin string `toml:"bin"`
-	Obj string `toml:"obj"`
-	Asm string `toml:"asm"`
-	Lua string `toml:"lua"`
+	Bin string `toml:"bin" doc:"Path of the linked executable."`
+	Obj string `toml:"obj" doc:"Path of the object file."`
+	Asm string `toml:"asm" doc:"Path of the generated assembly."`
+	Lua string `toml:"lua" doc:"Path of the generated Lua file."`
+}
+
+type ConfigField struct {
+	Key   string
+	Type  string
+	Doc   string
+	Table bool
+}
+
+func ConfigFields(section string) []ConfigField {
+	var t reflect.Type
+	switch section {
+	case "":
+		t = reflect.TypeOf(Config{})
+	case "output":
+		t = reflect.TypeOf(OutputConfig{})
+	case "targets":
+		t = reflect.TypeOf(TargetConfig{})
+	default:
+		return nil
+	}
+
+	fields := make([]ConfigField, 0, t.NumField())
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		key := f.Tag.Get("toml")
+		if key == "" {
+			continue
+		}
+
+		field := ConfigField{Key: key, Doc: f.Tag.Get("doc")}
+		switch f.Type.Kind() {
+		case reflect.Bool:
+			field.Type = "bool"
+		case reflect.Slice:
+			field.Type = "array of strings"
+		case reflect.String:
+			field.Type = "string"
+		default:
+			field.Type = "table"
+			field.Table = true
+		}
+		fields = append(fields, field)
+	}
+	return fields
+}
+
+func ConfigFieldNamed(section, key string) (ConfigField, bool) {
+	for _, f := range ConfigFields(section) {
+		if f.Key == key {
+			return f, true
+		}
+	}
+	return ConfigField{}, false
 }
 
 func LoadConfig(root string) (*Config, error) {
@@ -50,6 +104,17 @@ func LoadConfig(root string) (*Config, error) {
 	}
 
 	cfg, err := decodeConfig(path)
+	if err != nil {
+		return nil, err
+	}
+	if err := cfg.registerTargets(root); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func LoadConfigSource(root, text string) (*Config, error) {
+	cfg, err := decodeConfigSource(filepath.Join(root, "wisp.toml"), text)
 	if err != nil {
 		return nil, err
 	}
@@ -156,9 +221,12 @@ func decodeConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	return decodeConfigSource(path, string(data))
+}
 
+func decodeConfigSource(path, text string) (*Config, error) {
 	var cfg Config
-	md, err := toml.Decode(string(data), &cfg)
+	md, err := toml.Decode(text, &cfg)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
 	}
@@ -173,7 +241,7 @@ func decodeConfig(path string) (*Config, error) {
 
 		known := knownKeys(key)
 		issues = append(issues, ConfigIssue{
-			Line:    locateKey(string(data), key),
+			Line:    locateKey(text, key),
 			Message: fmt.Sprintf("unknown key %q%s", key.String(), target.Hint(key[len(key)-1], known)),
 		})
 	}
