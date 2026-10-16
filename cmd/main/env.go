@@ -52,6 +52,7 @@ func runEnv(cmd *cobra.Command, args []string) error {
 
 	entries := []envEntry{
 		{"version", version.Version()},
+		{"codename", version.Codename()},
 		{"root", root},
 		{"config", configPath(root)},
 		{"entry", orDefault(cfg.Entry, "(the only main)")},
