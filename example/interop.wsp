@@ -3,9 +3,9 @@
 // `native` embeds code written for one backend. The name after `native`
 // picks the backend: `lua`, or a machine target such as `linux_x64`. Blocks
 // for other backends are skipped, so one function can carry an
-// implementation for each target. A function with native blocks but none
-// for the target being built is an error, so a missing port is never a
-// silently empty function.
+// implementation for each target. A function with no block for the target
+// being built just runs its plain code, so a port you did not write does
+// nothing.
 //
 // The bindings in parentheses say which Wisp variables the block reads
 // (`in`), writes (`out`) or both (`inout`). A mode covers the names after it

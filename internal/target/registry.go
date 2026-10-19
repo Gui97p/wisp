@@ -268,22 +268,6 @@ func (t Target) Matches(selector string) bool {
 	return selector == t.Name || selector == t.Arch || (t.OS != "" && selector == t.OS)
 }
 
-func CheckNative(targetName string, selectors []string) error {
-	if len(selectors) == 0 {
-		return nil
-	}
-
-	var named []string
-	for _, sel := range selectors {
-		if sel == "" || MatchesName(targetName, sel) {
-			return nil
-		}
-		named = append(named, sel)
-	}
-
-	return fmt.Errorf("has native blocks for [%s] but none for target %q", strings.Join(named, ", "), targetName)
-}
-
 func MatchesName(targetName, selector string) bool {
 	t, err := Lookup(targetName)
 	if err != nil {

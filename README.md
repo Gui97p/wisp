@@ -122,7 +122,7 @@ native hakura(...) "...";       // every target with os = hakura
 native x64(...) "...";          // every x86-64 target, linux_x64 included
 ```
 
-A function with `native` blocks and none that matches the target being built is an error, so an unfinished port is never a silently empty function.
+A `native` block that does not match the target being built is skipped, so a function with blocks for other targets only runs its plain code here. Writing a block for every target is up to you.
 
 A block named after a built-in target adjusts it. `link` is added to the built-in arguments, `os`, `abi`, `format`, `entry`, `start` and `runtime` replace theirs, `arch` cannot change, and `lua` only takes `output`.
 
@@ -275,8 +275,6 @@ native linux_x64(out r) `
 ```
 
 The compiler does not save registers for you. A block that changes `rbx`, `rbp`, `rsp` or `r12` to `r15` must restore them. In Lua the code is copied as written and uses the variable names directly, so `{...}` and backticks mean nothing there.
-
-A function that has `native` blocks but none for the target being built is an error, so a missing port is never a silently empty function. This applies to every module in the project, used or not.
 
 ## Diagnostics
 

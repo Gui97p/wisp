@@ -2,12 +2,10 @@ package x64
 
 import (
 	"fmt"
-	"github.com/Gui97p/wisp/internal/diag"
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
-	"github.com/Gui97p/wisp/internal/target"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
@@ -134,14 +132,6 @@ func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
 }
 
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
-	if fd.Body != nil {
-		if err := target.CheckNative(t.target, ast.NativeBackends(fd.Body)); err != nil {
-			line, col := fd.Position()
-			endLine, endCol := fd.SignatureEnd()
-			return diag.Locate("x86-64", fmt.Errorf("function %s %w", fd.Name, err), line, col, endLine, endCol)
-		}
-	}
-
 	fdName := fd.Name
 	if fd.Receiver != nil {
 		fdName = fmt.Sprintf("%s_%s", fd.Receiver.Type.Name, fd.Name)
