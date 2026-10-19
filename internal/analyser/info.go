@@ -5,6 +5,7 @@ import (
 )
 
 type Info struct {
+	Module        *Scope
 	VarTypes      map[ast.Node][]Type
 	VarSymbols    map[ast.Node][]*Symbol
 	Types         map[ast.Expression]Type

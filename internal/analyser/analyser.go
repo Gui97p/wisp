@@ -56,6 +56,7 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 }
 
 func (a *Analyser) Analyze() *Info {
+	a.info.Module = a.scope
 	a.registerImports()
 	a.registerStructNames()
 	a.registerTypeAliases()

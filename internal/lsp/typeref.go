@@ -166,8 +166,8 @@ func scopeFor(info *analyser.Info, line, col int) *analyser.Scope {
 	if scope := innermostScope(info, line, col); scope != nil {
 		return scope
 	}
-	for _, scope := range info.Scopes {
-		return scope
+	if info.Module != nil {
+		return info.Module
 	}
 	return analyser.NewScope(nil)
 }

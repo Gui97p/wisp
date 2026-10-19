@@ -21,6 +21,9 @@ func (p *Parser) parseMapPrefix() *ast.TypeRef {
 			return nil
 		}
 		ref.MapKey = p.parseTypeDefinitionPrefix()
+		if ref.MapKey == nil {
+			return nil
+		}
 
 		if !p.expect(lexer.TOKEN_RBRACKET) {
 			return nil
@@ -32,6 +35,9 @@ func (p *Parser) parseMapPrefix() *ast.TypeRef {
 			return nil
 		}
 		ref.MapValue = p.parseTypeDefinitionPrefix()
+		if ref.MapValue == nil {
+			return nil
+		}
 	}
 
 	return ref
@@ -48,6 +54,9 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 	}
 
 	ref := p.parseMapPrefix()
+	if ref == nil {
+		return nil
+	}
 
 	if !ref.IsMap {
 		ref.PointerDepth = p.parsePointerDepth()

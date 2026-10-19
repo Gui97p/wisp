@@ -12,7 +12,7 @@ import (
 
 var keywords = []string{
 	"let", "const", "func", "struct", "enum", "type", "if", "else", "switch", "case", "default",
-	"for", "in", "loop", "until", "return", "break", "continue", "import", "export", "as", "native",
+	"for", "in", "loop", "until", "return", "break", "continue", "import", "export", "extern", "as", "native",
 	"true", "false", "null",
 }
 
@@ -69,6 +69,13 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 	}
 	if trigger == "{" || trigger == "," {
 		return nil
+	}
+
+	if ctx, ok := typeContextAt(textBefore(path, int(pos.Line), int(pos.Character))); ok {
+		if !ctx.typing {
+			return []protocol.CompletionItem{}
+		}
+		return typeItems(info, line, col, ctx)
 	}
 
 	if base, ok := memberBase(prefix); ok {
@@ -131,6 +138,9 @@ func isIdentByte(b byte) bool {
 func scopeAt(info *analyser.Info, line, col int) *analyser.Scope {
 	if scope := innermostScope(info, line, col); scope != nil {
 		return scope
+	}
+	if info.Module != nil {
+		return info.Module
 	}
 	return analyser.NewScope(nil)
 }
@@ -240,6 +250,14 @@ func item(label string, kind protocol.CompletionItemKind, detail string) protoco
 }
 
 func innermostOpen(text string) (int, bool) {
+	index, char, ok := innermostBracket(text)
+	if !ok || char != '{' {
+		return 0, false
+	}
+	return index, true
+}
+
+func innermostBracket(text string) (int, byte, bool) {
 	type open struct {
 		char  byte
 		index int
@@ -262,7 +280,7 @@ func innermostOpen(text string) (int, bool) {
 			} else if i+1 < len(text) && text[i+1] == '*' {
 				end := strings.Index(text[i+2:], "*/")
 				if end < 0 {
-					return 0, false
+					return 0, 0, false
 				}
 				i += end + 3
 			}
@@ -275,10 +293,11 @@ func innermostOpen(text string) (int, bool) {
 		}
 	}
 
-	if len(stack) == 0 || stack[len(stack)-1].char != '{' {
-		return 0, false
+	if len(stack) == 0 {
+		return 0, 0, false
 	}
-	return stack[len(stack)-1].index, true
+	top := stack[len(stack)-1]
+	return top.index, top.char, true
 }
 
 func literalType(text string, brace int, scope *analyser.Scope) (*analyser.StructType, bool) {

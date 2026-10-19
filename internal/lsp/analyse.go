@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"fmt"
 	"log"
 	"slices"
 	"sync"
@@ -56,13 +57,20 @@ func analyseProject(path string) (*projectAnalysis, error) {
 	return value, err
 }
 
-func runAnalysis(entry string) (*projectAnalysis, error) {
+func runAnalysis(entry string) (result *projectAnalysis, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("analyser panic: %v", r)
+			result, err = nil, fmt.Errorf("the analysis failed")
+		}
+	}()
+
 	modules, err := buildProjectGraph(entry, fileBuffer)
 	if err != nil {
 		return nil, err
 	}
 
-	result := &projectAnalysis{}
+	result = &projectAnalysis{}
 	exports := map[string]*analyser.ModuleInfo{}
 
 	for _, mod := range modules {

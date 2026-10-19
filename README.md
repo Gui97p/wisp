@@ -282,7 +282,7 @@ Errors, warnings, notes and help texts are shown with the source line under them
 
 ## Editor support
 
-`wisp lsp` starts the language server. [`vscode/`](vscode) is a VS Code extension with highlighting, snippets and an icon. The server gives diagnostics as you type, completion (members, struct fields, and `import` paths one segment at a time, so `std/` offers `math`, `strings` and `sys`, and `constants` only shows after `std/math/`), hover with doc comments, signature help, outline, rename, go to definition and quick fixes. It also serves `wisp.toml`: key completion, hover and diagnostics. The extension is versioned apart from the compiler.
+`wisp lsp` starts the language server. [`vscode/`](vscode) is a VS Code extension with highlighting, snippets and an icon. The server gives diagnostics as you type, completion (members, struct fields, types wherever a type goes (struct bodies, parameters, return types, globals, map types), and `import` paths one segment at a time, so `std/` offers `math`, `strings` and `sys`, and `constants` only shows after `std/math/`), hover with doc comments, signature help, outline, rename, go to definition and quick fixes. It also serves `wisp.toml`: key completion, hover and diagnostics. The extension is versioned apart from the compiler.
 
 ## Building
 
