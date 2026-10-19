@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -16,6 +17,19 @@ var (
 	importLinePattern   = regexp.MustCompile(`(?m)^\s*import\s+"([^"]*)"`)
 )
 
+type importSegment struct {
+	file     string
+	module   bool
+	children int
+}
+
+func plural(n int, word string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, word)
+	}
+	return fmt.Sprintf("%d %ss", n, word)
+}
+
 func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem, bool) {
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
 	m := importPrefixPattern.FindStringSubmatch(prefix)
@@ -23,7 +37,12 @@ func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem,
 		return nil, false
 	}
 
-	start := pos.Character - uint32(utf16Len(m[1]))
+	dir, partial := "", m[1]
+	if i := strings.LastIndex(m[1], "/"); i >= 0 {
+		dir, partial = m[1][:i+1], m[1][i+1:]
+	}
+
+	start := pos.Character - uint32(utf16Len(partial))
 	end := pos.Character
 	suffix := lineSuffix(path, int(pos.Line), int(pos.Character))
 	if before, _, ok := strings.Cut(suffix, `"`); ok {
@@ -43,35 +62,71 @@ func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem,
 
 	root := module.FindProjectRoot(filepath.Dir(path))
 	cyclic := dependentFiles(path)
-	candidates := module.ImportablePaths(root)
-	sort.SliceStable(candidates, func(i, j int) bool {
-		si, sj := strings.HasPrefix(candidates[i].Path, "std/"), strings.HasPrefix(candidates[j].Path, "std/")
-		if si != sj {
-			return sj
-		}
-		return candidates[i].Path < candidates[j].Path
-	})
 
-	kind := protocol.CompletionItemKindModule
-	items := []protocol.CompletionItem{}
-	for _, c := range candidates {
-		if c.File == path || imported[c.Path] || cyclic[c.File] {
+	segments := map[string]*importSegment{}
+	for _, c := range module.ImportablePaths(root) {
+		if c.File == path || imported[c.Path] || cyclic[c.File] || !strings.HasPrefix(c.Path, dir) {
 			continue
 		}
 
-		detail := c.File
-		if rel, err := filepath.Rel(root, c.File); err == nil && !strings.HasPrefix(rel, "..") {
-			detail = filepath.ToSlash(rel)
+		rest := strings.TrimPrefix(c.Path, dir)
+		name, deeper, nested := strings.Cut(rest, "/")
+		if name == "" || (nested && deeper == "") {
+			continue
 		}
-		items = append(items, protocol.CompletionItem{
-			Label:    c.Path,
-			Kind:     &kind,
-			Detail:   &detail,
-			TextEdit: protocol.TextEdit{Range: rng, NewText: c.Path},
-		})
+
+		seg := segments[name]
+		if seg == nil {
+			seg = &importSegment{}
+			segments[name] = seg
+		}
+		if nested {
+			seg.children++
+		} else {
+			seg.module, seg.file = true, c.File
+		}
+	}
+
+	names := make([]string, 0, len(segments))
+	for name := range segments {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	items := []protocol.CompletionItem{}
+	for _, name := range names {
+		seg := segments[name]
+
+		order := "0"
+		if dir == "" && name == "std" {
+			order = "1"
+		}
+
+		item := protocol.CompletionItem{FilterText: &name, SortText: ptr(order + name)}
+		if seg.module {
+			kind := protocol.CompletionItemKindModule
+			detail := seg.file
+			if rel, err := filepath.Rel(root, seg.file); err == nil && !strings.HasPrefix(rel, "..") {
+				detail = filepath.ToSlash(rel)
+			}
+			if seg.children > 0 {
+				detail += " · +" + plural(seg.children, "submodule")
+			}
+			item.Label, item.Kind, item.Detail = name, &kind, &detail
+			item.TextEdit = protocol.TextEdit{Range: rng, NewText: name}
+		} else {
+			kind := protocol.CompletionItemKindFolder
+			detail := plural(seg.children, "module")
+			item.Label, item.Kind, item.Detail = name+"/", &kind, &detail
+			item.TextEdit = protocol.TextEdit{Range: rng, NewText: name + "/"}
+			item.Command = &protocol.Command{Title: "Suggest", Command: "editor.action.triggerSuggest"}
+		}
+		items = append(items, item)
 	}
 	return items, true
 }
+
+func ptr[T any](v T) *T { return &v }
 
 func importHover(path string, pos protocol.Position) *protocol.Hover {
 	lines, ok := bufferLines(path)
