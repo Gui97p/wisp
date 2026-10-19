@@ -8,13 +8,17 @@
 // silently empty function.
 //
 // The bindings in parentheses say which Wisp variables the block reads
-// (`in`) and writes (`out`). They are checked like any other use of a
-// variable: they must exist, and an `out` can't be a constant.
+// (`in`), writes (`out`) or both (`inout`). A mode covers the names after it
+// until the next one: `in a, b, out c`. They are checked like any other use
+// of a variable: they must exist, and an `out` can't be a constant.
 //
 // In Lua the native code uses the variable names directly. For x86-64 the
 // code refers to a binding with `{name}`, which becomes a sized memory
 // operand, and `;` separates instructions. A string also has parts you can
-// name: `{s.ptr}` and `{s.len}`.
+// name: `{s.ptr}` and `{s.len}`. A struct field is `{p.x}`, and `{&name}` is
+// the address of any variable, for `lea`. Globals work the same way as
+// locals. Text in backticks is a raw block:
+// it can span lines, and `;` starts a comment instead of separating.
 //
 // Calling functions written in C is a separate feature, `extern`; see the
 // _c folder.

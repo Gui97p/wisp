@@ -294,6 +294,7 @@ func (l *Lexer) NextToken() Token {
 		}
 
 		t = l.token(TOKEN_STRING_LITERAL, str.String())
+		t.Raw = true
 	case '\'':
 		l.advance()
 

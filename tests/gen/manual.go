@@ -3150,6 +3150,70 @@ func main() {
 }
 `, expected: []string{"a variadic function sums its arguments", "a variadic function with no arguments", "len of a variadic parameter", "indexing a variadic parameter", "fixed parameters before the variadic one"}},
 
+	{dir: "native_bindings", x64Only: true, src: `struct P {
+    int x;
+    int y;
+}
+
+int counter = 5;
+P origin = P{x: 3, y: 4};
+
+func main() {
+    int a = 40;
+    int b = 2;
+    int r = 0;
+    native x64(in a, b, out r) "mov rax, {a}; add rax, {b}; mov {r}, rax";
+    check(r == 42, "bindings in sequence share their mode");
+
+    int c = 41;
+    native x64(inout c) "add {c}, 1";
+    check(c == 42, "inout reads and writes");
+
+    int out = 5;
+    int d = 0;
+    native x64(in out, out d) "mov rax, {out}; mov {d}, rax";
+    check(d == 5, "a variable can be named out");
+
+    P p = P{x: 10, y: 20};
+    int sum = 0;
+    native x64(in p, out sum) "mov rax, {p.y}; add rax, {p.x}; mov {sum}, rax; mov {p.x}, 99";
+    check(sum == 30 && p.x == 99 && p.y == 20, "struct fields are operands");
+
+    int[4] values = [1, 2, 3, 4];
+    int third = 0;
+    native x64(in values, out third) "lea rax, {&values}; mov rax, [rax+16]; mov {third}, rax";
+    check(third == 3, "{&name} is the address of any variable");
+
+    string s = "hey";
+    int n = 0;
+    native x64(in s, out n) "mov rax, {s.len}; mov {n}, rax";
+    check(n == 3, "string parts are operands");
+
+    int before = 0;
+    native x64(in counter, out before) "mov rax, {counter}; mov {before}, rax; add {counter}, 1";
+    check(before == 5 && counter == 6, "a global is an operand");
+
+    int gy = 0;
+    native x64(in origin, out gy) "mov rax, {origin.y}; mov {gy}, rax; mov {origin.x}, 30";
+    check(gy == 4 && origin.x == 30, "a global struct has fields");
+}
+`, expected: []string{"bindings in sequence share their mode", "inout reads and writes", "a variable can be named out", "struct fields are operands", "{&name} is the address of any variable", "string parts are operands", "a global is an operand", "a global struct has fields"}},
+
+	{dir: "native_raw_block", x64Only: true, src: "func main() {\n" +
+		"    int r = 0;\n" +
+		"    native x64(out r) `\n" +
+		"        ; the answer\n" +
+		"        mov rcx, 3\n" +
+		"        xor rax, rax\n" +
+		"    .again:\n" +
+		"        add rax, 14   ; a comment after code\n" +
+		"        dec rcx\n" +
+		"        jnz .again\n" +
+		"        mov {r}, rax\n" +
+		"    `;\n" +
+		"    check(r == 42, \"a backtick block goes to the assembler as written\");\n" +
+		"}\n", expected: []string{"a backtick block goes to the assembler as written"}},
+
 	{dir: "interop_extern", x64Only: true, files: map[string]string{"lib.c": `int add(int a, int b) { return a + b; }
 long mul64(long a, long b) { return a * b; }
 int sum_bytes(const char *p, int n) {

@@ -244,11 +244,39 @@ func abs(int x) int {
 }
 ```
 
-The name after `native` picks a backend or target, and other blocks are skipped. `in` lists variables the block reads and `out` those it writes. On x86-64 the code refers to them as `{name}`, a sized memory operand (`{s.ptr}` and `{s.len}` reach the parts of a string), and `;` separates instructions:
+The name after `native` picks a backend or target, and other blocks are skipped. `in` lists variables the block reads, `out` those it writes and `inout` both. A mode covers the names after it until the next mode: `in a, b, out c`. On x86-64 the code refers to them as `{name}`, a sized memory operand, and `;` separates instructions:
 
 ```wsp
 native linux_x64(in x, out r) "mov rax, {x}; add rax, rax; mov {r}, rax";
 ```
+
+A binding can reach inside a variable:
+
+| Form | Meaning |
+| --- | --- |
+| `{x}` | the variable, up to 8 bytes |
+| `{s.ptr}`, `{s.len}` | the parts of a string or slice |
+| `{p.x}`, `{o.inner.y}` | a field of a struct, nested fields included |
+| `{g}` | a global works like a local, fields and `&` included |
+| `{&x}`, `{&p.y}` | the address of any variable or field, of any size, as `[rbp-24]`. Use it with `lea`: `lea rax, {&values}` |
+
+A string in backticks is a raw block. It can span lines, a newline separates instructions, and `;` starts an assembly comment:
+
+```wsp
+native linux_x64(out r) `
+    mov rcx, 3
+    xor rax, rax
+.again:
+    add rax, 14   ; comments work here
+    dec rcx
+    jnz .again
+    mov {r}, rax
+`;
+```
+
+The compiler does not save registers for you. A block that changes `rbx`, `rbp`, `rsp` or `r12` to `r15` must restore them. In Lua the code is copied as written and uses the variable names directly, so `{...}` and backticks mean nothing there.
+
+A function that has `native` blocks but none for the target being built is an error, so a missing port is never a silently empty function. This applies to every module in the project, used or not.
 
 ## Diagnostics
 

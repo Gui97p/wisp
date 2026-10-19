@@ -295,6 +295,20 @@
                     "match": "\\b(import|export|extern|as)\\b"
                 },
                 {
+                    "begin": "\\b(native)(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*(\\()",
+                    "beginCaptures": {
+                        "1": { "name": "keyword.other.native.wisp" },
+                        "2": { "name": "entity.name.function.wisp" }
+                    },
+                    "end": "\\)",
+                    "patterns": [
+                        {
+                            "name": "keyword.other.native.mode.wisp",
+                            "match": "\\b(in|out|inout)\\b(?=\\s+[A-Za-z_])"
+                        }
+                    ]
+                },
+                {
                     "name": "keyword.other.native.wisp",
                     "match": "\\bnative\\b"
                 }

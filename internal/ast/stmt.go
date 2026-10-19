@@ -337,6 +337,7 @@ func (c *ContinueStmt) Tree(indent string) string {
 }
 
 type NativeBinding struct {
+	In  bool
 	Out bool
 	Var *IdentLiteral
 }
@@ -345,6 +346,7 @@ type NativeStmt struct {
 	Backend  string
 	Bindings []NativeBinding
 	Code     string
+	Raw      bool
 
 	NodePos
 }
@@ -358,7 +360,10 @@ func (n *NativeStmt) Tree(indent string) string {
 	}
 	for _, bd := range n.Bindings {
 		mode := "in"
-		if bd.Out {
+		switch {
+		case bd.In && bd.Out:
+			mode = "inout"
+		case bd.Out:
 			mode = "out"
 		}
 		fmt.Fprintf(&b, " %s %s", mode, bd.Var.Value)

@@ -713,6 +713,7 @@ func (p *Parser) parseNativeStatement() ast.Statement {
 		return nil
 	}
 	stmt.Code = p.current.Literal
+	stmt.Raw = p.current.Raw
 
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
@@ -729,26 +730,26 @@ func (p *Parser) parseNativeBindings() ([]ast.NativeBinding, bool) {
 		return bindings, true
 	}
 
+	var in, out, haveMode bool
 	for {
 		p.advance()
 
-		var out bool
-		switch {
-		case p.current.Type == lexer.TOKEN_IN:
-		case p.current.Type == lexer.TOKEN_IDENT && p.current.Literal == "out":
-			out = true
-		default:
-			p.error("expected in or out")
+		if mIn, mOut, ok := p.nativeMode(); ok {
+			in, out, haveMode = mIn, mOut, true
+			p.advance()
+		} else if !haveMode {
+			p.error("expected in, out or inout")
 			return nil, false
 		}
 
-		if !p.expect(lexer.TOKEN_IDENT) {
+		if p.current.Type != lexer.TOKEN_IDENT {
+			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 			return nil, false
 		}
 		ident := &ast.IdentLiteral{Value: p.current.Literal}
 		ident.SetPos(p.current.Line, p.current.Column)
 		ident.SetEndPos(p.currentEnd())
-		bindings = append(bindings, ast.NativeBinding{Out: out, Var: ident})
+		bindings = append(bindings, ast.NativeBinding{In: in, Out: out, Var: ident})
 
 		if p.peek.Type == lexer.TOKEN_COMMA {
 			p.advance()
@@ -759,6 +760,21 @@ func (p *Parser) parseNativeBindings() ([]ast.NativeBinding, bool) {
 		}
 		return bindings, true
 	}
+}
+
+func (p *Parser) nativeMode() (in, out, ok bool) {
+	switch {
+	case p.current.Type == lexer.TOKEN_IN:
+		return true, false, true
+	case p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_IDENT:
+		switch p.current.Literal {
+		case "out":
+			return false, true, true
+		case "inout":
+			return true, true, true
+		}
+	}
+	return false, false, false
 }
 
 func (p *Parser) parseLabeledStatement() ast.Statement {
