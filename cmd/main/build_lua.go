@@ -35,7 +35,7 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 
 	if forRun {
 		if err := proj.requireMain(); err != nil {
-			return nil, fmt.Errorf("cannot run: %w", err)
+			return nil, fmt.Errorf("cannot run, %w", err)
 		}
 	}
 	if err := proj.rejectManyMains(); err != nil {

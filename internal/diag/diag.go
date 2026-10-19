@@ -3,6 +3,9 @@ package diag
 import (
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -88,8 +91,7 @@ func Locate(origin string, err error, line, col, endLine, endCol int) error {
 	if err == nil {
 		return nil
 	}
-	var located *Error
-	if errors.As(err, &located) {
+	if _, ok := errors.AsType[*Error](err); ok {
 		return err
 	}
 	message := strings.TrimPrefix(err.Error(), origin+": ")
@@ -102,4 +104,17 @@ func InFile(err error, file string) error {
 		located.File = file
 	}
 	return err
+}
+
+func Reason(err error) string {
+	if pathErr, ok := errors.AsType[*fs.PathError](err); ok {
+		return pathErr.Err.Error()
+	}
+	if linkErr, ok := errors.AsType[*os.LinkError](err); ok {
+		return linkErr.Err.Error()
+	}
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		return exitErr.Error()
+	}
+	return err.Error()
 }

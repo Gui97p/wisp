@@ -2,6 +2,7 @@ package lua
 
 import (
 	"fmt"
+	"github.com/Gui97p/wisp/internal/diag"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -49,14 +50,18 @@ func collectFuncNames(decls []ast.Declaration) []string {
 
 func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl) error {
 	if fd.Extern {
-		return fmt.Errorf("lua: extern function %s is not available on the lua target", fd.Name)
+		line, col := fd.Position()
+		endLine, endCol := fd.SignatureEnd()
+		return diag.Locate("lua", fmt.Errorf("extern function %s is not available on the lua target", fd.Name), line, col, endLine, endCol)
 	}
 	if fd.Body == nil {
 		return nil
 	}
 
 	if err := target.CheckNative("lua", ast.NativeBackends(fd.Body)); err != nil {
-		return fmt.Errorf("lua: function %s %w", fd.Name, err)
+		line, col := fd.Position()
+		endLine, endCol := fd.SignatureEnd()
+		return diag.Locate("lua", fmt.Errorf("function %s %w", fd.Name, err), line, col, endLine, endCol)
 	}
 
 	fmt.Fprintf(b, "%s = function(", funcName(fd))

@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"github.com/Gui97p/wisp/internal/diag"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,7 +26,7 @@ type LinkOptions struct {
 func Link(t target.Target, root string, objPaths, libPaths []string, outputPath string, keepObj bool, opts LinkOptions) error {
 	tmp, err := os.MkdirTemp("", "wisp-link-")
 	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
+		return fmt.Errorf("failed to create a temporary folder (%s)", diag.Reason(err))
 	}
 	defer os.RemoveAll(tmp)
 
@@ -83,7 +84,7 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 	ldCmd.Dir = root
 	ldCmd.Stderr = os.Stderr
 	if err := ldCmd.Run(); err != nil {
-		return fmt.Errorf("%s failed: %w", filepath.Base(linker), err)
+		return fmt.Errorf("%s failed (%s)", filepath.Base(linker), diag.Reason(err))
 	}
 
 	if !keepObj {

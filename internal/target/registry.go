@@ -30,10 +30,18 @@ type FieldError struct {
 	Target  string
 	Field   string
 	Message string
+	Help    string
+}
+
+func (e *FieldError) Summary() string {
+	return fmt.Sprintf("target %q: %s", e.Target, e.Message)
 }
 
 func (e *FieldError) Error() string {
-	return fmt.Sprintf("target %q: %s", e.Target, e.Message)
+	if e.Help == "" {
+		return e.Summary()
+	}
+	return fmt.Sprintf("%s (%s)", e.Summary(), e.Help)
 }
 
 type Output struct {
@@ -138,25 +146,25 @@ func Override(name string, patch Patch) error {
 	t := base
 	if patch.OS != "" {
 		if !namePattern.MatchString(patch.OS) {
-			return &FieldError{Target: name, Field: "os", Message: fmt.Sprintf("invalid os %q (lowercase letters, digits and underscores)", patch.OS)}
+			return &FieldError{Target: name, Field: "os", Message: fmt.Sprintf("invalid os %q", patch.OS), Help: "use lowercase letters, digits and underscores"}
 		}
 		t.OS = patch.OS
 	}
 	if patch.ABI != "" {
 		if patch.ABI != "sysv" {
-			return &FieldError{Target: name, Field: "abi", Message: fmt.Sprintf("unsupported abi %q (only \"sysv\")", patch.ABI)}
+			return &FieldError{Target: name, Field: "abi", Message: fmt.Sprintf("unsupported abi %q", patch.ABI), Help: "only sysv exists"}
 		}
 		t.ABI = patch.ABI
 	}
 	if patch.Format != "" {
 		if patch.Format != "elf64" {
-			return &FieldError{Target: name, Field: "format", Message: fmt.Sprintf("unsupported format %q (only \"elf64\")", patch.Format)}
+			return &FieldError{Target: name, Field: "format", Message: fmt.Sprintf("unsupported format %q", patch.Format), Help: "only elf64 exists"}
 		}
 		t.Format = patch.Format
 	}
 	if patch.Entry != "" {
 		if !entryPattern.MatchString(patch.Entry) {
-			return &FieldError{Target: name, Field: "entry", Message: fmt.Sprintf("invalid entry symbol %q", patch.Entry)}
+			return &FieldError{Target: name, Field: "entry", Message: fmt.Sprintf("invalid entry symbol %q", patch.Entry), Help: "use letters, digits and the characters _ . and $, not starting with a digit"}
 		}
 		t.Entry = patch.Entry
 	}
@@ -186,12 +194,12 @@ func Override(name string, patch Patch) error {
 
 func CheckName(name string) error {
 	if !namePattern.MatchString(name) {
-		return &FieldError{Target: name, Message: "the name must be lowercase letters, digits and underscores, starting with a letter"}
+		return &FieldError{Target: name, Message: "the name is not valid", Help: "use lowercase letters, digits and underscores, starting with a letter"}
 	}
 
 	for _, b := range builtin {
 		if name == b.Name || name == b.Arch || (b.OS != "" && name == b.OS) {
-			return &FieldError{Target: name, Message: "the name is already used by a built-in target or selector"}
+			return &FieldError{Target: name, Message: "the name is already used by a built-in target or selector", Help: "pick another name"}
 		}
 	}
 
@@ -203,31 +211,31 @@ func Register(t Target) error {
 		return err
 	}
 	if t.OS != "" && !namePattern.MatchString(t.OS) {
-		return &FieldError{Target: t.Name, Field: "os", Message: fmt.Sprintf("invalid os %q (lowercase letters, digits and underscores)", t.OS)}
+		return &FieldError{Target: t.Name, Field: "os", Message: fmt.Sprintf("invalid os %q", t.OS), Help: "use lowercase letters, digits and underscores"}
 	}
 	if t.Arch != "x64" {
-		return &FieldError{Target: t.Name, Field: "arch", Message: fmt.Sprintf("unsupported arch %q (only \"x64\")", t.Arch)}
+		return &FieldError{Target: t.Name, Field: "arch", Message: fmt.Sprintf("unsupported arch %q", t.Arch), Help: "only x64 exists for now"}
 	}
 	if t.ABI == "" {
 		t.ABI = "sysv"
 	}
 	if t.ABI != "sysv" {
-		return &FieldError{Target: t.Name, Field: "abi", Message: fmt.Sprintf("unsupported abi %q (only \"sysv\")", t.ABI)}
+		return &FieldError{Target: t.Name, Field: "abi", Message: fmt.Sprintf("unsupported abi %q", t.ABI), Help: "only sysv exists"}
 	}
 	if t.Format == "" {
 		t.Format = "elf64"
 	}
 	if t.Format != "elf64" {
-		return &FieldError{Target: t.Name, Field: "format", Message: fmt.Sprintf("unsupported format %q (only \"elf64\")", t.Format)}
+		return &FieldError{Target: t.Name, Field: "format", Message: fmt.Sprintf("unsupported format %q", t.Format), Help: "only elf64 exists"}
 	}
 	if t.Entry == "" {
 		t.Entry = "_start"
 	}
 	if !entryPattern.MatchString(t.Entry) {
-		return &FieldError{Target: t.Name, Field: "entry", Message: fmt.Sprintf("invalid entry symbol %q", t.Entry)}
+		return &FieldError{Target: t.Name, Field: "entry", Message: fmt.Sprintf("invalid entry symbol %q", t.Entry), Help: "use letters, digits and the characters _ . and $, not starting with a digit"}
 	}
 	if strings.TrimSpace(t.StartSource) == "" {
-		return &FieldError{Target: t.Name, Field: "start", Message: "\"start\" is required, the assembly that calls main and leaves the program for this kernel"}
+		return &FieldError{Target: t.Name, Field: "start", Message: "\"start\" is required", Help: "it is the assembly file that calls main and leaves the program the way this kernel requires"}
 	}
 
 	t.Builtin = false
@@ -253,7 +261,7 @@ func Lookup(name string) (Target, error) {
 		}
 	}
 
-	return Target{}, fmt.Errorf("unknown target %q%s", name, Hint(name, Names()))
+	return Target{}, &UnknownError{Name: name, Help: Suggestion(name, Names(), "targets")}
 }
 
 func (t Target) Matches(selector string) bool {
@@ -292,7 +300,7 @@ func ValidateSelector(selector string) error {
 		}
 	}
 
-	return fmt.Errorf("unknown target %q%s", selector, Hint(selector, Selectors()))
+	return &UnknownError{Name: selector, Help: Suggestion(selector, Selectors(), "targets")}
 }
 
 func Names() []string {
@@ -321,7 +329,17 @@ func Selectors() []string {
 	return selectors
 }
 
-func Hint(name string, candidates []string) string {
+func Enumerate(names []string) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+}
+
+func Suggestion(name string, candidates []string, noun string) string {
 	best, bestDist := "", 3
 	for _, c := range candidates {
 		if d := distance(name, c); d < bestDist {
@@ -329,12 +347,20 @@ func Hint(name string, candidates []string) string {
 		}
 	}
 
-	msg := fmt.Sprintf(" (known: %s)", strings.Join(candidates, ", "))
+	known := fmt.Sprintf("the known %s are %s", noun, Enumerate(candidates))
 	if best != "" {
-		msg = fmt.Sprintf(" (did you mean %q? known: %s)", best, strings.Join(candidates, ", "))
+		return fmt.Sprintf("did you mean %s? %s", best, known)
 	}
+	return known
+}
 
-	return msg
+type UnknownError struct {
+	Name string
+	Help string
+}
+
+func (e *UnknownError) Error() string {
+	return fmt.Sprintf("unknown target %q (%s)", e.Name, e.Help)
 }
 
 func distance(a, b string) int {

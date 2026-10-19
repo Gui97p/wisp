@@ -6,6 +6,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/diag"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
@@ -72,7 +73,13 @@ func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 
 	if err == nil && len(t.ctx.AllocatedRegisters()) != 0 {
 		line, col := stmt.Position()
-		return fmt.Errorf("x86-64: register leakage detected in %d %d", line, col)
+		endLine, endCol := stmt.EndPosition()
+		return &diag.Error{Diagnostic: diag.Diagnostic{
+			Message: "a register was left allocated after this statement",
+			Origin:  "x86-64",
+			Line:    line, Col: col, EndLine: endLine, EndCol: endCol,
+			Help: "this is a bug in the compiler, so please report it along with the code that triggers it",
+		}}
 	}
 	return err
 }

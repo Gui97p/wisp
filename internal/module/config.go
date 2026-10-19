@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/target"
 )
 
@@ -133,7 +134,7 @@ func loadConfigText(root, path, text string) (*Config, error) {
 		if line == 0 {
 			line = locateKey(text, toml.Key{"targets", fieldErr.Target})
 		}
-		return nil, &ConfigError{File: path, Issues: []ConfigIssue{{Line: line, Message: fieldErr.Error()}}}
+		return nil, &ConfigError{File: path, Source: text, Issues: []ConfigIssue{{Line: line, Message: fieldErr.Summary(), Help: fieldErr.Help}}}
 	}
 	return cfg, nil
 }
@@ -154,14 +155,14 @@ func (c *Config) registerTargets(root string) error {
 		if tc.Start != "" {
 			data, err := os.ReadFile(filepath.Join(root, tc.Start))
 			if err != nil {
-				return &target.FieldError{Target: name, Field: "start", Message: fmt.Sprintf("cannot read start file: %v", err)}
+				return &target.FieldError{Target: name, Field: "start", Message: "cannot read the start file", Help: fmt.Sprintf("%s could not be opened, the system reports %s", tc.Start, diag.Reason(err))}
 			}
 			start = string(data)
 		}
 		if tc.Runtime != "" {
 			data, err := os.ReadFile(filepath.Join(root, tc.Runtime))
 			if err != nil {
-				return &target.FieldError{Target: name, Field: "runtime", Message: fmt.Sprintf("cannot read runtime file: %v", err)}
+				return &target.FieldError{Target: name, Field: "runtime", Message: "cannot read the runtime file", Help: fmt.Sprintf("%s could not be opened, the system reports %s", tc.Runtime, diag.Reason(err))}
 			}
 			runtimeSource = string(data)
 		}
@@ -234,23 +235,47 @@ func LoadStdlibSettings(root string) (string, bool, error) {
 type ConfigIssue struct {
 	Line    int
 	Message string
+	Help    string
 }
 
 type ConfigError struct {
 	File   string
+	Source string
 	Issues []ConfigIssue
 }
 
 func (e *ConfigError) Error() string {
 	lines := make([]string, len(e.Issues))
 	for i, issue := range e.Issues {
+		text := issue.Message
+		if issue.Help != "" {
+			text += " (" + issue.Help + ")"
+		}
 		if issue.Line > 0 {
-			lines[i] = fmt.Sprintf("%s:%d: %s", filepath.Base(e.File), issue.Line, issue.Message)
+			lines[i] = fmt.Sprintf("%s:%d: %s", filepath.Base(e.File), issue.Line, text)
 		} else {
-			lines[i] = fmt.Sprintf("%s: %s", filepath.Base(e.File), issue.Message)
+			lines[i] = fmt.Sprintf("%s: %s", filepath.Base(e.File), text)
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (e *ConfigError) Diagnostics() diag.List {
+	source := strings.Split(e.Source, "\n")
+	list := make(diag.List, 0, len(e.Issues))
+	for _, issue := range e.Issues {
+		d := diag.Diagnostic{File: e.File, Message: issue.Message, Help: issue.Help, Line: max(issue.Line, 1), Col: 1}
+		for d.Line > 1 && d.Line-1 < len(source) && strings.TrimSpace(source[d.Line-1]) == "" {
+			d.Line--
+		}
+		if d.Line-1 < len(source) {
+			text := strings.TrimRight(source[d.Line-1], " \t\r")
+			d.Col = len(text) - len(strings.TrimLeft(text, " \t")) + 1
+			d.EndLine, d.EndCol = d.Line, max(len(text), d.Col)
+		}
+		list = append(list, d)
+	}
+	return list
 }
 
 func decodeConfig(path string) (*Config, error) {
@@ -265,7 +290,10 @@ func decodeConfigSource(path, text string) (*Config, error) {
 	var cfg Config
 	md, err := toml.Decode(text, &cfg)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", filepath.Base(path), err)
+		if parseErr, ok := errors.AsType[toml.ParseError](err); ok {
+			return nil, &ConfigError{File: path, Source: text, Issues: []ConfigIssue{{Line: parseErr.Position.Line, Message: parseErr.Message}}}
+		}
+		return nil, &ConfigError{File: path, Source: text, Issues: []ConfigIssue{{Message: diag.Reason(err)}}}
 	}
 
 	var issues []ConfigIssue
@@ -279,11 +307,12 @@ func decodeConfigSource(path, text string) (*Config, error) {
 		known := knownKeys(key)
 		issues = append(issues, ConfigIssue{
 			Line:    locateKey(text, key),
-			Message: fmt.Sprintf("unknown key %q%s", key.String(), target.Hint(key[len(key)-1], known)),
+			Message: fmt.Sprintf("unknown key %q", key.String()),
+			Help:    target.Suggestion(key[len(key)-1], known, "keys"),
 		})
 	}
 	if len(issues) > 0 {
-		return nil, &ConfigError{File: path, Issues: issues}
+		return nil, &ConfigError{File: path, Source: text, Issues: issues}
 	}
 
 	return &cfg, nil

@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"github.com/Gui97p/wisp/internal/diag"
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -135,7 +136,9 @@ func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	if fd.Body != nil {
 		if err := target.CheckNative(t.target, ast.NativeBackends(fd.Body)); err != nil {
-			return fmt.Errorf("x86-64: function %s %w", fd.Name, err)
+			line, col := fd.Position()
+			endLine, endCol := fd.SignatureEnd()
+			return diag.Locate("x86-64", fmt.Errorf("function %s %w", fd.Name, err), line, col, endLine, endCol)
 		}
 	}
 

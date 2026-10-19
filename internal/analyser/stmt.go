@@ -1,8 +1,10 @@
 package analyser
 
 import (
-	"github.com/Gui97p/wisp/internal/target"
+	"errors"
 	"slices"
+
+	"github.com/Gui97p/wisp/internal/target"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -368,7 +370,10 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 func (a *Analyser) checkNativeStmt(s *ast.NativeStmt) {
 	if s.Backend != "" {
 		if err := target.ValidateSelector(s.Backend); err != nil {
-			a.errorRange(s.BackendAt, "native: %s", err)
+			d := a.errorRange(s.BackendAt, "unknown target %q in a native block", s.Backend)
+			if unknown, ok := errors.AsType[*target.UnknownError](err); ok {
+				d.WithHelp("%s", unknown.Help)
+			}
 		}
 	}
 

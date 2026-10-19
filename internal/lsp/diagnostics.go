@@ -98,7 +98,7 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 		var message strings.Builder
 		message.WriteString(d.Message)
 		for _, n := range d.Notes {
-			message.WriteString(fmt.Sprintf("\nnote: %s (%d:%d)", n.Message, n.Line, n.Col))
+			fmt.Fprintf(&message, "\nnote: %s (%d:%d)", n.Message, n.Line, n.Col)
 		}
 		if d.Help != "" {
 			message.WriteString("\nhelp: ")
@@ -142,10 +142,13 @@ func configDiagnostics(path string) (string, []protocol.Diagnostic, bool) {
 		}
 	}
 
-	var configErr *module.ConfigError
-	if errors.As(err, &configErr) {
+	if configErr, ok := errors.AsType[*module.ConfigError](err); ok {
 		for _, i := range configErr.Issues {
-			diags = append(diags, issue(i.Line, i.Message))
+			message := i.Message
+			if i.Help != "" {
+				message += "\nhelp: " + i.Help
+			}
+			diags = append(diags, issue(i.Line, message))
 		}
 		return s.tomlPath, diags, true
 	}

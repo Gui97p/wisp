@@ -135,14 +135,14 @@ func Assemble(asmSource, objPath, asmPath string, keepAsm bool, format string) e
 	}
 
 	if err := os.WriteFile(asmPath, []byte(asmSource), 0644); err != nil {
-		return fmt.Errorf("failed to write asm file: %w", err)
+		return fmt.Errorf("failed to write the assembly file (%s)", diag.Reason(err))
 	}
 
 	trace("nasm", []string{"-f", format, "-w+error=number-overflow", asmPath, "-o", objPath})
 	nasmCmd := exec.Command("nasm", "-f", format, "-w+error=number-overflow", asmPath, "-o", objPath)
 	nasmCmd.Stderr = os.Stderr
 	if err := nasmCmd.Run(); err != nil {
-		return fmt.Errorf("nasm failed: %w", err)
+		return fmt.Errorf("nasm failed (%s)", diag.Reason(err))
 	}
 
 	if !keepAsm {

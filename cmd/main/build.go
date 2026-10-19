@@ -311,7 +311,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 				std.SetFiles(c.declFiles)
 				source, err := std.Compile()
 				if err != nil {
-					return fmt.Errorf("%s: %w", c.mod.Path, c.reportFailure(err))
+					return fmt.Errorf("cannot build %s, %w", c.mod.Path, c.reportFailure(err))
 				}
 				tmp, err := os.MkdirTemp("", "wisp-std-")
 				if err != nil {

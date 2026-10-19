@@ -92,6 +92,18 @@ type FuncDecl struct {
 	NodePos
 }
 
+func (f *FuncDecl) SignatureEnd() (int, int) {
+	line, col := f.Position()
+	if f.Body == nil {
+		return f.EndPosition()
+	}
+	bodyLine, bodyCol := f.Body.Position()
+	if bodyLine == line && bodyCol-2 >= col {
+		return bodyLine, bodyCol - 2
+	}
+	return line, col + 3
+}
+
 func (*FuncDecl) decl() {}
 func (f *FuncDecl) Tree(indent string) string {
 	var b strings.Builder

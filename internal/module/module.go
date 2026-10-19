@@ -2,6 +2,7 @@ package module
 
 import (
 	"fmt"
+	"github.com/Gui97p/wisp/internal/diag"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -107,7 +108,7 @@ func resolveImportPath(projectRoot, path string) (key, dir string, files []strin
 	if after, ok := strings.CutPrefix(path, "std/"); ok {
 		stdRoot, err := StdlibRoot()
 		if err != nil {
-			return "", "", nil, fmt.Errorf("cannot locate stdlib: %w", err)
+			return "", "", nil, fmt.Errorf("cannot locate the standard library (%s)", diag.Reason(err))
 		}
 		base = filepath.Join(stdRoot, after)
 	}

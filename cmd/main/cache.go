@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/Gui97p/wisp/internal/diag"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -24,7 +25,7 @@ func cacheBase() (string, error) {
 
 	userCache, err := os.UserCacheDir()
 	if err != nil {
-		return "", fmt.Errorf("cannot locate cache directory: %w", err)
+		return "", fmt.Errorf("cannot locate the cache directory (%s)", diag.Reason(err))
 	}
 
 	return filepath.Join(userCache, "wisp"), nil

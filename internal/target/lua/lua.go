@@ -100,7 +100,7 @@ func ModuleID(path string) string {
 
 func Build(luaSource, outputPath string) error {
 	if err := os.WriteFile(outputPath, []byte(luaSource), 0644); err != nil {
-		return fmt.Errorf("failed to write lua file: %w", err)
+		return fmt.Errorf("failed to write the Lua file (%s)", diag.Reason(err))
 	}
 
 	return nil
