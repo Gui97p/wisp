@@ -1,6 +1,7 @@
 package module
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -107,23 +108,32 @@ func LoadConfig(root string) (*Config, error) {
 		return &Config{}, nil
 	}
 
-	cfg, err := decodeConfig(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	if err := cfg.registerTargets(root); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	return loadConfigText(root, path, string(data))
 }
 
 func LoadConfigSource(root, text string) (*Config, error) {
-	cfg, err := decodeConfigSource(filepath.Join(root, "wisp.toml"), text)
+	return loadConfigText(root, filepath.Join(root, "wisp.toml"), text)
+}
+
+func loadConfigText(root, path, text string) (*Config, error) {
+	cfg, err := decodeConfigSource(path, text)
 	if err != nil {
 		return nil, err
 	}
 	if err := cfg.registerTargets(root); err != nil {
-		return nil, err
+		var fieldErr *target.FieldError
+		if !errors.As(err, &fieldErr) {
+			return nil, err
+		}
+		line := locateKey(text, toml.Key{"targets", fieldErr.Target, fieldErr.Field})
+		if line == 0 {
+			line = locateKey(text, toml.Key{"targets", fieldErr.Target})
+		}
+		return nil, &ConfigError{File: path, Issues: []ConfigIssue{{Line: line, Message: fieldErr.Error()}}}
 	}
 	return cfg, nil
 }
@@ -144,14 +154,14 @@ func (c *Config) registerTargets(root string) error {
 		if tc.Start != "" {
 			data, err := os.ReadFile(filepath.Join(root, tc.Start))
 			if err != nil {
-				return fmt.Errorf("target %q: cannot read start file: %w", name, err)
+				return &target.FieldError{Target: name, Field: "start", Message: fmt.Sprintf("cannot read start file: %v", err)}
 			}
 			start = string(data)
 		}
 		if tc.Runtime != "" {
 			data, err := os.ReadFile(filepath.Join(root, tc.Runtime))
 			if err != nil {
-				return fmt.Errorf("target %q: cannot read runtime file: %w", name, err)
+				return &target.FieldError{Target: name, Field: "runtime", Message: fmt.Sprintf("cannot read runtime file: %v", err)}
 			}
 			runtimeSource = string(data)
 		}

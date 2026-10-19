@@ -61,6 +61,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	var text string
 	var rng *protocol.Range
 
+	if t, r := declMemberHover(program, line, col); t != "" {
+		return markdownHover(t, r)
+	}
+
 	if expr := exprInProgram(program, line, col); expr != nil {
 		text = hoverText(expr, program, info, line, col)
 		rng = exprRange(expr)
@@ -478,4 +482,75 @@ func variableHover(sym *analyser.Symbol) string {
 	}
 
 	return renderDoc(fmt.Sprintf("%s %s", analyser.TypeText(sym.Type), sym.Name), joinDocs(sym.Doc, doc))
+}
+
+func refText(ref ast.TypeRef) string {
+	if ref.IsMap && ref.MapKey != nil && ref.MapValue != nil {
+		return "map[" + refText(*ref.MapKey) + "]" + refText(*ref.MapValue)
+	}
+	if ref.IsFunc {
+		params := make([]string, len(ref.FuncParams))
+		for i, p := range ref.FuncParams {
+			params[i] = refText(p)
+		}
+		var text strings.Builder
+		text.WriteString("(")
+		text.WriteString(strings.Join(params, ", "))
+		text.WriteString(")")
+		if ref.FuncFallible {
+			text.WriteString(" !")
+		}
+		for i, r := range ref.FuncReturns {
+			if i == 0 {
+				text.WriteString(" ")
+			} else {
+				text.WriteString(", ")
+			}
+			text.WriteString(refText(r))
+		}
+		return text.String()
+	}
+
+	var text strings.Builder
+	text.WriteString(strings.Repeat("*", ref.PointerDepth))
+	if ref.Module != "" {
+		text.WriteString(ref.Module)
+		text.WriteString(".")
+	}
+	text.WriteString(ref.Name)
+	for _, dim := range ref.Dims {
+		if dim.IsSpan {
+			text.WriteString("[]")
+		} else {
+			fmt.Fprintf(&text, "[%d]", dim.Size)
+		}
+	}
+	return text.String()
+}
+
+func declMemberHover(program *ast.Program, line, col int) (string, *protocol.Range) {
+	for _, decl := range program.Declarations {
+		switch d := decl.(type) {
+		case *ast.StructDecl:
+			for i := range d.Members {
+				m := &d.Members[i]
+				if paramContains(m, line, col) {
+					text := renderDoc(fmt.Sprintf("%s %s", refText(m.Type), m.Name), joinDocs(m.Doc, fmt.Sprintf("Field of struct `%s`.", d.Name)))
+					return text, paramRange(m)
+				}
+			}
+		case *ast.TypeDecl:
+			if !d.IsEnum {
+				continue
+			}
+			for _, m := range d.Members {
+				if positionContains(ast.Position{Line: m.Line, Col: m.Col, EndLine: m.EndLine, EndCol: m.EndCol}, line, col) {
+					text := renderDoc(fmt.Sprintf("%s.%s = %d", d.Name, m.Name, m.Value), joinDocs(m.Doc, fmt.Sprintf("Member of enum `%s`.", d.Name)))
+					r := rangeOf(m.Line, m.Col, m.EndLine, m.EndCol)
+					return text, &r
+				}
+			}
+		}
+	}
+	return "", nil
 }

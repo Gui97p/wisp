@@ -26,6 +26,16 @@ type Target struct {
 	Modified bool
 }
 
+type FieldError struct {
+	Target  string
+	Field   string
+	Message string
+}
+
+func (e *FieldError) Error() string {
+	return fmt.Sprintf("target %q: %s", e.Target, e.Message)
+}
+
 type Output struct {
 	Bin string `toml:"bin" doc:"Path of the linked executable."`
 	Obj string `toml:"obj" doc:"Path of the object file."`
@@ -112,41 +122,41 @@ func Override(name string, patch Patch) error {
 		}
 	}
 	if !found {
-		return fmt.Errorf("target %q is not a built-in target", name)
+		return &FieldError{Target: name, Message: "is not a built-in target"}
 	}
 
 	if patch.Arch != "" && patch.Arch != base.Arch {
-		return fmt.Errorf("target %q: the arch of a built-in target cannot be changed", name)
+		return &FieldError{Target: name, Field: "arch", Message: "the arch of a built-in target cannot be changed"}
 	}
 
 	if base.Arch != "x64" {
 		if patch.OS != "" || patch.ABI != "" || patch.Format != "" || patch.Entry != "" || patch.StartSource != "" || patch.RuntimeSource != "" || len(patch.LinkArgs) > 0 || patch.Libc != nil {
-			return fmt.Errorf("target %q only accepts \"output\"", name)
+			return &FieldError{Target: name, Message: "only accepts \"output\""}
 		}
 	}
 
 	t := base
 	if patch.OS != "" {
 		if !namePattern.MatchString(patch.OS) {
-			return fmt.Errorf("target %q: invalid os %q (lowercase letters, digits and underscores)", name, patch.OS)
+			return &FieldError{Target: name, Field: "os", Message: fmt.Sprintf("invalid os %q (lowercase letters, digits and underscores)", patch.OS)}
 		}
 		t.OS = patch.OS
 	}
 	if patch.ABI != "" {
 		if patch.ABI != "sysv" {
-			return fmt.Errorf("target %q: unsupported abi %q (only \"sysv\")", name, patch.ABI)
+			return &FieldError{Target: name, Field: "abi", Message: fmt.Sprintf("unsupported abi %q (only \"sysv\")", patch.ABI)}
 		}
 		t.ABI = patch.ABI
 	}
 	if patch.Format != "" {
 		if patch.Format != "elf64" {
-			return fmt.Errorf("target %q: unsupported format %q (only \"elf64\")", name, patch.Format)
+			return &FieldError{Target: name, Field: "format", Message: fmt.Sprintf("unsupported format %q (only \"elf64\")", patch.Format)}
 		}
 		t.Format = patch.Format
 	}
 	if patch.Entry != "" {
 		if !entryPattern.MatchString(patch.Entry) {
-			return fmt.Errorf("target %q: invalid entry symbol %q", name, patch.Entry)
+			return &FieldError{Target: name, Field: "entry", Message: fmt.Sprintf("invalid entry symbol %q", patch.Entry)}
 		}
 		t.Entry = patch.Entry
 	}
@@ -176,12 +186,12 @@ func Override(name string, patch Patch) error {
 
 func CheckName(name string) error {
 	if !namePattern.MatchString(name) {
-		return fmt.Errorf("target %q: the name must be lowercase letters, digits and underscores, starting with a letter", name)
+		return &FieldError{Target: name, Message: "the name must be lowercase letters, digits and underscores, starting with a letter"}
 	}
 
 	for _, b := range builtin {
 		if name == b.Name || name == b.Arch || (b.OS != "" && name == b.OS) {
-			return fmt.Errorf("target %q: the name is already used by a built-in target or selector", name)
+			return &FieldError{Target: name, Message: "the name is already used by a built-in target or selector"}
 		}
 	}
 
@@ -193,31 +203,31 @@ func Register(t Target) error {
 		return err
 	}
 	if t.OS != "" && !namePattern.MatchString(t.OS) {
-		return fmt.Errorf("target %q: invalid os %q (lowercase letters, digits and underscores)", t.Name, t.OS)
+		return &FieldError{Target: t.Name, Field: "os", Message: fmt.Sprintf("invalid os %q (lowercase letters, digits and underscores)", t.OS)}
 	}
 	if t.Arch != "x64" {
-		return fmt.Errorf("target %q: unsupported arch %q (only \"x64\")", t.Name, t.Arch)
+		return &FieldError{Target: t.Name, Field: "arch", Message: fmt.Sprintf("unsupported arch %q (only \"x64\")", t.Arch)}
 	}
 	if t.ABI == "" {
 		t.ABI = "sysv"
 	}
 	if t.ABI != "sysv" {
-		return fmt.Errorf("target %q: unsupported abi %q (only \"sysv\")", t.Name, t.ABI)
+		return &FieldError{Target: t.Name, Field: "abi", Message: fmt.Sprintf("unsupported abi %q (only \"sysv\")", t.ABI)}
 	}
 	if t.Format == "" {
 		t.Format = "elf64"
 	}
 	if t.Format != "elf64" {
-		return fmt.Errorf("target %q: unsupported format %q (only \"elf64\")", t.Name, t.Format)
+		return &FieldError{Target: t.Name, Field: "format", Message: fmt.Sprintf("unsupported format %q (only \"elf64\")", t.Format)}
 	}
 	if t.Entry == "" {
 		t.Entry = "_start"
 	}
 	if !entryPattern.MatchString(t.Entry) {
-		return fmt.Errorf("target %q: invalid entry symbol %q", t.Name, t.Entry)
+		return &FieldError{Target: t.Name, Field: "entry", Message: fmt.Sprintf("invalid entry symbol %q", t.Entry)}
 	}
 	if strings.TrimSpace(t.StartSource) == "" {
-		return fmt.Errorf("target %q: \"start\" is required, the assembly that calls main and leaves the program for this kernel", t.Name)
+		return &FieldError{Target: t.Name, Field: "start", Message: "\"start\" is required, the assembly that calls main and leaves the program for this kernel"}
 	}
 
 	t.Builtin = false

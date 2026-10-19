@@ -343,10 +343,12 @@ type NativeBinding struct {
 }
 
 type NativeStmt struct {
-	Backend  string
-	Bindings []NativeBinding
-	Code     string
-	Raw      bool
+	Backend   string
+	BackendAt Position
+	Bindings  []NativeBinding
+	Code      string
+	CodeAt    Position
+	Raw       bool
 
 	NodePos
 }

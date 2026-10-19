@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/target"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -47,7 +48,7 @@ func (t *X64Target) nativeOperand(ref string, path []string, addr bool, v native
 			st := nativeStruct(tp)
 			f, ok := layoutOf(st).Fields[part]
 			if !ok {
-				return "", fmt.Errorf("x86-64: struct %s has no field %s in {%s}", st.Name, part, ref)
+				return "", fmt.Errorf("struct %s has no field %s in {%s}", st.Name, part, ref)
 			}
 			mem = mem.at(f.Offset, f.Size)
 			tp = f.Type
@@ -59,7 +60,7 @@ func (t *X64Target) nativeOperand(ref string, path []string, addr bool, v native
 			}
 			tp = analyser.PrimitiveType{Name: "int"}
 		default:
-			return "", fmt.Errorf("x86-64: cannot access field %s in {%s}", part, ref)
+			return "", fmt.Errorf("cannot access field %s in {%s}", part, ref)
 		}
 	}
 
@@ -68,9 +69,27 @@ func (t *X64Target) nativeOperand(ref string, path []string, addr bool, v native
 		return text[strings.Index(text, "["):], nil
 	}
 	if mem.Size > 8 {
-		return "", fmt.Errorf("x86-64: {%s} is too big for one operand: use {&%s} for its address", ref, ref)
+		return "", fmt.Errorf("{%s} is too big for one operand: use {&%s} for its address", ref, ref)
 	}
 	return text, nil
+}
+
+func nativeError(at ast.Position, format string, args ...any) error {
+	return &diag.Error{Diagnostic: diag.Diagnostic{
+		Message: fmt.Sprintf(format, args...),
+		Origin:  "x86-64",
+		Line:    at.Line, Col: at.Col, EndLine: at.EndLine, EndCol: at.EndCol,
+	}}
+}
+
+func nativeRefAt(stmt *ast.NativeStmt, index, length int) ast.Position {
+	before := stmt.Code[:index]
+	line := stmt.CodeAt.Line + strings.Count(before, "\n")
+	col := stmt.CodeAt.Col + 1 + index
+	if nl := strings.LastIndex(before, "\n"); nl >= 0 {
+		col = index - nl
+	}
+	return ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + length - 1}
 }
 
 func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
@@ -90,17 +109,53 @@ func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
 		}
 		offset, ok := t.ctx.Get(sym)
 		if !ok {
-			return fmt.Errorf("x86-64: variable %s not declared on this scope", sym.Name)
+			line, col := binding.Var.Position()
+			endLine, endCol := binding.Var.EndPosition()
+			return nativeError(ast.Position{Line: line, Col: col, EndLine: endLine, EndCol: endCol}, "variable %s not declared on this scope", sym.Name)
 		}
 		variables[sym.Name] = nativeVar{mem: slot(offset, size), tp: sym.Type}
 	}
 
 	var b strings.Builder
+	code := stmt.Code
+
+	for i := 0; i < len(code); {
+		if code[i] != '{' {
+			b.WriteByte(code[i])
+			i++
+			continue
+		}
+
+		end := strings.IndexByte(code[i+1:], '}')
+		if end == -1 {
+			return nativeError(nativeRefAt(stmt, i, 1), "invalid binding definition: missing }")
+		}
+
+		end += i + 1
+		ref := code[i+1 : end]
+		at := nativeRefAt(stmt, i, end-i+1)
+		addr := strings.HasPrefix(ref, "&")
+		ref = strings.TrimPrefix(ref, "&")
+		parts := strings.Split(ref, ".")
+		variable, ok := variables[parts[0]]
+		if !ok {
+			return nativeError(at, "undeclared binding %s", ref)
+		}
+
+		operand, err := t.nativeOperand(ref, parts[1:], addr, variable)
+		if err != nil {
+			return nativeError(at, "%s", err)
+		}
+
+		b.WriteString(operand)
+		i = end + 1
+	}
+
 	separator := ";"
 	if stmt.Raw {
 		separator = "\n"
 	}
-	parts := strings.Split(stmt.Code, separator)
+	parts := strings.Split(b.String(), separator)
 
 	lines := parts[:0]
 	for _, part := range parts {
@@ -109,39 +164,6 @@ func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
 		}
 	}
 
-	s := strings.Join(lines, "\n\t")
-
-	for i := 0; i < len(s); {
-		if s[i] != '{' {
-			b.WriteByte(s[i])
-			i++
-			continue
-		}
-
-		end := strings.IndexByte(s[i+1:], '}')
-		if end == -1 {
-			return fmt.Errorf("x86-64: invalid binding definition")
-		}
-
-		end += i + 1
-		ref := s[i+1 : end]
-		addr := strings.HasPrefix(ref, "&")
-		ref = strings.TrimPrefix(ref, "&")
-		parts := strings.Split(ref, ".")
-		nativeVar, ok := variables[parts[0]]
-		if !ok {
-			return fmt.Errorf("x86-64: undeclared binding %s", ref)
-		}
-
-		operand, err := t.nativeOperand(ref, parts[1:], addr, nativeVar)
-		if err != nil {
-			return err
-		}
-
-		b.WriteString(operand)
-		i = end + 1
-	}
-
-	t.text.printlnt(b.String())
+	t.text.printlnt(strings.Join(lines, "\n\t"))
 	return nil
 }

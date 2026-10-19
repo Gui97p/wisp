@@ -698,6 +698,8 @@ func (p *Parser) parseNativeStatement() ast.Statement {
 	if p.peek.Type == lexer.TOKEN_IDENT {
 		p.advance()
 		stmt.Backend = p.current.Literal
+		endLine, endCol := p.currentEnd()
+		stmt.BackendAt = ast.Position{Line: p.current.Line, Col: p.current.Column, EndLine: endLine, EndCol: endCol}
 	}
 
 	if p.peek.Type == lexer.TOKEN_LPAREN {
@@ -714,6 +716,8 @@ func (p *Parser) parseNativeStatement() ast.Statement {
 	}
 	stmt.Code = p.current.Literal
 	stmt.Raw = p.current.Raw
+	codeEndLine, codeEndCol := p.currentEnd()
+	stmt.CodeAt = ast.Position{Line: p.current.Line, Col: p.current.Column, EndLine: codeEndLine, EndCol: codeEndCol}
 
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
