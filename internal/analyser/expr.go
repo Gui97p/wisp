@@ -310,7 +310,14 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 		return InvalidType{}
 	case "&":
 		if !isAddressable(expr.Value) {
-			a.error(expr, "cannot obtain address of a temporary expression")
+			if lit, ok := expr.Value.(*ast.StructLiteral); ok {
+				name := qualified(lit.Module, lit.Name)
+				a.errorf(expr, "cannot take the address of a %s literal", name).
+					WithHelp("name it first, as in `%s n = %s{...}; &n`, or allocate it with malloc when it must outlive this function", name, name)
+			} else {
+				a.error(expr, "cannot take the address of a temporary value").
+					WithHelp("store the value in a variable first and take the address of that")
+			}
 			return InvalidType{}
 		}
 		return PointerType{Element: value}

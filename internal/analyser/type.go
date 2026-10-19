@@ -237,20 +237,7 @@ type StructType struct {
 }
 
 func (s *StructType) String() string {
-	var b strings.Builder
-	b.WriteString("struct ")
-	b.WriteString(s.Name)
-	b.WriteString(" { ")
-	for _, field := range s.Order {
-		tp := s.Fields[field]
-		b.WriteString(tp.String())
-		b.WriteRune(' ')
-		b.WriteString(field)
-		b.WriteRune(' ')
-	}
-	b.WriteRune('}')
-
-	return b.String()
+	return s.Name
 }
 
 func (s *StructType) Equals(other Type) bool {
