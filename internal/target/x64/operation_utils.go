@@ -148,6 +148,7 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 			return reg
 		}
 		t.loadWord(reg, o)
+		t.freeWord(o)
 		return reg
 	default:
 		t.fail("x86-64: unsupported operand %s", o)

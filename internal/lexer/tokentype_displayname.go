@@ -209,6 +209,8 @@ func (t TokenType) DisplayName() string {
 		return "["
 	case TOKEN_RBRACKET:
 		return "]"
+	case TOKEN_AT:
+		return "@"
 
 	default:
 		return t.String()

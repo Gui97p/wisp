@@ -2,8 +2,9 @@
 //
 // The star is always a prefix of the type: *int, **int, *Point. It is never
 // written after the type, which keeps `Point *p` from being mistaken for a
-// multiplication. There is no garbage collector: memory you ask for is
-// memory you give back.
+// multiplication, and it never dereferences: `p@` reads or writes through a
+// pointer, as the inverse of `&x`. There is no garbage collector: memory you
+// ask for is memory you give back.
 
 import "expect";
 
@@ -15,10 +16,10 @@ export func demo() ! {
   int x = 1;
   *int px = &x;
   **int ppx = &px;
-  expect.expect(*px == 1 && **ppx == 1, "reading through a pointer and a pointer to a pointer");
+  expect.expect(px@ == 1 && ppx@@ == 1, "reading through a pointer and a pointer to a pointer");
 
   // Writing through a pointer changes the original.
-  *px = 7;
+  px@ = 7;
   expect.expect(x == 7, "writing through a pointer");
 
   // Pointers to structs reach their fields directly.
@@ -49,10 +50,10 @@ export func demo() ! {
 
   // Arithmetic steps in elements, not bytes: p + 1 is the next int.
   *int second = heap + 1;
-  expect.expect(*second == 20, "pointer plus one is the next element");
+  expect.expect(second@ == 20, "pointer plus one is the next element");
   expect.expect(second - heap == 1, "subtracting pointers counts elements");
   second++;
-  expect.expect(*second == 30, "increment steps one element");
+  expect.expect(second@ == 30, "increment steps one element");
   expect.expect(heap < second, "pointers compare by address");
 
   // `realloc` resizes a block and keeps its contents. If it cannot, the
@@ -69,11 +70,11 @@ export func demo() ! {
   // different types. A pointer type that is not a plain name goes in
   // parentheses, as in `(*int8)(address)`, and it works at any depth:
   // `(**int)(&p)`. To read through a converted value, dereference it:
-  // `*(*int8)(address)`.
+  // `(*int8)(address)@`.
   int8 raw = 65;
   uint64 address = uint64(&raw);
   expect.expect(address != 0, "a pointer converts to an integer");
-  expect.expect(*(*int8)(address) == 65, "an integer converts to a pointer");
+  expect.expect((*int8)(address)@ == 65, "an integer converts to a pointer");
 
   // Bytes become a string without a copy, and a string gives the address of
   // its bytes. The second one is only safe to hand to C when the string ends

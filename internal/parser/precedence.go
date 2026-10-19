@@ -60,6 +60,7 @@ var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_LBRACE:   CALL,
 	lexer.TOKEN_LBRACKET: INDEX,
 	lexer.TOKEN_DOT:      MEMBER,
+	lexer.TOKEN_AT:       MEMBER,
 }
 
 func (p *Parser) currentPrecedence() Precedence {

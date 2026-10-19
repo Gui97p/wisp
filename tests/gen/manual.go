@@ -780,24 +780,24 @@ func main() {
 `},
 
 	{dir: "ptr_basic", x64Only: true, src: `func swap(*int a, *int b) {
-    int t = *a;
-    *a = *b;
-    *b = t;
+    int t = a@;
+    a@ = b@;
+    b@ = t;
 }
 
 func set(*int p, int v) {
-    *p = v;
+    p@ = v;
 }
 
 func main() {
     int v = 5;
     *int p = &v;
-    check(*p == 5, "deref read");
-    *p = 7;
+    check(p@ == 5, "deref read");
+    p@ = 7;
     check(v == 7, "deref write reaches the variable");
     v = 9;
-    check(*p == 9, "variable write is seen through the pointer");
-    *p += 1;
+    check(p@ == 9, "variable write is seen through the pointer");
+    p@ += 1;
     check(v == 10, "compound write through a pointer");
     int a = 1;
     int b = 2;
@@ -807,15 +807,15 @@ func main() {
     set(&a, 40);
     check(a == 40, "write through a pointer parameter");
     *int q = p;
-    check(*q == 10, "pointer copy points at the same variable");
+    check(q@ == 10, "pointer copy points at the same variable");
     **int pp = &p;
-    check(**pp == 10, "double pointer read");
-    **pp = 1;
+    check(pp@@ == 10, "double pointer read");
+    pp@@ = 1;
     check(v == 1, "double pointer write");
     int8 first = 3;
     int8 second = 4;
     *int8 sp = &first;
-    *sp = 100;
+    sp@ = 100;
     check(first == 100, "narrow pointer write lands");
     check(second == 4, "narrow pointer write leaves the neighbour alone");
 }
@@ -829,21 +829,21 @@ func main() {
 func main() {
     int[3] a = [1, 2, 3];
     *int q = &a[1];
-    *q = 20;
+    q@ = 20;
     check(a[1] == 20, "pointer to a constant index element");
     int i = 2;
     *int r = &a[i];
-    *r = 30;
+    r@ = 30;
     check(a[2] == 30, "pointer to a variable index element");
     check(a[0] == 1, "element pointers leave the others alone");
     P s = P{x: 1, y: 2};
     *int py = &s.y;
-    *py = 9;
+    py@ = 9;
     check(s.y == 9, "pointer to a struct field");
     check(s.x == 1, "field pointer leaves the other field alone");
     P[2] ps = [P{x: 1, y: 2}, P{x: 3, y: 4}];
     *int px = &ps[1].x;
-    *px = 33;
+    px@ = 33;
     check(ps[1].x == 33, "pointer to a field of an array element");
     check(ps[0].x == 1, "that leaves the first element alone");
 }
@@ -892,7 +892,7 @@ func main() {
     pb.x = 40;
     check(l.b.x == 40, "pointer to a nested struct");
     check(l.a.x == 1, "nested pointer leaves the sibling alone");
-    P copy = *p;
+    P copy = p@;
     p.x = 0;
     check(copy.x == 7, "dereferenced struct copy is independent");
 }
@@ -1124,25 +1124,25 @@ func main() {
 }
 
 func setAll(**P pp, int v) {
-    (*pp).x = v;
-    (**pp).y = v + 1;
+    pp@.x = v;
+    pp@@.y = v + 1;
 }
 
 func main() {
     P s = P{x: 1, y: 2};
     *P p = &s;
     **P pp = &p;
-    check((*pp).x == 1, "member through a double pointer");
-    check((**pp).y == 2, "member of a fully dereferenced pointer");
-    (*pp).x = 10;
+    check(pp@.x == 1, "member through a double pointer");
+    check(pp@@.y == 2, "member of a fully dereferenced pointer");
+    pp@.x = 10;
     check(s.x == 10, "write through a double pointer");
-    (**pp).y += 5;
+    pp@@.y += 5;
     check(s.y == 7, "compound write of a fully dereferenced pointer");
     setAll(pp, 40);
     check(s.x == 40, "double pointer parameter first field");
     check(s.y == 41, "double pointer parameter second field");
     P other = P{x: 100, y: 200};
-    *pp = &other;
+    pp@ = &other;
     check(p.x == 100, "writing the inner pointer redirects the pointer");
     check(s.x == 40, "the old target is untouched");
 }
@@ -1178,7 +1178,7 @@ func main() {
     check(n.p == null, "omitted pointer field is null");
     n.p = &v;
     check(n.p != null, "assigned pointer field is not null");
-    *n.p = 8;
+    n.p@ = 8;
     check(v == 8, "write through a pointer field");
     check(pick(false, &v) == null, "returned null");
     check(pick(true, &v) != null, "returned pointer");
@@ -2578,7 +2578,7 @@ func main() {
 	{dir: "abort_null_deref", x64Only: true, src: `func main() {
     *int p = null;
     check(true, "abortnull before the dereference");
-    int v = *p;
+    int v = p@;
     check(false, "abortnull never printed");
 }
 `, expected: []string{"abortnull before the dereference"}, abort: "panic: null pointer dereference"},
@@ -2684,8 +2684,8 @@ func main() {
 `},
 	{dir: "alloc_basic", x64Only: true, src: `func main() ! {
     *int p = malloc(sizeof(int) * 4)!;
-    *p = 42;
-    check(*p == 42, "malloc write and read");
+    p@ = 42;
+    check(p@ == 42, "malloc write and read");
     free(p);
     check(sizeof(int) == 8, "sizeof int");
     check(sizeof(int8) == 1, "sizeof int8");
@@ -2706,15 +2706,15 @@ func main() {
 
 	{dir: "alloc_realloc", x64Only: true, src: `func main() ! {
     *int p = malloc(8)!;
-    *p = 1234;
+    p@ = 1234;
     *int same = realloc(p, 8)!;
     check(same == p, "realloc within capacity keeps the block");
     *int big = realloc(p, 100)!;
-    check(*big == 1234, "realloc keeps the contents");
+    check(big@ == 1234, "realloc keeps the contents");
     *int fresh = realloc(null, 50)!;
     check(fresh != null, "realloc of null allocates");
     *int huge = realloc(big, 100000)!;
-    check(*huge == 1234, "realloc to a large block keeps the contents");
+    check(huge@ == 1234, "realloc to a large block keeps the contents");
     free(huge);
     free(fresh);
 }
@@ -2797,10 +2797,10 @@ func main() ! {
     int signed = int(p);
     check(uint64(signed) == addr, "pointer to int matches uint64");
     *int q = (*int)(addr);
-    check(*q == 1234, "integer to pointer round trip");
-    *(*int)(addr) = 77;
+    check(q@ == 1234, "integer to pointer round trip");
+    (*int)(addr)@ = 77;
     check(p[0] == 77, "write through a converted integer");
-    int v = *(*int)(addr);
+    int v = (*int)(addr)@;
     check(v == 77, "read through a converted integer");
 
     *P sp = (*P)(p);
@@ -2821,7 +2821,7 @@ func main() ! {
 func main() ! {
     *int p = malloc(sizeof(int) * 8)!;
     *int q = p + 2;
-    *q = 7;
+    q@ = 7;
     check(p[2] == 7, "pointer plus offset");
     check(q - p == 2, "pointer difference");
     check(2 + p == q, "offset plus pointer");
@@ -3083,10 +3083,10 @@ int[4] buffer;
 func main() {
     check(cell == null, "global null pointer");
     cell = &slot;
-    *cell = 6;
+    cell@ = 6;
     check(slot == 6, "write through a global pointer");
     cell = &buffer[2];
-    *cell = 7;
+    cell@ = 7;
     check(buffer[2] == 7, "global pointer to a global array element");
 }
 `, expected: []string{"global null pointer", "write through a global pointer", "global pointer to a global array element"}},
@@ -3103,7 +3103,7 @@ func main() {
     string s = "xyz";
     *int8 q = (*int8)(s);
     check(q[2] == 122, "pointer from a string variable");
-    check(*(*int8)("z") == 122, "deref of a converted string");
+    check((*int8)("z")@ == 122, "deref of a converted string");
 }
 `, expected: []string{"literal string data pointer first byte", "literal string data pointer last byte", "literal strings end with a zero byte", "char pointer from a string", "uint8 pointer from a string", "pointer from a string variable", "deref of a converted string"}},
 
@@ -3150,21 +3150,59 @@ func main() {
 }
 `, expected: []string{"a variadic function sums its arguments", "a variadic function with no arguments", "len of a variadic parameter", "indexing a variadic parameter", "fixed parameters before the variadic one"}},
 
+	{dir: "ptr_deref_postfix", x64Only: true, src: `struct P {
+    int x;
+}
+
+func first(*int p) *int {
+    return p;
+}
+
+func main() {
+    int x = 5;
+    *int p = &x;
+    **int pp = &p;
+    P s = P{x: 3};
+    *P sp = &s;
+
+    p@ = 7;
+    check(x == 7, "write through a pointer");
+    p@ += 1;
+    p@++;
+    check(x == 9, "compound assignment and increment through a pointer");
+    check(pp@@ == 9, "one @ per pointer level");
+    pp@@ = 10;
+    check(x == 10, "write through two levels");
+    check(3 * p@ == 30, "multiplication next to a dereference");
+    check(-p@ == -10, "unary minus before a dereference");
+    sp@.x = 4;
+    check(s.x == 4 && sp@.x == 4, "a field of the dereferenced struct");
+    check(first(p)@ == 10, "dereference of a call");
+    check(&p@ == p, "& is the inverse of @");
+    check(&first(p)@ == p, "& of the dereference of a call");
+    check(&pp@@ == p, "& of a double dereference");
+
+    int[3] values = [1, 2, 3];
+    *int base = &values[0];
+    check((base + 2)@ == 3, "dereference of a parenthesized expression");
+}
+`, expected: []string{"write through a pointer", "compound assignment and increment through a pointer", "one @ per pointer level", "write through two levels", "multiplication next to a dereference", "unary minus before a dereference", "a field of the dereferenced struct", "dereference of a call", "& is the inverse of @", "& of the dereference of a call", "& of a double dereference", "dereference of a parenthesized expression"}},
+
 	{dir: "ptr_convert_levels", x64Only: true, src: `func main() {
     int x = 5;
     *int p = &x;
     **int pp = (**int)(&p);
-    check(**pp == 5, "a conversion to a double pointer");
+    check(pp@@ == 5, "a conversion to a double pointer");
     ***int ppp = (***int)(&pp);
-    check(***ppp == 5, "a conversion to a triple pointer");
+    check(ppp@@@ == 5, "a conversion to a triple pointer");
 
     char a = 5;
-    uint8 b = 3 * *(*uint8)(&a);
+    uint8 b = 3 * (*uint8)(&a)@;
     check(b == 15, "a conversion next to a multiplication and a dereference");
 
     *int8 raw = (*int8)(p);
     **int8 rawpp = (**int8)(&raw);
-    check(**rawpp == 5, "a double pointer to bytes");
+    check(rawpp@@ == 5, "a double pointer to bytes");
 }
 `, expected: []string{"a conversion to a double pointer", "a conversion to a triple pointer", "a conversion next to a multiplication and a dereference", "a double pointer to bytes"}},
 

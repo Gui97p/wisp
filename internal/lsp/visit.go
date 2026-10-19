@@ -72,6 +72,8 @@ func walkExpr(expr ast.Expression, fn func(ast.Expression)) {
 	switch e := expr.(type) {
 	case *ast.BinaryExpr:
 		walkExprs([]ast.Expression{e.Left, e.Right}, fn)
+	case *ast.DerefExpr:
+		walkExpr(e.Value, fn)
 	case *ast.UnaryExpr:
 		walkExpr(e.Value, fn)
 	case *ast.CallExpr:

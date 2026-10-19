@@ -241,10 +241,8 @@ func rootIdentifier(expr ast.Expression) *ast.IdentLiteral {
 		return rootIdentifier(e.Object)
 	case *ast.IndexExpr:
 		return rootIdentifier(e.Array)
-	case *ast.UnaryExpr:
-		if e.Operator == "*" {
-			return rootIdentifier(e.Value)
-		}
+	case *ast.DerefExpr:
+		return rootIdentifier(e.Value)
 	}
 	return nil
 }

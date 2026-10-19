@@ -63,6 +63,8 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		return t.compileBinaryExpr(e)
 	case *ast.UnaryExpr:
 		return t.compileUnaryExpr(e)
+	case *ast.DerefExpr:
+		return t.compileDerefExpr(e)
 	case *ast.CallExpr:
 		return t.compileCallExpr(e)
 	case *ast.CastExpr:
@@ -207,10 +209,7 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 		return base.at(f.Offset, f.Size), nil
 	case *ast.IndexExpr:
 		return t.compileIndex(e)
-	case *ast.UnaryExpr:
-		if e.Operator != "*" {
-			return Mem{}, fmt.Errorf("x86-64: unsupported assignment target %T", expr)
-		}
+	case *ast.DerefExpr:
 		value, err := t.compileExpr(e.Value)
 		if err != nil {
 			return Mem{}, err
@@ -280,9 +279,6 @@ func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
 	case "!":
 		t.text.printft("test %s, %s\n", regStr, regStr)
 		t.text.printft("sete %s\n", regStr)
-	case "*":
-		t.checkNotNull(reg)
-		return Mem{Base: reg, Size: size}, nil
 	default:
 		inst, ok := unaryOperators[expr.Operator]
 		if !ok {
@@ -292,6 +288,18 @@ func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
 	}
 
 	return Reg{reg, size}, nil
+}
+
+func (t *X64Target) compileDerefExpr(expr *ast.DerefExpr) (Operand, error) {
+	value, err := t.compileExpr(expr.Value)
+	if err != nil {
+		return nil, err
+	}
+
+	size := sizeOf(t.info.Types[expr])
+	reg := t.materialize(value, size)
+	t.checkNotNull(reg)
+	return Mem{Base: reg, Size: size}, nil
 }
 
 func (t *X64Target) resolveCallee(expr ast.Expression) (*analyser.Symbol, error) {

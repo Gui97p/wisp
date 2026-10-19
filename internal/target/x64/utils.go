@@ -52,10 +52,9 @@ func regsNeeded(expr ast.Expression) int {
 	case *ast.BinaryExpr:
 		return max(regsNeeded(e.Left), 1+regsNeeded(e.Right), 1)
 	case *ast.UnaryExpr:
-		if e.Operator == "*" {
-			return max(regsNeeded(e.Value), 2)
-		}
 		return max(regsNeeded(e.Value), 1)
+	case *ast.DerefExpr:
+		return max(regsNeeded(e.Value), 2)
 	case *ast.CastExpr:
 		return max(regsNeeded(e.Value), 2)
 	case *ast.ConvExpr:

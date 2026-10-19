@@ -55,6 +55,24 @@ func (u *UnaryExpr) Tree(indent string) string {
 	return sb.String()
 }
 
+type DerefExpr struct {
+	Value Expression
+
+	NodePos
+}
+
+func (*DerefExpr) expr() {}
+func (d *DerefExpr) Tree(indent string) string {
+	var sb strings.Builder
+
+	fmt.Fprintf(&sb, "%sDerefExpr\n", indent)
+	if d.Value != nil {
+		sb.WriteString(d.Value.Tree(indent + "└─ "))
+	}
+
+	return sb.String()
+}
+
 type CallExpr struct {
 	Name Expression
 	Args []Expression

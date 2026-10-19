@@ -18,6 +18,8 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 		return t.compileBinaryExpr(b, e)
 	case *ast.UnaryExpr:
 		return t.compileUnaryExpr(b, e)
+	case *ast.DerefExpr:
+		return fmt.Errorf("lua: pointers are not supported")
 	case *ast.CallExpr:
 		return t.compileCallExpression(b, e)
 	case *ast.MemberExpr:

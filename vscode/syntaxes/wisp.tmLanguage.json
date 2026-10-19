@@ -402,6 +402,10 @@
                 {
                     "name": "keyword.operator.address.wisp",
                     "match": "&"
+                },
+                {
+                    "name": "keyword.operator.dereference.wisp",
+                    "match": "@"
                 }
             ]
         },

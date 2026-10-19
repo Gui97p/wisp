@@ -188,12 +188,12 @@ No import needed. A function with the same name in your module shadows the built
 
 ## Pointers
 
-The star is a prefix of the type: `*int`, `**int`, `*Point`.
+The star is a prefix of the type: `*int`, `**int`, `*Point`. It never dereferences: `p@` reads or writes through a pointer, and `&x` is its inverse, so `&p@` is `p`.
 
 ```wsp
 int x = 1;
 *int p = &x;
-*p = 7;
+p@ = 7;
 
 *int heap = malloc(sizeof(int) * 4)!;
 heap[2] = 30;
@@ -202,10 +202,10 @@ int[] view = heap[0:4];     // slicing a pointer gives a span
 free(heap);
 ```
 
-* A pointer to a struct reaches fields directly (`pp.x`). Dereferencing `null` panics.
+* A pointer to a struct reaches fields directly (`pp.x`). Dereferencing `null` panics. A pointer to a pointer takes one `@` per level: `pp@@`.
 * `p + n`, `p - n`, `p += n` and `p++` move by elements, `p - q` counts elements between pointers of the same type, and pointers compare by address. None of this works on `*void`, so convert it first (assignment does it implicitly).
 * Indexing and slicing a pointer is not bounds-checked, and `p[a:b]` needs both bounds.
-* `(*T)(x)` converts an integer, a string or another pointer to a `*T`, at any depth: `(**int)(&p)`. A type that is not a plain name goes in parentheses. `int(p)` goes the other way. Writing through a converted address is `*(*int8)(address) = 1`.
+* `(*T)(x)` converts an integer, a string or another pointer to a `*T`, at any depth: `(**int)(&p)`. A type that is not a plain name goes in parentheses. `int(p)` goes the other way. Writing through a converted address is `(*int8)(address)@ = 1`.
 * `string(bytes)` views `char`, `int8` or `uint8` bytes as a string without copying. `(*int8)(s)` is the address of a string's bytes, safe for C only when the string ends in a zero byte (literals do, slices of them do not).
 
 ## Globals

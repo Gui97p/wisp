@@ -170,6 +170,8 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 		child = firstExpr(line, col, e.Left, e.Right)
 	case *ast.UnaryExpr:
 		child = exprAt(e.Value, line, col)
+	case *ast.DerefExpr:
+		child = exprAt(e.Value, line, col)
 	case *ast.CallExpr:
 		child = firstExpr(line, col, e.Name)
 		if child == nil {

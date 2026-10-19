@@ -107,9 +107,12 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 	case lexer.TOKEN_MINUS,
 		lexer.TOKEN_NOT,
 		lexer.TOKEN_AMP,
-		lexer.TOKEN_STAR,
 		lexer.TOKEN_NXOR:
 		return p.parseUnaryExpression()
+
+	case lexer.TOKEN_STAR:
+		p.error("`*` does not dereference: write `p@` to read through a pointer, or `(*T)(x)` to convert to a pointer")
+		return nil
 
 	case lexer.TOKEN_LPAREN:
 		if p.looksLikePointerConversion() {
@@ -269,6 +272,8 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		return p.parseCoalesceExpr(left)
 	case lexer.TOKEN_NOT:
 		return &ast.PropagateExpr{Value: left}
+	case lexer.TOKEN_AT:
+		return &ast.DerefExpr{Value: left}
 	case lexer.TOKEN_IN:
 		return p.parseInExpr(left)
 	}

@@ -580,18 +580,6 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 	return result
 }
 
-func calleeText(call *ast.CallExpr) string {
-	switch n := call.Name.(type) {
-	case *ast.IdentLiteral:
-		return n.Value
-	case *ast.MemberExpr:
-		if module, ok := n.Object.(*ast.IdentLiteral); ok {
-			return module.Value + "." + n.Field
-		}
-	}
-	return "T"
-}
-
 func isInvalidType(t Type) bool {
 	_, bad := t.(InvalidType)
 	return bad

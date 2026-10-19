@@ -9,8 +9,8 @@ import (
 )
 
 func isDerefTarget(expr ast.Expression) bool {
-	u, ok := expr.(*ast.UnaryExpr)
-	return ok && u.Operator == "*"
+	_, ok := expr.(*ast.DerefExpr)
+	return ok
 }
 
 func (a *Analyser) checkExpr(expr ast.Expression) Type {
@@ -51,6 +51,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkBinaryExpr(e)
 	case *ast.UnaryExpr:
 		t = a.checkUnaryExpr(e)
+	case *ast.DerefExpr:
+		t = a.checkDerefExpr(e)
 	case *ast.CallExpr:
 		t = a.checkCallExprValue(e)
 	case *ast.MemberExpr:
@@ -273,17 +275,6 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 }
 
 func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
-	if call, ok := expr.Value.(*ast.CallExpr); ok && expr.Operator == "*" {
-		if target, isType := a.typeCallee(call, true); isType {
-			if _, isPointer := underlyingOf(target).(PointerType); !isPointer {
-				name := calleeText(call)
-				a.errorf(expr, "*%s(x) is not a pointer conversion: write (*%s)(x)", name, name)
-				a.evalArgTypes(call)
-				return InvalidType{}
-			}
-		}
-	}
-
 	value := a.checkExpr(expr.Value)
 
 	if _, ok := value.(InvalidType); ok {
@@ -323,21 +314,29 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 			return InvalidType{}
 		}
 		return PointerType{Element: value}
-	case "*":
-		ptr, ok := value.(PointerType)
-		if !ok {
-			a.errorf(expr, "expected pointer for *, got %s", value.String())
-			return InvalidType{}
-		}
-		if isVoidPointer(ptr) {
-			a.error(expr, "cannot dereference *void: convert it to a typed pointer first")
-			return InvalidType{}
-		}
-		return ptr.Element
 	default:
 		a.errorf(expr, "invalid unary operator: %s", expr.Operator)
 		return InvalidType{}
 	}
+}
+
+func (a *Analyser) checkDerefExpr(expr *ast.DerefExpr) Type {
+	value := a.checkExpr(expr.Value)
+
+	if _, ok := value.(InvalidType); ok {
+		return InvalidType{}
+	}
+
+	ptr, ok := value.(PointerType)
+	if !ok {
+		a.errorf(expr, "expected a pointer before @, got %s", value.String())
+		return InvalidType{}
+	}
+	if isVoidPointer(ptr) {
+		a.error(expr, "cannot dereference *void: convert it to a typed pointer first")
+		return InvalidType{}
+	}
+	return ptr.Element
 }
 
 func (a *Analyser) checkCallExprValue(expr *ast.CallExpr) Type {
@@ -451,7 +450,7 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 }
 
 func (a *Analyser) receiverArgument(object ast.Expression, objType Type, pointerRecv, objectPtr bool) ast.Expression {
-	var node *ast.UnaryExpr
+	var node ast.Expression
 	var tp Type
 
 	switch {
@@ -459,7 +458,7 @@ func (a *Analyser) receiverArgument(object ast.Expression, objType Type, pointer
 		node = &ast.UnaryExpr{Operator: "&", Value: object}
 		tp = PointerType{Element: objType}
 	case !pointerRecv && objectPtr:
-		node = &ast.UnaryExpr{Operator: "*", Value: object}
+		node = &ast.DerefExpr{Value: object}
 		tp = objType.(PointerType).Element
 	default:
 		return object

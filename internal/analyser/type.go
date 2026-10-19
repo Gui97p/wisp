@@ -465,7 +465,7 @@ func isFloatName(name string) bool {
 
 func isAddressable(expr ast.Expression) bool {
 	switch expr.(type) {
-	case *ast.IdentLiteral, *ast.MemberExpr, *ast.IndexExpr:
+	case *ast.IdentLiteral, *ast.MemberExpr, *ast.IndexExpr, *ast.DerefExpr:
 		return true
 	default:
 		return false

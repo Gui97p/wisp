@@ -130,6 +130,8 @@ const (
 
 	TOKEN_LBRACKET // [
 	TOKEN_RBRACKET // ]
+
+	TOKEN_AT // @
 )
 
 var keywords = map[string]TokenType{
