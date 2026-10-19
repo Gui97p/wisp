@@ -92,6 +92,8 @@ func walkExpr(expr ast.Expression, fn func(ast.Expression)) {
 		walkExprs(e.Elements, fn)
 	case *ast.CastExpr:
 		walkExpr(e.Value, fn)
+	case *ast.ConvExpr:
+		walkExprs(e.Args, fn)
 	case *ast.InExpr:
 		walkExprs([]ast.Expression{e.Left, e.Right}, fn)
 	case *ast.PropagateExpr:

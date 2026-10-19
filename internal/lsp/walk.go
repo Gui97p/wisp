@@ -192,6 +192,8 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 		child = firstExpr(line, col, e.Elements...)
 	case *ast.CastExpr:
 		child = exprAt(e.Value, line, col)
+	case *ast.ConvExpr:
+		child = firstExpr(line, col, e.Args...)
 	case *ast.InExpr:
 		child = firstExpr(line, col, e.Left, e.Right)
 	case *ast.ArrayLiteral:

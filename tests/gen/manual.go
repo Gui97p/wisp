@@ -2742,12 +2742,12 @@ func main() ! {
     check(p[3] == 40, "pointer index last");
     p[1] += 5;
     check(p[1] == 25, "pointer index compound assign");
-    *int mid = *int(p);
+    *int mid = (*int)(p);
     check(mid[3] == 40, "pointer index through a converted pointer");
 
     *int8 b = malloc(16)!;
     b[4] = 7;
-    *int8 q = *int8(b);
+    *int8 q = (*int8)(b);
     check(q[4] == 7, "pointer index on bytes");
     int i = 4;
     check(b[i] == 7, "pointer index with a variable");
@@ -2796,19 +2796,19 @@ func main() ! {
     check(addr != 0, "pointer to integer is not null");
     int signed = int(p);
     check(uint64(signed) == addr, "pointer to int matches uint64");
-    *int q = *int(addr);
+    *int q = (*int)(addr);
     check(*q == 1234, "integer to pointer round trip");
-    **int(addr) = 77;
+    *(*int)(addr) = 77;
     check(p[0] == 77, "write through a converted integer");
-    int v = **int(addr);
+    int v = *(*int)(addr);
     check(v == 77, "read through a converted integer");
 
-    *P sp = *P(p);
+    *P sp = (*P)(p);
     sp.b = 5;
     check(p[1] == 5, "struct pointer reinterpreted from int pointer");
-    *int8 bytes = *int8(sp);
+    *int8 bytes = (*int8)(sp);
     check(bytes[0] == 77, "bytes view of a struct pointer");
-    check(*int(0) == null, "converted zero is the null pointer");
+    check((*int)(0) == null, "converted zero is the null pointer");
     free(p);
 }
 `, expected: []string{"pointer to integer is not null", "pointer to int matches uint64", "integer to pointer round trip", "write through a converted integer", "read through a converted integer", "struct pointer reinterpreted from int pointer", "bytes view of a struct pointer", "converted zero is the null pointer"}},
@@ -2927,7 +2927,7 @@ func main() ! {
     free(s, d);
     *int8 raw2 = malloc(40)!;
     *int d2 = malloc(40)!;
-    check((raw2 == raw && uint64(d2) == uint64(d)) || (uint64(raw2) == uint64(d) && d2 == *int(raw)), "free of mixed string and pointer");
+    check((raw2 == raw && uint64(d2) == uint64(d)) || (uint64(raw2) == uint64(d) && d2 == (*int)(raw)), "free of mixed string and pointer");
     free(raw2, d2, null);
     check(true, "free of many accepts null");
 }
@@ -3092,18 +3092,18 @@ func main() {
 `, expected: []string{"global null pointer", "write through a global pointer", "global pointer to a global array element"}},
 
 	{dir: "string_pointer", x64Only: true, src: `func main() {
-    *int8 p = *int8("hello");
+    *int8 p = (*int8)("hello");
     check(p[0] == 104, "literal string data pointer first byte");
     check(p[4] == 111, "literal string data pointer last byte");
     check(p[5] == 0, "literal strings end with a zero byte");
-    *char c = *char("hi");
+    *char c = (*char)("hi");
     check(c[1] == 'i', "char pointer from a string");
-    *uint8 u = *uint8("A");
+    *uint8 u = (*uint8)("A");
     check(u[0] == 65, "uint8 pointer from a string");
     string s = "xyz";
-    *int8 q = *int8(s);
+    *int8 q = (*int8)(s);
     check(q[2] == 122, "pointer from a string variable");
-    check(**int8("z") == 122, "deref of a converted string");
+    check(*(*int8)("z") == 122, "deref of a converted string");
 }
 `, expected: []string{"literal string data pointer first byte", "literal string data pointer last byte", "literal strings end with a zero byte", "char pointer from a string", "uint8 pointer from a string", "pointer from a string variable", "deref of a converted string"}},
 
@@ -3149,6 +3149,24 @@ func main() {
     check(withBase(100, 1, 2) == 103, "fixed parameters before the variadic one");
 }
 `, expected: []string{"a variadic function sums its arguments", "a variadic function with no arguments", "len of a variadic parameter", "indexing a variadic parameter", "fixed parameters before the variadic one"}},
+
+	{dir: "ptr_convert_levels", x64Only: true, src: `func main() {
+    int x = 5;
+    *int p = &x;
+    **int pp = (**int)(&p);
+    check(**pp == 5, "a conversion to a double pointer");
+    ***int ppp = (***int)(&pp);
+    check(***ppp == 5, "a conversion to a triple pointer");
+
+    char a = 5;
+    uint8 b = 3 * *(*uint8)(&a);
+    check(b == 15, "a conversion next to a multiplication and a dereference");
+
+    *int8 raw = (*int8)(p);
+    **int8 rawpp = (**int8)(&raw);
+    check(**rawpp == 5, "a double pointer to bytes");
+}
+`, expected: []string{"a conversion to a double pointer", "a conversion to a triple pointer", "a conversion next to a multiplication and a dereference", "a double pointer to bytes"}},
 
 	{dir: "native_bindings", x64Only: true, src: `struct P {
     int x;
@@ -3247,7 +3265,7 @@ func main() ! {
     check(count_calls() == 2, "C keeps its own static state");
     int8 small = 7;
     check(add(int32(small), 1) == 8, "narrow argument widened for C");
-    check(sum_bytes(*int8("abc"), 3) == 294, "pointer to the bytes of a string");
+    check(sum_bytes((*int8)("abc"), 3) == 294, "pointer to the bytes of a string");
 }
 `},
 
@@ -3284,8 +3302,8 @@ int main(void) {
 extern func strlen(*int8 s) int64;
 
 func main() {
-    check(strlen(*int8("hello")) == 5, "libc strlen on a string literal");
-    puts(*int8("hi"));
+    check(strlen((*int8)("hello")) == 5, "libc strlen on a string literal");
+    puts((*int8)("hi"));
 }
 `, expected: []string{"libc strlen on a string literal", "hi"}},
 
@@ -3293,9 +3311,9 @@ func main() {
 
 func main() int {
     string name = "wisp";
-    printf(*int8("%d %s %c|%ld\n"), 42, *int8(name), 'x', 5000000000);
-    printf(*int8("no args\n"));
-    printf(*int8("%d %d %d %d %d %d %d\n"), 1, 2, 3, 4, 5, 6, 7);
+    printf((*int8)("%d %s %c|%ld\n"), 42, (*int8)(name), 'x', 5000000000);
+    printf((*int8)("no args\n"));
+    printf((*int8)("%d %d %d %d %d %d %d\n"), 1, 2, 3, 4, 5, 6, 7);
     return 0;
 }
 `, expected: []string{"42 wisp x|5000000000", "no args", "1 2 3 4 5 6 7"}},
@@ -3314,7 +3332,7 @@ func fail() !int {
 }
 
 func main() !int {
-    puts(*int8("hi"));
+    puts((*int8)("hi"));
     return fail()!;
 }
 `, expected: []string{"hi"}, abort: "error[main.E]: boom"},

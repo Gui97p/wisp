@@ -268,6 +268,26 @@ func (t *TupleExpr) Tree(indent string) string {
 	return b.String()
 }
 
+type ConvExpr struct {
+	Type TypeRef
+	Args []Expression
+	Cast *CastExpr
+
+	NodePos
+}
+
+func (*ConvExpr) expr() {}
+func (c *ConvExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sConvExpr(%s%s)\n", indent, strings.Repeat("*", c.Type.PointerDepth), c.Type.Name)
+	for _, a := range c.Args {
+		b.WriteString(a.Tree(indent + "└─ "))
+	}
+
+	return b.String()
+}
+
 type CastExpr struct {
 	Value    Expression
 	Type     TypeRef

@@ -68,6 +68,11 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	if expr := exprInProgram(program, line, col); expr != nil {
 		text = hoverText(expr, program, info, line, col)
 		rng = exprRange(expr)
+		if conv, ok := expr.(*ast.ConvExpr); ok && refContains(&conv.Type, line, col) {
+			if t := typeRefHover(&conv.Type, program, info, line, col); t != "" {
+				text, rng = t, refRange(&conv.Type)
+			}
+		}
 	}
 
 	if text == "" {
@@ -196,6 +201,10 @@ func paramHoverText(param *ast.Param, owner ast.Node, idx int, program *ast.Prog
 
 func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, line, col int) string {
 	switch e := expr.(type) {
+	case *ast.ConvExpr:
+		if t, ok := info.Types[e]; ok {
+			return renderDoc(analyser.TypeText(t), "Pointer conversion: the argument becomes this type.")
+		}
 	case *ast.MemberExpr:
 		if text := memberHover(e, program, info); text != "" {
 			return text

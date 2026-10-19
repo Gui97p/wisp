@@ -67,6 +67,8 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		return t.compileCallExpr(e)
 	case *ast.CastExpr:
 		return t.compileCastExpr(e)
+	case *ast.ConvExpr:
+		return t.compileExpr(e.Cast)
 	case *ast.TernaryExpr:
 		return t.compileTernaryExpr(e)
 	case *ast.MemberExpr:

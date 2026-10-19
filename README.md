@@ -205,8 +205,8 @@ free(heap);
 * A pointer to a struct reaches fields directly (`pp.x`). Dereferencing `null` panics.
 * `p + n`, `p - n`, `p += n` and `p++` move by elements, `p - q` counts elements between pointers of the same type, and pointers compare by address. None of this works on `*void`, so convert it first (assignment does it implicitly).
 * Indexing and slicing a pointer is not bounds-checked, and `p[a:b]` needs both bounds.
-* `*T(x)` converts an integer or pointer to a `*T`, and `int(p)` goes the other way. Writing through a converted address takes two stars: `**int8(address) = 1`.
-* `string(bytes)` views `char`, `int8` or `uint8` bytes as a string without copying. `*int8(s)` is the address of a string's bytes, safe for C only when the string ends in a zero byte (literals do, slices of them do not).
+* `(*T)(x)` converts an integer, a string or another pointer to a `*T`, at any depth: `(**int)(&p)`. A type that is not a plain name goes in parentheses. `int(p)` goes the other way. Writing through a converted address is `*(*int8)(address) = 1`.
+* `string(bytes)` views `char`, `int8` or `uint8` bytes as a string without copying. `(*int8)(s)` is the address of a string's bytes, safe for C only when the string ends in a zero byte (literals do, slices of them do not).
 
 ## Globals
 

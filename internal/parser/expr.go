@@ -112,6 +112,9 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		return p.parseUnaryExpression()
 
 	case lexer.TOKEN_LPAREN:
+		if p.looksLikePointerConversion() {
+			return p.parsePointerConversion()
+		}
 		if p.looksLikeLambda() {
 			return p.parseFuncLiteral()
 		}
@@ -120,6 +123,46 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 
 	p.error("expected expression")
 	return nil
+}
+
+func (p *Parser) looksLikePointerConversion() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+
+	p.advance()
+	if p.current.Type != lexer.TOKEN_STAR {
+		return false
+	}
+
+	ref := p.parseTypeDefinitionPrefix()
+	if ref == nil || ref.IsMap || ref.IsFunc || ref.Name == "" {
+		return false
+	}
+	if !p.expect(lexer.TOKEN_RPAREN) {
+		return false
+	}
+
+	return p.peek.Type == lexer.TOKEN_LPAREN
+}
+
+func (p *Parser) parsePointerConversion() ast.Expression {
+	p.advance()
+
+	ref := p.parseTypeDefinitionPrefix()
+	if ref == nil {
+		return nil
+	}
+
+	if !p.expect(lexer.TOKEN_RPAREN) || !p.expect(lexer.TOKEN_LPAREN) {
+		return nil
+	}
+
+	args := p.parseCallArgs()
+	if args == nil {
+		return nil
+	}
+
+	return &ast.ConvExpr{Type: *ref, Args: args}
 }
 
 func (p *Parser) parseFuncLiteral() ast.Expression {

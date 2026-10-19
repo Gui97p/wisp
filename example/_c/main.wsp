@@ -28,7 +28,7 @@ extern func scale_by_three(int32 value) int32;
 // `wisp_scale` and calls it.
 export func scale(int32 value, int32 factor) int32 as wisp_scale => value * factor;
 
-// A string gives the address of its bytes with `*int8(text)`. C expects a
+// A string gives the address of its bytes with `(*int8)(text)`. C expects a
 // zero byte at the end, which string literals have and slices of them do not.
 func check(bool holds, string what) {
   if holds {
@@ -42,7 +42,7 @@ func check(bool holds, string what) {
 func main() int {
   check(add(2, 3) == 5, "C adds two numbers");
   check(c_twice(21) == 42, "an extern function renamed with as");
-  check(sum_bytes(*int8("abc"), 3) == 294, "C reads the bytes of a string");
+  check(sum_bytes((*int8)("abc"), 3) == 294, "C reads the bytes of a string");
   check(scale_by_three(7) == 21, "C calls back into Wisp");
   return 0;
 }

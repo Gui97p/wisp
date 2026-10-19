@@ -80,6 +80,8 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 		b.WriteString("))")
 	case *ast.CastExpr:
 		return t.compileCastExpr(b, e)
+	case *ast.ConvExpr:
+		return t.compileCastExpr(b, e.Cast)
 
 	case *ast.IntLiteral:
 		b.WriteString(intLiteralText(e))

@@ -70,6 +70,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = InvalidType{}
 	case *ast.CastExpr:
 		t = a.info.Types[e]
+	case *ast.ConvExpr:
+		t = a.checkConvExpr(e)
 	case *ast.InExpr:
 		t = a.checkInExpr(e)
 	case *ast.StructLiteral:
@@ -271,9 +273,14 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 }
 
 func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
-	if expr.Operator == "*" {
-		if t, handled := a.checkPointerConversion(expr); handled {
-			return t
+	if call, ok := expr.Value.(*ast.CallExpr); ok && expr.Operator == "*" {
+		if target, isType := a.typeCallee(call, true); isType {
+			if _, isPointer := underlyingOf(target).(PointerType); !isPointer {
+				name := calleeText(call)
+				a.errorf(expr, "*%s(x) is not a pointer conversion: write (*%s)(x)", name, name)
+				a.evalArgTypes(call)
+				return InvalidType{}
+			}
 		}
 	}
 

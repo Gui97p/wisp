@@ -527,41 +527,45 @@ func isWideInteger(t Type) bool {
 	return false
 }
 
-func (a *Analyser) checkPointerConversion(expr *ast.UnaryExpr) (Type, bool) {
-	call, ok := expr.Value.(*ast.CallExpr)
-	if !ok {
-		return nil, false
+func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
+	result := a.resolveTypeRef(expr, a.scope, expr.Type)
+	if isInvalidType(result) {
+		for _, arg := range expr.Args {
+			a.checkExpr(arg)
+		}
+		return result
 	}
-	target, ok := a.typeCallee(call, true)
-	if !ok {
-		return nil, false
-	}
-	if _, alreadyPointer := underlyingOf(target).(PointerType); alreadyPointer {
-		return nil, false
-	}
-
-	result := PointerType{Element: target}
-
-	if len(call.Args) != 1 {
-		a.errorf(expr, "conversion to %s expects 1 argument, got %d", result.String(), len(call.Args))
-		a.evalArgTypes(call)
-		return result, true
+	pointer, isPointer := result.(PointerType)
+	if !isPointer {
+		a.errorf(expr, "%s is not a pointer type: write a conversion to it as %s(x)", result.String(), result.String())
+		for _, arg := range expr.Args {
+			a.checkExpr(arg)
+		}
+		return InvalidType{}
 	}
 
-	arg := call.Args[0]
+	if len(expr.Args) != 1 {
+		a.errorf(expr, "conversion to %s expects 1 argument, got %d", result.String(), len(expr.Args))
+		for _, arg := range expr.Args {
+			a.checkExpr(arg)
+		}
+		return result
+	}
+
+	arg := expr.Args[0]
 	from := a.checkExpr(arg)
 	switch {
 	case isInvalidType(from):
-		return result, true
+		return result
 	case isUntyped(from) && isInteger(from):
 		a.checkConstFits(arg, PrimitiveType{Name: "uint64"})
 		a.fixUntyped(arg, PrimitiveType{Name: "uint64"})
 	case isWideInteger(underlyingOf(from)):
-	case isString(underlyingOf(from)) && isByteLike(target):
+	case isString(underlyingOf(from)) && isByteLike(pointer.Element):
 	default:
 		if _, isPtr := underlyingOf(from).(PointerType); !isPtr {
 			a.errorf(expr, "cannot convert %s to %s", from.String(), result.String())
-			return InvalidType{}, true
+			return InvalidType{}
 		}
 	}
 
@@ -573,7 +577,19 @@ func (a *Analyser) checkPointerConversion(expr *ast.UnaryExpr) (Type, bool) {
 
 	a.info.Types[cast] = result
 	expr.Cast = cast
-	return result, true
+	return result
+}
+
+func calleeText(call *ast.CallExpr) string {
+	switch n := call.Name.(type) {
+	case *ast.IdentLiteral:
+		return n.Value
+	case *ast.MemberExpr:
+		if module, ok := n.Object.(*ast.IdentLiteral); ok {
+			return module.Value + "." + n.Field
+		}
+	}
+	return "T"
 }
 
 func isInvalidType(t Type) bool {

@@ -66,12 +66,14 @@ export func demo() ! {
   free(heap);
 
   // Pointers and integers convert explicitly, and so do pointers of
-  // different types. Because `*Pair(p)` reads like a dereference, writing a
-  // dereference of a converted value takes two stars: **int(addr).
+  // different types. A pointer type that is not a plain name goes in
+  // parentheses, as in `(*int8)(address)`, and it works at any depth:
+  // `(**int)(&p)`. To read through a converted value, dereference it:
+  // `*(*int8)(address)`.
   int8 raw = 65;
   uint64 address = uint64(&raw);
   expect.expect(address != 0, "a pointer converts to an integer");
-  expect.expect(**int8(address) == 65, "an integer converts to a pointer");
+  expect.expect(*(*int8)(address) == 65, "an integer converts to a pointer");
 
   // Bytes become a string without a copy, and a string gives the address of
   // its bytes. The second one is only safe to hand to C when the string ends
@@ -83,7 +85,7 @@ export func demo() ! {
   string text = string(bytes[0:2]);
   expect.expect(text == "hi", "string(bytes) views the bytes as a string");
 
-  *int8 literal = *int8("hey");
+  *int8 literal = (*int8)("hey");
   expect.expect(literal[0] == 104 && literal[3] == 0, "a string literal ends in a zero byte");
   free(bytes);
 }
