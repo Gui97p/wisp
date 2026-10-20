@@ -86,8 +86,8 @@ func (t *X64Target) store(op Operand, dst Mem) {
 		size = min(size, dst.Size-off)
 		t.storeWord(dst.at(off, size), w)
 		off += size
-		t.freeWord(w)
 	}
+	t.freeOp(op)
 }
 
 func (t *X64Target) pushValue(op Operand) int {
@@ -357,4 +357,12 @@ func (t *X64Target) withFreeRegisters(fn func() error) error {
 		t.ctx.AllocRegister(r)
 	}
 	return err
+}
+
+func (t *X64Target) typeLabel(module, key string) Mem {
+	sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
+	if module != t.module {
+		t.prelude.define(sym)
+	}
+	return label(sym, 8)
 }

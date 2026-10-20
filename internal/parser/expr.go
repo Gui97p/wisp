@@ -161,6 +161,7 @@ func (p *Parser) parsePointerConversion() ast.Expression {
 	}
 
 	args := p.parseCallArgs()
+	p.spread = false
 	if args == nil {
 		return nil
 	}
@@ -350,7 +351,9 @@ func (p *Parser) parseCallExpression(name ast.Expression) ast.Expression {
 		return nil
 	}
 
-	return &ast.CallExpr{Name: name, Args: args}
+	call := &ast.CallExpr{Name: name, Args: args, Spread: p.spread}
+	p.spread = false
+	return call
 }
 
 func (p *Parser) parseCallArgs() []ast.Expression {
@@ -382,6 +385,11 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 			return nil
 		}
 		args = append(args, arg)
+	}
+
+	if p.peek.Type == lexer.TOKEN_VARIADIC {
+		p.advance()
+		p.spread = true
 	}
 
 	if !p.expect(lexer.TOKEN_RPAREN) {

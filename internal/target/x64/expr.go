@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -42,6 +43,10 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		sym, ok := t.info.Idents[e]
 		if !ok {
 			return nil, fmt.Errorf("x86-64: undefined identifier literal")
+		}
+		if orig, ok := t.info.Narrowed[sym]; ok {
+			off, _ := t.ctx.Get(orig)
+			return slot(off, 24).at(8, sizeOf(sym.Type)), nil
 		}
 		size := sizeOf(t.info.Types[e])
 
@@ -243,6 +248,9 @@ func (t *X64Target) errorMember(expr *ast.BinaryExpr) (errExpr, member ast.Expre
 }
 
 func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
+	if tc, ok := t.info.TypeCases[expr]; ok {
+		return t.compileTypeCase(expr, tc)
+	}
 	if isString(t.info.Types[expr.Left]) || isString(t.info.Types[expr.Right]) {
 		return t.compileStringBinary(expr)
 	}
@@ -250,6 +258,76 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 		return t.compileErrorBinary(expr, errExpr, member, ev)
 	}
 	return t.compileScalarBinary(expr)
+}
+
+func (t *X64Target) compileTypeCase(expr *ast.BinaryExpr, tc *analyser.TypeCase) (Operand, error) {
+	op, err := t.compileExpr(expr.Left)
+	if err != nil {
+		return nil, err
+	}
+	sub := op.(Mem)
+
+	reg := t.ctx.AllocFreeRegister()
+	regStr := t.ctx.GetRegister(reg, 1)
+	t.text.printft("xor %s, %s\n", t.ctx.GetRegister(reg, 4), t.ctx.GetRegister(reg, 4))
+
+	tmp := t.ctx.AllocFreeRegister()
+	tmpStr := t.ctx.GetRegister(tmp, 8)
+	t.loadWord(tmp, sub.at(0, 8))
+
+	if tc.Group {
+		var lo, hi int
+		switch tp := tc.Type.(type) {
+		case analyser.PrimitiveType:
+			if strings.Contains(tp.Name, "uint") {
+				lo = analyser.BoxCode("uint")
+				hi = analyser.BoxCode("uint64")
+			} else if strings.Contains(tp.Name, "int") {
+				lo = analyser.BoxCode("int")
+				hi = analyser.BoxCode("int64")
+			} else {
+				lo = analyser.BoxCode("float")
+				hi = analyser.BoxCode("float64")
+			}
+		}
+		t.text.printft("sub %s, %d\ncmp %s, %d\n", tmpStr, lo, tmpStr, hi-lo)
+		t.text.printft("setbe %s\n", regStr)
+	} else {
+		layout := analyser.Layout(tc.Type)
+		w := t.ctx.AllocFreeRegister()
+		var expected Operand
+
+		if layout.Named() {
+			mod, key, _ := analyser.DescriptorOf(tc.Type)
+			t.loadWord(w, Addr{Of: t.typeLabel(mod, key)})
+			expected = Reg{w, 8}
+		} else {
+			expected = Imm(analyser.BoxCode(layout.Code))
+		}
+		t.text.printft("cmp %s, %s\n", tmpStr, t.opText(expected, 8))
+		t.text.printft("sete %s\n", regStr)
+
+		if layout.Identity != "" && layout.Identity != "void" {
+			t.loadWord(tmp, sub.at(16, 8))
+			if c := analyser.BoxCode(layout.Identity); c != 0 {
+				expected = Imm(c)
+			} else {
+				mod, key, _ := analyser.DescriptorOf(tc.Type)
+				t.loadWord(w, Addr{Of: t.typeLabel(mod, key)})
+				expected = Reg{w, 8}
+			}
+			t.text.printft("cmp %s, %s\n", tmpStr, t.opText(expected, 8))
+			tmpStr1 := t.ctx.GetRegister(tmp, 1)
+			t.text.printft("sete %s\n", tmpStr1)
+			t.text.printft("and %s, %s\n", regStr, tmpStr1)
+		}
+		t.ctx.FreeRegister(w)
+	}
+
+	t.ctx.FreeRegister(tmp)
+	t.freeOp(sub)
+
+	return Reg{reg, 1}, nil
 }
 
 func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {

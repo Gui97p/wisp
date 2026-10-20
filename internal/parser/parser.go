@@ -20,6 +20,7 @@ type Parser struct {
 	allowStructLiteral bool
 	switchNameCount    int
 	cVariadic          bool
+	spread             bool
 }
 
 func NewParser(l *lexer.Lexer) *Parser {

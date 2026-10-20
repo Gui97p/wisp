@@ -157,6 +157,25 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 	return decl
 }
 
+func (p *Parser) parseAnyVariadic(params []ast.Param) []ast.Param {
+	if !p.expect(lexer.TOKEN_IDENT) {
+		return nil
+	}
+
+	name := p.current.Literal
+	line, col, endLine, endCol := p.currentIdentPos()
+	if !p.checkReservedName(name) {
+		return nil
+	}
+
+	return append(params, ast.Param{
+		Name:     name,
+		Variadic: true,
+		Any:      true,
+		Line:     line, Col: col, EndLine: endLine, EndCol: endCol,
+	})
+}
+
 func (p *Parser) parseFuncParamList() []ast.Param {
 	params := []ast.Param{}
 	p.cVariadic = false
@@ -169,6 +188,9 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 
 	p.advance()
 	for p.peek.Type != lexer.TOKEN_RPAREN && p.peek.Type != lexer.TOKEN_EOF {
+		if p.current.Type == lexer.TOKEN_VARIADIC {
+			return p.parseAnyVariadic(params)
+		}
 		if !p.isPointerType() {
 			p.errorType(p.current.Type)
 			return params
@@ -229,18 +251,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 					p.cVariadic = true
 					return params
 				}
-				if !p.expect(lexer.TOKEN_IDENT) {
-					return nil
-				}
-
-				line, col, endLine, endCol := p.currentIdentPos()
-				params = append(params, ast.Param{
-					Name:     p.current.Literal,
-					Type:     currentType,
-					Variadic: true,
-					Line:     line, Col: col, EndLine: endLine, EndCol: endCol,
-				})
-				return params
+				return p.parseAnyVariadic(params)
 			}
 
 			if p.current.Type != lexer.TOKEN_IDENT {

@@ -73,10 +73,22 @@ func (d *DerefExpr) Tree(indent string) string {
 	return sb.String()
 }
 
+type TypeLabel struct {
+	Type TypeRef
+
+	NodePos
+}
+
+func (*TypeLabel) expr() {}
+func (t *TypeLabel) Tree(indent string) string {
+	return fmt.Sprintf("%sTypeLabel(%s%s)\n", indent, strings.Repeat("*", t.Type.PointerDepth), t.Type.Name)
+}
+
 type CallExpr struct {
-	Name Expression
-	Args []Expression
-	Cast *CastExpr
+	Name   Expression
+	Args   []Expression
+	Spread bool
+	Cast   *CastExpr
 
 	NodePos
 }

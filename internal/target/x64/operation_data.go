@@ -176,6 +176,8 @@ func alignOf(at analyser.Type) int {
 		return alignOf(tp.Element)
 	case *analyser.StructType:
 		return layoutOf(tp).Align
+	case analyser.BoxedType:
+		return 8
 	case analyser.NamedType:
 		return alignOf(tp.Underlying)
 	}
@@ -205,6 +207,8 @@ func sizeOf(at analyser.Type) int {
 		return layoutOf(tp).Size
 	case analyser.SpanType:
 		return 16
+	case analyser.BoxedType:
+		return 24
 	case analyser.NamedType:
 		return sizeOf(tp.Underlying)
 	}

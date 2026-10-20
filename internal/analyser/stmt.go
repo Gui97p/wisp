@@ -132,6 +132,7 @@ func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
 	a.requireBool(stmt.Condition, condType, "if condition")
 
 	a.enterScope()
+	a.narrowSwitchVariable(stmt.Condition)
 	a.checkBlock(stmt.Then)
 	a.exitScope()
 
@@ -293,6 +294,9 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 				valid = false
 			}
 		}
+		if a.assignsSwitchVariable(target) {
+			valid = false
+		}
 		if name, ok := a.importedConst(target); ok {
 			a.errorConstAssign(target, name)
 			valid = false
@@ -404,6 +408,9 @@ func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 			a.errorConstAssign(s.Target, root.Value)
 			return
 		}
+	}
+	if a.assignsSwitchVariable(s.Target) {
+		return
 	}
 	if name, ok := a.importedConst(s.Target); ok {
 		a.errorConstAssign(s.Target, name)

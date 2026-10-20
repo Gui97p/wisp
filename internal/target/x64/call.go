@@ -212,6 +212,44 @@ func (t *X64Target) hiddenArg(tp analyser.Type, value Operand) *ast.IdentLiteral
 	return ident
 }
 
+func (t *X64Target) boxArg(dst Mem, arg analyser.Type, op Operand) {
+	layout := analyser.Layout(arg)
+
+	var tag Operand = Imm(analyser.BoxCode(layout.Code))
+	if layout.Named() {
+		mod, key, _ := analyser.DescriptorOf(arg)
+		tag = Addr{Of: t.typeLabel(mod, key)}
+	}
+	t.storeWord(dst, tag)
+
+	str := false
+	if tp, ok := underlying(arg).(analyser.PrimitiveType); ok && tp.Name == "string" {
+		str = true
+	}
+
+	if str {
+		t.store(op, dst.at(8, 16))
+	} else {
+		widenOp := t.widen(op, arg, 8)
+		t.storeWord(dst.at(8, 8), widenOp)
+		t.freeOp(widenOp)
+
+		var w1 Operand = Imm(0)
+		switch layout.Identity {
+		case "", "void":
+		default:
+			if c := analyser.BoxCode(layout.Identity); c != 0 {
+				w1 = Imm(c)
+				break
+			}
+
+			mod, key, _ := analyser.DescriptorOf(arg)
+			w1 = Addr{Of: t.typeLabel(mod, key)}
+		}
+		t.storeWord(dst.at(16, 8), w1)
+	}
+}
+
 func (t *X64Target) compileVariadicCall(sym *analyser.Symbol, extern bool, expr *ast.CallExpr, ft *analyser.FuncType, rets []analyser.Type) ([]Operand, error) {
 	fixed := len(ft.Params) - 1
 	elem := ft.Params[fixed]
@@ -227,13 +265,90 @@ func (t *X64Target) compileVariadicCall(sym *analyser.Symbol, extern bool, expr 
 		args = append(args, t.hiddenArg(t.info.Types[arg], op))
 	}
 
+	if expr.Spread {
+		extra--
+		arg := expr.Args[len(expr.Args)-1]
+		if len(expr.Args) == fixed+1 {
+			op, err := t.compileExpr(arg)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, t.hiddenArg(analyser.SpanType{Element: elem}, op))
+			return t.compileCall(t.funcSymbol(sym.Module, sym.Name), extern, args, rets, false)
+		}
+
+		rspMem := slot(t.ctx.Reserve(8), 8)
+		t.text.printft("mov %s, rsp\n", t.memText(rspMem))
+
+		stride := esize
+		if _, ok := t.info.Types[arg].(analyser.BoxedType); ok {
+			stride = 24
+		}
+
+		op, err := t.compileExpr(arg)
+		if err != nil {
+			return nil, err
+		}
+
+		spanSlot := slot(t.ctx.Reserve(16), 16)
+		t.store(op, spanSlot)
+		lenReg := t.materialize(spanSlot.at(8, 8), 8)
+		cReg := t.ctx.AllocFreeRegister()
+		t.loadWord(cReg, Reg{lenReg, 8})
+		cStr := t.ctx.GetRegister(cReg, 8)
+		t.text.printft("add %s, %d\n", cStr, extra)
+		t.text.printft("imul %s, %d\n", cStr, stride)
+		t.text.printft("add %s, 15\nand %s, -16\n", cStr, cStr)
+		t.text.printft("sub rsp, %s\n", cStr)
+		t.ctx.FreeRegister(cReg)
+
+		for i := range extra {
+			op, err := t.compileExpr(expr.Args[fixed+i])
+			if err != nil {
+				return nil, err
+			}
+			if arg, boxed := t.info.Boxes[expr.Args[fixed+i]]; boxed {
+				t.boxArg(Mem{Base: x64context.SP, Disp: stride * i, Size: 24}, arg, op)
+			} else {
+				t.store(op, Mem{Base: x64context.SP, Disp: i * esize, Size: esize})
+			}
+		}
+
+		t.push(x64context.SI)
+		t.push(x64context.DI)
+		t.push(x64context.CX)
+
+		t.loadWord(x64context.SI, spanSlot.at(0, 8))
+		t.text.printft("lea rdi, [rsp + 24 + %d*%d]\n", extra, stride)
+		t.loadWord(x64context.CX, spanSlot.at(8, 8))
+		t.text.printft("imul rcx, %d\n", stride)
+		t.text.printlnt("rep movsb")
+
+		t.pop(x64context.CX)
+		t.pop(x64context.DI)
+		t.pop(x64context.SI)
+
+		t.text.printft("add %s, %d\n", t.ctx.GetRegister(lenReg, 8), extra)
+		args = append(args, t.hiddenArg(analyser.SpanType{Element: elem}, Wide{Words: []Operand{Addr{Of: Mem{Base: x64context.SP}}, Reg{lenReg, 8}}}))
+		ops, err := t.compileCall(t.funcSymbol(sym.Module, sym.Name), extern, args, rets, false)
+		if err != nil {
+			return nil, err
+		}
+		t.text.printft("mov rsp, %s\n", t.memText(rspMem))
+		return ops, nil
+	}
+
 	block := slot(t.ctx.Reserve((extra*esize+7)/8*8), extra*esize)
 	for i := range extra {
 		op, err := t.compileExpr(expr.Args[fixed+i])
 		if err != nil {
 			return nil, err
 		}
-		t.store(op, block.at(i*esize, esize))
+		if arg, boxed := t.info.Boxes[expr.Args[fixed+i]]; boxed {
+			t.boxArg(block.at(i*24, 24), arg, op)
+		} else {
+			t.store(op, block.at(i*esize, esize))
+		}
 	}
 
 	var ptr Operand = Imm(0)

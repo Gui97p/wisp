@@ -79,6 +79,17 @@ func (AnyType) Equals(other Type) bool {
 	return true
 }
 
+type BoxedType struct{}
+
+func (BoxedType) String() string {
+	return "any"
+}
+
+func (BoxedType) Equals(other Type) bool {
+	_, ok := other.(BoxedType)
+	return ok
+}
+
 type UntypedIntType struct{}
 
 func (UntypedIntType) String() string {

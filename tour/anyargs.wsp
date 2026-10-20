@@ -1,0 +1,52 @@
+// Tour - Variadics of any type.
+//
+// `...name` with no type before it takes any number of arguments of any type.
+// There is no type to write for what comes in, so a value of that kind lives
+// only inside the function: `args` is a sequence you can measure with `len`,
+// index, and loop over, and its elements are inspected with a `switch`.
+// Arguments that cannot be held, such as a struct (pass a pointer), are an
+// error at the call.
+//
+// `switch let v = args[i] { ... }` names the value once, and `v` has the type
+// of the case that matched. `case int` matches every signed integer and
+// `case uint` every unsigned one; a more specific case such as `case int8`
+// has to come first. An enum is an int, and `case Color` matches it before
+// the group does. A type of your own, such as `type Meters int`, matches only
+// its own case. `default` runs for anything else, and `v` stays untyped there.
+//
+// `rest...` passes a variadic on to another function that takes `...name`.
+
+import "expect";
+
+enum Color {
+  Red,
+  Green,
+}
+
+func describe(...args) int {
+  int total;
+  for _, arg in args {
+    switch let v = arg {
+      case Color:
+        total += 100;
+      case int:
+        total += v;
+      case string:
+        total += len(v);
+      case bool:
+        total += v ? 1 : 0;
+    }
+  }
+  return total;
+}
+
+func twice(...args) int {
+  return describe(args...) * 2;
+}
+
+export func demo() {
+  expect.expect(describe(10, "abc", true) == 14, "each argument is read by its own type");
+  expect.expect(describe(Color.Green, 1) == 101, "an enum matches its own case first");
+  expect.expect(twice(1, "ab") == 6, "... passes the variadic on");
+  expect.expect(describe() == 0, "no arguments is an empty variadic");
+}

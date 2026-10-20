@@ -3309,6 +3309,107 @@ func main() !int {
 }
 `, expected: []string{"defer! does not run when the function succeeds", "defer! runs together with defer when the function returns an error", "a propagated error runs defer! and defer", "a propagating call that succeeds keeps defer! quiet"}},
 
+	{dir: "any_variadic_float", luaOnly: true, src: `func kind(...args) int {
+    switch let v = args[0] {
+        case float:
+            return 99;
+        case int:
+            return 1;
+        default:
+            return -1;
+    }
+}
+
+func main() {
+    check(kind(1.5) == 99, "case float matches a float");
+    check(kind(2) == 1, "an int is not a float");
+}
+`, expected: []string{"case float matches a float", "an int is not a float"}},
+
+	{dir: "any_variadic", src: `enum Color {
+    Red,
+    Green,
+}
+
+type Meters int;
+
+func kind(int index, ...args) int {
+    switch let v = args[index] {
+        case int8:
+            return 8;
+        case Color:
+            return 77;
+        case Meters:
+            return 88;
+        case int:
+            return v + 1000;
+        case uint:
+            return 2000;
+        case string:
+            return len(v);
+        case bool:
+            return v ? 1 : 0;
+        case float:
+            return 99;
+        case char:
+            return 55;
+        default:
+            return -1;
+    }
+}
+
+func forward(...rest) int {
+    return kind(0, rest...);
+}
+
+func count(...xs) int {
+    return len(xs);
+}
+
+func sumInts(string label, ...xs) int {
+    int total = 0;
+    for _, x in xs {
+        switch let v = x {
+            case int:
+                total += v;
+            case string:
+                total += len(v);
+        }
+    }
+    return total;
+}
+
+func withPrefix(...rest) int {
+    return kind(1, "prefix", rest...);
+}
+
+func onlyPrefix(...rest) int {
+    return kind(0, "prefix", rest...);
+}
+
+func main() {
+    int8 small = 5;
+    uint big = 7;
+    Meters m = Meters(3);
+    check(kind(0, 5) == 1005, "an int literal matches case int and v is an int");
+    check(kind(0, small) == 8, "a case for a sized type is exact and listed before the group");
+    check(kind(0, big) == 2000, "case uint matches an unsigned integer");
+    check(kind(0, "hello") == 5, "a string matches case string and v is a string");
+    check(kind(0, true) == 1, "a bool matches case bool");
+    check(kind(0, Color.Green) == 77, "an enum matches its own case before the int group");
+    check(kind(0, m) == 88, "a nominal type matches only its own case");
+    check(kind(0, 'x') == 55, "a char matches case char");
+    check(kind(1, "a", 7) == 1007, "the second argument is read by index");
+    check(forward(true) == 1, "... passes the variadic on");
+    check(forward("abcd") == 4, "a forwarded string keeps its type");
+    check(withPrefix(7) == 1007, "explicit arguments can come before the spread");
+    check(onlyPrefix() == 6, "a spread of nothing leaves only the explicit arguments");
+    check(count(1, "x", true) == 3, "len counts the arguments");
+    check(count() == 0, "no arguments is an empty variadic");
+    check(sumInts("sum", 1, "ab", 3, true) == 6, "for iterates the arguments and default is skipped");
+}
+`, expected: []string{"an int literal matches case int and v is an int", "a case for a sized type is exact and listed before the group", "case uint matches an unsigned integer", "a string matches case string and v is a string", "a bool matches case bool", "an enum matches its own case before the int group", "a nominal type matches only its own case", "a char matches case char", "the second argument is read by index", "... passes the variadic on", "a forwarded string keeps its type", "explicit arguments can come before the spread", "a spread of nothing leaves only the explicit arguments", "len counts the arguments", "no arguments is an empty variadic", "for iterates the arguments and default is skipped"}},
+
 	{dir: "ptr_deref_postfix", x64Only: true, src: `struct P {
     int x;
 }

@@ -40,11 +40,19 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 			}
 		}
 		return nil
-	case *ast.ImportDecl, *ast.ReexportDecl, *ast.TypeDecl, *ast.ConstDecl, *ast.StructDecl:
-		return nil
+	case *ast.StructDecl:
+		key := analyser.TypeKey(t.module, d.Name)
+		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
+		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
+	case *ast.TypeDecl:
+		key := analyser.TypeKey(t.module, d.Name)
+		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
+		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
+	case *ast.ImportDecl, *ast.ReexportDecl, *ast.ConstDecl:
 	default:
 		return fmt.Errorf("x86-64: unsupported declaration %T", d)
 	}
+	return nil
 }
 
 func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {

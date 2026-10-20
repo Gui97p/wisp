@@ -104,6 +104,28 @@ end
 	return r
 end
 `},
+	{name: "__wisp_box", code: `local function __wisp_box(t, v, e)
+	return {t = t, v = v, e = e}
+end
+`},
+	{name: "__wisp_spread", deps: []string{"__wisp_len"}, code: `local function __wisp_spread(t)
+	return table.unpack(t, 0, __wisp_len(t) - 1)
+end
+`},
+	{name: "__wisp_isint", code: `local function __wisp_isint(b)
+	local t = b.t
+	return t == "int" or t == "int8" or t == "int16" or t == "int32" or t == "int64"
+end
+`},
+	{name: "__wisp_isuint", code: `local function __wisp_isuint(b)
+	local t = b.t
+	return t == "uint" or t == "uint8" or t == "uint16" or t == "uint32" or t == "uint64"
+end
+`},
+	{name: "__wisp_isfloat", code: `local function __wisp_isfloat(b)
+	return b.t == "float32" or b.t == "float64"
+end
+`},
 	{name: "__wisp_contains", deps: []string{"__wisp_len"}, code: `local function __wisp_contains(t, v)
 	local n = __wisp_len(t)
 	for i = 0, n - 1 do

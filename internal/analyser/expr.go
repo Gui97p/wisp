@@ -74,6 +74,9 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.info.Types[e]
 	case *ast.ConvExpr:
 		t = a.checkConvExpr(e)
+	case *ast.TypeLabel:
+		a.error(e, "a type is only valid as a case of a switch on an any value")
+		t = InvalidType{}
 	case *ast.InExpr:
 		t = a.checkInExpr(e)
 	case *ast.StructLiteral:
@@ -91,6 +94,12 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
 	params := make([]Type, len(expr.Params))
 	for i, p := range expr.Params {
+		if p.Any {
+			a.errorf(expr, "a function literal cannot take ...%s", p.Name).
+				WithHelp("an untyped variadic is only for functions and methods")
+			params[i] = InvalidType{}
+			continue
+		}
 		params[i] = a.resolveTypeRef(expr, a.scope, p.Type)
 	}
 	returns := make([]Type, len(expr.ReturnTypes))
@@ -230,6 +239,9 @@ func (a *Analyser) checkMapLiteral(expr *ast.MapLiteral) Type {
 
 func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	left := a.checkExpr(expr.Left)
+	if _, boxed := left.(BoxedType); boxed {
+		return a.checkTypeCase(expr)
+	}
 	right := a.checkExpr(expr.Right)
 
 	if expr.Operator == "==" || expr.Operator == "!=" {
@@ -482,6 +494,11 @@ func (a *Analyser) receiverArgument(object ast.Expression, objType Type, pointer
 func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 	argTypes := a.evalArgTypes(expr)
 
+	if expr.Spread && !ft.acceptsBoxes() {
+		a.error(expr, "... can only be used to pass an untyped variadic on")
+		return
+	}
+
 	if ft.Name == "len" {
 		if len(argTypes) != 1 {
 			a.errorf(expr, "len expects 1 argument, got %d", len(argTypes))
@@ -522,6 +539,10 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 		}
 
 		variadicType := ft.Params[len(ft.Params)-1]
+		if _, boxed := variadicType.(BoxedType); boxed {
+			a.checkBoxedArgs(expr, argTypes, fixedCount)
+			return
+		}
 		for i := fixedCount; i < len(argTypes); i++ {
 			if _, ok := argTypes[i].(InvalidType); ok {
 				continue

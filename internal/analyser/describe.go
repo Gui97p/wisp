@@ -43,6 +43,11 @@ func FuncSignature(name string, ft *FuncType, decl *ast.FuncDecl) string {
 		if decl != nil && i < len(decl.Params) {
 			paramName = decl.Params[i].Name
 		}
+		if _, boxed := p.(BoxedType); boxed && ft.Variadic && i == len(ft.Params)-1 {
+			label = "..." + paramName
+			params = append(params, label)
+			continue
+		}
 		if ft.Variadic && i == len(ft.Params)-1 {
 			label += " ..."
 		}

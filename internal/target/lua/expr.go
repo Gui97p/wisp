@@ -117,6 +117,9 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 		return t.compileStructLiteral(b, e)
 	case *ast.IdentLiteral:
 		b.WriteString(e.Value)
+		if t.narrowedIdent(e) {
+			b.WriteString(".v")
+		}
 	case *ast.StringLiteral:
 		b.WriteByte('"')
 		for _, c := range e.Value {
@@ -255,9 +258,9 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 				if err := t.compileExpression(b, member.Object); err != nil {
 					return err
 				}
-				for _, arg := range expr.Args {
+				for k := range expr.Args {
 					b.WriteByte(',')
-					if err := t.compileExpression(b, arg); err != nil {
+					if err := t.compileArgument(b, expr, k); err != nil {
 						return err
 					}
 				}
@@ -269,8 +272,10 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 
 	t.compileExpression(b, expr.Name)
 	b.WriteByte('(')
-	for k, v := range expr.Args {
-		t.compileExpression(b, v)
+	for k := range expr.Args {
+		if err := t.compileArgument(b, expr, k); err != nil {
+			return err
+		}
 		if k != len(expr.Args)-1 {
 			b.WriteByte(',')
 		}

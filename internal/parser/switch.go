@@ -79,9 +79,33 @@ func (p *Parser) parseSwitchBlock() []ast.Statement {
 	return stmts
 }
 
+func (p *Parser) startsTypeLabel() bool {
+	if p.current.Type == lexer.TOKEN_STAR {
+		return true
+	}
+	return p.isPrimitiveType() && (p.peek.Type == lexer.TOKEN_COLON || p.peek.Type == lexer.TOKEN_COMMA)
+}
+
 func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast.Expression {
 	p.advance()
 	p.advance()
+
+	if p.startsTypeLabel() {
+		labelLine, labelCol := p.current.Line, p.current.Column
+		ref := p.parseTypeDefinitionPrefix()
+		if ref == nil {
+			return nil
+		}
+
+		label := &ast.TypeLabel{Type: *ref}
+		label.SetPos(labelLine, labelCol)
+		label.SetEndPos(p.currentEnd())
+
+		match := &ast.BinaryExpr{Left: value, Operator: "==", Right: label}
+		match.SetPos(line, col)
+		match.SetEndPos(p.currentEnd())
+		return match
+	}
 
 	expr := p.parseExpression()
 	if expr == nil {

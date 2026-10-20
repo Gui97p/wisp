@@ -68,6 +68,10 @@ func intLiteralText(e *ast.IntLiteral) string {
 }
 
 func (t *LuaTarget) compileBinaryExpr(b *strings.Builder, e *ast.BinaryExpr) error {
+	if tc, ok := t.info.TypeCases[e]; ok {
+		return t.compileTypeCase(b, e, tc)
+	}
+
 	if handled, err := t.compileErrorComparison(b, e); handled {
 		return err
 	}

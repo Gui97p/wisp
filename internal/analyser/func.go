@@ -19,7 +19,10 @@ func (a *Analyser) registerFuncSignatures() {
 		variadic := false
 
 		for _, p := range fd.Params {
-			t := a.resolveTypeRef(fd, a.scope, p.Type)
+			var t Type = BoxedType{}
+			if !p.Any {
+				t = a.resolveTypeRef(fd, a.scope, p.Type)
+			}
 			if t == nil {
 				continue
 			}

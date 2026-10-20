@@ -22,6 +22,14 @@ type Info struct {
 	Reexports     map[*ast.ReexportDecl][]string
 	SizeOf        map[*ast.CallExpr]Type
 	ConstValues   map[ast.Expression]ConstValue
+	Boxes         map[ast.Expression]Type
+	TypeCases     map[*ast.BinaryExpr]*TypeCase
+	Narrowed      map[*Symbol]*Symbol
+}
+
+type TypeCase struct {
+	Type  Type
+	Group bool
 }
 
 func NewInfo() *Info {
@@ -42,6 +50,9 @@ func NewInfo() *Info {
 		EnumValues:    make(map[ast.Expression]EnumValue),
 		Scopes:        make(map[ast.Node]*Scope),
 		Reexports:     make(map[*ast.ReexportDecl][]string),
+		Boxes:         make(map[ast.Expression]Type),
+		TypeCases:     make(map[*ast.BinaryExpr]*TypeCase),
+		Narrowed:      make(map[*Symbol]*Symbol),
 	}
 }
 
