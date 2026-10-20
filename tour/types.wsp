@@ -10,6 +10,10 @@ type UserID int;
 // starts at 0 and continues from the last explicit value. Where the enum is
 // known (an assignment, an argument, a return, a comparison, a case) the type
 // name can be left out: `.Green`.
+//
+// Every enum also has a `name()` method that returns the member name of a
+// value, or "?" when it holds none. Writing your own `name` method on the enum
+// replaces it.
 enum Color {
   Red,
   Green,
@@ -30,6 +34,7 @@ export func demo() {
   expect.expect(favorite == Color.Green, "an enum member, with or without the type");
   expect.expect(int(Color.Blue) == 2, "enum numbering starts at zero");
   expect.expect(int(Color.Alpha) == 10 && int(Color.Beta) == 11, "numbering continues after an explicit value");
+  expect.expect(favorite.name() == "Green", "name() gives the member name");
 
   // Primitive types: int, uint, int8..int64, uint8..uint64, float, float32,
   // float64, bool, char and string. `int` and `uint` are 64 bits wide, and

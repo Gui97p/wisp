@@ -3309,6 +3309,35 @@ func main() !int {
 }
 `, expected: []string{"defer! does not run when the function succeeds", "defer! runs together with defer when the function returns an error", "a propagated error runs defer! and defer", "a propagating call that succeeds keeps defer! quiet"}},
 
+	{dir: "enum_name", src: `enum Color {
+    Red,
+    Green,
+}
+
+enum Level {
+    Low = 10,
+    High = 20,
+}
+
+enum Mode {
+    Fast,
+    Slow,
+}
+
+func (Mode m) name() string {
+    return "mine";
+}
+
+func main() {
+    Color c = Color.Green;
+    check(c.name() == "Green", "an enum value reports its member name");
+    check(Color.Red.name() == "Red", "a member reports its own name");
+    check(Level.High.name() == "High", "explicit values are matched by value");
+    check(Color(7).name() == "?", "a value with no member reports a question mark");
+    check(Mode.Fast.name() == "mine", "a name method written by hand replaces the generated one");
+}
+`, expected: []string{"an enum value reports its member name", "a member reports its own name", "explicit values are matched by value", "a value with no member reports a question mark", "a name method written by hand replaces the generated one"}},
+
 	{dir: "any_variadic_float", luaOnly: true, src: `func kind(...args) int {
     switch let v = args[0] {
         case float:

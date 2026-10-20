@@ -61,6 +61,7 @@ func (a *Analyser) Analyze() *Info {
 	a.registerImports()
 	a.registerStructNames()
 	a.registerTypeAliases()
+	a.generateEnumNames()
 	a.registerMethods()
 	a.registerStructFields()
 	a.registerBuiltins()
