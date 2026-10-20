@@ -192,14 +192,15 @@ func (t *LuaTarget) compileFuncLiteral(b *strings.Builder, expr *ast.FuncLiteral
 	}
 	b.WriteString(")\n")
 
-	prevFallible, prevPayloads := t.currentFallible, t.currentPayloads
+	prevFallible, prevPayloads, prevDefers := t.currentFallible, t.currentPayloads, t.deferScopes
 	t.currentFallible = expr.Fallible
 	t.currentPayloads = nil
+	t.deferScopes = nil
 	if ft, ok := t.info.Types[expr].(*analyser.FuncType); ok {
 		t.currentPayloads = ft.Returns
 	}
 	defer func() {
-		t.currentFallible, t.currentPayloads = prevFallible, prevPayloads
+		t.currentFallible, t.currentPayloads, t.deferScopes = prevFallible, prevPayloads, prevDefers
 	}()
 
 	if err := t.compileStatement(b, expr.Block); err != nil {

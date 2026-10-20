@@ -291,6 +291,10 @@
                     "match": "\\b(return|break|continue)\\b"
                 },
                 {
+                    "name": "keyword.control.defer.wisp",
+                    "match": "\\bdefer!?"
+                },
+                {
                     "name": "keyword.control.import.wisp",
                     "match": "\\b(import|export|extern|as)\\b"
                 },

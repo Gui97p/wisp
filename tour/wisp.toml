@@ -35,9 +35,20 @@ bin = "bin/tour"
 # `wisp init target mykernel` creates this block and its files.
 #
 # [targets.mykernel]
-# arch = "x64"
-# os = "mykernel"
-# entry = "_start"
-# runtime = "targets/mykernel/runtime.asm"
-# start = "targets/mykernel/start.asm"
-# link = ["-z", "noexecstack"]
+# arch = "x64"                  # required, only x64 exists for now
+# os = "mykernel"               # a second name that native blocks can select
+# entry = "_start"              # the symbol the linker starts at
+# start = "targets/mykernel/start.asm"       # required: calls main and leaves
+# runtime = "targets/mykernel/runtime.asm"   # emit, panic, malloc and friends
+# link = ["-z", "noexecstack"]  # extra linker arguments
+# libc = false                  # link the C library for this target
+#
+# [targets.mykernel.output]     # where this target writes, instead of [output]
+# bin = "dist/mykernel/app.elf"
+#
+# A block named after a built-in target adjusts it instead of creating one:
+# its link arguments are added to the built-in ones, and the other keys replace
+# the built-in values (arch cannot change, and lua only takes output).
+#
+# [targets.linux_x64]
+# link = ["-lm"]

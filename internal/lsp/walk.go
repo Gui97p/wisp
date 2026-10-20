@@ -116,6 +116,8 @@ func paramInStmt(stmt ast.Statement, line, col int) (*ast.Param, ast.Node, int) 
 		return paramInStmt(s.Body, line, col)
 	case *ast.LoopStmt:
 		return paramInStmt(s.Body, line, col)
+	case *ast.DeferStmt:
+		return paramInStmt(s.Body, line, col)
 	}
 	return nil, nil, -1
 }
@@ -254,6 +256,8 @@ func exprInStmt(stmt ast.Statement, line, col int) ast.Expression {
 		if r := firstExpr(line, col, s.Condition, s.UntilCondition); r != nil {
 			return r
 		}
+		return exprInStmt(s.Body, line, col)
+	case *ast.DeferStmt:
 		return exprInStmt(s.Body, line, col)
 	case *ast.AssignStmt:
 		return firstExpr(line, col, append(slices.Clone(s.Targets), s.Values...)...)

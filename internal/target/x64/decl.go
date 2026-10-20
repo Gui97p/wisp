@@ -199,6 +199,7 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		}
 	}
 
+	t.deferScopes = nil
 	if err := t.compileStatement(fd.Body); err != nil {
 		return err
 	}
@@ -272,6 +273,8 @@ func (t *X64Target) collectVariables(stmt ast.Statement) {
 		}
 		t.collectVariables(s.Body)
 	case *ast.LoopStmt:
+		t.collectVariables(s.Body)
+	case *ast.DeferStmt:
 		t.collectVariables(s.Body)
 	}
 }

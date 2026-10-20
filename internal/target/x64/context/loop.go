@@ -5,6 +5,7 @@ type LoopContext struct {
 	BreakLabel       string
 	ContinueLabel    string
 	SupportsContinue bool
+	DeferDepth       int
 }
 
 func (t *Context) PushLoop(ctx LoopContext) {

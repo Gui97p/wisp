@@ -41,6 +41,8 @@ type X64Target struct {
 	fallible    bool
 	hidden      Mem
 
+	deferScopes []*deferScope
+
 	libc bool
 }
 

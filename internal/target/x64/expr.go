@@ -589,7 +589,21 @@ func (t *X64Target) compileInExpr(expr *ast.InExpr) (Operand, error) {
 	return Reg{r, 1}, nil
 }
 
-func (t *X64Target) returnError(errOp Operand) {
+func (t *X64Target) returnError(errOp Operand) error {
+	if t.hasDefers(0, true) {
+		errSlot := slot(t.ctx.Reserve(8), 8)
+		t.store(errOp, errSlot)
+		t.freeOp(errOp)
+
+		if err := t.withFreeRegisters(func() error {
+			return t.emitDefers(0, true)
+		}); err != nil {
+			return err
+		}
+
+		errOp = errSlot
+	}
+
 	ops := []Operand{}
 	for _, tp := range t.funcReturns[:len(t.funcReturns)-1] {
 		size := sizeOf(tp)
@@ -604,6 +618,7 @@ func (t *X64Target) returnError(errOp Operand) {
 	ops = append(ops, errOp)
 	t.returnValue(ops, t.funcReturns, t.hidden)
 	t.text.printlnt("jmp .return")
+	return nil
 }
 
 func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error) {
@@ -621,7 +636,9 @@ func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error)
 	t.text.printft("test %s, %s\n", regStr, regStr)
 	t.text.printft("jz %s\n", okLabel)
 
-	t.returnError(Reg{reg, 8})
+	if err := t.returnError(Reg{reg, 8}); err != nil {
+		return nil, err
+	}
 
 	t.text.printf("%s:\n", okLabel)
 	t.ctx.FreeRegister(reg)

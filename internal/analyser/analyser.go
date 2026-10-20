@@ -17,6 +17,7 @@ type Analyser struct {
 
 	currentReturns  []Type
 	currentFallible bool
+	deferredFree    map[*Symbol]*ast.DeferStmt
 	loopFrames      []loopFrame
 
 	mustUse     []*Symbol

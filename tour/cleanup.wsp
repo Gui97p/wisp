@@ -1,0 +1,69 @@
+// Tour - Defer.
+//
+// `defer` runs a statement when the block it is written in is left, however
+// it is left: reaching the end, `return`, `break`, `continue` or an error
+// passed up with `!`. Deferred statements run in reverse order, the last one
+// written first. `defer!` runs only when the function leaves with an error,
+// which is what a constructor needs: free what it allocated unless it
+// succeeds.
+//
+import "expect";
+
+enum Fail {
+  Ok,
+  Boom,
+}
+
+int trace;
+
+func mark(int n) {
+  trace = trace * 10 + n;
+}
+
+func order() {
+  defer mark(1);
+  defer mark(2);
+  mark(3);
+}
+
+// The returned value is computed before the deferred statements run, and a
+// deferred statement sees the variables as they are when the block is left.
+func early(bool leave) int {
+  int value = 5;
+  defer mark(8);
+  if leave {
+    defer value = 99;
+    return value;
+  }
+  return 6;
+}
+
+func build(bool fail) !int {
+  defer! mark(1);
+  defer mark(2);
+  if fail {
+    return Error(Fail.Boom);
+  }
+  return 10;
+}
+
+export func demo() {
+  trace = 0;
+  order();
+  expect.expect(trace == 321, "deferred statements run in reverse order");
+
+  trace = 0;
+  expect.expect(early(true) == 5 && trace == 8, "the return value is computed first");
+
+  trace = 0;
+  let value, _ = build(false);
+  expect.expect(value == 10 && trace == 2, "defer! stays quiet when the function succeeds");
+
+  trace = 0;
+  let _, _ = build(true);
+  expect.expect(trace == 21, "defer! runs when the function returns an error");
+
+  // A deferred statement cannot leave its block: no return, no break out of
+  // it, and no `!`. A failure has to be handled where it happens, for
+  // instance with `??`.
+}

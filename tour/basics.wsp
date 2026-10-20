@@ -4,6 +4,12 @@
 // all and calls them in order, so you can run the whole tour with:
 //
 //     wisp run
+//
+// A few functions need no import because the compiler knows them: `emit`
+// writes a string and a newline, `len` measures arrays, slices and strings,
+// `panic` stops the program with a message, and `malloc`, `realloc`, `free`
+// and `sizeof` handle memory (see pointers.wsp). Declaring a function with
+// one of these names in your own module shadows the builtin.
 
 import "expect";
 

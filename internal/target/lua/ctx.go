@@ -37,9 +37,11 @@ type loopContext struct {
 	BreakLabel       string
 	ContinueLabel    string
 	SupportsContinue bool
+	DeferDepth       int
 }
 
 func (t *LuaTarget) pushLoop(ctx loopContext) {
+	ctx.DeferDepth = len(t.deferScopes)
 	t.loopStack = append(t.loopStack, ctx)
 }
 

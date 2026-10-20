@@ -55,6 +55,8 @@ func walkStmt(stmt ast.Statement, fn func(ast.Expression)) {
 	case *ast.LoopStmt:
 		walkExprs([]ast.Expression{s.Condition, s.UntilCondition}, fn)
 		walkStmt(s.Body, fn)
+	case *ast.DeferStmt:
+		walkStmt(s.Body, fn)
 	case *ast.AssignStmt:
 		walkExprs(s.Targets, fn)
 		walkExprs(s.Values, fn)

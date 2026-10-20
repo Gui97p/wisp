@@ -8,6 +8,11 @@ import (
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
+func (t *X64Target) pushLoop(ctx x64context.LoopContext) {
+	ctx.DeferDepth = len(t.deferScopes)
+	t.ctx.PushLoop(ctx)
+}
+
 func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 	tp := t.info.Types[stmt.Range]
 	if _, ok := tp.(*analyser.MapType); ok {
@@ -37,7 +42,7 @@ func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 		SupportsContinue: true,
 	}
 
-	t.ctx.PushLoop(ctx)
+	t.pushLoop(ctx)
 	defer t.ctx.PopLoop()
 
 	t.text.printf("%s:\n", cond)
@@ -152,7 +157,7 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 		SupportsContinue: true,
 	}
 
-	t.ctx.PushLoop(ctx)
+	t.pushLoop(ctx)
 	defer t.ctx.PopLoop()
 
 	t.text.printf("%s:\n", condLabel)
@@ -209,7 +214,7 @@ func (t *X64Target) compileForCount(stmt *ast.ForStmt) error {
 		SupportsContinue: true,
 	}
 
-	t.ctx.PushLoop(ctx)
+	t.pushLoop(ctx)
 	defer t.ctx.PopLoop()
 
 	t.text.printf("%s:\n", condLabel)

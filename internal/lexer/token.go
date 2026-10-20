@@ -132,6 +132,8 @@ const (
 	TOKEN_RBRACKET // ]
 
 	TOKEN_AT // @
+
+	TOKEN_DEFER
 )
 
 var keywords = map[string]TokenType{
@@ -158,6 +160,7 @@ var keywords = map[string]TokenType{
 	"export":   TOKEN_EXPORT,
 	"as":       TOKEN_AS,
 	"native":   TOKEN_NATIVE,
+	"defer":    TOKEN_DEFER,
 
 	"int":    TOKEN_INT,
 	"uint":   TOKEN_UINT,

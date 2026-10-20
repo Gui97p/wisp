@@ -67,7 +67,17 @@ func (t *LuaTarget) compilePropagate(b *strings.Builder, expr *ast.PropagateExpr
 		return err
 	}
 	zeros = append(zeros, errName)
-	t.emitPending(fmt.Sprintf("if %s ~= nil then return %s end\n", errName, strings.Join(zeros, ", ")))
+	if t.hasDefers(0, true) {
+		var exit strings.Builder
+		fmt.Fprintf(&exit, "if %s ~= nil then\n", errName)
+		if err := t.emitDefers(&exit, 0, true); err != nil {
+			return err
+		}
+		fmt.Fprintf(&exit, "return %s\nend\n", strings.Join(zeros, ", "))
+		t.emitPending(exit.String())
+	} else {
+		t.emitPending(fmt.Sprintf("if %s ~= nil then return %s end\n", errName, strings.Join(zeros, ", ")))
+	}
 
 	b.WriteString(strings.Join(names, ", "))
 	return nil

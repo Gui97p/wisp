@@ -31,12 +31,23 @@ func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 		}
 		return err
 	case *ast.BlockStmt:
+		t.pushDeferScope()
+		var last ast.Statement
 		for _, stmt := range s.Statements {
 			err = t.compileStatement(stmt)
 			if err != nil {
 				break
 			}
+			last = stmt
 		}
+		if last != nil && err == nil {
+			switch last.(type) {
+			case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt:
+			default:
+				err = t.emitDefers(len(t.deferScopes)-1, false)
+			}
+		}
+		t.popDeferScope()
 	case *ast.GroupStmt:
 		for _, stmt := range s.Statements {
 			err = t.compileStatement(stmt)
@@ -62,6 +73,8 @@ func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 		err = t.compileContinueStmt(s)
 	case *ast.LoopStmt:
 		err = t.compileLoopStmt(s)
+	case *ast.DeferStmt:
+		t.registerDefer(s)
 	case *ast.ConstStmt:
 	default:
 		return fmt.Errorf("%s is not supported yet", ast.Describe(stmt))
@@ -115,8 +128,7 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 		if err != nil {
 			return err
 		}
-		t.returnError(op)
-		return nil
+		return t.returnError(op)
 	}
 
 	ops := []Operand{}
@@ -130,6 +142,29 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 	if t.fallible {
 		ops = append(ops, Imm(0))
 	}
+
+	if t.hasDefers(0, false) {
+		tmps := []Operand{}
+
+		for i, op := range ops {
+			if _, ok := op.(Imm); ok {
+				tmps = append(tmps, op)
+				continue
+			}
+			size := sizeOf(t.funcReturns[i])
+			tmp := slot(t.ctx.Reserve(size), size)
+			t.store(op, tmp)
+			t.freeOp(op)
+			tmps = append(tmps, tmp)
+		}
+
+		if err := t.emitDefers(0, false); err != nil {
+			return err
+		}
+
+		ops = tmps
+	}
+
 	t.returnValue(ops, t.funcReturns, t.hidden)
 	t.text.printlnt("jmp .return")
 
@@ -226,7 +261,7 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 			BreakLabel:       endLabel,
 			SupportsContinue: false,
 		}
-		t.ctx.PushLoop(ctx)
+		t.pushLoop(ctx)
 	}
 
 	op, err := t.compileExpr(stmt.Condition)
@@ -311,7 +346,7 @@ func (t *X64Target) compileLoopStmt(stmt *ast.LoopStmt) error {
 		SupportsContinue: true,
 	}
 
-	t.ctx.PushLoop(ctx)
+	t.pushLoop(ctx)
 	defer t.ctx.PopLoop()
 
 	t.text.printf("%s:\n", condLabel)
@@ -349,6 +384,9 @@ func (t *X64Target) compileBreakStmt(stmt *ast.BreakStmt) error {
 		return fmt.Errorf("break: no matching loop")
 	}
 
+	if err := t.emitDefers(loop.DeferDepth, false); err != nil {
+		return err
+	}
 	t.text.printft("jmp %s\n", loop.BreakLabel)
 
 	return nil
@@ -367,6 +405,9 @@ func (t *X64Target) compileContinueStmt(stmt *ast.ContinueStmt) error {
 		return fmt.Errorf("continue: no matching loop")
 	}
 
+	if err := t.emitDefers(loop.DeferDepth, false); err != nil {
+		return err
+	}
 	t.text.printft("jmp %s\n", loop.ContinueLabel)
 
 	return nil

@@ -21,6 +21,8 @@ type LuaTarget struct {
 	currentFallible bool
 	currentPayloads []analyser.Type
 
+	deferScopes []*deferScope
+
 	pending []string
 
 	files map[ast.Declaration]string

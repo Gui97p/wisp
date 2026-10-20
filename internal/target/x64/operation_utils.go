@@ -346,3 +346,15 @@ func (t *X64Target) scale(op Operand, size int) Operand {
 func (t *X64Target) offset(op Operand, tp analyser.Type, size int) Operand {
 	return t.scale(t.widen(op, tp, 8), size)
 }
+
+func (t *X64Target) withFreeRegisters(fn func() error) error {
+	live := t.ctx.AllocatedRegisters()
+	for _, r := range live {
+		t.ctx.FreeRegister(r)
+	}
+	err := fn()
+	for _, r := range live {
+		t.ctx.AllocRegister(r)
+	}
+	return err
+}

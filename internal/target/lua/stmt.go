@@ -39,6 +39,9 @@ func (t *LuaTarget) compileStatementNode(b *strings.Builder, stmt ast.Statement)
 		return t.compileContinueStatement(b, s)
 	case *ast.NativeStmt:
 		return t.compileNativeStatement(b, s)
+	case *ast.DeferStmt:
+		t.registerDefer(s)
+		return nil
 	case *ast.AssignStmt:
 		return t.compileAssignStatement(b, s)
 	case *ast.IncDecStmt:
@@ -49,12 +52,22 @@ func (t *LuaTarget) compileStatementNode(b *strings.Builder, stmt ast.Statement)
 }
 
 func (t *LuaTarget) compileBlockStatement(b *strings.Builder, block *ast.BlockStmt) error {
+	t.pushDeferScope()
+	defer t.popDeferScope()
+
 	for _, stmt := range block.Statements {
 		if err := t.compileStatement(b, stmt); err != nil {
 			return err
 		}
 	}
-	return nil
+
+	if len(block.Statements) > 0 {
+		switch block.Statements[len(block.Statements)-1].(type) {
+		case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt:
+			return nil
+		}
+	}
+	return t.emitDefers(b, len(t.deferScopes)-1, false)
 }
 
 func (t *LuaTarget) compileGroupStatement(b *strings.Builder, group *ast.GroupStmt) error {
@@ -88,6 +101,18 @@ func (t *LuaTarget) compileReturnStatement(b *strings.Builder, stmt *ast.ReturnS
 	}
 
 	t.flushPending(b)
+
+	if t.hasDefers(0, t.info.ErrorReturns[stmt]) {
+		packed := t.newLabel("ret")
+		b.WriteString("do\n")
+		fmt.Fprintf(b, "local %s = table.pack(%s)\n", packed, strings.Join(texts, ", "))
+		if err := t.emitDefers(b, 0, t.info.ErrorReturns[stmt]); err != nil {
+			return err
+		}
+		fmt.Fprintf(b, "return table.unpack(%s, 1, %s.n)\n", packed, packed)
+		b.WriteString("end\n")
+		return nil
+	}
 
 	b.WriteString("return ")
 	b.WriteString(strings.Join(texts, ", "))
@@ -485,6 +510,9 @@ func (t *LuaTarget) compileBreakStatement(b *strings.Builder, stmt *ast.BreakStm
 		return fmt.Errorf("break: no matching loop")
 	}
 
+	if err := t.emitDefers(b, loop.DeferDepth, false); err != nil {
+		return err
+	}
 	fmt.Fprintf(b, "goto %s\n", loop.BreakLabel)
 
 	return nil
@@ -503,6 +531,9 @@ func (t *LuaTarget) compileContinueStatement(b *strings.Builder, stmt *ast.Conti
 		return fmt.Errorf("continue: no matching loop")
 	}
 
+	if err := t.emitDefers(b, loop.DeferDepth, false); err != nil {
+		return err
+	}
 	fmt.Fprintf(b, "goto %s\n", loop.ContinueLabel)
 
 	return nil

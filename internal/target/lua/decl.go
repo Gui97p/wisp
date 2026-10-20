@@ -81,10 +81,10 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 		}
 		first = false
 	}
-	prevFallible, prevPayloads := t.currentFallible, t.currentPayloads
-	t.currentFallible, t.currentPayloads = fd.Fallible, t.info.FuncReturns[fd]
+	prevFallible, prevPayloads, prevDefers := t.currentFallible, t.currentPayloads, t.deferScopes
+	t.currentFallible, t.currentPayloads, t.deferScopes = fd.Fallible, t.info.FuncReturns[fd], nil
 	defer func() {
-		t.currentFallible, t.currentPayloads = prevFallible, prevPayloads
+		t.currentFallible, t.currentPayloads, t.deferScopes = prevFallible, prevPayloads, prevDefers
 	}()
 	b.WriteString(")\n")
 

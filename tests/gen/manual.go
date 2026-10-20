@@ -7,6 +7,7 @@ type manualCase struct {
 	abort    string
 	exit     int
 	x64Only  bool
+	luaOnly  bool
 	libc     bool
 	cmain    bool
 	files    map[string]string
@@ -3121,6 +3122,26 @@ func main() {
 }
 `, expected: []string{"an imported integer constant", "an imported string constant", "an imported bool constant", "an imported constant as an index"}},
 
+	{dir: "param_span_after_comma", src: `func total(int scale, int[] values) int {
+    int sum = 0;
+    for _, v in values {
+        sum += v;
+    }
+    return sum * scale;
+}
+
+func tag(string name, int[2] pair, bool on) int {
+    return on ? pair[0] + len(name) : pair[1];
+}
+
+func main() {
+    int[3] data = [1, 2, 3];
+    check(total(2, data[0:3]) == 12, "a span parameter after another parameter");
+    int[2] pair = [10, 20];
+    check(tag("ab", pair, true) == 12, "an array parameter after another parameter");
+}
+`, expected: []string{"a span parameter after another parameter", "an array parameter after another parameter"}},
+
 	{dir: "variadic_basic", src: `func sum(int ...values) int {
     int total;
     for i, v in values {
@@ -3149,6 +3170,144 @@ func main() {
     check(withBase(100, 1, 2) == 103, "fixed parameters before the variadic one");
 }
 `, expected: []string{"a variadic function sums its arguments", "a variadic function with no arguments", "len of a variadic parameter", "indexing a variadic parameter", "fixed parameters before the variadic one"}},
+
+	{dir: "defer_blocks", src: `int trace = 0;
+
+func mark(int n) {
+    trace = trace * 10 + n;
+}
+
+func order() {
+    defer mark(1);
+    defer mark(2);
+    defer {
+        mark(3);
+        mark(4);
+    }
+    mark(9);
+}
+
+func early(bool leave) int {
+    defer mark(7);
+    if leave {
+        defer mark(8);
+        return 5;
+    }
+    mark(6);
+    return 6;
+}
+
+func frozen() int {
+    int x = 5;
+    defer x = 99;
+    return x;
+}
+
+func loops() {
+    for i in 1..3 {
+        defer mark(i);
+        if i == 2 {
+            continue;
+        }
+        mark(0);
+    }
+}
+
+func breaking() {
+    loop {
+        defer mark(1);
+        defer mark(2);
+        break;
+    }
+    mark(3);
+}
+
+func labeled() {
+    :outer for 2 {
+        defer mark(5);
+        for 2 {
+            defer mark(6);
+            break outer;
+        }
+    }
+}
+
+func main() {
+    trace = 0;
+    order();
+    check(trace == 93421, "deferred statements run in reverse order when the block ends");
+
+    trace = 0;
+    check(early(true) == 5 && trace == 87, "a return runs the defers of every block it leaves");
+    trace = 0;
+    check(early(false) == 6 && trace == 67, "the defers of the function run on the normal return");
+    check(frozen() == 5, "the return value is computed before the defers run");
+
+    trace = 0;
+    loops();
+    check(trace == 1203, "a defer in a loop body runs at the end of every iteration and on continue");
+    trace = 0;
+    breaking();
+    check(trace == 213, "break runs the defers of the loop body");
+    trace = 0;
+    labeled();
+    check(trace == 65, "a labeled break runs the defers of every block it leaves");
+}
+`, expected: []string{"deferred statements run in reverse order when the block ends", "a return runs the defers of every block it leaves", "the defers of the function run on the normal return", "the return value is computed before the defers run", "a defer in a loop body runs at the end of every iteration and on continue", "break runs the defers of the loop body", "a labeled break runs the defers of every block it leaves"}},
+
+	{dir: "defer_on_error", src: `enum Fail {
+    Ok,
+    Boom,
+}
+
+int trace = 0;
+
+func mark(int n) {
+    trace = trace * 10 + n;
+}
+
+func inner(bool bad) !int {
+    if bad {
+        return Error(Fail.Boom);
+    }
+    return 1;
+}
+
+func fails(bool bad) !int {
+    defer! mark(1);
+    defer mark(2);
+    if bad {
+        return Error(Fail.Boom);
+    }
+    return 10;
+}
+
+func propagates(bool bad) !int {
+    defer! mark(3);
+    defer mark(4);
+    int v = inner(bad)!;
+    return v + 1;
+}
+
+func main() !int {
+    trace = 0;
+    int ok = fails(false)!;
+    check(ok == 10 && trace == 2, "defer! does not run when the function succeeds");
+
+    trace = 0;
+    let _, _ = fails(true);
+    check(trace == 21, "defer! runs together with defer when the function returns an error");
+
+    trace = 0;
+    let _, _ = propagates(true);
+    check(trace == 43, "a propagated error runs defer! and defer");
+
+    trace = 0;
+    int z = propagates(false)!;
+    check(z == 2 && trace == 4, "a propagating call that succeeds keeps defer! quiet");
+    return 0;
+}
+`, expected: []string{"defer! does not run when the function succeeds", "defer! runs together with defer when the function returns an error", "a propagated error runs defer! and defer", "a propagating call that succeeds keeps defer! quiet"}},
 
 	{dir: "ptr_deref_postfix", x64Only: true, src: `struct P {
     int x;

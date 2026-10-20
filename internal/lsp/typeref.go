@@ -142,6 +142,8 @@ func typeRefInStmt(stmt ast.Statement, line, col int) *ast.TypeRef {
 		return typeRefInStmt(s.Body, line, col)
 	case *ast.LoopStmt:
 		return typeRefInStmt(s.Body, line, col)
+	case *ast.DeferStmt:
+		return typeRefInStmt(s.Body, line, col)
 	}
 	return nil
 }

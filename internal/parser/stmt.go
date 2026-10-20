@@ -74,6 +74,8 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		stmt = p.parseContinueStatement()
 	case lexer.TOKEN_NATIVE:
 		stmt = p.parseNativeStatement()
+	case lexer.TOKEN_DEFER:
+		stmt = p.parseDeferStatement()
 	case lexer.TOKEN_COLON:
 		stmt = p.parseLabeledStatement()
 	default:
@@ -689,6 +691,33 @@ func (p *Parser) parseContinueStatement() ast.Statement {
 		return nil
 	}
 
+	return stmt
+}
+
+func (p *Parser) parseDeferStatement() ast.Statement {
+	stmt := &ast.DeferStmt{}
+
+	if p.peek.Type == lexer.TOKEN_NOT {
+		p.advance()
+		stmt.OnError = true
+	}
+
+	if p.peek.Type == lexer.TOKEN_LBRACE {
+		p.advance()
+		block := p.parseBlockStatement()
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
+		stmt.Body = block
+		return stmt
+	}
+
+	p.advance()
+	body := p.parseStatement()
+	if body == nil {
+		return nil
+	}
+	stmt.Body = body
 	return stmt
 }
 

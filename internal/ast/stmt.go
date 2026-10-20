@@ -336,6 +336,28 @@ func (c *ContinueStmt) Tree(indent string) string {
 	return indent + "ContinueStmt\n"
 }
 
+type DeferStmt struct {
+	OnError bool
+	Body    Statement
+
+	NodePos
+}
+
+func (*DeferStmt) stmt() {}
+func (d *DeferStmt) Tree(indent string) string {
+	name := "DeferStmt"
+	if d.OnError {
+		name = "DeferStmt(on error)"
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s%s\n", indent, name)
+	if d.Body != nil {
+		b.WriteString(d.Body.Tree(indent + "└─ "))
+	}
+	return b.String()
+}
+
 type NativeBinding struct {
 	In  bool
 	Out bool

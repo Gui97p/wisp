@@ -74,6 +74,8 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.checkBreakContinue(s, s.Label, "continue")
 	case *ast.NativeStmt:
 		a.checkNativeStmt(s)
+	case *ast.DeferStmt:
+		a.checkDeferStmt(s)
 	case *ast.BlockStmt:
 		a.enterScope()
 		a.checkBlock(s)
@@ -92,6 +94,7 @@ func (a *Analyser) markHandlers(exprs []ast.Expression) {
 }
 
 func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
+	a.warnReturnedFree(stmt)
 	a.markHandlers(stmt.Values)
 	types := a.rejectFallible(stmt.Values, a.checkExprList(stmt.Values))
 

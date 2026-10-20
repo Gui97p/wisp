@@ -184,6 +184,7 @@ type testcase struct {
 	abort    string
 	exit     int
 	x64Only  bool
+	luaOnly  bool
 	libc     bool
 	cmain    bool
 	files    map[string]string
@@ -527,7 +528,7 @@ func main() {
 		if m.cmain {
 			src = ""
 		}
-		cases = append(cases, testcase{dir: m.dir, src: src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, libc: m.libc, cmain: m.cmain, files: m.files})
+		cases = append(cases, testcase{dir: m.dir, src: src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, luaOnly: m.luaOnly, libc: m.libc, cmain: m.cmain, files: m.files})
 	}
 
 	os.RemoveAll(root)
@@ -559,6 +560,12 @@ func main() {
 		}
 		if c.x64Only {
 			if err := os.WriteFile(filepath.Join(dir, "x64-only"), nil, 0644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+		if c.luaOnly {
+			if err := os.WriteFile(filepath.Join(dir, "lua-only"), nil, 0644); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

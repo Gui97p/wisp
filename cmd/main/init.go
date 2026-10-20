@@ -141,7 +141,11 @@ const targetRuntimeContent = `; Runtime of the %[1]s target: routines the compil
 ; __wisp_free backs free: rdi holds the address (or 0). It returns nothing.
 ;
 ; They follow the System V calling convention and must keep rbx, rbp and r12
-; to r15. The README describes the layout of an error record.
+; to r15.
+;
+; An error record is 64 bytes: the domain as address (offset 0) and length (8),
+; the code (16), the message as address (24) and length (32), the file as
+; address (40) and length (48), and the line (56).
 ; The Linux calls below are only placeholders, replace them with your kernel's.
 
 global __wisp_emit
