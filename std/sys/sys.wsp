@@ -1,11 +1,20 @@
-export func write(int fd, string s, int len) int {
-    int n;
-    native linux_x64(in fd, in s, in len, out n) "mov rax, 1; mov rdi, {fd}; mov rsi, {s.ptr}; mov rdx, {len}; syscall; mov {n}, rax";
-    native lua(in s, in len, out n) "io.write(string.sub(s, 1, len)); n = len";
-    return n;
+export const STDIN = 0;
+export const STDOUT = 1;
+export const STDERR = 2;
+
+export func read(int fd, *char buf, int n) int {
+	int r;
+	native linux_x64(in fd, buf, n, out r) "mov rax, 0; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+	return r;
+}
+
+export func write(int fd, *char buf, int n) int {
+    int r;
+    native linux_x64(in fd, buf, n, out r) "mov rax, 1; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+	return r;
 }
 
 export func exit(int code) {
-    native linux_x64(in code) "mov rax, 60; mov rdi, {code}; syscall";
+    native linux_x64(in code) "mov rax, 231; mov rdi, {code}; syscall";
     native lua(in code) "os.exit(code)";
 }
