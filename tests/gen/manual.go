@@ -515,6 +515,39 @@ func main() {
 }
 `},
 
+	{dir: "array_to_pointer", x64Only: true, src: `func fill(*char p, int n, char c) {
+    for i in 0..n - 1 {
+        (p + i)@ = c;
+    }
+}
+
+func first(*void p) *char {
+    return (*char)(p);
+}
+
+func main() {
+    char[8] buf;
+    fill((*char)(buf), 8, 'a');
+    check(buf[0] == 'a' && buf[7] == 'a', "an array converts to a pointer to its first element");
+
+    char[] view = buf[2:6];
+    fill((*char)(view), 4, 'z');
+    check(buf[1] == 'a' && buf[2] == 'z' && buf[5] == 'z' && buf[6] == 'a', "a span points into the array it views");
+
+    char[] empty = buf[3:3];
+    *char none = (*char)(empty);
+    check(none == (*char)(buf) + 3, "the pointer of an empty span is still its start");
+
+    int[3] nums;
+    *void raw = (*void)(nums);
+    *int back = (*int)(raw);
+    back@ = 7;
+    check(nums[0] == 7, "an array converts to *void and back");
+
+    check(first((*void)(buf))@ == 'a', "a *void from an array reads as bytes");
+}
+`, expected: []string{"an array converts to a pointer to its first element", "a span points into the array it views", "the pointer of an empty span is still its start", "an array converts to *void and back", "a *void from an array reads as bytes"}},
+
 	{dir: "register_spill_member", x64Only: true, src: `struct P {
     int x;
     int y;

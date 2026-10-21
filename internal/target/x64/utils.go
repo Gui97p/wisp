@@ -101,6 +101,11 @@ func isSpan(tp analyser.Type) bool {
 	return ok
 }
 
+func isArray(tp analyser.Type) bool {
+	_, ok := underlying(tp).(analyser.ArrayType)
+	return ok
+}
+
 func decodeEscapes(s string) ([]byte, error) {
 	out := make([]byte, 0, len(s))
 

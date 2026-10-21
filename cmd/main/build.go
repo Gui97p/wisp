@@ -196,7 +196,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		run.Dir = res.luaDir
 	}
 
-	run.Stdout, run.Stderr = os.Stdout, os.Stderr
+	run.Stdin, run.Stdout, run.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := run.Run(); err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() {

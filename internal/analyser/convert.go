@@ -562,9 +562,18 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 		a.fixUntyped(arg, PrimitiveType{Name: "uint64"})
 	case isWideInteger(underlyingOf(from)):
 	case isString(underlyingOf(from)) && isByteLike(pointer.Element):
+	case sequenceMatches(underlyingOf(from), pointer.Element):
+		if _, isArray := underlyingOf(from).(ArrayType); isArray && !isAddressable(arg) {
+			a.errorf(arg, "this array has no address to point at").
+				WithHelp("store it in a variable first, then convert the variable")
+			return InvalidType{}
+		}
 	default:
 		if _, isPtr := underlyingOf(from).(PointerType); !isPtr {
-			a.errorf(expr, "cannot convert %s to %s", from.String(), result.String())
+			d := a.errorf(expr, "cannot convert %s to %s", from.String(), result.String())
+			if _, hasElement := sequenceElement(underlyingOf(from)); hasElement {
+				d.WithHelp("an array or span converts to a pointer to its own element type, or to *void")
+			}
 			return InvalidType{}
 		}
 	}
@@ -595,4 +604,25 @@ func isByteLike(t Type) bool {
 		return true
 	}
 	return false
+}
+
+func sequenceElement(t Type) (Type, bool) {
+	switch v := t.(type) {
+	case ArrayType:
+		return v.Element, true
+	case SpanType:
+		return v.Element, true
+	}
+	return nil, false
+}
+
+func sequenceMatches(from Type, pointee Type) bool {
+	element, ok := sequenceElement(from)
+	if !ok {
+		return false
+	}
+	if _, isVoid := pointee.(VoidType); isVoid {
+		return true
+	}
+	return element.Equals(pointee)
 }

@@ -89,4 +89,17 @@ export func demo() ! {
   *int8 literal = (*int8)("hey");
   expect.expect(literal[0] == 104 && literal[3] == 0, "a string literal ends in a zero byte");
   free(bytes);
+
+  // An array or a span converts to a pointer to its first element, which is
+  // what a system call or a C function takes. The pointer is to the element
+  // type, or *void. The pointer of an empty span is still where it starts, and
+  // an array has to be a variable, since a temporary has no address to give.
+  char[4] letters;
+  *char start = (*char)(letters);
+  start@ = 'a';
+  (start + 3)@ = 'd';
+  expect.expect(letters[0] == 'a' && letters[3] == 'd', "an array converts to a pointer to its first element");
+
+  char[] middle = letters[1:3];
+  expect.expect((*char)(middle) == start + 1, "a span converts to a pointer to where it starts");
 }
