@@ -530,6 +530,8 @@ func refText(ref ast.TypeRef) string {
 	for _, dim := range ref.Dims {
 		if dim.IsSpan {
 			text.WriteString("[]")
+		} else if dim.Expr != nil {
+			fmt.Fprintf(&text, "[%s]", dim.Text)
 		} else {
 			fmt.Fprintf(&text, "[%d]", dim.Size)
 		}

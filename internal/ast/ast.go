@@ -76,6 +76,8 @@ type Position struct {
 type ArrayDim struct {
 	IsSpan bool
 	Size   int64
+	Expr   Expression
+	Text   string
 }
 
 type TypeRef struct {
@@ -113,7 +115,11 @@ func (t *TypeRef) Tree(indent string) string {
 		if dim.IsSpan {
 			fmt.Fprintf(&b, "%s│  └─ IsSpan\n%s│     true\n", indent, indent)
 		} else {
-			fmt.Fprintf(&b, "%s│  └─ ArraySize\n%s│     %d\n", indent, indent, dim.Size)
+			if dim.Expr != nil {
+				fmt.Fprintf(&b, "%s│  └─ ArraySize\n%s│     %s\n", indent, indent, dim.Text)
+			} else {
+				fmt.Fprintf(&b, "%s│  └─ ArraySize\n%s│     %d\n", indent, indent, dim.Size)
+			}
 		}
 	}
 

@@ -47,10 +47,16 @@ func (a *Analyser) registerTypeAliases() {
 func (a *Analyser) registerConsts() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
-		switch decl := d.(type) {
-		case *ast.ConstDecl:
+		if decl, ok := d.(*ast.ConstDecl); ok {
 			a.checkConstDecl(decl)
-		case *ast.VarDecl:
+		}
+	}
+}
+
+func (a *Analyser) registerGlobals() {
+	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
+		if decl, ok := d.(*ast.VarDecl); ok {
 			a.checkGlobalDecl(decl)
 		}
 	}

@@ -87,12 +87,9 @@ func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
 			continue
 		}
 
-		if !p.expect(lexer.TOKEN_INT_LITERAL) {
-			return false
-		}
-
-		num, err := p.parseIntLiteral(p.current.Literal)
-		if err != nil {
+		p.advance()
+		size := p.parseExpression()
+		if size == nil {
 			return false
 		}
 
@@ -100,7 +97,11 @@ func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
 			return false
 		}
 
-		ref.Dims = append(ref.Dims, ast.ArrayDim{Size: num})
+		if literal, ok := size.(*ast.IntLiteral); ok {
+			ref.Dims = append(ref.Dims, ast.ArrayDim{Size: literal.Value})
+			continue
+		}
+		ref.Dims = append(ref.Dims, ast.ArrayDim{Expr: size, Text: ast.ExprText(size)})
 	}
 
 	return true

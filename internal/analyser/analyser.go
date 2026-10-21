@@ -32,6 +32,7 @@ type Analyser struct {
 	universe *Scope
 
 	declFiles   map[ast.Declaration]string
+	arraySizes  map[ast.Expression]arraySizeResult
 	currentFile string
 
 	errors diag.List
@@ -61,12 +62,13 @@ func (a *Analyser) Analyze() *Info {
 	a.registerImports()
 	a.registerStructNames()
 	a.registerTypeAliases()
+	a.registerConsts()
 	a.generateEnumNames()
 	a.registerMethods()
 	a.registerStructFields()
 	a.registerBuiltins()
 	a.registerFuncSignatures()
-	a.registerConsts()
+	a.registerGlobals()
 	a.checkFuncBodies()
 	a.warnUnusedGlobals()
 	a.warnUnusedImports()
@@ -130,6 +132,12 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 	for _, v := range slices.Backward(ref.Dims) {
 		if v.IsSpan {
 			result = SpanType{Element: result}
+		} else if v.Expr != nil {
+			size, ok := a.arraySize(v.Expr)
+			if !ok {
+				return nil
+			}
+			result = ArrayType{Element: result, Size: size}
 		} else {
 			result = ArrayType{Element: result, Size: v.Size}
 		}

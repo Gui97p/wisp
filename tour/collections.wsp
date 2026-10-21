@@ -5,9 +5,16 @@
 
 import "expect";
 
+// The size of an array is a number or a constant expression, so a constant
+// can name it, even one that comes from another module.
+const Cells = 3;
+
 export func demo() {
   // A fixed-size array: the size is part of the type.
   int[5] nums = [124, 512, 1, 5, 2];
+
+  int[Cells * 2] sized;
+  expect.expect(len(sized) == 6, "a constant expression gives the size of an array");
 
   // A partial literal fills the rest with zero values.
   int[5] partial = [7, 8];

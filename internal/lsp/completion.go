@@ -108,9 +108,24 @@ func currentInfo(path string) *analyser.Info {
 		return info
 	}
 	if prev, ok := getLastGood(path); ok {
+		refreshModules(prev.info, info)
 		return prev.info
 	}
 	return info
+}
+
+func refreshModules(prev, fresh *analyser.Info) {
+	if prev == nil || fresh == nil || prev.Module == nil || fresh.Module == nil {
+		return
+	}
+	for _, sym := range fresh.Module.Visible() {
+		if sym.Kind != analyser.MODULE {
+			continue
+		}
+		if old, ok := prev.Module.Resolve(sym.Name); ok && old.Kind == analyser.MODULE {
+			old.Type = sym.Type
+		}
+	}
 }
 
 func memberBase(prefix string) (string, bool) {

@@ -3075,6 +3075,68 @@ func main() {
 }
 `, expected: []string{"global zero initializer", "global constant expression initializer", "global string initializer", "global inferred initializer", "global enum initializer", "global array initializer", "global struct initializer", "global multiple declaration", "global bool and char", "global compound assign", "global increment", "global array element write", "global struct field write", "global string write", "global used by a function above it", "global bool write", "global is shared across calls"}},
 
+	{dir: "array_const_size", files: map[string]string{"limits.wsp": `export const Rows = 3;
+export const Cells = Rows * 2;
+`}, src: `import "limits";
+
+const Width = 4;
+const Area = Width * limits.Rows;
+
+struct Board {
+    int[Width] top;
+    int[limits.Cells] cells;
+}
+
+func total(int[Width] row) int {
+    int sum = 0;
+    for _, v in row {
+        sum += v;
+    }
+    return sum;
+}
+
+func main() {
+    int[Width] a;
+    int[Area] b;
+    int[limits.Rows][Width] grid;
+    int[Width + 1] c;
+    Board board;
+
+    check(len(a) == 4, "a local constant gives the size");
+    check(len(b) == 12, "a constant built from an imported one gives the size");
+    check(len(grid) == 3 && len(grid[0]) == 4, "constants size each dimension");
+    check(len(c) == 5, "a constant expression gives the size");
+    check(len(board.top) == 4 && len(board.cells) == 6, "a struct field can be sized by constants");
+
+    a[0] = 1;
+    a[1] = 2;
+    a[2] = 3;
+    a[3] = 4;
+    check(total(a) == 10, "a parameter can be sized by a constant");
+}
+`, expected: []string{"a local constant gives the size", "a constant built from an imported one gives the size", "constants size each dimension", "a constant expression gives the size", "a struct field can be sized by constants", "a parameter can be sized by a constant"}},
+
+	{dir: "const_modules", files: map[string]string{"flags.wsp": `export const Read = 1;
+export const Write = 2;
+export const Mask = Read | Write;
+`, "tools.wsp": `import "flags";
+
+export const Both = flags.Read | flags.Write;
+export const Copy = flags.Write;
+export const Offset = flags.Mask + 10;
+`}, src: `import "flags";
+import "tools";
+
+const Local = tools.Copy * 4;
+
+func main() {
+    check(tools.Copy == 2, "a constant can be another module's constant");
+    check(tools.Both == 3, "an expression of imported constants is constant");
+    check(tools.Offset == 13, "a constant built from a constant that was itself built from another");
+    check(Local == 8, "a constant in the importing module reads the re-exported one");
+}
+`, expected: []string{"a constant can be another module's constant", "an expression of imported constants is constant", "a constant built from a constant that was itself built from another", "a constant in the importing module reads the re-exported one"}},
+
 	{dir: "global_modules", files: map[string]string{"store.wsp": `export int hits = 0;
 export string tag = "a";
 int hidden = 100;

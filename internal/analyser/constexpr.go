@@ -90,6 +90,9 @@ func (a *Analyser) evalConst(expr ast.Expression) (ConstValue, bool) {
 		if value, ok := a.info.EnumValues[e]; ok {
 			return constInt(big.NewInt(value.Value)), true
 		}
+		if member, isMember := e.(*ast.MemberExpr); isMember {
+			return a.moduleConst(member)
+		}
 	case *ast.UnaryExpr:
 		return a.evalUnary(e)
 	case *ast.BinaryExpr:
@@ -349,4 +352,24 @@ func (a *Analyser) convertConst(value ConstValue, target Type) (ConstValue, bool
 		return ConstValue{Kind: ConstFloat, Float: value.asFloat()}, true
 	}
 	return value, true
+}
+
+func (a *Analyser) moduleConst(member *ast.MemberExpr) (ConstValue, bool) {
+	object, ok := member.Object.(*ast.IdentLiteral)
+	if !ok {
+		return ConstValue{}, false
+	}
+	sym, ok := a.info.Idents[object]
+	if !ok || sym.Kind != MODULE {
+		return ConstValue{}, false
+	}
+	module, ok := sym.Type.(*ModuleType)
+	if !ok {
+		return ConstValue{}, false
+	}
+	export, ok := module.Exports[member.Field]
+	if !ok || export.Kind != CONST || export.Const == nil {
+		return ConstValue{}, false
+	}
+	return *export.Const, true
 }
