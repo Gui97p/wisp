@@ -140,6 +140,7 @@ func (a *Analyser) registerMethods() {
 		}
 
 		params := make([]Type, 0, len(fd.Params))
+		names := make([]string, 0, len(fd.Params))
 		variadic := false
 
 		for _, p := range fd.Params {
@@ -151,6 +152,7 @@ func (a *Analyser) registerMethods() {
 				continue
 			}
 			params = append(params, t)
+			names = append(names, p.Name)
 			if p.Variadic {
 				variadic = true
 			}
@@ -164,7 +166,11 @@ func (a *Analyser) registerMethods() {
 			}
 		}
 
-		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported}
+		receiverName := ""
+		if fd.Receiver != nil {
+			receiverName = fd.Receiver.Name
+		}
+		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported}
 		a.info.FuncReturns[fd] = returns
 		_, _, ownerExported := methodOwner(recvType)
 		a.info.MethodVisible[fd] = fd.Exported && ownerExported

@@ -16,6 +16,7 @@ func (a *Analyser) registerFuncSignatures() {
 		}
 
 		params := make([]Type, 0, len(fd.Params))
+		names := make([]string, 0, len(fd.Params))
 		variadic := false
 
 		for _, p := range fd.Params {
@@ -27,6 +28,7 @@ func (a *Analyser) registerFuncSignatures() {
 				continue
 			}
 			params = append(params, t)
+			names = append(names, p.Name)
 			if p.Variadic {
 				variadic = true
 			}
@@ -40,7 +42,7 @@ func (a *Analyser) registerFuncSignatures() {
 			}
 		}
 
-		ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: variadic, Fallible: fd.Fallible}
+		ft := &FuncType{Name: fd.Name, Params: params, ParamNames: names, Returns: returns, Variadic: variadic, Fallible: fd.Fallible}
 		a.info.VarTypes[fd] = params
 		a.info.FuncReturns[fd] = returns
 		if fd.Receiver != nil {

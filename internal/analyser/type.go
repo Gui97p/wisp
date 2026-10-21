@@ -260,14 +260,16 @@ func (s *StructType) Equals(other Type) bool {
 }
 
 type FuncType struct {
-	Name      string
-	Params    []Type
-	Returns   []Type
-	Variadic  bool
-	CVariadic bool
-	Fallible  bool
-	Receiver  Type
-	Exported  bool
+	Name         string
+	Params       []Type
+	ParamNames   []string
+	ReceiverName string
+	Returns      []Type
+	Variadic     bool
+	CVariadic    bool
+	Fallible     bool
+	Receiver     Type
+	Exported     bool
 }
 
 func (f *FuncType) String() string {

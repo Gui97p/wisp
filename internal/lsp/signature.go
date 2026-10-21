@@ -81,14 +81,11 @@ func signatureHelp(uri protocol.DocumentUri, pos protocol.Position) *protocol.Si
 	}
 
 	label := name + "("
-	params := make([]protocol.ParameterInformation, 0, len(ft.Params))
-	for i, p := range ft.Params {
+	labels := analyser.ParamLabels(ft, nil)
+	params := make([]protocol.ParameterInformation, 0, len(labels))
+	for i, text := range labels {
 		if i > 0 {
 			label += ", "
-		}
-		text := p.String()
-		if ft.Variadic && i == len(ft.Params)-1 {
-			text = "..." + text
 		}
 		start := uint32(len([]rune(label)))
 		label += text

@@ -192,7 +192,7 @@ func memberItems(base string, scope *analyser.Scope, suffix string) []protocol.C
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		items = append(items, callable(item(name, protocol.CompletionItemKindMethod, methods[name].String()), len(methods[name].Params), suffix))
+		items = append(items, callable(item(name, protocol.CompletionItemKindMethod, analyser.FuncSignature(name, methods[name], nil)), len(methods[name].Params), suffix))
 	}
 	return items
 }
@@ -215,10 +215,10 @@ func symbolItem(sym *analyser.Symbol, suffix string) protocol.CompletionItem {
 	if sym.Type != nil {
 		detail = sym.Type.String()
 	}
-	it := item(sym.Name, kind, detail)
 	if ft, ok := sym.Type.(*analyser.FuncType); ok && sym.Kind == analyser.FUNC {
-		return callable(it, len(ft.Params), suffix)
+		return callable(item(sym.Name, kind, analyser.FuncSignature(sym.Name, ft, nil)), len(ft.Params), suffix)
 	}
+	it := item(sym.Name, kind, detail)
 	return it
 }
 

@@ -30,22 +30,31 @@ func FuncSignature(name string, ft *FuncType, decl *ast.FuncDecl) string {
 	receiver := ""
 	if ft.Receiver != nil {
 		receiver = "(" + TypeText(ft.Receiver)
-		if decl != nil && decl.Receiver != nil && decl.Receiver.Name != "" {
+		switch {
+		case decl != nil && decl.Receiver != nil && decl.Receiver.Name != "":
 			receiver += " " + decl.Receiver.Name
+		case ft.ReceiverName != "":
+			receiver += " " + ft.ReceiverName
 		}
 		receiver += ") "
 	}
 
-	params := make([]string, 0, len(ft.Params)+1)
+	return fmt.Sprintf("func %s%s(%s)%s", receiver, name, strings.Join(ParamLabels(ft, decl), ", "), returnsText(ft))
+}
+
+func ParamLabels(ft *FuncType, decl *ast.FuncDecl) []string {
+	labels := make([]string, 0, len(ft.Params)+1)
 	for i, p := range ft.Params {
 		label := TypeText(p)
 		paramName := ""
-		if decl != nil && i < len(decl.Params) {
+		switch {
+		case decl != nil && i < len(decl.Params):
 			paramName = decl.Params[i].Name
+		case i < len(ft.ParamNames):
+			paramName = ft.ParamNames[i]
 		}
 		if _, boxed := p.(BoxedType); boxed && ft.Variadic && i == len(ft.Params)-1 {
-			label = "..." + paramName
-			params = append(params, label)
+			labels = append(labels, "..."+paramName)
 			continue
 		}
 		if ft.Variadic && i == len(ft.Params)-1 {
@@ -54,13 +63,12 @@ func FuncSignature(name string, ft *FuncType, decl *ast.FuncDecl) string {
 		if paramName != "" {
 			label += " " + paramName
 		}
-		params = append(params, label)
+		labels = append(labels, label)
 	}
 	if ft.CVariadic {
-		params = append(params, "...")
+		labels = append(labels, "...")
 	}
-
-	return fmt.Sprintf("func %s%s(%s)%s", receiver, name, strings.Join(params, ", "), returnsText(ft))
+	return labels
 }
 
 func returnsText(ft *FuncType) string {
