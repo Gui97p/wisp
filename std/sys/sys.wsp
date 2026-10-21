@@ -1,17 +1,157 @@
-export const STDIN = 0;
-export const STDOUT = 1;
-export const STDERR = 2;
+export const O_RDONLY = 0;
+export const O_WRONLY = 1;
+export const O_RDWR = 2;
+export const O_CREAT = 64;
+export const O_EXCL = 128;
+export const O_TRUNC = 512;
+export const O_APPEND = 1024;
+export const O_CLOEXEC = 524288;
+
+export const SEEK_SET = 0;
+export const SEEK_CUR = 1;
+export const SEEK_END = 2;
+
+export const CLOCK_REALTIME = 0;
+export const CLOCK_MONOTONIC = 1;
+
+export const AT_FDCWD = -100;
+export const AT_REMOVEDIR = 512;
+
+struct Timespec {
+    int tv_sec;
+    int tv_nsec;
+}
+
+struct Stat {
+    uint64 st_dev;
+    uint64 st_ino;
+    uint64 st_nlink;
+
+    uint32 st_mode;
+    uint32 st_uid;
+    uint32 st_gid;
+    uint32 pad0;
+
+    uint64 st_rdev;
+    int st_size;
+    int st_blksize;
+    int st_blocks;
+
+    Timespec st_atim;
+    Timespec st_mtim;
+    Timespec st_ctim;
+
+    int __reserved0;
+    int __reserved1;
+    int __reserved2;
+}
+
+export func errno(int raw) int {
+    if raw < 0 && raw >= -4095 {
+        return -raw;
+    }
+    return 0;
+}
 
 export func read(int fd, *char buf, int n) int {
 	int r;
-	native linux_x64(in fd, buf, n, out r) "mov rax, 0; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+	native linux_x64(in fd, buf, n, out r) "xor eax, eax; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+	native lua() "error('sys.read is not available on lua')";
 	return r;
 }
 
 export func write(int fd, *char buf, int n) int {
     int r;
     native linux_x64(in fd, buf, n, out r) "mov rax, 1; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+	native lua(in fd, buf, n, out r) "local f = fd == 2 and io.stderr or io.stdout; f:write(string.sub(buf, 1, n)); r = n";
 	return r;
+}
+
+export func open(*char path, int flags, int mode) int {
+	int fd;
+	native linux_x64(in path, flags, mode, out fd) "mov rax, 257; mov rdi, -100; mov rsi, {path}; mov rdx, {flags}; mov r10, {mode}; syscall; mov {fd}, rax";
+	native lua "error('sys.open is not available on lua')";
+	return fd;
+}
+
+export func close(int fd) int {
+	int r;
+	native linux_x64(in fd, out r) "mov rax, 3; mov rdi, {fd}; syscall; mov {r}, rax";
+	native lua "error('sys.close is not available on lua')";
+	return r;
+}
+
+export func seek(int fd, offset, whence) int {
+	int off;
+	native linux_x64(in fd, offset, whence, out off) "mov rax, 8; mov rdi, {fd}; mov rsi, {offset}; mov rdx, {whence}; syscall; mov {off}, rax";
+	native lua "error('sys.seek is not available on lua')";
+	return off;
+}
+
+export func sync(int fd) int {
+	int r;
+	native linux_x64(in fd, out r) "mov rax, 74; mov rdi, {fd}; syscall; mov {r}, rax";
+	native lua "error('sys.sync is not available on lua')";
+	return r;
+}
+
+export func size(int fd) int {
+	Stat stat;
+	int r;
+	native linux_x64(in fd, stat, out r) "mov rax, 5; mov rdi, {fd}; lea rsi, {&stat}; syscall; mov {r}, rax";
+	native lua "error('sys.size is not available on lua')";
+	return r < 0 ? r : stat.st_size;
+}
+
+export func remove(*char path, int flags) int {
+	int r;
+	native linux_x64(in path, flags, out r) "mov rax, 263; mov rdi, -100; mov rsi, {path}; mov rdx, {flags}; syscall; mov {r}, rax";
+	native lua "error('sys.remove is not available on lua')";
+	return r;
+}
+
+export func mmap(int len) *void {
+	*void r;
+	native linux_x64(in len, out r) "mov rax, 9; xor edi, edi; mov rsi, {len}; mov rdx, 3; mov r10, 34; mov r8, -1; xor r9d, r9d; syscall; mov {r}, rax";
+	native lua "error('sys.mmap is not available on lua')";
+	return r;
+}
+
+export func munmap(*void addr, int len) int {
+    int r;
+    native linux_x64(in addr, in len, out r) "mov rax, 11; mov rdi, {addr}; mov rsi, {len}; syscall; mov {r}, rax";
+    native lua "error('sys.mumap is not available on lua')";
+	return r;
+}
+
+export func time(int clock) (int, int) {
+	Timespec ts;
+	native linux_x64(in clock, ts) "mov rax, 228; mov rdi, {clock}; lea rsi, {&ts}; syscall";
+	native lua(in clock, ts) "if clock == 0 then ts.tv_sec = os.time(); ts.tv_nsec = 0 else local c = os.clock(); ts.tv_sec = math.floor(c); ts.tv_nsec = math.floor((c - ts.tv_sec) * 1000000000) end";
+	return ts.tv_sec, ts.tv_nsec;
+}
+
+export func sleep(int sec, nsec) int {
+	Timespec req = Timespec{tv_sec: sec, tv_nsec: nsec};
+	int r;
+	native linux_x64(in req, out r) "mov rax, 35; lea rdi, {&req}; xor esi, esi; syscall; mov {r}, rax";
+	native lua "error('sys.sleep is not available on lua')";
+	return r;
+}
+
+export func random(*void buf, int n) int {
+	int r;
+	native linux_x64(in buf, n, out r) "mov rax, 318; mov rdi, {buf}; mov rsi, {n}; xor edx, edx; syscall; mov {r}, rax";
+	native lua "error('sys.random is not available on lua')";
+	return r;
+}
+
+export func isatty(int fd) bool {
+	char[64] termios;
+	int r;
+	native linux_x64(in fd, termios, out r) "mov rax, 16; mov rdi, {fd}; mov rsi, 0x5401; lea rdx, {&termios}; syscall; mov {r}, rax";
+	native lua "error('sys.isatty is not available on lua')";
+	return r == 0;
 }
 
 export func exit(int code) {

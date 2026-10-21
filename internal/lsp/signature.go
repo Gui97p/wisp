@@ -46,6 +46,10 @@ func signatureHelp(uri protocol.DocumentUri, pos protocol.Position) *protocol.Si
 	path := uriToPath(uri)
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
 
+	if insideLiteralOrComment(textBefore(path, int(pos.Line), int(pos.Character))) {
+		return nil
+	}
+
 	callee, arg, ok := callContext(prefix)
 	if !ok {
 		return nil

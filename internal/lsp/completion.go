@@ -57,6 +57,14 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 		return nil
 	}
 
+	if items, ok := nativeItems(path, pos, currentInfo(path)); ok {
+		return items
+	}
+
+	if insideLiteralOrComment(textBefore(path, int(pos.Line), int(pos.Character))) {
+		return nil
+	}
+
 	info := currentInfo(path)
 
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
