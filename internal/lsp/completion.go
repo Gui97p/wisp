@@ -79,7 +79,13 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 			return fields
 		}
 	}
-	if trigger == "{" || trigger == "," {
+	if info != nil && (trigger == " " || trigger == ":") {
+		text := textBefore(path, int(pos.Line), int(pos.Character))
+		if enum, ok := structValueEnum(text, scopeFor(info, line, col)); ok {
+			return enumValueItems(enum)
+		}
+	}
+	if trigger == "{" || trigger == "," || trigger == " " || trigger == ":" {
 		return nil
 	}
 
@@ -410,13 +416,50 @@ func literalType(text string, brace int, scope *analyser.Scope) (*analyser.Struc
 }
 
 func structLiteralItems(text string, scope *analyser.Scope) ([]protocol.CompletionItem, bool) {
+	ctx, ok := structLiteralContext(text, scope)
+	if !ok || ctx.hasKey {
+		return nil, false
+	}
+
+	items := []protocol.CompletionItem{}
+	for _, field := range ctx.st.Order {
+		if ctx.used[field] {
+			continue
+		}
+		it := item(field, protocol.CompletionItemKindField, analyser.TypeText(ctx.st.Fields[field]))
+		text := field + ": "
+		it.InsertText = &text
+		items = append(items, it)
+	}
+	return items, true
+}
+
+func enumValueItems(enum analyser.NamedType) []protocol.CompletionItem {
+	items := []protocol.CompletionItem{}
+	for _, member := range enum.MemberOrder {
+		it := item("."+member, protocol.CompletionItemKindEnumMember, enum.Name)
+		text := "." + member
+		it.InsertText = &text
+		items = append(items, it)
+	}
+	return items
+}
+
+type literalContext struct {
+	st     *analyser.StructType
+	used   map[string]bool
+	key    string
+	hasKey bool
+}
+
+func structLiteralContext(text string, scope *analyser.Scope) (literalContext, bool) {
 	brace, ok := innermostOpen(text)
 	if !ok {
-		return nil, false
+		return literalContext{}, false
 	}
 	st, ok := literalType(text, brace, scope)
 	if !ok {
-		return nil, false
+		return literalContext{}, false
 	}
 
 	used := map[string]bool{}
@@ -455,19 +498,18 @@ func structLiteralItems(text string, scope *analyser.Scope) ([]protocol.Completi
 		segment.WriteByte(c)
 	}
 
-	if strings.Contains(segment.String(), ":") {
-		return nil, false
+	ctx := literalContext{st: st, used: used}
+	if key, _, hasKey := strings.Cut(segment.String(), ":"); hasKey {
+		ctx.key, ctx.hasKey = strings.TrimSpace(key), true
 	}
+	return ctx, true
+}
 
-	items := []protocol.CompletionItem{}
-	for _, field := range st.Order {
-		if used[field] {
-			continue
-		}
-		it := item(field, protocol.CompletionItemKindField, analyser.TypeText(st.Fields[field]))
-		text := field + ": "
-		it.InsertText = &text
-		items = append(items, it)
+func structValueEnum(text string, scope *analyser.Scope) (analyser.NamedType, bool) {
+	ctx, ok := structLiteralContext(text, scope)
+	if !ok || !ctx.hasKey {
+		return analyser.NamedType{}, false
 	}
-	return items, true
+	enum, ok := ctx.st.Fields[ctx.key].(analyser.NamedType)
+	return enum, ok && enum.Enum
 }

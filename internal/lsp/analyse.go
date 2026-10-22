@@ -95,6 +95,7 @@ func analyseModule(mod *module.Module, exports map[string]*analyser.ModuleInfo) 
 	a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 	a.SetImportErrors(mod.ImportErrors)
 	info := a.Analyze()
+	merged.Declarations = withoutGenerated(merged.Declarations)
 
 	item = moduleAnalysis{mod: mod, merged: merged, info: info}
 	if a.HasDiagnostics() {
@@ -121,4 +122,15 @@ func analyseEntryChecked(path string) (program *ast.Program, info *analyser.Info
 		}
 	}
 	return nil, nil, false
+}
+
+func withoutGenerated(decls []ast.Declaration) []ast.Declaration {
+	kept := make([]ast.Declaration, 0, len(decls))
+	for _, d := range decls {
+		if fd, ok := d.(*ast.FuncDecl); ok && fd.Generated {
+			continue
+		}
+		kept = append(kept, d)
+	}
+	return kept
 }

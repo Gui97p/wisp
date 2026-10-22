@@ -54,6 +54,10 @@ func expectedEnum(before, text string, scope *analyser.Scope, path string, line 
 	case returnBefore.MatchString(before):
 		tp = returnType(path, line, before, scope)
 	default:
+		if enum, ok := structValueEnum(text, scope); ok {
+			tp = enum
+			break
+		}
 		if callee, arg, ok := callContext(before); ok {
 			if ft := calleeType(scope, callee); ft != nil && arg < len(ft.Params) {
 				tp = ft.Params[arg]

@@ -250,13 +250,21 @@ func (t *X64Target) boxArg(dst Mem, arg analyser.Type, op Operand) {
 	}
 }
 
-func (t *X64Target) compileVariadicCall(sym *analyser.Symbol, extern bool, expr *ast.CallExpr, ft *analyser.FuncType, rets []analyser.Type) ([]Operand, error) {
+func (t *X64Target) compileVariadicCall(sym string, extern bool, receiver ast.Expression, expr *ast.CallExpr, ft *analyser.FuncType, rets []analyser.Type) ([]Operand, error) {
 	fixed := len(ft.Params) - 1
 	elem := ft.Params[fixed]
 	esize := sizeOf(elem)
 	extra := len(expr.Args) - fixed
 
 	args := make([]ast.Expression, 0, fixed+1)
+	if receiver != nil {
+		op, err := t.compileExpr(receiver)
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, t.hiddenArg(t.info.Types[receiver], op))
+	}
+
 	for _, arg := range expr.Args[:fixed] {
 		op, err := t.compileExpr(arg)
 		if err != nil {
@@ -274,7 +282,7 @@ func (t *X64Target) compileVariadicCall(sym *analyser.Symbol, extern bool, expr 
 				return nil, err
 			}
 			args = append(args, t.hiddenArg(analyser.SpanType{Element: elem}, op))
-			return t.compileCall(t.funcSymbol(sym.Module, sym.Name), extern, args, rets, false)
+			return t.compileCall(sym, extern, args, rets, false)
 		}
 
 		rspMem := slot(t.ctx.Reserve(8), 8)
@@ -330,7 +338,7 @@ func (t *X64Target) compileVariadicCall(sym *analyser.Symbol, extern bool, expr 
 
 		t.text.printft("add %s, %d\n", t.ctx.GetRegister(lenReg, 8), extra)
 		args = append(args, t.hiddenArg(analyser.SpanType{Element: elem}, Wide{Words: []Operand{Addr{Of: Mem{Base: x64context.SP}}, Reg{lenReg, 8}}}))
-		ops, err := t.compileCall(t.funcSymbol(sym.Module, sym.Name), extern, args, rets, false)
+		ops, err := t.compileCall(sym, extern, args, rets, false)
 		if err != nil {
 			return nil, err
 		}
@@ -357,7 +365,7 @@ func (t *X64Target) compileVariadicCall(sym *analyser.Symbol, extern bool, expr 
 	}
 
 	args = append(args, t.hiddenArg(analyser.SpanType{Element: elem}, Wide{Words: []Operand{ptr, Imm(extra)}}))
-	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), extern, args, rets, false)
+	return t.compileCall(sym, extern, args, rets, false)
 }
 
 func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, rets []analyser.Type, cVariadic bool) ([]Operand, error) {
@@ -466,8 +474,12 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 
 	if mc, ok := t.info.MethodCalls[expr]; ok {
 		sym := t.funcSymbol(mc.Module, fmt.Sprintf("%s_%s", mc.Owner, expr.Name.(*ast.MemberExpr).Field))
+		rets := t.info.CallReturns[expr]
+		if mc.Func.Variadic {
+			return t.compileVariadicCall(sym, mc.Module != t.module, mc.Receiver, expr, mc.Func, rets)
+		}
 		args := append([]ast.Expression{mc.Receiver}, expr.Args...)
-		return t.compileCall(sym, mc.Module != t.module, args, t.info.CallReturns[expr], false)
+		return t.compileCall(sym, mc.Module != t.module, args, rets, false)
 	}
 
 	sym, err := t.resolveCallee(expr.Name)
@@ -485,11 +497,12 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		return t.compileBuiltin(sym.Name, expr)
 	}
 
+	symbol := t.funcSymbol(sym.Module, sym.Name)
 	if ft, ok := sym.Type.(*analyser.FuncType); ok {
 		if ft.Variadic {
-			return t.compileVariadicCall(sym, sym.Module != t.module, expr, ft, t.info.CallReturns[expr])
+			return t.compileVariadicCall(symbol, sym.Module != t.module, nil, expr, ft, t.info.CallReturns[expr])
 		}
 	}
 
-	return t.compileCall(t.funcSymbol(sym.Module, sym.Name), sym.Module != t.module, expr.Args, t.info.CallReturns[expr], false)
+	return t.compileCall(symbol, sym.Module != t.module, expr.Args, t.info.CallReturns[expr], false)
 }

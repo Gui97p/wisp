@@ -167,9 +167,10 @@ func (a *Analyser) registerMethods() {
 		returns := make([]Type, 0, len(fd.ReturnTypes))
 		for _, r := range fd.ReturnTypes {
 			t := a.resolveTypeRef(fd, a.scope, r)
-			if t != nil {
-				returns = append(returns, t)
+			if t == nil {
+				t = InvalidType{}
 			}
+			returns = append(returns, t)
 		}
 
 		receiverName := ""

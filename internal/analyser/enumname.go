@@ -55,6 +55,7 @@ func enumNameMethod(td *ast.TypeDecl) *ast.FuncDecl {
 		return nil
 	}
 
+	fd.Generated = true
 	fd.Doc = "the name of the member this value holds, or ? when it holds none"
 	line, col := td.Position()
 	endLine, endCol := td.EndPosition()

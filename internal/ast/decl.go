@@ -88,6 +88,7 @@ type FuncDecl struct {
 	ExternName  string
 	CExport     string
 	CVariadic   bool
+	Generated   bool
 
 	NodePos
 }

@@ -27,6 +27,13 @@ func (a *Analyser) errorRange(at ast.Position, format string, args ...any) *diag
 	return a.errors.Add(a.currentFile, at.Line, at.Col, at.EndLine, at.EndCol, format, args...)
 }
 
+func (a *Analyser) errorAtRef(node ast.Node, ref ast.TypeRef, format string, args ...any) *diag.Diagnostic {
+	if ref.Line == 0 {
+		return a.errorf(node, format, args...)
+	}
+	return a.errors.Add(a.currentFile, ref.Line, ref.Col, ref.EndLine, ref.EndCol, format, args...)
+}
+
 func (a *Analyser) errorAtEnd(node ast.Node, format string, args ...any) *diag.Diagnostic {
 	endLine, endCol := node.EndPosition()
 	return a.errors.Add(a.currentFile, endLine, endCol, endLine, endCol, format, args...)
