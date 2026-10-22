@@ -30,7 +30,7 @@ export func trimLeft(string s, charset) string {
         return "";
     }
 
-    loop s[0] in charset && s != "" {
+    loop s != "" && s[0] in charset {
         s = s[1:];
     }
 
@@ -41,7 +41,7 @@ export func trimRight(string s, charset) string {
         return "";
     }
 
-    loop s[len(s)-1] in charset && s != "" {
+    loop s != "" && s[len(s)-1] in charset {
         s = s[:len(s)-1];
     }
 
@@ -62,49 +62,41 @@ export func trimSuffix(string s, suffix) string {
     return s[:len(s)-len(suffix)];
 }
 
-export func toUpper(string s) string {
-    string ns;
-
+export func toUpper(char[] s) {
     for i, c in s {
         if c >= 'a' && c <= 'z' {
             c -= 32;
         }
 
-        ns += c;
+		s[i] = c;
     }
-
-    return ns;
 }
-export func toLower(string s) string {
-    string ns;
-
+export func toLower(char[] s) {
     for i, c in s {
         if c >= 'A' && c <= 'Z' {
             c += 32;
         }
 
-        ns += c;
+		s[i] = c;
     }
-
-    return ns;
 }
 
-export func rep(string s, int n) string {
-    string ns;
-    for n {
-        ns += s;
-    }
-    return ns;
-}
-export func replace(string s, old, new) string {
-    if old == new {
-        return s;
-    }
+// export func rep(string s, int n) string {
+//     string ns;
+//     for n {
+//         ns += s;
+//     }
+//     return ns;
+// }
+// export func replace(string s, old, new) string {
+//     if old == new {
+//         return s;
+//     }
 
-    int idx = indexOf(s, old);
-    loop idx != -1 {
-        s = s[:idx] + new + s[idx+len(old):];
-        idx = indexOf(s, old);
-    }
-    return s;
-}
+//     int idx = indexOf(s, old);
+//     loop idx != -1 {
+//         s = s[:idx] + new + s[idx+len(old):];
+//         idx = indexOf(s, old);
+//     }
+//     return s;
+// }

@@ -524,7 +524,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 	if ft.Variadic {
 		fixedCount := len(ft.Params) - 1
 		if len(argTypes) < fixedCount {
-			a.errorf(expr, "function %s expects at least %d arguments, got %d", ft.Name, fixedCount, len(argTypes))
+			a.errorf(expr, "function %s expects at least %d arguments, got %d", ft.Name, fixedCount, len(argTypes)).WithHelp("%s", signatureHelp(ft))
 			return
 		}
 		for i := range fixedCount {
@@ -532,7 +532,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 				continue
 			}
 			if !a.coerceAt(expr.Args, len(argTypes), i, argTypes[i], ft.Params[i]) {
-				a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), argTypes[i].String())
+				a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), argTypes[i].String()).WithHelp("%s", signatureHelp(ft))
 				continue
 			}
 			a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), ft.Params[i])
@@ -548,7 +548,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 				continue
 			}
 			if _, isAny := variadicType.(AnyType); !isAny && !a.coerceAt(expr.Args, len(argTypes), i, argTypes[i], variadicType) {
-				a.errorf(expr, "argument %d from %s: expected %s (variadic), got %s", i+1, ft.Name, variadicType.String(), argTypes[i].String())
+				a.errorf(expr, "argument %d from %s: expected %s (variadic), got %s", i+1, ft.Name, variadicType.String(), argTypes[i].String()).WithHelp("%s", signatureHelp(ft))
 				continue
 			}
 			a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), variadicType)
@@ -557,7 +557,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 	}
 
 	if len(argTypes) != len(ft.Params) {
-		a.errorf(expr, "function %s expects %d arguments, got %d", ft.Name, len(ft.Params), len(argTypes))
+		a.errorf(expr, "function %s expects %d arguments, got %d", ft.Name, len(ft.Params), len(argTypes)).WithHelp("%s", signatureHelp(ft))
 		return
 	}
 
@@ -566,7 +566,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 			continue
 		}
 		if !a.coerceAt(expr.Args, len(argTypes), i, at, ft.Params[i]) {
-			a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String())
+			a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String()).WithHelp("%s", signatureHelp(ft))
 			continue
 		}
 		a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), ft.Params[i])
@@ -1326,4 +1326,8 @@ func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes
 			}
 		}
 	}
+}
+
+func signatureHelp(ft *FuncType) string {
+	return FuncSignature(ft.Name, ft, nil)
 }

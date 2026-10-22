@@ -187,6 +187,8 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 		child = firstExpr(line, col, e.Array, e.Start, e.End)
 	case *ast.TernaryExpr:
 		child = firstExpr(line, col, e.Condition, e.Then, e.Else)
+	case *ast.PropagateExpr:
+		child = exprAt(e.Value, line, col)
 	case *ast.CoalesceExpr:
 		child = firstExpr(line, col, e.Left, e.Default)
 		if child == nil {

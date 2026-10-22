@@ -1,0 +1,170 @@
+export const IntMax = 0x7FFFFFFFFFFFFFFF;
+export const IntMin = -9223372036854775808;
+export const uint UintMax = ~(0);
+
+export const MaxDigits = 65;
+
+export enum ConvError {
+	Ok,
+	Invalid,
+	Overflow,
+	NoSpace
+}
+
+func formatUnsigned(char[] buf, uint n, int base, bool upper) !string {
+    int i = 0;
+    string digits = upper
+        ? "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        : "0123456789abcdefghijklmnopqrstuvwxyz";
+
+    loop n != 0 {
+        uint rem = n % uint(base);
+		if i >= len(buf) {
+			return Error(ConvError.NoSpace);
+		}
+        buf[i] = digits[rem];
+        i += 1;
+        n /= uint(base);
+    }
+
+    if i == 0 {
+		if len(buf) == 0 {
+			return Error(ConvError.NoSpace);
+		}
+        buf[i] = '0';
+        i += 1;
+    }
+
+    int left = 0;
+    int right = i - 1;
+
+    loop left < right {
+        char tmp = buf[left];
+        buf[left] = buf[right];
+        buf[right] = tmp;
+
+        left += 1;
+        right -= 1;
+    }
+
+    return string(buf[0:i]);
+}
+
+export func formatInt(char[] buf, int n, base, bool upper) !string {
+	if !(base in 2..36) {
+		return Error(ConvError.Invalid);
+	}
+
+	if n >= 0 {
+		return formatUnsigned(buf, uint(n), base, upper)!;
+	}
+
+	if len(buf) < 2 {
+		return Error(ConvError.NoSpace);
+	}
+
+	uint mag = uint(-(n+1)) + 1;
+	string digits = formatUnsigned(buf[1:], mag, base, upper)!;
+	buf[0] = '-';
+	return string(buf[0:len(digits)+1]);
+}
+
+export func formatUint(char[] buf, uint n, int base, bool upper) !string {
+	if !(base in 2..36) {
+		return Error(ConvError.Invalid);
+	}
+	return formatUnsigned(buf, n, base, upper)!;
+}
+
+export func itoa(char[] buf, int n) !string {
+	return formatInt(buf, n, 10, false)!;
+}
+
+export func utoa(char[] buf, uint n) !string {
+	return formatUint(buf, n, 10, false)!;
+}
+
+func digitValue(char c) int {
+	if c >= '0' && c <= '9' {
+        return c - '0';
+    }
+
+    if c >= 'a' && c <= 'z' {
+        return c - 'a' + 10;
+    }
+
+    if c >= 'A' && c <= 'Z' {
+        return c - 'A' + 10;
+    }
+
+    return -1;
+}
+
+export func parseUint(string s, int base) !uint {
+	if !(base in 2..36) || len(s) == 0 {
+		return Error(ConvError.Invalid);
+	}
+
+	uint n = 0;
+	uint b = uint(base);
+
+	for i in 0..len(s)-1 {
+		int d = digitValue(s[i]);
+
+		if d < 0 || d >= base {
+			return Error(ConvError.Invalid);
+		}
+
+		uint digit = uint(d);
+
+		if n > (UintMax - digit) / b {
+			return Error(ConvError.Overflow);
+		}
+
+		n = n * b + digit;
+	}
+
+	return n;
+}
+
+export func parseInt(string s, int base) !int {
+	if len(s) == 0 {
+		return Error(ConvError.Invalid);
+	}
+
+	bool neg = s[0] == '-';
+
+	if neg || s[0] == '+' {
+		s = s[1:];
+	}
+
+	uint mag = parseUint(s, base)!;
+
+	if neg {
+		uint limit = uint(-(IntMin + 1)) + 1;
+
+		if mag > limit {
+			return Error(ConvError.Overflow);
+		}
+
+		if mag == limit {
+			return IntMin;
+		}
+
+		return -int(mag);
+	}
+
+	if mag > uint(IntMax) {
+		return Error(ConvError.Overflow);
+	}
+
+	return int(mag);
+}
+
+export func atoi(string s) !int {
+	return parseInt(s, 10)!;
+}
+
+export func atou(string s) !uint {
+	return parseUint(s, 10)!;
+}

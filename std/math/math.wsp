@@ -2,9 +2,7 @@ import "std/math/constants";
 export constants;
 
 export func abs(int x) int {
-    int r;
-    native lua "r = x < 0 and -x or x";
-    return r;
+    return x < 0 ? -x : x;
 }
 export func fabs(float64 x) float64 {
     float64 r;
@@ -12,10 +10,22 @@ export func fabs(float64 x) float64 {
     return r;
 }
 
-export func min(int a, int b) int {
-    int r;
-    native lua "r = math.min(a, b)";
-    return r;
+export func min(int ...args) int {
+    int l = len(args);
+
+	if len(args) == 0 {
+		return 0;
+	}
+	int m = args[0];
+
+	for i in 1..l-1 {
+		int n = args[i];
+		if n < m {
+			m = n;
+		}
+	}
+
+	return m;
 }
 export func fmin(float64 a, float64 b) float64 {
     float64 r;
@@ -23,10 +33,22 @@ export func fmin(float64 a, float64 b) float64 {
     return r;
 }
 
-export func max(int a, int b) int {
-    int r;
-    native lua "r = math.max(a, b)";
-    return r;
+export func max(int ...args) int {
+    int l = len(args);
+
+	if len(args) == 0 {
+		return 0;
+	}
+	int m = args[0];
+
+	for i in 1..l-1 {
+		int n = args[i];
+		if n > m {
+			m = n;
+		}
+	}
+	
+	return m;
 }
 export func fmax(float64 a, float64 b) float64 {
     float64 r;
