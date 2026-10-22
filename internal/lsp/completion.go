@@ -65,6 +65,10 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 		return nil
 	}
 
+	if items, ok := implicitDotItems(path, pos, currentInfo(path)); ok {
+		return items
+	}
+
 	info := currentInfo(path)
 
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
@@ -132,7 +136,9 @@ func refreshModules(prev, fresh *analyser.Info) {
 		}
 		if old, ok := prev.Module.Resolve(sym.Name); ok && old.Kind == analyser.MODULE {
 			old.Type = sym.Type
+			continue
 		}
+		prev.Module.Define(sym)
 	}
 }
 
@@ -145,13 +151,47 @@ func memberBase(prefix string) (string, bool) {
 		return "", false
 	}
 	start := end - 1
-	for start > 0 && isIdentByte(prefix[start-1]) {
+	for start > 0 && (isIdentByte(prefix[start-1]) || (prefix[start-1] == '.' && start > 1 && isIdentByte(prefix[start-2]))) {
 		start--
 	}
 	if start == end-1 {
 		return "", false
 	}
 	return prefix[start : end-1], true
+}
+
+func resolveChain(scope *analyser.Scope, chain string) (*analyser.Symbol, bool) {
+	parts := strings.Split(chain, ".")
+	sym, ok := scope.Resolve(parts[0])
+	if !ok {
+		return nil, false
+	}
+	for _, part := range parts[1:] {
+		if module, isModule := sym.Type.(*analyser.ModuleType); isModule {
+			next, found := module.Exports[part]
+			if !found {
+				return nil, false
+			}
+			sym = next
+			continue
+		}
+		tp := chainFieldType(sym.Type, part)
+		if tp == nil {
+			return nil, false
+		}
+		sym = &analyser.Symbol{Name: part, Kind: analyser.VAR, Type: tp}
+	}
+	return sym, true
+}
+
+func chainFieldType(tp analyser.Type, field string) analyser.Type {
+	if pt, ok := tp.(analyser.PointerType); ok {
+		tp = pt.Element
+	}
+	if st, ok := tp.(*analyser.StructType); ok {
+		return st.Fields[field]
+	}
+	return nil
 }
 
 func isIdentByte(b byte) bool {
@@ -169,7 +209,7 @@ func scopeAt(info *analyser.Info, line, col int) *analyser.Scope {
 }
 
 func memberItems(base string, scope *analyser.Scope, suffix string) []protocol.CompletionItem {
-	sym, ok := scope.Resolve(base)
+	sym, ok := resolveChain(scope, base)
 	if !ok {
 		return nil
 	}

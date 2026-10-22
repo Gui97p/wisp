@@ -1,0 +1,19 @@
+import "std/sys";
+import "std/os/global";
+
+export func now() int {
+	int s, ns = sys.time(sys.CLOCK_REALTIME);
+	return s * 1_000_000_000 + ns;
+}
+
+export func ticks() int {
+	int s, ns = sys.time(sys.CLOCK_MONOTONIC);
+	return s * 1_000_000_000 + ns;
+}
+
+export func sleep(int ms) ! {
+	int r = sys.sleep(ms/1000, (ms % 1000) * 1_000_000);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+}

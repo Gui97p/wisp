@@ -338,6 +338,22 @@ func (a *Analyser) mapLiteralAssignable(values []ast.Expression, n, i int, from 
 	return keyOK && valueOK
 }
 
+func (a *Analyser) warnUnusedFuncs() {
+	for _, d := range a.program.Declarations {
+		decl, ok := d.(*ast.FuncDecl)
+		if !ok || decl.Receiver != nil || decl.Exported || decl.Extern || decl.CExport != "" || decl.Name == "main" || silencesUnused(decl.Name) {
+			continue
+		}
+		sym, found := a.scope.symbols[decl.Name]
+		if !found || sym.Used {
+			continue
+		}
+		line, col := decl.Position()
+		a.errors.Warn(a.declFiles[d], line, col, line, col+len("func "+decl.Name)-1, "function %s is never used", decl.Name).
+			WithHelp("remove it, or export it if other modules use it")
+	}
+}
+
 func (a *Analyser) warnUnusedGlobals() {
 	for _, d := range a.program.Declarations {
 		var vars []ast.Param

@@ -1,0 +1,57 @@
+import "std/sys";
+import "std/os/global";
+
+func copyPath(*char buf, string path) {
+	for i, c in path {
+		buf[i] = c;
+	}
+	buf[len(path)] = '\0';
+}
+
+export func open(string path, int flags) !int {
+	char[4096] buf;
+	if len(path) > 4095 {
+		return Error(global.IOError.Invalid);
+	}
+	copyPath((*char)(buf), path);
+	int r = sys.open((*char)(buf), flags | sys.O_CLOEXEC, 0o644);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+	return r;
+}
+
+export func create(string path) !int {
+	return open(path, global.WRITE | global.CREATE | global.TRUNCATE)!;
+}
+
+export func remove(string path) ! {
+	char[4096] buf;
+	if len(path) > 4095 {
+		return Error(global.IOError.Invalid);
+	}
+	copyPath((*char)(buf), path);
+	int r = sys.remove((*char)(buf), 0);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+}
+
+export func removeDir(string path) ! {
+	char[4096] buf;
+	if len(path) > 4095 {
+		return Error(global.IOError.Invalid);
+	}
+	copyPath((*char)(buf), path);
+	int r = sys.remove((*char)(buf), sys.AT_REMOVEDIR);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+}
+
+export func close(int fd) ! {
+	int r = sys.close(fd);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+}

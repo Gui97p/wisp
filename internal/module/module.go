@@ -176,7 +176,11 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 		for _, imp := range mod.Imports {
 			key, depDir, depFiles, err := resolveImportPath(root, imp.Path)
 			if err != nil {
-				mod.FailImport(imp.Path, err.Error())
+				message := err.Error()
+				if hint := siblingImportHint(root, mod.Dir, imp.Path); hint != "" {
+					message += "\n" + hint
+				}
+				mod.FailImport(imp.Path, message)
 				continue
 			}
 			if visiting[key] {
@@ -197,6 +201,30 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 	}
 
 	return order
+}
+
+func siblingImportHint(root, dir, path string) string {
+	if dir == "" || strings.HasPrefix(path, "std/") {
+		return ""
+	}
+	candidate := filepath.Join(dir, path)
+	if _, _, _, err := resolveImportPath(root, importKey(root, candidate)); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("an import path starts at the project root, so this one is written %q", importKey(root, candidate))
+}
+
+func importKey(root, target string) string {
+	if stdRoot, err := StdlibRoot(); err == nil {
+		if rel, err := filepath.Rel(stdRoot, target); err == nil && !strings.HasPrefix(rel, "..") {
+			return "std/" + filepath.ToSlash(rel)
+		}
+	}
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return target
+	}
+	return filepath.ToSlash(rel)
 }
 
 func (m *Module) FailImport(path, message string) {

@@ -1,3 +1,73 @@
-export const STDIN = 0;
-export const STDOUT = 1;
-export const STDERR = 2;
+import "std/sys";
+import "std/os/global";
+import "std/os/files";
+import "std/os/time";
+
+export global;
+export files;
+export time;
+
+func writeRaw(int fd, *char buf, int n) !int {
+	int total;
+	loop total < n {
+		int r = sys.write(fd, buf + total, n - total);
+		if r == -4 {
+			continue;
+		}
+		if r <= 0 {
+			return global.errorIO(sys.errno(r));
+		}
+		total += r;
+	}
+	return total;
+}
+
+export func write(int fd, string s) !int {
+	return writeRaw(fd, (*char)(s), len(s))!;
+}
+
+export func writeBytes(int fd, char[] buf) !int {
+	return writeRaw(fd, (*char)(buf), len(buf))!;
+}
+
+export func read(int fd, char[] buf) !int {
+	int r;
+	loop {
+		r = sys.read(fd, (*char)(buf), len(buf));
+	} until r != -4;
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+	return r;
+}
+
+export func seek(int fd, offset, whence) !int {
+	int r = sys.seek(fd, offset, whence);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+	return r;
+}
+
+export func size(int fd) !int {
+	int r = sys.size(fd);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+	return r;
+}
+
+export func sync(int fd) ! {
+	int r = sys.sync(fd);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+}
+
+export func isatty(int fd) bool {
+	return sys.isatty(fd);
+}
+
+export func exit(int code) {
+	sys.exit(code);
+}

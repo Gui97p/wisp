@@ -305,13 +305,20 @@ func (l *Lexer) NextToken() Token {
 		}
 
 		value := l.ch
+		if value == '\\' {
+			escaped, ok := l.charEscape()
+			if !ok {
+				return l.token(TOKEN_ILLEGAL, "unknown escape sequence in char literal")
+			}
+			value = escaped
+		}
 
 		if l.peek() != '\'' {
 			return l.token(TOKEN_ILLEGAL, "invalid char literal")
 		}
 
 		l.advance()
-		t = l.token(TOKEN_CHAR_LITERAL, string(value))
+		t = l.token(TOKEN_CHAR_LITERAL, string([]byte{value}))
 
 	default:
 		var builder strings.Builder
@@ -461,4 +468,44 @@ func isNumeric(ch byte) bool {
 
 func isAlphaNumeric(ch byte) bool {
 	return isAlpha(ch) || isNumeric(ch)
+}
+
+func (l *Lexer) charEscape() (byte, bool) {
+	switch c := l.advance(); c {
+	case 'n':
+		return '\n', true
+	case 'r':
+		return '\r', true
+	case 't':
+		return '\t', true
+	case 'b':
+		return '\b', true
+	case 'f':
+		return '\f', true
+	case 'v':
+		return '\v', true
+	case 'a':
+		return '\a', true
+	case '\\', '\'', '"':
+		return c, true
+	case '0':
+		return 0, true
+	case 'x':
+		high, ok1 := hexDigit(l.advance())
+		low, ok2 := hexDigit(l.advance())
+		return high<<4 | low, ok1 && ok2
+	}
+	return 0, false
+}
+
+func hexDigit(c byte) (byte, bool) {
+	switch {
+	case c >= '0' && c <= '9':
+		return c - '0', true
+	case c >= 'a' && c <= 'f':
+		return c - 'a' + 10, true
+	case c >= 'A' && c <= 'F':
+		return c - 'A' + 10, true
+	}
+	return 0, false
 }

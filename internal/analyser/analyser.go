@@ -71,6 +71,7 @@ func (a *Analyser) Analyze() *Info {
 	a.registerGlobals()
 	a.checkFuncBodies()
 	a.warnUnusedGlobals()
+	a.warnUnusedFuncs()
 	a.warnUnusedImports()
 	a.defaultUntyped()
 	a.reportUnresolvedDots()

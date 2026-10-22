@@ -2,6 +2,7 @@ package analyser
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -115,7 +116,11 @@ func (a *Analyser) registerImports() {
 			if !known {
 				message = fmt.Sprintf("unresolved import %q", imp.Path)
 			}
-			a.error(imp, message)
+			message, help, _ := strings.Cut(message, "\n")
+			d := a.error(imp, message)
+			if help != "" {
+				d.WithHelp("%s", help)
+			}
 			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
 			continue
 		}

@@ -3075,6 +3075,28 @@ func main() {
 }
 `, expected: []string{"global zero initializer", "global constant expression initializer", "global string initializer", "global inferred initializer", "global enum initializer", "global array initializer", "global struct initializer", "global multiple declaration", "global bool and char", "global compound assign", "global increment", "global array element write", "global struct field write", "global string write", "global used by a function above it", "global bool write", "global is shared across calls"}},
 
+	{dir: "char_escapes", src: `func code(char c) int {
+    return int(c);
+}
+
+func main() {
+    check(code('\0') == 0, "a char can be the zero byte");
+    check(code('\n') == 10 && code('\r') == 13 && code('\t') == 9, "newline, carriage return and tab");
+    check(code('\\') == 92, "an escaped backslash");
+    check(code('\'') == 39, "an escaped single quote");
+    check(code('\"') == 34, "an escaped double quote");
+    check(code('\x41') == 65, "a hexadecimal escape");
+    check(code('\x7f') == 127, "a lower case hexadecimal escape");
+    check(code('a') == 97, "a plain char is unchanged");
+
+    char[3] buf;
+    buf[0] = 'h';
+    buf[1] = 'i';
+    buf[2] = '\0';
+    check(buf[2] == '\0' && buf[0] != '\0', "the terminator can be stored in a buffer");
+}
+`, expected: []string{"a char can be the zero byte", "newline, carriage return and tab", "an escaped backslash", "an escaped single quote", "an escaped double quote", "a hexadecimal escape", "a lower case hexadecimal escape", "a plain char is unchanged", "the terminator can be stored in a buffer"}},
+
 	{dir: "array_const_size", files: map[string]string{"limits.wsp": `export const Rows = 3;
 export const Cells = Rows * 2;
 `}, src: `import "limits";

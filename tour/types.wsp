@@ -43,6 +43,10 @@ export func demo() {
   char letter = 'w';
   expect.expect(ready && letter == 'w', "bool and char");
 
+  // A char takes the same escapes as a string: \n, \r, \t, \\, \', \", \0 and
+  // \xHH for a byte in hexadecimal. `'\0'` is the zero byte that ends a C string.
+  expect.expect('\0' == '\x00' && '\n' == '\x0a', "escapes in a char");
+
   // Integers wrap at their width.
   int8 small = 127;
   small++;
