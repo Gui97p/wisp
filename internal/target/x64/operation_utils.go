@@ -100,8 +100,16 @@ func (t *X64Target) pushValue(op Operand) int {
 }
 
 func (t *X64Target) field(op Operand, i int) Operand {
+	words := t.words(op)
+	if _, ok := op.(Mem); ok {
+		if i >= len(words) {
+			t.fail("x86-64: operand index out of range")
+			return nil
+		}
+		return words[i]
+	}
 	var r Operand
-	for j, w := range t.words(op) {
+	for j, w := range words {
 		if i == j {
 			r = w
 			continue

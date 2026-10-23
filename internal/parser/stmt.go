@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"slices"
+
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
@@ -130,16 +132,66 @@ func (p *Parser) parseBlockStatement() *ast.BlockStmt {
 	for p.peek.Type != lexer.TOKEN_RBRACE && p.current.Type != lexer.TOKEN_EOF {
 		p.advance()
 
+		start := p.checkpoint()
+		errorsBefore := len(p.errors)
 		stmt := p.parseStatement()
 
 		if stmt != nil {
 			block.Statements = append(block.Statements, stmt)
+		} else if len(p.errors) > errorsBefore {
+			p.skipBrokenStatement(start)
 		}
 	}
 
 	block.SetEndPos(p.peek.Line, p.peek.Column)
 
 	return block
+}
+
+func (p *Parser) skipBrokenStatement(start parserCheckpoint) {
+	errors := slices.Clone(p.errors)
+	p.restore(start)
+	p.errors = errors
+
+	startLine := p.current.Line
+	depth := 0
+	for {
+		switch p.current.Type {
+		case lexer.TOKEN_LBRACE:
+			depth++
+		case lexer.TOKEN_RBRACE:
+			depth--
+		}
+
+		if depth <= 0 {
+			if p.current.Type == lexer.TOKEN_SEMICOLON {
+				return
+			}
+			if p.peek.Type == lexer.TOKEN_RBRACE || p.peek.Type == lexer.TOKEN_EOF {
+				return
+			}
+			if p.peek.Line > startLine && startsStatement(p.peek.Type) {
+				return
+			}
+		}
+		if p.peek.Type == lexer.TOKEN_EOF {
+			return
+		}
+		p.advance()
+	}
+}
+
+func startsStatement(t lexer.TokenType) bool {
+	if t >= lexer.TOKEN_INT && t <= lexer.TOKEN_STRING {
+		return true
+	}
+	switch t {
+	case lexer.TOKEN_LET, lexer.TOKEN_CONST, lexer.TOKEN_IF, lexer.TOKEN_FOR, lexer.TOKEN_LOOP,
+		lexer.TOKEN_RETURN, lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE, lexer.TOKEN_NATIVE,
+		lexer.TOKEN_SWITCH, lexer.TOKEN_DEFER:
+		return true
+	}
+	return false
 }
 
 func (p *Parser) parseSimpleStatement() ast.Statement {

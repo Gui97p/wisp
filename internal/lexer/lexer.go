@@ -27,11 +27,14 @@ func NewLexer(buffer []byte) *Lexer {
 		buf:    buffer,
 		pos:    0,
 		line:   1,
-		column: 1,
+		column: 0,
 	}
 
 	if len(buffer) > 0 {
 		l.ch = buffer[0]
+		l.count()
+	} else {
+		l.column = 1
 	}
 
 	return l
@@ -399,7 +402,12 @@ func (l *Lexer) read(pos int) byte {
 func (l *Lexer) advance() byte {
 	l.pos++
 	l.ch = l.read(l.pos)
+	l.count()
 
+	return l.ch
+}
+
+func (l *Lexer) count() {
 	switch {
 	case l.ch == '\n':
 		l.line++
@@ -410,8 +418,6 @@ func (l *Lexer) advance() byte {
 	default:
 		l.column++
 	}
-
-	return l.ch
 }
 
 func (l *Lexer) peek() byte {

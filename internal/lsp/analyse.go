@@ -3,6 +3,7 @@ package lsp
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -14,47 +15,84 @@ import (
 )
 
 type moduleAnalysis struct {
-	mod    *module.Module
-	merged *ast.Program
-	info   *analyser.Info
-	diags  diag.List
+	mod       *module.Module
+	merged    *ast.Program
+	info      *analyser.Info
+	diags     diag.List
+	declFiles map[ast.Declaration]string
 }
 
 type projectAnalysis struct {
 	modules []moduleAnalysis
 }
 
+type analysisSlot struct {
+	gen   uint64
+	value *projectAnalysis
+	err   error
+}
+
 var (
 	generation   atomic.Uint64
 	analysisMu   sync.Mutex
-	analysisHold struct {
-		entry string
-		gen   uint64
-		value *projectAnalysis
-		err   error
-		valid bool
-	}
+	analysisHold = map[string]analysisSlot{}
 )
 
 func invalidateAnalysis() {
 	generation.Add(1)
 }
 
+func cachedAnalysis(key string, gen uint64, run func() (*projectAnalysis, error)) (*projectAnalysis, error) {
+	if slot, ok := analysisHold[key]; ok && slot.gen == gen {
+		return slot.value, slot.err
+	}
+	value, err := run()
+	analysisHold[key] = analysisSlot{gen, value, err}
+	return value, err
+}
+
 func analyseProject(path string) (*projectAnalysis, error) {
-	entry := resolveProjectEntry(path)
 	gen := generation.Load()
+	root := module.FindProjectRoot(filepath.Dir(path))
 
 	analysisMu.Lock()
 	defer analysisMu.Unlock()
 
-	h := &analysisHold
-	if h.valid && h.entry == entry && h.gen == gen {
-		return h.value, h.err
+	whole, err := cachedAnalysis("project:"+root, gen, func() (*projectAnalysis, error) {
+		return runProjectAnalysis(path, fileBuffer)
+	})
+	if err == nil && whole != nil && analysisHas(whole, path) {
+		return whole, nil
 	}
 
-	value, err := runAnalysis(entry)
-	h.entry, h.gen, h.value, h.err, h.valid = entry, gen, value, err, true
-	return value, err
+	entry := resolveProjectEntry(path)
+	return cachedAnalysis("entry:"+entry, gen, func() (*projectAnalysis, error) {
+		return runAnalysis(entry)
+	})
+}
+
+func analysisHas(pa *projectAnalysis, path string) bool {
+	for _, m := range pa.modules {
+		if slices.Contains(m.mod.FilePaths, path) {
+			return true
+		}
+	}
+	return false
+}
+
+func runProjectAnalysis(path string, buffers map[string][]byte) (result *projectAnalysis, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("analyser panic: %v", r)
+			result, err = nil, fmt.Errorf("the analysis failed")
+		}
+	}()
+
+	modules, err := discoverProjectGraph(path, buffers)
+	if err != nil {
+		return nil, err
+	}
+	return analyseModules(modules), nil
 }
 
 func runAnalysis(entry string) (result *projectAnalysis, err error) {
@@ -70,17 +108,21 @@ func runAnalysis(entry string) (result *projectAnalysis, err error) {
 		return nil, err
 	}
 
-	result = &projectAnalysis{}
+	return analyseModules(modules), nil
+}
+
+func analyseModules(modules []*module.Module) *projectAnalysis {
+	result := &projectAnalysis{}
 	exports := map[string]*analyser.ModuleInfo{}
 
 	for _, mod := range modules {
 		item, ok := analyseModule(mod, exports)
 		if !ok {
-			break
+			continue
 		}
 		result.modules = append(result.modules, item)
 	}
-	return result, nil
+	return result
 }
 
 func analyseModule(mod *module.Module, exports map[string]*analyser.ModuleInfo) (item moduleAnalysis, ok bool) {
@@ -97,7 +139,7 @@ func analyseModule(mod *module.Module, exports map[string]*analyser.ModuleInfo) 
 	info := a.Analyze()
 	merged.Declarations = withoutGenerated(merged.Declarations)
 
-	item = moduleAnalysis{mod: mod, merged: merged, info: info}
+	item = moduleAnalysis{mod: mod, merged: merged, info: info, declFiles: declFiles}
 	if a.HasDiagnostics() {
 		item.diags = a.Errors()
 	}

@@ -2,7 +2,7 @@
     "name": "wisp",
     "displayName": "Wisp Language Support",
     "description": "Language support for Wisp: highlighting, diagnostics, completion, hover, rename, snippets and a file icon.",
-    "version": "0.8.3",
+    "version": "0.8.4",
     "publisher": "gui97p",
     "license": "MIT",
     "repository": {
@@ -82,7 +82,10 @@
             {
                 "language": "wisp",
                 "scopeName": "source.wisp",
-                "path": "./syntaxes/wisp.tmLanguage.json"
+                "path": "./syntaxes/wisp.tmLanguage.json",
+                "tokenTypes": {
+                    "constant.character.wisp": "string"
+                }
             },
             {
                 "language": "wisp-config",

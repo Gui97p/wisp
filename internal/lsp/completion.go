@@ -1,9 +1,12 @@
 package lsp
 
 import (
+	"bytes"
+	"maps"
 	"sort"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -69,7 +72,11 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 		return items
 	}
 
-	info := currentInfo(path)
+	candidates := infoCandidates(path, pos)
+	var info *analyser.Info
+	if len(candidates) > 0 {
+		info = candidates[0]
+	}
 
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
 	suffix := lineSuffix(path, int(pos.Line), int(pos.Character))
@@ -97,10 +104,12 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 	}
 
 	if base, ok := memberBase(prefix); ok {
-		if info == nil {
-			return nil
+		for _, candidate := range candidates {
+			if items := memberItems(base, scopeAt(candidate, line, col), suffix); items != nil {
+				return items
+			}
 		}
-		return memberItems(base, scopeAt(info, line, col), suffix)
+		return nil
 	}
 
 	items := []protocol.CompletionItem{}
@@ -113,10 +122,78 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 
 	if info != nil {
 		for _, sym := range scopeAt(info, line, col).Visible() {
+			if strings.HasPrefix(sym.Name, "__wisp_") {
+				continue
+			}
 			items = append(items, symbolItem(sym, suffix))
 		}
 	}
 	return items
+}
+
+func infoCandidates(path string, pos protocol.Position) []*analyser.Info {
+	program, fresh, clean := analyseEntryChecked(path)
+	if clean && fresh != nil {
+		return []*analyser.Info{currentInfo(path)}
+	}
+
+	var candidates []*analyser.Info
+	if info := patchedInfo(path, pos); info != nil {
+		candidates = append(candidates, info)
+	}
+	if program != nil && fresh != nil {
+		candidates = append(candidates, fresh)
+	}
+	if prev, ok := getLastGood(path); ok {
+		refreshModules(prev.info, fresh)
+		candidates = append(candidates, prev.info)
+	}
+	return candidates
+}
+
+func patchedInfo(path string, pos protocol.Position) *analyser.Info {
+	text, ok := fileBuffer[path]
+	if !ok {
+		return nil
+	}
+	offset := cursorOffset(text, int(pos.Line), int(pos.Character))
+	if offset <= 0 || text[offset-1] != '.' {
+		return nil
+	}
+
+	for _, filler := range []string{"_", "_;"} {
+		patched := make([]byte, 0, len(text)+len(filler))
+		patched = append(patched, text[:offset]...)
+		patched = append(patched, filler...)
+		patched = append(patched, text[offset:]...)
+
+		buffers := maps.Clone(fileBuffer)
+		buffers[path] = patched
+		pa, err := runProjectAnalysis(path, buffers)
+		if err != nil || pa == nil {
+			continue
+		}
+		if m := pa.moduleOf(path); m != nil && m.mod.ParseError == nil {
+			return m.info
+		}
+	}
+	return nil
+}
+
+func cursorOffset(text []byte, line, character int) int {
+	offset := 0
+	for l := 0; l < line; l++ {
+		next := bytes.IndexByte(text[offset:], '\n')
+		if next < 0 {
+			return -1
+		}
+		offset += next + 1
+	}
+	for c := 0; c < character && offset < len(text) && text[offset] != '\n'; c++ {
+		_, size := utf8.DecodeRune(text[offset:])
+		offset += size
+	}
+	return offset
 }
 
 func currentInfo(path string) *analyser.Info {

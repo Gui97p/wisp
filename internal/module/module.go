@@ -272,12 +272,16 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 }
 
 func DiscoverProject(root string) ([]*Module, error) {
+	return DiscoverProjectWithOverrides(root, nil)
+}
+
+func DiscoverProjectWithOverrides(root string, overrides map[string][]byte) ([]*Module, error) {
 	roots, err := discoverModuleRoots(root)
 	if err != nil {
 		return nil, err
 	}
 
-	return buildOrder(root, roots, nil), nil
+	return buildOrder(root, roots, overrides), nil
 }
 
 func loadModule(path, dir string, files []string, overrides map[string][]byte) *Module {

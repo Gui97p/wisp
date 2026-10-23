@@ -116,6 +116,7 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 		ft = symbol.Type.(*FuncType)
 	}
 
+	var declared []*Symbol
 	for i, p := range fd.Params {
 		if i >= len(ft.Params) {
 			break
@@ -130,6 +131,7 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 			a.errorf(fd, "duplicated %s parameter", p.Name)
 		}
 		a.info.VarSymbols[fd] = append(a.info.VarSymbols[fd], paramSym)
+		declared = append(declared, paramSym)
 	}
 
 	prevReturns, prevFallible := a.currentReturns, a.currentFallible
@@ -137,9 +139,23 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 	defer func() { a.currentReturns, a.currentFallible = prevReturns, prevFallible }()
 
 	a.checkBlock(fd.Body)
+	a.warnUnusedParams(fd, declared)
 
 	if len(ft.Returns) > 0 && !blockTerminates(fd.Body) {
 		a.errorAtEnd(fd.Body, "missing return at end of function %s", fd.Name)
+	}
+}
+
+func (a *Analyser) warnUnusedParams(fd *ast.FuncDecl, params []*Symbol) {
+	if fd.Generated {
+		return
+	}
+	for _, sym := range params {
+		if sym.Used || sym.Line == 0 || silencesUnused(sym.Name) {
+			continue
+		}
+		a.errors.Warn(sym.File, sym.Line, sym.Col, sym.Line, sym.Col+len(sym.Name)-1, "parameter %s is never used", sym.Name).
+			WithHelp("remove it, or rename it to _%s to keep it", sym.Name)
 	}
 }
 

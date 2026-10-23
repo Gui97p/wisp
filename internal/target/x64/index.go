@@ -35,6 +35,9 @@ func (t *X64Target) baseMem(expr ast.Expression) (Mem, Operand, error) {
 		words := t.words(op)
 		reg := t.ctx.AllocFreeRegister()
 		t.loadWord(reg, words[0])
+		if _, ok := op.(Mem); !ok {
+			t.freeWord(words[0])
+		}
 		base = Mem{Base: reg}
 		limit = words[1]
 	case analyser.PointerType:
@@ -58,6 +61,9 @@ func (t *X64Target) baseMem(expr ast.Expression) (Mem, Operand, error) {
 			return Mem{}, nil, fmt.Errorf("x86-64: no available registers")
 		}
 		t.loadWord(reg, words[0])
+		if _, ok := op.(Mem); !ok {
+			t.freeWord(words[0])
+		}
 		base = Mem{Base: reg}
 		limit = words[1]
 	default:

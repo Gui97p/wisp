@@ -87,11 +87,11 @@ func NewHandler() *protocol.Handler {
 	}
 
 	handler.TextDocumentDefinition = func(context *glsp.Context, params *protocol.DefinitionParams) (any, error) {
-		loc := definition(params.TextDocument.URI, params.Position)
-		if loc == nil {
+		locations := definition(params.TextDocument.URI, params.Position)
+		if len(locations) == 0 {
 			return nil, nil
 		}
-		return loc, nil
+		return locations, nil
 	}
 
 	handler.TextDocumentSemanticTokensFull = semanticTokens
