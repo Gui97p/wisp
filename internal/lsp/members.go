@@ -352,3 +352,13 @@ func funcDeclText(decl *ast.FuncDecl) string {
 	}
 	return text
 }
+
+func shortWord(uri protocol.DocumentUri, pos protocol.Position) bool {
+	before := textBefore(uriToPath(uri), int(pos.Line), int(pos.Character))
+	word := typedWord(before)
+	if len(word) != 1 {
+		return false
+	}
+	rest := before[:len(before)-1]
+	return !strings.HasSuffix(rest, ".")
+}

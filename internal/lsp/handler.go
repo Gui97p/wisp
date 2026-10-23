@@ -104,7 +104,8 @@ func NewHandler() *protocol.Handler {
 		if isConfigURI(params.TextDocument.URI) {
 			return configCompletion(params.TextDocument.URI, params.Position), nil
 		}
-		return completion(params.TextDocument.URI, params.Position, trigger), nil
+		items := completion(params.TextDocument.URI, params.Position, trigger)
+		return protocol.CompletionList{IsIncomplete: shortWord(params.TextDocument.URI, params.Position), Items: items}, nil
 	}
 
 	handler.TextDocumentDocumentSymbol = func(context *glsp.Context, params *protocol.DocumentSymbolParams) (any, error) {
