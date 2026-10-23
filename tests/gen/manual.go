@@ -932,6 +932,44 @@ func main() {
 }
 `},
 
+	{dir: "internal_package", files: map[string]string{"shapes/shapes.wsp": `import "shapes/sides";
+import "shapes/deep";
+export sides;
+
+export func corners(int n) int {
+    return deep.twice(sides.count(n)) + sides.hidden() - 1;
+}
+`, "shapes/deep/deep.wsp": `shared func twice(int n) int {
+    return n * 2;
+}
+`, "shapes/sides.wsp": `export func count(int n) int {
+    return n + hidden();
+}
+
+internal func hidden() int {
+    return 1;
+}
+
+export struct Box {
+    int w;
+}
+
+internal func (*Box b) area() int {
+    return b.w * b.w;
+}
+
+export func grown(int w) int {
+    Box b = Box{w: w};
+    return b.area() + 1;
+}
+`}, src: `import "shapes";
+
+func main() {
+    check(shapes.corners(3) == 8, "a package entry reaches its internal files");
+    check(shapes.count(3) == 4, "an entry re-exports what a file exports");
+    check(shapes.grown(3) == 10, "an internal method works inside its package");
+}
+`, expected: []string{"a package entry reaches its internal files", "an entry re-exports what a file exports", "an internal method works inside its package"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `export struct Counter {
     int n;
 }
@@ -3086,7 +3124,7 @@ enum Color {
 char[256] scratch;
 
 func fm(string format, ...args) string {
-    let n, err = fmt.snprintf(scratch[:], format, args...);
+    let n, err = fmt.sprintf(scratch[:], format, args...);
     if err != null {
         return "<error>";
     }
@@ -3181,11 +3219,11 @@ func main() {
     check(shown == fm("{p}", p), "p is the default for a pointer");
 
     char[16] out;
-    let n, e1 = fmt.snprintf(out[:], "ab{}", 12);
-    check(e1 == null && n == 4, "snprintf returns the byte count");
+    let n, e1 = fmt.sprintf(out[:], "ab{}", 12);
+    check(e1 == null && n == 4, "sprintf returns the byte count");
     char[3] tiny;
-    let _, e2 = fmt.snprintf(tiny[:], "abcdef");
-    check(e2 == fmt.FormatError.NoSpace, "snprintf into a buffer that is too small is NoSpace");
+    let _, e2 = fmt.sprintf(tiny[:], "abcdef");
+    check(e2 == fmt.FormatError.NoSpace, "sprintf into a buffer that is too small is NoSpace");
 
     char[32] mem;
     fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], len: 0, mode: fmt.BufMode.Full};
@@ -3250,7 +3288,7 @@ func main() {
     let _ = os.remove("fmt_stream.txt");
     let _ = os.remove("fmt_call.txt");
 }
-`, expected: []string{"decimal", "negative decimal", "zero", "largest uint", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "char", "char as a number", "char in hex", "integer as a char", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "a pointer starts with 0x", "p is the default for a pointer", "snprintf returns the byte count", "snprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
+`, expected: []string{"decimal", "negative decimal", "zero", "largest uint", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "char", "char as a number", "char in hex", "integer as a char", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "a pointer starts with 0x", "p is the default for a pointer", "sprintf returns the byte count", "sprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
 
 	{dir: "variadic_method", src: `struct Counter {
     int seen;

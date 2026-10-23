@@ -21,7 +21,7 @@ int untouched;
 
 // `export` makes a global visible to other modules, which can read it and
 // write it.
-export int shared = 100;
+export int total = 100;
 
 func bump() int {
   counter++;
@@ -37,8 +37,8 @@ export func demo() {
   name = "other";
   expect.expect(table[1] == 2 && settings.retries == 4 && name == "other", "arrays, structs and strings can be globals");
 
-  shared = shared + 1;
-  expect.expect(shared == 101, "an exported global");
+  total = total + 1;
+  expect.expect(total == 101, "an exported global");
 
   // A global that nothing uses gets a warning, unless its name starts with an
   // underscore. That goes for any unused variable or constant. Exported

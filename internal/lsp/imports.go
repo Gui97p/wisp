@@ -64,8 +64,10 @@ func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem,
 	cyclic := dependentFiles(path)
 
 	segments := map[string]*importSegment{}
-	for _, c := range module.ImportablePaths(root) {
-		if c.File == path || imported[c.Path] || cyclic[c.File] || !strings.HasPrefix(c.Path, dir) {
+	candidates := module.ImportablePaths(root)
+	byPath := pathIndex(candidates)
+	for _, c := range candidates {
+		if c.File == path || imported[c.Path] || cyclic[c.File] || !strings.HasPrefix(c.Path, dir) || !module.CanImport(path, c.File) || exportsNothing(path, c, byPath) {
 			continue
 		}
 

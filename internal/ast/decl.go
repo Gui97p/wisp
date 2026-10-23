@@ -10,6 +10,7 @@ type ConstDecl struct {
 	Vars     []Param
 	Values   []Expression
 	Exported bool
+	Reach    int
 
 	NodePos
 }
@@ -45,6 +46,7 @@ type VarDecl struct {
 	Vars     []Param
 	Values   []Expression
 	Exported bool
+	Reach    int
 
 	NodePos
 }
@@ -84,6 +86,7 @@ type FuncDecl struct {
 	ReturnTypes []TypeRef
 	Fallible    bool
 	Exported    bool
+	Reach       int
 	Extern      bool
 	ExternName  string
 	CExport     string
@@ -147,6 +150,7 @@ type StructDecl struct {
 	Name     string
 	Members  []Param
 	Exported bool
+	Reach    int
 
 	NodePos
 }
@@ -183,6 +187,7 @@ type TypeDecl struct {
 	Name       string
 	Underlying TypeRef
 	Exported   bool
+	Reach      int
 	IsEnum     bool
 	Members    []EnumMember
 
@@ -211,9 +216,16 @@ func (i *ImportDecl) Tree(indent string) string {
 	return fmt.Sprintf("%sImportDecl(%q as %s)\n", indent, i.Path, i.Alias)
 }
 
+const (
+	ReachNone = iota
+	ReachInternal
+	ReachShared
+)
+
 type ReexportDecl struct {
 	Name  string
 	Alias string
+	Reach int
 
 	NodePos
 }

@@ -182,7 +182,7 @@ func (a *Analyser) registerMethods() {
 		if fd.Receiver != nil {
 			receiverName = fd.Receiver.Name
 		}
-		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported}
+		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported, InternalDir: reachDir(fd.Reach, a.currentFile)}
 		a.info.FuncReturns[fd] = returns
 		_, _, ownerExported := methodOwner(recvType)
 		a.info.MethodVisible[fd] = fd.Exported && ownerExported

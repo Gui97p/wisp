@@ -27,8 +27,10 @@ func importActions(uri protocol.DocumentUri, d protocol.Diagnostic) []protocol.C
 	cyclic := dependentFiles(path)
 
 	var actions []protocol.CodeAction
-	for _, c := range module.ImportablePaths(root) {
-		if moduleAlias(c.Path) != m[1] || c.File == path || imported[c.Path] || cyclic[c.File] {
+	candidates := module.ImportablePaths(root)
+	byPath := pathIndex(candidates)
+	for _, c := range candidates {
+		if moduleAlias(c.Path) != m[1] || c.File == path || imported[c.Path] || cyclic[c.File] || !module.CanImport(path, c.File) || exportsNothing(path, c, byPath) {
 			continue
 		}
 		edit, ok := importEdit(path, c.Path)

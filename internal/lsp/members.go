@@ -119,6 +119,8 @@ type exportEntry struct {
 	detail   string
 	callable bool
 	params   int
+
+	internalDir string
 }
 
 type exportCacheEntry struct {
@@ -146,7 +148,7 @@ func unimportedMembers(path string, scope *analyser.Scope, word, suffix string) 
 	var items []protocol.CompletionItem
 	for _, c := range candidates {
 		alias := moduleAlias(c.Path)
-		if c.File == path || imported[c.Path] || cyclic[c.File] || alias == "" {
+		if c.File == path || imported[c.Path] || cyclic[c.File] || alias == "" || !module.CanImport(path, c.File) {
 			continue
 		}
 		if _, taken := scope.Resolve(alias); taken {
@@ -158,7 +160,7 @@ func unimportedMembers(path string, scope *analyser.Scope, word, suffix string) 
 			continue
 		}
 		for _, e := range moduleExports(c.File, byPath, map[string]bool{}, 0) {
-			if !matchesWord(e.name, word) {
+			if !matchesWord(e.name, word) || (e.internalDir != "" && !module.InsideFolder(path, e.internalDir)) {
 				continue
 			}
 			it := item(alias+"."+e.name, e.kind, "auto import "+c.Path+"  "+e.detail)
@@ -281,11 +283,11 @@ func moduleExports(file string, byPath map[string]string, seen map[string]bool, 
 		switch decl := d.(type) {
 		case *ast.FuncDecl:
 			if decl.Exported && decl.Receiver == nil {
-				entries = append(entries, exportEntry{name: decl.Name, kind: protocol.CompletionItemKindFunction, detail: funcDeclText(decl), callable: true, params: len(decl.Params)})
+				entries = append(entries, exportEntry{name: decl.Name, kind: protocol.CompletionItemKindFunction, detail: funcDeclText(decl), callable: true, params: len(decl.Params), internalDir: reachFolder(decl.Reach, file)})
 			}
 		case *ast.StructDecl:
 			if decl.Exported {
-				entries = append(entries, exportEntry{name: decl.Name, kind: protocol.CompletionItemKindStruct, detail: "struct"})
+				entries = append(entries, exportEntry{name: decl.Name, kind: protocol.CompletionItemKindStruct, detail: "struct", internalDir: reachFolder(decl.Reach, file)})
 			}
 		case *ast.TypeDecl:
 			if decl.Exported {
@@ -293,18 +295,18 @@ func moduleExports(file string, byPath map[string]string, seen map[string]bool, 
 				if decl.IsEnum {
 					kind, detail = protocol.CompletionItemKindEnum, "enum"
 				}
-				entries = append(entries, exportEntry{name: decl.Name, kind: kind, detail: detail})
+				entries = append(entries, exportEntry{name: decl.Name, kind: kind, detail: detail, internalDir: reachFolder(decl.Reach, file)})
 			}
 		case *ast.ConstDecl:
 			if decl.Exported {
 				for _, v := range decl.Vars {
-					entries = append(entries, exportEntry{name: v.Name, kind: protocol.CompletionItemKindConstant, detail: "const"})
+					entries = append(entries, exportEntry{name: v.Name, kind: protocol.CompletionItemKindConstant, detail: "const", internalDir: reachFolder(decl.Reach, file)})
 				}
 			}
 		case *ast.VarDecl:
 			if decl.Exported {
 				for _, v := range decl.Vars {
-					entries = append(entries, exportEntry{name: v.Name, kind: protocol.CompletionItemKindVariable, detail: "var"})
+					entries = append(entries, exportEntry{name: v.Name, kind: protocol.CompletionItemKindVariable, detail: "var", internalDir: reachFolder(decl.Reach, file)})
 				}
 			}
 		case *ast.ReexportDecl:
@@ -361,4 +363,32 @@ func shortWord(uri protocol.DocumentUri, pos protocol.Position) bool {
 	}
 	rest := before[:len(before)-1]
 	return !strings.HasSuffix(rest, ".")
+}
+
+func reachFolder(reach int, file string) string {
+	if reach == ast.ReachNone {
+		return ""
+	}
+	dir := filepath.Dir(file)
+	if reach == ast.ReachShared {
+		dir = filepath.Dir(dir)
+	}
+	return dir
+}
+
+func pathIndex(candidates []module.ImportCandidate) map[string]string {
+	byPath := make(map[string]string, len(candidates))
+	for _, c := range candidates {
+		byPath[c.Path] = c.File
+	}
+	return byPath
+}
+
+func exportsNothing(importer string, c module.ImportCandidate, byPath map[string]string) bool {
+	for _, e := range moduleExports(c.File, byPath, map[string]bool{}, 0) {
+		if e.internalDir == "" || module.InsideFolder(importer, e.internalDir) {
+			return false
+		}
+	}
+	return true
 }

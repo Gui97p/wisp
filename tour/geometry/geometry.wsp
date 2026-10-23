@@ -1,5 +1,10 @@
 // A package: the file named after its folder is what `import "geometry"`
-// resolves to. Other files in the folder stay separate modules.
+// resolves to. Other files in the folder are internal to the package: only
+// files under geometry/ can import them, so an `import "geometry/constants"`
+// from outside is an error. `internal` does the same for one declaration:
+// it is exported to the folder and everything under it, and hidden from the
+// rest of the project. `shared` reaches one folder further up, for a package
+// that lends something to the package around it.
 //
 // Importing a sibling and then `export`ing it by name re-exports everything
 // it exports, as if it were declared here. `export constants as consts;`
@@ -9,3 +14,5 @@ import "geometry/constants";
 export constants;
 
 export func area(int width, height) int => width * height;
+
+export func perimeter(int side) int => constants.scale(side);

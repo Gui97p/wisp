@@ -69,7 +69,7 @@ func main() !int {
 
   emit("== globals ==");
   globals.demo();
-  expect.expect(globals.shared == 101, "another module reads an exported global");
+  expect.expect(globals.total == 101, "another module reads an exported global");
 
   emit("== interop ==");
   interop.demo();

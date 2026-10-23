@@ -183,6 +183,13 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 				mod.FailImport(imp.Path, message)
 				continue
 			}
+			if len(depFiles) == 1 && len(mod.FilePaths) > 0 {
+				if folder := packageFolder(depFiles[0]); folder != "" && !InsideFolder(mod.FilePaths[0], folder) {
+					pkg := importKey(root, folder)
+					mod.FailImport(imp.Path, fmt.Sprintf("module %q is internal to %q\nimport %q instead", importKey(root, strings.TrimSuffix(depFiles[0], ".wsp")), pkg, pkg))
+					continue
+				}
+			}
 			if visiting[key] {
 				mod.FailImport(imp.Path, fmt.Sprintf("cyclic import: %q", key))
 				continue
@@ -201,6 +208,31 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 	}
 
 	return order
+}
+
+func packageFolder(file string) string {
+	dir := filepath.Dir(file)
+	entry := filepath.Join(dir, filepath.Base(dir)+".wsp")
+	if file == entry {
+		return ""
+	}
+	if info, err := os.Stat(entry); err != nil || info.IsDir() {
+		return ""
+	}
+	return dir
+}
+
+func CanImport(importer, candidate string) bool {
+	folder := packageFolder(candidate)
+	if folder == "" {
+		return true
+	}
+	return importer != "" && InsideFolder(importer, folder)
+}
+
+func InsideFolder(file, folder string) bool {
+	rel, err := filepath.Rel(folder, filepath.Dir(file))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func siblingImportHint(root, dir, path string) string {

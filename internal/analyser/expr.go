@@ -2,6 +2,7 @@ package analyser
 
 import (
 	"math/big"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -437,6 +438,8 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 				owner, ownerModule, ownerExported := methodOwner(objType)
 				if ownerModule != a.module && !(ft.Exported && ownerExported) {
 					a.errorf(expr, "method %s of %s is not exported", member.Field, owner)
+				} else if ownerModule != a.module && ft.InternalDir != "" && !insideDir(a.currentFile, ft.InternalDir) {
+					a.errorf(expr, "method %s of %s is internal to %q", member.Field, owner, filepath.Base(ft.InternalDir))
 				}
 				a.info.MethodCalls[expr] = &MethodCall{
 					Owner:           owner,
@@ -640,6 +643,10 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 	if mod, ok := objType.(*ModuleType); ok {
 		sym, ok := mod.Exports[expr.Field]
 		if !ok {
+			if folder, hidden := mod.Hidden[expr.Field]; hidden {
+				a.errorf(expr, "%s is internal to %q", expr.Field, folder).WithHelp("it is only visible to files under the folder %s", folder)
+				return InvalidType{}
+			}
 			a.suggest(a.errorf(expr, "module has no exported %s", expr.Field), expr.Field, exportNames(mod.Exports))
 			return InvalidType{}
 		}

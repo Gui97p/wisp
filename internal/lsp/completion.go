@@ -15,7 +15,7 @@ import (
 
 var keywords = []string{
 	"let", "const", "func", "struct", "enum", "type", "if", "else", "switch", "case", "default",
-	"for", "in", "loop", "until", "return", "break", "continue", "import", "export", "extern", "as", "native",
+	"for", "in", "loop", "until", "return", "break", "continue", "import", "export", "internal", "shared", "extern", "as", "native",
 	"true", "false", "null", "defer",
 }
 

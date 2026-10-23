@@ -1,1 +1,3 @@
 export const Sides = 4;
+
+internal func scale(int n) int => n * Sides;

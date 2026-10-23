@@ -2,6 +2,7 @@ package analyser
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -14,7 +15,11 @@ type ModuleInfo struct {
 func (a *Analyser) Exports() map[string]*Symbol {
 	exports := map[string]*Symbol{}
 
+	reach := ast.ReachNone
 	add := func(node ast.Node, name string, sym *Symbol) {
+		if reach != ast.ReachNone {
+			sym.ScopeDir = reachDir(reach, sym.File)
+		}
 		if _, exists := exports[name]; exists {
 			a.errorf(node, "%s already declared in exported scope", name)
 			return
@@ -24,6 +29,7 @@ func (a *Analyser) Exports() map[string]*Symbol {
 
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
+		reach = declReach(d)
 		switch decl := d.(type) {
 		case *ast.FuncDecl:
 			if decl.Receiver != nil || !decl.Exported {
@@ -65,6 +71,10 @@ func (a *Analyser) Exports() map[string]*Symbol {
 				}
 			}
 		case *ast.ReexportDecl:
+			if decl.Reach != ast.ReachNone {
+				a.errorf(decl, "%s cannot be reexported with a restricted reach", decl.Name)
+				continue
+			}
 			sym, ok := a.scope.Resolve(decl.Name)
 			if !ok {
 				a.errorf(decl, "identifier %s not declared in this scope", decl.Name)
@@ -89,8 +99,66 @@ func (a *Analyser) Exports() map[string]*Symbol {
 	return exports
 }
 
+func declReach(d ast.Declaration) int {
+	switch decl := d.(type) {
+	case *ast.FuncDecl:
+		return decl.Reach
+	case *ast.StructDecl:
+		return decl.Reach
+	case *ast.TypeDecl:
+		return decl.Reach
+	case *ast.ConstDecl:
+		return decl.Reach
+	case *ast.VarDecl:
+		return decl.Reach
+	}
+	return ast.ReachNone
+}
+
+func reachDir(reach int, file string) string {
+	if reach == ast.ReachNone || file == "" {
+		return ""
+	}
+	dir := filepath.Dir(file)
+	if reach == ast.ReachShared {
+		dir = filepath.Dir(dir)
+	}
+	return dir
+}
+
+func insideDir(file, dir string) bool {
+	if file == "" || dir == "" {
+		return true
+	}
+	rel, err := filepath.Rel(dir, filepath.Dir(file))
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+func visibleExports(exports map[string]*Symbol, importer string) (map[string]*Symbol, map[string]string) {
+	var hidden map[string]string
+	var visible map[string]*Symbol
+	for name, sym := range exports {
+		if sym.ScopeDir != "" && !insideDir(importer, sym.ScopeDir) {
+			if visible == nil {
+				visible = make(map[string]*Symbol, len(exports))
+				for n, s := range exports {
+					visible[n] = s
+				}
+				hidden = map[string]string{}
+			}
+			delete(visible, name)
+			hidden[name] = filepath.Base(sym.ScopeDir)
+		}
+	}
+	if visible == nil {
+		return exports, nil
+	}
+	return visible, hidden
+}
+
 type ModuleType struct {
 	Exports map[string]*Symbol
+	Hidden  map[string]string
 }
 
 func (m *ModuleType) String() string {
@@ -111,8 +179,8 @@ func (a *Analyser) registerImports() {
 		}
 		line, col := imp.Position()
 		mod, ok := a.modules[imp.Path]
-		if !ok {
-			message, known := a.importErrors[imp.Path]
+		message, known := a.importErrors[imp.Path]
+		if !ok || known {
 			if !known {
 				message = fmt.Sprintf("unresolved import %q", imp.Path)
 			}
@@ -124,7 +192,23 @@ func (a *Analyser) registerImports() {
 			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
 			continue
 		}
-		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: &ModuleType{Exports: mod.Exports}, Line: line, Col: col, File: a.currentFile}
+		if len(mod.Exports) == 0 {
+			a.error(imp, fmt.Sprintf("module %q exports nothing", imp.Path)).WithHelp("a package entry with no exports only marks its folder as a package")
+			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
+			continue
+		}
+		exports, hidden := visibleExports(mod.Exports, a.currentFile)
+		if len(exports) == 0 {
+			folder := ""
+			for _, f := range hidden {
+				folder = f
+				break
+			}
+			a.error(imp, fmt.Sprintf("module %q is internal to %q", imp.Path, folder)).WithHelp("everything it exports is only visible under the folder %s", folder)
+			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
+			continue
+		}
+		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: &ModuleType{Exports: exports, Hidden: hidden}, Line: line, Col: col, File: a.currentFile}
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(imp, MODULE, imp.Alias)
 		}

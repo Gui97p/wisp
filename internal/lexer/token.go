@@ -63,6 +63,8 @@ const (
 
 	TOKEN_IMPORT
 	TOKEN_EXPORT
+	TOKEN_INTERNAL
+	TOKEN_SHARED
 	TOKEN_AS
 	TOKEN_NATIVE
 
@@ -158,6 +160,8 @@ var keywords = map[string]TokenType{
 	"continue": TOKEN_CONTINUE,
 	"import":   TOKEN_IMPORT,
 	"export":   TOKEN_EXPORT,
+	"internal": TOKEN_INTERNAL,
+	"shared":   TOKEN_SHARED,
 	"as":       TOKEN_AS,
 	"native":   TOKEN_NATIVE,
 	"defer":    TOKEN_DEFER,

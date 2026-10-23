@@ -270,6 +270,7 @@ type FuncType struct {
 	Fallible     bool
 	Receiver     Type
 	Exported     bool
+	InternalDir  string
 }
 
 func (f *FuncType) String() string {

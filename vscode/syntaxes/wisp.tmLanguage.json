@@ -296,7 +296,7 @@
                 },
                 {
                     "name": "keyword.control.import.wisp",
-                    "match": "\\b(import|export|extern|as)\\b"
+                    "match": "\\b(import|export|internal|shared|extern|as)\\b"
                 },
                 {
                     "begin": "\\b(native)(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*(\\()",

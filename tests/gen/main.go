@@ -553,6 +553,10 @@ func main() {
 			os.Exit(1)
 		}
 		for name, content := range c.files {
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0755); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 			if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)

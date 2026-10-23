@@ -49,6 +49,8 @@ type Symbol struct {
 	Extern bool
 	Doc    string
 
+	ScopeDir string
+
 	MustUse bool
 	Used    bool
 }

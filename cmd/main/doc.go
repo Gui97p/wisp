@@ -37,6 +37,9 @@ func runDoc(cmd *cobra.Command, args []string) error {
 
 	if len(args) == 0 {
 		for _, c := range module.ImportablePaths(root) {
+			if !module.CanImport("", c.File) {
+				continue
+			}
 			fmt.Println(c.Path)
 		}
 		return nil

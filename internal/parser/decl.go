@@ -65,7 +65,11 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 		}
 		decls = append(decls, decl)
 	case lexer.TOKEN_EXPORT:
-		return p.parseExportDeclaration()
+		return p.parseExportDeclaration(ast.ReachNone)
+	case lexer.TOKEN_INTERNAL:
+		return p.parseExportDeclaration(ast.ReachInternal)
+	case lexer.TOKEN_SHARED:
+		return p.parseExportDeclaration(ast.ReachShared)
 	case lexer.TOKEN_ENUM:
 		return p.parseEnumDeclaration()
 	default:
@@ -134,7 +138,31 @@ func (p *Parser) parseImportDeclaration() *ast.ImportDecl {
 	return decl
 }
 
-func (p *Parser) parseExportDeclaration() []ast.Declaration {
+func (p *Parser) parseExportDeclaration(reach int) []ast.Declaration {
+	decls := p.parseExported()
+	if reach == ast.ReachNone {
+		return decls
+	}
+	for _, d := range decls {
+		switch d := d.(type) {
+		case *ast.ConstDecl:
+			d.Reach = reach
+		case *ast.VarDecl:
+			d.Reach = reach
+		case *ast.FuncDecl:
+			d.Reach = reach
+		case *ast.StructDecl:
+			d.Reach = reach
+		case *ast.TypeDecl:
+			d.Reach = reach
+		case *ast.ReexportDecl:
+			d.Reach = reach
+		}
+	}
+	return decls
+}
+
+func (p *Parser) parseExported() []ast.Declaration {
 	p.advance()
 	decls := []ast.Declaration{}
 
