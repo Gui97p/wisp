@@ -138,6 +138,7 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 			}
 			items = append(items, symbolItem(sym, suffix))
 		}
+		items = append(items, shortcutItems(path, scopeAt(info, line, col), typedWord(prefix), suffix)...)
 	}
 	return items
 }

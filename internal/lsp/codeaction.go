@@ -1,16 +1,56 @@
 package lsp
 
 import (
+	"fmt"
+	"path/filepath"
 	"regexp"
+
+	"github.com/Gui97p/wisp/internal/module"
 
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
-var suggestionPattern = regexp.MustCompile(`did you mean (\S+?)\?`)
+var (
+	suggestionPattern = regexp.MustCompile(`did you mean (\S+?)\?`)
+	undeclaredPattern = regexp.MustCompile(`identifier (\w+) not declared in this scope`)
+)
+
+func importActions(uri protocol.DocumentUri, d protocol.Diagnostic) []protocol.CodeAction {
+	m := undeclaredPattern.FindStringSubmatch(d.Message)
+	if m == nil {
+		return nil
+	}
+
+	path := uriToPath(uri)
+	root := module.FindProjectRoot(filepath.Dir(path))
+	imported := importedPaths(path)
+	cyclic := dependentFiles(path)
+
+	var actions []protocol.CodeAction
+	for _, c := range module.ImportablePaths(root) {
+		if moduleAlias(c.Path) != m[1] || c.File == path || imported[c.Path] || cyclic[c.File] {
+			continue
+		}
+		edit, ok := importEdit(path, c.Path)
+		if !ok {
+			continue
+		}
+		kind := protocol.CodeActionKindQuickFix
+		actions = append(actions, protocol.CodeAction{
+			Title:       fmt.Sprintf("Add import %q", c.Path),
+			Kind:        &kind,
+			Diagnostics: []protocol.Diagnostic{d},
+			Edit:        &protocol.WorkspaceEdit{Changes: map[protocol.DocumentUri][]protocol.TextEdit{uri: {edit}}},
+		})
+	}
+	return actions
+}
 
 func codeActions(uri protocol.DocumentUri, diagnostics []protocol.Diagnostic) []protocol.CodeAction {
 	var actions []protocol.CodeAction
 	for _, d := range diagnostics {
+		actions = append(actions, importActions(uri, d)...)
+
 		m := suggestionPattern.FindStringSubmatch(d.Message)
 		if m == nil {
 			continue
