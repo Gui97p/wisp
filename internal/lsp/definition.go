@@ -98,6 +98,11 @@ func exprDefinition(pa *projectAnalysis, m *moduleAnalysis, expr ast.Expression,
 	case *ast.IdentLiteral:
 		sym := info.Idents[e]
 		if sym == nil {
+			if found, ok := scopeFor(info, line, col).Resolve(e.Value); ok {
+				sym = found
+			}
+		}
+		if sym == nil {
 			return nil
 		}
 		if sym.Kind == analyser.MODULE {

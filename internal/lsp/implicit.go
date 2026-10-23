@@ -14,6 +14,8 @@ var (
 	comparedBefore  = regexp.MustCompile(`([A-Za-z_][\w.]*)\s*(==|!=)\s*$`)
 	assignedBefore  = regexp.MustCompile(`(^|[^=!<>])\b([A-Za-z_][\w.]*)\s*=\s*$`)
 	caseBefore      = regexp.MustCompile(`\bcase\b[^:]*$`)
+	armBefore       = regexp.MustCompile(`=>\s*$`)
+	switchWord      = regexp.MustCompile(`\bswitch\b`)
 	returnBefore    = regexp.MustCompile(`\breturn\b[^;]*$`)
 	functionReturns = regexp.MustCompile(`^\s*(?:export\s+)?func\b.*\)\s*!?\s*([A-Za-z_][\w.]*)\s*(?:\{|=>)`)
 )
@@ -47,34 +49,44 @@ func expectedEnum(before, text string, scope *analyser.Scope, path string, line 
 	var tp analyser.Type
 
 	switch {
+	case armBefore.MatchString(before):
+		if _, prefix, ok := switchHeader(text); ok {
+			tp = contextType(prefix, text, scope, path, line)
+		}
 	case caseBefore.MatchString(before):
-		if subject, ok := switchSubject(text); ok {
+		if subject, _, ok := switchHeader(text); ok {
 			tp = exprType(scope, subject)
 		}
-	case returnBefore.MatchString(before):
-		tp = returnType(path, line, before, scope)
 	default:
-		if enum, ok := structValueEnum(text, scope); ok {
-			tp = enum
-			break
-		}
-		if callee, arg, ok := callContext(before); ok {
-			if ft := calleeType(scope, callee); ft != nil && arg < len(ft.Params) {
-				tp = ft.Params[arg]
-				break
-			}
-		}
-		if m := declaredBefore.FindStringSubmatch(before); m != nil {
-			tp = typeFromText(scope, m[1])
-		} else if m := comparedBefore.FindStringSubmatch(before); m != nil {
-			tp = exprType(scope, m[1])
-		} else if m := assignedBefore.FindStringSubmatch(before); m != nil {
-			tp = exprType(scope, m[2])
-		}
+		tp = contextType(before, text, scope, path, line)
 	}
 
 	enum, ok := tp.(analyser.NamedType)
 	return enum, ok && enum.Enum
+}
+
+func contextType(before, text string, scope *analyser.Scope, path string, line int) analyser.Type {
+	if returnBefore.MatchString(before) {
+		return returnType(path, line, before, scope)
+	}
+	if enum, ok := structValueEnum(text, scope); ok {
+		return enum
+	}
+	if callee, arg, ok := callContext(maskLiterals(before)); ok {
+		if ft := calleeType(scope, callee); ft != nil && arg < len(ft.Params) {
+			return ft.Params[arg]
+		}
+	}
+	if m := declaredBefore.FindStringSubmatch(before); m != nil {
+		return typeFromText(scope, m[1])
+	}
+	if m := comparedBefore.FindStringSubmatch(before); m != nil {
+		return exprType(scope, m[1])
+	}
+	if m := assignedBefore.FindStringSubmatch(before); m != nil {
+		return exprType(scope, m[2])
+	}
+	return nil
 }
 
 func typeFromText(scope *analyser.Scope, text string) analyser.Type {
@@ -146,27 +158,29 @@ func returnType(path string, line int, before string, scope *analyser.Scope) ana
 	return nil
 }
 
-func switchSubject(text string) (string, bool) {
+func switchHeader(text string) (subject, prefix string, ok bool) {
 	type block struct {
 		subject  string
+		prefix   string
 		isSwitch bool
 	}
+	masked := maskLiterals(text)
 	var stack []block
 	headerStart := 0
 
-	for i := 0; i < len(text); i++ {
-		switch text[i] {
+	for i := 0; i < len(masked); i++ {
+		switch masked[i] {
 		case '{':
-			header := strings.TrimSpace(text[headerStart:i])
+			header := masked[headerStart:i]
 			b := block{}
-			if strings.HasPrefix(header, "switch") {
-				subject := strings.TrimSpace(strings.TrimPrefix(header, "switch"))
+			if loc := switchWord.FindStringIndex(header); loc != nil {
+				subject := strings.TrimSpace(text[headerStart+loc[1] : i])
 				if strings.HasPrefix(subject, "let") {
 					if eq := strings.Index(subject, "="); eq >= 0 {
 						subject = subject[eq+1:]
 					}
 				}
-				b.subject, b.isSwitch = strings.TrimSpace(subject), true
+				b.subject, b.prefix, b.isSwitch = strings.TrimSpace(subject), text[headerStart:headerStart+loc[0]], true
 			}
 			stack = append(stack, b)
 			headerStart = i + 1
@@ -181,7 +195,8 @@ func switchSubject(text string) (string, bool) {
 	}
 
 	if len(stack) == 0 || !stack[len(stack)-1].isSwitch {
-		return "", false
+		return "", "", false
 	}
-	return stack[len(stack)-1].subject, true
+	top := stack[len(stack)-1]
+	return top.subject, top.prefix, true
 }

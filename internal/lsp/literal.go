@@ -93,3 +93,84 @@ func scanState(text string) (int, int) {
 	}
 	return state, start
 }
+
+func maskLiterals(text string) string {
+	masked := []byte(text)
+	state, start := stateCode, 0
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		next := byte(0)
+		if i+1 < len(text) {
+			next = text[i+1]
+		}
+
+		blank := func(from, to int) {
+			for j := from; j < to && j < len(masked); j++ {
+				if masked[j] != '\n' {
+					masked[j] = ' '
+				}
+			}
+		}
+
+		switch state {
+		case stateCode:
+			switch {
+			case c == '/' && next == '/':
+				state, start = stateLineComment, i
+				i++
+			case c == '/' && next == '*':
+				state, start = stateBlockComment, i
+				i++
+			case c == '"':
+				state, start = stateQuoted, i
+			case c == '`':
+				state, start = stateRaw, i
+			case c == '\'':
+				state, start = stateChar, i
+			}
+		case stateLineComment:
+			if c == '\n' {
+				blank(start, i)
+				state = stateCode
+			}
+		case stateBlockComment:
+			if c == '*' && next == '/' {
+				i++
+				blank(start, i+1)
+				state = stateCode
+			}
+		case stateQuoted:
+			switch {
+			case c == '\\' && next == '"':
+				i++
+			case c == '"' || c == '\n':
+				blank(start, i+1)
+				state = stateCode
+			}
+		case stateRaw:
+			switch {
+			case c == '\\' && next == '`':
+				i++
+			case c == '`':
+				blank(start, i+1)
+				state = stateCode
+			}
+		case stateChar:
+			switch c {
+			case '\\':
+				i++
+			case '\'', '\n':
+				blank(start, i+1)
+				state = stateCode
+			}
+		}
+	}
+	if state != stateCode {
+		for j := start; j < len(masked); j++ {
+			if masked[j] != '\n' {
+				masked[j] = ' '
+			}
+		}
+	}
+	return string(masked)
+}

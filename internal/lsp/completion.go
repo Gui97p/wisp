@@ -60,7 +60,13 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 		return nil
 	}
 
-	if items, ok := nativeItems(path, pos, currentInfo(path)); ok {
+	candidates := infoCandidates(path, pos)
+	var info *analyser.Info
+	if len(candidates) > 0 {
+		info = candidates[0]
+	}
+
+	if items, ok := nativeItems(path, pos, info); ok {
 		return items
 	}
 
@@ -68,14 +74,19 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 		return nil
 	}
 
-	if items, ok := implicitDotItems(path, pos, currentInfo(path)); ok {
-		return items
+	handled := false
+	for _, candidate := range candidates {
+		items, ok := implicitDotItems(path, pos, candidate)
+		if !ok {
+			break
+		}
+		handled = true
+		if len(items) > 0 {
+			return items
+		}
 	}
-
-	candidates := infoCandidates(path, pos)
-	var info *analyser.Info
-	if len(candidates) > 0 {
-		info = candidates[0]
+	if handled {
+		return []protocol.CompletionItem{}
 	}
 
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))

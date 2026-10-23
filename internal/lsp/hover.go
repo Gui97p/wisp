@@ -209,6 +209,10 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 		if text := memberHover(e, program, info); text != "" {
 			return text
 		}
+	case *ast.CoalesceExpr:
+		if e.ErrorBind != "" && positionContains(e.ErrorBindAt, line, col) {
+			return renderDoc("Error "+e.ErrorBind, "The error that made the call fail.")
+		}
 	case *ast.DotIdent:
 		if value, ok := info.EnumValues[e]; ok {
 			return enumMemberHover(value)
