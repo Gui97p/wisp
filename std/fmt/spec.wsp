@@ -1,0 +1,133 @@
+import "std/fmt/cursor";
+
+export enum Align {
+	Default,
+	Left,
+	Right,
+	Center
+}
+
+export struct Spec {
+	char fill;
+	Align align;
+	bool alt;
+	bool zero;
+	int width;
+	int precision;
+	char kind;
+}
+
+export enum SpecError {
+	Ok,
+	UnknownType,
+	BadNumber,
+	Trailing,
+	NotForType
+}
+
+export enum Value {
+	Int,
+	Uint,
+	Char,
+	Bool,
+	String,
+	Pointer
+}
+
+export func parse(string text) !Spec {
+	Spec spec = Spec{fill: ' ', precision: -1};
+	if len(text) == 0 {
+		return spec;
+	}
+	char[3] aligns = ['<', '>', '^'];
+	const kinds = "dxXbocp";
+	
+	cursor.Cursor c = cursor.Cursor{text: text};
+
+	bool align;
+	if c.peekAt(1) in aligns {
+		spec.fill = c.peek();
+		c.advance();
+		align = true;
+	} else if c.peek() in aligns {
+		align = true;
+	}
+	if align {
+		spec.align = switch c.peek() {
+			case '<' => Align.Left,
+			case '>' => Align.Right,
+			case '^' => Align.Center,
+			default => Align.Default
+		};
+		c.advance();
+	}
+
+	if c.advanceIf('#') {
+		spec.alt = true;
+	}
+	if c.advanceIf('0') {
+		spec.zero = true;
+	}
+
+	let n, digits, fits = c.number();
+	if !fits {
+		return Error(SpecError.BadNumber);
+	}
+	if digits > 0 {
+		spec.width = n;
+	}
+
+	if c.advanceIf('.') {
+		n, digits, fits = c.number();
+		if digits == 0 || !fits {
+			return Error(SpecError.BadNumber);
+		}
+		spec.precision = n;
+	}
+
+	if !c.done() {
+		char k = c.peek();
+		if !(k in kinds) {
+			return Error(SpecError.UnknownType);
+		}
+		spec.kind = k;
+		c.advance();
+	}
+
+	if !c.done() {
+		return Error(SpecError.Trailing);
+	}
+
+	return spec;
+}
+
+export func validate(Spec s, Value v) ! {
+	switch v {
+		case .Int, .Uint:
+			if s.kind == 'p' ||
+			(s.zero && s.kind == 'c') ||
+			(s.alt && !(s.kind in "xXbop")) ||
+			s.precision >= 0 {
+				return Error(SpecError.NotForType);
+			}
+		case .Char:
+			if !(s.kind == 0 || s.kind in "cdx") ||
+			(s.zero && !(s.kind in "dx")) ||
+			(s.alt && s.kind != 'x') ||
+			s.precision >= 0 {
+				return Error(SpecError.NotForType);
+			}
+		case .Bool:
+			if s.kind != 0 || s.zero || s.alt || s.precision >= 0 {
+				return Error(SpecError.NotForType);
+			}
+		case .String:
+			if s.kind != 0 || s.zero || s.alt {
+				return Error(SpecError.NotForType);
+			}
+		case .Pointer:
+			if (s.kind != 0 && s.kind != 'p') || s.alt || s.precision >= 0 {
+				return Error(SpecError.NotForType);
+			}
+	}
+}

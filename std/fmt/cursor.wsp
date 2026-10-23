@@ -1,0 +1,67 @@
+export struct Cursor {
+	string text;
+	int pos;
+}
+
+export func (*Cursor c) peekAt(int k) char {
+	if c.pos+k >= len(c.text) || k < 0 {
+		return '\0';
+	}
+	return c.text[c.pos+k];
+}
+
+export func (*Cursor c) peek() char {
+	return c.peekAt(0);
+}
+
+export func (*Cursor c) advance() {
+	c.pos++;
+}
+
+export func (*Cursor c) advanceN(int n) {
+	c.pos += n;
+}
+
+export func (*Cursor c) advanceIf(char ch) bool {
+	if c.peek() == ch {
+		c.advance();
+		return true;
+	}
+	return false;
+}
+
+export func (*Cursor c) advanceUntil(char ...chs) bool {
+	loop !(c.peek() in chs) {
+		if c.done() {
+			return false;
+		}
+		c.advance();
+	}
+	return true;
+}
+
+export func (*Cursor c) since(int mark) string {
+	return c.text[mark:c.pos];
+}
+
+export func (*Cursor c) done() bool {
+	return c.pos >= len(c.text);
+}
+
+export func (*Cursor c) number() (int, int, bool) {
+	const digits = "0123456789";
+
+	int count;
+	int n;
+	bool fits = true;
+	loop c.peek() in digits {
+		if fits {
+			n = n * 10 + c.peek() - '0';
+			fits = n <= 65535;
+		}
+		c.advance();
+		count++;
+	}
+	
+	return n, count, fits;
+}

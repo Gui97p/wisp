@@ -1,0 +1,276 @@
+import "std/fmt/cursor";
+import "std/fmt/render";
+import "std/fmt/spec";
+import "std/conv";
+import "std/os";
+import "std/mem";
+import "std/math";
+
+export enum FormatError {
+	Ok,
+	NoSpace,
+	Unmatched,
+	BadSpec,
+	WrongType,
+	UnsupportedType,
+	ExtraArgument
+}
+
+export enum BufMode {
+	None,
+	Line,
+	Full
+}
+
+export struct Writer {
+	int fd;
+	char[] buf;
+	int len;
+	BufMode mode;
+	int total;
+}
+
+func (*Writer w) put(*char c, int n) ! {
+	if n == 0 {
+		return;
+	}
+
+	if w.fd < 0 {
+		if len(w.buf) - w.len < n {
+			return Error(FormatError.NoSpace);
+		}
+		mem.copy((*char)(w.buf) + w.len, c, n);
+		w.total += n;
+		w.len += n;
+		return;
+	}
+
+	if w.mode == .None || len(w.buf) == 0 {
+		w.total += os.writeBytes(w.fd, c[0:n])!;
+		return;
+	}
+
+	if n > len(w.buf) {
+		w.flush()!;
+		w.total += os.writeBytes(w.fd, c[0:n])!;
+		return;
+	}
+
+	if w.len + n > len(w.buf) {
+		w.flush()!;
+	}
+
+	mem.copy((*char)(w.buf) + w.len, c, n);
+	w.total += n;
+	w.len += n;
+
+	switch w.mode {
+		case .Line:
+			if '\n' in c[0:n] {
+				w.flush()!;
+			}
+		case .Full:
+			if w.len == len(w.buf) {
+				w.flush()!;
+			}
+	}
+}
+
+export func (*Writer w) write(string s) ! {
+	w.put((*char)(s), len(s))!;
+}
+export func (*Writer w) writeByte(char c) ! {
+	w.put(&c, 1)!;
+}
+export func (*Writer w) writeBytes(char[] data) ! {
+	w.put((*char)(data), len(data))!;
+}
+export func (*Writer w) fill(char c, int n) ! {
+	for n {
+		w.put(&c, 1)!;
+	}
+}
+
+export func (*Writer w) flush() ! {
+	if w.fd < 0 || w.len == 0 {
+		return;
+	}
+	os.writeBytes(w.fd, w.buf[:w.len])!;
+	w.len = 0;
+}
+
+func (*Writer w) writePiece(render.Piece p, spec.Spec s, bool numeric) ! {
+	int used = len(p.sign) + len(p.radix) + len(p.body);
+	int pad = math.max(0, s.width - used);
+
+	if s.zero && numeric {
+		w.write(p.sign)!;
+		w.write(p.radix)!;
+		w.fill('0', pad)!;
+		w.write(p.body)!;
+	} else {
+		if s.align == .Default {
+			s.align = numeric ? spec.Align.Right : spec.Align.Left;
+		}
+		switch s.align {
+			case .Left:
+				w.write(p.sign)!;
+				w.write(p.radix)!;
+				w.write(p.body)!;
+				w.fill(s.fill, pad)!;
+			case .Right:
+				w.fill(s.fill, pad)!;
+				w.write(p.sign)!;
+				w.write(p.radix)!;
+				w.write(p.body)!;
+			case .Center:
+				w.fill(s.fill, pad/2)!;
+				w.write(p.sign)!;
+				w.write(p.radix)!;
+				w.write(p.body)!;
+				w.fill(s.fill, pad-pad/2)!;
+		}
+	}
+}
+
+func (*Writer w) putInt(char[] buf, int v, spec.Spec s) !bool {
+	spec.validate(s, spec.Value.Int) ?? return false;
+	render.Piece piece = render.renderInt(buf, v, s)!;
+	w.writePiece(piece, s, true)!;
+	return true;
+}
+
+func (*Writer w) putUint(char[] buf, uint v, spec.Spec s) !bool {
+	spec.validate(s, spec.Value.Uint) ?? return false;
+	render.Piece piece = render.renderUint(buf, v, s)!;
+	w.writePiece(piece, s, true)!;
+	return true;
+}
+
+func (*Writer w) putChar(char[] buf, char v, spec.Spec s) !bool {
+	spec.validate(s, spec.Value.Char) ?? return false;
+	render.Piece piece = render.renderChar(buf, v, s)!;
+	w.writePiece(piece, s, false)!;
+	return true;
+}
+
+func (*Writer w) putBool(bool v, spec.Spec s) !bool {
+	spec.validate(s, spec.Value.Bool) ?? return false;
+	render.Piece piece = render.renderBool(v);
+	w.writePiece(piece, s, false)!;
+	return true;
+}
+
+func (*Writer w) putString(string v, spec.Spec s) !bool {
+	spec.validate(s, spec.Value.String) ?? return false;
+	render.Piece piece = render.renderString(v, s);
+	w.writePiece(piece, s, false)!;
+	return true;
+}
+
+func (*Writer w) putPointer(char[] buf, *void v, spec.Spec s) !bool {
+	spec.validate(s, spec.Value.Pointer) ?? return false;
+	render.Piece piece = render.renderPointer(buf, v, s)!;
+	w.writePiece(piece, s, true)!;
+	return true;
+}
+
+export func (*Writer w) format(string format, ...args) !int {
+	char[conv.MaxDigits] buf;
+	int argIndex;
+	FormatError problem;
+	cursor.Cursor c = cursor.Cursor{text: format};
+	int start = w.total;
+
+	loop !c.done() {
+		int start = c.pos;
+		c.advanceUntil('{', '}');
+		w.write(c.since(start))!;
+
+		if c.done() {
+			break;
+		}
+
+		if c.peekAt(1) == c.peek() {
+			w.writeByte(c.peek())!;
+			c.advanceN(2);
+			continue;
+		}
+
+		if c.peek() == '}' {
+			w.writeByte('}')!;
+			if problem == .Ok {
+				problem = .Unmatched;
+			}
+			c.advance();
+			continue;
+		}
+
+		int open = c.pos;
+		c.advance();
+		int inner = c.pos;
+
+		if !c.advanceUntil('}') {
+			w.write(c.since(open))!;
+			if problem == .Ok {
+				problem = .Unmatched;
+			}
+			break;
+		}
+
+		string text = c.since(inner);
+		c.advance();
+		string all = c.since(open);
+
+		spec.Spec s = spec.parse(text) ?? {
+			w.write(all)!;
+			argIndex++;
+			if problem == .Ok {
+				problem = .BadSpec;
+			}
+			continue;
+		};
+
+		if argIndex >= len(args) {
+			w.write(all)!;
+			continue;
+		}
+
+		bool ok;
+		FormatError bad = .WrongType;
+		switch let v = args[argIndex] {
+			case int:   ok = w.putInt(buf[:], v, s)!;
+			case uint:  ok = w.putUint(buf[:], v, s)!;
+			case char:  ok = w.putChar(buf[:], v, s)!;
+			case bool:  ok = w.putBool(v, s)!;
+			case string: ok = w.putString(v, s)!;
+			case *void: ok = w.putPointer(buf[:], v, s)!;
+			default:    bad = .UnsupportedType;
+		}
+		argIndex++;
+		if !ok {
+			w.write(all)!;
+			if problem == .Ok {
+				problem = bad;
+			}
+		}
+	}
+
+	if argIndex < len(args) && problem == .Ok {
+		problem = .ExtraArgument;
+	}
+
+	if problem != .Ok {
+		return switch problem {
+			case .NoSpace => Error(FormatError.NoSpace),
+			case .Unmatched => Error(FormatError.Unmatched),
+			case .BadSpec => Error(FormatError.BadSpec),
+			case .WrongType => Error(FormatError.WrongType),
+			case .UnsupportedType => Error(FormatError.UnsupportedType),
+			case .ExtraArgument => Error(FormatError.ExtraArgument),
+			default => null
+		};
+	}
+
+	return w.total - start;
+}

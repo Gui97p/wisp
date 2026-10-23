@@ -6,7 +6,7 @@ export func abs(int x) int {
 }
 export func fabs(float64 x) float64 {
     float64 r;
-    native lua "r = math.abs(x)";
+    native lua(in x) "r = math.abs(x)";
     return r;
 }
 
@@ -29,7 +29,7 @@ export func min(int ...args) int {
 }
 export func fmin(float64 a, float64 b) float64 {
     float64 r;
-    native lua "r = math.min(a, b)";
+    native lua(in a, b) "r = math.min(a, b)";
     return r;
 }
 
@@ -52,60 +52,60 @@ export func max(int ...args) int {
 }
 export func fmax(float64 a, float64 b) float64 {
     float64 r;
-    native lua "r = math.max(a, b)";
+    native lua(in a, b) "r = math.max(a, b)";
     return r;
 }
 
 export func floor(float64 x) float64 {
     float64 r;
-    native lua "r = math.floor(x)";
+    native lua(in x) "r = math.floor(x)";
     return r;
 }
 export func ceil(float64 x) float64 {
     float64 r;
-    native lua "r = math.ceil(x)";
+    native lua(in x) "r = math.ceil(x)";
     return r;
 }
 export func round(float64 x) float64 {
     float64 r;
-    native lua "r = math.floor(x + 0.5)";
+    native lua(in x) "r = math.floor(x + 0.5)";
     return r;
 }
 
 export func sqrt(float64 x) float64 {
     float64 r;
-    native lua "r = math.sqrt(x)";
+    native lua(in x) "r = math.sqrt(x)";
     return r;
 }
 export func pow(float64 base, float64 exp) float64 {
     float64 r;
-    native lua "r = base ^ exp";
+    native lua(in base, exp) "r = base ^ exp";
     return r;
 }
 
 export func sin(float64 x) float64 {
     float64 r;
-    native lua "r = math.sin(x)";
+    native lua(in x) "r = math.sin(x)";
     return r;
 }
 export func cos(float64 x) float64 {
     float64 r;
-    native lua "r = math.cos(x)";
+    native lua(in x) "r = math.cos(x)";
     return r;
 }
 export func tan(float64 x) float64 {
     float64 r;
-    native lua "r = math.tan(x)";
+    native lua(in x) "r = math.tan(x)";
     return r;
 }
 
 export func log(float64 x) float64 {
     float64 r;
-    native lua "r = math.log(x)";
+    native lua(in x) "r = math.log(x)";
     return r;
 }
 export func exp(float64 x) float64 {
     float64 r;
-    native lua "r = math.exp(x)";
+    native lua(in x) "r = math.exp(x)";
     return r;
 }

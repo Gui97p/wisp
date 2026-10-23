@@ -3075,6 +3075,336 @@ func main() {
 }
 `, expected: []string{"global zero initializer", "global constant expression initializer", "global string initializer", "global inferred initializer", "global enum initializer", "global array initializer", "global struct initializer", "global multiple declaration", "global bool and char", "global compound assign", "global increment", "global array element write", "global struct field write", "global string write", "global used by a function above it", "global bool write", "global is shared across calls"}},
 
+	{dir: "fmt_core", x64Only: true, src: `import "std/fmt";
+import "std/os";
+
+enum Color {
+    Red,
+    Green,
+}
+
+char[256] scratch;
+
+func fm(string format, ...args) string {
+    let n, err = fmt.snprintf(scratch[:], format, args...);
+    if err != null {
+        return "<error>";
+    }
+    return string(scratch[0:n]);
+}
+
+func eq(string got, string want, string what) {
+    check(got == want, what);
+}
+
+type Meters int;
+
+func fl(string format, ...args) string {
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], len: 0, mode: fmt.BufMode.Full};
+    let _, _ = w.format(format, args...);
+    return string(scratch[0:w.len]);
+}
+
+func fe(string format, ...args) Error {
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], len: 0, mode: fmt.BufMode.Full};
+    let _, err = w.format(format, args...);
+    return err;
+}
+
+func main() {
+    uint big = 18446744073709551615;
+    int8 small = -5;
+    eq(fm("{}", 42), "42", "decimal");
+    eq(fm("{}", -42), "-42", "negative decimal");
+    eq(fm("{}", 0), "0", "zero");
+    eq(fm("{}", big), "18446744073709551615", "largest uint");
+    eq(fm("{}", small), "-5", "int8");
+    eq(fm("{d}", 7), "7", "d type letter");
+    eq(fm("{x}", 255), "ff", "hex lower case");
+    eq(fm("{X}", 255), "FF", "hex upper case");
+    eq(fm("{#x}", 255), "0xff", "hex prefix");
+    eq(fm("{b}", 5), "101", "binary");
+    eq(fm("{#b}", 5), "0b101", "binary prefix");
+    eq(fm("{o}", 8), "10", "octal");
+    eq(fm("{#o}", 8), "0o10", "octal prefix");
+    eq(fm("{x}", -255), "-ff", "negative hex");
+    eq(fm("{5}", 42), "   42", "number aligns right");
+    eq(fm("{<5}", 42), "42   ", "left align");
+    eq(fm("{^6}", 42), "  42  ", "center with even padding");
+    eq(fm("{^5}", 42), " 42  ", "center with odd padding puts the extra space on the right");
+    eq(fm("{05}", 42), "00042", "zero padding");
+    eq(fm("{05}", -42), "-0042", "zero padding goes after the sign");
+    eq(fm("{05x}", 255), "000ff", "zero padded hex");
+    eq(fm("{#06x}", 255), "0x00ff", "zeros go after the prefix");
+    eq(fm("{1}", 1234), "1234", "width smaller than the text changes nothing");
+    eq(fm("{-<6}", 7), "7-----", "custom fill");
+    eq(fm("{*^7}", "ab"), "**ab***", "custom fill with center");
+    eq(fm("{}", "hi"), "hi", "string");
+    eq(fm("{5}", "ab"), "ab   ", "string aligns left");
+    eq(fm("{>5}", "ab"), "   ab", "string right align");
+    eq(fm("{.3}", "abcdef"), "abc", "precision cuts a string");
+    eq(fm("{5.3}", "abcdef"), "abc  ", "width and precision");
+    eq(fm("[{}]", ""), "[]", "empty string");
+    eq(fm("{}", 'x'), "x", "char");
+    eq(fm("{d}", 'A'), "65", "char as a number");
+    eq(fm("{x}", 'A'), "41", "char in hex");
+    eq(fm("{c}", 65), "A", "integer as a char");
+    eq(fm("{}", true), "true", "true");
+    eq(fm("{}", false), "false", "false");
+    eq(fm("{6}", true), "true  ", "bool aligns left");
+    eq(fm("{}", Color.Green), "1", "an enum prints its number");
+    eq(fm("{}", Color.Green.name()), "Green", "an enum by name through name()");
+    eq(fm("plain"), "plain", "plain text");
+    eq(fm("a{}b", 1), "a1b", "text around a placeholder");
+    eq(fm("{} {} {}", 1, "two", true), "1 two true", "several placeholders of different types");
+    eq(fm("{{}}"), "{}", "escaped braces");
+    eq(fm("{{{}", 5), "{5", "an escaped brace before a placeholder");
+    eq(fm("{}}}", 5), "5}", "an escaped brace after a placeholder");
+    eq(fm("a {} b {x}", 1), "a 1 b {x}", "fewer arguments keep the placeholder as written");
+    eq(fm("{}"), "{}", "no arguments");
+    Meters meters = Meters(3);
+    check(fl("a {x} b", "hi") == "a {x} b" && fe("{x}", "hi") == fmt.FormatError.WrongType, "a type letter that does not fit the type is written back and reported as WrongType");
+    check(fl("{5.}", 1) == "{5.}" && fe("{5.}", 1) == fmt.FormatError.BadSpec, "a number with no digits in a spec is BadSpec");
+    check(fl("{z}", 1) == "{z}" && fe("{z}", 1) == fmt.FormatError.BadSpec, "an unknown type letter is BadSpec");
+    check(fl("{x5}", 1) == "{x5}" && fe("{x5}", 1) == fmt.FormatError.BadSpec, "text after the type letter is BadSpec");
+    check(fl("a { b", 1) == "a { b" && fe("a { b", 1) == fmt.FormatError.Unmatched, "an open brace with no close is Unmatched");
+    check(fl("a } b") == "a } b" && fe("a } b") == fmt.FormatError.Unmatched, "a lone close brace is Unmatched");
+    check(fl("a", 1) == "a" && fe("a", 1) == fmt.FormatError.ExtraArgument, "an extra argument is ExtraArgument");
+    check(fl("{}", meters) == "{}" && fe("{}", meters) == fmt.FormatError.UnsupportedType, "an argument of a named type is UnsupportedType");
+    check(fl("{x} and {}", "hi", 7) == "{x} and 7", "a problem does not stop the text after it, and takes its argument");
+    check(fe("{} {}", 1) == null && fl("{} {}", 1) == "1 {}", "fewer arguments are not an error");
+    check(fe("{} {x}", 1, 255) == null, "a good format reports no error");
+    int x = 5;
+    *int p = &x;
+    string shown = fm("{}", p);
+    check(len(shown) > 2 && shown[0:2] == "0x", "a pointer starts with 0x");
+    check(shown == fm("{p}", p), "p is the default for a pointer");
+
+    char[16] out;
+    let n, e1 = fmt.snprintf(out[:], "ab{}", 12);
+    check(e1 == null && n == 4, "snprintf returns the byte count");
+    char[3] tiny;
+    let _, e2 = fmt.snprintf(tiny[:], "abcdef");
+    check(e2 == fmt.FormatError.NoSpace, "snprintf into a buffer that is too small is NoSpace");
+
+    char[32] mem;
+    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], len: 0, mode: fmt.BufMode.Full};
+    let k, _ = w.format("x={}", 5);
+    check(k == 3 && w.len == 3 && string(mem[0:3]) == "x=5", "a memory writer collects the text");
+    let _, _ = w.format("y");
+    check(w.len == 4 && string(mem[0:4]) == "x=5y", "a second call appends");
+    char[4] narrow;
+    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[:], len: 0, mode: fmt.BufMode.Full};
+    let _, e3 = ws.format("abcde");
+    check(e3 == fmt.FormatError.NoSpace, "a memory writer that fills up is NoSpace");
+
+    let file, _ = os.create("fmt_core.txt");
+    char[64] store;
+    fmt.Writer full = fmt.Writer{fd: file, buf: store[:], len: 0, mode: fmt.BufMode.Full};
+    let _, _ = full.format("hello");
+    let held, _ = os.size(file);
+    check(held == 0, "a full writer holds the text until flush");
+    let _ = full.flush();
+    let flushed, _ = os.size(file);
+    check(flushed == 5, "flush writes the text");
+
+    let lineFile, _ = os.create("fmt_line.txt");
+    char[64] lineStore;
+    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[:], len: 0, mode: fmt.BufMode.Line};
+    let _, _ = line.format("ab");
+    let beforeNewline, _ = os.size(lineFile);
+    check(beforeNewline == 0, "a line writer holds the text until a newline");
+    let _, _ = line.format("c\n");
+    let afterNewline, _ = os.size(lineFile);
+    check(afterNewline == 4, "a line writer flushes at the newline");
+
+    let rawFile, _ = os.create("fmt_none.txt");
+    char[8] rawStore;
+    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[:], len: 0, mode: fmt.BufMode.None};
+    let _, _ = raw.format("xyz");
+    let atOnce, _ = os.size(rawFile);
+    check(atOnce == 3, "a writer with no buffering writes at once");
+
+    let streamFile, _ = os.create("fmt_stream.txt");
+    char[4] streamStore;
+    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[:], len: 0, mode: fmt.BufMode.Full};
+    let _, _ = stream.format("abcdefghij");
+    let _ = stream.flush();
+    let streamed, _ = os.size(streamFile);
+    check(streamed == 10, "a small buffer is flushed as it fills");
+
+    let again, _ = os.create("fmt_call.txt");
+    let _, _ = fmt.fprintf(again, "n={}", 42);
+    let wrote, _ = os.size(again);
+    check(wrote == 4, "fprintf writes everything in one call");
+
+    let badFile, _ = os.create("fmt_bad.txt");
+    let _, problem = fmt.fprintf(badFile, "a{b", 1);
+    let written, _ = os.size(badFile);
+    check(problem == fmt.FormatError.Unmatched && written == 3, "fprintf still writes the text when the format has a problem");
+    let _ = os.remove("fmt_bad.txt");
+
+    let _ = os.remove("fmt_core.txt");
+    let _ = os.remove("fmt_line.txt");
+    let _ = os.remove("fmt_none.txt");
+    let _ = os.remove("fmt_stream.txt");
+    let _ = os.remove("fmt_call.txt");
+}
+`, expected: []string{"decimal", "negative decimal", "zero", "largest uint", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "char", "char as a number", "char in hex", "integer as a char", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "a pointer starts with 0x", "p is the default for a pointer", "snprintf returns the byte count", "snprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
+
+	{dir: "variadic_method", src: `struct Counter {
+    int seen;
+}
+
+func (*Counter c) count(...args) int {
+    c.seen += len(args);
+    return len(args);
+}
+
+func (*Counter c) sum(string label, ...args) int {
+    int total = 0;
+    for _, a in args {
+        switch let v = a {
+            case int:
+                total += v;
+            case string:
+                total += len(v);
+        }
+    }
+    return total + len(label);
+}
+
+func (*Counter c) forward(...args) int {
+    return c.count(args...);
+}
+
+func (*Counter c) prefixed(...args) int {
+    return c.sum("ab", args...);
+}
+
+func main() {
+    Counter c = Counter{seen: 0};
+    check(c.count() == 0, "a variadic method with no extra arguments");
+    check(c.count(7) == 1, "one extra argument");
+    check(c.count(1, "x", true) == 3, "several arguments of different types");
+    check(c.seen == 4, "the receiver is the one the call was made on");
+    check(c.sum("abc", 5, "xy") == 10, "a fixed argument and the extras are both read");
+    check(c.forward(1, 2) == 2, "a method forwards its variadic to another method");
+    check(c.prefixed(10) == 12, "explicit arguments before a spread in a method call");
+    check(c.count() == 0 && c.seen == 6, "an empty variadic after other calls");
+}
+`, expected: []string{"a variadic method with no extra arguments", "one extra argument", "several arguments of different types", "the receiver is the one the call was made on", "a fixed argument and the extras are both read", "a method forwards its variadic to another method", "explicit arguments before a spread in a method call", "an empty variadic after other calls"}},
+
+	{dir: "handler_no_bind", src: `enum Fail {
+    Ok,
+    Bad
+}
+
+func risky(int n) !int {
+    if n < 0 {
+        return Error(Fail.Bad);
+    }
+    return n * 2;
+}
+
+func firstOr(int n) int {
+    int v = risky(n) ?? {
+        return -1;
+    };
+    return v;
+}
+
+func sum(int a, int b) int {
+    int total = 0;
+    for i in 0..1 {
+        int x = risky(i == 0 ? a : b) ?? {
+            continue;
+        };
+        total += x;
+    }
+    return total;
+}
+
+func firstGood(int a, int b, int c) int {
+    int found = -1;
+    for i in 0..2 {
+        int x = risky(i == 0 ? a : (i == 1 ? b : c)) ?? continue;
+        found = x;
+        break;
+    }
+    return found;
+}
+
+func stopAtBad(int a, int b, int c) int {
+    int total = 0;
+    for i in 0..2 {
+        int x = risky(i == 0 ? a : (i == 1 ? b : c)) ?? break;
+        total += x;
+    }
+    return total;
+}
+
+func namedJump(int a, int b) int {
+    int total = 0;
+    for i in 0..1 {
+        int x = risky(i == 0 ? a : b) ?? |_| continue;
+        total += x;
+    }
+    return total;
+}
+
+func inline(int n) int {
+    int a = risky(n) ?? return -2;
+    return a;
+}
+
+func named(int n) int {
+    int a = risky(n) ?? |_| return -3;
+    return a;
+}
+
+func main() {
+    check(firstGood(-1, -1, 4) == 8 && firstGood(-1, 3, 4) == 6, "continue after ?? skips the failures");
+    check(stopAtBad(1, 2, 3) == 12 && stopAtBad(1, -1, 3) == 2, "break after ?? stops at the first failure");
+    check(namedJump(2, -1) == 4 && namedJump(-1, 5) == 10, "continue after ?? with a name that is not used");
+    check(inline(5) == 10 && inline(-1) == -2, "return after ?? with no name");
+    check(named(5) == 10 && named(-1) == -3, "return after ?? with a name that is not used");
+    check(firstOr(4) == 8, "a handler without a name is skipped on success");
+    check(firstOr(-1) == -1, "a handler without a name runs on failure");
+    check(sum(1, 2) == 6, "continue works in a handler without a name");
+    check(sum(-1, 2) == 4, "a failing call is skipped by continue");
+}
+`, expected: []string{"continue after ?? skips the failures", "break after ?? stops at the first failure", "continue after ?? with a name that is not used", "return after ?? with no name", "return after ?? with a name that is not used", "a handler without a name is skipped on success", "a handler without a name runs on failure", "continue works in a handler without a name", "a failing call is skipped by continue"}},
+
+	{dir: "assert_unwrap", src: `enum Fail {
+    Ok,
+    Bad
+}
+
+func risky(int n) !int {
+    if n < 0 {
+        return Error(Fail.Bad, "negative input");
+    }
+    return n * 2;
+}
+
+func work(int n) ! {
+    if n < 0 {
+        return Error(Fail.Bad, "bad work");
+    }
+}
+
+func main() {
+    int a = risky(3)!!;
+    check(a == 6, "!! gives the value of a call that works");
+    check(risky(4)!! + risky(5)!! == 18, "!! works inside an expression, in a function that cannot fail");
+    work(1)!!;
+    check(true, "!! works on a call with no value");
+    int b = risky(-1)!!;
+    check(false, "not reached");
+}
+`, expected: []string{"!! gives the value of a call that works", "!! works inside an expression, in a function that cannot fail", "!! works on a call with no value"}, abort: "panic: unwrapped error"},
+
 	{dir: "char_escapes", src: `func code(char c) int {
     return int(c);
 }

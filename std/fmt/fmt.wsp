@@ -1,0 +1,37 @@
+import "std/os";
+import "std/fmt/writer";
+
+export writer;
+
+export func fprintf(int fd, string format, ...args) !int {
+	char[512] buf;
+	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
+
+	let r, p = w.format(format, args...);
+	let fp = w.flush();
+	if p != null {
+		return p;
+	}
+	if fp != null {
+		return fp;
+	}
+	return r;
+}
+
+export func printf(string format, ...args) !int {
+	return fprintf(os.STDOUT, format, args...)!;
+}
+
+export func snprintf(char[] buf, string format, ...args) !int {
+	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
+
+	let r, p = w.format(format, args...);
+	let fp = w.flush();
+	if p != null {
+		return p;
+	}
+	if fp != null {
+		return fp;
+	}
+	return r;
+}

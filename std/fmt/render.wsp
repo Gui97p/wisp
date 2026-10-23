@@ -1,0 +1,88 @@
+import "std/conv";
+import "std/fmt/spec";
+
+export struct Piece {
+	string sign;
+	string radix;
+	string body;
+}
+
+func number(char[] buf, uint mag, bool neg, spec.Spec s) !Piece {
+	Piece piece;
+	int base = switch s.kind {
+		case 'x', 'X' => 16,
+		case 'b' => 2,
+		case 'o' => 8,
+		default => 10
+	};
+	piece.body = conv.formatUint(buf, mag, base, s.kind == 'X')!;
+	piece.sign = neg ? "-" : "";
+	if s.alt {
+		piece.radix = switch s.kind {
+			case 'x' => "0x",
+			case 'X' => "0X",
+			case 'b' => "0b",
+			case 'o' => "0o",
+			default => ""
+		};
+	}
+	return piece;
+}
+
+export func renderInt(char[] buf, int v, spec.Spec s) !Piece {
+	if s.kind == 'c' {
+		Piece piece;
+		buf[0] = char(v);
+		piece.body = string(buf[:1]);
+		return piece;
+	}
+
+	if v >= 0 {
+		return number(buf, uint(v), false, s)!;
+	}
+	
+	return number(buf, uint(-(v+1)) + 1, true, s)!;
+}
+
+export func renderUint(char[] buf, uint v, spec.Spec s) !Piece {
+	if s.kind == 'c' {
+		Piece piece;
+		buf[0] = char(v);
+		piece.body = string(buf[:1]);
+		return piece;
+	}
+	return number(buf, v, false, s)!;
+}
+
+export func renderChar(char[] buf, char c, spec.Spec s) !Piece {
+	Piece piece;
+
+	switch s.kind {
+		case 'd', 'x':
+			return number(buf, uint(c), false, s)!;
+		default:
+			buf[0] = c;
+			piece.body = string(buf[:1]);
+	}
+
+	return piece;
+}
+
+export func renderPointer(char[] buf, *void v, spec.Spec s) !Piece {
+	spec.Spec t = s;
+	t.kind = 'x';
+	t.alt = true;
+	return number(buf, uint(v), false, t)!;
+}
+
+export func renderBool(bool b) Piece {
+	return Piece{body: b ? "true" : "false"};
+}
+
+export func renderString(string t, spec.Spec s) Piece {
+	Piece piece = Piece{body: t};
+	if s.precision >= 0 && s.precision < len(t) {
+		piece.body = t[:s.precision];
+	}
+	return piece;
+}
