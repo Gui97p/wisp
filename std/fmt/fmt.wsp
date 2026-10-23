@@ -18,8 +18,8 @@ export func fprintf(int fd, string format, ...args) !int {
 	return r;
 }
 
-export func printf(string format, ...args) !int {
-	return fprintf(os.STDOUT, format, args...)!;
+export func printf(string format, ...args) {
+	fprintf(os.STDOUT, format, args...) ?? return;
 }
 
 export func snprintf(char[] buf, string format, ...args) !int {

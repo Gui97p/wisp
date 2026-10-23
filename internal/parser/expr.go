@@ -726,6 +726,12 @@ func (p *Parser) parseReturnHandler(expr *ast.CoalesceExpr) ast.Expression {
 	retLine, retCol := p.current.Line, p.current.Column
 
 	ret := &ast.ReturnStmt{}
+	if p.peek.Type == lexer.TOKEN_SEMICOLON || p.peek.Type == lexer.TOKEN_RBRACE || p.peek.Type == lexer.TOKEN_RPAREN || p.peek.Type == lexer.TOKEN_COMMA {
+		ret.SetPos(retLine, retCol)
+		ret.SetEndPos(p.currentEnd())
+		expr.Block = &ast.BlockStmt{Statements: []ast.Statement{ret}}
+		return expr
+	}
 	for {
 		p.advance()
 		value := p.parseExpression()

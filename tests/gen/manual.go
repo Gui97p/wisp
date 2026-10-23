@@ -3353,6 +3353,13 @@ func namedJump(int a, int b) int {
     return total;
 }
 
+int counted = 0;
+
+func bump(int n) {
+    risky(n) ?? return;
+    counted += 1;
+}
+
 func inline(int n) int {
     int a = risky(n) ?? return -2;
     return a;
@@ -3364,6 +3371,10 @@ func named(int n) int {
 }
 
 func main() {
+    bump(1);
+    bump(-1);
+    bump(2);
+    check(counted == 2, "return with no value after ?? leaves a function that returns nothing");
     check(firstGood(-1, -1, 4) == 8 && firstGood(-1, 3, 4) == 6, "continue after ?? skips the failures");
     check(stopAtBad(1, 2, 3) == 12 && stopAtBad(1, -1, 3) == 2, "break after ?? stops at the first failure");
     check(namedJump(2, -1) == 4 && namedJump(-1, 5) == 10, "continue after ?? with a name that is not used");
@@ -3374,7 +3385,7 @@ func main() {
     check(sum(1, 2) == 6, "continue works in a handler without a name");
     check(sum(-1, 2) == 4, "a failing call is skipped by continue");
 }
-`, expected: []string{"continue after ?? skips the failures", "break after ?? stops at the first failure", "continue after ?? with a name that is not used", "return after ?? with no name", "return after ?? with a name that is not used", "a handler without a name is skipped on success", "a handler without a name runs on failure", "continue works in a handler without a name", "a failing call is skipped by continue"}},
+`, expected: []string{"return with no value after ?? leaves a function that returns nothing", "continue after ?? skips the failures", "break after ?? stops at the first failure", "continue after ?? with a name that is not used", "return after ?? with no name", "return after ?? with a name that is not used", "a handler without a name is skipped on success", "a handler without a name runs on failure", "continue works in a handler without a name", "a failing call is skipped by continue"}},
 
 	{dir: "assert_unwrap", src: `enum Fail {
     Ok,
