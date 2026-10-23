@@ -1,6 +1,6 @@
 // Tour - Types: aliases, enums, sizes and conversions.
 
-import "expect";
+import "std/fmt";
 
 // `type` creates a new nominal type. UserID and int are different types, so
 // mixing them needs an explicit conversion.
@@ -28,41 +28,42 @@ export func demo() {
 
   // ...but going back to int needs a conversion: the type name used as a function.
   int raw = int(uid);
-  expect.expect(raw == 42, "an alias converts back with the type name");
+  fmt.printf("the UserID as an int: {}\n", raw);
 
   Color favorite = .Green;
-  expect.expect(favorite == Color.Green, "an enum member, with or without the type");
-  expect.expect(int(Color.Blue) == 2, "enum numbering starts at zero");
-  expect.expect(int(Color.Alpha) == 10 && int(Color.Beta) == 11, "numbering continues after an explicit value");
-  expect.expect(favorite.name() == "Green", "name() gives the member name");
+  fmt.printf("favorite is {}, number {}\n", favorite.name(), int(favorite));
+  fmt.printf("Color.Blue is {}\n", int(Color.Blue));
+  fmt.printf("Color.Alpha is {} and Color.Beta is {}\n", int(Color.Alpha), int(Color.Beta));
+  fmt.printf("favorite == Color.Green: {}\n", favorite == Color.Green);
 
   // Primitive types: int, uint, int8..int64, uint8..uint64, float, float32,
   // float64, bool, char and string. `int` and `uint` are 64 bits wide, and
   // `float` is another name for float64, the way `int` is for int64.
   bool ready = true;
   char letter = 'w';
-  expect.expect(ready && letter == 'w', "bool and char");
+  fmt.printf("ready is {} and letter is {}\n", ready, letter);
 
   // A char takes the same escapes as a string: \n, \r, \t, \\, \', \", \0 and
   // \xHH for a byte in hexadecimal. `'\0'` is the zero byte that ends a C string.
-  expect.expect('\0' == '\x00' && '\n' == '\x0a', "escapes in a char");
+  fmt.printf("'\\0' == '\\x00': {}\n", '\0' == '\x00');
+  fmt.printf("'\\n' is the byte {}\n", int('\n'));
 
   // Integers wrap at their width.
   int8 small = 127;
   small++;
-  expect.expect(small == -128, "int8 wraps around");
+  fmt.printf("int8 127 + 1 wraps to {}\n", small);
 
   uint8 byte = 255;
   byte++;
-  expect.expect(byte == 0, "uint8 wraps around");
+  fmt.printf("uint8 255 + 1 wraps to {}\n", byte);
 
   // A widening conversion is implicit; any other conversion names the type.
   int8 narrow = 5;
   int64 wide = narrow;
-  expect.expect(wide == 5, "int8 widens to int64 on its own");
+  fmt.printf("int8 {} widens to int64 {}\n", narrow, wide);
   int big = 300;
-  expect.expect(int8(big) == 44, "a narrowing conversion keeps the low bits");
+  fmt.printf("int8(300) keeps the low bits: {}\n", int8(big));
 
   // `sizeof` takes a type or an expression and gives its size in bytes.
-  expect.expect(sizeof(int8) == 1 && sizeof(int32) == 4 && sizeof(int) == 8, "sizeof of the integer types");
+  fmt.printf("sizeof int8, int32, int: {}, {}, {}\n", sizeof(int8), sizeof(int32), sizeof(int));
 }

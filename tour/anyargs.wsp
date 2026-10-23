@@ -7,6 +7,9 @@
 // Arguments that cannot be held, such as a struct (pass a pointer), are an
 // error at the call.
 //
+// This is how `fmt.printf` itself is written: its `...args` is read with a
+// `switch` on the type of each argument.
+//
 // `switch let v = args[i] { ... }` names the value once, and `v` has the type
 // of the case that matched. `case int` matches every signed integer and
 // `case uint` every unsigned one; a more specific case such as `case int8`
@@ -16,7 +19,7 @@
 //
 // `rest...` passes a variadic on to another function that takes `...name`.
 
-import "expect";
+import "std/fmt";
 
 enum Color {
   Red,
@@ -28,12 +31,16 @@ func describe(...args) int {
   for _, arg in args {
     switch let v = arg {
       case Color:
+        fmt.printf("a Color adds 100\n");
         total += 100;
       case int:
+        fmt.printf("the int {} adds {}\n", v, v);
         total += v;
       case string:
+        fmt.printf("the string \"{}\" adds its length, {}\n", v, len(v));
         total += len(v);
       case bool:
+        fmt.printf("the bool {} adds {}\n", v, v ? 1 : 0);
         total += v ? 1 : 0;
     }
   }
@@ -45,8 +52,8 @@ func twice(...args) int {
 }
 
 export func demo() {
-  expect.expect(describe(10, "abc", true) == 14, "each argument is read by its own type");
-  expect.expect(describe(Color.Green, 1) == 101, "an enum matches its own case first");
-  expect.expect(twice(1, "ab") == 6, "... passes the variadic on");
-  expect.expect(describe() == 0, "no arguments is an empty variadic");
+  fmt.printf("describe(10, \"abc\", true) = {}\n", describe(10, "abc", true));
+  fmt.printf("describe(Color.Green, 1) = {}\n", describe(Color.Green, 1));
+  fmt.printf("twice(1, \"ab\") = {}\n", twice(1, "ab"));
+  fmt.printf("describe() = {}\n", describe());
 }

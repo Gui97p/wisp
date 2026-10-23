@@ -1,6 +1,6 @@
 // Tour - Error handling.
 
-import "expect";
+import "std/fmt";
 
 // An enum is the family of an error: each member is one kind of failure. The
 // member's number is the exit code if the error ends the program, so the
@@ -61,25 +61,26 @@ export func demo() {
   // `??` unwraps the result, falling back to a default value on failure.
   int ok = divide(10, 2) ?? -1;
   int fallback = divide(10, 0) ?? -1;
-  expect.expect(ok == 5 && fallback == -1, "?? unwraps or falls back");
+  fmt.printf("divide(10, 2) ?? -1 = {}\n", ok);
+  fmt.printf("divide(10, 0) ?? -1 = {}\n", fallback);
 
   // `?? |e| value` computes the fallback from the error.
   int code = divide(10, 0) ?? |e| e.line;
-  expect.expect(code > 0, "the fallback can read the error, here its line");
+  fmt.printf("the failure was raised at line {}\n", code);
 
-  expect.expect(halfOr(10, 2) == 5 && halfOr(10, 0) == -1, "?? return leaves the function on a failure");
-  expect.expect(sumGood(2, 0) == 5 && sumGood(0, 5) == 2, "?? continue skips the failures");
+  fmt.printf("halfOr(10, 2) = {}, halfOr(10, 0) = {}\n", halfOr(10, 2), halfOr(10, 0));
+  fmt.printf("sumGood(2, 0) = {}, sumGood(0, 5) = {}\n", sumGood(2, 0), sumGood(0, 5));
 
   int propagated = halveThenDouble(10, 0) ?? -1;
-  expect.expect(propagated == -1, "a postfix ! passes the error up");
-  expect.expect(describe(10, 0) == "cannot divide by zero", "a handler block returns from the function");
-  expect.expect(describe(10, 5) == "positive", "the handler is skipped on success");
+  fmt.printf("halveThenDouble(10, 0) ?? -1 = {}\n", propagated);
+  fmt.printf("describe(10, 0) = {}\n", describe(10, 0));
+  fmt.printf("describe(10, 5) = {}\n", describe(10, 5));
 
   // Destructuring gives the value and the error. The value is zero on
   // failure, and an error you never read is a compile error (bind it to `_`
   // to drop it on purpose).
   let value, e = divide(10, 0);
-  expect.expect(e != null && value == 0, "destructuring a failure");
+  fmt.printf("destructured: value {}, failed {}\n", value, e != null);
 
   // An error compares with null and with enum members, so a switch can sort
   // failures out. The member is written in full here: an Error does not know
@@ -90,7 +91,7 @@ export func demo() {
     case DivError.DivByZero => "divided by zero",
     default => err.message,
   };
-  expect.expect(what == "divided by zero", "a switch sorts the failures out");
+  fmt.printf("the switch says: {}\n", what);
 
   // `main` can be fallible too: `func main() !int`. If it ends in an error,
   // the program prints it and exits with the error's code.

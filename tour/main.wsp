@@ -8,6 +8,7 @@
 // imports the same way.
 
 import "basics";
+import "printing";
 import "branching";
 import "loops";
 import "functions";
@@ -22,61 +23,65 @@ import "assertions";
 import "pointers";
 import "globals";
 import "interop";
-import "expect";
+import "std/fmt";
 import "geometry" as geo;
 
 // `!` marks `main` as fallible: `pointers.demo()!` passes any error up, and if
 // `main` ends in an error the program prints it and exits with its code.
 func main() !int {
-  emit("== basics ==");
+  fmt.printf("== basics ==\n");
   basics.demo();
 
-  emit("== branching ==");
+  fmt.printf("\n== printing ==\n");
+  printing.demo();
+
+  fmt.printf("\n== branching ==\n");
   branching.demo();
 
-  emit("== loops ==");
+  fmt.printf("\n== loops ==\n");
   loops.demo();
 
-  emit("== functions ==");
+  fmt.printf("\n== functions ==\n");
   functions.demo();
 
-  emit("== variadics ==");
+  fmt.printf("\n== variadics ==\n");
   variadics.demo();
 
-  emit("== any arguments ==");
+  fmt.printf("\n== any arguments ==\n");
   anyargs.demo();
 
-  emit("== defer ==");
+  fmt.printf("\n== defer ==\n");
   cleanup.demo();
 
-  emit("== types ==");
+  fmt.printf("\n== types ==\n");
   types.demo();
 
-  emit("== structs ==");
+  fmt.printf("\n== structs ==\n");
   structs.demo();
 
-  emit("== collections ==");
+  fmt.printf("\n== collections ==\n");
   collections.demo();
 
-  emit("== errors ==");
+  fmt.printf("\n== errors ==\n");
   errors.demo();
 
-  emit("== assertions ==");
+  fmt.printf("\n== assertions ==\n");
   assertions.demo();
 
-  emit("== pointers ==");
+  fmt.printf("\n== pointers ==\n");
   pointers.demo()!;
 
-  emit("== globals ==");
+  fmt.printf("\n== globals ==\n");
   globals.demo();
-  expect.expect(globals.total == 101, "another module reads an exported global");
+  fmt.printf("another module reads the exported global: {}\n", globals.total);
 
-  emit("== interop ==");
+  fmt.printf("\n== interop ==\n");
   interop.demo();
 
-  emit("== modules ==");
-  expect.expect(geo.area(3, 4) == 12, "a function from a package");
-  expect.expect(geo.Sides == 4, "a constant re-exported by the package");
+  fmt.printf("\n== modules ==\n");
+  fmt.printf("geo.area(3, 4) = {}\n", geo.area(3, 4));
+  fmt.printf("geo.Sides = {}\n", geo.Sides);
+  fmt.printf("geo.perimeter(5) = {}\n", geo.perimeter(5));
 
   return 0;
 }

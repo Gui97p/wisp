@@ -1,0 +1,67 @@
+// Tour - Printing.
+//
+// `std/fmt` writes text. `print` and `println` take a string; `printf` takes
+// a format string and any number of arguments of any type. Each `{}` in the
+// format takes the next argument, and `{{` and `}}` write a brace.
+//
+// Between the braces, a spec says how to write the value:
+//
+//     {[[fill]align][#][0][width][.precision][type]}
+//
+// `align` is `<`, `^` or `>`, `fill` is the character that pads (a space when
+// left out), `#` adds a prefix such as 0x, a leading `0` pads with zeros, and
+// the type is one of d, x, X, b, o, c, s or p. A number aligns right and text
+// aligns left unless you say otherwise.
+//
+// A mistake in a format never stops the program. The text it could not fill
+// stays as written and `printf` goes on; `sprintf` and `fprintf` return what
+// went wrong as a FormatError, and `printf` throws it away.
+
+import "std/fmt";
+import "std/os";
+
+enum Color {
+  Red,
+  Green,
+  Blue,
+}
+
+export func demo() {
+  fmt.print("print writes a string, ");
+  fmt.println("println adds a newline");
+
+  fmt.printf("an int {}, a string {}, a char {}, a bool {}\n", 42, "text", 'x', true);
+  fmt.printf("braces: {{ and }}\n");
+
+  // An enum prints its number. Its name() method gives the name.
+  Color favorite = .Green;
+  fmt.printf("{} is {}\n", favorite.name(), favorite);
+
+  // Number types.
+  fmt.printf("255 in hex {x}, upper case {X}, with a prefix {#x}\n", 255, 255, 255);
+  fmt.printf("5 in binary {b}, with a prefix {#b}; 8 in octal {#o}\n", 5, 5, 8);
+  fmt.printf("65 as a char: {c}\n", 65);
+
+  // Width, alignment and fill.
+  fmt.printf("[{6}] [{<6}] [{^6}] [{>6}]\n", 42, 42, 42, 42);
+  fmt.printf("[{-<6}] [{*^7}]\n", 7, "ab");
+  fmt.printf("[{06}] [{06}] [{#06x}]\n", 42, -42, 255);
+
+  // For text, the precision cuts.
+  fmt.printf("[{.3}] [{6.3}]\n", "abcdef", "abcdef");
+
+  // `fprintf` writes to a file descriptor. `os.STDOUT` is the terminal, and
+  // `os.STDERR` is where errors go.
+  fmt.fprintf(os.STDERR, "this line goes to standard error: {}\n", 7) ?? return;
+
+  // `sprintf` writes into a buffer you provide and returns how many bytes it
+  // wrote. It fails with NoSpace if the buffer is too small.
+  char[32] buffer;
+  let size, problem = fmt.sprintf(buffer[:], "{} + {} = {}", 2, 3, 5);
+  fmt.printf("sprintf wrote {} bytes: {}\n", size, string(buffer[:size]));
+  fmt.printf("a fitting format reports a problem: {}\n", problem != null);
+
+  // A bad format is written back as it was and reported, not fatal.
+  let _, wrong = fmt.sprintf(buffer[:], "{z}", 1);
+  fmt.printf("a spec that does not exist reports a problem: {}\n", wrong == fmt.FormatError.BadSpec);
+}

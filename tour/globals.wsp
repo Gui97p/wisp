@@ -6,7 +6,7 @@
 // of those), so nothing has to run before `main` and the order of
 // declarations does not matter. Without an initializer it starts zeroed.
 
-import "expect";
+import "std/fmt";
 
 struct Settings {
   int retries;
@@ -29,16 +29,17 @@ func bump() int {
 }
 
 export func demo() {
-  expect.expect(untouched == 0, "a global without a value starts zeroed");
-  expect.expect(bump() == 1 && bump() == 2, "a global keeps its value between calls");
+  fmt.printf("untouched starts at {}\n", untouched);
+  fmt.printf("bump() = {}\n", bump());
+  fmt.printf("bump() = {}\n", bump());
 
   table[1] = counter;
   settings.retries += 1;
   name = "other";
-  expect.expect(table[1] == 2 && settings.retries == 4 && name == "other", "arrays, structs and strings can be globals");
+  fmt.printf("table[1] = {}, retries = {}, name = {}\n", table[1], settings.retries, name);
 
   total = total + 1;
-  expect.expect(total == 101, "an exported global");
+  fmt.printf("the exported total is now {}\n", total);
 
   // A global that nothing uses gets a warning, unless its name starts with an
   // underscore. That goes for any unused variable or constant. Exported

@@ -7,30 +7,24 @@
 // which is what a constructor needs: free what it allocated unless it
 // succeeds.
 //
-import "expect";
+import "std/fmt";
 
 enum Fail {
   Ok,
   Boom,
 }
 
-int trace;
-
-func mark(int n) {
-  trace = trace * 10 + n;
-}
-
 func order() {
-  defer mark(1);
-  defer mark(2);
-  mark(3);
+  defer fmt.printf("  deferred first, runs last\n");
+  defer fmt.printf("  deferred second, runs first\n");
+  fmt.printf("  the body runs before both\n");
 }
 
 // The returned value is computed before the deferred statements run, and a
 // deferred statement sees the variables as they are when the block is left.
 func early(bool leave) int {
   int value = 5;
-  defer mark(8);
+  defer fmt.printf("  early is over, value is {}\n", value);
   if leave {
     defer value = 99;
     return value;
@@ -39,8 +33,8 @@ func early(bool leave) int {
 }
 
 func build(bool fail) !int {
-  defer! mark(1);
-  defer mark(2);
+  defer! fmt.printf("  build failed, cleaning up\n");
+  defer fmt.printf("  build is over\n");
   if fail {
     return Error(Fail.Boom);
   }
@@ -48,20 +42,19 @@ func build(bool fail) !int {
 }
 
 export func demo() {
-  trace = 0;
+  fmt.printf("order():\n");
   order();
-  expect.expect(trace == 321, "deferred statements run in reverse order");
 
-  trace = 0;
-  expect.expect(early(true) == 5 && trace == 8, "the return value is computed first");
+  fmt.printf("early(true):\n");
+  int got = early(true);
+  fmt.printf("  it returned {}\n", got);
 
-  trace = 0;
+  fmt.printf("build(false):\n");
   let value, _ = build(false);
-  expect.expect(value == 10 && trace == 2, "defer! stays quiet when the function succeeds");
+  fmt.printf("  it returned {}\n", value);
 
-  trace = 0;
+  fmt.printf("build(true):\n");
   let _, _ = build(true);
-  expect.expect(trace == 21, "defer! runs when the function returns an error");
 
   // A deferred statement cannot leave its block: no return, no break out of
   // it, and no `!`. A failure has to be handled where it happens, for

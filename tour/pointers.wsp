@@ -6,7 +6,7 @@
 // pointer, as the inverse of `&x`. There is no garbage collector: memory you
 // ask for is memory you give back.
 
-import "expect";
+import "std/fmt";
 
 struct Pair {
   int a, b;
@@ -16,22 +16,22 @@ export func demo() ! {
   int x = 1;
   *int px = &x;
   **int ppx = &px;
-  expect.expect(px@ == 1 && ppx@@ == 1, "reading through a pointer and a pointer to a pointer");
+  fmt.printf("px@ = {}, ppx@@ = {}\n", px@, ppx@@);
 
   // Writing through a pointer changes the original.
   px@ = 7;
-  expect.expect(x == 7, "writing through a pointer");
+  fmt.printf("after px@ = 7, x = {}\n", x);
 
   // Pointers to structs reach their fields directly.
   Pair pair = Pair{a: 1, b: 2};
   *Pair pp = &pair;
   pp.a = 10;
-  expect.expect(pair.a == 10 && pp.b == 2, "a pointer to a struct reaches its fields");
+  fmt.printf("after pp.a = 10, pair is {}, {}\n", pair.a, pp.b);
 
   // `null` is the empty pointer. Dereferencing it stops the program with a
   // panic.
   *int nothing = null;
-  expect.expect(nothing == null, "null is the empty pointer");
+  fmt.printf("nothing == null: {}\n", nothing == null);
 
   // `malloc` asks for a number of bytes and can fail, so it is a fallible
   // call: the error is AllocError.OutOfMemory. `sizeof` takes a type or an
@@ -46,21 +46,21 @@ export func demo() ! {
   heap[2] = 30;
   heap[3] = 40;
   int[] view = heap[0:4];
-  expect.expect(len(view) == 4 && view[2] == 30, "a slice of a pointer is a span");
+  fmt.printf("the slice has {} elements and view[2] = {}\n", len(view), view[2]);
 
   // Arithmetic steps in elements, not bytes: p + 1 is the next int.
   *int second = heap + 1;
-  expect.expect(second@ == 20, "pointer plus one is the next element");
-  expect.expect(second - heap == 1, "subtracting pointers counts elements");
+  fmt.printf("(heap + 1)@ = {}\n", second@);
+  fmt.printf("second - heap = {}\n", second - heap);
   second++;
-  expect.expect(second@ == 30, "increment steps one element");
-  expect.expect(heap < second, "pointers compare by address");
+  fmt.printf("after second++, second@ = {}\n", second@);
+  fmt.printf("heap < second: {}\n", heap < second);
 
   // `realloc` resizes a block and keeps its contents. If it cannot, the
   // original block is left untouched.
   heap = realloc(heap, sizeof(int) * 8)!;
   heap[7] = 80;
-  expect.expect(heap[0] == 10 && heap[3] == 40 && heap[7] == 80, "realloc keeps the contents");
+  fmt.printf("after realloc: {}, {}, {}\n", heap[0], heap[3], heap[7]);
 
   // `free` takes pointers, strings and maps, any number of them at once. All
   // the arguments are evaluated before anything is released.
@@ -73,8 +73,8 @@ export func demo() ! {
   // `(*int8)(address)@`.
   int8 raw = 65;
   uint64 address = uint64(&raw);
-  expect.expect(address != 0, "a pointer converts to an integer");
-  expect.expect((*int8)(address)@ == 65, "an integer converts to a pointer");
+  fmt.printf("the address of raw is not zero: {}\n", address != 0);
+  fmt.printf("reading the address back gives {}\n", (*int8)(address)@);
 
   // Bytes become a string without a copy, and a string gives the address of
   // its bytes. The second one is only safe to hand to C when the string ends
@@ -84,10 +84,10 @@ export func demo() ! {
   bytes[1] = 105;
   bytes[2] = 0;
   string text = string(bytes[0:2]);
-  expect.expect(text == "hi", "string(bytes) views the bytes as a string");
+  fmt.printf("string(bytes[0:2]) = {}\n", text);
 
   *int8 literal = (*int8)("hey");
-  expect.expect(literal[0] == 104 && literal[3] == 0, "a string literal ends in a zero byte");
+  fmt.printf("\"hey\" starts with {} and ends with {}\n", literal[0], literal[3]);
   free(bytes);
 
   // An array or a span converts to a pointer to its first element, which is
@@ -98,8 +98,8 @@ export func demo() ! {
   *char start = (*char)(letters);
   start@ = 'a';
   (start + 3)@ = 'd';
-  expect.expect(letters[0] == 'a' && letters[3] == 'd', "an array converts to a pointer to its first element");
+  fmt.printf("letters = {}...{}\n", letters[0], letters[3]);
 
   char[] middle = letters[1:3];
-  expect.expect((*char)(middle) == start + 1, "a span converts to a pointer to where it starts");
+  fmt.printf("the span starts one element after the array: {}\n", (*char)(middle) == start + 1);
 }

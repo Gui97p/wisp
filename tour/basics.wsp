@@ -5,13 +5,22 @@
 //
 //     wisp run
 //
+// Each demo prints what it computes, so reading the output next to the code
+// is the way through. Printing comes from the standard library:
+//
+//     import "std/fmt";
+//     fmt.printf("limit is {}\n", limit);
+//
+// `printf` copies its text and puts the next argument where each `{}` is.
+// printing.wsp shows what else it can do.
+//
 // A few functions need no import because the compiler knows them: `emit`
 // writes a string and a newline, `len` measures arrays, slices and strings,
 // `panic` stops the program with a message, and `malloc`, `realloc`, `free`
 // and `sizeof` handle memory (see pointers.wsp). Declaring a function with
 // one of these names in your own module shadows the builtin.
 
-import "expect";
+import "std/fmt";
 
 // A top-level constant. It is visible to the whole file and can never be
 // assigned again.
@@ -27,40 +36,41 @@ export func demo() {
   limit += 2;
   limit *= 2;
   total++;
-  expect.expect(total == 6, "total is 6");
-  expect.expect(limit == 24, "limit is 24");
-  expect.expect(MaxScore == 100, "the constant keeps its value");
+  fmt.printf("total = {}\n", total);
+  fmt.printf("limit = {}\n", limit);
+  fmt.printf("MaxScore = {}\n", MaxScore);
 
   // A variable declared without a value starts zeroed.
   int zeroed;
-  expect.expect(zeroed == 0, "a declaration without a value is zero");
+  fmt.printf("zeroed = {}\n", zeroed);
 
   // Several variables can be declared together.
   int first, second = 4, 5;
-  expect.expect(first + second == 9, "two variables, two values");
+  fmt.printf("first + second = {}\n", first + second);
 
   // `const` also works inside a function.
   const Greeting = "hi";
-  expect.expect(Greeting == "hi", "a local constant");
+  fmt.printf("Greeting = {}\n", Greeting);
 
   // Integer division truncates toward zero, and `%` keeps the sign of the
   // dividend, so (a / b) * b + a % b is always a. Dividing by zero is not a
   // compile error when the divisor is only known at run time: it panics.
-  expect.expect(17 / 5 == 3, "17 / 5 is 3");
-  expect.expect(-17 / 5 == -3, "-17 / 5 truncates toward zero");
-  expect.expect(17 % 5 == 2, "17 % 5 is 2");
-  expect.expect(-17 % 5 == -2, "% keeps the sign of the dividend");
+  fmt.printf("17 / 5 = {}\n", 17 / 5);
+  fmt.printf("-17 / 5 = {}\n", -17 / 5);
+  fmt.printf("17 % 5 = {}\n", 17 % 5);
+  fmt.printf("-17 % 5 = {}\n", -17 % 5);
 
   // Bitwise operators: & | ^ ~ << >>. They only work on integers.
   // `~` is unary (bitwise not), so there is no `~=`.
   int a = 6;
   int b = 3;
-  expect.expect((a & b) == 2, "6 & 3 is 2");
-  expect.expect((a | b) == 7, "6 | 3 is 7");
-  expect.expect((a ^ b) == 5, "6 ^ 3 is 5");
-  expect.expect(~a == -7, "~6 is -7");
-  expect.expect(a << 1 == 12, "6 << 1 is 12");
-  expect.expect(a >> 1 == 3, "6 >> 1 is 3");
+  fmt.printf("a = {}, b = {}\n", a, b);
+  fmt.printf("a & b = {}\n", a & b);
+  fmt.printf("a | b = {}\n", a | b);
+  fmt.printf("a ^ b = {}\n", a ^ b);
+  fmt.printf("~a = {}\n", ~a);
+  fmt.printf("a << 1 = {}\n", a << 1);
+  fmt.printf("a >> 1 = {}\n", a >> 1);
 
   // Every binary bitwise operator has a compound form.
   int flags = 6;
@@ -69,13 +79,13 @@ export func demo() {
   flags ^= 1;
   flags <<= 1;
   flags >>= 1;
-  expect.expect(flags == 11, "compound bitwise operators");
+  fmt.printf("flags after &= 2, |= 8, ^= 1, <<= 1, >>= 1: {}\n", flags);
 
   // Comparisons give a bool, and `&&`, `||` and `!` combine them. The
   // right side of `&&` and `||` is only evaluated when it has to be.
-  expect.expect(a > b && !(a == b), "logic operators");
+  fmt.printf("a > b && !(a == b) = {}\n", a > b && !(a == b));
 
   // The ternary operator.
   int bigger = 1 > 2 ? 42 : 21;
-  expect.expect(bigger == 21, "the ternary picks the second value");
+  fmt.printf("1 > 2 ? 42 : 21 = {}\n", bigger);
 }

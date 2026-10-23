@@ -4,10 +4,10 @@
 // real span: indexable, iterable and measurable with `len`. Callers pass any
 // number of arguments, including none.
 //
-// Do not confuse this with a C variadic such as printf, which is declared
+// Do not confuse this with a C variadic such as C's printf, which is declared
 // with `extern`.
 
-import "expect";
+import "std/fmt";
 
 func sum(int ...values) int {
   int total;
@@ -18,6 +18,6 @@ func sum(int ...values) int {
 }
 
 export func demo() {
-  expect.expect(sum(1, 2, 3, 4) == 10, "a variadic function");
-  expect.expect(sum() == 0, "a variadic function with no arguments");
+  fmt.printf("sum(1, 2, 3, 4) = {}\n", sum(1, 2, 3, 4));
+  fmt.printf("sum() = {}\n", sum());
 }

@@ -1,28 +1,30 @@
 // Tour - Loops: `for` and `loop`.
 
-import "expect";
+import "std/fmt";
 
 export func demo() {
   // A range includes both ends: this visits 1, 2, 3.
   int sum;
   for i in 1..3 {
+    fmt.printf("i = {}\n", i);
     sum += i;
   }
-  expect.expect(sum == 6, "a range includes both ends");
+  fmt.printf("the sum of 1..3 is {}\n", sum);
 
   // `:4` after the range is the step. This visits 1, 5, 9.
   int stepped;
   for i in 1..10:4 {
+    fmt.printf("stepping: {}\n", i);
     stepped += i;
   }
-  expect.expect(stepped == 15, "the step skips values");
+  fmt.printf("the sum of 1..10:4 is {}\n", stepped);
 
   // Without a variable, `for` just repeats.
   int repeats;
   for 2 {
     repeats++;
   }
-  expect.expect(repeats == 2, "for with a count");
+  fmt.printf("for 2 ran {} times\n", repeats);
 
   // `loop <condition>` is a while loop.
   int left = 3;
@@ -31,14 +33,14 @@ export func demo() {
     passes++;
     left--;
   }
-  expect.expect(passes == 3, "loop with a condition");
+  fmt.printf("the while loop ran {} times\n", passes);
 
   // A `loop` with `until` at the end is a do-while: the body runs first.
   int tries = 0;
   loop {
     tries++;
   } until tries == 3;
-  expect.expect(tries == 3, "do-while with until");
+  fmt.printf("the do-while stopped at {}\n", tries);
 
   // A bare `loop` runs until something breaks out of it.
   int n = 0;
@@ -53,7 +55,7 @@ export func demo() {
     }
     kept += n;
   }
-  expect.expect(kept == 8, "break and continue");
+  fmt.printf("skipping 2 and stopping after 4 kept {}\n", kept);
 
   // Labels start with `:` and let `break` and `continue` target an outer loop.
   int visits;
@@ -63,7 +65,7 @@ export func demo() {
       break outer;
     }
   }
-  expect.expect(visits == 1, "break with a label leaves both loops");
+  fmt.printf("break outer left both loops after {} visit\n", visits);
 
   // `for ... in` walks any collection. With two names you get the index
   // (or the key, for a map) and the element; with a single name you get
@@ -71,14 +73,15 @@ export func demo() {
   // just `_` (or starts with one) says you meant to leave it out.
   int[3] values = [10, 20, 30];
   int total;
-  for _, v in values {
+  for index, v in values {
+    fmt.printf("values[{}] = {}\n", index, v);
     total += v;
   }
-  expect.expect(total == 60, "for in with index and element");
+  fmt.printf("the elements add up to {}\n", total);
 
   int indexes;
   for i in values {
     indexes += i;
   }
-  expect.expect(indexes == 3, "for in with the index only");
+  fmt.printf("the indexes add up to {}\n", indexes);
 }

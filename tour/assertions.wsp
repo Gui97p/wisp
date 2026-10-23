@@ -11,7 +11,7 @@
 // On a failure it prints the error, the enum, the message and where it was
 // raised, and then the place of the `!!`.
 
-import "expect";
+import "std/fmt";
 
 enum Fail {
   Ok,
@@ -33,7 +33,8 @@ func settle(int n) ! {
 
 export func demo() {
   int a = risky(3)!!;
-  expect.expect(a == 6, "!! gives the value of a call that works");
-  expect.expect(risky(4)!! + risky(5)!! == 18, "!! works inside an expression");
+  fmt.printf("risky(3)!! = {}\n", a);
+  fmt.printf("risky(4)!! + risky(5)!! = {}\n", risky(4)!! + risky(5)!!);
   settle(1)!!;
+  fmt.printf("settle(1)!! passed\n");
 }

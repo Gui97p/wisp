@@ -23,7 +23,7 @@
 // Calling functions written in C is a separate feature, `extern`; see the
 // _c folder.
 
-import "expect";
+import "std/fmt";
 
 export func abs(int x) int {
   int r;
@@ -33,5 +33,5 @@ export func abs(int x) int {
 }
 
 export func demo() {
-  expect.expect(abs(-5) == 5 && abs(5) == 5, "a native block per target");
+  fmt.printf("abs(-5) = {}, abs(5) = {}\n", abs(-5), abs(5));
 }

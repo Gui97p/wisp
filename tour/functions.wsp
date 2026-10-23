@@ -1,6 +1,6 @@
 // Tour - Functions.
 
-import "expect";
+import "std/fmt";
 
 // The parameter type comes first. `a, b` share the type written before them.
 func add(int a, b) int {
@@ -22,13 +22,13 @@ func minmax(int a, b) (int, int) {
 func later() int => 7;
 
 export func demo() {
-  expect.expect(add(2, 3) == 5, "a function with two parameters");
-  expect.expect(square(7) == 49, "a function made of one expression");
+  fmt.printf("add(2, 3) = {}\n", add(2, 3));
+  fmt.printf("square(7) = {}\n", square(7));
 
   let low, high = minmax(9, 4);
-  expect.expect(low == 4 && high == 9, "multiple return values");
+  fmt.printf("minmax(9, 4) = {}, {}\n", low, high);
 
-  expect.expect(later() == 7, "order of declaration does not matter");
+  fmt.printf("later() = {}\n", later());
 
   // Variadic parameters are in variadics.wsp. Function values exist in the
   // language, but the x86-64 backend does not generate them yet: see

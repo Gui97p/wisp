@@ -1,0 +1,15 @@
+// Tour - A tiny helper for the files in this folder.
+//
+// They run on the Lua backend, where the standard library does not print
+// numbers yet, and `emit` only prints strings. So each file states what it
+// just demonstrated and `expect` prints the sentence when it holds. A
+// sentence that does not hold prints FAIL before it.
+
+export func expect(bool holds, string what) {
+  if holds {
+    emit(what);
+  } else {
+    emit("FAIL");
+    emit(what);
+  }
+}
