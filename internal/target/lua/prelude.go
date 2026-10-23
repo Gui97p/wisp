@@ -37,6 +37,10 @@ end
 	return e ~= nil and e.domain == domain and e.code == code
 end
 `},
+	{name: "__wisp_unwrap", deps: []string{"__wisp_panic"}, code: `local function __wisp_unwrap(e)
+	__wisp_panic("unwrapped error " .. e.message .. ", raised at " .. e.file .. ":" .. e.line)
+end
+`},
 	{name: "__wisp_idiv", deps: []string{"__wisp_panic"}, code: `local function __wisp_idiv(a, b)
 	if b == 0 then __wisp_panic("integer divide by zero") end
 	local q = a // b

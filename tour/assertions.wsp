@@ -1,0 +1,39 @@
+// Tour - Asserting that a call works.
+//
+// A postfix `!` passes an error up, and only a fallible function can do that.
+// A postfix `!!` says the call cannot fail here: if it does, the program stops
+// with a panic that names the error and where it was raised. It works anywhere,
+// even in a function that cannot fail, and on a call with no value.
+//
+// Use it where a failure is a bug, in a test or at the top of a program. A
+// library should pass the error up with `!` and let its caller decide.
+//
+// On a failure it prints the error, the enum, the message and where it was
+// raised, and then the place of the `!!`.
+
+import "expect";
+
+enum Fail {
+  Ok,
+  Bad
+}
+
+func risky(int n) !int {
+  if n < 0 {
+    return Error(Fail.Bad, "negative input");
+  }
+  return n * 2;
+}
+
+func settle(int n) ! {
+  if n < 0 {
+    return Error(Fail.Bad, "cannot settle");
+  }
+}
+
+export func demo() {
+  int a = risky(3)!!;
+  expect.expect(a == 6, "!! gives the value of a call that works");
+  expect.expect(risky(4)!! + risky(5)!! == 18, "!! works inside an expression");
+  settle(1)!!;
+}

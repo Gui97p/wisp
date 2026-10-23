@@ -62,6 +62,12 @@ func (t *LuaTarget) compilePropagate(b *strings.Builder, expr *ast.PropagateExpr
 	targets := append(append([]string{}, names...), errName)
 	t.emitPending(fmt.Sprintf("local %s = %s\n", strings.Join(targets, ", "), call))
 
+	if expr.Assert {
+		t.emitPending(fmt.Sprintf("if %s ~= nil then __wisp_unwrap(%s) end\n", errName, errName))
+		b.WriteString(strings.Join(names, ", "))
+		return nil
+	}
+
 	zeros, err := t.payloadZeros()
 	if err != nil {
 		return err
@@ -122,7 +128,9 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 			return fmt.Errorf("lua: coalesce expects a block")
 		}
 
-		fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
+		if expr.ErrorBind != "" {
+			fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
+		}
 		if err := t.compileStatement(&branch, block); err != nil {
 			t.pending = outer
 			return err

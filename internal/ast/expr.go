@@ -367,7 +367,8 @@ func (i *InExpr) Tree(indent string) string {
 }
 
 type PropagateExpr struct {
-	Value Expression
+	Value  Expression
+	Assert bool
 
 	NodePos
 }
@@ -376,7 +377,11 @@ func (*PropagateExpr) expr() {}
 func (p *PropagateExpr) Tree(indent string) string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "%sPropagateExpr\n", indent)
+	name := "PropagateExpr"
+	if p.Assert {
+		name = "AssertExpr"
+	}
+	fmt.Fprintf(&b, "%s%s\n", indent, name)
 	b.WriteString(indent)
 	b.WriteString("└─ Value\n")
 	b.WriteString(p.Value.Tree(indent + "   "))

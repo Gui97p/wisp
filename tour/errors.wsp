@@ -40,6 +40,23 @@ func describe(int a, b) string {
   return "zero";
 }
 
+// A handler does not have to name the error. `?? { ... }` runs a block, and
+// the short forms `?? return value`, `?? break` and `?? continue` leave the
+// function or the loop on a failure.
+func halfOr(int a, b) int {
+  int n = divide(a, b) ?? return -1;
+  return n;
+}
+
+func sumGood(int a, int b) int {
+  int total = 0;
+  for i in 0..1 {
+    int n = divide(10, i == 0 ? a : b) ?? continue;
+    total += n;
+  }
+  return total;
+}
+
 export func demo() {
   // `??` unwraps the result, falling back to a default value on failure.
   int ok = divide(10, 2) ?? -1;
@@ -49,6 +66,9 @@ export func demo() {
   // `?? |e| value` computes the fallback from the error.
   int code = divide(10, 0) ?? |e| e.line;
   expect.expect(code > 0, "the fallback can read the error, here its line");
+
+  expect.expect(halfOr(10, 2) == 5 && halfOr(10, 0) == -1, "?? return leaves the function on a failure");
+  expect.expect(sumGood(2, 0) == 5 && sumGood(0, 5) == 2, "?? continue skips the failures");
 
   int propagated = halveThenDouble(10, 0) ?? -1;
   expect.expect(propagated == -1, "a postfix ! passes the error up");

@@ -18,6 +18,7 @@ import "types";
 import "structs";
 import "collections";
 import "errors";
+import "assertions";
 import "pointers";
 import "globals";
 import "interop";
@@ -59,6 +60,9 @@ func main() !int {
 
   emit("== errors ==");
   errors.demo();
+
+  emit("== assertions ==");
+  assertions.demo();
 
   emit("== pointers ==");
   pointers.demo()!;

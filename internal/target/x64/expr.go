@@ -720,8 +720,17 @@ func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error)
 	t.text.printft("test %s, %s\n", regStr, regStr)
 	t.text.printft("jz %s\n", okLabel)
 
-	if err := t.returnError(Reg{reg, 8}); err != nil {
-		return nil, err
+	if expr.Assert {
+		if reg != x64context.DI {
+			t.text.printft("mov rdi, %s\n", regStr)
+		}
+		t.prelude.define("__wisp_error_emit")
+		t.text.printlnt("call __wisp_error_emit")
+		t.panic("unwrapped error")
+	} else {
+		if err := t.returnError(Reg{reg, 8}); err != nil {
+			return nil, err
+		}
 	}
 
 	t.text.printf("%s:\n", okLabel)

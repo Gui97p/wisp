@@ -816,11 +816,15 @@ func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
 
 	ft, ok := operand.(FallibleType)
 	if !ok {
-		a.errorf(expr, "! expects a call that can fail, got %s", operand.String())
+		if expr.Assert {
+			a.errorf(expr, "!! expects a call that can fail, got %s", operand.String())
+		} else {
+			a.errorf(expr, "! expects a call that can fail, got %s", operand.String())
+		}
 		return []Type{InvalidType{}}
 	}
 
-	if !a.currentFallible {
+	if !expr.Assert && !a.currentFallible {
 		a.error(expr, "cannot propagate outside a fallible function: mark it with !, or handle the error with ?? or let v, e = ...")
 		return []Type{InvalidType{}}
 	}
@@ -829,6 +833,9 @@ func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
 }
 
 func (a *Analyser) defineErrorBind(expr *ast.CoalesceExpr) {
+	if expr.ErrorBind == "" {
+		return
+	}
 	line, col := expr.Position()
 	if expr.ErrorBindAt.Line != 0 {
 		line, col = expr.ErrorBindAt.Line, expr.ErrorBindAt.Col

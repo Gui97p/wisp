@@ -272,7 +272,12 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 	case lexer.TOKEN_COALESCE:
 		return p.parseCoalesceExpr(left)
 	case lexer.TOKEN_NOT:
-		return &ast.PropagateExpr{Value: left}
+		expr := &ast.PropagateExpr{Value: left}
+		if p.peek.Type == lexer.TOKEN_NOT {
+			p.advance()
+			expr.Assert = true
+		}
+		return expr
 	case lexer.TOKEN_AT:
 		return &ast.DerefExpr{Value: left}
 	case lexer.TOKEN_IN:
@@ -625,6 +630,22 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 	expr := &ast.CoalesceExpr{Left: left, Default: nil, Block: nil}
 	expr.SetPos(line, col)
 
+	if p.current.Type == lexer.TOKEN_LBRACE {
+		expr.Block = p.parseBlockStatement()
+
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
+		return expr
+	}
+
+	switch p.current.Type {
+	case lexer.TOKEN_RETURN:
+		return p.parseReturnHandler(expr)
+	case lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE:
+		return p.parseJumpHandler(expr)
+	}
+
 	if p.current.Type == lexer.TOKEN_PIPE {
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return nil
@@ -651,26 +672,10 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 			return expr
 		case lexer.TOKEN_RETURN:
 			p.advance()
-			retLine, retCol := p.current.Line, p.current.Column
-
-			ret := &ast.ReturnStmt{}
-			for {
-				p.advance()
-				value := p.parseExpression()
-				if value == nil {
-					return nil
-				}
-				ret.Values = append(ret.Values, value)
-
-				if p.peek.Type != lexer.TOKEN_COMMA {
-					break
-				}
-				p.advance()
-			}
-			ret.SetPos(retLine, retCol)
-			ret.SetEndPos(p.currentEnd())
-			expr.Block = &ast.BlockStmt{Statements: []ast.Statement{ret}}
-			return expr
+			return p.parseReturnHandler(expr)
+		case lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE:
+			p.advance()
+			return p.parseJumpHandler(expr)
 		}
 
 		p.advance()
@@ -688,6 +693,55 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 	}
 
 	expr.Default = def
+	return expr
+}
+
+func (p *Parser) parseJumpHandler(expr *ast.CoalesceExpr) ast.Expression {
+	line, col := p.current.Line, p.current.Column
+	isBreak := p.current.Type == lexer.TOKEN_BREAK
+
+	label := ""
+	if p.peek.Type == lexer.TOKEN_IDENT {
+		p.advance()
+		label = p.current.Literal
+	}
+
+	var stmt ast.Statement
+	if isBreak {
+		jump := &ast.BreakStmt{Label: label}
+		jump.SetPos(line, col)
+		jump.SetEndPos(p.currentEnd())
+		stmt = jump
+	} else {
+		jump := &ast.ContinueStmt{Label: label}
+		jump.SetPos(line, col)
+		jump.SetEndPos(p.currentEnd())
+		stmt = jump
+	}
+	expr.Block = &ast.BlockStmt{Statements: []ast.Statement{stmt}}
+	return expr
+}
+
+func (p *Parser) parseReturnHandler(expr *ast.CoalesceExpr) ast.Expression {
+	retLine, retCol := p.current.Line, p.current.Column
+
+	ret := &ast.ReturnStmt{}
+	for {
+		p.advance()
+		value := p.parseExpression()
+		if value == nil {
+			return nil
+		}
+		ret.Values = append(ret.Values, value)
+
+		if p.peek.Type != lexer.TOKEN_COMMA {
+			break
+		}
+		p.advance()
+	}
+	ret.SetPos(retLine, retCol)
+	ret.SetEndPos(p.currentEnd())
+	expr.Block = &ast.BlockStmt{Statements: []ast.Statement{ret}}
 	return expr
 }
 
