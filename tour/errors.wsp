@@ -93,6 +93,14 @@ export func demo() {
   };
   fmt.printf("the switch says: {}\n", what);
 
+  // A call that returns no value has nothing to fall back to, so its handler
+  // may simply end. This is how a failure that nobody can act on is dropped on
+  // purpose, and the only way to handle a call inside a `defer`, which cannot
+  // return from the function:
+  //
+  //     defer close(fd) ?? {};
+  //     defer close(fd) ?? |e| { fmt.printf("close failed: {}\n", e.message); };
+
   // `main` can be fallible too: `func main() !int`. If it ends in an error,
   // the program prints it and exits with the error's code.
 }

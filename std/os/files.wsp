@@ -50,17 +50,16 @@ export func removeDir(string path) ! {
 	}
 }
 
-export func readFile(string path) !string {
+export func readFile(string path) !char[] {
 	int fd = open(path, global.READ)!;
+	defer close(fd);
 	int size = os.size(fd)!;
-	*char buf = malloc(size)!;
-	os.read(fd, buf[0:size])!;
-	return string(buf[0:size]);
+	*char alloc = malloc(size)!;
+	char[] buf = alloc[0:size];
+	os.read(fd, buf)!;
+	return buf;
 }
 
-export func close(int fd) ! {
-	int r = sys.close(fd);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+export func close(int fd) {
+	sys.close(fd);
 }

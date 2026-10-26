@@ -5,7 +5,8 @@
 // passed up with `!`. Deferred statements run in reverse order, the last one
 // written first. `defer!` runs only when the function leaves with an error,
 // which is what a constructor needs: free what it allocated unless it
-// succeeds.
+// succeeds. `defer! |e| ...` also names the error that is leaving, so the
+// cleanup can report it.
 //
 import "std/fmt";
 
@@ -33,7 +34,7 @@ func early(bool leave) int {
 }
 
 func build(bool fail) !int {
-  defer! fmt.printf("  build failed, cleaning up\n");
+  defer! |e| fmt.printf("  build failed ({}), cleaning up\n", e.message);
   defer fmt.printf("  build is over\n");
   if fail {
     return Error(Fail.Boom);

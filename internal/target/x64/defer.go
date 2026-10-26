@@ -34,12 +34,17 @@ func (t *X64Target) hasDefers(from int, onError bool) bool {
 	return false
 }
 
-func (t *X64Target) emitDefers(from int, onError bool) error {
+func (t *X64Target) emitDefers(from int, onError bool, errSlot ...Mem) error {
 	for i := len(t.deferScopes) - 1; i >= from; i-- {
 		entries := t.deferScopes[i].entries
 		for _, d := range slices.Backward(entries) {
 			if d.OnError && !onError {
 				continue
+			}
+
+			if d.ErrorBind != "" && len(errSlot) > 0 {
+				bind := t.ctx.Set(t.info.VarSymbols[d][0], 8)
+				t.store(errSlot[0], slot(bind, 8))
 			}
 
 			if err := t.compileStatement(d.Body); err != nil {

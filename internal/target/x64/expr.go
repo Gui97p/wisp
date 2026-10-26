@@ -680,7 +680,7 @@ func (t *X64Target) returnError(errOp Operand) error {
 		t.freeOp(errOp)
 
 		if err := t.withFreeRegisters(func() error {
-			return t.emitDefers(0, true)
+			return t.emitDefers(0, true, errSlot)
 		}); err != nil {
 			return err
 		}

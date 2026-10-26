@@ -892,7 +892,7 @@ func (a *Analyser) checkCoalesce(expr *ast.CoalesceExpr) []Type {
 	}
 
 	if expr.Block != nil {
-		if !a.checkHandlerBlock(expr) {
+		if !a.checkHandlerBlock(expr, len(ft.Values) == 0) {
 			return invalid
 		}
 		return ft.Values
@@ -908,7 +908,7 @@ func (a *Analyser) checkCoalesce(expr *ast.CoalesceExpr) []Type {
 	return ft.Values
 }
 
-func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr) bool {
+func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr, valueless bool) bool {
 	b, ok := expr.Block.(*ast.BlockStmt)
 	if !ok {
 		a.errorf(expr, "expected valid block for coalesce")
@@ -923,7 +923,7 @@ func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr) bool {
 	a.checkBlock(b)
 	a.exitScope()
 
-	if !blockDiverges(b) {
+	if !valueless && !blockDiverges(b) {
 		a.error(expr, "the handler block must end with return, break or continue")
 		return false
 	}
@@ -1305,13 +1305,16 @@ func (a *Analyser) checkFree(expr *ast.CallExpr) {
 	for _, arg := range expr.Args {
 		t := a.checkExpr(arg)
 		switch u := underlyingOf(t).(type) {
-		case InvalidType, PointerType, NullType, *MapType:
+		case InvalidType, PointerType, NullType, *MapType, SpanType:
 		case PrimitiveType:
-			if u.Name != "string" {
-				a.errorf(arg, "free expects a pointer, string or map, got %s", t.String())
+			if u.Name == "string" {
+				a.errorf(arg, "a string is a view and is never freed").
+					WithHelp("free the buffer it came from: a pointer or a slice that malloc returned")
+			} else {
+				a.errorf(arg, "free expects a pointer, slice or map, got %s", t.String())
 			}
 		default:
-			a.errorf(arg, "free expects a pointer, string or map, got %s", t.String())
+			a.errorf(arg, "free expects a pointer, slice or map, got %s", t.String())
 		}
 	}
 }

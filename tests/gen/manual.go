@@ -1149,6 +1149,86 @@ func main() {
     check(rounds == 3, "a deferred statement runs before the next round");
 }
 `, expected: []string{"until reads a variable declared in the body", "a continue still reaches the until condition", "a deferred statement runs before the next round"}},
+	{dir: "valueless_handler", src: `enum Fail {
+    Ok,
+    Bad
+}
+
+int trace;
+
+func close(int fd) ! {
+    if fd < 0 {
+        return Error(Fail.Bad, "bad descriptor");
+    }
+}
+
+func quiet() {
+    defer close(-1) ?? {};
+    trace += 1;
+}
+
+func loud() {
+    defer close(-1) ?? |e| {
+        trace += e.line > 0 ? 10 : 0;
+    };
+    trace += 100;
+}
+
+func main() {
+    quiet();
+    check(trace == 1, "a handler with no value can fall through, even in a defer");
+
+    loud();
+    check(trace == 111, "the handler of a deferred call can read the error");
+
+    close(0) ?? {
+        trace = 0;
+    };
+    check(trace == 111, "a call that succeeds skips its handler");
+}
+`, expected: []string{"a handler with no value can fall through, even in a defer", "the handler of a deferred call can read the error", "a call that succeeds skips its handler"}},
+	{dir: "defer_error_bind", src: `enum Fail {
+    Ok,
+    Boom,
+    Bang
+}
+
+int trace;
+
+func inner(int n) !int {
+    if n == 1 {
+        return Error(Fail.Boom, "inner boom");
+    }
+    return n;
+}
+
+func build(int n) !int {
+    defer! |e| {
+        trace = trace * 10 + e.line;
+        if e.message == "inner boom" {
+            trace += 1000;
+        }
+    }
+    int v = inner(n)!;
+    if v == 2 {
+        return Error(Fail.Bang, "bang");
+    }
+    return v;
+}
+
+func main() {
+    let _, first = build(1);
+    check(first != null && trace >= 1000, "defer! reads an error passed up with !");
+
+    trace = 0;
+    let _, second = build(2);
+    check(second != null && trace > 0 && trace < 1000, "defer! reads an error returned by return Error");
+
+    trace = 0;
+    let value, third = build(3);
+    check(third == null && value == 3 && trace == 0, "defer! stays quiet when the function succeeds");
+}
+`, expected: []string{"defer! reads an error passed up with !", "defer! reads an error returned by return Error", "defer! stays quiet when the function succeeds"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `export struct Counter {
     int n;
 }
@@ -3148,18 +3228,18 @@ func main() ! {
 }
 `, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string is a view of the buffer", "string from char slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
 
-	{dir: "free_string", x64Only: true, src: `func main() ! {
+	{dir: "free_slice", x64Only: true, src: `func main() ! {
     *int8 b = malloc(24)!;
     b[0] = 120;
-    string s = string(b[0:5]);
+    int8[] s = b[0:5];
     free(s);
     *int8 c = malloc(24)!;
-    check(b == c, "free of a string releases its block");
+    check(b == c, "free of a slice releases its block");
     free(c);
     free(null);
     check(true, "free of null still works");
 }
-`, expected: []string{"free of a string releases its block", "free of null still works"}},
+`, expected: []string{"free of a slice releases its block", "free of null still works"}},
 
 	{dir: "free_many", x64Only: true, src: `func main() ! {
     *int a = malloc(24)!;
@@ -3173,16 +3253,16 @@ func main() ! {
     check(z == c, "free of many releases the last block");
 
     *int8 raw = malloc(40)!;
-    string s = string(raw[0:3]);
+    int8[] s = raw[0:3];
     *int d = malloc(40)!;
     free(s, d);
     *int8 raw2 = malloc(40)!;
     *int d2 = malloc(40)!;
-    check((raw2 == raw && uint64(d2) == uint64(d)) || (uint64(raw2) == uint64(d) && d2 == (*int)(raw)), "free of mixed string and pointer");
+    check((raw2 == raw && uint64(d2) == uint64(d)) || (uint64(raw2) == uint64(d) && d2 == (*int)(raw)), "free of mixed slice and pointer");
     free(raw2, d2, null);
     check(true, "free of many accepts null");
 }
-`, expected: []string{"free of many releases every small block", "free of many releases the last block", "free of mixed string and pointer", "free of many accepts null"}},
+`, expected: []string{"free of many releases every small block", "free of many releases the last block", "free of mixed slice and pointer", "free of many accepts null"}},
 
 	{dir: "free_node_next", x64Only: true, src: `struct Node {
     *Node next;

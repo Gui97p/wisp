@@ -106,7 +106,7 @@ func (t *LuaTarget) compileReturnStatement(b *strings.Builder, stmt *ast.ReturnS
 		packed := t.newLabel("ret")
 		b.WriteString("do\n")
 		fmt.Fprintf(b, "local %s = table.pack(%s)\n", packed, strings.Join(texts, ", "))
-		if err := t.emitDefers(b, 0, t.info.ErrorReturns[stmt]); err != nil {
+		if err := t.emitDefers(b, 0, t.info.ErrorReturns[stmt], packed+"["+packed+".n]"); err != nil {
 			return err
 		}
 		fmt.Fprintf(b, "return table.unpack(%s, 1, %s.n)\n", packed, packed)

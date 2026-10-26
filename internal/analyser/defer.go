@@ -15,6 +15,16 @@ func (a *Analyser) checkDeferStmt(s *ast.DeferStmt) {
 	a.rejectDeferredExits(s)
 
 	a.enterScope()
+	if s.ErrorBind != "" {
+		line, col := s.Position()
+		if s.ErrorBindAt.Line != 0 {
+			line, col = s.ErrorBindAt.Line, s.ErrorBindAt.Col
+		}
+		sym := &Symbol{Name: s.ErrorBind, Kind: VAR, Type: ErrorType{}, Line: line, Col: col, File: a.currentFile}
+		a.scope.Define(sym)
+		a.info.VarSymbols[s] = []*Symbol{sym}
+		a.info.VarTypes[s] = []Type{ErrorType{}}
+	}
 	switch body := s.Body.(type) {
 	case *ast.BlockStmt:
 		a.checkBlock(body)

@@ -62,7 +62,8 @@ export func demo() ! {
   heap[7] = 80;
   fmt.printf("after realloc: {}, {}, {}\n", heap[0], heap[3], heap[7]);
 
-  // `free` takes pointers, strings and maps, any number of them at once. All
+  // `free` takes pointers, slices and maps, any number of them at once. A string
+  // is only a view, so it is never freed: free the buffer it came from. All
   // the arguments are evaluated before anything is released.
   free(heap);
 

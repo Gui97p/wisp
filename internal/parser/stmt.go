@@ -752,6 +752,21 @@ func (p *Parser) parseDeferStatement() ast.Statement {
 	if p.peek.Type == lexer.TOKEN_NOT {
 		p.advance()
 		stmt.OnError = true
+
+		if p.peek.Type == lexer.TOKEN_PIPE {
+			p.advance()
+			if !p.expect(lexer.TOKEN_IDENT) {
+				return nil
+			}
+			stmt.ErrorBind = p.current.Literal
+			stmt.ErrorBindAt = p.currentPosition()
+			if !p.checkReservedName(stmt.ErrorBind) {
+				return nil
+			}
+			if !p.expect(lexer.TOKEN_PIPE) {
+				return nil
+			}
+		}
 	}
 
 	if p.peek.Type == lexer.TOKEN_LBRACE {

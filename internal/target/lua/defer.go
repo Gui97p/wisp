@@ -34,7 +34,7 @@ func (t *LuaTarget) hasDefers(from int, onError bool) bool {
 	return false
 }
 
-func (t *LuaTarget) emitDefers(b *strings.Builder, from int, onError bool) error {
+func (t *LuaTarget) emitDefers(b *strings.Builder, from int, onError bool, errValue ...string) error {
 	for i := len(t.deferScopes) - 1; i >= from; i-- {
 		entries := t.deferScopes[i].entries
 		for j := len(entries) - 1; j >= 0; j-- {
@@ -46,6 +46,9 @@ func (t *LuaTarget) emitDefers(b *strings.Builder, from int, onError bool) error
 			outer := t.pending
 			t.pending = nil
 			b.WriteString("do\n")
+			if d.ErrorBind != "" && len(errValue) > 0 {
+				b.WriteString("local " + d.ErrorBind + " = " + errValue[0] + "\n")
+			}
 			err := t.compileStatement(b, d.Body)
 			b.WriteString("end\n")
 			t.pending = outer

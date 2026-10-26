@@ -319,6 +319,9 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 			a.error(target, "fields of Error are read-only")
 			return
 		}
+		if a.isStringElement(target) {
+			return
+		}
 	}
 	valueTypes := a.checkExprList(s.Values)
 	valueTypes, _ = a.expandFallible(s.Values, valueTypes, len(targetTypes))
@@ -424,6 +427,9 @@ func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 	t := a.checkExpr(s.Target)
 	if a.isErrorField(s.Target) {
 		a.error(s.Target, "fields of Error are read-only")
+		return
+	}
+	if a.isStringElement(s.Target) {
 		return
 	}
 	if _, ok := t.(InvalidType); ok {
@@ -544,4 +550,14 @@ func (a *Analyser) markContinued(label string) {
 			return
 		}
 	}
+}
+
+func (a *Analyser) isStringElement(target ast.Expression) bool {
+	idx, ok := target.(*ast.IndexExpr)
+	if !ok || !isString(underlyingOf(a.info.Types[idx.Array])) {
+		return false
+	}
+	a.error(target, "a string is read-only").
+		WithHelp("write into the char[] it was made from, or build a new string")
+	return true
 }

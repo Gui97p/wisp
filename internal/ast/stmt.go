@@ -337,8 +337,10 @@ func (c *ContinueStmt) Tree(indent string) string {
 }
 
 type DeferStmt struct {
-	OnError bool
-	Body    Statement
+	OnError     bool
+	ErrorBind   string
+	ErrorBindAt Position
+	Body        Statement
 
 	NodePos
 }
