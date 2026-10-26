@@ -90,6 +90,9 @@ public func (*Writer w) fill(char c, int n) ! {
 	}
 }
 
+public func (*Writer w) buffered() int { return w.len; }
+public func (*Writer w) written() int { return w.total; }
+
 public func (*Writer w) flush() ! {
 	if w.fd < 0 || w.len == 0 {
 		return;
