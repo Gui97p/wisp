@@ -67,6 +67,12 @@ export func demo() {
   fmt.printf("\"ell\" in greeting: {}\n", "ell" in greeting);
   fmt.printf("512 in nums: {}\n", 512 in nums);
 
+  // `[]` is an empty slice, or an array of zeros. It has no element type of its
+  // own: it takes the one of whatever receives it, a declaration, an argument,
+  // a field or a `return`. It holds no memory, so `free` accepts it.
+  int[] nothing = [];
+  fmt.printf("len([]) = {}\n", len(nothing));
+
   // Indexing is checked: going outside an array, slice or string stops the
   // program with a panic that names the line.
 }

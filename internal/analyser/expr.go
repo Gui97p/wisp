@@ -156,8 +156,8 @@ func singleReturn(block *ast.BlockStmt) (*ast.ReturnStmt, bool) {
 
 func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
 	if len(expr.Elements) == 0 {
-		a.error(expr, "impossible to infer type of a empty array")
-		return InvalidType{}
+		a.pendingEmpty[expr] = true
+		return EmptyArrayType{}
 	}
 
 	elemTypes := make([]Type, len(expr.Elements))

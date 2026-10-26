@@ -244,6 +244,15 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 			if _, invalid := valueType.(InvalidType); !invalid {
 				if _, declInvalid := declaredType.(InvalidType); !declInvalid {
 					if declArr, ok := declaredType.(ArrayType); ok {
+						if _, isEmpty := valueType.(EmptyArrayType); isEmpty {
+							if slot := a.valueSlot(values, len(vars), i); slot != nil {
+								if lit, isLit := (*slot).(*ast.ArrayLiteral); isLit {
+									a.info.Types[lit] = declArr
+									delete(a.pendingEmpty, lit)
+									valueType = declArr
+								}
+							}
+						}
 						valArr, ok := valueType.(ArrayType)
 						switch {
 						case !ok:
@@ -266,6 +275,10 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 								a.errorf(node, "span %s expects element type %s, got %s", v.Name, declSpan.Element.String(), valT.Element.String())
 							} else if slot := a.valueSlot(values, len(vars), i); slot != nil {
 								a.fixArrayLiteral(*slot, declSpan.Element, -1)
+							}
+						case EmptyArrayType:
+							if slot := a.valueSlot(values, len(vars), i); slot != nil {
+								a.retypeEmpty(*slot, valT, declSpan)
 							}
 						case SpanType:
 							if !valT.Equals(declSpan) {

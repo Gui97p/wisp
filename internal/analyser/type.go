@@ -122,6 +122,17 @@ func (UntypedFloatType) Equals(other Type) bool {
 	return isFloatName(p.Name)
 }
 
+type EmptyArrayType struct{}
+
+func (EmptyArrayType) String() string {
+	return "[]"
+}
+
+func (EmptyArrayType) Equals(other Type) bool {
+	_, ok := other.(SpanType)
+	return ok
+}
+
 type NullType struct{}
 
 func (NullType) String() string {

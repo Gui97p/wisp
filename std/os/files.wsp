@@ -54,10 +54,18 @@ export func readFile(string path) !char[] {
 	int fd = open(path, global.READ)!;
 	defer close(fd);
 	int size = os.size(fd)!;
+	if size == 0 {
+		return [];
+	}
 	*char alloc = malloc(size)!;
+	defer! free(alloc);
 	char[] buf = alloc[0:size];
-	os.read(fd, buf)!;
-	return buf;
+	int total;
+	loop {
+		int r = os.read(fd, buf[total:])!;
+		total += r;
+	} until r == 0 || total >= size;
+	return buf[:total];
 }
 
 export func close(int fd) {

@@ -1229,6 +1229,41 @@ func main() {
     check(third == null && value == 3 && trace == 0, "defer! stays quiet when the function succeeds");
 }
 `, expected: []string{"defer! reads an error passed up with !", "defer! reads an error returned by return Error", "defer! stays quiet when the function succeeds"}},
+	{dir: "empty_literal", x64Only: true, src: `struct Holder {
+    char[] data;
+}
+
+func make() char[] {
+    return [];
+}
+
+func count(int[] xs) int {
+    return len(xs);
+}
+
+func main() {
+    char[] a = make();
+    check(len(a) == 0, "return [] gives an empty slice");
+
+    char[] b = [];
+    check(len(b) == 0, "a declaration takes the type of the slice");
+
+    int[] c = [1, 2];
+    c = [];
+    check(len(c) == 0, "an assignment can empty a slice");
+
+    Holder h = Holder{data: []};
+    check(len(h.data) == 0, "a struct field can be []");
+
+    check(count([]) == 0, "an argument can be []");
+
+    int[3] arr = [];
+    check(len(arr) == 3 && arr[0] == 0 && arr[2] == 0, "[] is also the zero array");
+
+    free(a, b);
+    check(true, "free accepts an empty slice");
+}
+`, expected: []string{"return [] gives an empty slice", "a declaration takes the type of the slice", "an assignment can empty a slice", "a struct field can be []", "an argument can be []", "[] is also the zero array", "free accepts an empty slice"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `export struct Counter {
     int n;
 }

@@ -2,6 +2,7 @@ package analyser
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -232,6 +233,10 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 	}
 
 	if a.retypeNull(*slot, from, to) {
+		return true
+	}
+
+	if a.retypeEmpty(*slot, from, to) {
 		return true
 	}
 
@@ -645,4 +650,39 @@ func sequenceMatches(from Type, pointee Type) bool {
 		return true
 	}
 	return element.Equals(pointee)
+}
+
+func (a *Analyser) retypeEmpty(expr ast.Expression, from, to Type) bool {
+	if _, isEmpty := from.(EmptyArrayType); !isEmpty {
+		return false
+	}
+	lit, ok := expr.(*ast.ArrayLiteral)
+	if !ok {
+		return false
+	}
+	if _, isSpan := to.(SpanType); !isSpan {
+		return false
+	}
+	a.info.Types[lit] = to
+	delete(a.pendingEmpty, lit)
+	return true
+}
+
+func (a *Analyser) reportUnresolvedEmpty() {
+	nodes := make([]*ast.ArrayLiteral, 0, len(a.pendingEmpty))
+	for node := range a.pendingEmpty {
+		nodes = append(nodes, node)
+	}
+	sort.Slice(nodes, func(i, j int) bool {
+		li, ci := nodes[i].Position()
+		lj, cj := nodes[j].Position()
+		if li != lj {
+			return li < lj
+		}
+		return ci < cj
+	})
+	for _, node := range nodes {
+		a.error(node, "cannot infer the type of an empty []").
+			WithHelp("it takes the type of a slice that receives it, so write it where a slice is expected")
+	}
 }

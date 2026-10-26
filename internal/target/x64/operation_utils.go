@@ -182,6 +182,10 @@ func (t *X64Target) compileInto(expr ast.Expression, dst Mem, tp analyser.Type) 
 			}
 		}
 	case *ast.ArrayLiteral:
+		if _, isSpan := tp.(analyser.SpanType); isSpan && len(e.Elements) == 0 {
+			t.zero(dst)
+			return nil
+		}
 		ar, ok := arrayOf(tp)
 		if !ok {
 			return fmt.Errorf("x86-64: not an array")

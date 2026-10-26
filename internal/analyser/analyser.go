@@ -26,6 +26,7 @@ type Analyser struct {
 	mustUse     []*Symbol
 	handlerOK   map[ast.Expression]bool
 	pendingDots map[*ast.DotIdent]bool
+	pendingEmpty map[*ast.ArrayLiteral]bool
 
 	modules map[string]*ModuleInfo
 	links   []*importLink
@@ -58,6 +59,7 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 		module:      module,
 		handlerOK:   map[ast.Expression]bool{},
 		pendingDots: map[*ast.DotIdent]bool{},
+		pendingEmpty: map[*ast.ArrayLiteral]bool{},
 	}
 }
 
@@ -94,6 +96,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.warnUnusedImports()
 		a.defaultUntyped()
 		a.reportUnresolvedDots()
+		a.reportUnresolvedEmpty()
 		a.checkMustUse()
 	}
 }
