@@ -3430,13 +3430,13 @@ func eq(string got, string want, string what) {
 type Meters int;
 
 func fl(string format, ...args) string {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], len: 0, mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], mode: fmt.BufMode.Full};
     let _, _ = w.format(format, args...);
-    return string(scratch[0:w.len]);
+    return string(scratch[0:w.buffered()]);
 }
 
 func fe(string format, ...args) Error {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], len: 0, mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], mode: fmt.BufMode.Full};
     let _, err = w.format(format, args...);
     return err;
 }
@@ -3518,19 +3518,19 @@ func main() {
     check(e2 == fmt.FormatError.NoSpace, "sprintf into a buffer that is too small is NoSpace");
 
     char[32] mem;
-    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], len: 0, mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], mode: fmt.BufMode.Full};
     let k, _ = w.format("x={}", 5);
-    check(k == 3 && w.len == 3 && string(mem[0:3]) == "x=5", "a memory writer collects the text");
+    check(k == 3 && w.buffered() == 3 && string(mem[0:3]) == "x=5", "a memory writer collects the text");
     let _, _ = w.format("y");
-    check(w.len == 4 && string(mem[0:4]) == "x=5y", "a second call appends");
+    check(w.buffered() == 4 && string(mem[0:4]) == "x=5y", "a second call appends");
     char[4] narrow;
-    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[:], len: 0, mode: fmt.BufMode.Full};
+    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[:], mode: fmt.BufMode.Full};
     let _, e3 = ws.format("abcde");
     check(e3 == fmt.FormatError.NoSpace, "a memory writer that fills up is NoSpace");
 
     let file, _ = os.create("fmt_core.txt");
     char[64] store;
-    fmt.Writer full = fmt.Writer{fd: file, buf: store[:], len: 0, mode: fmt.BufMode.Full};
+    fmt.Writer full = fmt.Writer{fd: file, buf: store[:], mode: fmt.BufMode.Full};
     let _, _ = full.format("hello");
     let held, _ = os.size(file);
     check(held == 0, "a full writer holds the text until flush");
@@ -3540,7 +3540,7 @@ func main() {
 
     let lineFile, _ = os.create("fmt_line.txt");
     char[64] lineStore;
-    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[:], len: 0, mode: fmt.BufMode.Line};
+    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[:], mode: fmt.BufMode.Line};
     let _, _ = line.format("ab");
     let beforeNewline, _ = os.size(lineFile);
     check(beforeNewline == 0, "a line writer holds the text until a newline");
@@ -3550,14 +3550,14 @@ func main() {
 
     let rawFile, _ = os.create("fmt_none.txt");
     char[8] rawStore;
-    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[:], len: 0, mode: fmt.BufMode.None};
+    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[:], mode: fmt.BufMode.None};
     let _, _ = raw.format("xyz");
     let atOnce, _ = os.size(rawFile);
     check(atOnce == 3, "a writer with no buffering writes at once");
 
     let streamFile, _ = os.create("fmt_stream.txt");
     char[4] streamStore;
-    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[:], len: 0, mode: fmt.BufMode.Full};
+    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[:], mode: fmt.BufMode.Full};
     let _, _ = stream.format("abcdefghij");
     let _ = stream.flush();
     let streamed, _ = os.size(streamFile);

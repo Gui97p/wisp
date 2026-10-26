@@ -13,10 +13,14 @@ import (
 var (
 	suggestionPattern = regexp.MustCompile(`did you mean (\S+?)\?`)
 	undeclaredPattern = regexp.MustCompile(`identifier (\w+) not declared in this scope`)
+	unknownTypeModule = regexp.MustCompile(`unknown type (\w+)\.\w+`)
 )
 
 func importActions(uri protocol.DocumentUri, d protocol.Diagnostic) []protocol.CodeAction {
 	m := undeclaredPattern.FindStringSubmatch(d.Message)
+	if m == nil {
+		m = unknownTypeModule.FindStringSubmatch(d.Message)
+	}
 	if m == nil {
 		return nil
 	}

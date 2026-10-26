@@ -39,7 +39,7 @@ func shortcutItems(path string, scope *analyser.Scope, word, suffix string) []pr
 	items = append(items, receiverMembers(path, scope, word, suffix)...)
 	if len(word) >= 2 {
 		items = append(items, importedMembers(scope, word, suffix)...)
-		items = append(items, unimportedMembers(path, scope, word, suffix)...)
+		items = append(items, unimportedMembers(path, scope, word, suffix, nil)...)
 		items = append(items, unimportedModules(path, scope, word)...)
 	}
 	return items
@@ -136,7 +136,7 @@ var (
 	exportCacheMu sync.Mutex
 )
 
-func unimportedMembers(path string, scope *analyser.Scope, word, suffix string) []protocol.CompletionItem {
+func unimportedMembers(path string, scope *analyser.Scope, word, suffix string, only func(exportEntry) bool) []protocol.CompletionItem {
 	root := module.FindProjectRoot(filepath.Dir(path))
 	imported := importedPaths(path)
 	cyclic := dependentFiles(path)
@@ -163,6 +163,9 @@ func unimportedMembers(path string, scope *analyser.Scope, word, suffix string) 
 		}
 		for _, e := range moduleExports(c.File, byPath, map[string]bool{}, 0) {
 			if !matchesWord(e.name, word) || (e.internalDir != "" && !module.InsideFolder(path, e.internalDir)) {
+				continue
+			}
+			if only != nil && !only(e) {
 				continue
 			}
 			it := item(alias+"."+e.name, e.kind, "auto import "+c.Path+"  "+e.detail)
@@ -470,4 +473,20 @@ func packagePartExports(file string, byPath map[string]string, seen map[string]b
 		entries = append(entries, moduleExports(part, byPath, seen, 1)...)
 	}
 	return entries
+}
+
+func isTypeEntry(e exportEntry) bool {
+	switch e.kind {
+	case protocol.CompletionItemKindStruct, protocol.CompletionItemKindClass, protocol.CompletionItemKindEnum:
+		return true
+	}
+	return false
+}
+
+func unimportedTypeItems(path string, scope *analyser.Scope, word string) []protocol.CompletionItem {
+	if len(word) < 2 {
+		return nil
+	}
+	items := unimportedMembers(path, scope, word, "", isTypeEntry)
+	return append(items, unimportedModules(path, scope, word)...)
 }

@@ -111,7 +111,12 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 		if !ctx.typing {
 			return []protocol.CompletionItem{}
 		}
-		return typeItems(info, line, col, ctx)
+		items := typeItems(info, line, col, ctx)
+		if info != nil && ctx.module == "" {
+			before := textBefore(path, int(pos.Line), int(pos.Character))
+			items = append(items, unimportedTypeItems(path, scopeAt(info, line, col), typedWord(before))...)
+		}
+		return items
 	}
 
 	if base, ok := memberBase(prefix); ok {
