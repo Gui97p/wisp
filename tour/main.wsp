@@ -5,7 +5,8 @@
 // Every file is its own module. `import "basics"` loads basics.wsp and binds
 // it to the name `basics`; `as` picks another name. A module reaches the
 // others through the project root, so even files in subfolders write their
-// imports the same way.
+// imports the same way. Two modules may import each other, since every
+// declaration is known before any body is checked.
 
 import "basics";
 import "printing";
@@ -82,6 +83,9 @@ func main() !int {
   fmt.printf("geo.area(3, 4) = {}\n", geo.area(3, 4));
   fmt.printf("geo.Sides = {}\n", geo.Sides);
   fmt.printf("geo.perimeter(5) = {}\n", geo.perimeter(5));
+
+  geo.Rect rect = geo.newRect(3, 4);
+  fmt.printf("rect is {} by {}, its area is {}\n", rect.width, rect.height, rect.area());
 
   return 0;
 }

@@ -115,36 +115,52 @@ func analyseModules(modules []*module.Module) *projectAnalysis {
 	result := &projectAnalysis{}
 	exports := map[string]*analyser.ModuleInfo{}
 
-	for _, mod := range modules {
-		item, ok := analyseModule(mod, exports)
+	for _, group := range module.Groups(modules) {
+		items, ok := analyseGroup(group, exports)
 		if !ok {
 			continue
 		}
-		result.modules = append(result.modules, item)
+		result.modules = append(result.modules, items...)
 	}
 	return result
 }
 
-func analyseModule(mod *module.Module, exports map[string]*analyser.ModuleInfo) (item moduleAnalysis, ok bool) {
+func analyseGroup(group []*module.Module, exports map[string]*analyser.ModuleInfo) (items []moduleAnalysis, ok bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("analyser panic: %v", r)
-			ok = false
+			items, ok = nil, false
 		}
 	}()
 
-	merged, declFiles := mod.Merge()
-	a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
-	a.SetImportErrors(mod.ImportErrors)
-	info := a.Analyze()
-	merged.Declarations = withoutGenerated(merged.Declarations)
-
-	item = moduleAnalysis{mod: mod, merged: merged, info: info, declFiles: declFiles}
-	if a.HasDiagnostics() {
-		item.diags = a.Errors()
+	paths := make([]string, len(group))
+	for i, mod := range group {
+		paths[i] = mod.Path
 	}
-	exports[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
-	return item, true
+	analyser.PendingExports(exports, paths)
+
+	analysers := make([]*analyser.Analyser, len(group))
+	merges := make([]*ast.Program, len(group))
+	declMaps := make([]map[ast.Declaration]string, len(group))
+	for i, mod := range group {
+		merged, declFiles := mod.Merge()
+		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
+		a.SetImportErrors(mod.ImportErrors)
+		analysers[i], merges[i], declMaps[i] = a, merged, declFiles
+	}
+	analyser.AnalyzeGroup(analysers)
+
+	for i, mod := range group {
+		a := analysers[i]
+		merges[i].Declarations = withoutGenerated(merges[i].Declarations)
+		item := moduleAnalysis{mod: mod, merged: merges[i], info: a.Info(), declFiles: declMaps[i]}
+		if a.HasDiagnostics() {
+			item.diags = a.Errors()
+		}
+		analyser.SetExports(exports, mod.Path, a.Exports())
+		items = append(items, item)
+	}
+	return items, true
 }
 
 func analyseEntry(path string) (*ast.Program, *analyser.Info) {

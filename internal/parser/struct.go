@@ -40,6 +40,15 @@ func (p *Parser) parseStructParamList() []ast.Param {
 	for p.peek.Type != lexer.TOKEN_RBRACE && p.peek.Type != lexer.TOKEN_EOF {
 		p.advance()
 		doc := p.docBefore(p.current.Line)
+		reach := ast.ReachNone
+		switch p.current.Type {
+		case lexer.TOKEN_INTERNAL:
+			reach = ast.ReachInternal
+			p.advance()
+		case lexer.TOKEN_SHARED:
+			reach = ast.ReachShared
+			p.advance()
+		}
 		if !p.isPointerType() {
 			p.errorType(p.current.Type)
 			return params
@@ -67,10 +76,11 @@ func (p *Parser) parseStructParamList() []ast.Param {
 		}
 
 		params = append(params, ast.Param{
-			Name: name,
-			Type: currentType,
-			Doc:  doc,
-			Line: line, Col: col, EndLine: endLine, EndCol: endCol,
+			Name:  name,
+			Type:  currentType,
+			Doc:   doc,
+			Reach: reach,
+			Line:  line, Col: col, EndLine: endLine, EndCol: endCol,
 		})
 
 		for p.peek.Type == lexer.TOKEN_COMMA {
@@ -89,10 +99,11 @@ func (p *Parser) parseStructParamList() []ast.Param {
 			}
 
 			params = append(params, ast.Param{
-				Name: name,
-				Type: currentType,
-				Doc:  doc,
-				Line: line, Col: col, EndLine: endLine, EndCol: endCol,
+				Name:  name,
+				Type:  currentType,
+				Doc:   doc,
+				Reach: reach,
+				Line:  line, Col: col, EndLine: endLine, EndCol: endCol,
 			})
 		}
 

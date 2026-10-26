@@ -116,7 +116,7 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 
 	if base, ok := memberBase(prefix); ok {
 		for _, candidate := range candidates {
-			if items := memberItems(base, scopeAt(candidate, line, col), suffix); items != nil {
+			if items := memberItems(path, base, scopeAt(candidate, line, col), suffix); items != nil {
 				return items
 			}
 		}
@@ -303,7 +303,7 @@ func scopeAt(info *analyser.Info, line, col int) *analyser.Scope {
 	return analyser.NewScope(nil)
 }
 
-func memberItems(base string, scope *analyser.Scope, suffix string) []protocol.CompletionItem {
+func memberItems(path, base string, scope *analyser.Scope, suffix string) []protocol.CompletionItem {
 	sym, ok := resolveChain(scope, base)
 	if !ok {
 		return nil
@@ -334,6 +334,9 @@ func memberItems(base string, scope *analyser.Scope, suffix string) []protocol.C
 	}
 	if st, ok := t.(*analyser.StructType); ok {
 		for _, f := range st.Order {
+			if !analyser.FieldAccessible(st, f, path) {
+				continue
+			}
 			items = append(items, item(f, protocol.CompletionItemKindField, st.Fields[f].String()))
 		}
 	}
@@ -343,7 +346,7 @@ func memberItems(base string, scope *analyser.Scope, suffix string) []protocol.C
 		}
 	}
 
-	methods := analyser.MethodsOf(t)
+	methods := accessibleMethods(path, t)
 	names := make([]string, 0, len(methods))
 	for name := range methods {
 		names = append(names, name)

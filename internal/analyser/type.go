@@ -202,6 +202,7 @@ type NamedType struct {
 	Methods     map[string]*FuncType
 	Enum        bool
 	Module      string
+	Dir         string
 	Exported    bool
 	Members     map[string]int64
 	MemberOrder []string
@@ -243,7 +244,9 @@ type StructType struct {
 	Order     []string
 	Methods   map[string]*FuncType
 	FieldDocs map[string]string
+	FieldDirs map[string]string
 	Module    string
+	Dir       string
 	Exported  bool
 }
 
@@ -271,6 +274,7 @@ type FuncType struct {
 	Receiver     Type
 	Exported     bool
 	InternalDir  string
+	Module       string
 }
 
 func (f *FuncType) String() string {
@@ -397,6 +401,19 @@ func MethodsOf(t Type) map[string]*FuncType {
 	default:
 		return nil
 	}
+}
+
+func typeDir(t Type) string {
+	if pt, ok := t.(PointerType); ok {
+		t = pt.Element
+	}
+	switch tt := t.(type) {
+	case *StructType:
+		return tt.Dir
+	case NamedType:
+		return tt.Dir
+	}
+	return ""
 }
 
 func methodOwner(t Type) (name, module string, exported bool) {

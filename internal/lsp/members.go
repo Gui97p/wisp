@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -35,7 +36,7 @@ func shortcutItems(path string, scope *analyser.Scope, word, suffix string) []pr
 		return nil
 	}
 	var items []protocol.CompletionItem
-	items = append(items, receiverMembers(scope, word, suffix)...)
+	items = append(items, receiverMembers(path, scope, word, suffix)...)
 	if len(word) >= 2 {
 		items = append(items, importedMembers(scope, word, suffix)...)
 		items = append(items, unimportedMembers(path, scope, word, suffix)...)
@@ -43,7 +44,7 @@ func shortcutItems(path string, scope *analyser.Scope, word, suffix string) []pr
 	return items
 }
 
-func receiverMembers(scope *analyser.Scope, word, suffix string) []protocol.CompletionItem {
+func receiverMembers(path string, scope *analyser.Scope, word, suffix string) []protocol.CompletionItem {
 	var items []protocol.CompletionItem
 	for _, sym := range scope.Visible() {
 		if sym.Kind != analyser.PARAM || sym.Name == "" || strings.HasPrefix(sym.Name, "_") {
@@ -56,7 +57,7 @@ func receiverMembers(scope *analyser.Scope, word, suffix string) []protocol.Comp
 
 		if st := nativeStructOf(tp); st != nil {
 			for _, field := range st.Order {
-				if !matchesWord(field, word) {
+				if !matchesWord(field, word) || !analyser.FieldAccessible(st, field, path) {
 					continue
 				}
 				it := item(sym.Name+"."+field, protocol.CompletionItemKindField, analyser.TypeText(st.Fields[field]))
@@ -66,7 +67,7 @@ func receiverMembers(scope *analyser.Scope, word, suffix string) []protocol.Comp
 			}
 		}
 
-		methods := analyser.MethodsOf(tp)
+		methods := accessibleMethods(path, tp)
 		names := make([]string, 0, len(methods))
 		for name := range methods {
 			names = append(names, name)
@@ -391,4 +392,32 @@ func exportsNothing(importer string, c module.ImportCandidate, byPath map[string
 		}
 	}
 	return true
+}
+
+func moduleOfFile(path string) string {
+	pa, err := analyseProject(path)
+	if err != nil || pa == nil {
+		return ""
+	}
+	for _, m := range pa.modules {
+		if slices.Contains(m.mod.FilePaths, path) {
+			return m.mod.Path
+		}
+	}
+	return ""
+}
+
+func accessibleMethods(path string, t analyser.Type) map[string]*analyser.FuncType {
+	all := analyser.MethodsOf(t)
+	if all == nil {
+		return nil
+	}
+	current := moduleOfFile(path)
+	visible := make(map[string]*analyser.FuncType, len(all))
+	for name, ft := range all {
+		if analyser.MethodAccessible(t, ft, current, path) {
+			visible[name] = ft
+		}
+	}
+	return visible
 }

@@ -936,6 +936,11 @@ func main() {
 import "shapes/deep";
 export sides;
 
+export func boxArea(int w) int {
+    sides.Box b = sides.Box{w: w, scale: 2};
+    return b.w * b.scale;
+}
+
 export func corners(int n) int {
     return deep.twice(sides.count(n)) + sides.hidden() - 1;
 }
@@ -952,6 +957,7 @@ internal func hidden() int {
 
 export struct Box {
     int w;
+    internal int scale;
 }
 
 internal func (*Box b) area() int {
@@ -968,8 +974,9 @@ func main() {
     check(shapes.corners(3) == 8, "a package entry reaches its internal files");
     check(shapes.count(3) == 4, "an entry re-exports what a file exports");
     check(shapes.grown(3) == 10, "an internal method works inside its package");
+    check(shapes.boxArea(3) == 6, "an internal field is used by the files of its package");
 }
-`, expected: []string{"a package entry reaches its internal files", "an entry re-exports what a file exports", "an internal method works inside its package"}},
+`, expected: []string{"a package entry reaches its internal files", "an entry re-exports what a file exports", "an internal method works inside its package", "an internal field is used by the files of its package"}},
 	{dir: "array_to_slice", x64Only: true, src: `struct Box {
     int[3] items;
 }
@@ -1019,6 +1026,104 @@ func main() {
     return 0;
 }
 `, expected: []string{"main receives the arguments as a string[]"}},
+	{dir: "cyclic_modules", x64Only: true, files: map[string]string{"world.wsp": `import "entity";
+
+export struct World {
+    entity.Entity[4] slots;
+    int count;
+}
+
+export func (*World w) add(int hp) {
+    w.slots[w.count] = entity.make(hp);
+    w.count++;
+}
+
+export func total(*World w) int {
+    int sum;
+    for i in 0..w.count - 1 {
+        sum += entity.health(w.slots[i]);
+    }
+    return sum;
+}
+
+export func isEven(int n) bool {
+    if n == 0 {
+        return true;
+    }
+    return entity.isOdd(n - 1);
+}
+`, "entity.wsp": `import "world";
+
+export struct Entity {
+    int hp;
+    *world.World owner;
+}
+
+export func make(int hp) Entity {
+    return Entity{hp: hp};
+}
+
+export func health(Entity e) int {
+    return e.hp;
+}
+
+export func attach(*Entity e, *world.World w) {
+    e.owner = w;
+}
+
+export func worldCount(Entity e) int {
+    return e.owner.count;
+}
+
+export func isOdd(int n) bool {
+    if n == 0 {
+        return false;
+    }
+    return world.isEven(n - 1);
+}
+`}, src: `import "world";
+import "entity";
+
+func main() {
+    world.World w;
+    w.add(10);
+    w.add(32);
+    check(world.total(&w) == 42, "two modules that import each other share their types");
+
+    entity.Entity e = entity.make(5);
+    entity.attach(&e, &w);
+    check(entity.worldCount(e) == 2, "a struct points at a type from the module that imports it");
+
+    check(world.isEven(10) && !world.isEven(7), "functions call each other across modules");
+}
+`, expected: []string{"two modules that import each other share their types", "a struct points at a type from the module that imports it", "functions call each other across modules"}},
+	{dir: "methods_across_files", x64Only: true, files: map[string]string{"shapes/shapes.wsp": `import "shapes/shape";
+export shape;
+`, "shapes/shape.wsp": `export struct Shape {
+    int w;
+    int h;
+}
+`, "shapes/area.wsp": `import "shapes/shape";
+
+export func (*shape.Shape s) area() int {
+    return s.w * s.h;
+}
+
+func (*shape.Shape s) double() int {
+    return s.area() * 2;
+}
+
+export func (*shape.Shape s) twiceArea() int {
+    return s.double();
+}
+`}, src: `import "shapes";
+
+func main() {
+    shapes.Shape s = shapes.Shape{w: 3, h: 4};
+    check(s.area() == 12, "a method declared in another file of the folder");
+    check(s.twiceArea() == 24, "a private method of that file is used by its exported one");
+}
+`, expected: []string{"a method declared in another file of the folder", "a private method of that file is used by its exported one"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `export struct Counter {
     int n;
 }

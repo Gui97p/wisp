@@ -16,3 +16,19 @@ export constants;
 export func area(int width, height) int => width * height;
 
 export func perimeter(int side) int => constants.scale(side);
+
+// A field can carry `internal` or `shared` too. This one is only visible to
+// the files of this folder, so code outside cannot read it, write it or name
+// it in a literal. It can still hold a struct that was made by a function of
+// the package.
+export struct Rect {
+  int width;
+  int height;
+  internal int cachedArea;
+}
+
+export func newRect(int width, height) Rect {
+  return Rect{width: width, height: height, cachedArea: width * height};
+}
+
+export func (*Rect r) area() int => r.cachedArea;

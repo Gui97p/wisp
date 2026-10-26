@@ -59,20 +59,32 @@ func runDoc(cmd *cobra.Command, args []string) error {
 	var exports map[string]*analyser.Symbol
 	known := map[string]*analyser.ModuleInfo{}
 
-	for _, mod := range modules {
-		if mod.ParseError != nil {
-			return fmt.Errorf("%s has syntax errors: run `wisp check`", mod.ParseError.Path)
+	for _, group := range module.Groups(modules) {
+		paths := make([]string, len(group))
+		analysers := make([]*analyser.Analyser, len(group))
+		merges := make([]*ast.Program, len(group))
+		for i, mod := range group {
+			if mod.ParseError != nil {
+				return fmt.Errorf("%s has syntax errors: run `wisp check`", mod.ParseError.Path)
+			}
+			paths[i] = mod.Path
 		}
+		analyser.PendingExports(known, paths)
 
-		merged, declFiles := mod.Merge()
-		a := analyser.NewAnalyser(merged, known, declFiles, mod.Path)
-		a.SetImportErrors(mod.ImportErrors)
-		a.Analyze()
-		known[mod.Path] = &analyser.ModuleInfo{Exports: a.Exports()}
+		for i, mod := range group {
+			merged, declFiles := mod.Merge()
+			a := analyser.NewAnalyser(merged, known, declFiles, mod.Path)
+			a.SetImportErrors(mod.ImportErrors)
+			analysers[i], merges[i] = a, merged
+		}
+		analyser.AnalyzeGroup(analysers)
 
-		for _, f := range mod.FilePaths {
-			if f == files[0] {
-				program, exports = merged, a.Exports()
+		for i, mod := range group {
+			analyser.SetExports(known, mod.Path, analysers[i].Exports())
+			for _, f := range mod.FilePaths {
+				if f == files[0] {
+					program, exports = merges[i], analysers[i].Exports()
+				}
 			}
 		}
 	}

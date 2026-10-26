@@ -435,15 +435,15 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 				if pointerRecv && !objectPtr && !isAddressable(member.Object) {
 					a.errorf(expr, "method %s needs a pointer receiver, but the value is a temporary", member.Field)
 				}
-				owner, ownerModule, ownerExported := methodOwner(objType)
-				if ownerModule != a.module && !(ft.Exported && ownerExported) {
+				owner, _, ownerExported := methodOwner(objType)
+				if ft.Module != a.module && !(ft.Exported && ownerExported) {
 					a.errorf(expr, "method %s of %s is not exported", member.Field, owner)
-				} else if ownerModule != a.module && ft.InternalDir != "" && !insideDir(a.currentFile, ft.InternalDir) {
+				} else if ft.Module != a.module && ft.InternalDir != "" && !insideDir(a.currentFile, ft.InternalDir) {
 					a.errorf(expr, "method %s of %s is internal to %q", member.Field, owner, filepath.Base(ft.InternalDir))
 				}
 				a.info.MethodCalls[expr] = &MethodCall{
 					Owner:           owner,
-					Module:          ownerModule,
+					Module:          ft.Module,
 					Func:            ft,
 					PointerReceiver: pointerRecv,
 					ObjectIsPointer: objectPtr,
@@ -688,6 +688,10 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 	fieldType, ok := st.Fields[expr.Field]
 	if !ok {
 		a.suggest(a.errorf(expr, "invalid field %s in struct %s", expr.Field, st.Name), expr.Field, st.Order)
+		return InvalidType{}
+	}
+
+	if !a.checkFieldReach(expr, st, expr.Field) {
 		return InvalidType{}
 	}
 

@@ -1,6 +1,8 @@
 package analyser
 
 import (
+	"path/filepath"
+
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
@@ -23,6 +25,7 @@ func (a *Analyser) registerTypeAliases() {
 			Methods:    make(map[string]*FuncType),
 			Enum:       td.IsEnum,
 			Module:     a.module,
+			Dir:        filepath.Dir(a.currentFile),
 			Exported:   td.Exported,
 		}
 		if td.IsEnum {
@@ -140,9 +143,9 @@ func (a *Analyser) registerMethods() {
 			a.errorf(fd, "cannot declare method on %s", recvType)
 			continue
 		}
-		if _, owner, _ := methodOwner(recvType); owner != a.module {
-			a.errorAtRef(fd, fd.Receiver.Type, "cannot declare a method on %s, a type from another module", recvType).
-				WithHelp("a method lives in the module of its type, so declare it in %s, or write a function that takes the value", owner)
+		if _, owner, _ := methodOwner(recvType); owner != a.module && filepath.Dir(a.currentFile) != typeDir(recvType) {
+			a.errorAtRef(fd, fd.Receiver.Type, "cannot declare a method on %s, a type from another folder", recvType).
+				WithHelp("a method lives in the folder of its type, so declare it in %s, or write a function that takes the value", owner)
 			continue
 		}
 		if _, exists := methods[fd.Name]; exists {
@@ -182,7 +185,7 @@ func (a *Analyser) registerMethods() {
 		if fd.Receiver != nil {
 			receiverName = fd.Receiver.Name
 		}
-		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported, InternalDir: reachDir(fd.Reach, a.currentFile)}
+		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported, InternalDir: reachDir(fd.Reach, a.currentFile), Module: a.module}
 		a.info.FuncReturns[fd] = returns
 		_, _, ownerExported := methodOwner(recvType)
 		a.info.MethodVisible[fd] = fd.Exported && ownerExported

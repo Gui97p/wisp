@@ -34,6 +34,7 @@ type project struct {
 	compiled  []compiledModule
 	mainMod   *compiledModule
 	mainCount int
+	cycles    [][]string
 }
 
 func loadProject(root string, cfg *module.Config) (*project, error) {
@@ -49,43 +50,77 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 	failed := map[string]bool{}
 	totalErrors, totalWarnings := 0, 0
 
-	for _, mod := range modules {
-		for _, imp := range mod.Imports {
-			if failed[imp.Path] {
-				mod.FailImport(imp.Path, fmt.Sprintf("module %q has errors", imp.Path))
+	var cycles [][]string
+	for _, group := range module.Groups(modules) {
+		var members []*module.Module
+		groupFailed := false
+		if len(group) > 1 {
+			paths := make([]string, len(group))
+			for i, mod := range group {
+				paths[i] = mod.Path
 			}
+			cycles = append(cycles, paths)
 		}
 
-		if mod.ParseError != nil {
-			diag.Render(os.Stderr, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
-			e, w := diag.Count(mod.ParseError.Errors)
-			totalErrors, totalWarnings = totalErrors+e, totalWarnings+w
-			hadErrors = true
-			failed[mod.Path] = true
+		for _, mod := range group {
+			for _, imp := range mod.Imports {
+				if failed[imp.Path] {
+					mod.FailImport(imp.Path, fmt.Sprintf("module %q has errors", imp.Path))
+				}
+			}
+
+			if mod.ParseError != nil {
+				diag.Render(os.Stderr, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
+				e, w := diag.Count(mod.ParseError.Errors)
+				totalErrors, totalWarnings = totalErrors+e, totalWarnings+w
+				hadErrors = true
+				groupFailed = true
+				continue
+			}
+			members = append(members, mod)
+		}
+
+		if groupFailed {
+			for _, mod := range group {
+				failed[mod.Path] = true
+			}
 			continue
 		}
 
-		merged, declFiles := mod.Merge()
-
-		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
-		a.SetImportErrors(mod.ImportErrors)
-		info := a.Analyze()
-		if a.HasDiagnostics() {
-			fmt.Fprintf(os.Stderr, "<<  %s  >>\n", mod.Path)
-			diag.RenderGrouped(os.Stderr, mod.BufferMap(), a.Errors())
-			e, w := diag.Count(a.Errors())
-			totalErrors, totalWarnings = totalErrors+e, totalWarnings+w
+		paths := make([]string, len(members))
+		for i, mod := range members {
+			paths[i] = mod.Path
 		}
-		if a.HasErrors() {
-			hadErrors = true
-			failed[mod.Path] = true
-			continue
+		analyser.PendingExports(exports, paths)
+
+		analysers := make([]*analyser.Analyser, len(members))
+		merges := make([]*ast.Program, len(members))
+		declMaps := make([]map[ast.Declaration]string, len(members))
+		for i, mod := range members {
+			merged, declFiles := mod.Merge()
+			a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
+			a.SetImportErrors(mod.ImportErrors)
+			analysers[i], merges[i], declMaps[i] = a, merged, declFiles
 		}
+		analyser.AnalyzeGroup(analysers)
 
-		modExports := a.Exports()
+		for i, mod := range members {
+			a := analysers[i]
+			if a.HasDiagnostics() {
+				fmt.Fprintf(os.Stderr, "<<  %s  >>\n", mod.Path)
+				diag.RenderGrouped(os.Stderr, mod.BufferMap(), a.Errors())
+				e, w := diag.Count(a.Errors())
+				totalErrors, totalWarnings = totalErrors+e, totalWarnings+w
+			}
+			if a.HasErrors() {
+				hadErrors = true
+				failed[mod.Path] = true
+				continue
+			}
 
-		exports[mod.Path] = &analyser.ModuleInfo{Exports: modExports}
-		compiled = append(compiled, compiledModule{mod: mod, merged: merged, info: info, declFiles: declFiles})
+			analyser.SetExports(exports, mod.Path, a.Exports())
+			compiled = append(compiled, compiledModule{mod: mod, merged: merges[i], info: a.Info(), declFiles: declMaps[i]})
+		}
 	}
 
 	if hadErrors {
@@ -101,7 +136,7 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 		mainDecl.Exported = true
 	}
 
-	return &project{compiled: compiled, mainMod: mainMod, mainCount: mainCount}, nil
+	return &project{compiled: compiled, mainMod: mainMod, mainCount: mainCount, cycles: cycles}, nil
 }
 
 func (p *project) requireMain() error {

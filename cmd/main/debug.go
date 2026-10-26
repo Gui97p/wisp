@@ -7,6 +7,7 @@ import (
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/lexer"
+	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/parser"
 	"github.com/spf13/cobra"
 )
@@ -93,36 +94,52 @@ func runDebug(step string, args []string) error {
 		exports := map[string]*analyser.ModuleInfo{}
 		anyErrors := false
 
-		for _, mod := range modules {
-			isEntry := mod.Path == ""
-			name := mod.Path
-			if isEntry {
-				name = inputPath
+		for _, group := range module.Groups(modules) {
+			var members []*module.Module
+			for _, mod := range group {
+				if mod.ParseError != nil {
+					anyErrors = true
+					name := mod.Path
+					if name == "" {
+						name = inputPath
+					}
+					fmt.Printf("<<Parsing Errors: %s>>\n", name)
+					diag.Render(os.Stdout, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
+					continue
+				}
+				members = append(members, mod)
 			}
 
-			if mod.ParseError != nil {
-				anyErrors = true
-				fmt.Printf("<<Parsing Errors: %s>>\n", name)
-				diag.Render(os.Stdout, mod.ParseError.Path, mod.ParseError.Buffer, mod.ParseError.Errors)
-				continue
+			paths := make([]string, len(members))
+			analysers := make([]*analyser.Analyser, len(members))
+			for i, mod := range members {
+				paths[i] = mod.Path
 			}
-
-			merged, declFiles := mod.Merge()
-
-			a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
-
-			a.SetImportErrors(mod.ImportErrors)
-			a.Analyze()
-			if a.HasDiagnostics() {
-				fmt.Printf("<<Analyser Diagnostics: %s>>\n", name)
-				diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
+			analyser.PendingExports(exports, paths)
+			for i, mod := range members {
+				merged, declFiles := mod.Merge()
+				a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
+				a.SetImportErrors(mod.ImportErrors)
+				analysers[i] = a
 			}
-			if a.HasErrors() {
-				anyErrors = true
-				continue
+			analyser.AnalyzeGroup(analysers)
+
+			for i, mod := range members {
+				a := analysers[i]
+				name := mod.Path
+				if name == "" {
+					name = inputPath
+				}
+				if a.HasDiagnostics() {
+					fmt.Printf("<<Analyser Diagnostics: %s>>\n", name)
+					diag.RenderGrouped(os.Stdout, mod.BufferMap(), a.Errors())
+				}
+				if a.HasErrors() {
+					anyErrors = true
+					continue
+				}
+				analyser.SetExports(exports, mod.Path, a.Exports())
 			}
-			modExports := a.Exports()
-			exports[mod.Path] = &analyser.ModuleInfo{Exports: modExports}
 		}
 
 		if !anyErrors {

@@ -33,6 +33,10 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 	}
 	detail("Analysed %s in %s", count(len(proj.compiled), "module"), elapsed(analyseStart))
 
+	if len(proj.cycles) > 0 {
+		return nil, fmt.Errorf("the Lua backend does not support modules that import each other (%s)", strings.Join(proj.cycles[0], ", "))
+	}
+
 	if forRun {
 		if err := proj.requireMain(); err != nil {
 			return nil, fmt.Errorf("cannot run, %w", err)

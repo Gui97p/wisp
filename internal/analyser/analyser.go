@@ -25,6 +25,7 @@ type Analyser struct {
 	pendingDots map[*ast.DotIdent]bool
 
 	modules map[string]*ModuleInfo
+	links   []*importLink
 
 	importErrors map[string]string
 	module       string
@@ -58,26 +59,74 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 }
 
 func (a *Analyser) Analyze() *Info {
-	a.info.Module = a.scope
-	a.registerImports()
-	a.registerStructNames()
-	a.registerTypeAliases()
-	a.registerConsts()
-	a.generateEnumNames()
-	a.registerMethods()
-	a.registerStructFields()
-	a.registerBuiltins()
-	a.registerFuncSignatures()
-	a.registerGlobals()
-	a.checkFuncBodies()
-	a.warnUnusedGlobals()
-	a.warnUnusedFuncs()
-	a.warnUnusedImports()
-	a.defaultUntyped()
-	a.reportUnresolvedDots()
-	a.checkMustUse()
-
+	AnalyzeGroup([]*Analyser{a})
 	return a.info
+}
+
+func AnalyzeGroup(group []*Analyser) {
+	for _, a := range group {
+		a.info.Module = a.scope
+		a.registerImports()
+		a.registerStructNames()
+	}
+	publish(group, false)
+	for _, a := range group {
+		a.registerTypeAliases()
+		a.registerConsts()
+		a.generateEnumNames()
+	}
+	publish(group, false)
+	for _, a := range group {
+		a.registerMethods()
+		a.registerStructFields()
+		a.registerBuiltins()
+		a.registerFuncSignatures()
+		a.registerGlobals()
+	}
+	publish(group, true)
+	for _, a := range group {
+		a.checkFuncBodies()
+		a.warnUnusedGlobals()
+		a.warnUnusedFuncs()
+		a.warnUnusedImports()
+		a.defaultUntyped()
+		a.reportUnresolvedDots()
+		a.checkMustUse()
+	}
+}
+
+func publish(group []*Analyser, final bool) {
+	if len(group) == 1 && !group[0].pendingLinks() {
+		return
+	}
+	for _, a := range group {
+		if self, ok := a.modules[a.module]; ok && self.Pending {
+			self.Replace(a.buildExports(true))
+		}
+	}
+	if final {
+		for _, a := range group {
+			if self, ok := a.modules[a.module]; ok {
+				self.Pending = false
+			}
+		}
+	}
+	for _, a := range group {
+		for _, link := range a.links {
+			if link.target.Pending || final {
+				a.applyLink(link, final && link.pendingAtStart)
+			}
+		}
+	}
+}
+
+func (a *Analyser) pendingLinks() bool {
+	for _, l := range a.links {
+		if l.pendingAtStart {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) Type {
@@ -285,4 +334,8 @@ func (a *Analyser) lookupType(scope *Scope, module, name string) (*Symbol, bool)
 
 func silencesUnused(name string) bool {
 	return strings.HasPrefix(name, "_")
+}
+
+func (a *Analyser) Info() *Info {
+	return a.info
 }

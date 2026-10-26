@@ -147,6 +147,7 @@ type Param struct {
 	Variadic bool
 	Any      bool
 	Doc      string
+	Reach    int
 
 	Line, Col       int
 	EndLine, EndCol int

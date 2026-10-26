@@ -6,9 +6,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/folders"
 	"github.com/Gui97p/wisp/internal/lexer"
 	"github.com/Gui97p/wisp/internal/parser"
 )
@@ -190,12 +192,19 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 					continue
 				}
 			}
-			if visiting[key] {
-				mod.FailImport(imp.Path, fmt.Sprintf("cyclic import: %q", key))
+			if key == path {
+				mod.FailImport(imp.Path, fmt.Sprintf("module %q imports itself", key))
 				continue
 			}
 			imp.Path = key
+			if visiting[key] {
+				continue
+			}
 			visit(key, depDir, depFiles)
+		}
+
+		for _, sibling := range methodSiblings(root, mod, overrides) {
+			visit(sibling.path, sibling.dir, sibling.files)
 		}
 
 		visiting[path] = false
@@ -231,8 +240,7 @@ func CanImport(importer, candidate string) bool {
 }
 
 func InsideFolder(file, folder string) bool {
-	rel, err := filepath.Rel(folder, filepath.Dir(file))
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	return folders.Inside(file, folder)
 }
 
 func siblingImportHint(root, dir, path string) string {
@@ -413,4 +421,140 @@ func importableUnder(root, prefix string, skipNested bool) []ImportCandidate {
 func ResolveImport(projectRoot, path string) ([]string, error) {
 	_, _, files, err := resolveImportPath(projectRoot, path)
 	return files, err
+}
+
+func (m *Module) methodTargets() []string {
+	aliases := map[string]string{}
+	for _, imp := range m.Imports {
+		aliases[imp.Alias] = imp.Path
+	}
+
+	var targets []string
+	for _, f := range m.Files {
+		for _, d := range f.Declarations {
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok || fd.Receiver == nil || fd.Receiver.Type.Module == "" {
+				continue
+			}
+			if path, ok := aliases[fd.Receiver.Type.Module]; ok && !slices.Contains(targets, path) {
+				targets = append(targets, path)
+			}
+		}
+	}
+	return targets
+}
+
+func methodSiblings(root string, mod *Module, overrides map[string][]byte) []moduleRoot {
+	if len(mod.FilePaths) == 0 || mod.Dir == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(mod.Dir)
+	if err != nil {
+		return nil
+	}
+
+	var found []moduleRoot
+	for _, entry := range entries {
+		file := filepath.Join(mod.Dir, entry.Name())
+		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || slices.Contains(mod.FilePaths, file) {
+			continue
+		}
+
+		sibling := loadModule("", mod.Dir, []string{file}, overrides)
+		resolved := map[string]string{}
+		for _, imp := range sibling.Imports {
+			if key, _, _, err := resolveImportPath(root, imp.Path); err == nil {
+				resolved[imp.Alias] = key
+			}
+		}
+		contributes := false
+		for _, f := range sibling.Files {
+			for _, d := range f.Declarations {
+				fd, ok := d.(*ast.FuncDecl)
+				if ok && fd.Receiver != nil && fd.Receiver.Type.Module != "" && resolved[fd.Receiver.Type.Module] == mod.Path {
+					contributes = true
+				}
+			}
+		}
+		if !contributes {
+			continue
+		}
+
+		key := importKey(root, strings.TrimSuffix(file, ".wsp"))
+		if base := filepath.Base(mod.Dir); entry.Name() == base+".wsp" {
+			key = importKey(root, mod.Dir)
+		}
+		found = append(found, moduleRoot{path: key, dir: mod.Dir, files: []string{file}})
+	}
+	return found
+}
+
+func Groups(modules []*Module) [][]*Module {
+	byPath := make(map[string]*Module, len(modules))
+	for _, m := range modules {
+		byPath[m.Path] = m
+	}
+
+	contributors := map[string][]string{}
+	for _, m := range modules {
+		for _, target := range m.methodTargets() {
+			contributors[target] = append(contributors[target], m.Path)
+		}
+	}
+
+	index := map[string]int{}
+	low := map[string]int{}
+	onStack := map[string]bool{}
+	var stack []*Module
+	var groups [][]*Module
+	next := 0
+
+	var connect func(m *Module)
+	connect = func(m *Module) {
+		index[m.Path], low[m.Path] = next, next
+		next++
+		stack = append(stack, m)
+		onStack[m.Path] = true
+
+		deps := make([]string, 0, len(m.Imports)+len(contributors[m.Path]))
+		for _, imp := range m.Imports {
+			deps = append(deps, imp.Path)
+		}
+		deps = append(deps, contributors[m.Path]...)
+
+		for _, depPath := range deps {
+			dep, ok := byPath[depPath]
+			if !ok {
+				continue
+			}
+			if _, seen := index[dep.Path]; !seen {
+				connect(dep)
+				low[m.Path] = min(low[m.Path], low[dep.Path])
+			} else if onStack[dep.Path] {
+				low[m.Path] = min(low[m.Path], index[dep.Path])
+			}
+		}
+
+		if low[m.Path] == index[m.Path] {
+			var group []*Module
+			for {
+				top := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				onStack[top.Path] = false
+				group = append(group, top)
+				if top == m {
+					break
+				}
+			}
+			slices.Reverse(group)
+			groups = append(groups, group)
+		}
+	}
+
+	for _, m := range modules {
+		if _, seen := index[m.Path]; !seen {
+			connect(m)
+		}
+	}
+	return groups
 }

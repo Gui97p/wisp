@@ -1,6 +1,10 @@
 package analyser
 
-import "github.com/Gui97p/wisp/internal/ast"
+import (
+	"path/filepath"
+
+	"github.com/Gui97p/wisp/internal/ast"
+)
 
 func (a *Analyser) registerStructNames() {
 	for _, d := range a.program.Declarations {
@@ -16,7 +20,9 @@ func (a *Analyser) registerStructNames() {
 			Order:     make([]string, 0, len(sd.Members)),
 			Methods:   make(map[string]*FuncType),
 			FieldDocs: make(map[string]string),
+			FieldDirs: make(map[string]string),
 			Module:    a.module,
+			Dir:       filepath.Dir(a.currentFile),
 			Exported:  sd.Exported,
 		}
 
@@ -53,6 +59,9 @@ func (a *Analyser) registerStructFields() {
 
 			st.Fields[member.Name] = fieldType
 			st.FieldDocs[member.Name] = member.Doc
+			if dir := reachDir(member.Reach, a.currentFile); dir != "" {
+				st.FieldDirs[member.Name] = dir
+			}
 			st.Order = append(st.Order, member.Name)
 		}
 	}
@@ -80,6 +89,9 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 			a.suggest(a.errorf(expr, "unknown field %s in struct %s", key, st.Name), key, st.Order)
 			continue
 		}
+		if !a.checkFieldReach(expr, st, key) {
+			continue
+		}
 		if seen[key] {
 			a.errorf(expr, "duplicated field %s in struct literal", key)
 			continue
@@ -97,4 +109,18 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 	}
 
 	return st
+}
+
+func FieldAccessible(st *StructType, field, file string) bool {
+	dir := st.FieldDirs[field]
+	return dir == "" || insideDir(file, dir)
+}
+
+func (a *Analyser) checkFieldReach(node ast.Node, st *StructType, field string) bool {
+	if FieldAccessible(st, field, a.currentFile) {
+		return true
+	}
+	folder := filepath.Base(st.FieldDirs[field])
+	a.errorf(node, "field %s of %s is internal to %q", field, st.Name, folder).WithHelp("it is only visible to files under the folder %s", folder)
+	return false
 }

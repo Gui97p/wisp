@@ -6,13 +6,29 @@ import (
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/folders"
 )
 
 type ModuleInfo struct {
 	Exports map[string]*Symbol
+	Pending bool
+}
+
+func (m *ModuleInfo) Replace(exports map[string]*Symbol) {
+	if m.Exports == nil {
+		m.Exports = make(map[string]*Symbol, len(exports))
+	}
+	clear(m.Exports)
+	for name, sym := range exports {
+		m.Exports[name] = sym
+	}
 }
 
 func (a *Analyser) Exports() map[string]*Symbol {
+	return a.buildExports(false)
+}
+
+func (a *Analyser) buildExports(quiet bool) map[string]*Symbol {
 	exports := map[string]*Symbol{}
 
 	reach := ast.ReachNone
@@ -21,7 +37,9 @@ func (a *Analyser) Exports() map[string]*Symbol {
 			sym.ScopeDir = reachDir(reach, sym.File)
 		}
 		if _, exists := exports[name]; exists {
-			a.errorf(node, "%s already declared in exported scope", name)
+			if !quiet {
+				a.errorf(node, "%s already declared in exported scope", name)
+			}
 			return
 		}
 		exports[name] = sym
@@ -71,6 +89,9 @@ func (a *Analyser) Exports() map[string]*Symbol {
 				}
 			}
 		case *ast.ReexportDecl:
+			if quiet {
+				continue
+			}
 			if decl.Reach != ast.ReachNone {
 				a.errorf(decl, "%s cannot be reexported with a restricted reach", decl.Name)
 				continue
@@ -115,6 +136,17 @@ func declReach(d ast.Declaration) int {
 	return ast.ReachNone
 }
 
+func MethodAccessible(recv Type, ft *FuncType, module, file string) bool {
+	_, _, ownerExported := methodOwner(recv)
+	if ft.Module == module {
+		return true
+	}
+	if !(ft.Exported && ownerExported) {
+		return false
+	}
+	return ft.InternalDir == "" || insideDir(file, ft.InternalDir)
+}
+
 func reachDir(reach int, file string) string {
 	if reach == ast.ReachNone || file == "" {
 		return ""
@@ -127,11 +159,7 @@ func reachDir(reach int, file string) string {
 }
 
 func insideDir(file, dir string) bool {
-	if file == "" || dir == "" {
-		return true
-	}
-	rel, err := filepath.Rel(dir, filepath.Dir(file))
-	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	return folders.Inside(file, dir)
 }
 
 func visibleExports(exports map[string]*Symbol, importer string) (map[string]*Symbol, map[string]string) {
@@ -192,25 +220,68 @@ func (a *Analyser) registerImports() {
 			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
 			continue
 		}
-		if len(mod.Exports) == 0 {
-			a.error(imp, fmt.Sprintf("module %q exports nothing", imp.Path)).WithHelp("a package entry with no exports only marks its folder as a package")
-			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
-			continue
-		}
-		exports, hidden := visibleExports(mod.Exports, a.currentFile)
-		if len(exports) == 0 {
-			folder := ""
-			for _, f := range hidden {
-				folder = f
-				break
-			}
-			a.error(imp, fmt.Sprintf("module %q is internal to %q", imp.Path, folder)).WithHelp("everything it exports is only visible under the folder %s", folder)
-			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
-			continue
-		}
-		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: &ModuleType{Exports: exports, Hidden: hidden}, Line: line, Col: col, File: a.currentFile}
+		mt := &ModuleType{}
+		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: mt, Line: line, Col: col, File: a.currentFile}
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(imp, MODULE, imp.Alias)
 		}
+		link := &importLink{imp: imp, symbol: symbol, mt: mt, target: mod, file: a.currentFile}
+		link.pendingAtStart = mod.Pending
+		a.links = append(a.links, link)
+		if !mod.Pending {
+			a.applyLink(link, true)
+		}
 	}
+}
+
+type importLink struct {
+	imp    *ast.ImportDecl
+	symbol *Symbol
+	mt     *ModuleType
+	target *ModuleInfo
+	file   string
+
+	pendingAtStart bool
+}
+
+func (a *Analyser) applyLink(link *importLink, check bool) {
+	exports, hidden := visibleExports(link.target.Exports, link.file)
+	link.mt.Exports, link.mt.Hidden = exports, hidden
+	if !check {
+		return
+	}
+	a.currentFile = link.file
+	switch {
+	case len(link.target.Exports) == 0:
+		a.error(link.imp, fmt.Sprintf("module %q exports nothing", link.imp.Path)).WithHelp("a package entry with no exports only marks its folder as a package")
+		link.symbol.Type = InvalidType{}
+		link.symbol.Used = true
+	case len(exports) == 0:
+		folder := ""
+		for _, f := range hidden {
+			folder = f
+			break
+		}
+		a.error(link.imp, fmt.Sprintf("module %q is internal to %q", link.imp.Path, folder)).WithHelp("everything it exports is only visible under the folder %s", folder)
+		link.symbol.Type = InvalidType{}
+		link.symbol.Used = true
+	}
+}
+
+func PendingExports(exports map[string]*ModuleInfo, paths []string) {
+	if len(paths) < 2 {
+		return
+	}
+	for _, path := range paths {
+		exports[path] = &ModuleInfo{Exports: map[string]*Symbol{}, Pending: true}
+	}
+}
+
+func SetExports(exports map[string]*ModuleInfo, path string, module map[string]*Symbol) {
+	if existing, ok := exports[path]; ok {
+		existing.Replace(module)
+		existing.Pending = false
+		return
+	}
+	exports[path] = &ModuleInfo{Exports: module}
 }
