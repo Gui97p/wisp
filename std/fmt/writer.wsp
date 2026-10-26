@@ -25,9 +25,8 @@ public enum BufMode {
 public struct Writer {
 	int fd;
 	char[] buf;
-	int len;
 	BufMode mode;
-	int total;
+	internal int len, total;
 }
 
 func (*Writer w) put(*char c, int n) ! {

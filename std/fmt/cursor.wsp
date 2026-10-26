@@ -1,28 +1,28 @@
-public struct Cursor {
+internal struct Cursor {
 	string text;
 	int pos;
 }
 
-public func (*Cursor c) peekAt(int k) char {
+internal func (*Cursor c) peekAt(int k) char {
 	if c.pos+k >= len(c.text) || k < 0 {
 		return '\0';
 	}
 	return c.text[c.pos+k];
 }
 
-public func (*Cursor c) peek() char {
+internal func (*Cursor c) peek() char {
 	return c.peekAt(0);
 }
 
-public func (*Cursor c) advance() {
+internal func (*Cursor c) advance() {
 	c.pos++;
 }
 
-public func (*Cursor c) advanceN(int n) {
+internal func (*Cursor c) advanceN(int n) {
 	c.pos += n;
 }
 
-public func (*Cursor c) advanceIf(char ch) bool {
+internal func (*Cursor c) advanceIf(char ch) bool {
 	if c.peek() == ch {
 		c.advance();
 		return true;
@@ -30,7 +30,7 @@ public func (*Cursor c) advanceIf(char ch) bool {
 	return false;
 }
 
-public func (*Cursor c) advanceUntil(char ...chs) bool {
+internal func (*Cursor c) advanceUntil(char ...chs) bool {
 	loop !(c.peek() in chs) {
 		if c.done() {
 			return false;
@@ -40,15 +40,15 @@ public func (*Cursor c) advanceUntil(char ...chs) bool {
 	return true;
 }
 
-public func (*Cursor c) since(int mark) string {
+internal func (*Cursor c) since(int mark) string {
 	return c.text[mark:c.pos];
 }
 
-public func (*Cursor c) done() bool {
+internal func (*Cursor c) done() bool {
 	return c.pos >= len(c.text);
 }
 
-public func (*Cursor c) number() (int, int, bool) {
+internal func (*Cursor c) number() (int, int, bool) {
 	const digits = "0123456789";
 
 	int count;

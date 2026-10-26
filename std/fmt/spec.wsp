@@ -1,13 +1,13 @@
 import "std/fmt/cursor";
 
-public enum Align {
+internal enum Align {
 	Default,
 	Left,
 	Right,
 	Center
 }
 
-public struct Spec {
+internal struct Spec {
 	char fill;
 	Align align;
 	bool alt;
@@ -17,7 +17,7 @@ public struct Spec {
 	char kind;
 }
 
-public enum SpecError {
+internal enum SpecError {
 	Ok,
 	UnknownType,
 	BadNumber,
@@ -25,7 +25,7 @@ public enum SpecError {
 	NotForType
 }
 
-public enum Value {
+internal enum Value {
 	Int,
 	Uint,
 	Char,
@@ -34,7 +34,7 @@ public enum Value {
 	Pointer
 }
 
-public func parse(string text) !Spec {
+internal func parse(string text) !Spec {
 	Spec spec = Spec{fill: ' ', precision: -1};
 	if len(text) == 0 {
 		return spec;
@@ -101,7 +101,7 @@ public func parse(string text) !Spec {
 	return spec;
 }
 
-public func validate(Spec s, Value v) ! {
+internal func validate(Spec s, Value v) ! {
 	switch v {
 		case .Int, .Uint:
 			if s.kind == 'p' ||
