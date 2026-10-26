@@ -478,11 +478,21 @@ func (t *LuaTarget) compileLoopStatement(b *strings.Builder, stmt *ast.LoopStmt)
 		return err
 	}
 
+	inside := stmt.UntilCondition != nil && t.info.UntilSeesBody[stmt]
+	if inside {
+		cond, err := t.compileExprScratch(stmt.UntilCondition)
+		if err != nil {
+			return err
+		}
+		t.flushPending(b)
+		fmt.Fprintf(b, "if %s then goto %s end\n", cond, ctx.BreakLabel)
+	}
+
 	b.WriteString("end\n")
 
 	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
 
-	if stmt.UntilCondition != nil {
+	if stmt.UntilCondition != nil && !inside {
 		cond, err := t.compileExprScratch(stmt.UntilCondition)
 		if err != nil {
 			return err

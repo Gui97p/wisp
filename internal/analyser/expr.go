@@ -40,6 +40,13 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		a.info.Idents[e] = symbol
 		symbol.Used = true
 		t = symbol.Type
+		if a.untilScope != nil && a.untilScope.symbols[e.Value] == symbol {
+			if a.loopFrames[a.untilFrame].Continued {
+				a.errorf(expr, "%s is declared in the loop body, which uses continue", e.Value).
+					WithHelp("a continue can skip the declaration, so until cannot read %s: declare it before the loop", e.Value)
+			}
+			a.untilSawBody = true
+		}
 	case *ast.NullLiteral:
 		t = NullType{}
 	case *ast.FuncLiteral:

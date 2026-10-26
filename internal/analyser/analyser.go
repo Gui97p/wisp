@@ -19,6 +19,9 @@ type Analyser struct {
 	currentFallible bool
 	deferredFree    map[*Symbol]*ast.DeferStmt
 	loopFrames      []loopFrame
+	untilScope      *Scope
+	untilFrame      int
+	untilSawBody    bool
 
 	mustUse     []*Symbol
 	handlerOK   map[ast.Expression]bool
@@ -271,6 +274,7 @@ func (a *Analyser) requireNumeric(node ast.Node, t Type, context string) {
 type loopFrame struct {
 	Label            string
 	SupportsContinue bool
+	Continued        bool
 }
 
 func (a *Analyser) pushLoop(label string) {

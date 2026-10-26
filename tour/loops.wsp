@@ -42,6 +42,16 @@ export func demo() {
   } until tries == 3;
   fmt.printf("the do-while stopped at {}\n", tries);
 
+  // The condition after `until` sees what the body declared, so it can test a
+  // value the body just computed. That only holds when the body has no
+  // `continue`, which could skip the declaration.
+  int guess = 1;
+  loop {
+    int doubled = guess * 2;
+    guess = doubled;
+  } until doubled >= 100;
+  fmt.printf("doubling stopped at {}\n", guess);
+
   // A bare `loop` runs until something breaks out of it.
   int n = 0;
   int kept;

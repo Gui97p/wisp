@@ -259,14 +259,18 @@ func (a *Analyser) checkLoopStmt(stmt *ast.LoopStmt) {
 		a.requireBool(stmt.Condition, t, "loop condition")
 	}
 
-	if stmt.UntilCondition != nil {
-		t := a.checkExpr(stmt.UntilCondition)
-		a.requireBool(stmt.UntilCondition, t, "loop until condition")
-	}
-
 	a.pushLoop(stmt.Label)
 	a.enterScope()
 	a.checkBlock(stmt.Body)
+	if stmt.UntilCondition != nil {
+		a.untilScope = a.scope
+		a.untilFrame = len(a.loopFrames) - 1
+		a.untilSawBody = false
+		t := a.checkExpr(stmt.UntilCondition)
+		a.requireBool(stmt.UntilCondition, t, "loop until condition")
+		a.info.UntilSeesBody[stmt] = a.untilSawBody
+		a.untilScope = nil
+	}
 	a.exitScope()
 	a.popLoop()
 }
@@ -463,6 +467,10 @@ func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
 		return
 	}
 
+	if kind == "continue" {
+		a.markContinued(label)
+	}
+
 	if label == "" {
 		return
 	}
@@ -521,6 +529,19 @@ func (a *Analyser) importedConst(expr ast.Expression) (string, bool) {
 			expr = e.Object
 		default:
 			return "", false
+		}
+	}
+}
+
+func (a *Analyser) markContinued(label string) {
+	for i := len(a.loopFrames) - 1; i >= 0; i-- {
+		f := &a.loopFrames[i]
+		if label == "" && !f.SupportsContinue {
+			continue
+		}
+		if label == "" || f.Label == label {
+			f.Continued = true
+			return
 		}
 	}
 }
