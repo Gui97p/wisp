@@ -970,6 +970,55 @@ func main() {
     check(shapes.grown(3) == 10, "an internal method works inside its package");
 }
 `, expected: []string{"a package entry reaches its internal files", "an entry re-exports what a file exports", "an internal method works inside its package"}},
+	{dir: "array_to_slice", x64Only: true, src: `struct Box {
+    int[3] items;
+}
+
+func total(int[] xs) int {
+    int sum;
+    for _, x in xs {
+        sum += x;
+    }
+    return sum;
+}
+
+func bump(int[] xs) {
+    xs[0] += 100;
+}
+
+func main() {
+    int[4] nums = [1, 2, 3, 4];
+    check(total(nums) == 10, "an array variable passes as a slice");
+
+    bump(nums);
+    check(nums[0] == 101, "the slice is a view of the array");
+
+    int[] view = nums;
+    view[1] = 20;
+    check(nums[1] == 20, "an array initialises a slice variable");
+
+    int[] other;
+    other = nums;
+    other[2] = 30;
+    check(nums[2] == 30, "an array is assigned to a slice");
+
+    Box box = Box{items: [5, 6, 7]};
+    check(total(box.items) == 18, "an array field passes as a slice");
+
+    int[2][2] grid = [[1, 2], [3, 4]];
+    check(total(grid[1]) == 7, "an array element passes as a slice");
+
+    check(total(nums[1:3]) == 50, "an explicit slice still works");
+}
+`, expected: []string{"an array variable passes as a slice", "the slice is a view of the array", "an array initialises a slice variable", "an array is assigned to a slice", "an array field passes as a slice", "an array element passes as a slice", "an explicit slice still works"}},
+	{dir: "main_args", luaOnly: true, src: `func main(string[] args) !int {
+    check(len(args) == 0, "main receives the arguments as a string[]");
+    for _, a in args {
+        emit(a);
+    }
+    return 0;
+}
+`, expected: []string{"main receives the arguments as a string[]"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `export struct Counter {
     int n;
 }

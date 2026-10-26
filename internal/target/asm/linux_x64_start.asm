@@ -4,6 +4,8 @@ extern main
 section .text
 _start:
 	xor ebp, ebp
+	mov edi, [rsp]
+	lea rsi, [rsp+8]
 	call main
 	mov rdi, rax
 	mov eax, 60

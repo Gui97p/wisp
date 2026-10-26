@@ -17,7 +17,7 @@ func symbolName(mod string, parts ...string) string {
 
 func (t *X64Target) funcSymbol(mod, name string) string {
 	if t.isEntry && name == "main" {
-		return "main"
+		return "__wisp_main"
 	}
 	return symbolName(mod, name)
 }

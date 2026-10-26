@@ -160,8 +160,18 @@ func (a *Analyser) warnUnusedParams(fd *ast.FuncDecl, params []*Symbol) {
 }
 
 func (a *Analyser) checkMainFunc(fd *ast.FuncDecl) {
-	if len(fd.Params) > 0 {
-		a.error(fd, "main function cannot have parameters")
+	params := []Type{}
+	switch {
+	case len(fd.Params) == 0:
+	case len(fd.Params) == 1 && !fd.Params[0].Variadic && !fd.Params[0].Any:
+		t := a.resolveTypeRef(fd, a.scope, fd.Params[0].Type)
+		want := SpanType{Element: PrimitiveType{Name: "string"}}
+		if t != nil && !t.Equals(want) {
+			a.errorf(fd, "main takes the arguments as string[], got %s", t.String())
+		}
+		params = append(params, want)
+	default:
+		a.error(fd, "main takes no parameters, or a single string[] with the arguments")
 	}
 
 	returns := []Type{}
@@ -180,7 +190,8 @@ func (a *Analyser) checkMainFunc(fd *ast.FuncDecl) {
 		a.errorf(fd, "main function must return nothing or a single int, got %d values", len(fd.ReturnTypes))
 	}
 
-	ft := &FuncType{Name: fd.Name, Params: []Type{}, Returns: returns, Variadic: false, Fallible: fd.Fallible}
+	ft := &FuncType{Name: fd.Name, Params: params, Returns: returns, Variadic: false, Fallible: fd.Fallible}
+	a.info.VarTypes[fd] = params
 	a.info.FuncReturns[fd] = returns
 	line, col := fd.Position()
 	symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc}

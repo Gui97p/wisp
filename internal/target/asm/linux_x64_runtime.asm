@@ -4,6 +4,9 @@ global __wisp_panic
 global __wisp_malloc
 global __wisp_free
 global __wisp_realloc
+extern __wisp_main
+
+global main
 
 %macro lit 1
 	section .rodata
@@ -301,6 +304,40 @@ __wisp_utoa:
 	mov rdx, r8
 	sub rdx, rsi
 
+	ret
+
+main:
+	push rbp
+	mov rbp, rsp
+
+	mov r9, rdi
+	imul r9, 16
+	sub rsp, r9
+	xor r10d, r10d
+.loop:
+	cmp r10, rdi
+	je .endloop
+	mov rcx, [rsi+r10*8]
+
+	xor edx, edx
+.loopb:
+	cmp byte [rcx+rdx], 0
+	je .endloopb
+	inc rdx
+	jmp .loopb
+.endloopb:
+	mov r11, r10
+	shl r11, 4
+	mov [rsp+r11], rcx
+	mov [rsp+r11+8], rdx
+	inc r10
+	jmp .loop
+
+.endloop:
+	mov rsi, rdi
+	mov rdi, rsp
+	call __wisp_main
+	leave
 	ret
 
 section .note.GNU-stack noalloc noexec nowrite progbits

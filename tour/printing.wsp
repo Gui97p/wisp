@@ -54,14 +54,14 @@ export func demo() {
   // `os.STDERR` is where errors go.
   fmt.fprintf(os.STDERR, "this line goes to standard error: {}\n", 7) ?? return;
 
-  // `sprintf` writes into a buffer you provide and returns how many bytes it
-  // wrote. It fails with NoSpace if the buffer is too small.
+  // `sprintf` writes into a buffer you provide (an array passes as a slice,
+  // see collections.wsp) and returns how many bytes it wrote. It fails with NoSpace if the buffer is too small.
   char[32] buffer;
-  let size, problem = fmt.sprintf(buffer[:], "{} + {} = {}", 2, 3, 5);
+  let size, problem = fmt.sprintf(buffer, "{} + {} = {}", 2, 3, 5);
   fmt.printf("sprintf wrote {} bytes: {}\n", size, string(buffer[:size]));
   fmt.printf("a fitting format reports a problem: {}\n", problem != null);
 
   // A bad format is written back as it was and reported, not fatal.
-  let _, wrong = fmt.sprintf(buffer[:], "{z}", 1);
+  let _, wrong = fmt.sprintf(buffer, "{z}", 1);
   fmt.printf("a spec that does not exist reports a problem: {}\n", wrong == fmt.FormatError.BadSpec);
 }

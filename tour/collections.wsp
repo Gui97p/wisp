@@ -9,6 +9,14 @@ import "std/fmt";
 // can name it, even one that comes from another module.
 const Cells = 3;
 
+func total(int[] values) int {
+  int sum;
+  for _, v in values {
+    sum += v;
+  }
+  return sum;
+}
+
 export func demo() {
   // A fixed-size array: the size is part of the type.
   int[5] nums = [124, 512, 1, 5, 2];
@@ -39,6 +47,12 @@ export func demo() {
 
   middle[0] = 1;
   fmt.printf("after middle[0] = 1, nums[1] is {}\n", nums[1]);
+
+  // An array variable goes where a slice is expected without writing `[:]`.
+  // It is the same view of the same elements: `total(nums)` is
+  // `total(nums[:])`. Only something that has an address converts, so a
+  // fresh array literal does not, and `[a:b]` is still how you take a part.
+  fmt.printf("total(nums) = {}\n", total(nums));
 
   // Strings slice the same way, and compare in dictionary order.
   string greeting = "hello world";

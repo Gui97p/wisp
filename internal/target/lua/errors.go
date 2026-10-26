@@ -223,12 +223,20 @@ func (t *LuaTarget) compileErrorComparison(b *strings.Builder, e *ast.BinaryExpr
 }
 
 func (t *LuaTarget) entryErrorCheck() string {
+	prelude, call := "", "main()"
+	for _, d := range t.program.Declarations {
+		fd, ok := d.(*ast.FuncDecl)
+		if ok && fd.Name == "main" && fd.Receiver == nil && len(fd.Params) == 1 {
+			prelude = "local __args = {}\nfor i = 1, #arg do\n\t__args[i - 1] = arg[i]\nend\n"
+			call = "main(__args)"
+		}
+	}
 	for _, d := range t.program.Declarations {
 		fd, ok := d.(*ast.FuncDecl)
 		if !ok || fd.Name != "main" || fd.Receiver != nil || !fd.Fallible {
 			continue
 		}
-		return `local __main_result = table.pack(main())
+		return prelude + `local __main_result = table.pack(` + call + `)
 local __main_error = __main_result[__main_result.n]
 if __main_error ~= nil then
 	io.stderr:write("error: ", __main_error.message, " (", __main_error.file, ":", __main_error.line, ")\n")
@@ -236,7 +244,7 @@ if __main_error ~= nil then
 end
 `
 	}
-	return "main()\n"
+	return prelude + call + "\n"
 }
 
 func isNullLiteral(expr ast.Expression) bool {

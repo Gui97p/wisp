@@ -210,6 +210,19 @@ func (a *Analyser) insertCast(slot *ast.Expression, to Type) {
 	*slot = cast
 }
 
+func (a *Analyser) insertSlice(slot *ast.Expression, to SpanType) {
+	inner := *slot
+	slice := &ast.SliceExpr{Array: inner}
+
+	line, col := inner.Position()
+	slice.SetPos(line, col)
+	endLine, endCol := inner.EndPosition()
+	slice.SetEndPos(endLine, endCol)
+
+	a.info.Types[slice] = to
+	*slot = slice
+}
+
 func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 	if _, bad := from.(InvalidType); bad {
 		return true
@@ -236,6 +249,13 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 	if !isUntyped(from) && implicitConversion(from, to) {
 		a.insertCast(slot, to)
 		return true
+	}
+
+	if at, isArray := from.(ArrayType); isArray {
+		if st, isSpan := to.(SpanType); isSpan && at.Element.Equals(st.Element) && isAddressable(*slot) {
+			a.insertSlice(slot, st)
+			return true
+		}
 	}
 
 	return false

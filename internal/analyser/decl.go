@@ -257,7 +257,9 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 					} else if declSpan, ok := declaredType.(SpanType); ok {
 						switch valT := valueType.(type) {
 						case ArrayType:
-							if !a.arrayElementAssignable(values, len(vars), i, valT.Element, declSpan.Element) {
+							if slot := a.valueSlot(values, len(vars), i); slot != nil && isAddressable(*slot) && valT.Element.Equals(declSpan.Element) {
+								a.insertSlice(slot, declSpan)
+							} else if !a.arrayElementAssignable(values, len(vars), i, valT.Element, declSpan.Element) {
 								a.errorf(node, "span %s expects element type %s, got %s", v.Name, declSpan.Element.String(), valT.Element.String())
 							} else if slot := a.valueSlot(values, len(vars), i); slot != nil {
 								a.fixArrayLiteral(*slot, declSpan.Element, -1)
