@@ -1124,6 +1124,31 @@ func main() {
     check(s.twiceArea() == 24, "a private method of that file is used by its exported one");
 }
 `, expected: []string{"a method declared in another file of the folder", "a private method of that file is used by its exported one"}},
+	{dir: "until_body_variable", src: `func main() {
+    int total;
+    loop {
+        int n = total + 1;
+        total = n * 2;
+    } until n > 20;
+    check(total == 62, "until reads a variable declared in the body");
+
+    int outside = 0;
+    loop {
+        outside++;
+        if outside == 2 {
+            continue;
+        }
+    } until outside >= 4;
+    check(outside == 4, "a continue still reaches the until condition");
+
+    int rounds;
+    loop {
+        int step = rounds + 1;
+        defer rounds = step;
+    } until step >= 3;
+    check(rounds == 3, "a deferred statement runs before the next round");
+}
+`, expected: []string{"until reads a variable declared in the body", "a continue still reaches the until condition", "a deferred statement runs before the next round"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `export struct Counter {
     int n;
 }

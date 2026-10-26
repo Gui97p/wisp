@@ -1,5 +1,6 @@
 import "std/sys";
 import "std/os/global";
+import "std/os";
 
 func copyPath(*char buf, string path) {
 	for i, c in path {
@@ -47,6 +48,14 @@ export func removeDir(string path) ! {
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
+}
+
+export func readFile(string path) !string {
+	int fd = open(path, global.READ)!;
+	int size = os.size(fd)!;
+	*char buf = malloc(size)!;
+	os.read(fd, buf[0:size])!;
+	return string(buf[0:size]);
 }
 
 export func close(int fd) ! {
