@@ -40,6 +40,7 @@ func shortcutItems(path string, scope *analyser.Scope, word, suffix string) []pr
 	if len(word) >= 2 {
 		items = append(items, importedMembers(scope, word, suffix)...)
 		items = append(items, unimportedMembers(path, scope, word, suffix)...)
+		items = append(items, unimportedModules(path, scope, word)...)
 	}
 	return items
 }
@@ -420,4 +421,37 @@ func accessibleMethods(path string, t analyser.Type) map[string]*analyser.FuncTy
 		}
 	}
 	return visible
+}
+
+func unimportedModules(path string, scope *analyser.Scope, word string) []protocol.CompletionItem {
+	root := module.FindProjectRoot(filepath.Dir(path))
+	imported := importedPaths(path)
+	cyclic := dependentFiles(path)
+
+	candidates := module.ImportablePaths(root)
+	byPath := pathIndex(candidates)
+
+	var items []protocol.CompletionItem
+	for _, c := range candidates {
+		alias := moduleAlias(c.Path)
+		if c.File == path || imported[c.Path] || cyclic[c.File] || alias == "" || !matchesWord(alias, word) {
+			continue
+		}
+		if _, taken := scope.Resolve(alias); taken {
+			continue
+		}
+		if !module.CanImport(path, c.File) || exportsNothing(path, c, byPath) {
+			continue
+		}
+		edit, ok := importEdit(path, c.Path)
+		if !ok {
+			continue
+		}
+
+		it := item(alias, protocol.CompletionItemKindModule, "auto import "+c.Path)
+		it.SortText = ptr("z" + alias)
+		it.AdditionalTextEdits = []protocol.TextEdit{edit}
+		items = append(items, it)
+	}
+	return items
 }
