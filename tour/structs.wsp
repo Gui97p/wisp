@@ -17,7 +17,7 @@ func (*Point p) scale(int factor) {
   p.y = p.y * factor;
 }
 
-export func demo() {
+public func demo() {
   // A struct literal names its fields.
   Point p = Point{x: 3, y: 4};
   let origin = Point{x: 0, y: 0};

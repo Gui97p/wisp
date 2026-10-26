@@ -1,11 +1,5 @@
 import "std/sys";
 import "std/os/global";
-import "std/os/files";
-import "std/os/time";
-
-export global;
-export files;
-export time;
 
 func writeRaw(int fd, *char buf, int n) !int {
 	int total;
@@ -22,15 +16,15 @@ func writeRaw(int fd, *char buf, int n) !int {
 	return total;
 }
 
-export func write(int fd, string s) !int {
+public func write(int fd, string s) !int {
 	return writeRaw(fd, (*char)(s), len(s))!;
 }
 
-export func writeBytes(int fd, char[] buf) !int {
+public func writeBytes(int fd, char[] buf) !int {
 	return writeRaw(fd, (*char)(buf), len(buf))!;
 }
 
-export func read(int fd, char[] buf) !int {
+public func read(int fd, char[] buf) !int {
 	int r;
 	loop {
 		r = sys.read(fd, (*char)(buf), len(buf));
@@ -41,7 +35,7 @@ export func read(int fd, char[] buf) !int {
 	return r;
 }
 
-export func seek(int fd, offset, whence) !int {
+public func seek(int fd, offset, whence) !int {
 	int r = sys.seek(fd, offset, whence);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
@@ -49,7 +43,7 @@ export func seek(int fd, offset, whence) !int {
 	return r;
 }
 
-export func size(int fd) !int {
+public func size(int fd) !int {
 	int r = sys.size(fd);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
@@ -57,17 +51,17 @@ export func size(int fd) !int {
 	return r;
 }
 
-export func sync(int fd) ! {
+public func sync(int fd) ! {
 	int r = sys.sync(fd);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
 }
 
-export func isatty(int fd) bool {
+public func isatty(int fd) bool {
 	return sys.isatty(fd);
 }
 
-export func exit(int code) {
+public func exit(int code) {
 	sys.exit(code);
 }

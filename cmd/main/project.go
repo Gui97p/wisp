@@ -50,6 +50,12 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 	failed := map[string]bool{}
 	totalErrors, totalWarnings := 0, 0
 
+	for _, mod := range modules {
+		if len(mod.Parts) > 0 {
+			analyser.LinkPackage(exports, mod.Path, mod.Parts)
+		}
+	}
+
 	var cycles [][]string
 	for _, group := range module.Groups(modules) {
 		var members []*module.Module
@@ -100,6 +106,7 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 			merged, declFiles := mod.Merge()
 			a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 			a.SetImportErrors(mod.ImportErrors)
+			a.SetPackageParts(mod.Parts)
 			analysers[i], merges[i], declMaps[i] = a, merged, declFiles
 		}
 		analyser.AnalyzeGroup(analysers)

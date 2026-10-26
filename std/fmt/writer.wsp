@@ -6,7 +6,7 @@ import "std/os";
 import "std/mem";
 import "std/math";
 
-export enum FormatError {
+public enum FormatError {
 	Ok,
 	NoSpace,
 	Unmatched,
@@ -16,13 +16,13 @@ export enum FormatError {
 	ExtraArgument
 }
 
-export enum BufMode {
+public enum BufMode {
 	None,
 	Line,
 	Full
 }
 
-export struct Writer {
+public struct Writer {
 	int fd;
 	char[] buf;
 	int len;
@@ -76,22 +76,22 @@ func (*Writer w) put(*char c, int n) ! {
 	}
 }
 
-export func (*Writer w) write(string s) ! {
+public func (*Writer w) write(string s) ! {
 	w.put((*char)(s), len(s))!;
 }
-export func (*Writer w) writeByte(char c) ! {
+public func (*Writer w) writeByte(char c) ! {
 	w.put(&c, 1)!;
 }
-export func (*Writer w) writeBytes(char[] data) ! {
+public func (*Writer w) writeBytes(char[] data) ! {
 	w.put((*char)(data), len(data))!;
 }
-export func (*Writer w) fill(char c, int n) ! {
+public func (*Writer w) fill(char c, int n) ! {
 	for n {
 		w.put(&c, 1)!;
 	}
 }
 
-export func (*Writer w) flush() ! {
+public func (*Writer w) flush() ! {
 	if w.fd < 0 || w.len == 0 {
 		return;
 	}
@@ -175,7 +175,7 @@ func (*Writer w) putPointer(char[] buf, *void v, spec.Spec s) !bool {
 	return true;
 }
 
-export func (*Writer w) format(string format, ...args) !int {
+public func (*Writer w) format(string format, ...args) !int {
 	char[conv.MaxDigits] buf;
 	int argIndex;
 	FormatError problem;

@@ -2,33 +2,34 @@
 // resolves to. Other files in the folder are internal to the package: only
 // files under geometry/ can import them, so an `import "geometry/constants"`
 // from outside is an error. `internal` does the same for one declaration:
-// it is exported to the folder and everything under it, and hidden from the
+// it is public to the folder and everything under it, and hidden from the
 // rest of the project. `shared` reaches one folder further up, for a package
 // that lends something to the package around it.
 //
-// Importing a sibling and then `export`ing it by name re-exports everything
-// it exports, as if it were declared here. `export constants as consts;`
-// would nest it instead, reachable as `geometry.consts.Sides`.
+// What the files of a package make `public` is the package's own API, as if
+// they were all one file: `geo.Sides` comes from constants.wsp and
+// `geo.area` from this one, and a name two files both make public is an error.
+// Nothing needs to be listed or re-exported here. A folder inside a package is
+// a package of its own, imported by its own path.
 
 import "geometry/constants";
-export constants;
 
-export func area(int width, height) int => width * height;
+public func area(int width, height) int => width * height;
 
-export func perimeter(int side) int => constants.scale(side);
+public func perimeter(int side) int => constants.scale(side);
 
 // A field can carry `internal` or `shared` too. This one is only visible to
 // the files of this folder, so code outside cannot read it, write it or name
 // it in a literal. It can still hold a struct that was made by a function of
 // the package.
-export struct Rect {
+public struct Rect {
   int width;
   int height;
   internal int cachedArea;
 }
 
-export func newRect(int width, height) Rect {
+public func newRect(int width, height) Rect {
   return Rect{width: width, height: height, cachedArea: width * height};
 }
 
-export func (*Rect r) area() int => r.cachedArea;
+public func (*Rect r) area() int => r.cachedArea;

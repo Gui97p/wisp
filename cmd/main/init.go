@@ -89,7 +89,7 @@ const luaMainContent = `func main() {
 }
 `
 
-const libContent = `export func add(int a, b) int => a + b;
+const libContent = `public func add(int a, b) int => a + b;
 `
 
 const targetTomlContent = `

@@ -375,7 +375,7 @@ func (a *Analyser) warnUnusedFuncs() {
 		line, col := decl.Position()
 		col += len("func ")
 		a.errors.Warn(a.declFiles[d], line, col, line, col+len(decl.Name)-1, "function %s is never used", decl.Name).
-			WithHelp("remove it, or export it if other modules use it")
+			WithHelp("remove it, or make it public if other modules use it")
 	}
 }
 
@@ -403,7 +403,7 @@ func (a *Analyser) warnUnusedGlobals() {
 				continue
 			}
 			a.errors.Warn(a.declFiles[d], v.Line, v.Col, v.EndLine, v.EndCol, "%s %s is never used", kind, v.Name).
-				WithHelp("remove it, or export it if other modules use it")
+				WithHelp("remove it, or make it public if other modules use it")
 		}
 	}
 }

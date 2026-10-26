@@ -1,7 +1,7 @@
 import "std/conv";
 import "std/fmt/spec";
 
-export struct Piece {
+public struct Piece {
 	string sign;
 	string radix;
 	string body;
@@ -29,7 +29,7 @@ func number(char[] buf, uint mag, bool neg, spec.Spec s) !Piece {
 	return piece;
 }
 
-export func renderInt(char[] buf, int v, spec.Spec s) !Piece {
+public func renderInt(char[] buf, int v, spec.Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		buf[0] = char(v);
@@ -44,7 +44,7 @@ export func renderInt(char[] buf, int v, spec.Spec s) !Piece {
 	return number(buf, uint(-(v+1)) + 1, true, s)!;
 }
 
-export func renderUint(char[] buf, uint v, spec.Spec s) !Piece {
+public func renderUint(char[] buf, uint v, spec.Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		buf[0] = char(v);
@@ -54,7 +54,7 @@ export func renderUint(char[] buf, uint v, spec.Spec s) !Piece {
 	return number(buf, v, false, s)!;
 }
 
-export func renderChar(char[] buf, char c, spec.Spec s) !Piece {
+public func renderChar(char[] buf, char c, spec.Spec s) !Piece {
 	Piece piece;
 
 	switch s.kind {
@@ -68,18 +68,18 @@ export func renderChar(char[] buf, char c, spec.Spec s) !Piece {
 	return piece;
 }
 
-export func renderPointer(char[] buf, *void v, spec.Spec s) !Piece {
+public func renderPointer(char[] buf, *void v, spec.Spec s) !Piece {
 	spec.Spec t = s;
 	t.kind = 'x';
 	t.alt = true;
 	return number(buf, uint(v), false, t)!;
 }
 
-export func renderBool(bool b) Piece {
+public func renderBool(bool b) Piece {
 	return Piece{body: b ? "true" : "false"};
 }
 
-export func renderString(string t, spec.Spec s) Piece {
+public func renderString(string t, spec.Spec s) Piece {
 	Piece piece = Piece{body: t};
 	if s.precision >= 0 && s.precision < len(t) {
 		piece.body = t[:s.precision];

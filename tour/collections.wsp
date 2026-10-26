@@ -17,7 +17,7 @@ func total(int[] values) int {
   return sum;
 }
 
-export func demo() {
+public func demo() {
   // A fixed-size array: the size is part of the type.
   int[5] nums = [124, 512, 1, 5, 2];
 

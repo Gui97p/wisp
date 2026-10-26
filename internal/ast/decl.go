@@ -221,16 +221,3 @@ const (
 	ReachInternal
 	ReachShared
 )
-
-type ReexportDecl struct {
-	Name  string
-	Alias string
-	Reach int
-
-	NodePos
-}
-
-func (*ReexportDecl) decl() {}
-func (r *ReexportDecl) Tree(indent string) string {
-	return fmt.Sprintf("%sReexportDecl(%s)\n", indent, r.Name)
-}

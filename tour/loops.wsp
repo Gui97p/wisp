@@ -2,7 +2,7 @@
 
 import "std/fmt";
 
-export func demo() {
+public func demo() {
   // A range includes both ends: this visits 1, 2, 3.
   int sum;
   for i in 1..3 {

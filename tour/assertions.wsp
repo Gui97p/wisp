@@ -31,7 +31,7 @@ func settle(int n) ! {
   }
 }
 
-export func demo() {
+public func demo() {
   int a = risky(3)!!;
   fmt.printf("risky(3)!! = {}\n", a);
   fmt.printf("risky(4)!! + risky(5)!! = {}\n", risky(4)!! + risky(5)!!);

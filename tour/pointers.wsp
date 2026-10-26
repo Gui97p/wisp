@@ -12,7 +12,7 @@ struct Pair {
   int a, b;
 }
 
-export func demo() ! {
+public func demo() ! {
   int x = 1;
   *int px = &x;
   **int ppx = &px;

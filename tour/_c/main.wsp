@@ -23,10 +23,10 @@ extern func twice(int32 x) int32 as c_twice;
 extern func sum_bytes(*int8 bytes, int32 count) int32;
 extern func scale_by_three(int32 value) int32;
 
-// The other direction: `export func ... as name` gives an exported function
+// The other direction: `public func ... as name` gives a public function
 // a C-visible name that does not depend on the module's path. lib.c declares
 // `wisp_scale` and calls it.
-export func scale(int32 value, int32 factor) int32 as wisp_scale => value * factor;
+public func scale(int32 value, int32 factor) int32 as wisp_scale => value * factor;
 
 // A string gives the address of its bytes with `(*int8)(text)`. C expects a
 // zero byte at the end, which string literals have and slices of them do not.

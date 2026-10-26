@@ -22,12 +22,12 @@ var (
 	qualifiedType   = regexp.MustCompile(`^\*{0,}([A-Za-z_]\w*)\.`)
 	mapTail         = regexp.MustCompile(`\bmap\[[^\[\]]*\]` + typeName + `$`)
 	lambdaFirst     = regexp.MustCompile(`^\s*\*{0,}[A-Za-z_][\w.]*\s+[A-Za-z_]\w*\s*$`)
-	returnTail      = regexp.MustCompile(`^(?:export\s+)?(?:extern\s+)?` + funcHead + `\((?:[^()]|\([^()]*\))*\)\s*!?\s*(` + typeName + `)$`)
+	returnTail      = regexp.MustCompile(`^(?:public\s+)?(?:extern\s+)?` + funcHead + `\((?:[^()]|\([^()]*\))*\)\s*!?\s*(` + typeName + `)$`)
 	namePosition    = regexp.MustCompile(`^\*{0,}[\w.]+\s+\w*$`)
-	declarationHead = regexp.MustCompile(`^(?:(?:export|extern)\s+)*`)
+	declarationHead = regexp.MustCompile(`^(?:(?:public|extern)\s+)*`)
 )
 
-var topLevelKeywords = []string{"func", "struct", "enum", "type", "const", "import", "export", "internal", "shared", "extern"}
+var topLevelKeywords = []string{"func", "struct", "enum", "type", "const", "import", "public", "internal", "shared", "extern"}
 
 type typeContext struct {
 	typing   bool

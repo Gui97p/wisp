@@ -114,6 +114,11 @@ func runAnalysis(entry string) (result *projectAnalysis, err error) {
 func analyseModules(modules []*module.Module) *projectAnalysis {
 	result := &projectAnalysis{}
 	exports := map[string]*analyser.ModuleInfo{}
+	for _, mod := range modules {
+		if len(mod.Parts) > 0 {
+			analyser.LinkPackage(exports, mod.Path, mod.Parts)
+		}
+	}
 
 	for _, group := range module.Groups(modules) {
 		items, ok := analyseGroup(group, exports)
@@ -146,6 +151,7 @@ func analyseGroup(group []*module.Module, exports map[string]*analyser.ModuleInf
 		merged, declFiles := mod.Merge()
 		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 		a.SetImportErrors(mod.ImportErrors)
+		a.SetPackageParts(mod.Parts)
 		analysers[i], merges[i], declMaps[i] = a, merged, declFiles
 	}
 	analyser.AnalyzeGroup(analysers)

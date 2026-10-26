@@ -1,16 +1,13 @@
-import "std/math/constants";
-export constants;
-
-export func abs(int x) int {
+public func abs(int x) int {
     return x < 0 ? -x : x;
 }
-export func fabs(float64 x) float64 {
+public func fabs(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.abs(x)";
     return r;
 }
 
-export func min(int ...args) int {
+public func min(int ...args) int {
     int l = len(args);
 
 	if len(args) == 0 {
@@ -27,13 +24,13 @@ export func min(int ...args) int {
 
 	return m;
 }
-export func fmin(float64 a, float64 b) float64 {
+public func fmin(float64 a, float64 b) float64 {
     float64 r;
     native lua(in a, b) "r = math.min(a, b)";
     return r;
 }
 
-export func max(int ...args) int {
+public func max(int ...args) int {
     int l = len(args);
 
 	if len(args) == 0 {
@@ -50,61 +47,61 @@ export func max(int ...args) int {
 	
 	return m;
 }
-export func fmax(float64 a, float64 b) float64 {
+public func fmax(float64 a, float64 b) float64 {
     float64 r;
     native lua(in a, b) "r = math.max(a, b)";
     return r;
 }
 
-export func floor(float64 x) float64 {
+public func floor(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.floor(x)";
     return r;
 }
-export func ceil(float64 x) float64 {
+public func ceil(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.ceil(x)";
     return r;
 }
-export func round(float64 x) float64 {
+public func round(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.floor(x + 0.5)";
     return r;
 }
 
-export func sqrt(float64 x) float64 {
+public func sqrt(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.sqrt(x)";
     return r;
 }
-export func pow(float64 base, float64 exp) float64 {
+public func pow(float64 base, float64 exp) float64 {
     float64 r;
     native lua(in base, exp) "r = base ^ exp";
     return r;
 }
 
-export func sin(float64 x) float64 {
+public func sin(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.sin(x)";
     return r;
 }
-export func cos(float64 x) float64 {
+public func cos(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.cos(x)";
     return r;
 }
-export func tan(float64 x) float64 {
+public func tan(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.tan(x)";
     return r;
 }
 
-export func log(float64 x) float64 {
+public func log(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.log(x)";
     return r;
 }
-export func exp(float64 x) float64 {
+public func exp(float64 x) float64 {
     float64 r;
     native lua(in x) "r = math.exp(x)";
     return r;

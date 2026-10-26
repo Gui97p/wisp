@@ -222,7 +222,7 @@ func cCompatible(t Type) bool {
 
 func (a *Analyser) checkCExport(fd *ast.FuncDecl, params, returns []Type, variadic bool) {
 	if !fd.Exported {
-		a.errorf(fd, "as %s gives a C name to an exported function: write export func %s", fd.CExport, fd.Name)
+		a.errorf(fd, "as %s gives a C name to a public function: write public func %s", fd.CExport, fd.Name)
 	}
 	if fd.Receiver != nil {
 		a.error(fd, "a method cannot have a C name")

@@ -9,7 +9,7 @@
 
 import "expect";
 
-export func demo() {
+public func demo() {
   float ratio = 2.5;
   expect.expect(ratio * 2 == 5.0, "float arithmetic");
   expect.expect(ratio > 2 && ratio < 3, "float comparison");

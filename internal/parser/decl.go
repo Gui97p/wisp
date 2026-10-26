@@ -64,7 +64,7 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 			return nil
 		}
 		decls = append(decls, decl)
-	case lexer.TOKEN_EXPORT:
+	case lexer.TOKEN_PUBLIC:
 		return p.parseExportDeclaration(ast.ReachNone)
 	case lexer.TOKEN_INTERNAL:
 		return p.parseExportDeclaration(ast.ReachInternal)
@@ -80,6 +80,11 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 			}
 			decls = append(decls, decl)
 			break
+		}
+		if p.current.Type == lexer.TOKEN_IDENT && p.current.Literal == "export" {
+			p.error("export was renamed to public")
+			p.advance()
+			return nil
 		}
 		p.errorf("expected declaration, got %s", p.current.Type.DisplayName())
 		p.advance()
@@ -154,8 +159,6 @@ func (p *Parser) parseExportDeclaration(reach int) []ast.Declaration {
 		case *ast.StructDecl:
 			d.Reach = reach
 		case *ast.TypeDecl:
-			d.Reach = reach
-		case *ast.ReexportDecl:
 			d.Reach = reach
 		}
 	}
@@ -242,20 +245,8 @@ func (p *Parser) parseExported() []ast.Declaration {
 			break
 		}
 
-		decl := &ast.ReexportDecl{Name: p.current.Literal}
-
-		if p.peek.Type == lexer.TOKEN_AS {
-			p.advance()
-			if !p.expect(lexer.TOKEN_IDENT) {
-				return nil
-			}
-			decl.Alias = p.current.Literal
-		}
-
-		if !p.expect(lexer.TOKEN_SEMICOLON) {
-			return nil
-		}
-		decls = append(decls, decl)
+		p.errorf("expected declaration after public, got %s", p.current.Literal)
+		return nil
 
 	default:
 		if p.isPrimitiveType() {
@@ -267,7 +258,7 @@ func (p *Parser) parseExported() []ast.Declaration {
 			decls = append(decls, decl)
 			break
 		}
-		p.error("expected declaration after export")
+		p.error("expected declaration after public")
 		return nil
 	}
 

@@ -2,7 +2,7 @@
 
 import "std/fmt";
 
-export func demo() {
+public func demo() {
   int limit = 12;
 
   // `if` needs no parentheses around the condition.

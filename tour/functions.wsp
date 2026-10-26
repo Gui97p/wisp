@@ -21,7 +21,7 @@ func minmax(int a, b) (int, int) {
 // A function can be declared after the code that calls it.
 func later() int => 7;
 
-export func demo() {
+public func demo() {
   fmt.printf("add(2, 3) = {}\n", add(2, 3));
   fmt.printf("square(7) = {}\n", square(7));
 

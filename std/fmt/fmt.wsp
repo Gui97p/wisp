@@ -1,9 +1,7 @@
 import "std/os";
 import "std/fmt/writer";
 
-export writer;
-
-export func fprint(int fd, string text) {
+public func fprint(int fd, string text) {
 	char[512] buf;
 	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
 
@@ -11,7 +9,7 @@ export func fprint(int fd, string text) {
 	w.flush() ?? return;
 }
 
-export func fprintln(int fd, string text) {
+public func fprintln(int fd, string text) {
 	char[512] buf;
 	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
 
@@ -20,7 +18,7 @@ export func fprintln(int fd, string text) {
 	w.flush() ?? return;
 }
 
-export func fprintf(int fd, string format, ...args) !int {
+public func fprintf(int fd, string format, ...args) !int {
 	char[512] buf;
 	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
 
@@ -35,7 +33,7 @@ export func fprintf(int fd, string format, ...args) !int {
 	return r;
 }
 
-export func print(string text) {
+public func print(string text) {
 	char[512] buf;
 	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf[:], mode: .Full};
 
@@ -43,7 +41,7 @@ export func print(string text) {
 	w.flush() ?? return;
 }
 
-export func println(string text) {
+public func println(string text) {
 	char[512] buf;
 	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf[:], mode: .Full};
 
@@ -52,18 +50,18 @@ export func println(string text) {
 	w.flush() ?? return;
 }
 
-export func printf(string format, ...args) {
+public func printf(string format, ...args) {
 	fprintf(os.STDOUT, format, args...) ?? return;
 }
 
-export func sprint(char[] buf, string text) ! {
+public func sprint(char[] buf, string text) ! {
 	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.flush() ?? return;
 }
 
-export func sprintln(char[] buf, string text) {
+public func sprintln(char[] buf, string text) {
 	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
@@ -71,7 +69,7 @@ export func sprintln(char[] buf, string text) {
 	w.flush() ?? return;
 }
 
-export func sprintf(char[] buf, string format, ...args) !int {
+public func sprintf(char[] buf, string format, ...args) !int {
 	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
 
 	let r, p = w.format(format, args...);

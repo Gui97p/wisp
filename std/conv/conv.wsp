@@ -1,10 +1,10 @@
-export const IntMax = 0x7FFFFFFFFFFFFFFF;
-export const IntMin = -9223372036854775808;
-export const uint UintMax = ~(0);
+public const IntMax = 0x7FFFFFFFFFFFFFFF;
+public const IntMin = -9223372036854775808;
+public const uint UintMax = ~(0);
 
-export const MaxDigits = 65;
+public const MaxDigits = 65;
 
-export enum ConvError {
+public enum ConvError {
 	Ok,
 	Invalid,
 	Overflow,
@@ -50,7 +50,7 @@ func formatUnsigned(char[] buf, uint n, int base, bool upper) !string {
     return string(buf[0:i]);
 }
 
-export func formatInt(char[] buf, int n, base, bool upper) !string {
+public func formatInt(char[] buf, int n, base, bool upper) !string {
 	if !(base in 2..36) {
 		return Error(ConvError.Invalid);
 	}
@@ -69,18 +69,18 @@ export func formatInt(char[] buf, int n, base, bool upper) !string {
 	return string(buf[0:len(digits)+1]);
 }
 
-export func formatUint(char[] buf, uint n, int base, bool upper) !string {
+public func formatUint(char[] buf, uint n, int base, bool upper) !string {
 	if !(base in 2..36) {
 		return Error(ConvError.Invalid);
 	}
 	return formatUnsigned(buf, n, base, upper)!;
 }
 
-export func itoa(char[] buf, int n) !string {
+public func itoa(char[] buf, int n) !string {
 	return formatInt(buf, n, 10, false)!;
 }
 
-export func utoa(char[] buf, uint n) !string {
+public func utoa(char[] buf, uint n) !string {
 	return formatUint(buf, n, 10, false)!;
 }
 
@@ -100,7 +100,7 @@ func digitValue(char c) int {
     return -1;
 }
 
-export func parseUint(string s, int base) !uint {
+public func parseUint(string s, int base) !uint {
 	if !(base in 2..36) || len(s) == 0 {
 		return Error(ConvError.Invalid);
 	}
@@ -127,7 +127,7 @@ export func parseUint(string s, int base) !uint {
 	return n;
 }
 
-export func parseInt(string s, int base) !int {
+public func parseInt(string s, int base) !int {
 	if len(s) == 0 {
 		return Error(ConvError.Invalid);
 	}
@@ -161,10 +161,10 @@ export func parseInt(string s, int base) !int {
 	return int(mag);
 }
 
-export func atoi(string s) !int {
+public func atoi(string s) !int {
 	return parseInt(s, 10)!;
 }
 
-export func atou(string s) !uint {
+public func atou(string s) !uint {
 	return parseUint(s, 10)!;
 }

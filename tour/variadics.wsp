@@ -17,7 +17,7 @@ func sum(int ...values) int {
   return total;
 }
 
-export func demo() {
+public func demo() {
   fmt.printf("sum(1, 2, 3, 4) = {}\n", sum(1, 2, 3, 4));
   fmt.printf("sum() = {}\n", sum());
 }

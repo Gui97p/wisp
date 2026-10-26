@@ -934,20 +934,19 @@ func main() {
 
 	{dir: "internal_package", files: map[string]string{"shapes/shapes.wsp": `import "shapes/sides";
 import "shapes/deep";
-export sides;
 
-export func boxArea(int w) int {
+public func boxArea(int w) int {
     sides.Box b = sides.Box{w: w, scale: 2};
     return b.w * b.scale;
 }
 
-export func corners(int n) int {
+public func corners(int n) int {
     return deep.twice(sides.count(n)) + sides.hidden() - 1;
 }
 `, "shapes/deep/deep.wsp": `shared func twice(int n) int {
     return n * 2;
 }
-`, "shapes/sides.wsp": `export func count(int n) int {
+`, "shapes/sides.wsp": `public func count(int n) int {
     return n + hidden();
 }
 
@@ -955,7 +954,7 @@ internal func hidden() int {
     return 1;
 }
 
-export struct Box {
+public struct Box {
     int w;
     internal int scale;
 }
@@ -964,7 +963,7 @@ internal func (*Box b) area() int {
     return b.w * b.w;
 }
 
-export func grown(int w) int {
+public func grown(int w) int {
     Box b = Box{w: w};
     return b.area() + 1;
 }
@@ -972,11 +971,11 @@ export func grown(int w) int {
 
 func main() {
     check(shapes.corners(3) == 8, "a package entry reaches its internal files");
-    check(shapes.count(3) == 4, "an entry re-exports what a file exports");
+    check(shapes.count(3) == 4, "a package exposes what its files make public");
     check(shapes.grown(3) == 10, "an internal method works inside its package");
     check(shapes.boxArea(3) == 6, "an internal field is used by the files of its package");
 }
-`, expected: []string{"a package entry reaches its internal files", "an entry re-exports what a file exports", "an internal method works inside its package", "an internal field is used by the files of its package"}},
+`, expected: []string{"a package entry reaches its internal files", "a package exposes what its files make public", "an internal method works inside its package", "an internal field is used by the files of its package"}},
 	{dir: "array_to_slice", x64Only: true, src: `struct Box {
     int[3] items;
 }
@@ -1028,17 +1027,17 @@ func main() {
 `, expected: []string{"main receives the arguments as a string[]"}},
 	{dir: "cyclic_modules", x64Only: true, files: map[string]string{"world.wsp": `import "entity";
 
-export struct World {
+public struct World {
     entity.Entity[4] slots;
     int count;
 }
 
-export func (*World w) add(int hp) {
+public func (*World w) add(int hp) {
     w.slots[w.count] = entity.make(hp);
     w.count++;
 }
 
-export func total(*World w) int {
+public func total(*World w) int {
     int sum;
     for i in 0..w.count - 1 {
         sum += entity.health(w.slots[i]);
@@ -1046,7 +1045,7 @@ export func total(*World w) int {
     return sum;
 }
 
-export func isEven(int n) bool {
+public func isEven(int n) bool {
     if n == 0 {
         return true;
     }
@@ -1054,28 +1053,28 @@ export func isEven(int n) bool {
 }
 `, "entity.wsp": `import "world";
 
-export struct Entity {
+public struct Entity {
     int hp;
     *world.World owner;
 }
 
-export func make(int hp) Entity {
+public func make(int hp) Entity {
     return Entity{hp: hp};
 }
 
-export func health(Entity e) int {
+public func health(Entity e) int {
     return e.hp;
 }
 
-export func attach(*Entity e, *world.World w) {
+public func attach(*Entity e, *world.World w) {
     e.owner = w;
 }
 
-export func worldCount(Entity e) int {
+public func worldCount(Entity e) int {
     return e.owner.count;
 }
 
-export func isOdd(int n) bool {
+public func isOdd(int n) bool {
     if n == 0 {
         return false;
     }
@@ -1098,14 +1097,13 @@ func main() {
 }
 `, expected: []string{"two modules that import each other share their types", "a struct points at a type from the module that imports it", "functions call each other across modules"}},
 	{dir: "methods_across_files", x64Only: true, files: map[string]string{"shapes/shapes.wsp": `import "shapes/shape";
-export shape;
-`, "shapes/shape.wsp": `export struct Shape {
+`, "shapes/shape.wsp": `public struct Shape {
     int w;
     int h;
 }
 `, "shapes/area.wsp": `import "shapes/shape";
 
-export func (*shape.Shape s) area() int {
+public func (*shape.Shape s) area() int {
     return s.w * s.h;
 }
 
@@ -1113,7 +1111,7 @@ func (*shape.Shape s) double() int {
     return s.area() * 2;
 }
 
-export func (*shape.Shape s) twiceArea() int {
+public func (*shape.Shape s) twiceArea() int {
     return s.double();
 }
 `}, src: `import "shapes";
@@ -1264,15 +1262,15 @@ func main() {
     check(true, "free accepts an empty slice");
 }
 `, expected: []string{"return [] gives an empty slice", "a declaration takes the type of the slice", "an assignment can empty a slice", "a struct field can be []", "an argument can be []", "[] is also the zero array", "free accepts an empty slice"}},
-	{dir: "method_modules", files: map[string]string{"counter.wsp": `export struct Counter {
+	{dir: "method_modules", files: map[string]string{"counter.wsp": `public struct Counter {
     int n;
 }
 
-export func (*Counter c) bump(int by) {
+public func (*Counter c) bump(int by) {
     c.n += by;
 }
 
-export func (*Counter c) get() int {
+public func (*Counter c) get() int {
     return c.n;
 }
 
@@ -1280,11 +1278,11 @@ func (*Counter c) doubled() int {
     return c.n * 2;
 }
 
-export func (*Counter c) twice() int {
+public func (*Counter c) twice() int {
     return c.doubled();
 }
 
-export func start(int n) Counter {
+public func start(int n) Counter {
     return Counter{n: n};
 }
 `}, src: `import "counter";
@@ -1447,18 +1445,18 @@ func main() {
 }
 `},
 
-	{dir: "type_modules", files: map[string]string{"units.wsp": `export type Meters int;
+	{dir: "type_modules", files: map[string]string{"units.wsp": `public type Meters int;
 
-export enum Level {
+public enum Level {
     Low,
     High,
 }
 
-export func twice(Meters m) Meters {
+public func twice(Meters m) Meters {
     return Meters(int(m) * 2);
 }
 
-export func isHigh(Level l) bool {
+public func isHigh(Level l) bool {
     return l == .High;
 }
 `}, src: `import "units";
@@ -3770,8 +3768,8 @@ func main() {
 }
 `, expected: []string{"a char can be the zero byte", "newline, carriage return and tab", "an escaped backslash", "an escaped single quote", "an escaped double quote", "a hexadecimal escape", "a lower case hexadecimal escape", "a plain char is unchanged", "the terminator can be stored in a buffer"}},
 
-	{dir: "array_const_size", files: map[string]string{"limits.wsp": `export const Rows = 3;
-export const Cells = Rows * 2;
+	{dir: "array_const_size", files: map[string]string{"limits.wsp": `public const Rows = 3;
+public const Cells = Rows * 2;
 `}, src: `import "limits";
 
 const Width = 4;
@@ -3811,14 +3809,14 @@ func main() {
 }
 `, expected: []string{"a local constant gives the size", "a constant built from an imported one gives the size", "constants size each dimension", "a constant expression gives the size", "a struct field can be sized by constants", "a parameter can be sized by a constant"}},
 
-	{dir: "const_modules", files: map[string]string{"flags.wsp": `export const Read = 1;
-export const Write = 2;
-export const Mask = Read | Write;
+	{dir: "const_modules", files: map[string]string{"flags.wsp": `public const Read = 1;
+public const Write = 2;
+public const Mask = Read | Write;
 `, "tools.wsp": `import "flags";
 
-export const Both = flags.Read | flags.Write;
-export const Copy = flags.Write;
-export const Offset = flags.Mask + 10;
+public const Both = flags.Read | flags.Write;
+public const Copy = flags.Write;
+public const Offset = flags.Mask + 10;
 `}, src: `import "flags";
 import "tools";
 
@@ -3832,20 +3830,20 @@ func main() {
 }
 `, expected: []string{"a constant can be another module's constant", "an expression of imported constants is constant", "a constant built from a constant that was itself built from another", "a constant in the importing module reads the re-exported one"}},
 
-	{dir: "global_modules", files: map[string]string{"store.wsp": `export int hits = 0;
-export string tag = "a";
+	{dir: "global_modules", files: map[string]string{"store.wsp": `public int hits = 0;
+public string tag = "a";
 int hidden = 100;
 
-export func bump() {
+public func bump() {
     hits++;
     hidden++;
 }
 
-export func read() int {
+public func read() int {
     return hits;
 }
 
-export func peek() int {
+public func peek() int {
     return hidden;
 }
 `}, src: `import "store";
@@ -3898,9 +3896,9 @@ func main() {
 }
 `, expected: []string{"literal string data pointer first byte", "literal string data pointer last byte", "literal strings end with a zero byte", "char pointer from a string", "uint8 pointer from a string", "pointer from a string variable", "deref of a converted string"}},
 
-	{dir: "module_const", files: map[string]string{"consts.wsp": `export const Limit = 7;
-export const Name = "w";
-export const On = true;
+	{dir: "module_const", files: map[string]string{"consts.wsp": `public const Limit = 7;
+public const Name = "w";
+public const On = true;
 `}, src: `import "consts";
 
 func main() {
@@ -4386,21 +4384,21 @@ func main() ! {
 }
 `},
 
-	{dir: "interop_export", x64Only: true, cmain: true, files: map[string]string{"lib.wsp": `export func add(int32 a, int32 b) int32 as wisp_add {
+	{dir: "interop_export", x64Only: true, cmain: true, files: map[string]string{"lib.wsp": `public func add(int32 a, int32 b) int32 as wisp_add {
     return a + b;
 }
 
-export func scale(int64 v, int64 k) int64 as wisp_scale => v * k;
+public func scale(int64 v, int64 k) int64 as wisp_scale => v * k;
 
 func local() int32 {
     return 1;
 }
 
-export func next(int32 a) int32 as wisp_next {
+public func next(int32 a) int32 as wisp_next {
     return add(a, local());
 }
 
-export func plain(int32 a) int32 {
+public func plain(int32 a) int32 {
     return a;
 }
 `, "main.c": `#include <stdio.h>

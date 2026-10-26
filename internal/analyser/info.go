@@ -20,7 +20,7 @@ type Info struct {
 	UntilSeesBody map[*ast.LoopStmt]bool
 	EnumValues    map[ast.Expression]EnumValue
 	Scopes        map[ast.Node]*Scope
-	Reexports     map[*ast.ReexportDecl][]string
+	PartExports   map[string][]string
 	SizeOf        map[*ast.CallExpr]Type
 	ConstValues   map[ast.Expression]ConstValue
 	Boxes         map[ast.Expression]Type
@@ -51,7 +51,7 @@ func NewInfo() *Info {
 		UntilSeesBody: make(map[*ast.LoopStmt]bool),
 		EnumValues:    make(map[ast.Expression]EnumValue),
 		Scopes:        make(map[ast.Node]*Scope),
-		Reexports:     make(map[*ast.ReexportDecl][]string),
+		PartExports:   make(map[string][]string),
 		Boxes:         make(map[ast.Expression]Type),
 		TypeCases:     make(map[*ast.BinaryExpr]*TypeCase),
 		Narrowed:      make(map[*Symbol]*Symbol),

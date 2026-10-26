@@ -53,7 +53,7 @@ wisp check                 # parse and analyse only
 wisp clean                 # remove what a build writes (-n lists only)
 wisp env [key]             # what the compiler resolved for this project
 wisp targets               # built-in and project targets
-wisp doc [module [symbol]] # the exported API of a module, with its doc comments
+wisp doc [module [symbol]] # the public API of a module, with its doc comments
 wisp lsp                   # the language server
 ```
 

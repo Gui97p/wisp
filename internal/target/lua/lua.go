@@ -3,6 +3,7 @@ package lua
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -130,14 +131,18 @@ func (t *LuaTarget) writeExports(b *strings.Builder) {
 				fmt.Fprintf(b, "__wisp_module.%s = %s\n", v.Name, v.Name)
 			}
 		case *ast.VarDecl:
-		case *ast.ReexportDecl:
-			if decl.Alias != "" {
-				fmt.Fprintf(b, "__wisp_module.%s = %s\n", decl.Alias, decl.Name)
-				continue
-			}
-			for _, name := range t.info.Reexports[decl] {
-				fmt.Fprintf(b, "__wisp_module.%s = %s.%s\n", name, decl.Name, name)
-			}
+		}
+	}
+
+	parts := make([]string, 0, len(t.info.PartExports))
+	for part := range t.info.PartExports {
+		parts = append(parts, part)
+	}
+	sort.Strings(parts)
+	for i, part := range parts {
+		fmt.Fprintf(b, "local __part%d = require(%q)\n", i, ModuleID(part))
+		for _, name := range t.info.PartExports[part] {
+			fmt.Fprintf(b, "__wisp_module.%s = __part%d.%s\n", name, i, name)
 		}
 	}
 }

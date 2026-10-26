@@ -26,7 +26,7 @@ enum Color {
   Blue,
 }
 
-export func demo() {
+public func demo() {
   fmt.print("print writes a string, ");
   fmt.println("println adds a newline");
 

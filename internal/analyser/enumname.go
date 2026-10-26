@@ -38,7 +38,7 @@ func (a *Analyser) generateEnumNames() {
 func enumNameMethod(td *ast.TypeDecl) *ast.FuncDecl {
 	var src strings.Builder
 	if td.Exported {
-		src.WriteString("export ")
+		src.WriteString("public ")
 	}
 	fmt.Fprintf(&src, "func (%s v) name() string {\n", td.Name)
 	for _, m := range td.Members {

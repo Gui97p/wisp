@@ -311,16 +311,11 @@ func moduleExports(file string, byPath map[string]string, seen map[string]bool, 
 					entries = append(entries, exportEntry{name: v.Name, kind: protocol.CompletionItemKindVariable, detail: "var", internalDir: reachFolder(decl.Reach, file)})
 				}
 			}
-		case *ast.ReexportDecl:
-			if decl.Alias != "" {
-				continue
-			}
-			if importPath, ok := imports[decl.Name]; ok {
-				if target, found := byPath[importPath]; found {
-					entries = append(entries, moduleExports(target, byPath, seen, depth+1)...)
-				}
-			}
 		}
+	}
+
+	if depth == 0 {
+		entries = append(entries, packagePartExports(file, byPath, seen)...)
 	}
 
 	if _, open := fileBuffer[file]; !open && depth == 0 {
@@ -454,4 +449,25 @@ func unimportedModules(path string, scope *analyser.Scope, word string) []protoc
 		items = append(items, it)
 	}
 	return items
+}
+
+func packagePartExports(file string, byPath map[string]string, seen map[string]bool) []exportEntry {
+	dir := filepath.Dir(file)
+	if file != filepath.Join(dir, filepath.Base(dir)+".wsp") {
+		return nil
+	}
+	items, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+
+	var entries []exportEntry
+	for _, item := range items {
+		part := filepath.Join(dir, item.Name())
+		if item.IsDir() || !strings.HasSuffix(part, ".wsp") || part == file {
+			continue
+		}
+		entries = append(entries, moduleExports(part, byPath, seen, 1)...)
+	}
+	return entries
 }

@@ -5,7 +5,7 @@
 // just demonstrated and `expect` prints the sentence when it holds. A
 // sentence that does not hold prints FAIL before it.
 
-export func expect(bool holds, string what) {
+public func expect(bool holds, string what) {
   if holds {
     emit(what);
   } else {

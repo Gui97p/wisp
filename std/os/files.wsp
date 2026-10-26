@@ -9,7 +9,7 @@ func copyPath(*char buf, string path) {
 	buf[len(path)] = '\0';
 }
 
-export func open(string path, int flags) !int {
+public func open(string path, int flags) !int {
 	char[4096] buf;
 	if len(path) > 4095 {
 		return Error(global.IOError.Invalid);
@@ -22,11 +22,11 @@ export func open(string path, int flags) !int {
 	return r;
 }
 
-export func create(string path) !int {
+public func create(string path) !int {
 	return open(path, global.WRITE | global.CREATE | global.TRUNCATE)!;
 }
 
-export func remove(string path) ! {
+public func remove(string path) ! {
 	char[4096] buf;
 	if len(path) > 4095 {
 		return Error(global.IOError.Invalid);
@@ -38,7 +38,7 @@ export func remove(string path) ! {
 	}
 }
 
-export func removeDir(string path) ! {
+public func removeDir(string path) ! {
 	char[4096] buf;
 	if len(path) > 4095 {
 		return Error(global.IOError.Invalid);
@@ -50,7 +50,7 @@ export func removeDir(string path) ! {
 	}
 }
 
-export func readFile(string path) !char[] {
+public func readFile(string path) !char[] {
 	int fd = open(path, global.READ)!;
 	defer close(fd);
 	int size = os.size(fd)!;
@@ -68,6 +68,6 @@ export func readFile(string path) !char[] {
 	return buf[:total];
 }
 
-export func close(int fd) {
+public func close(int fd) {
 	sys.close(fd);
 }

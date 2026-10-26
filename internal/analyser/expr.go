@@ -444,7 +444,7 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 				}
 				owner, _, ownerExported := methodOwner(objType)
 				if ft.Module != a.module && !(ft.Exported && ownerExported) {
-					a.errorf(expr, "method %s of %s is not exported", member.Field, owner)
+					a.errorf(expr, "method %s of %s is not public", member.Field, owner)
 				} else if ft.Module != a.module && ft.InternalDir != "" && !insideDir(a.currentFile, ft.InternalDir) {
 					a.errorf(expr, "method %s of %s is internal to %q", member.Field, owner, filepath.Base(ft.InternalDir))
 				}
@@ -654,7 +654,7 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 				a.errorf(expr, "%s is internal to %q", expr.Field, folder).WithHelp("it is only visible to files under the folder %s", folder)
 				return InvalidType{}
 			}
-			a.suggest(a.errorf(expr, "module has no exported %s", expr.Field), expr.Field, exportNames(mod.Exports))
+			a.suggest(a.errorf(expr, "module has no public %s", expr.Field), expr.Field, exportNames(mod.Exports))
 			return InvalidType{}
 		}
 		a.info.Members[expr] = &MemberInfo{Kind: MemberModule}

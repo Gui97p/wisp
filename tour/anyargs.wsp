@@ -51,7 +51,7 @@ func twice(...args) int {
   return describe(args...) * 2;
 }
 
-export func demo() {
+public func demo() {
   fmt.printf("describe(10, \"abc\", true) = {}\n", describe(10, "abc", true));
   fmt.printf("describe(Color.Green, 1) = {}\n", describe(Color.Green, 1));
   fmt.printf("twice(1, \"ab\") = {}\n", twice(1, "ab"));

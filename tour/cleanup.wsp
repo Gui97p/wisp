@@ -42,7 +42,7 @@ func build(bool fail) !int {
   return 10;
 }
 
-export func demo() {
+public func demo() {
   fmt.printf("order():\n");
   order();
 

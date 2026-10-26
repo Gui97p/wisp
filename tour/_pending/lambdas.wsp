@@ -7,7 +7,7 @@
 
 import "expect";
 
-export func demo() {
+public func demo() {
   let triple = (int x) int => x * 3;
   expect.expect(triple(5) == 15, "a function literal called through a variable");
 }

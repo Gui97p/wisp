@@ -26,7 +26,7 @@ import "std/fmt";
 // assigned again.
 const MaxScore = 100;
 
-export func demo() {
+public func demo() {
   // `let` infers the type from the value; an explicit type works too. The
   // type always comes first, as in `int limit`.
   let total = 2 + 3;

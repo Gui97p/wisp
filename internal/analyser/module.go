@@ -2,7 +2,9 @@ package analyser
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -12,20 +14,96 @@ import (
 type ModuleInfo struct {
 	Exports map[string]*Symbol
 	Pending bool
+
+	own   map[string]*Symbol
+	Parts []*ModuleInfo
+	Entry *ModuleInfo
 }
 
 func (m *ModuleInfo) Replace(exports map[string]*Symbol) {
+	m.own = make(map[string]*Symbol, len(exports))
+	maps.Copy(m.own, exports)
+	m.refresh()
+	if m.Entry != nil {
+		m.Entry.refresh()
+	}
+}
+
+func (m *ModuleInfo) refresh() {
 	if m.Exports == nil {
-		m.Exports = make(map[string]*Symbol, len(exports))
+		m.Exports = make(map[string]*Symbol, len(m.own))
 	}
 	clear(m.Exports)
-	for name, sym := range exports {
+	for name, sym := range m.own {
 		m.Exports[name] = sym
+	}
+	for _, part := range m.Parts {
+		for name, sym := range part.own {
+			if _, taken := m.Exports[name]; !taken {
+				m.Exports[name] = sym
+			}
+		}
+	}
+}
+
+func infoFor(exports map[string]*ModuleInfo, path string) *ModuleInfo {
+	info, ok := exports[path]
+	if !ok {
+		info = &ModuleInfo{Exports: map[string]*Symbol{}}
+		exports[path] = info
+	}
+	return info
+}
+
+func LinkPackage(exports map[string]*ModuleInfo, entry string, parts []string) {
+	entryInfo := infoFor(exports, entry)
+	entryInfo.Parts = entryInfo.Parts[:0]
+	for _, part := range parts {
+		partInfo := infoFor(exports, part)
+		partInfo.Entry = entryInfo
+		entryInfo.Parts = append(entryInfo.Parts, partInfo)
 	}
 }
 
 func (a *Analyser) Exports() map[string]*Symbol {
+	if a.exports != nil {
+		return a.exports
+	}
 	return a.buildExports(false)
+}
+
+func (a *Analyser) checkPartConflicts() {
+	if len(a.parts) == 0 {
+		return
+	}
+
+	owners := map[string]string{}
+	for name := range a.exports {
+		owners[name] = a.module
+	}
+	for _, part := range a.parts {
+		info, ok := a.modules[part]
+		if !ok {
+			continue
+		}
+		names := make([]string, 0, len(info.own))
+		for name := range info.own {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+
+		var visible []string
+		for _, name := range names {
+			if other, taken := owners[name]; taken {
+				file, line, col := a.entryPosition(other, name)
+				a.errors.Add(file, line, col, line, col+len(name), "%s is public in %s and in %s", name, part, other)
+				continue
+			}
+			owners[name] = part
+			visible = append(visible, name)
+		}
+		a.info.PartExports[part] = visible
+	}
 }
 
 func (a *Analyser) buildExports(quiet bool) map[string]*Symbol {
@@ -38,7 +116,7 @@ func (a *Analyser) buildExports(quiet bool) map[string]*Symbol {
 		}
 		if _, exists := exports[name]; exists {
 			if !quiet {
-				a.errorf(node, "%s already declared in exported scope", name)
+				a.errorf(node, "%s already declared in the public scope", name)
 			}
 			return
 		}
@@ -87,32 +165,6 @@ func (a *Analyser) buildExports(quiet bool) map[string]*Symbol {
 				if sym, ok := a.scope.Resolve(v.Name); ok {
 					add(decl, v.Name, sym)
 				}
-			}
-		case *ast.ReexportDecl:
-			if quiet {
-				continue
-			}
-			if decl.Reach != ast.ReachNone {
-				a.errorf(decl, "%s cannot be reexported with a restricted reach", decl.Name)
-				continue
-			}
-			sym, ok := a.scope.Resolve(decl.Name)
-			if !ok {
-				a.errorf(decl, "identifier %s not declared in this scope", decl.Name)
-				continue
-			}
-			if _, ok := sym.Type.(*ModuleType); !ok {
-				a.errorf(decl, "%s is not an imported module", decl.Name)
-				continue
-			}
-			if decl.Alias != "" {
-				add(decl, decl.Alias, sym)
-				continue
-			}
-			mt := sym.Type.(*ModuleType)
-			for name, exp := range mt.Exports {
-				add(decl, name, exp)
-				a.info.Reexports[decl] = append(a.info.Reexports[decl], name)
 			}
 		}
 	}
@@ -273,15 +325,24 @@ func PendingExports(exports map[string]*ModuleInfo, paths []string) {
 		return
 	}
 	for _, path := range paths {
-		exports[path] = &ModuleInfo{Exports: map[string]*Symbol{}, Pending: true}
+		infoFor(exports, path).Pending = true
 	}
 }
 
 func SetExports(exports map[string]*ModuleInfo, path string, module map[string]*Symbol) {
-	if existing, ok := exports[path]; ok {
-		existing.Replace(module)
-		existing.Pending = false
-		return
+	info := infoFor(exports, path)
+	info.Replace(module)
+	info.Pending = false
+}
+
+func (a *Analyser) entryPosition(owner, name string) (string, int, int) {
+	if sym, ok := a.exports[name]; ok && owner == a.module {
+		return sym.File, sym.Line, sym.Col
 	}
-	exports[path] = &ModuleInfo{Exports: module}
+	file := ""
+	for _, d := range a.program.Declarations {
+		file = a.declFiles[d]
+		break
+	}
+	return file, 1, 1
 }

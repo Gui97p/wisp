@@ -62,7 +62,7 @@ const (
 	TOKEN_CONTINUE
 
 	TOKEN_IMPORT
-	TOKEN_EXPORT
+	TOKEN_PUBLIC
 	TOKEN_INTERNAL
 	TOKEN_SHARED
 	TOKEN_AS
@@ -159,7 +159,7 @@ var keywords = map[string]TokenType{
 	"break":    TOKEN_BREAK,
 	"continue": TOKEN_CONTINUE,
 	"import":   TOKEN_IMPORT,
-	"export":   TOKEN_EXPORT,
+	"public":   TOKEN_PUBLIC,
 	"internal": TOKEN_INTERNAL,
 	"shared":   TOKEN_SHARED,
 	"as":       TOKEN_AS,

@@ -22,7 +22,7 @@ enum Color {
   Beta
 }
 
-export func demo() {
+public func demo() {
   // An untyped literal adapts to the alias directly...
   UserID uid = 42;
 

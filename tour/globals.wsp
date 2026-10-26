@@ -19,16 +19,16 @@ int[3] table = [1, 2, 3];
 Settings settings = Settings{retries: 3, verbose: true};
 int untouched;
 
-// `export` makes a global visible to other modules, which can read it and
+// `public` makes a global visible to other modules, which can read it and
 // write it.
-export int total = 100;
+public int total = 100;
 
 func bump() int {
   counter++;
   return counter;
 }
 
-export func demo() {
+public func demo() {
   fmt.printf("untouched starts at {}\n", untouched);
   fmt.printf("bump() = {}\n", bump());
   fmt.printf("bump() = {}\n", bump());
@@ -39,9 +39,9 @@ export func demo() {
   fmt.printf("table[1] = {}, retries = {}, name = {}\n", table[1], settings.retries, name);
 
   total = total + 1;
-  fmt.printf("the exported total is now {}\n", total);
+  fmt.printf("the public total is now {}\n", total);
 
   // A global that nothing uses gets a warning, unless its name starts with an
-  // underscore. That goes for any unused variable or constant. Exported
+  // underscore. That goes for any unused variable or constant. Public
   // globals are never reported, since other modules may use them.
 }

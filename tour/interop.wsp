@@ -25,13 +25,13 @@
 
 import "std/fmt";
 
-export func abs(int x) int {
+public func abs(int x) int {
   int r;
   native lua(out r, in x) "r = x < 0 and -x or x";
   native linux_x64(in x, out r) "mov rax, {x}; mov rcx, rax; sar rcx, 63; xor rax, rcx; sub rax, rcx; mov {r}, rax";
   return r;
 }
 
-export func demo() {
+public func demo() {
   fmt.printf("abs(-5) = {}, abs(5) = {}\n", abs(-5), abs(5));
 }

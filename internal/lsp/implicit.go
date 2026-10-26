@@ -17,7 +17,7 @@ var (
 	armBefore       = regexp.MustCompile(`=>\s*$`)
 	switchWord      = regexp.MustCompile(`\bswitch\b`)
 	returnBefore    = regexp.MustCompile(`\breturn\b[^;]*$`)
-	functionReturns = regexp.MustCompile(`^\s*(?:export\s+)?func\b.*\)\s*!?\s*([A-Za-z_][\w.]*)\s*(?:\{|=>)`)
+	functionReturns = regexp.MustCompile(`^\s*(?:public\s+)?func\b.*\)\s*!?\s*([A-Za-z_][\w.]*)\s*(?:\{|=>)`)
 )
 
 func implicitDotItems(path string, pos protocol.Position, info *analyser.Info) ([]protocol.CompletionItem, bool) {

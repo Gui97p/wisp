@@ -59,6 +59,12 @@ func runDoc(cmd *cobra.Command, args []string) error {
 	var exports map[string]*analyser.Symbol
 	known := map[string]*analyser.ModuleInfo{}
 
+	for _, mod := range modules {
+		if len(mod.Parts) > 0 {
+			analyser.LinkPackage(known, mod.Path, mod.Parts)
+		}
+	}
+
 	for _, group := range module.Groups(modules) {
 		paths := make([]string, len(group))
 		analysers := make([]*analyser.Analyser, len(group))
@@ -75,6 +81,7 @@ func runDoc(cmd *cobra.Command, args []string) error {
 			merged, declFiles := mod.Merge()
 			a := analyser.NewAnalyser(merged, known, declFiles, mod.Path)
 			a.SetImportErrors(mod.ImportErrors)
+			a.SetPackageParts(mod.Parts)
 			analysers[i], merges[i] = a, merged
 		}
 		analyser.AnalyzeGroup(analysers)
@@ -83,7 +90,7 @@ func runDoc(cmd *cobra.Command, args []string) error {
 			analyser.SetExports(known, mod.Path, analysers[i].Exports())
 			for _, f := range mod.FilePaths {
 				if f == files[0] {
-					program, exports = merges[i], analysers[i].Exports()
+					program, exports = merges[i], known[mod.Path].Exports
 				}
 			}
 		}
@@ -102,7 +109,7 @@ func runDoc(cmd *cobra.Command, args []string) error {
 	if len(args) == 2 {
 		sym, ok := exports[args[1]]
 		if !ok {
-			return fmt.Errorf("module %q does not export %q", args[0], args[1])
+			return fmt.Errorf("module %q does not make %q public", args[0], args[1])
 		}
 		printSymbol(args[1], sym, program)
 		return nil

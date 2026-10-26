@@ -25,6 +25,9 @@ type Module struct {
 	ParseError *SourceError
 
 	ImportErrors map[string]string
+
+	Parts  []string
+	PartOf string
 }
 
 func (m *Module) Merge() (*ast.Program, map[ast.Declaration]string) {
@@ -205,6 +208,11 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 
 		for _, sibling := range methodSiblings(root, mod, overrides) {
 			visit(sibling.path, sibling.dir, sibling.files)
+		}
+
+		for _, part := range packageParts(root, mod) {
+			mod.Parts = append(mod.Parts, part.path)
+			visit(part.path, part.dir, part.files)
 		}
 
 		visiting[path] = false
@@ -444,6 +452,31 @@ func (m *Module) methodTargets() []string {
 	return targets
 }
 
+func packageParts(root string, mod *Module) []moduleRoot {
+	if len(mod.FilePaths) == 0 || mod.Dir == "" {
+		return nil
+	}
+	entryFile := filepath.Join(mod.Dir, filepath.Base(mod.Dir)+".wsp")
+	if mod.FilePaths[0] != entryFile {
+		return nil
+	}
+	entries, err := os.ReadDir(mod.Dir)
+	if err != nil {
+		return nil
+	}
+
+	var parts []moduleRoot
+	for _, entry := range entries {
+		file := filepath.Join(mod.Dir, entry.Name())
+		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || file == entryFile {
+			continue
+		}
+		key := importKey(root, strings.TrimSuffix(file, ".wsp"))
+		parts = append(parts, moduleRoot{path: key, dir: mod.Dir, files: []string{file}})
+	}
+	return parts
+}
+
 func methodSiblings(root string, mod *Module, overrides map[string][]byte) []moduleRoot {
 	if len(mod.FilePaths) == 0 || mod.Dir == "" {
 		return nil
@@ -495,6 +528,14 @@ func Groups(modules []*Module) [][]*Module {
 		byPath[m.Path] = m
 	}
 
+	for _, m := range modules {
+		for _, part := range m.Parts {
+			if p, ok := byPath[part]; ok {
+				p.PartOf = m.Path
+			}
+		}
+	}
+
 	contributors := map[string][]string{}
 	for _, m := range modules {
 		for _, target := range m.methodTargets() {
@@ -516,11 +557,12 @@ func Groups(modules []*Module) [][]*Module {
 		stack = append(stack, m)
 		onStack[m.Path] = true
 
-		deps := make([]string, 0, len(m.Imports)+len(contributors[m.Path]))
+		deps := make([]string, 0, len(m.Imports)+len(contributors[m.Path])+len(m.Parts))
 		for _, imp := range m.Imports {
 			deps = append(deps, imp.Path)
 		}
 		deps = append(deps, contributors[m.Path]...)
+		deps = append(deps, m.Parts...)
 
 		for _, depPath := range deps {
 			dep, ok := byPath[depPath]

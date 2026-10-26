@@ -57,7 +57,7 @@ func sumGood(int a, int b) int {
   return total;
 }
 
-export func demo() {
+public func demo() {
   // `??` unwraps the result, falling back to a default value on failure.
   int ok = divide(10, 2) ?? -1;
   int fallback = divide(10, 0) ?? -1;

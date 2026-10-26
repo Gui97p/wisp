@@ -94,6 +94,12 @@ func runDebug(step string, args []string) error {
 		exports := map[string]*analyser.ModuleInfo{}
 		anyErrors := false
 
+		for _, mod := range modules {
+			if len(mod.Parts) > 0 {
+				analyser.LinkPackage(exports, mod.Path, mod.Parts)
+			}
+		}
+
 		for _, group := range module.Groups(modules) {
 			var members []*module.Module
 			for _, mod := range group {
@@ -120,6 +126,7 @@ func runDebug(step string, args []string) error {
 				merged, declFiles := mod.Merge()
 				a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 				a.SetImportErrors(mod.ImportErrors)
+				a.SetPackageParts(mod.Parts)
 				analysers[i] = a
 			}
 			analyser.AnalyzeGroup(analysers)

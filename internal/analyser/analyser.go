@@ -23,13 +23,15 @@ type Analyser struct {
 	untilFrame      int
 	untilSawBody    bool
 
-	mustUse     []*Symbol
-	handlerOK   map[ast.Expression]bool
-	pendingDots map[*ast.DotIdent]bool
+	mustUse      []*Symbol
+	handlerOK    map[ast.Expression]bool
+	pendingDots  map[*ast.DotIdent]bool
 	pendingEmpty map[*ast.ArrayLiteral]bool
 
 	modules map[string]*ModuleInfo
 	links   []*importLink
+	parts   []string
+	exports map[string]*Symbol
 
 	importErrors map[string]string
 	module       string
@@ -43,6 +45,10 @@ type Analyser struct {
 	errors diag.List
 }
 
+func (a *Analyser) SetPackageParts(parts []string) {
+	a.parts = parts
+}
+
 func (a *Analyser) SetImportErrors(errors map[string]string) {
 	a.importErrors = errors
 }
@@ -50,15 +56,15 @@ func (a *Analyser) SetImportErrors(errors map[string]string) {
 func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string, module string) *Analyser {
 	universe := NewScope(nil)
 	return &Analyser{
-		program:     program,
-		info:        NewInfo(),
-		universe:    universe,
-		scope:       NewScope(universe),
-		modules:     modules,
-		declFiles:   declFiles,
-		module:      module,
-		handlerOK:   map[ast.Expression]bool{},
-		pendingDots: map[*ast.DotIdent]bool{},
+		program:      program,
+		info:         NewInfo(),
+		universe:     universe,
+		scope:        NewScope(universe),
+		modules:      modules,
+		declFiles:    declFiles,
+		module:       module,
+		handlerOK:    map[ast.Expression]bool{},
+		pendingDots:  map[*ast.DotIdent]bool{},
 		pendingEmpty: map[*ast.ArrayLiteral]bool{},
 	}
 }
@@ -98,6 +104,8 @@ func AnalyzeGroup(group []*Analyser) {
 		a.reportUnresolvedDots()
 		a.reportUnresolvedEmpty()
 		a.checkMustUse()
+		a.exports = a.buildExports(false)
+		a.checkPartConflicts()
 	}
 }
 
@@ -235,16 +243,9 @@ func (a *Analyser) warnUnused(scope *Scope) {
 }
 
 func (a *Analyser) warnUnusedImports() {
-	reexported := map[string]bool{}
-	for _, d := range a.program.Declarations {
-		if re, ok := d.(*ast.ReexportDecl); ok {
-			reexported[re.Name] = true
-		}
-	}
-
 	for _, d := range a.program.Declarations {
 		imp, ok := d.(*ast.ImportDecl)
-		if !ok || reexported[imp.Alias] {
+		if !ok {
 			continue
 		}
 		sym, ok := a.scope.symbols[imp.Alias]

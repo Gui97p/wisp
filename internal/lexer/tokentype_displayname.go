@@ -95,8 +95,8 @@ func (t TokenType) DisplayName() string {
 		return "continue"
 	case TOKEN_IMPORT:
 		return "import"
-	case TOKEN_EXPORT:
-		return "export"
+	case TOKEN_PUBLIC:
+		return "public"
 	case TOKEN_INTERNAL:
 		return "internal"
 	case TOKEN_SHARED:
