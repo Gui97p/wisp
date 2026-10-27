@@ -1015,8 +1015,15 @@ func main() {
     check(total(grid[1]) == 7, "an array element passes as a slice");
 
     check(total(nums[1:3]) == 50, "an explicit slice still works");
+
+    check(total([4, 5, 6]) == 15, "an array literal passes as a slice");
+
+    char[3] word = ['a', 'b', 'c'];
+    string seen = string(word);
+    word[0] = 'x';
+    check(seen == "xbc", "a char array converts to a string view of itself");
 }
-`, expected: []string{"an array variable passes as a slice", "the slice is a view of the array", "an array initialises a slice variable", "an array is assigned to a slice", "an array field passes as a slice", "an array element passes as a slice", "an explicit slice still works"}},
+`, expected: []string{"an array variable passes as a slice", "the slice is a view of the array", "an array initialises a slice variable", "an array is assigned to a slice", "an array field passes as a slice", "an array element passes as a slice", "an explicit slice still works", "an array literal passes as a slice", "a char array converts to a string view of itself"}},
 	{dir: "main_args", luaOnly: true, src: `func main(string[] args) !int {
     check(len(args) == 0, "main receives the arguments as a string[]");
     for _, a in args {
@@ -3142,6 +3149,107 @@ func main() ! {
 }
 `, expected: []string{"pointer index first", "pointer index second", "pointer index last", "pointer index compound assign", "pointer index through a converted pointer", "pointer index on bytes", "pointer index with a variable", "pointer index struct field a", "pointer index struct field b"}},
 
+	{dir: "strings_core", x64Only: true, src: `import "std/strings";
+
+func main() ! {
+    char[64] buf;
+
+    check(strings.indexOf("hello", "ll") == 2, "indexOf finds the first match");
+    check(strings.indexOf("hello", "") == 0, "indexOf of an empty sub is 0");
+    check(strings.indexOf("abc", "c") == 2, "indexOf finds a match at the end");
+    check(strings.indexOf("abc", "d") == -1, "indexOf misses");
+    check(strings.lastIndexOf("a-b-c", "-") == 3, "lastIndexOf finds the last match");
+    check(strings.count("aaaa", "aa") == 2, "count counts separate matches");
+    check(!strings.startsWith("ab", "abc"), "startsWith longer than the string is false");
+    check(strings.endsWith("hello", "llo"), "endsWith matches the tail");
+    check(strings.compare("ab", "abc") == -1 && strings.compare("b", "abc") == 1, "compare orders by prefix length");
+    check(strings.equalFold("HeLLo", "hello"), "equalFold ignores ASCII case");
+
+    check(strings.trimSpace("  hi \n") == "hi", "trimSpace");
+    check(strings.trim("xxhixx", "x") == "hi", "trim with a charset");
+    check(strings.trimPrefix("prefix-name", "prefix-") == "name", "trimPrefix");
+    check(strings.trimSuffix("name.wsp", ".wsp") == "name", "trimSuffix");
+    let left, right, found = strings.cut("key=value", "=");
+    check(found && left == "key" && right == "value", "cut finds the separator");
+    let whole, rest, missing = strings.cut("novalue", "=");
+    check(!missing && whole == "novalue" && rest == "", "cut without a separator");
+
+    strings.Splitter sp = strings.splitter("a,b,c", ",");
+    int pieces;
+    loop {
+        let piece, ok = sp.next();
+        if !ok {
+            break;
+        }
+        pieces++;
+    }
+    check(pieces == 3, "splitter yields every piece");
+
+    strings.Splitter tail = strings.splitter("a,b,", ",");
+    int tailPieces;
+    string last = "x";
+    loop {
+        let piece, ok = tail.next();
+        if !ok {
+            break;
+        }
+        tailPieces++;
+        last = piece;
+    }
+    check(tailPieces == 3 && last == "", "splitter keeps the trailing empty piece");
+
+    strings.Splitter none = strings.splitter("", ",");
+    let first, firstOk = none.next();
+    let second, secondOk = none.next();
+    check(firstOk && first == "" && !secondOk, "splitter of an empty string yields one piece");
+
+    strings.Splitter bytes = strings.splitter("abc", "");
+    int byteCount;
+    loop {
+        let piece, ok = bytes.next();
+        if !ok {
+            break;
+        }
+        byteCount++;
+    }
+    check(byteCount == 3, "splitter with an empty separator yields bytes");
+
+    check(strings.concat(buf, "ab", "cd")!! == "abcd", "concat");
+    check(strings.concat(buf, "ab", "")!! == "ab", "concat accepts empty parts");
+    char[3] small;
+    string tooBig = strings.concat(small, "abcd") ?? "full";
+    check(tooBig == "full", "concat reports NoSpace");
+    check(strings.join(buf, ["a", "b", "c"], ", ")!! == "a, b, c", "join");
+    check(strings.rep(buf, "ab", 3)!! == "ababab", "rep");
+    check(strings.replace(buf, "a-b-c", "-", "+", -1)!! == "a+b+c", "replace all");
+    check(strings.replace(buf, "a-b-c", "-", "<>", -1)!! == "a<>b<>c", "replace with a longer text");
+    check(strings.replace(buf, "a--b--c", "--", "-", -1)!! == "a-b-c", "replace with a shorter text");
+    check(strings.replace(buf, "a--b--c", "--", "-", 1)!! == "a-b--c", "replace the first only");
+    check(strings.replace(buf, "-a-b", "-", "+", -1)!! == "+a+b", "replace with a leading match");
+    check(strings.upper(buf, "abC")!! == "ABC", "upper");
+    check(strings.lower(buf, "AbC")!! == "abc", "lower");
+
+    char[3] word = ['a', 'b', 'c'];
+    strings.toUpper(word);
+    check(string(word) == "ABC", "toUpper in place");
+    char[4] even = ['a', 'b', 'c', 'd'];
+    strings.reverse(even);
+    check(string(even) == "dcba", "reverse even length");
+    char[5] odd = ['a', 'b', 'c', 'd', 'e'];
+    strings.reverse(odd);
+    check(string(odd) == "edcba", "reverse odd length");
+    char[0] nothing;
+    strings.reverse(nothing);
+    check(len(nothing) == 0, "reverse empty");
+
+    char[] copy = strings.clone("hey")!;
+    check(string(copy) == "hey", "clone copies the bytes");
+    free(copy);
+    char[] empty = strings.clone("")!;
+    check(len(empty) == 0, "clone of an empty string");
+}
+`, expected: []string{"indexOf finds the first match", "indexOf of an empty sub is 0", "indexOf finds a match at the end", "indexOf misses", "lastIndexOf finds the last match", "count counts separate matches", "startsWith longer than the string is false", "endsWith matches the tail", "compare orders by prefix length", "equalFold ignores ASCII case", "trimSpace", "trim with a charset", "trimPrefix", "trimSuffix", "cut finds the separator", "cut without a separator", "splitter yields every piece", "splitter keeps the trailing empty piece", "splitter of an empty string yields one piece", "splitter with an empty separator yields bytes", "concat", "concat accepts empty parts", "concat reports NoSpace", "join", "rep", "replace all", "replace with a longer text", "replace with a shorter text", "replace the first only", "replace with a leading match", "upper", "lower", "toUpper in place", "reverse even length", "reverse odd length", "reverse empty", "clone copies the bytes", "clone of an empty string"}},
+
 	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
     *int8 b = malloc(16)!;
     for i in 0..15 {
@@ -3159,9 +3267,11 @@ func main() ! {
     int hi = 9;
     int8[] u = b[lo:hi];
     check(len(u) == 5, "pointer slice with variable bounds");
+    int8[] head = b[:3];
+    check(len(head) == 3 && head[2] == 4, "pointer slice with the start omitted begins at the pointer");
     free(b);
 }
-`, expected: []string{"pointer slice length", "pointer slice first", "pointer slice last", "pointer slice writes through to the buffer", "slice of a pointer slice", "pointer slice with variable bounds"}},
+`, expected: []string{"pointer slice length", "pointer slice first", "pointer slice last", "pointer slice writes through to the buffer", "slice of a pointer slice", "pointer slice with variable bounds", "pointer slice with the start omitted begins at the pointer"}},
 
 	{dir: "ptr_convert", x64Only: true, src: `struct P {
     int a;

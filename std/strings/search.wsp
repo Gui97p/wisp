@@ -1,0 +1,140 @@
+import "std/math";
+import "std/strings/character";
+
+public func indexOf(string s, sub) int {
+    if sub == "" {
+		return 0;
+	}
+	
+	if len(sub) > len(s) {
+        return -1;
+    }
+
+    int subLen = len(sub);
+    int limit = len(s) - subLen;
+
+    for i in 0..limit {
+        if s[i:i + len(sub)] == sub {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+public func lastIndexOf(string s, sub) int {
+	if sub == "" {
+		return len(s);
+	}
+	
+	if len(sub) > len(s) {
+        return -1;
+    }
+
+	int subLen = len(sub);
+    int limit = len(s) - subLen;
+
+	int last = -1;
+    for i in 0..limit {
+        if s[i:i + len(sub)] == sub {
+            last = i;
+        }
+    }
+
+    return last;
+}
+
+public func indexOfByte(string s, char c) int {
+	for i, ch in s {
+		if c == ch {
+			return i;
+		}
+	}
+	return -1;
+}
+public func lastIndexOfByte(string s, char c) int {
+	int last = -1;
+	for i, ch in s {
+		if c == ch {
+			last = i;
+		}
+	}
+	return last;
+}
+
+public func count(string s, sub) int {
+	if sub == "" {
+		return len(s) + 1;
+	}
+	
+	int total;
+	loop {
+		int idx = indexOf(s, sub);
+		if idx == -1 {
+			break;
+		}
+
+		total++;
+		int nIdx = idx + len(sub);
+		if nIdx >= len(s) {
+			break;
+		}
+
+		s = s[nIdx:];
+	}
+
+	return total;
+}
+
+public func startsWith(string s, prefix) bool {
+	if len(prefix) > len(s) {
+		return false;
+	}
+    return s[:len(prefix)] == prefix;
+}
+public func endsWith(string s, suffix) bool {
+	if len(suffix) > len(s) {
+		return false;
+	}
+    return s[len(s)-len(suffix):] == suffix;
+}
+
+public func compare(string a, b) int {
+	int lenA = len(a);
+    int lenB = len(b);
+    int n = math.min(lenA, lenB);
+
+    for i, c in a[:n] {
+        if c < b[i] {
+            return -1;
+        }
+
+        if c > b[i] {
+            return 1;
+        }
+    }
+
+    if lenA < lenB {
+        return -1;
+    }
+
+    if lenA > lenB {
+        return 1;
+    }
+
+    return 0;
+}
+
+public func equalFold(string a, b) bool {
+    if len(a) != len(b) {
+        return false;
+    }
+
+    for i, c in a {
+		if character.lowerByte(c) != character.lowerByte(b[i]) {
+			return false;
+		}
+    }
+
+    return true;
+}

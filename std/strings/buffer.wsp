@@ -1,0 +1,133 @@
+import "std/strings";
+import "std/strings/character";
+
+public enum StringError {
+	Ok,
+	NoSpace
+}
+
+public func copy(char[] buf, string s) !string {
+	if len(s) > len(buf) {
+		return Error(StringError.NoSpace);
+	}
+	for i, c in s {
+		buf[i] = c;
+	}
+	return string(buf[:len(s)]);
+}
+
+public func concat(char[] buf, string ...parts) !string {
+	int total;
+	for _, part in parts {
+		copy(buf[total:], part)!;
+		total += len(part);
+	}
+	return string(buf[:total]);
+}
+
+public func join(char[] buf, string[] parts, string sep) !string {
+	if len(parts) == 0 {
+		return "";
+	}
+	int total = len(parts[0]);
+	copy(buf, parts[0])!;
+	for _, p in parts[1:] {
+		if sep == "" {
+			total += len(copy(buf[total:], p)!);
+		} else {
+			total += len(concat(buf[total:], sep, p)!);
+		}
+	}
+	return string(buf[:total]);
+}
+
+public func rep(char[] buf, string s, int n) !string {
+	if n <= 0 {
+		return "";
+	}
+
+	if len(s) * n > len(buf) {
+		return Error(StringError.NoSpace);
+	}
+
+	int total;
+	for n {
+		copy(buf[total:], s)!;
+		total += len(s);
+	}
+
+	return string(buf[:total]);
+}
+
+public func replace(char[] buf, string s, old, new, int n) !string {
+	if old == "" {
+		copy(buf, s)!;
+		return string(buf[:len(s)]);
+	}
+
+	strings.Splitter sp = strings.splitter(s, old);
+	int total, count;
+	loop {
+		let next, found = sp.next();
+		if !found {
+			break;
+		}
+		
+		if count > 0 {
+			string chosen = count > n && n >= 0 ? old : new;
+			copy(buf[total:], chosen)!;
+			total += len(chosen);
+		}
+		
+		copy(buf[total:], next)!;
+		total += len(next);
+		count++;
+	}
+
+	return string(buf[:total]);
+}
+
+public func upper(char[] buf, string s) !string {
+	if len(s) > len(buf) {
+		return Error(StringError.NoSpace);
+	}
+	for i, c in s {
+		buf[i] = character.upperByte(c);
+	}
+	return string(buf[:len(s)]);
+}
+public func toUpper(char[] buf) {
+	upper(buf, string(buf))!!;
+}
+
+public func lower(char[] buf, string s) !string {
+	if len(s) > len(buf) {
+		return Error(StringError.NoSpace);
+	}
+	for i, c in s {
+		buf[i] = character.lowerByte(c);
+	}
+	return string(buf[:len(s)]);
+}
+public func toLower(char[] buf) {
+	lower(buf, string(buf))!!;
+}
+
+public func reverse(char[] buf) {
+	int n = len(buf);
+	if n < 2 {
+		return;
+	}
+	for i in 0..n/2-1 {
+		buf[i], buf[n-i-1] = buf[n-i-1], buf[i];
+	}
+}
+
+public func clone(string s) !char[] {
+	if len(s) == 0 {
+		return [];
+	}
+	char[] buf = (*char)(malloc(sizeof(char) * len(s))!)[:len(s)];
+	copy(buf, s)!;
+	return buf;
+}

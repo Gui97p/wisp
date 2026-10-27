@@ -1,0 +1,75 @@
+public func isDigit(char c) bool {
+	return c in '0'..'9';
+}
+
+public func isHex(char c) bool {
+	return c in '0'..'9' || lowerByte(c) in 'a'..'f';
+}
+
+public func isAlpha(char c) bool {
+	return lowerByte(c) in 'a'..'z';
+}
+
+public func isAlphaNumeric(char c) bool {
+	return isAlpha(c) || isDigit(c);
+}
+
+public func isUpper(char c) bool {
+	return c in 'A'..'Z';
+}
+
+public func isLower(char c) bool {
+	return c in 'a'..'z';
+}
+
+public func isSpace(char c) bool {
+	return c in " \t\n\r\v\f";
+}
+
+public func isPrint(char c) bool {
+	return c >= ' ' && c <= '~';
+}
+
+public func upperByte(char c) char {
+	if c in 'a'..'z' {
+		c -= 32;
+	}
+	return c;
+}
+
+public func lowerByte(char c) char {
+	if c in 'A'..'Z' {
+		c += 32;
+	}
+	return c;
+}
+
+public func digitValue(char c, int base) (int, bool) {
+	if !(base in 2..36) {
+		return 0, false;
+	}
+
+	if c in '0'..'9' {
+		int v = c - '0';
+
+		if v < base {
+			return v, true;
+		}
+
+		return 0, false;
+	}
+
+	if c in 'a'..'z' {
+		c -= 32;
+	}
+
+	if c in 'A'..'Z' {
+		int v = c - 'A' + 10;
+
+		if v < base {
+			return v, true;
+		}
+	}
+
+	return 0, false;
+}
