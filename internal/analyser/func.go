@@ -140,6 +140,7 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 
 	a.checkBlock(fd.Body)
 	a.warnUnusedParams(fd, declared)
+	a.warnInfiniteRecursion(fd)
 
 	if len(ft.Returns) > 0 && !blockTerminates(fd.Body) {
 		a.errorAtEnd(fd.Body, "missing return at end of function %s", fd.Name)
