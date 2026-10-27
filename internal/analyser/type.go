@@ -500,3 +500,10 @@ func isAddressable(expr ast.Expression) bool {
 		return false
 	}
 }
+
+func sliceable(expr ast.Expression) bool {
+	if _, literal := expr.(*ast.ArrayLiteral); literal {
+		return true
+	}
+	return isAddressable(expr)
+}

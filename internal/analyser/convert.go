@@ -257,7 +257,7 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 	}
 
 	if at, isArray := from.(ArrayType); isArray {
-		if st, isSpan := to.(SpanType); isSpan && at.Element.Equals(st.Element) && isAddressable(*slot) {
+		if st, isSpan := to.(SpanType); isSpan && at.Element.Equals(st.Element) && sliceable(*slot) {
 			a.insertSlice(slot, st)
 			return true
 		}
@@ -508,6 +508,12 @@ func (a *Analyser) checkConversion(expr *ast.CallExpr, target Type) Type {
 	from := a.checkExpr(expr.Args[0])
 	if _, bad := from.(InvalidType); bad {
 		return target
+	}
+
+	if at, isArray := from.(ArrayType); isArray && isString(target) && isByteLike(at.Element) && isAddressable(expr.Args[0]) {
+		span := SpanType{Element: at.Element}
+		a.insertSlice(&expr.Args[0], span)
+		from = span
 	}
 
 	if !explicitConversion(from, target) {

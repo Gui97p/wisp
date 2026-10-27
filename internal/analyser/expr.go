@@ -772,8 +772,8 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 			a.error(expr, "cannot slice *void: convert it to a typed pointer first")
 			return InvalidType{}
 		}
-		if expr.Start == nil || expr.End == nil {
-			a.error(expr, "slicing a pointer needs both bounds, as in p[a:b]")
+		if expr.End == nil {
+			a.error(expr, "slicing a pointer needs an end, as in p[:n]")
 			return InvalidType{}
 		}
 		a.checkConstSlice(expr, -1)

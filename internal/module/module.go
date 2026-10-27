@@ -300,6 +300,11 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 			if p != root && (strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
 				return filepath.SkipDir
 			}
+			if p != root {
+				if _, err := os.Stat(filepath.Join(p, "wisp.toml")); err == nil {
+					return filepath.SkipDir
+				}
+			}
 			return nil
 		}
 		if !strings.HasSuffix(p, ".wsp") {
