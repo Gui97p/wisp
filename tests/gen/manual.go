@@ -1262,6 +1262,21 @@ func main() {
     check(true, "free accepts an empty slice");
 }
 `, expected: []string{"return [] gives an empty slice", "a declaration takes the type of the slice", "an assignment can empty a slice", "a struct field can be []", "an argument can be []", "[] is also the zero array", "free accepts an empty slice"}},
+	{dir: "in_array_literal", src: `func isSpace(char ch) bool {
+    return ch in [' ', '\n', '\r', '\t'];
+}
+
+func small(int n) bool {
+    return n in [1, 2, 3];
+}
+
+func main() {
+    check(isSpace(' ') && isSpace('\t'), "a char is found in a literal of chars");
+    check(!isSpace('x'), "a char that is not in the literal");
+    check(small(2) && !small(9), "an int in a literal of ints");
+    check(!(7 in [1, 2]), "a literal used directly in the expression");
+}
+`, expected: []string{"a char is found in a literal of chars", "a char that is not in the literal", "an int in a literal of ints", "a literal used directly in the expression"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `public struct Counter {
     int n;
 }
