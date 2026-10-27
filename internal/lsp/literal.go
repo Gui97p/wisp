@@ -83,10 +83,10 @@ func scanState(text string) (int, int) {
 				state = code
 			}
 		case char:
-			switch {
-			case c == '\\':
+			switch c {
+			case '\\':
 				i++
-			case c == '\'' || c == '\n':
+			case '\'', '\n':
 				state = code
 			}
 		}
