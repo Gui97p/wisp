@@ -11,7 +11,7 @@ import (
 )
 
 func (t *X64Target) useChars() string {
-	label, ok := t.createData("__wisp_chars", "")
+	label, ok := t.createData("__wisp_chars", [0]struct{}{})
 	if !ok {
 		t.rodata.printf("%s db ", label)
 		for i := range 255 {

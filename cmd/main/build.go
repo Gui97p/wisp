@@ -38,9 +38,10 @@ var buildCmd = &cobra.Command{
 }
 
 var runCmd = &cobra.Command{
-	Use:          "run",
+	Use:          "run [flags] [-- program arguments]",
 	Short:        "Compile the project for a target and run the result",
-	Args:         cobra.NoArgs,
+	Long:         "Compile the project for a target and run the result. Whatever follows -- is passed to the program as its arguments: wisp run -- input.txt",
+	Args:         cobra.ArbitraryArgs,
 	RunE:         runRun,
 	SilenceUsage: true,
 }
@@ -183,16 +184,21 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 	detail("Finished %s -> %s in %s", res.target, relPath(res.product), elapsed(start))
 
+	programArgs, err := programArguments(cmd, args)
+	if err != nil {
+		return err
+	}
+
 	var run *exec.Cmd
 	if res.binPath != "" {
-		run = exec.Command(resolveExecutable(res.binPath))
+		run = exec.Command(resolveExecutable(res.binPath), programArgs...)
 	} else {
 		rel, err := filepath.Rel(res.luaDir, res.luaEntry)
 		if err != nil {
 			return err
 		}
 		detail("Running %s", relPath(res.luaEntry))
-		run = exec.Command("lua", rel)
+		run = exec.Command("lua", append([]string{rel}, programArgs...)...)
 		run.Dir = res.luaDir
 	}
 
@@ -424,4 +430,18 @@ func appendUnique(list []string, item string) []string {
 		return list
 	}
 	return append(list, item)
+}
+
+func programArguments(cmd *cobra.Command, args []string) ([]string, error) {
+	dash := cmd.ArgsLenAtDash()
+	if dash < 0 {
+		if len(args) > 0 {
+			return nil, fmt.Errorf("unexpected argument %q: pass the program's arguments after --, as in wisp run -- %s", args[0], strings.Join(args, " "))
+		}
+		return nil, nil
+	}
+	if dash > 0 {
+		return nil, fmt.Errorf("unexpected argument %q before --", args[0])
+	}
+	return args[dash:], nil
 }
