@@ -1,4 +1,5 @@
 import "std/sys";
+import "std/errors";
 
 public const STDIN = 0;
 public const STDOUT = 1;
@@ -16,13 +17,20 @@ public const SEEK_START = sys.SEEK_SET;
 public const SEEK_CURRENT = sys.SEEK_CUR;
 public const SEEK_END = sys.SEEK_END;
 
+public enum FileKind { File, Dir, Link, Other }
+public struct Stat {
+	FileKind kind;
+	int size, modified, mode;
+}
+
 public enum IOError {
-	Ok,
-	NotFound,
+	NotFound = 1,
 	Denied,
 	Exists,
 	Interrupted,
-	Invalid,
+	NotDir,
+	IsDir,
+	NotEmpty,
 	IO
 }
 
@@ -32,7 +40,10 @@ public func errorIO(int code) Error {
 		case 1, 13 => Error(IOError.Denied),
 		case 17 => Error(IOError.Exists),
 		case 4 => Error(IOError.Interrupted),
-		case 22, 36 => Error(IOError.Invalid),
+		case 22, 34, 36 => Error(errors.Kind.Invalid),
+		case 20 => Error(IOError.NotDir),
+		case 21 => Error(IOError.IsDir),
+		case 39 => Error(IOError.NotEmpty),
 		default => Error(IOError.IO)
 	};
 }

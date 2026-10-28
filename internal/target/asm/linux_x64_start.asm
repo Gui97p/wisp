@@ -6,6 +6,7 @@ _start:
 	xor ebp, ebp
 	mov edi, [rsp]
 	lea rsi, [rsp+8]
+	lea rdx, [rsi+rdi*8+8]
 	call main
 	mov rdi, rax
 	mov eax, 60

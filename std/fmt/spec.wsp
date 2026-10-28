@@ -18,8 +18,7 @@ internal struct Spec {
 }
 
 internal enum SpecError {
-	Ok,
-	UnknownType,
+	UnknownType = 1,
 	BadNumber,
 	Trailing,
 	NotForType

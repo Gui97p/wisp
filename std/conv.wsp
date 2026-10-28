@@ -1,15 +1,10 @@
+import "std/errors";
+
 public const IntMax = 0x7FFFFFFFFFFFFFFF;
 public const IntMin = -9223372036854775808;
 public const uint UintMax = ~(0);
 
 public const MaxDigits = 65;
-
-public enum ConvError {
-	Ok,
-	Invalid,
-	Overflow,
-	NoSpace
-}
 
 func formatUnsigned(char[] buf, uint n, int base, bool upper) !string {
     int i = 0;
@@ -20,7 +15,7 @@ func formatUnsigned(char[] buf, uint n, int base, bool upper) !string {
     loop n != 0 {
         uint rem = n % uint(base);
 		if i >= len(buf) {
-			return Error(ConvError.NoSpace);
+			return Error(errors.Kind.NoSpace);
 		}
         buf[i] = digits[rem];
         i += 1;
@@ -29,7 +24,7 @@ func formatUnsigned(char[] buf, uint n, int base, bool upper) !string {
 
     if i == 0 {
 		if len(buf) == 0 {
-			return Error(ConvError.NoSpace);
+			return Error(errors.Kind.NoSpace);
 		}
         buf[i] = '0';
         i += 1;
@@ -52,7 +47,7 @@ func formatUnsigned(char[] buf, uint n, int base, bool upper) !string {
 
 public func formatInt(char[] buf, int n, base, bool upper) !string {
 	if !(base in 2..36) {
-		return Error(ConvError.Invalid);
+		return Error(errors.Kind.Invalid);
 	}
 
 	if n >= 0 {
@@ -60,7 +55,7 @@ public func formatInt(char[] buf, int n, base, bool upper) !string {
 	}
 
 	if len(buf) < 2 {
-		return Error(ConvError.NoSpace);
+		return Error(errors.Kind.NoSpace);
 	}
 
 	uint mag = uint(-(n+1)) + 1;
@@ -71,7 +66,7 @@ public func formatInt(char[] buf, int n, base, bool upper) !string {
 
 public func formatUint(char[] buf, uint n, int base, bool upper) !string {
 	if !(base in 2..36) {
-		return Error(ConvError.Invalid);
+		return Error(errors.Kind.Invalid);
 	}
 	return formatUnsigned(buf, n, base, upper)!;
 }
@@ -102,7 +97,7 @@ func digitValue(char c) int {
 
 public func parseUint(string s, int base) !uint {
 	if !(base in 2..36) || len(s) == 0 {
-		return Error(ConvError.Invalid);
+		return Error(errors.Kind.Invalid);
 	}
 
 	uint n = 0;
@@ -112,13 +107,13 @@ public func parseUint(string s, int base) !uint {
 		int d = digitValue(s[i]);
 
 		if d < 0 || d >= base {
-			return Error(ConvError.Invalid);
+			return Error(errors.Kind.Invalid);
 		}
 
 		uint digit = uint(d);
 
 		if n > (UintMax - digit) / b {
-			return Error(ConvError.Overflow);
+			return Error(errors.Kind.Overflow);
 		}
 
 		n = n * b + digit;
@@ -129,7 +124,7 @@ public func parseUint(string s, int base) !uint {
 
 public func parseInt(string s, int base) !int {
 	if len(s) == 0 {
-		return Error(ConvError.Invalid);
+		return Error(errors.Kind.Invalid);
 	}
 
 	bool neg = s[0] == '-';
@@ -144,7 +139,7 @@ public func parseInt(string s, int base) !int {
 		uint limit = uint(-(IntMin + 1)) + 1;
 
 		if mag > limit {
-			return Error(ConvError.Overflow);
+			return Error(errors.Kind.Overflow);
 		}
 
 		if mag == limit {
@@ -155,7 +150,7 @@ public func parseInt(string s, int base) !int {
 	}
 
 	if mag > uint(IntMax) {
-		return Error(ConvError.Overflow);
+		return Error(errors.Kind.Overflow);
 	}
 
 	return int(mag);

@@ -250,6 +250,9 @@ func memberBase(prefix string) (string, bool) {
 	if end == 0 || prefix[end-1] != '.' {
 		return "", false
 	}
+	if end >= 2 && prefix[end-2] == '.' {
+		return "", false
+	}
 	start := end - 1
 	for start > 0 && (isIdentByte(prefix[start-1]) || (prefix[start-1] == '.' && start > 1 && isIdentByte(prefix[start-2]))) {
 		start--

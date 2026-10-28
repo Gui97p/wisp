@@ -1070,7 +1070,7 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 
 	if code.Bits() == 0 {
 		a.warnf(expr.Args[0], "error code %s.%s is 0, so an unhandled error exits with status 0 (success)", enum.Name, member).
-			WithHelp("put a success member such as Ok first in the enum, or start the error members after it")
+			WithHelp("start the error members at 1, as in `First = 1`")
 	}
 
 	if len(expr.Args) == 2 {

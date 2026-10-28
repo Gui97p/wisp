@@ -1,14 +1,18 @@
 import "std/sys";
 import "std/os/global";
 
+internal func toNs(int s, ns) int {
+	return s * 1_000_000_000 + ns;
+}
+
 public func now() int {
 	int s, ns = sys.time(sys.CLOCK_REALTIME);
-	return s * 1_000_000_000 + ns;
+	return toNs(s, ns);
 }
 
 public func ticks() int {
 	int s, ns = sys.time(sys.CLOCK_MONOTONIC);
-	return s * 1_000_000_000 + ns;
+	return toNs(s, ns);
 }
 
 public func sleep(int ms) ! {
@@ -16,4 +20,8 @@ public func sleep(int ms) ! {
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
+}
+
+public func exit(int code) {
+	sys.exit(code);
 }

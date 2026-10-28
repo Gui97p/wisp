@@ -47,6 +47,15 @@ func (a *Analyser) checkDotIdent(expr *ast.DotIdent) Type {
 }
 
 func (a *Analyser) resolveDot(expr ast.Expression, to Type) bool {
+	if ternary, isTernary := expr.(*ast.TernaryExpr); isTernary {
+		if _, stillImplicit := to.(ImplicitEnumType); stillImplicit {
+			return true
+		}
+		a.resolveDot(ternary.Then, to)
+		a.resolveDot(ternary.Else, to)
+		a.info.Types[ternary] = to
+		return true
+	}
 	node, ok := expr.(*ast.DotIdent)
 	if !ok {
 		return false

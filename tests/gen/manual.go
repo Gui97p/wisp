@@ -3250,6 +3250,54 @@ func main() ! {
 }
 `, expected: []string{"indexOf finds the first match", "indexOf of an empty sub is 0", "indexOf finds a match at the end", "indexOf misses", "lastIndexOf finds the last match", "count counts separate matches", "startsWith longer than the string is false", "endsWith matches the tail", "compare orders by prefix length", "equalFold ignores ASCII case", "trimSpace", "trim with a charset", "trimPrefix", "trimSuffix", "cut finds the separator", "cut without a separator", "splitter yields every piece", "splitter keeps the trailing empty piece", "splitter of an empty string yields one piece", "splitter with an empty separator yields bytes", "concat", "concat accepts empty parts", "concat reports NoSpace", "join", "rep", "replace all", "replace with a longer text", "replace with a shorter text", "replace the first only", "replace with a leading match", "upper", "lower", "toUpper in place", "reverse even length", "reverse odd length", "reverse empty", "clone copies the bytes", "clone of an empty string"}},
 
+	{dir: "enum_dot_ternary", src: `enum Kind {
+    File,
+    Dir,
+    Other
+}
+
+func pick(int m) Kind {
+    return switch m {
+        case 1 => .File,
+        case 2 => .Dir,
+        default => .Other
+    };
+}
+
+func is(Kind k, Kind want) bool {
+    return k == want;
+}
+
+func main() {
+    int m = 2;
+    Kind k = switch m {
+        case 1 => .File,
+        default => .Dir
+    };
+    check(k == Kind.Dir, "a switch expression infers .Member from the declared type");
+    check(pick(1) == Kind.File && pick(3) == Kind.Other, "a switch expression infers .Member from the return type");
+    Kind t = m == 2 ? .Dir : .File;
+    check(t == Kind.Dir, "a ternary infers .Member from the declared type");
+    Kind u = Kind.File;
+    u = m == 1 ? .File : .Other;
+    check(u == Kind.Other, "a ternary infers .Member in an assignment");
+    check(is(Kind.Other, m == 2 ? .Other : .File), "a ternary infers .Member as an argument");
+    check(pick(2) == (m > 1 ? .Dir : .File), "a ternary infers .Member on the side of a comparison");
+}
+`, expected: []string{"a switch expression infers .Member from the declared type", "a switch expression infers .Member from the return type", "a ternary infers .Member from the declared type", "a ternary infers .Member in an assignment", "a ternary infers .Member as an argument", "a ternary infers .Member on the side of a comparison"}},
+
+	{dir: "os_getenv", x64Only: true, src: `import "std/os";
+
+func main() {
+    let path, found = os.getenv("PATH");
+    check(found && len(path) > 0, "getenv finds a variable that is always set");
+    let none, missing = os.getenv("WISP_SURELY_UNSET_VARIABLE");
+    check(!missing && none == "", "getenv of a missing variable is false");
+    let part, partial = os.getenv("PAT");
+    check(!partial && part == "", "getenv does not match a prefix of a name");
+}
+`, expected: []string{"getenv finds a variable that is always set", "getenv of a missing variable is false", "getenv does not match a prefix of a name"}},
+
 	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
     *int8 b = malloc(16)!;
     for i in 0..15 {
@@ -3532,6 +3580,7 @@ func main() {
 
 	{dir: "fmt_core", x64Only: true, src: `import "std/fmt";
 import "std/os";
+import "std/errors";
 
 enum Color {
     Red,
@@ -3640,7 +3689,7 @@ func main() {
     check(e1 == null && n == 4, "sprintf returns the byte count");
     char[3] tiny;
     let _, e2 = fmt.sprintf(tiny[:], "abcdef");
-    check(e2 == fmt.FormatError.NoSpace, "sprintf into a buffer that is too small is NoSpace");
+    check(e2 == errors.Kind.NoSpace, "sprintf into a buffer that is too small is NoSpace");
 
     char[32] mem;
     fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], mode: fmt.BufMode.Full};
@@ -3651,7 +3700,7 @@ func main() {
     char[4] narrow;
     fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[:], mode: fmt.BufMode.Full};
     let _, e3 = ws.format("abcde");
-    check(e3 == fmt.FormatError.NoSpace, "a memory writer that fills up is NoSpace");
+    check(e3 == errors.Kind.NoSpace, "a memory writer that fills up is NoSpace");
 
     let file, _ = os.create("fmt_core.txt");
     char[64] store;

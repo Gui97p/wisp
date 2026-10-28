@@ -5,6 +5,7 @@ global __wisp_malloc
 global __wisp_free
 global __wisp_realloc
 extern __wisp_main
+global __wisp_envp
 
 global main
 
@@ -39,6 +40,7 @@ section .bss
 __wisp_heap_list: resq 11
 __wisp_heap_cur: resq 1
 __wisp_heap_end: resq 1
+__wisp_envp: resq 1
 
 section .text
 __wisp_mmap:
@@ -309,6 +311,7 @@ __wisp_utoa:
 main:
 	push rbp
 	mov rbp, rsp
+	mov [rel __wisp_envp], rdx
 
 	mov r9, rdi
 	imul r9, 16

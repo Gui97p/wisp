@@ -5,11 +5,10 @@ import "std/conv";
 import "std/os";
 import "std/mem";
 import "std/math";
+import "std/errors";
 
 public enum FormatError {
-	Ok,
-	NoSpace,
-	Unmatched,
+	Unmatched = 1,
 	BadSpec,
 	WrongType,
 	UnsupportedType,
@@ -36,7 +35,7 @@ func (*Writer w) put(*char c, int n) ! {
 
 	if w.fd < 0 {
 		if len(w.buf) - w.len < n {
-			return Error(FormatError.NoSpace);
+			return Error(errors.Kind.NoSpace);
 		}
 		mem.copy((*char)(w.buf) + w.len, c, n);
 		w.total += n;
@@ -180,7 +179,7 @@ func (*Writer w) putPointer(char[] buf, *void v, spec.Spec s) !bool {
 public func (*Writer w) format(string format, ...args) !int {
 	char[conv.MaxDigits] buf;
 	int argIndex;
-	FormatError problem;
+	Error problem;
 	cursor.Cursor c = cursor.Cursor{text: format};
 	int start = w.total;
 
@@ -201,8 +200,8 @@ public func (*Writer w) format(string format, ...args) !int {
 
 		if c.peek() == '}' {
 			w.writeByte('}')!;
-			if problem == .Ok {
-				problem = .Unmatched;
+			if problem == null {
+				problem = Error(FormatError.Unmatched);
 			}
 			c.advance();
 			continue;
@@ -214,8 +213,8 @@ public func (*Writer w) format(string format, ...args) !int {
 
 		if !c.advanceUntil('}') {
 			w.write(c.since(open))!;
-			if problem == .Ok {
-				problem = .Unmatched;
+			if problem == null {
+				problem = Error(FormatError.Unmatched);
 			}
 			break;
 		}
@@ -227,8 +226,8 @@ public func (*Writer w) format(string format, ...args) !int {
 		spec.Spec s = spec.parse(text) ?? {
 			w.write(all)!;
 			argIndex++;
-			if problem == .Ok {
-				problem = .BadSpec;
+			if problem == null {
+				problem = Error(FormatError.BadSpec);
 			}
 			continue;
 		};
@@ -239,7 +238,7 @@ public func (*Writer w) format(string format, ...args) !int {
 		}
 
 		bool ok;
-		FormatError bad = .WrongType;
+		Error bad = Error(FormatError.WrongType);
 		switch let v = args[argIndex] {
 			case int:   ok = w.putInt(buf[:], v, s)!;
 			case uint:  ok = w.putUint(buf[:], v, s)!;
@@ -247,31 +246,23 @@ public func (*Writer w) format(string format, ...args) !int {
 			case bool:  ok = w.putBool(v, s)!;
 			case string: ok = w.putString(v, s)!;
 			case *void: ok = w.putPointer(buf[:], v, s)!;
-			default:    bad = .UnsupportedType;
+			default:    bad = Error(FormatError.UnsupportedType);
 		}
 		argIndex++;
 		if !ok {
 			w.write(all)!;
-			if problem == .Ok {
+			if problem == null {
 				problem = bad;
 			}
 		}
 	}
 
-	if argIndex < len(args) && problem == .Ok {
-		problem = .ExtraArgument;
+	if argIndex < len(args) && problem == null {
+		problem = Error(FormatError.ExtraArgument);
 	}
 
-	if problem != .Ok {
-		return switch problem {
-			case .NoSpace => Error(FormatError.NoSpace),
-			case .Unmatched => Error(FormatError.Unmatched),
-			case .BadSpec => Error(FormatError.BadSpec),
-			case .WrongType => Error(FormatError.WrongType),
-			case .UnsupportedType => Error(FormatError.UnsupportedType),
-			case .ExtraArgument => Error(FormatError.ExtraArgument),
-			default => null
-		};
+	if problem != null {
+		return problem;
 	}
 
 	return w.total - start;

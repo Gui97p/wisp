@@ -35,6 +35,10 @@ public func read(int fd, char[] buf) !int {
 	return r;
 }
 
+public func close(int fd) {
+	sys.close(fd);
+}
+
 public func seek(int fd, offset, whence) !int {
 	int r = sys.seek(fd, offset, whence);
 	if r < 0 {
@@ -60,8 +64,4 @@ public func sync(int fd) ! {
 
 public func isatty(int fd) bool {
 	return sys.isatty(fd);
-}
-
-public func exit(int code) {
-	sys.exit(code);
 }
