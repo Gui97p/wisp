@@ -129,13 +129,16 @@ func wordIndex(text, word string) int {
 
 func symbolAt(program *ast.Program, info *analyser.Info, src []byte, line, col int) *analyser.Symbol {
 	if expr := exprInProgram(program, line, col); expr != nil {
-		if id, ok := expr.(*ast.IdentLiteral); ok {
+		if id, ok := expr.(*ast.IdentLiteral); ok && !id.Synthetic {
 			if sym := info.Idents[id]; sym != nil {
 				return sym
 			}
 		}
 	}
 	for sym := range allSymbols(info) {
+		if strings.HasPrefix(sym.Name, "__wisp_") {
+			continue
+		}
 		s, ok := declSite(sym, info, src)
 		if ok && s.line == line && col >= s.col && col < s.col+len(sym.Name) {
 			return sym

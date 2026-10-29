@@ -10,6 +10,12 @@ import (
 func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expression) {
 	block := &ast.BlockStmt{}
 
+	if p.current.Type == lexer.TOKEN_LBRACE {
+		block.SetPos(line, col)
+		block.SetEndPos(p.currentEnd())
+		return block, nil
+	}
+
 	name := fmt.Sprintf("__wisp_switch_%d", p.switchNameCount)
 	var nameLine, nameCol, nameEndLine, nameEndCol int
 	if p.current.Type == lexer.TOKEN_LET {
@@ -49,7 +55,7 @@ func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expressio
 	block.SetPos(line, col)
 	block.SetEndPos(p.currentEnd())
 
-	ident := &ast.IdentLiteral{Value: name}
+	ident := &ast.IdentLiteral{Value: name, Synthetic: true}
 	ident.SetPos(line, col)
 	ident.SetEndPos(p.currentEnd())
 
@@ -90,6 +96,15 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 	p.advance()
 	p.advance()
 
+	if value == nil {
+		expr := p.parseExpression()
+		if expr != nil && p.peek.Type == lexer.TOKEN_RANGE {
+			p.errorf("a range needs a switch value to compare against")
+			return nil
+		}
+		return expr
+	}
+
 	if p.startsTypeLabel() {
 		labelLine, labelCol := p.current.Line, p.current.Column
 		ref := p.parseTypeDefinitionPrefix()
@@ -101,7 +116,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 		label.SetPos(labelLine, labelCol)
 		label.SetEndPos(p.currentEnd())
 
-		match := &ast.BinaryExpr{Left: value, Operator: "==", Right: label}
+		match := &ast.BinaryExpr{Left: value, Operator: "==", Right: label, Synthetic: true}
 		match.SetPos(line, col)
 		match.SetEndPos(p.currentEnd())
 		return match
@@ -122,32 +137,36 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 		}
 
 		left := &ast.BinaryExpr{
-			Left:     value,
-			Operator: ">=",
-			Right:    expr,
+			Synthetic: true,
+			Left:      value,
+			Operator:  ">=",
+			Right:     expr,
 		}
 		left.SetPos(line, col)
 		left.SetEndPos(p.currentEnd())
 		right := &ast.BinaryExpr{
-			Left:     value,
-			Operator: "<=",
-			Right:    end,
+			Synthetic: true,
+			Left:      value,
+			Operator:  "<=",
+			Right:     end,
 		}
 		right.SetPos(line, col)
 		right.SetEndPos(p.currentEnd())
 
 		expr = &ast.BinaryExpr{
-			Left:     left,
-			Operator: "&&",
-			Right:    right,
+			Synthetic: true,
+			Left:      left,
+			Operator:  "&&",
+			Right:     right,
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
 		expr.(*ast.BinaryExpr).SetEndPos(p.currentEnd())
 	} else {
 		expr = &ast.BinaryExpr{
-			Left:     value,
-			Operator: "==",
-			Right:    expr,
+			Synthetic: true,
+			Left:      value,
+			Operator:  "==",
+			Right:     expr,
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
 		expr.(*ast.BinaryExpr).SetEndPos(p.currentEnd())
@@ -166,9 +185,10 @@ func (p *Parser) parseCaseExpression(value ast.Expression, line, col int) ast.Ex
 		}
 
 		expr = &ast.BinaryExpr{
-			Left:     expr,
-			Operator: "||",
-			Right:    right,
+			Synthetic: true,
+			Left:      expr,
+			Operator:  "||",
+			Right:     right,
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
 		expr.(*ast.BinaryExpr).SetEndPos(p.currentEnd())

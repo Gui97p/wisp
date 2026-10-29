@@ -6,7 +6,8 @@ import (
 )
 
 type IdentLiteral struct {
-	Value string
+	Value     string
+	Synthetic bool
 
 	NodePos
 }

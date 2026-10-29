@@ -38,4 +38,23 @@ public func demo() {
     default => 0,
   };
   fmt.printf("doubled is {}\n", doubled);
+
+  // A `switch` with no value puts a condition in each case, and the first one
+  // that is true wins. A comma between conditions means "or". It works as a
+  // statement and as an expression, and the expression still needs `default`.
+  switch {
+    case limit < 10:
+      fmt.printf("under ten\n");
+    case limit < 20, limit == 100:
+      fmt.printf("under twenty, or exactly one hundred\n");
+    default:
+      fmt.printf("twenty or more\n");
+  }
+
+  string size = switch {
+    case limit < 10 => "small",
+    case limit < 100 => "medium",
+    default => "large",
+  };
+  fmt.printf("{} is {}\n", limit, size);
 }

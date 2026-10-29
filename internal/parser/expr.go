@@ -791,24 +791,24 @@ func (p *Parser) parseSwitchExpr() (*ast.GroupStmt, ast.Expression) {
 	line, col := p.current.Line, p.current.Column
 	p.advance()
 	block, value := p.parseSwitchHeader(line, col)
-	if block == nil || value == nil {
+	if block == nil {
 		return nil, nil
 	}
 	group := &ast.GroupStmt{Statements: block.Statements}
 	group.SetPos(line, col)
 
-	if !p.expect(lexer.TOKEN_LBRACE) {
+	if value != nil && !p.expect(lexer.TOKEN_LBRACE) {
 		return nil, nil
 	}
 
 	first := true
-	ternaryExpr := &ast.TernaryExpr{}
+	ternaryExpr := &ast.TernaryExpr{Synthetic: true}
 	ternaryExpr.SetPos(line, col)
 	currentTernary := ternaryExpr
 
 	for p.peek.Type == lexer.TOKEN_CASE {
 		if !first {
-			newTernary := &ast.TernaryExpr{}
+			newTernary := &ast.TernaryExpr{Synthetic: true}
 			newTernary.SetPos(line, col)
 			currentTernary.Else = newTernary
 			currentTernary = newTernary

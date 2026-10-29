@@ -3548,6 +3548,52 @@ func main() {
 }
 `, expected: []string{"min and max of a single argument", "min and max of several arguments", "min and max of nothing are zero", "abs", "clamp", "mod is never negative", "gcd is not negative", "gcd with a zero", "sqrt rounds down", "sqrt of a negative is zero", "sqrt at the top of the range", "popCount", "trailingZeros", "leadingZeros", "the 64-bit limits wrap around", "the signed limits", "the unsigned limits", "checkedAdd inside the range", "checkedSub inside the range", "checkedMul at the top of the range", "checkedMul of mixed signs", "checkedMul that lands on the minimum", "checkedMul by zero", "checkedAbs", "pow 2 to the 62", "pow 10 to the 18", "pow -2 to the 63 is the minimum", "pow with a zero", "lcm is not negative", "lcm with a zero", "checkedAdd past the top is Overflow", "checkedAdd below the bottom is Overflow", "checkedSub below the bottom is Overflow", "checkedSub of the minimum from zero is Overflow", "checkedMul of the minimum by -1 is Overflow", "checkedMul of -1 by the minimum is Overflow", "checkedMul past the top is Overflow", "checkedMul 2^62 by 2 is Overflow", "checkedMul of two negatives past the top is Overflow", "checkedAbs of the minimum is Overflow", "pow past the top is Overflow", "pow 3 to the 40 is Overflow"}},
 
+	{dir: "switch_tagless", src: `func classify(int a, int b) string {
+    return switch {
+        case a > b => "greater",
+        case a == b => "equal",
+        default => "less"
+    };
+}
+
+func sign(int n) int {
+    switch {
+        case n > 0:
+            return 1;
+        case n < 0:
+            return -1;
+    }
+    return 0;
+}
+
+func main() {
+    check(classify(3, 1) == "greater" && classify(2, 2) == "equal", "a switch without a value picks the first true case");
+    check(classify(1, 3) == "less", "a switch without a value falls to default");
+    check(sign(5) == 1 && sign(-5) == -1 && sign(0) == 0, "a switch statement without a value");
+    int x = 7;
+    int y = 0;
+    bool either;
+    switch {
+        case x > 5, y == 1:
+            either = true;
+        default:
+            either = false;
+    }
+    check(either, "a comma between conditions is an or");
+    string size = switch {
+        case x < 5 => "small",
+        case x < 10 => "medium",
+        default => "large"
+    };
+    check(size == "medium", "a switch without a value initialises a variable");
+    let msg = switch {
+        case x == 7 && y == 0 => "both",
+        default => "other"
+    };
+    check(msg == "both", "a switch without a value with a compound condition");
+}
+`, expected: []string{"a switch without a value picks the first true case", "a switch without a value falls to default", "a switch statement without a value", "a comma between conditions is an or", "a switch without a value initialises a variable", "a switch without a value with a compound condition"}},
+
 	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
     *int8 b = malloc(16)!;
     for i in 0..15 {

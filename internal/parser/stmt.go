@@ -463,11 +463,11 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 	line, col := p.current.Line, p.current.Column
 	p.advance()
 	block, value := p.parseSwitchHeader(line, col)
-	if block == nil || value == nil {
+	if block == nil {
 		return nil
 	}
 
-	if !p.expect(lexer.TOKEN_LBRACE) {
+	if value != nil && !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
 	}
 

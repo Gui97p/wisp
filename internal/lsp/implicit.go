@@ -9,15 +9,15 @@ import (
 )
 
 var (
-	leadingDot      = regexp.MustCompile(`(^|[^\w)\]"'.])\.\w*$`)
-	declaredBefore  = regexp.MustCompile(`([A-Za-z_][\w.]*)\s+[A-Za-z_]\w*\s*=\s*$`)
-	comparedBefore  = regexp.MustCompile(`([A-Za-z_][\w.]*)\s*(==|!=)\s*$`)
-	assignedBefore  = regexp.MustCompile(`(^|[^=!<>])\b([A-Za-z_][\w.]*)\s*=\s*$`)
-	caseBefore      = regexp.MustCompile(`\bcase\b[^:]*$`)
-	armBefore       = regexp.MustCompile(`=>\s*$`)
-	switchWord      = regexp.MustCompile(`\bswitch\b`)
-	returnBefore    = regexp.MustCompile(`\breturn\b[^;]*$`)
-	functionReturns = regexp.MustCompile(`^\s*(?:public\s+)?func\b.*\)\s*!?\s*([A-Za-z_][\w.]*)\s*(?:\{|=>)`)
+	leadingDot     = regexp.MustCompile(`(^|[^\w)\]"'.])\.\w*$`)
+	declaredBefore = regexp.MustCompile(`([A-Za-z_][\w.]*)\s+[A-Za-z_]\w*\s*=\s*$`)
+	comparedBefore = regexp.MustCompile(`([A-Za-z_][\w.]*)\s*(==|!=)\s*$`)
+	assignedBefore = regexp.MustCompile(`(^|[^=!<>])\b([A-Za-z_][\w.]*)\s*=\s*$`)
+	caseBefore     = regexp.MustCompile(`\bcase\b[^:]*$`)
+	armBefore      = regexp.MustCompile(`=>\s*$`)
+	switchWord     = regexp.MustCompile(`\bswitch\b`)
+	returnBefore   = regexp.MustCompile(`\breturn\b[^;]*$`)
+	functionHeader = regexp.MustCompile(`^\s*(?:(?:public|internal|shared)\s+)*func\b`)
 )
 
 func implicitDotItems(path string, pos protocol.Position, info *analyser.Info) ([]protocol.CompletionItem, bool) {
@@ -54,8 +54,10 @@ func expectedEnum(before, text string, scope *analyser.Scope, path string, line 
 			tp = contextType(prefix, text, scope, path, line)
 		}
 	case caseBefore.MatchString(before):
-		if subject, _, ok := switchHeader(text); ok {
+		if subject, _, ok := switchHeader(text); ok && subject != "" {
 			tp = exprType(scope, subject)
+		} else if ok {
+			tp = contextType(before, text, scope, path, line)
 		}
 	default:
 		tp = contextType(before, text, scope, path, line)
@@ -149,13 +151,104 @@ func returnType(path string, line int, before string, scope *analyser.Scope) ana
 		return nil
 	}
 	for i := line; i >= 0 && i < len(lines); i-- {
-		m := functionReturns.FindStringSubmatch(lines[i])
-		if m == nil {
+		if !functionHeader.MatchString(lines[i]) {
 			continue
 		}
-		return typeFromText(scope, m[1])
+		types := functionReturnTypes(lines[i])
+		index := returnIndex(before)
+		if index >= len(types) {
+			return nil
+		}
+		return typeFromText(scope, types[index])
 	}
 	return nil
+}
+
+func returnIndex(before string) int {
+	loc := returnBefore.FindStringIndex(before)
+	if loc == nil {
+		return 0
+	}
+	text := maskLiterals(before[loc[0]+len("return"):])
+	depth, index := 0, 0
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		case ',':
+			if depth == 0 {
+				index++
+			}
+		}
+	}
+	return index
+}
+
+func functionReturnTypes(header string) []string {
+	rest := strings.TrimSpace(header)
+	for _, word := range []string{"public", "internal", "shared"} {
+		rest = strings.TrimSpace(strings.TrimPrefix(rest, word))
+	}
+	rest = strings.TrimSpace(strings.TrimPrefix(rest, "func"))
+	if strings.HasPrefix(rest, "(") {
+		rest = skipGroup(rest)
+	}
+	rest = strings.TrimSpace(rest)
+	open := strings.Index(rest, "(")
+	if open < 0 {
+		return nil
+	}
+	rest = strings.TrimSpace(skipGroup(rest[open:]))
+	rest = strings.TrimSpace(strings.TrimPrefix(rest, "!"))
+	if strings.HasPrefix(rest, "(") {
+		end := len(rest) - len(skipGroup(rest))
+		return splitTopLevel(rest[1 : end-1])
+	}
+	if cut := strings.IndexAny(rest, "{="); cut >= 0 {
+		rest = rest[:cut]
+	}
+	rest = strings.TrimSpace(rest)
+	if rest == "" {
+		return nil
+	}
+	return []string{rest}
+}
+
+func skipGroup(text string) string {
+	depth := 0
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return text[i+1:]
+			}
+		}
+	}
+	return ""
+}
+
+func splitTopLevel(text string) []string {
+	var parts []string
+	depth, start := 0, 0
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts = append(parts, strings.TrimSpace(text[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	return append(parts, strings.TrimSpace(text[start:]))
 }
 
 func switchHeader(text string) (subject, prefix string, ok bool) {

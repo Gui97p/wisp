@@ -6,9 +6,10 @@ import (
 )
 
 type BinaryExpr struct {
-	Left     Expression
-	Operator string
-	Right    Expression
+	Left      Expression
+	Operator  string
+	Right     Expression
+	Synthetic bool
 
 	NodePos
 }
@@ -214,6 +215,7 @@ type TernaryExpr struct {
 	Condition Expression
 	Then      Expression
 	Else      Expression
+	Synthetic bool
 
 	NodePos
 }

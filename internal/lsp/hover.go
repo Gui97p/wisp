@@ -66,6 +66,9 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	}
 
 	if expr := exprInProgram(program, line, col); expr != nil {
+		if _, isCoalesce := expr.(*ast.CoalesceExpr); isCoalesce && isHandlerKeyword(wordUnderCursor(fileBuffer[path], line, col)) {
+			return nil
+		}
 		text = hoverText(expr, program, info, line, col)
 		rng = exprRange(expr)
 		if conv, ok := expr.(*ast.ConvExpr); ok && refContains(&conv.Type, line, col) {
@@ -201,6 +204,21 @@ func paramHoverText(param *ast.Param, owner ast.Node, idx int, program *ast.Prog
 
 func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, line, col int) string {
 	switch e := expr.(type) {
+	case *ast.IdentLiteral:
+		if e.Synthetic {
+			return ""
+		}
+	case *ast.BinaryExpr:
+		if e.Synthetic {
+			return ""
+		}
+	case *ast.TernaryExpr:
+		if e.Synthetic {
+			return ""
+		}
+	}
+
+	switch e := expr.(type) {
 	case *ast.ConvExpr:
 		if t, ok := info.Types[e]; ok {
 			return renderDoc(analyser.TypeText(t), "Pointer conversion: the argument becomes this type.")
@@ -213,6 +231,7 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 		if e.ErrorBind != "" && positionContains(e.ErrorBindAt, line, col) {
 			return renderDoc("Error "+e.ErrorBind, "The error that made the call fail.")
 		}
+		return renderDoc("a ?? handler", "The value of `a`, or what the handler gives when `a` fails. The handler is a value, `|e| value`, or a statement that ends in `return`, `break` or `continue`.")
 	case *ast.DotIdent:
 		if value, ok := info.EnumValues[e]; ok {
 			return enumMemberHover(value)
@@ -568,4 +587,28 @@ func declMemberHover(program *ast.Program, line, col int) (string, *protocol.Ran
 		}
 	}
 	return "", nil
+}
+
+func isHandlerKeyword(word string) bool {
+	return word == "return" || word == "break" || word == "continue"
+}
+
+func wordUnderCursor(src []byte, line, col int) string {
+	lines := splitLines(src)
+	if line < 1 || line > len(lines) {
+		return ""
+	}
+	text := lines[line-1]
+	i := col - 1
+	if i < 0 || i >= len(text) || !isIdentByte(text[i]) {
+		return ""
+	}
+	start, end := i, i
+	for start > 0 && isIdentByte(text[start-1]) {
+		start--
+	}
+	for end < len(text) && isIdentByte(text[end]) {
+		end++
+	}
+	return text[start:end]
 }
