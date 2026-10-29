@@ -3379,6 +3379,114 @@ func main() ! {
 }
 `, expected: []string{"base takes the last element", "base ignores trailing separators", "base of only separators is the root", "base of an empty path is a dot", "base keeps a trailing space", "dir drops the last element", "dir of a path under the root is the root", "dir of the root is the root", "dir of a single name is a dot", "dir ignores trailing separators", "dir does not clean", "ext is the last dot and stem is the rest", "a leading dot is part of the name", "a trailing dot is part of the name", "ext looks only at the base", "isAbs", "join puts one separator between parts", "join collapses repeated separators", "join skips empty parts", "join keeps the root of the first part", "join writes the root once", "join takes the root from the first part that is not empty", "join of a name and the root is the name", "join of nothing is empty", "join of the root is the root", "join reports NoSpace", "join with a root reports NoSpace", "elements skips empty pieces", "elements of a root or an empty path is nothing", "tokens skips the empty piece at the end", "clean of an empty path is a dot", "clean collapses separators", "clean drops dots", "clean resolves dot dot", "clean can end in a dot", "clean keeps leading dot dots in a relative path", "clean keeps the dot dot that has nothing to undo", "clean never goes above the root", "clean drops the trailing separator", "clean undoes several elements", "clean reports NoSpace"}},
 
+	{dir: "os_dir", x64Only: true, src: `import "std/os";
+import "std/path";
+import "std/conv";
+
+func main() ! {
+    char[256] buf;
+    char[32] num;
+    string root = "/tmp/wisp_t_dir";
+    os.mkdirAll(path.join(buf, root, "sub")!!)!;
+    int fd = os.create(path.join(buf, root, "aa")!!)!;
+    os.close(fd);
+
+    os.Dir d = os.openDir(root)!;
+    int files, dirs, other;
+    bool dots;
+    loop {
+        let name, kind, ok = d.next()!;
+        if !ok {
+            break;
+        }
+        if name == "." || name == ".." {
+            dots = true;
+        }
+        if kind == .File {
+            files++;
+        } else if kind == .Dir {
+            dirs++;
+        } else {
+            other++;
+        }
+    }
+    d.close();
+    check(files == 1 && dirs == 1 && other == 0, "a directory lists its files and subdirectories with their kinds");
+    check(!dots, "the entries . and .. are not listed");
+
+    os.Dir empty = os.openDir(path.join(buf, root, "sub")!!)!;
+    let nothing, kindNone, more = empty.next()!;
+    check(!more && nothing == "", "an empty directory lists nothing");
+    empty.close();
+
+    let notDir, problem = os.openDir(path.join(buf, root, "aa")!!);
+    check(problem == os.IOError.NotDir, "openDir on a file is NotDir");
+
+    os.mkdirAll(path.join(buf, root, "many")!!)!;
+    for i in 1..300 {
+        char[256] full;
+        int made = os.create(path.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
+        os.close(made);
+    }
+    os.Dir many = os.openDir(path.join(buf, root, "many")!!)!;
+    int seen;
+    loop {
+        let name, kind, ok = many.next()!;
+        if !ok {
+            break;
+        }
+        seen++;
+    }
+    many.close();
+    check(seen == 300, "a listing that needs several reads finds every entry");
+
+    for i in 1..300 {
+        char[256] full;
+        os.remove(path.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
+    }
+    os.removeDir(path.join(buf, root, "many")!!)!;
+    os.remove(path.join(buf, root, "aa")!!)!;
+    os.removeDir(path.join(buf, root, "sub")!!)!;
+    os.removeDir(root)!;
+}
+`, expected: []string{"a directory lists its files and subdirectories with their kinds", "the entries . and .. are not listed", "an empty directory lists nothing", "openDir on a file is NotDir", "a listing that needs several reads finds every entry"}},
+
+	{dir: "os_mkdirall", x64Only: true, src: `import "std/os";
+import "std/path";
+
+func main() ! {
+    char[256] buf;
+    string root = "/tmp/wisp_t_mkdirall";
+    os.mkdirAll(path.join(buf, root, "a", "b", "c")!!)!;
+    check(os.isDir(path.join(buf, root, "a", "b", "c")!!), "mkdirAll creates every missing level");
+    os.mkdirAll(path.join(buf, root, "a", "b", "c")!!)!;
+    check(os.isDir(path.join(buf, root, "a", "b")!!), "mkdirAll of an existing directory is not an error");
+    os.mkdirAll(path.join(buf, root, "a", "b", "d", "e")!!)!;
+    check(os.isDir(path.join(buf, root, "a", "b", "d", "e")!!), "mkdirAll creates only what is missing");
+    os.mkdirAll(path.join(buf, root, "x", "y")!!)!;
+    check(os.isDir(path.join(buf, root, "x", "y")!!), "mkdirAll accepts a trailing separator");
+
+    int fd = os.create(path.join(buf, root, "file")!!)!;
+    os.close(fd);
+    let onFile = os.mkdirAll(path.join(buf, root, "file")!!);
+    check(onFile == os.IOError.NotDir, "mkdirAll over a file is NotDir");
+    let underFile = os.mkdirAll(path.join(buf, root, "file", "sub")!!);
+    check(underFile == os.IOError.NotDir, "mkdirAll under a file is NotDir");
+    let empty = os.mkdirAll("");
+    check(empty == os.IOError.NotFound, "mkdirAll of an empty path is NotFound");
+
+    os.removeDir(path.join(buf, root, "a", "b", "d", "e")!!)!;
+    os.removeDir(path.join(buf, root, "a", "b", "d")!!)!;
+    os.removeDir(path.join(buf, root, "a", "b", "c")!!)!;
+    os.removeDir(path.join(buf, root, "a", "b")!!)!;
+    os.removeDir(path.join(buf, root, "a")!!)!;
+    os.removeDir(path.join(buf, root, "x", "y")!!)!;
+    os.removeDir(path.join(buf, root, "x")!!)!;
+    os.remove(path.join(buf, root, "file")!!)!;
+    os.removeDir(root)!;
+}
+`, expected: []string{"mkdirAll creates every missing level", "mkdirAll of an existing directory is not an error", "mkdirAll creates only what is missing", "mkdirAll accepts a trailing separator", "mkdirAll over a file is NotDir", "mkdirAll under a file is NotDir", "mkdirAll of an empty path is NotFound"}},
+
 	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
     *int8 b = malloc(16)!;
     for i in 0..15 {

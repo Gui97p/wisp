@@ -47,3 +47,10 @@ public func errorIO(int code) Error {
 		default => Error(IOError.IO)
 	};
 }
+
+internal func copypath(*char buf, string p) {
+	for i, c in p {
+		buf[i] = c;
+	}
+	buf[len(p)] = '\0';
+}

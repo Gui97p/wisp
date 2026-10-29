@@ -1,0 +1,104 @@
+import "std/os/global";
+import "std/os/files";
+import "std/sys";
+import "std/os";
+import "std/path";
+import "std/errors";
+
+public func isDir(string p) bool {
+	let s = files.stat(p) ?? return false;
+	return s.kind == .Dir;
+}
+
+public func removeDir(string p) ! {
+	char[4096] buf;
+	if len(p) > 4095 {
+		return Error(errors.Kind.Invalid);
+	}
+	global.copypath((*char)(buf), p);
+	int r = sys.remove((*char)(buf), sys.AT_REMOVEDIR);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+}
+
+public func mkdir(string p) ! {
+	if len(p) > 4095 {
+		return Error(errors.Kind.Invalid);
+	}
+	char[4096] buf;
+	global.copypath((*char)(buf), p);
+	int r = sys.mkdir((*char)(buf), 0o755);
+	if r < 0 {
+		return global.errorIO(sys.errno(r));
+	}
+}
+
+public func mkdirAll(string p) ! {
+	let s = os.stat(p) ?? |e| {
+		if e != global.IOError.NotFound {
+			return e;
+		}
+		mkdirAll(path.dir(p))!;
+		mkdir(p) ?? |err| return isDir(p) ? null : err;
+		return;
+	};
+
+	if s.kind != .Dir {
+		return Error(global.IOError.NotDir);
+	}
+}
+
+public struct Dir {
+	int fd;
+	internal int pos, len;
+	internal char[4096] buf;
+}
+
+public func (*Dir d) next() !(string, global.FileKind, bool) {
+	loop {
+		if d.pos >= d.len {
+			int r = sys.getdents(d.fd, (*char)(d.buf), len(d.buf));
+			if r < 0 {
+				return global.errorIO(sys.errno(r));
+			}
+			if r == 0 {
+				return "", .Other, false;
+			}
+			d.len = r;
+			d.pos = 0;
+		}
+
+		int start = d.pos + 19;
+		int end = start;
+		loop d.buf[end] != '\0' {
+			end++;
+		}
+
+		global.FileKind tp = switch d.buf[d.pos + 18] {
+			case sys.DT_REG => .File,
+			case sys.DT_DIR => .Dir,
+			case sys.DT_LNK => .Link,
+			default => .Other
+		};
+		
+		int d_reclen = int(d.buf[d.pos+16]) | int(d.buf[d.pos+17]) << 8;
+		d.pos += d_reclen;
+
+		string name = string(d.buf[start:end]);
+		if name == "." || name == ".." {
+			continue;
+		}
+
+		return name, tp, true;
+	}
+}
+
+public func (*Dir d) close() {
+	os.close(d.fd);
+}
+
+public func openDir(string p) !Dir {
+	int fd = files.open(p, global.READ | sys.O_DIRECTORY)!;
+	return Dir{fd: fd};
+}

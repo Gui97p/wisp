@@ -3,19 +3,12 @@ import "std/os/global";
 import "std/os";
 import "std/errors";
 
-func copyPath(*char buf, string path) {
-	for i, c in path {
-		buf[i] = c;
-	}
-	buf[len(path)] = '\0';
-}
-
-public func open(string path, int flags) !int {
+public func open(string p, int flags) !int {
 	char[4096] buf;
-	if len(path) > 4095 {
+	if len(p) > 4095 {
 		return Error(errors.Kind.Invalid);
 	}
-	copyPath((*char)(buf), path);
+	global.copypath((*char)(buf), p);
 	int r = sys.open((*char)(buf), flags | sys.O_CLOEXEC, 0o644);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
@@ -23,36 +16,24 @@ public func open(string path, int flags) !int {
 	return r;
 }
 
-public func create(string path) !int {
-	return open(path, global.WRITE | global.CREATE | global.TRUNCATE)!;
+public func create(string p) !int {
+	return open(p, global.WRITE | global.CREATE | global.TRUNCATE)!;
 }
 
-public func remove(string path) ! {
+public func remove(string p) ! {
 	char[4096] buf;
-	if len(path) > 4095 {
+	if len(p) > 4095 {
 		return Error(errors.Kind.Invalid);
 	}
-	copyPath((*char)(buf), path);
+	global.copypath((*char)(buf), p);
 	int r = sys.remove((*char)(buf), 0);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
 }
 
-public func removeDir(string path) ! {
-	char[4096] buf;
-	if len(path) > 4095 {
-		return Error(errors.Kind.Invalid);
-	}
-	copyPath((*char)(buf), path);
-	int r = sys.remove((*char)(buf), sys.AT_REMOVEDIR);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
-}
-
-public func readFile(string path) !char[] {
-	int fd = open(path, global.READ)!;
+public func readFile(string p) !char[] {
+	int fd = open(p, global.READ)!;
 	defer os.close(fd);
 	int size = os.size(fd)!;
 	if size == 0 {
@@ -69,18 +50,6 @@ public func readFile(string path) !char[] {
 	return buf[:total];
 }
 
-public func mkdir(string path) ! {
-	if len(path) > 4095 {
-		return Error(errors.Kind.Invalid);
-	}
-	char[4096] buf;
-	copyPath((*char)(buf), path);
-	int r = sys.mkdir((*char)(buf), 0o755);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
-}
-
 public func rename(string from, to) ! {
 	if len(from) > 4095 {
 		return Error(errors.Kind.Invalid);
@@ -89,20 +58,20 @@ public func rename(string from, to) ! {
 		return Error(errors.Kind.Invalid);
 	}
 	char[4096] fromBuf, toBuf;
-	copyPath((*char)(fromBuf), from);
-	copyPath((*char)(toBuf), to);
+	global.copypath((*char)(fromBuf), from);
+	global.copypath((*char)(toBuf), to);
 	int r = sys.rename((*char)(fromBuf), (*char)(toBuf));
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
 }
 
-public func stat(string path) !global.Stat {
-	if len(path) > 4095 {
+public func stat(string p) !global.Stat {
+	if len(p) > 4095 {
 		return Error(errors.Kind.Invalid);
 	}
 	char[4096] buf;
-	copyPath((*char)(buf), path);
+	global.copypath((*char)(buf), p);
 	
 	sys.Stat s;
 	int r = sys.stat((*char)(buf), &s);
@@ -119,14 +88,9 @@ public func stat(string path) !global.Stat {
 	return global.Stat{mode: s.st_mode, kind: kind, modified: os.toNs(s.st_mtim.tv_sec, s.st_mtim.tv_nsec), size: s.st_size};
 }
 
-public func exists(string path) bool {
-	stat(path) ?? return false;
+public func exists(string p) bool {
+	stat(p) ?? return false;
 	return true;
-}
-
-public func isDir(string path) bool {
-	let s = stat(path) ?? return false;
-	return s.kind == .Dir;
 }
 
 public func cwd(char[] buf) !string {
