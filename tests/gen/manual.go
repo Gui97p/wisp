@@ -3487,6 +3487,67 @@ func main() ! {
 }
 `, expected: []string{"mkdirAll creates every missing level", "mkdirAll of an existing directory is not an error", "mkdirAll creates only what is missing", "mkdirAll accepts a trailing separator", "mkdirAll over a file is NotDir", "mkdirAll under a file is NotDir", "mkdirAll of an empty path is NotFound"}},
 
+	{dir: "math_core", x64Only: true, src: `import "std/math";
+import "std/errors";
+
+func main() {
+    check(math.min(5) == 5 && math.max(7) == 7, "min and max of a single argument");
+    check(math.min(5, 2, 9) == 2 && math.max(5, 2, 9) == 9, "min and max of several arguments");
+    check(math.min() == 0 && math.max() == 0, "min and max of nothing are zero");
+    check(math.abs(-3) == 3 && math.abs(3) == 3, "abs");
+    check(math.clamp(5, 1, 3) == 3 && math.clamp(-5, 1, 3) == 1 && math.clamp(2, 1, 3) == 2, "clamp");
+    check(math.mod(-7, 3) == 2 && math.mod(7, -3) == 1 && math.mod(-7, -3) == 2 && math.mod(6, 3) == 0, "mod is never negative");
+    check(math.gcd(12, 18) == 6 && math.gcd(4, -6) == 2 && math.gcd(-4, 6) == 2, "gcd is not negative");
+    check(math.gcd(0, 5) == 5 && math.gcd(0, 0) == 0, "gcd with a zero");
+    check(math.sqrt(0) == 0 && math.sqrt(1) == 1 && math.sqrt(2) == 1 && math.sqrt(15) == 3 && math.sqrt(16) == 4, "sqrt rounds down");
+    check(math.sqrt(-9) == 0, "sqrt of a negative is zero");
+    check(math.sqrt(math.MAX_INT) == 3037000499 && math.sqrt(9223372030926249001) == 3037000499, "sqrt at the top of the range");
+    check(math.popCount(0) == 0 && math.popCount(255) == 8 && math.popCount(0xFFFFFFFFFFFFFFFF) == 64, "popCount");
+    check(math.trailingZeros(8) == 3 && math.trailingZeros(1) == 0 && math.trailingZeros(0) == 64 && math.trailingZeros(0x8000000000000000) == 63, "trailingZeros");
+    check(math.leadingZeros(1) == 63 && math.leadingZeros(0) == 64 && math.leadingZeros(0x8000000000000000) == 0 && math.leadingZeros(255) == 56, "leadingZeros");
+    check(math.MIN_INT == -0x8000000000000000 && math.MAX_INT == 0x7FFFFFFFFFFFFFFF && math.MIN_INT - 1 == math.MAX_INT, "the 64-bit limits wrap around");
+    check(math.MIN_INT8 == -128 && math.MAX_INT8 == 127 && math.MIN_INT16 == -32768 && math.MAX_INT16 == 32767 && math.MIN_INT32 == -2147483648 && math.MAX_INT32 == 2147483647, "the signed limits");
+    check(math.MAX_UINT8 == 255 && math.MAX_UINT16 == 65535 && math.MAX_UINT32 == 4294967295 && math.MAX_UINT64 == 0xFFFFFFFFFFFFFFFF && math.MAX_UINT == math.MAX_UINT64, "the unsigned limits");
+    check(math.checkedAdd(math.MAX_INT, -1)!! == 9223372036854775806, "checkedAdd inside the range");
+    check(math.checkedSub(5, 7)!! == -2, "checkedSub inside the range");
+    check(math.checkedMul(3037000499, 3037000499)!! == 9223372030926249001, "checkedMul at the top of the range");
+    check(math.checkedMul(-3037000499, 3037000499)!! == -9223372030926249001, "checkedMul of mixed signs");
+    check(math.checkedMul(-4611686018427387904, 2)!! == math.MIN_INT, "checkedMul that lands on the minimum");
+    check(math.checkedMul(0, math.MIN_INT)!! == 0, "checkedMul by zero");
+    check(math.checkedAbs(-5)!! == 5, "checkedAbs");
+    check(math.pow(2, 62)!! == 4611686018427387904, "pow 2 to the 62");
+    check(math.pow(10, 18)!! == 1000000000000000000, "pow 10 to the 18");
+    check(math.pow(-2, 63)!! == math.MIN_INT, "pow -2 to the 63 is the minimum");
+    check(math.pow(0, 0)!! == 1 && math.pow(5, 0)!! == 1 && math.pow(0, 5)!! == 0 && math.pow(3, 4)!! == 81, "pow with a zero");
+    check(math.lcm(4, 6)!! == 12 && math.lcm(-4, 6)!! == 12, "lcm is not negative");
+    check(math.lcm(0, 5)!! == 0 && math.lcm(0, 0)!! == 0 && math.lcm(5, 0)!! == 0, "lcm with a zero");
+    let ve30, e30 = math.checkedAdd(math.MAX_INT, 1);
+    check(e30 == errors.Kind.Overflow, "checkedAdd past the top is Overflow");
+    let ve32, e32 = math.checkedAdd(math.MIN_INT, -1);
+    check(e32 == errors.Kind.Overflow, "checkedAdd below the bottom is Overflow");
+    let ve34, e34 = math.checkedSub(math.MIN_INT, 1);
+    check(e34 == errors.Kind.Overflow, "checkedSub below the bottom is Overflow");
+    let ve36, e36 = math.checkedSub(0, math.MIN_INT);
+    check(e36 == errors.Kind.Overflow, "checkedSub of the minimum from zero is Overflow");
+    let ve38, e38 = math.checkedMul(math.MIN_INT, -1);
+    check(e38 == errors.Kind.Overflow, "checkedMul of the minimum by -1 is Overflow");
+    let ve40, e40 = math.checkedMul(-1, math.MIN_INT);
+    check(e40 == errors.Kind.Overflow, "checkedMul of -1 by the minimum is Overflow");
+    let ve42, e42 = math.checkedMul(3037000500, 3037000500);
+    check(e42 == errors.Kind.Overflow, "checkedMul past the top is Overflow");
+    let ve44, e44 = math.checkedMul(4611686018427387904, 2);
+    check(e44 == errors.Kind.Overflow, "checkedMul 2^62 by 2 is Overflow");
+    let ve46, e46 = math.checkedMul(-4611686018427387904, -2);
+    check(e46 == errors.Kind.Overflow, "checkedMul of two negatives past the top is Overflow");
+    let ve48, e48 = math.checkedAbs(math.MIN_INT);
+    check(e48 == errors.Kind.Overflow, "checkedAbs of the minimum is Overflow");
+    let ve50, e50 = math.pow(2, 63);
+    check(e50 == errors.Kind.Overflow, "pow past the top is Overflow");
+    let ve52, e52 = math.pow(3, 40);
+    check(e52 == errors.Kind.Overflow, "pow 3 to the 40 is Overflow");
+}
+`, expected: []string{"min and max of a single argument", "min and max of several arguments", "min and max of nothing are zero", "abs", "clamp", "mod is never negative", "gcd is not negative", "gcd with a zero", "sqrt rounds down", "sqrt of a negative is zero", "sqrt at the top of the range", "popCount", "trailingZeros", "leadingZeros", "the 64-bit limits wrap around", "the signed limits", "the unsigned limits", "checkedAdd inside the range", "checkedSub inside the range", "checkedMul at the top of the range", "checkedMul of mixed signs", "checkedMul that lands on the minimum", "checkedMul by zero", "checkedAbs", "pow 2 to the 62", "pow 10 to the 18", "pow -2 to the 63 is the minimum", "pow with a zero", "lcm is not negative", "lcm with a zero", "checkedAdd past the top is Overflow", "checkedAdd below the bottom is Overflow", "checkedSub below the bottom is Overflow", "checkedSub of the minimum from zero is Overflow", "checkedMul of the minimum by -1 is Overflow", "checkedMul of -1 by the minimum is Overflow", "checkedMul past the top is Overflow", "checkedMul 2^62 by 2 is Overflow", "checkedMul of two negatives past the top is Overflow", "checkedAbs of the minimum is Overflow", "pow past the top is Overflow", "pow 3 to the 40 is Overflow"}},
+
 	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
     *int8 b = malloc(16)!;
     for i in 0..15 {

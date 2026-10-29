@@ -1,8 +1,5 @@
 import "std/errors";
-
-public const IntMax = 0x7FFFFFFFFFFFFFFF;
-public const IntMin = -9223372036854775808;
-public const uint UintMax = ~(0);
+import "std/math";
 
 public const MaxDigits = 65;
 
@@ -112,7 +109,7 @@ public func parseUint(string s, int base) !uint {
 
 		uint digit = uint(d);
 
-		if n > (UintMax - digit) / b {
+		if n > (math.MAX_UINT - digit) / b {
 			return Error(errors.Kind.Overflow);
 		}
 
@@ -136,20 +133,20 @@ public func parseInt(string s, int base) !int {
 	uint mag = parseUint(s, base)!;
 
 	if neg {
-		uint limit = uint(-(IntMin + 1)) + 1;
+		uint limit = uint(-(math.MIN_INT + 1)) + 1;
 
 		if mag > limit {
 			return Error(errors.Kind.Overflow);
 		}
 
 		if mag == limit {
-			return IntMin;
+			return math.MIN_INT;
 		}
 
 		return -int(mag);
 	}
 
-	if mag > uint(IntMax) {
+	if mag > uint(math.MAX_INT) {
 		return Error(errors.Kind.Overflow);
 	}
 

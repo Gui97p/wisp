@@ -1,22 +1,79 @@
+import "std/errors";
+import "std/math/constants";
+
+public func checkedAdd(int a, b) !int {
+	if (b > 0 && a > constants.MAX_INT - b) || (b < 0 && a < constants.MIN_INT - b) {
+		return Error(errors.Kind.Overflow);
+	}
+	return a + b;
+}
+
+public func checkedSub(int a, b) !int {
+	if (b > 0 && a < constants.MIN_INT + b) || (b < 0 && a > constants.MAX_INT + b) {
+		return Error(errors.Kind.Overflow);
+	}
+	return a - b;
+}
+
+public func checkedMul(int a, b) !int {
+    if a == 0 || b == 0 {
+        return 0;
+    }
+	Error error = Error(errors.Kind.Overflow);
+
+    if a == -1 {
+        if b == constants.MIN_INT {
+            return error;
+        }
+    } else if b == -1 {
+        if a == constants.MIN_INT {
+            return error;
+        }
+    }
+
+    if a > 0 {
+        if b > 0 {
+            if a > constants.MAX_INT / b {
+                return error;
+            }
+        } else {
+            if b <constants. MIN_INT / a {
+                return error;
+            }
+        }
+    } else {
+        if b > 0 {
+            if a < constants.MIN_INT / b {
+                return error;
+            }
+        } else {
+            if a < constants.MAX_INT / b {
+                return error;
+            }
+        }
+    }
+
+    return a * b;
+}
+
+public func checkedAbs(int x) !int {
+	if x == constants.MIN_INT {
+		return Error(errors.Kind.Overflow);
+	}
+	return x < 0 ? -x : x;
+}
+
 public func abs(int x) int {
     return x < 0 ? -x : x;
 }
-public func fabs(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.abs(x)";
-    return r;
-}
 
 public func min(int ...args) int {
-    int l = len(args);
-
 	if len(args) == 0 {
 		return 0;
 	}
 	int m = args[0];
 
-	for i in 1..l-1 {
-		int n = args[i];
+	for _, n in args[1:] {
 		if n < m {
 			m = n;
 		}
@@ -24,22 +81,14 @@ public func min(int ...args) int {
 
 	return m;
 }
-public func fmin(float64 a, float64 b) float64 {
-    float64 r;
-    native lua(in a, b) "r = math.min(a, b)";
-    return r;
-}
 
 public func max(int ...args) int {
-    int l = len(args);
-
 	if len(args) == 0 {
 		return 0;
 	}
 	int m = args[0];
 
-	for i in 1..l-1 {
-		int n = args[i];
+	for _, n in args[1:] {
 		if n > m {
 			m = n;
 		}
@@ -47,62 +96,103 @@ public func max(int ...args) int {
 	
 	return m;
 }
-public func fmax(float64 a, float64 b) float64 {
-    float64 r;
-    native lua(in a, b) "r = math.max(a, b)";
+
+public func clamp(int x, low, high) int {
+	return x < low ? low : (x > high ? high : x);
+}
+
+public func mod(int a, b) int {
+	int r = a % b;
+
+    if r < 0 {
+        if b < 0 {
+            r -= b;
+        } else {
+            r += b;
+        }
+    }
+
     return r;
 }
 
-public func floor(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.floor(x)";
-    return r;
-}
-public func ceil(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.ceil(x)";
-    return r;
-}
-public func round(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.floor(x + 0.5)";
-    return r;
+public func gcd(int a, b) int {
+	loop b != 0 {
+		a, b = b, a % b;
+	}
+	return abs(a);
 }
 
-public func sqrt(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.sqrt(x)";
-    return r;
-}
-public func pow(float64 base, float64 exp) float64 {
-    float64 r;
-    native lua(in base, exp) "r = base ^ exp";
-    return r;
+public func lcm(int a, b) !int {
+	if a == 0 || b == 0 {
+		return 0;
+	}
+	return abs(checkedMul(a / gcd(a, b), b)!);
 }
 
-public func sin(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.sin(x)";
-    return r;
-}
-public func cos(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.cos(x)";
-    return r;
-}
-public func tan(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.tan(x)";
-    return r;
+public func pow(int base, exp) !int {
+	if exp < 0 {
+		return Error(errors.Kind.Invalid);
+	}
+	if exp == 0 {
+		return 1;
+	}
+
+	int r = 1;
+	loop exp > 0 {
+		if (exp & 1) == 1 {
+			r = checkedMul(r, base)!;
+		}
+		exp >>= 1;
+		if exp > 0 {
+			base = checkedMul(base, base)!;
+		}
+	}
+
+	return r;
 }
 
-public func log(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.log(x)";
-    return r;
+public func sqrt(int n) int {
+	if n <= 1 {
+		return max(0, n);
+	}
+
+	int lo, hi = 0, min(n, 3037000499);
+	for hi {
+		int mid = (lo + hi + 1) / 2;
+		if mid * mid <= n {
+			lo = mid;
+		} else {
+			hi = mid-1;
+		}
+		if hi == lo {
+			return hi;
+		}
+	}
+	return 0;
 }
-public func exp(float64 x) float64 {
-    float64 r;
-    native lua(in x) "r = math.exp(x)";
-    return r;
+
+public func popCount(uint x) uint {
+	uint n;
+	loop x != 0 {
+		x &= x - 1;
+		n++;
+	}
+	return n;
+}
+
+public func trailingZeros(uint x) uint {
+	return x == 0 ? 64 : popCount((x & (~x + 1)) - 1);
+}
+
+public func leadingZeros(uint x) uint {
+	if x == 0 {
+		return 64;
+	}
+
+	uint n;
+	loop (x & 0x8000000000000000) == 0 {
+		x <<= 1;
+		n++;
+	}
+	return n;
 }

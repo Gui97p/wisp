@@ -1,0 +1,87 @@
+public func fabs(float x) float {
+    return x < 0 ? -x : x;
+}
+
+public func fmin(float ...args) float {
+	if len(args) == 0 {
+		return 0;
+	}
+	float m = args[0];
+
+	for _, n in args[1:] {
+		if n < m {
+			m = n;
+		}
+	}
+
+	return m;
+}
+
+public func fmax(float ...args) float {
+	if len(args) == 0 {
+		return 0;
+	}
+	float m = args[0];
+
+	for _, n in args[1:] {
+		if n > m {
+			m = n;
+		}
+	}
+	
+	return m;
+}
+
+public func floor(float x) float {
+    float r;
+    native lua(in x) "r = math.floor(x)";
+    return r;
+}
+public func ceil(float x) float {
+    float r;
+    native lua(in x) "r = math.ceil(x)";
+    return r;
+}
+public func round(float x) float {
+    float r;
+    native lua(in x) "r = math.floor(x + 0.5)";
+    return r;
+}
+
+public func fsqrt(float x) float {
+    float r;
+    native lua(in x) "r = math.sqrt(x)";
+    return r;
+}
+public func fpow(float base, float exp) float {
+    float r;
+    native lua(in base, exp) "r = base ^ exp";
+    return r;
+}
+
+public func sin(float x) float {
+    float r;
+    native lua(in x) "r = math.sin(x)";
+    return r;
+}
+public func cos(float x) float {
+    float r;
+    native lua(in x) "r = math.cos(x)";
+    return r;
+}
+public func tan(float x) float {
+    float r;
+    native lua(in x) "r = math.tan(x)";
+    return r;
+}
+
+public func log(float x) float {
+    float r;
+    native lua(in x) "r = math.log(x)";
+    return r;
+}
+public func exp(float x) float {
+    float r;
+    native lua(in x) "r = math.exp(x)";
+    return r;
+}
