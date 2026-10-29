@@ -17,6 +17,7 @@ var (
 	armBefore      = regexp.MustCompile(`=>\s*$`)
 	switchWord     = regexp.MustCompile(`\bswitch\b`)
 	returnBefore   = regexp.MustCompile(`\breturn\b[^;]*$`)
+	coalesceBefore = regexp.MustCompile(`([A-Za-z_][\w.]*\s*\((?:[^()]|\([^()]*\))*\))\s*\?\?\s*(?:\|\w+\|\s*)?$`)
 	functionHeader = regexp.MustCompile(`^\s*(?:(?:public|internal|shared)\s+)*func\b`)
 )
 
@@ -68,6 +69,9 @@ func expectedEnum(before, text string, scope *analyser.Scope, path string, line 
 }
 
 func contextType(before, text string, scope *analyser.Scope, path string, line int) analyser.Type {
+	if m := coalesceBefore.FindStringSubmatch(before); m != nil {
+		return exprType(scope, m[1])
+	}
 	if returnBefore.MatchString(before) {
 		return returnType(path, line, before, scope)
 	}

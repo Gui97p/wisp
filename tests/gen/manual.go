@@ -515,7 +515,7 @@ func main() {
 }
 `},
 
-	{dir: "array_to_pointer", x64Only: true, src: `func fill(*char p, int n, char c) {
+	{dir: "array_to_pointer", src: `func fill(*char p, int n, char c) {
     for i in 0..n - 1 {
         (p + i)@ = c;
     }
@@ -548,7 +548,7 @@ func main() {
 }
 `, expected: []string{"an array converts to a pointer to its first element", "a span points into the array it views", "the pointer of an empty span is still its start", "an array converts to *void and back", "a *void from an array reads as bytes"}},
 
-	{dir: "register_spill_member", x64Only: true, src: `struct P {
+	{dir: "register_spill_member", src: `struct P {
     int x;
     int y;
 }
@@ -583,7 +583,7 @@ func main() {
 }
 `},
 
-	{dir: "agg_struct_basic", x64Only: true, src: `struct P {
+	{dir: "agg_struct_basic", src: `struct P {
     int x;
     int y;
 }
@@ -713,7 +713,7 @@ func main() {
 }
 `},
 
-	{dir: "agg_array_basic", x64Only: true, src: `func main() {
+	{dir: "agg_array_basic", src: `func main() {
     int[5] nums = [124, 512, 1, 5, 2];
     check(nums[0] == 124, "array literal first");
     check(nums[4] == 2, "array literal last");
@@ -781,7 +781,7 @@ func main() {
 }
 `},
 
-	{dir: "agg_span_slice", x64Only: true, src: `func first(int[] xs) int {
+	{dir: "agg_span_slice", src: `func first(int[] xs) int {
     return xs[0];
 }
 
@@ -804,7 +804,7 @@ func main() {
 }
 `},
 
-	{dir: "agg_null_pointer", x64Only: true, src: `func main() {
+	{dir: "agg_null_pointer", src: `func main() {
     *int p = null;
     check(p == null, "null pointer equals null");
     int v = 5;
@@ -813,7 +813,7 @@ func main() {
 }
 `},
 
-	{dir: "ptr_basic", x64Only: true, src: `func swap(*int a, *int b) {
+	{dir: "ptr_basic", src: `func swap(*int a, *int b) {
     int t = a@;
     a@ = b@;
     b@ = t;
@@ -855,7 +855,7 @@ func main() {
 }
 `},
 
-	{dir: "ptr_elements", x64Only: true, src: `struct P {
+	{dir: "ptr_elements", src: `struct P {
     int x;
     int y;
 }
@@ -883,7 +883,7 @@ func main() {
 }
 `},
 
-	{dir: "ptr_struct", x64Only: true, src: `struct P {
+	{dir: "ptr_struct", src: `struct P {
     int x;
     int y;
 }
@@ -1032,7 +1032,7 @@ func main() {
     return 0;
 }
 `, expected: []string{"main receives the arguments as a string[]"}},
-	{dir: "cyclic_modules", x64Only: true, files: map[string]string{"world.wsp": `import "entity";
+	{dir: "cyclic_modules", files: map[string]string{"world.wsp": `import "entity";
 
 public struct World {
     entity.Entity[4] slots;
@@ -1103,7 +1103,7 @@ func main() {
     check(world.isEven(10) && !world.isEven(7), "functions call each other across modules");
 }
 `, expected: []string{"two modules that import each other share their types", "a struct points at a type from the module that imports it", "functions call each other across modules"}},
-	{dir: "methods_across_files", x64Only: true, files: map[string]string{"shapes/shapes.wsp": `import "shapes/shape";
+	{dir: "methods_across_files", files: map[string]string{"shapes/shapes.wsp": `import "shapes/shape";
 `, "shapes/shape.wsp": `public struct Shape {
     int w;
     int h;
@@ -1234,7 +1234,7 @@ func main() {
     check(third == null && value == 3 && trace == 0, "defer! stays quiet when the function succeeds");
 }
 `, expected: []string{"defer! reads an error passed up with !", "defer! reads an error returned by return Error", "defer! stays quiet when the function succeeds"}},
-	{dir: "empty_literal", x64Only: true, src: `struct Holder {
+	{dir: "empty_literal", src: `struct Holder {
     char[] data;
 }
 
@@ -1504,7 +1504,7 @@ func main() {
 }
 `},
 
-	{dir: "ptr_double", x64Only: true, src: `struct P {
+	{dir: "ptr_double", src: `struct P {
     int x;
     int y;
 }
@@ -1534,7 +1534,7 @@ func main() {
 }
 `},
 
-	{dir: "ptr_null", x64Only: true, src: `struct Node {
+	{dir: "ptr_null", src: `struct Node {
     *int p;
     int tag;
 }
@@ -1619,7 +1619,7 @@ func main() {
 }
 `},
 
-	{dir: "method_pointer", x64Only: true, src: `struct Counter {
+	{dir: "method_pointer", src: `struct Counter {
     int n;
 }
 
@@ -2920,7 +2920,7 @@ func main() {
 }
 `, expected: []string{"abortstep before the loop"}, abort: "panic: range step must be positive"},
 
-	{dir: "abort_index_array", x64Only: true, src: `func main() {
+	{dir: "abort_index_array", src: `func main() {
     int[5] nums = [1, 2, 3, 4, 5];
     int i = 4;
     check(nums[i] == 5, "abortidx last element is readable");
@@ -2931,7 +2931,7 @@ func main() {
 }
 `, expected: []string{"abortidx last element is readable", "abortidx before the bad read"}, abort: "panic: index out of range"},
 
-	{dir: "abort_index_negative", x64Only: true, src: `func main() {
+	{dir: "abort_index_negative", src: `func main() {
     int[5] nums = [1, 2, 3, 4, 5];
     int i = 0;
     i -= 1;
@@ -2941,7 +2941,7 @@ func main() {
 }
 `, expected: []string{"abortneg before the bad read"}, abort: "panic: index out of range"},
 
-	{dir: "abort_index_write", x64Only: true, src: `func main() {
+	{dir: "abort_index_write", src: `func main() {
     int[3] nums = [1, 2, 3];
     int i = 3;
     check(true, "abortwrite before the bad write");
@@ -2950,7 +2950,7 @@ func main() {
 }
 `, expected: []string{"abortwrite before the bad write"}, abort: "panic: index out of range"},
 
-	{dir: "abort_index_span", x64Only: true, src: `func main() {
+	{dir: "abort_index_span", src: `func main() {
     int[5] nums = [1, 2, 3, 4, 5];
     int[] part = nums[1:3];
     int i = 2;
@@ -2961,7 +2961,7 @@ func main() {
 }
 `, expected: []string{"abortspan last element is readable", "abortspan before the bad read"}, abort: "panic: index out of range"},
 
-	{dir: "abort_null_deref", x64Only: true, src: `func main() {
+	{dir: "abort_null_deref", src: `func main() {
     *int p = null;
     check(true, "abortnull before the dereference");
     int v = p@;
@@ -2969,7 +2969,7 @@ func main() {
 }
 `, expected: []string{"abortnull before the dereference"}, abort: "panic: null pointer dereference"},
 
-	{dir: "abort_null_field", x64Only: true, src: `struct P {
+	{dir: "abort_null_field", src: `struct P {
     int x;
     int y;
 }
@@ -2982,7 +2982,7 @@ func main() {
 }
 `, expected: []string{"abortnullfield before the access"}, abort: "panic: null pointer dereference"},
 
-	{dir: "abort_null_error", x64Only: true, src: `enum Kind {
+	{dir: "abort_null_error", src: `enum Kind {
     A
 }
 
@@ -2998,7 +2998,7 @@ func main() {
 }
 `, expected: []string{"abortnullerr before the access"}, abort: "panic: null pointer dereference"},
 
-	{dir: "abort_slice_end", x64Only: true, src: `func main() {
+	{dir: "abort_slice_end", src: `func main() {
     int[5] nums = [1, 2, 3, 4, 5];
     int end = 6;
     check(true, "abortslice before the bad slice");
@@ -3007,7 +3007,7 @@ func main() {
 }
 `, expected: []string{"abortslice before the bad slice"}, abort: "panic: slice out of range"},
 
-	{dir: "abort_slice_order", x64Only: true, src: `func main() {
+	{dir: "abort_slice_order", src: `func main() {
     int[5] nums = [1, 2, 3, 4, 5];
     int start = 3;
     int end = 2;
@@ -3068,7 +3068,7 @@ func main() {
     check(seen == 4, "rangetypes step of a narrow type");
 }
 `},
-	{dir: "alloc_basic", x64Only: true, src: `func main() ! {
+	{dir: "alloc_basic", src: `func main() ! {
     *int p = malloc(sizeof(int) * 4)!;
     p@ = 42;
     check(p@ == 42, "malloc write and read");
@@ -3079,7 +3079,7 @@ func main() {
 }
 `, expected: []string{"malloc write and read", "sizeof int", "sizeof int8", "sizeof int32"}},
 
-	{dir: "alloc_reuse", x64Only: true, src: `func main() ! {
+	{dir: "alloc_reuse", src: `func main() ! {
     *int a = malloc(24)!;
     free(a);
     *int b = malloc(24)!;
@@ -3090,7 +3090,7 @@ func main() {
 }
 `, expected: []string{"freed block is reused", "free null is a no-op"}},
 
-	{dir: "alloc_realloc", x64Only: true, src: `func main() ! {
+	{dir: "alloc_realloc", src: `func main() ! {
     *int p = malloc(8)!;
     p@ = 1234;
     *int same = realloc(p, 8)!;
@@ -3106,14 +3106,14 @@ func main() {
 }
 `, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc of null allocates", "realloc to a large block keeps the contents"}},
 
-	{dir: "abort_malloc_oom", x64Only: true, exit: 1, src: `func main() ! {
+	{dir: "abort_malloc_oom", exit: 1, src: `func main() ! {
     check(true, "oom before the failure");
     *int p = malloc(-1)!;
     free(p);
 }
 `, expected: []string{"oom before the failure"}, abort: "error[runtime.AllocError]: out of memory"},
 
-	{dir: "ptr_index", x64Only: true, src: `struct P {
+	{dir: "ptr_index", src: `struct P {
     int a;
     int8 b;
 }
@@ -3149,7 +3149,7 @@ func main() ! {
 }
 `, expected: []string{"pointer index first", "pointer index second", "pointer index last", "pointer index compound assign", "pointer index through a converted pointer", "pointer index on bytes", "pointer index with a variable", "pointer index struct field a", "pointer index struct field b"}},
 
-	{dir: "strings_core", x64Only: true, src: `import "std/strings";
+	{dir: "strings_core", src: `import "std/strings";
 
 func main() ! {
     char[64] buf;
@@ -3298,7 +3298,7 @@ func main() {
 }
 `, expected: []string{"getenv finds a variable that is always set", "getenv of a missing variable is false", "getenv does not match a prefix of a name"}},
 
-	{dir: "path_core", x64Only: true, src: `import "std/path";
+	{dir: "path_core", src: `import "std/path";
 import "std/strings";
 
 func main() ! {
@@ -3487,7 +3487,7 @@ func main() ! {
 }
 `, expected: []string{"mkdirAll creates every missing level", "mkdirAll of an existing directory is not an error", "mkdirAll creates only what is missing", "mkdirAll accepts a trailing separator", "mkdirAll over a file is NotDir", "mkdirAll under a file is NotDir", "mkdirAll of an empty path is NotFound"}},
 
-	{dir: "math_core", x64Only: true, src: `import "std/math";
+	{dir: "math_core", src: `import "std/math";
 import "std/errors";
 
 func main() {
@@ -3854,7 +3854,142 @@ func main() {
 }
 `, expected: []string{"a switch gives two values to a let", "a case can leave the function with return", "a case can continue the loop", "a case can break the loop", "a switch is an argument of a call", "a block handler works inside an expression", "a switch handler gives two values", "a function returns a switch of two values", "an untyped arm takes the type of the typed one", "a switch without a value can leave too"}},
 
-	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
+	{dir: "coalesce_short_circuit", src: `enum Kind {
+    A = 1
+}
+
+int calls;
+
+func bump() !int {
+    calls++;
+    return 1;
+}
+
+func fail() !int {
+    calls++;
+    return Error(Kind.A);
+}
+
+func count() int {
+    calls++;
+    return 1;
+}
+
+func main() {
+    bool r = false && (bump() ?? 0) == 1;
+    check(calls == 0 && !r, "a ?? in an untaken && branch does not run");
+    bool s = true || (bump() ?? 0) == 1;
+    check(calls == 0 && s, "a ?? in an untaken || branch does not run");
+    int t = true ? 5 : (bump() ?? 0);
+    int u = false ? (bump() ?? 0) : 6;
+    check(calls == 0 && t == 5 && u == 6, "a ?? in an untaken ternary branch does not run");
+
+    bool v = true && (fail() ?? |e| {
+        yield 3;
+    }) == 3;
+    int w = true ? (fail() ?? 4) : 0;
+    check(calls == 2 && v && w == 4, "a block handler in a taken branch runs once");
+
+    int x = false && true ? 0 : 1;
+    bool y = false && (switch x {
+        case 1 => count();
+        default => 0;
+    }) == 1;
+    check(calls == 2 && !y, "a switch in an untaken branch does not run");
+}
+`, expected: []string{"a ?? in an untaken && branch does not run", "a ?? in an untaken || branch does not run", "a ?? in an untaken ternary branch does not run", "a block handler in a taken branch runs once", "a switch in an untaken branch does not run"}},
+
+	{dir: "cycles_calls", files: map[string]string{"even.wsp": `import "odd";
+
+public const LIMIT = 100;
+
+public func isEven(int n) bool {
+    if n == 0 {
+        return true;
+    }
+    return odd.isOdd(n - 1);
+}
+
+public func limit() int {
+    return odd.LIMIT * 2;
+}
+`, "odd.wsp": `import "even";
+
+public const LIMIT = 50;
+
+public func isOdd(int n) bool {
+    if n == 0 {
+        return false;
+    }
+    return even.isEven(n - 1);
+}
+
+public func cap() int {
+    return even.LIMIT + 1;
+}
+`}, src: `import "even";
+import "odd";
+
+func main() {
+    check(even.isEven(10) && !even.isEven(7) && odd.isOdd(7), "two modules call each other");
+    check(even.limit() == 100, "a function reaches the other module through the cycle");
+    check(odd.cap() == 101, "a constant of the other module is read after loading");
+}
+`, expected: []string{"two modules call each other", "a function reaches the other module through the cycle", "a constant of the other module is read after loading"}},
+
+	{dir: "lua_keywords", src: `import "std/math";
+
+struct Box {
+    int end;
+    int function;
+    int local;
+}
+
+const then = 5;
+int goto = 6;
+
+func repeat(int not, int or) int {
+    return not + or;
+}
+
+func nil(int and) int => and * 2;
+
+func risky(int n) !int {
+    if n == 0 {
+        return Error(Kind.A);
+    }
+    return n;
+}
+
+enum Kind {
+    A = 1
+}
+
+func main() {
+    int end = 1;
+    int do = 2;
+    int elseif = 3;
+    int while = 4;
+    int total = repeat(end, do) + nil(elseif) + while + then + goto;
+    check(total == 24, "Lua keywords work as names of variables, parameters and functions");
+
+    Box box = Box{end: 7, function: 8, local: 9};
+    box.end = box.end + 1;
+    check(box.end == 8 && box.function == 8 && box.local == 9, "Lua keywords work as names of fields");
+
+    for local in 0..2 {
+        total += local;
+    }
+    int v = risky(0) ?? |or| {
+        yield 100;
+    };
+    check(total == 27 && v == 100, "Lua keywords work as loop and handler names");
+
+    check(math.max(total, 1) == 27 && math.MIN_INT < 0, "a module named math does not hide the Lua math library");
+}
+`, expected: []string{"Lua keywords work as names of variables, parameters and functions", "Lua keywords work as names of fields", "Lua keywords work as loop and handler names", "a module named math does not hide the Lua math library"}},
+
+	{dir: "ptr_slice", src: `func main() ! {
     *int8 b = malloc(16)!;
     for i in 0..15 {
         b[i] = int8(i * 2);
@@ -3906,7 +4041,7 @@ func main() ! {
 }
 `, expected: []string{"pointer to integer is not null", "pointer to int matches uint64", "integer to pointer round trip", "write through a converted integer", "read through a converted integer", "struct pointer reinterpreted from int pointer", "bytes view of a struct pointer", "converted zero is the null pointer"}},
 
-	{dir: "ptr_arith", x64Only: true, src: `struct P {
+	{dir: "ptr_arith", src: `struct P {
     int a;
     int8 b;
 }
@@ -3990,7 +4125,7 @@ func main() ! {
 }
 `, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string is a view of the buffer", "string from char slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
 
-	{dir: "free_slice", x64Only: true, src: `func main() ! {
+	{dir: "free_slice", src: `func main() ! {
     *int8 b = malloc(24)!;
     b[0] = 120;
     int8[] s = b[0:5];
@@ -4026,7 +4161,7 @@ func main() ! {
 }
 `, expected: []string{"free of many releases every small block", "free of many releases the last block", "free of mixed slice and pointer", "free of many accepts null"}},
 
-	{dir: "free_node_next", x64Only: true, src: `struct Node {
+	{dir: "free_node_next", src: `struct Node {
     *Node next;
     int v;
 }
@@ -4595,7 +4730,7 @@ func main() {
 }
 `, expected: []string{"imported global initial value", "imported global changed by its module", "imported global written from outside is seen by the module", "compound write on an imported global", "imported string global", "imported string global written", "private global stays private", "increment on an imported global"}},
 
-	{dir: "global_pointer", x64Only: true, src: `int slot = 5;
+	{dir: "global_pointer", src: `int slot = 5;
 *int cell = null;
 int[4] buffer;
 
@@ -4610,7 +4745,7 @@ func main() {
 }
 `, expected: []string{"global null pointer", "write through a global pointer", "global pointer to a global array element"}},
 
-	{dir: "string_pointer", x64Only: true, src: `func main() {
+	{dir: "string_pointer", src: `func main() {
     *int8 p = (*int8)("hello");
     check(p[0] == 104, "literal string data pointer first byte");
     check(p[4] == 111, "literal string data pointer last byte");
@@ -4957,7 +5092,7 @@ func main() {
 }
 `, expected: []string{"an int literal matches case int and v is an int", "a case for a sized type is exact and listed before the group", "case uint matches an unsigned integer", "a string matches case string and v is a string", "a bool matches case bool", "an enum matches its own case before the int group", "a nominal type matches only its own case", "a char matches case char", "the second argument is read by index", "... passes the variadic on", "a forwarded string keeps its type", "explicit arguments can come before the spread", "a spread of nothing leaves only the explicit arguments", "len counts the arguments", "no arguments is an empty variadic", "for iterates the arguments and default is skipped"}},
 
-	{dir: "ptr_deref_postfix", x64Only: true, src: `struct P {
+	{dir: "ptr_deref_postfix", src: `struct P {
     int x;
 }
 
@@ -5216,7 +5351,7 @@ func main() {
 }
 `, expected: []string{"a method on the first struct", "a method with the same name on another struct", "a method calling a method of its own type", "a function with the same name as the methods"}},
 
-	{dir: "abort_main_error", x64Only: true, exit: 2, src: `enum MathError {
+	{dir: "abort_main_error", exit: 2, src: `enum MathError {
     a,
     b,
     DivByZero
@@ -5236,7 +5371,7 @@ func main() ! {
 }
 `, expected: []string{"mainerr before the failure"}, abort: "error[main.MathError]: division by zero"},
 
-	{dir: "abort_main_error_int", x64Only: true, exit: 1, src: `enum Kind {
+	{dir: "abort_main_error_int", exit: 1, src: `enum Kind {
     Bad = 1
 }
 

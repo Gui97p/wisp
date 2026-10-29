@@ -1,7 +1,6 @@
 package lua
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -14,21 +13,23 @@ func (t *LuaTarget) compileDefinition(b *strings.Builder, node ast.Node, vars []
 	if len(values) > 0 {
 		texts = make([]string, len(values))
 		for k, value := range values {
-			text, err := t.compileExprScratch(value)
+			var text string
+			var err error
+			if lit, ok := value.(*ast.ArrayLiteral); ok {
+				var want *analyser.ArrayType
+				if types := t.info.VarTypes[node]; k < len(types) {
+					if at, isArray := types[k].(analyser.ArrayType); isArray {
+						want = &at
+					}
+				}
+				text, err = t.arrayLiteralText(lit, want)
+			} else {
+				text, err = t.compileExprScratch(value)
+			}
 			if err != nil {
 				return err
 			}
-			if lit, ok := value.(*ast.ArrayLiteral); ok {
-				if types := t.info.VarTypes[node]; k < len(types) {
-					if at, ok := types[k].(analyser.ArrayType); ok {
-						text, err = padArrayLiteral(text, len(lit.Elements), at)
-						if err != nil {
-							return err
-						}
-					}
-				}
-			}
-			texts[k] = text
+			texts[k] = t.valueText(value, text)
 		}
 	} else {
 		types := t.info.VarTypes[node]
@@ -44,39 +45,22 @@ func (t *LuaTarget) compileDefinition(b *strings.Builder, node ast.Node, vars []
 
 	t.flushPending(b)
 
+	for k := range texts {
+		if syms := t.info.VarSymbols[node]; k < len(syms) && t.isBoxed(syms[k]) {
+			texts[k] = "{[0]=" + texts[k] + "}"
+		}
+	}
+
 	b.WriteString("local ")
 	for k, variable := range vars {
 		if k > 0 {
 			b.WriteString(", ")
 		}
-		b.WriteString(variable.Name)
+		b.WriteString(luaIdent(variable.Name))
 	}
 
 	b.WriteString(" = ")
 	b.WriteString(strings.Join(texts, ", "))
 	b.WriteByte('\n')
 	return nil
-}
-
-func padArrayLiteral(text string, given int, at analyser.ArrayType) (string, error) {
-	if int64(given) >= at.Size {
-		return text, nil
-	}
-
-	zero, err := zeroValue(at.Element)
-	if err != nil {
-		return "", err
-	}
-
-	var b strings.Builder
-	b.WriteString(strings.TrimSuffix(text, "}"))
-	for i := int64(given); i < at.Size; i++ {
-		if i > 0 {
-			b.WriteByte(',')
-		}
-		fmt.Fprintf(&b, "[%d]=%s", i, zero)
-	}
-	b.WriteByte('}')
-
-	return b.String(), nil
 }

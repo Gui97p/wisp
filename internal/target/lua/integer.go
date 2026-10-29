@@ -60,7 +60,7 @@ func wrapInt(text string, tp analyser.Type) string {
 func intLiteralText(e *ast.IntLiteral) string {
 	switch {
 	case e.Value == math.MinInt64:
-		return "math.mininteger"
+		return "__lua_math.mininteger"
 	case e.Value < 0:
 		return fmt.Sprintf("(%d)", e.Value)
 	}
@@ -74,6 +74,14 @@ func (t *LuaTarget) compileBinaryExpr(b *strings.Builder, e *ast.BinaryExpr) err
 
 	if handled, err := t.compileErrorComparison(b, e); handled {
 		return err
+	}
+
+	if handled, err := t.compilePointerBinary(b, e); handled {
+		return err
+	}
+
+	if e.Operator == "&&" || e.Operator == "||" {
+		return t.compileLogical(b, e)
 	}
 
 	left, err := t.compileExprScratch(e.Left)
@@ -90,10 +98,6 @@ func (t *LuaTarget) compileBinaryExpr(b *strings.Builder, e *ast.BinaryExpr) err
 
 	var text string
 	switch e.Operator {
-	case "&&":
-		text = fmt.Sprintf("(%s and %s)", left, right)
-	case "||":
-		text = fmt.Sprintf("(%s or %s)", left, right)
 	case "!=":
 		text = fmt.Sprintf("(%s ~= %s)", left, right)
 	case "^":
@@ -101,7 +105,7 @@ func (t *LuaTarget) compileBinaryExpr(b *strings.Builder, e *ast.BinaryExpr) err
 	case "+":
 		if pt, ok := t.info.Types[e.Left].(analyser.PrimitiveType); ok && pt.Name == "string" {
 			if rt, ok := t.info.Types[e.Right].(analyser.PrimitiveType); ok && rt.Name == "char" {
-				right = fmt.Sprintf("string.char(%s)", right)
+				right = fmt.Sprintf("__lua_string.char(%s)", right)
 			}
 			text = fmt.Sprintf("(%s .. %s)", left, right)
 		} else {
@@ -155,7 +159,7 @@ func comparisonText(op, left, right string, operand analyser.Type) string {
 
 	switch op {
 	case "<":
-		return fmt.Sprintf("math.ult(%s, %s)", left, right)
+		return fmt.Sprintf("__lua_math.ult(%s, %s)", left, right)
 	case "<=":
 		return fmt.Sprintf("__wisp_ule(%s, %s)", left, right)
 	case ">":
@@ -166,6 +170,10 @@ func comparisonText(op, left, right string, operand analyser.Type) string {
 }
 
 func (t *LuaTarget) compileUnaryExpr(b *strings.Builder, e *ast.UnaryExpr) error {
+	if e.Operator == "&" {
+		return t.compileAddressOf(b, e)
+	}
+
 	value, err := t.compileExprScratch(e.Value)
 	if err != nil {
 		return err
@@ -193,9 +201,15 @@ func (t *LuaTarget) compileCastExpr(b *strings.Builder, e *ast.CastExpr) error {
 	src := t.info.Types[e.Value]
 	dst := t.info.Types[e]
 
+	if handled, err := t.compilePointerCast(b, value, src, dst); handled {
+		return err
+	}
+
 	switch {
 	case isCharType(src) && isStringType(dst):
 		fmt.Fprintf(b, "string.char(%s)", value)
+	case isView(src) && isStringType(dst):
+		fmt.Fprintf(b, "__wisp_str(%s)", value)
 	case analyser.LosslessWidening(src, dst):
 		b.WriteString(value)
 	case isFloatType(dst) && isIntType(src):
@@ -222,4 +236,69 @@ func isCharType(tp analyser.Type) bool {
 func isStringType(tp analyser.Type) bool {
 	p, ok := tp.(analyser.PrimitiveType)
 	return ok && p.Name == "string"
+}
+
+func (t *LuaTarget) compileIsolated(expr ast.Expression) (text, stmts string, err error) {
+	outer := t.pending
+	t.pending = nil
+	text, err = t.compileExprScratch(expr)
+	stmts = strings.Join(t.pending, "")
+	t.pending = outer
+	return text, stmts, err
+}
+
+func (t *LuaTarget) compileLogical(b *strings.Builder, e *ast.BinaryExpr) error {
+	left, err := t.compileExprScratch(e.Left)
+	if err != nil {
+		return err
+	}
+	right, stmts, err := t.compileIsolated(e.Right)
+	if err != nil {
+		return err
+	}
+
+	op, guard := "and", "%s"
+	if e.Operator == "||" {
+		op, guard = "or", "not %s"
+	}
+
+	if stmts == "" {
+		fmt.Fprintf(b, "(%s %s %s)", left, op, right)
+		return nil
+	}
+
+	result := t.newLabel("sc")
+	t.emitPending(fmt.Sprintf("local %s = %s\n", result, left))
+	t.emitPending(fmt.Sprintf("if %s then\n%s%s = %s\nend\n", fmt.Sprintf(guard, result), stmts, result, right))
+	b.WriteString(result)
+	return nil
+}
+
+func (t *LuaTarget) compileTernary(b *strings.Builder, e *ast.TernaryExpr) error {
+	cond, err := t.compileExprScratch(e.Condition)
+	if err != nil {
+		return err
+	}
+	thenText, thenStmts, err := t.compileIsolated(e.Then)
+	if err != nil {
+		return err
+	}
+	elseText, elseStmts, err := t.compileIsolated(e.Else)
+	if err != nil {
+		return err
+	}
+
+	if thenStmts == "" && elseStmts == "" {
+		if canBeFalsy(t.info.Types[e.Then]) {
+			fmt.Fprintf(b, "(function() if %s then return %s else return %s end end)()", cond, thenText, elseText)
+			return nil
+		}
+		fmt.Fprintf(b, "((%s) and (%s) or (%s))", cond, thenText, elseText)
+		return nil
+	}
+
+	result := t.newLabel("tern")
+	t.emitPending(fmt.Sprintf("local %s\nif %s then\n%s%s = %s\nelse\n%s%s = %s\nend\n", result, cond, thenStmts, result, thenText, elseStmts, result, elseText))
+	b.WriteString(result)
+	return nil
 }

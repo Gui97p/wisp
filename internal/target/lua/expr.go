@@ -19,7 +19,11 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 	case *ast.UnaryExpr:
 		return t.compileUnaryExpr(b, e)
 	case *ast.DerefExpr:
-		return fmt.Errorf("lua: pointers are not supported")
+		value, err := t.compileExprScratch(e.Value)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(b, "__wisp_get(%s)", value)
 	case *ast.CallExpr:
 		return t.compileCallExpression(b, e)
 	case *ast.MemberExpr:
@@ -27,8 +31,12 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 			fmt.Fprintf(b, "%d", value.Value)
 			return nil
 		}
-		t.compileExpression(b, e.Object)
-		fmt.Fprintf(b, ".%s", e.Field)
+		object, err := t.memberObject(e)
+		if err != nil {
+			return err
+		}
+		b.WriteString(object)
+		b.WriteString(fieldAccess(e.Field))
 	case *ast.DotIdent:
 		value, ok := t.info.EnumValues[e]
 		if !ok {
@@ -36,22 +44,7 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 		}
 		fmt.Fprintf(b, "%d", value.Value)
 	case *ast.IndexExpr:
-		if pt, ok := t.info.Types[e.Array].(analyser.PrimitiveType); ok && pt.Name == "string" {
-			b.WriteString("string.byte(")
-			if err := t.compileExpression(b, e.Array); err != nil {
-				return err
-			}
-			b.WriteString(", (")
-			if err := t.compileExpression(b, e.Index); err != nil {
-				return err
-			}
-			b.WriteString(")+1)")
-			break
-		}
-		t.compileExpression(b, e.Array)
-		b.WriteByte('[')
-		t.compileExpression(b, e.Index)
-		b.WriteByte(']')
+		return t.compileIndex(b, e)
 	case *ast.SliceExpr:
 		return t.compileSliceExpression(b, e)
 	case *ast.CoalesceExpr:
@@ -65,23 +58,7 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 		return t.compileInExpression(b, e)
 
 	case *ast.TernaryExpr:
-		if canBeFalsy(t.info.Types[e.Then]) {
-			b.WriteString("(function() if ")
-			t.compileExpression(b, e.Condition)
-			b.WriteString(" then return ")
-			t.compileExpression(b, e.Then)
-			b.WriteString(" else return ")
-			t.compileExpression(b, e.Else)
-			b.WriteString(" end end)()")
-			break
-		}
-		b.WriteString("((")
-		t.compileExpression(b, e.Condition)
-		b.WriteString(") and (")
-		t.compileExpression(b, e.Then)
-		b.WriteString(") or (")
-		t.compileExpression(b, e.Else)
-		b.WriteString("))")
+		return t.compileTernary(b, e)
 	case *ast.CastExpr:
 		return t.compileCastExpr(b, e)
 	case *ast.ConvExpr:
@@ -94,15 +71,7 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 	case *ast.FuncLiteral:
 		return t.compileFuncLiteral(b, e)
 	case *ast.ArrayLiteral:
-		b.WriteByte('{')
-		for k, v := range e.Elements {
-			if k > 0 {
-				b.WriteByte(',')
-			}
-			fmt.Fprintf(b, "[%d]=", k)
-			t.compileExpression(b, v)
-		}
-		b.WriteByte('}')
+		return t.compileArrayLiteral(b, e)
 	case *ast.MapLiteral:
 		b.WriteByte('{')
 		for k, v := range e.Keys {
@@ -118,23 +87,15 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 	case *ast.StructLiteral:
 		return t.compileStructLiteral(b, e)
 	case *ast.IdentLiteral:
-		b.WriteString(e.Value)
+		b.WriteString(luaIdent(e.Value))
+		if t.isBoxed(t.info.Idents[e]) {
+			b.WriteString("[0]")
+		}
 		if t.narrowedIdent(e) {
 			b.WriteString(".v")
 		}
 	case *ast.StringLiteral:
-		b.WriteByte('"')
-		for _, c := range e.Value {
-			switch c {
-			case '\n':
-				b.WriteString("\\n")
-			case '\r':
-				b.WriteString("\\r")
-			default:
-				b.WriteRune(c)
-			}
-		}
-		b.WriteByte('"')
+		b.WriteString(luaString(e.Value))
 	case *ast.CharLiteral:
 		fmt.Fprintf(b, "%d", e.Value)
 	case *ast.BoolLiteral:
@@ -167,12 +128,14 @@ func (t *LuaTarget) compileStructLiteral(b *strings.Builder, expr *ast.StructLit
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		fmt.Fprintf(b, "%s=", field)
+		b.WriteString(fieldKey(field))
 
 		if v, ok := given[field]; ok {
-			if err := t.compileExpression(b, v); err != nil {
+			text, err := t.compileExprScratch(v)
+			if err != nil {
 				return err
 			}
+			b.WriteString(t.valueText(v, text))
 			continue
 		}
 
@@ -193,7 +156,7 @@ func (t *LuaTarget) compileFuncLiteral(b *strings.Builder, expr *ast.FuncLiteral
 		if i > 0 {
 			b.WriteByte(',')
 		}
-		b.WriteString(p.Name)
+		b.WriteString(luaIdent(p.Name))
 	}
 	b.WriteString(")\n")
 
@@ -240,8 +203,15 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 	}
 
 	if ident, ok := expr.Name.(*ast.IdentLiteral); ok {
+		if tp, isSizeof := t.info.SizeOf[expr]; isSizeof {
+			fmt.Fprintf(b, "%d", sizeOf(tp))
+			return nil
+		}
 		if _, ok := t.getBuiltin(ident.Value); ok {
 			return t.compileBuiltinCall(b, ident.Value, expr.Args)
+		}
+		if sym := t.info.Idents[ident]; sym != nil && sym.Kind == analyser.FUNC && sym.File == "" && rawMemoryBuiltins[ident.Value] {
+			return t.compileRawMemoryCall(b, ident.Value, expr)
 		}
 	}
 
@@ -251,15 +221,28 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 			if _, isMethod := methods[member.Field]; isMethod {
 				typeName, _ := methodOwnerName(objType)
 				prefix := ""
-				if mc, ok := t.info.MethodCalls[expr]; ok {
+				if mc, ok := t.info.MethodCalls[expr]; ok && mc.Module != "" && ModuleID(mc.Module) != t.id {
 					if alias, imported := t.importAlias(mc.Module); imported {
-						prefix = alias + "."
+						prefix = luaIdent(alias) + "."
+					} else {
+						prefix = t.extraModule(mc.Module) + "."
 					}
 				}
 				fmt.Fprintf(b, "%s%s_%s(", prefix, typeName, member.Field)
-				if err := t.compileExpression(b, member.Object); err != nil {
+				receiver := member.Object
+				byValue := true
+				if mc, ok := t.info.MethodCalls[expr]; ok && mc.Receiver != nil {
+					receiver = mc.Receiver
+					byValue = !mc.PointerReceiver
+				}
+				receiverText, err := t.compileExprScratch(receiver)
+				if err != nil {
 					return err
 				}
+				if byValue {
+					receiverText = t.valueText(receiver, receiverText)
+				}
+				b.WriteString(receiverText)
 				for k := range expr.Args {
 					b.WriteByte(',')
 					if err := t.compileArgument(b, expr, k); err != nil {
@@ -288,7 +271,7 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 
 func (t *LuaTarget) compileSliceExpression(b *strings.Builder, expr *ast.SliceExpr) error {
 	if pt, ok := t.info.Types[expr].(analyser.PrimitiveType); ok && pt.Name == "string" {
-		b.WriteString("string.sub(")
+		b.WriteString("__lua_string.sub(")
 		if err := t.compileExpression(b, expr.Array); err != nil {
 			return err
 		}
@@ -312,31 +295,30 @@ func (t *LuaTarget) compileSliceExpression(b *strings.Builder, expr *ast.SliceEx
 		return nil
 	}
 
-	b.WriteString("__wisp_slice(")
-	if err := t.compileExpression(b, expr.Array); err != nil {
+	array, err := t.compileExprScratch(expr.Array)
+	if err != nil {
 		return err
 	}
-	b.WriteString(", ")
+	start, end := "nil", "nil"
 	if expr.Start != nil {
-		if err := t.compileExpression(b, expr.Start); err != nil {
+		if start, err = t.compileExprScratch(expr.Start); err != nil {
 			return err
 		}
-	} else {
-		b.WriteByte('0')
 	}
-	b.WriteString(", ")
 	if expr.End != nil {
-		if err := t.compileExpression(b, expr.End); err != nil {
+		if end, err = t.compileExprScratch(expr.End); err != nil {
 			return err
 		}
-	} else {
-		b.WriteString("__wisp_len(")
-		if err := t.compileExpression(b, expr.Array); err != nil {
-			return err
-		}
-		b.WriteByte(')')
 	}
-	b.WriteByte(')')
+
+	if isPointer(t.info.Types[expr.Array]) {
+		if expr.Start == nil {
+			start = "0"
+		}
+		fmt.Fprintf(b, "__wisp_pslice(%s, %s, %s)", array, start, end)
+		return nil
+	}
+	fmt.Fprintf(b, "__wisp_vslice(%s, %s, %s)", array, start, end)
 	return nil
 }
 
@@ -349,11 +331,11 @@ func (t *LuaTarget) compileInExpression(b *strings.Builder, expr *ast.InExpr) er
 		t.compileExpression(b, expr.Left)
 		b.WriteString("] ~= nil)")
 	case analyser.PrimitiveType:
-		b.WriteString("(string.find(")
+		b.WriteString("(__lua_string.find(")
 		t.compileExpression(b, expr.Right)
 		b.WriteString(", ")
 		if isChar(t.info.Types[expr.Left]) {
-			b.WriteString("string.char(")
+			b.WriteString("__lua_string.char(")
 			t.compileExpression(b, expr.Left)
 			b.WriteByte(')')
 		} else {
@@ -378,4 +360,76 @@ func canBeFalsy(tp analyser.Type) bool {
 		return true
 	}
 	return false
+}
+
+func (t *LuaTarget) compileArrayLiteral(b *strings.Builder, lit *ast.ArrayLiteral) error {
+	var want *analyser.ArrayType
+	if at, ok := t.info.Types[lit].(analyser.ArrayType); ok {
+		want = &at
+	}
+	text, err := t.arrayLiteralText(lit, want)
+	if err != nil {
+		return err
+	}
+	b.WriteString(text)
+	return nil
+}
+
+func (t *LuaTarget) arrayLiteralText(lit *ast.ArrayLiteral, want *analyser.ArrayType) (string, error) {
+	size := int64(len(lit.Elements))
+	var zero string
+	if want != nil && want.Size > size {
+		size = want.Size
+		var err error
+		zero, err = zeroValue(want.Element)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	var b strings.Builder
+	b.WriteString("{t={")
+	for k, v := range lit.Elements {
+		if k > 0 {
+			b.WriteByte(',')
+		}
+		fmt.Fprintf(&b, "[%d]=", k)
+		text, err := t.compileExprScratch(v)
+		if err != nil {
+			return "", err
+		}
+		b.WriteString(t.valueText(v, text))
+	}
+	for k := int64(len(lit.Elements)); k < size; k++ {
+		if k > 0 {
+			b.WriteByte(',')
+		}
+		fmt.Fprintf(&b, "[%d]=%s", k, zero)
+	}
+	fmt.Fprintf(&b, "},o=0,n=%d}", size)
+	return b.String(), nil
+}
+
+func (t *LuaTarget) compileIndex(b *strings.Builder, e *ast.IndexExpr) error {
+	array, err := t.compileExprScratch(e.Array)
+	if err != nil {
+		return err
+	}
+	index, err := t.compileExprScratch(e.Index)
+	if err != nil {
+		return err
+	}
+
+	tp := t.info.Types[e.Array]
+	switch {
+	case isStringType(underlying(tp)):
+		fmt.Fprintf(b, "__wisp_sget(%s, %s)", array, index)
+	case isView(tp):
+		fmt.Fprintf(b, "__wisp_vget(%s, %s)", array, index)
+	case isPointer(tp):
+		fmt.Fprintf(b, "__wisp_pget(%s, %s)", array, index)
+	default:
+		fmt.Fprintf(b, "%s[%s]", array, index)
+	}
+	return nil
 }

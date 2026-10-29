@@ -47,7 +47,11 @@ func (t *LuaTarget) emitDefers(b *strings.Builder, from int, onError bool, errVa
 			t.pending = nil
 			b.WriteString("do\n")
 			if d.ErrorBind != "" && len(errValue) > 0 {
-				b.WriteString("local " + d.ErrorBind + " = " + errValue[0] + "\n")
+				b.WriteString("local ")
+				b.WriteString(luaIdent(d.ErrorBind))
+				b.WriteString(" = ")
+				b.WriteString(errValue[0])
+				b.WriteString("\n")
 			}
 			err := t.compileStatement(b, d.Body)
 			b.WriteString("end\n")

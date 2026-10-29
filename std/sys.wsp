@@ -74,7 +74,7 @@ internal func read(int fd, *char buf, int n) int {
 internal func write(int fd, *char buf, int n) int {
     int r;
     native linux_x64(in fd, buf, n, out r) "mov rax, 1; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
-	native lua(in fd, buf, n, out r) "local f = fd == 2 and io.stderr or io.stdout; f:write(string.sub(buf, 1, n)); r = n";
+	native lua(in fd, buf, n, out r) "local f = fd == 2 and io.stderr or io.stdout; f:write(__wisp_pstr(buf, n)); r = n";
 	return r;
 }
 
@@ -173,6 +173,7 @@ internal func exit(int code) {
 internal func mkdir(*char path, int mode) int {
 	int r;
 	native linux_x64(in path, mode, out r) "mov rax, 258; mov rdi, -100; mov rsi, {path}; mov rdx, {mode}; syscall; mov {r}, rax";
+	native lua "error('sys.mkdir is not available on lua')";
 	return r;
 }
 
@@ -181,6 +182,7 @@ internal func rename(*char from, to) int {
 
     native linux_x64(in from, in to, out r)
         "mov rax, 264; mov rdi, -100; mov rsi, {from}; mov rdx, -100; mov r10, {to}; syscall; mov {r}, rax";
+    native lua "error('sys.rename is not available on lua')";
 
     return r;
 }
@@ -188,29 +190,34 @@ internal func rename(*char from, to) int {
 internal func stat(*char path, *void buf) int {
     int r;
     native linux_x64(in path, buf, out r) "mov rax, 262; mov rdi, -100; mov rsi, {path}; mov rdx, {buf}; xor r10, r10; syscall; mov {r}, rax";
+    native lua "error('sys.stat is not available on lua')";
     return r;
 }
 
 internal func fstat(int fd, *void buf) int {
     int r;
     native linux_x64(in fd, in buf, out r) "mov rax, 5; mov rdi, {fd}; mov rsi, {buf}; syscall; mov {r}, rax";
+    native lua "error('sys.fstat is not available on lua')";
     return r;
 }
 
 internal func getdents(int fd, *char buf, int n) int {
     int r;
     native linux_x64(in fd, in buf, in n, out r) "mov rax, 217; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+    native lua "error('sys.getdents is not available on lua')";
     return r;
 }
 
 internal func getcwd(*char buf, int n) int {
     int r;
     native linux_x64(in buf, in n, out r) "mov rax, 79; mov rdi, {buf}; mov rsi, {n}; syscall; mov {r}, rax";
+    native lua "error('sys.getcwd is not available on lua')";
     return r;
 }
 
 internal func environ() **char {
 	**char r;
 	native linux_x64(out r) "extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
+	native lua "error('sys.environ is not available on lua')";
 	return r;
 }

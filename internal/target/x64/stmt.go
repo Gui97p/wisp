@@ -19,6 +19,7 @@ func (t *X64Target) compileStatement(stmt ast.Statement) error {
 
 func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 	var err error
+	liveBefore := len(t.ctx.AllocatedRegisters())
 
 	switch s := stmt.(type) {
 	case *ast.NativeStmt:
@@ -79,7 +80,7 @@ func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 		return t.err
 	}
 
-	if err == nil && len(t.ctx.AllocatedRegisters()) != 0 {
+	if err == nil && len(t.ctx.AllocatedRegisters()) != liveBefore {
 		line, col := stmt.Position()
 		endLine, endCol := stmt.EndPosition()
 		return &diag.Error{Diagnostic: diag.Diagnostic{

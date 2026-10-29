@@ -1,3 +1,4 @@
 public func copy(*char dst, *char src, int n) {
 	native x64(in dst, src, n) "mov rdi, {dst}; mov rsi, {src}; mov rcx, {n}; rep movsb";
+	native lua(in dst, src, n) "for i = 0, n - 1 do dst.t[dst.o + i] = src.t[src.o + i] end";
 }

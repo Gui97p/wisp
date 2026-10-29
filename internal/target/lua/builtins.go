@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
@@ -48,16 +47,20 @@ func (t *LuaTarget) compileEmit(b *strings.Builder, args []ast.Expression) error
 }
 
 func (t *LuaTarget) compileLen(b *strings.Builder, args []ast.Expression) error {
-	if pt, ok := t.info.Types[args[0]].(analyser.PrimitiveType); ok && pt.Name == "string" {
-		b.WriteByte('#')
-		return t.compileExpression(b, args[0])
-	}
-
-	b.WriteString("__wisp_len(")
-	if err := t.compileExpression(b, args[0]); err != nil {
+	text, err := t.compileExprScratch(args[0])
+	if err != nil {
 		return err
 	}
-	b.WriteByte(')')
+
+	tp := t.info.Types[args[0]]
+	switch {
+	case isStringType(underlying(tp)):
+		fmt.Fprintf(b, "#%s", text)
+	case isView(tp):
+		fmt.Fprintf(b, "(%s).n", text)
+	default:
+		fmt.Fprintf(b, "__wisp_mlen(%s)", text)
+	}
 	return nil
 }
 
@@ -69,5 +72,28 @@ func (t *LuaTarget) compilePanic(b *strings.Builder, args []ast.Expression) erro
 	}
 
 	b.WriteString(")\n")
+	return nil
+}
+
+var rawMemoryBuiltins = map[string]bool{"malloc": true, "realloc": true, "free": true}
+
+func (t *LuaTarget) compileRawMemoryCall(b *strings.Builder, name string, expr *ast.CallExpr) error {
+	args := make([]string, len(expr.Args))
+	for i, arg := range expr.Args {
+		text, err := t.compileExprScratch(arg)
+		if err != nil {
+			return err
+		}
+		args[i] = text
+	}
+
+	switch name {
+	case "malloc":
+		fmt.Fprintf(b, "__wisp_alloc(%s)", strings.Join(args, ", "))
+	case "realloc":
+		fmt.Fprintf(b, "__wisp_realloc(%s)", strings.Join(args, ", "))
+	default:
+		fmt.Fprintf(b, "__wisp_free(%s)", strings.Join(args, ", "))
+	}
 	return nil
 }

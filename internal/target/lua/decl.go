@@ -32,7 +32,7 @@ func funcName(fd *ast.FuncDecl) string {
 	if fd.Receiver != nil {
 		return fd.Receiver.Type.Name + "_" + fd.Name
 	}
-	return fd.Name
+	return luaIdent(fd.Name)
 }
 
 func collectFuncNames(decls []ast.Declaration) []string {
@@ -65,7 +65,7 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 		if recvName == "" {
 			recvName = "_"
 		}
-		b.WriteString(recvName)
+		b.WriteString(luaIdent(recvName))
 		first = false
 	}
 	variadicName := ""
@@ -75,9 +75,9 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 		}
 		if v.Variadic {
 			b.WriteString("...")
-			variadicName = v.Name
+			variadicName = luaIdent(v.Name)
 		} else {
-			b.WriteString(v.Name)
+			b.WriteString(luaIdent(v.Name))
 		}
 		first = false
 	}
@@ -87,6 +87,12 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 		t.currentFallible, t.currentPayloads, t.deferScopes = prevFallible, prevPayloads, prevDefers
 	}()
 	b.WriteString(")\n")
+
+	for _, sym := range t.info.VarSymbols[fd] {
+		if t.isBoxed(sym) {
+			fmt.Fprintf(b, "local %s = {[0]=%s}\n", luaIdent(sym.Name), luaIdent(sym.Name))
+		}
+	}
 
 	if variadicName != "" {
 		fmt.Fprintf(b, "local %s = __wisp_pack(...)\n", variadicName)

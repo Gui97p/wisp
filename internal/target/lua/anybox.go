@@ -22,13 +22,15 @@ func (t *LuaTarget) compileArgument(b *strings.Builder, expr *ast.CallExpr, inde
 
 	boxed, ok := t.info.Boxes[arg]
 	if !ok {
-		return t.compileExpression(b, arg)
+		text, err := t.compileExprScratch(arg)
+		if err != nil {
+			return err
+		}
+		b.WriteString(t.valueText(arg, text))
+		return nil
 	}
 
 	layout := analyser.Layout(boxed)
-	if layout.Code == "pointer" {
-		return fmt.Errorf("lua: a pointer cannot be passed to an untyped variadic")
-	}
 
 	tag, enum := layout.Code, "nil"
 	if layout.Named() {
@@ -53,8 +55,6 @@ func (t *LuaTarget) compileTypeCase(b *strings.Builder, e *ast.BinaryExpr, tc *a
 
 	layout := analyser.Layout(tc.Type)
 	switch {
-	case layout.Code == "pointer":
-		return fmt.Errorf("lua: pointers cannot be held by an untyped variadic")
 	case tc.Group:
 		name := map[string]string{"int": "__wisp_isint", "uint": "__wisp_isuint", "float": "__wisp_isfloat"}[layout.Code]
 		if layout.Code == "float64" {

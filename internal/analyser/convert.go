@@ -253,6 +253,11 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 		return a.resolveDot(*slot, to)
 	}
 
+	if voidPointerConversion(from, to) {
+		a.insertCast(slot, to)
+		return true
+	}
+
 	if from.Equals(to) {
 		if isUntyped(from) {
 			a.fixUntyped(*slot, to)
@@ -707,4 +712,18 @@ func (a *Analyser) reportUnresolvedEmpty() {
 		a.error(node, "cannot infer the type of an empty []").
 			WithHelp("it takes the type of a slice that receives it, so write it where a slice is expected")
 	}
+}
+
+func voidPointerConversion(from, to Type) bool {
+	fp, ok := from.(PointerType)
+	if !ok {
+		return false
+	}
+	tp, ok := to.(PointerType)
+	if !ok {
+		return false
+	}
+	_, fromVoid := fp.Element.(VoidType)
+	_, toVoid := tp.Element.(VoidType)
+	return fromVoid != toVoid
 }

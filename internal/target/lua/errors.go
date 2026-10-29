@@ -11,14 +11,21 @@ import (
 func luaString(value string) string {
 	var b strings.Builder
 	b.WriteByte('"')
-	for _, c := range value {
-		switch c {
-		case '\n':
+	for i := 0; i < len(value); i++ {
+		c := value[i]
+		switch {
+		case c == '"':
+			b.WriteString("\\\"")
+		case c == '\\' && i+1 < len(value):
+			b.WriteByte(c)
+			i++
+			b.WriteByte(value[i])
+		case c == '\n':
 			b.WriteString("\\n")
-		case '\r':
+		case c == '\r':
 			b.WriteString("\\r")
 		default:
-			b.WriteRune(c)
+			b.WriteByte(c)
 		}
 	}
 	b.WriteByte('"')
@@ -126,7 +133,7 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 	fmt.Fprintf(&branch, "if %s ~= nil then\n", errName)
 
 	if expr.ErrorBind != "" {
-		fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
+		fmt.Fprintf(&branch, "local %s = %s\n", luaIdent(expr.ErrorBind), errName)
 	}
 	endLabel := t.newLabel("coend")
 	t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{results: results, label: endLabel, deferDepth: len(t.deferScopes)})
@@ -207,7 +214,7 @@ func (t *LuaTarget) entryErrorCheck() string {
 	for _, d := range t.program.Declarations {
 		fd, ok := d.(*ast.FuncDecl)
 		if ok && fd.Name == "main" && fd.Receiver == nil && len(fd.Params) == 1 {
-			prelude = "local __args = {}\nfor i = 1, #arg do\n\t__args[i - 1] = arg[i]\nend\n"
+			prelude = "local __args = __wisp_pack(table.unpack(arg, 1, #arg))\n"
 			call = "main(__args)"
 		}
 	}
@@ -216,11 +223,11 @@ func (t *LuaTarget) entryErrorCheck() string {
 		if !ok || fd.Name != "main" || fd.Receiver != nil || !fd.Fallible {
 			continue
 		}
-		return prelude + `local __main_result = table.pack(` + call + `)
+		return prelude + `local __main_result = __lua_table.pack(` + call + `)
 local __main_error = __main_result[__main_result.n]
 if __main_error ~= nil then
-	io.stderr:write("error: ", __main_error.message, " (", __main_error.file, ":", __main_error.line, ")\n")
-	os.exit(1)
+	__lua_io.stderr:write("error[", __main_error.domain, "]: ", __main_error.message, "\n  at ", __main_error.file, ":", __main_error.line, "\n")
+	__lua_os.exit(__main_error.code)
 end
 `
 	}

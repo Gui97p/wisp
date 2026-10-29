@@ -35,6 +35,27 @@ type LuaTarget struct {
 	pending []string
 
 	files map[ast.Declaration]string
+	id    string
+
+	extraModules map[string]string
+	boxed        map[*analyser.Symbol]bool
+
+	aggregates     map[string]*aggregateFns
+	aggregateOrder []*aggregateFns
+}
+
+func (t *LuaTarget) extraModule(path string) string {
+	id := ModuleID(path)
+	alias := "__wisp_m_" + strings.NewReplacer(".", "_", "/", "_").Replace(id)
+	if t.extraModules == nil {
+		t.extraModules = map[string]string{}
+	}
+	t.extraModules[alias] = id
+	return alias
+}
+
+func (t *LuaTarget) SetID(id string) {
+	t.id = id
 }
 
 func (t *LuaTarget) SetFiles(files map[ast.Declaration]string) {
@@ -59,11 +80,16 @@ func (*LuaTarget) Name() string {
 }
 
 func (t *LuaTarget) Compile() (string, error) {
-	var b strings.Builder
+	var head, b strings.Builder
+	t.collectBoxed()
+
+	if !t.isEntry {
+		fmt.Fprintf(&head, "local __wisp_module = {}\n__lua_package.loaded[%q] = __wisp_module\n", t.id)
+	}
 
 	for _, d := range t.program.Declarations {
 		if imp, ok := d.(*ast.ImportDecl); ok {
-			fmt.Fprintf(&b, "local %s = require(%q)\n", imp.Alias, ModuleID(imp.Path))
+			fmt.Fprintf(&head, "local %s = require(%q)\n", luaIdent(imp.Alias), ModuleID(imp.Path))
 		}
 	}
 
@@ -91,8 +117,19 @@ func (t *LuaTarget) Compile() (string, error) {
 		b.WriteString("return __wisp_module\n")
 	}
 
-	body := b.String()
-	return preludeFor(body) + body, nil
+	extras := make([]string, 0, len(t.extraModules))
+	for alias := range t.extraModules {
+		extras = append(extras, alias)
+	}
+	sort.Strings(extras)
+	for _, alias := range extras {
+		fmt.Fprintf(&head, "local %s = require(%q)\n", alias, t.extraModules[alias])
+	}
+
+	head.WriteString(t.aggregateCode())
+
+	body := head.String() + b.String()
+	return luaGlobals + preludeFor(body) + body, nil
 }
 
 var luaBuiltins = map[string]bool{
@@ -123,20 +160,20 @@ func (t *LuaTarget) writeExports(b *strings.Builder) {
 		case *ast.FuncDecl:
 			if decl.Receiver != nil {
 				if t.info.MethodVisible[decl] {
-					fmt.Fprintf(b, "__wisp_module.%s = %s\n", funcName(decl), funcName(decl))
+					fmt.Fprintf(b, "__wisp_module%s = %s\n", fieldAccess(funcName(decl)), funcName(decl))
 				}
 				continue
 			}
 			if !decl.Exported {
 				continue
 			}
-			fmt.Fprintf(b, "__wisp_module.%s = %s\n", decl.Name, decl.Name)
+			fmt.Fprintf(b, "__wisp_module%s = %s\n", fieldAccess(decl.Name), luaIdent(decl.Name))
 		case *ast.ConstDecl:
 			if !decl.Exported {
 				continue
 			}
 			for _, v := range decl.Vars {
-				fmt.Fprintf(b, "__wisp_module.%s = %s\n", v.Name, v.Name)
+				fmt.Fprintf(b, "__wisp_module%s = %s\n", fieldAccess(v.Name), luaIdent(v.Name))
 			}
 		case *ast.VarDecl:
 		}
@@ -150,7 +187,7 @@ func (t *LuaTarget) writeExports(b *strings.Builder) {
 	for i, part := range parts {
 		fmt.Fprintf(b, "local __part%d = require(%q)\n", i, ModuleID(part))
 		for _, name := range t.info.PartExports[part] {
-			fmt.Fprintf(b, "__wisp_module.%s = __part%d.%s\n", name, i, name)
+			fmt.Fprintf(b, "__wisp_module%s = __part%d%s\n", fieldAccess(name), i, fieldAccess(name))
 		}
 	}
 }
@@ -173,28 +210,44 @@ func isDataDecl(d ast.Declaration) bool {
 }
 
 func (t *LuaTarget) moduleTable() string {
-	var names []string
+	type exportVar struct {
+		name  string
+		boxed bool
+	}
+
+	var vars []exportVar
 	for _, d := range t.program.Declarations {
 		if vd, ok := d.(*ast.VarDecl); ok && vd.Exported {
-			for _, v := range vd.Vars {
-				names = append(names, v.Name)
+			for k, v := range vd.Vars {
+				boxed := false
+				if syms := t.info.VarSymbols[vd]; k < len(syms) {
+					boxed = t.isBoxed(syms[k])
+				}
+				vars = append(vars, exportVar{v.Name, boxed})
 			}
 		}
 	}
-	if len(names) == 0 {
-		return "local __wisp_module = {}\n"
+	if len(vars) == 0 {
+		return ""
+	}
+
+	ref := func(v exportVar) string {
+		if v.boxed {
+			return luaIdent(v.name) + "[0]"
+		}
+		return luaIdent(v.name)
 	}
 
 	var b strings.Builder
-	b.WriteString("local __wisp_module = setmetatable({}, {\n")
+	b.WriteString("setmetatable(__wisp_module, {\n")
 	b.WriteString("  __index = function(_, k)\n")
-	for _, name := range names {
-		fmt.Fprintf(&b, "    if k == %q then return %s end\n", name, name)
+	for _, v := range vars {
+		fmt.Fprintf(&b, "    if k == %q then return %s end\n", v.name, ref(v))
 	}
 	b.WriteString("  end,\n")
 	b.WriteString("  __newindex = function(_, k, v)\n")
-	for _, name := range names {
-		fmt.Fprintf(&b, "    if k == %q then %s = v return end\n", name, name)
+	for _, v := range vars {
+		fmt.Fprintf(&b, "    if k == %q then %s = v return end\n", v.name, ref(v))
 	}
 	b.WriteString("    rawset(_, k, v)\n")
 	b.WriteString("  end,\n")

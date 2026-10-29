@@ -52,6 +52,15 @@ func zeroValue(t analyser.Type) (string, error) {
 	case analyser.UntypedIntType:
 		return "0", nil
 
+	case analyser.NamedType:
+		if t.Enum {
+			return "0", nil
+		}
+		return zeroValue(t.Underlying)
+
+	case analyser.ErrorType:
+		return "nil", nil
+
 	case analyser.UntypedFloatType:
 		return "0.0", nil
 
@@ -65,7 +74,7 @@ func zeroValue(t analyser.Type) (string, error) {
 		return "{}", nil
 
 	case analyser.SpanType:
-		return "nil", nil
+		return "__wisp_empty()", nil
 
 	case *analyser.StructType:
 		var b strings.Builder
@@ -82,7 +91,7 @@ func zeroValue(t analyser.Type) (string, error) {
 				return "", err
 			}
 
-			fmt.Fprintf(&b, "%s = %s", field, value)
+			b.WriteString(fieldKey(field) + value)
 		}
 
 		b.WriteString("}")
@@ -91,8 +100,7 @@ func zeroValue(t analyser.Type) (string, error) {
 	case analyser.ArrayType:
 		var b strings.Builder
 
-		b.WriteByte('{')
-
+		b.WriteString("{t={")
 		for i := int64(0); i < t.Size; i++ {
 			if i > 0 {
 				b.WriteString(", ")
@@ -105,8 +113,7 @@ func zeroValue(t analyser.Type) (string, error) {
 
 			fmt.Fprintf(&b, "[%d]=%s", i, value)
 		}
-
-		b.WriteByte('}')
+		fmt.Fprintf(&b, "},o=0,n=%d}", t.Size)
 
 		return b.String(), nil
 

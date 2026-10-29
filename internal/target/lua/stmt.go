@@ -77,7 +77,7 @@ func (t *LuaTarget) compileReturnStatement(b *strings.Builder, stmt *ast.ReturnS
 		if err != nil {
 			return err
 		}
-		texts = append(texts, text)
+		texts = append(texts, t.valueText(value, text))
 	}
 
 	switch {
@@ -96,11 +96,11 @@ func (t *LuaTarget) compileReturnStatement(b *strings.Builder, stmt *ast.ReturnS
 	if t.hasDefers(0, t.info.ErrorReturns[stmt]) {
 		packed := t.newLabel("ret")
 		b.WriteString("do\n")
-		fmt.Fprintf(b, "local %s = table.pack(%s)\n", packed, strings.Join(texts, ", "))
+		fmt.Fprintf(b, "local %s = __lua_table.pack(%s)\n", packed, strings.Join(texts, ", "))
 		if err := t.emitDefers(b, 0, t.info.ErrorReturns[stmt], packed+"["+packed+".n]"); err != nil {
 			return err
 		}
-		fmt.Fprintf(b, "return table.unpack(%s, 1, %s.n)\n", packed, packed)
+		fmt.Fprintf(b, "return __lua_table.unpack(%s, 1, %s.n)\n", packed, packed)
 		b.WriteString("end\n")
 		return nil
 	}
@@ -227,6 +227,9 @@ func (t *LuaTarget) compileForRange(b *strings.Builder, stmt *ast.ForStmt) error
 	if pt, ok := t.info.Types[stmt.Range].(analyser.PrimitiveType); ok && pt.Name == "string" {
 		return t.compileForRangeString(b, stmt)
 	}
+	if isView(t.info.Types[stmt.Range]) {
+		return t.compileForRangeView(b, stmt)
+	}
 
 	rangeVar := t.newLabel("range")
 	keyVar := t.newLabel("range_key")
@@ -255,12 +258,12 @@ func (t *LuaTarget) compileForRange(b *strings.Builder, stmt *ast.ForStmt) error
 	fmt.Fprintf(b, "local %s = nil\n", keyVar)
 	fmt.Fprintf(b, "local %s = nil\n", valueVar)
 
-	if stmt.Var != "" {
-		fmt.Fprintf(b, "local %s = nil\n", stmt.Var)
+	if luaIdent(stmt.Var) != "" {
+		fmt.Fprintf(b, "local %s = nil\n", luaIdent(stmt.Var))
 	}
 
-	if stmt.Var2 != "" {
-		fmt.Fprintf(b, "local %s = nil\n", stmt.Var2)
+	if luaIdent(stmt.Var2) != "" {
+		fmt.Fprintf(b, "local %s = nil\n", luaIdent(stmt.Var2))
 	}
 
 	fmt.Fprintf(b, "::%s::\n", conditionLabel)
@@ -283,12 +286,12 @@ func (t *LuaTarget) compileForRange(b *strings.Builder, stmt *ast.ForStmt) error
 
 	b.WriteString("do\n")
 
-	if stmt.Var != "" {
-		if stmt.Var2 != "" {
-			fmt.Fprintf(b, "%s = %s\n", stmt.Var, keyVar)
-			fmt.Fprintf(b, "%s = %s\n", stmt.Var2, valueVar)
+	if luaIdent(stmt.Var) != "" {
+		if luaIdent(stmt.Var2) != "" {
+			fmt.Fprintf(b, "%s = %s\n", luaIdent(stmt.Var), keyVar)
+			fmt.Fprintf(b, "%s = %s\n", luaIdent(stmt.Var2), valueVar)
 		} else {
-			fmt.Fprintf(b, "%s = %s\n", stmt.Var, keyVar)
+			fmt.Fprintf(b, "%s = %s\n", luaIdent(stmt.Var), keyVar)
 		}
 	}
 
@@ -345,11 +348,76 @@ func (t *LuaTarget) compileForRangeString(b *strings.Builder, stmt *ast.ForStmt)
 
 	b.WriteString("do\n")
 
-	if stmt.Var != "" {
-		fmt.Fprintf(b, "local %s = %s\n", stmt.Var, idxVar)
+	if luaIdent(stmt.Var) != "" {
+		fmt.Fprintf(b, "local %s = %s\n", luaIdent(stmt.Var), idxVar)
 	}
-	if stmt.Var2 != "" {
-		fmt.Fprintf(b, "local %s = string.byte(%s, %s + 1)\n", stmt.Var2, rangeVar, idxVar)
+	if luaIdent(stmt.Var2) != "" {
+		fmt.Fprintf(b, "local %s = __lua_string.byte(%s, %s + 1)\n", luaIdent(stmt.Var2), rangeVar, idxVar)
+	}
+
+	if err := t.compileStatement(b, stmt.Body); err != nil {
+		return err
+	}
+
+	b.WriteString("end\n")
+
+	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
+	fmt.Fprintf(b, "%s = %s + 1\n", idxVar, idxVar)
+	fmt.Fprintf(b, "goto %s\n", conditionLabel)
+
+	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
+
+	return nil
+}
+
+func (t *LuaTarget) compileForRangeView(b *strings.Builder, stmt *ast.ForStmt) error {
+	rangeVar := t.newLabel("range")
+	lenVar := t.newLabel("range_len")
+	idxVar := t.newLabel("range_idx")
+
+	conditionLabel := t.newLabel("for_condition")
+
+	ctx := loopContext{
+		Label:            stmt.Label,
+		ContinueLabel:    t.newLabel("for_continue"),
+		BreakLabel:       t.newLabel("for_break"),
+		SupportsContinue: true,
+	}
+
+	t.pushLoop(ctx)
+	defer t.popLoop()
+
+	rangeText, err := t.compileExprScratch(stmt.Range)
+	if err != nil {
+		return err
+	}
+	t.flushPending(b)
+
+	fmt.Fprintf(b, "local %s = %s\n", rangeVar, rangeText)
+	fmt.Fprintf(b, "local %s = %s.n\n", lenVar, rangeVar)
+	fmt.Fprintf(b, "local %s = 0\n", idxVar)
+
+	fmt.Fprintf(b, "::%s::\n", conditionLabel)
+
+	fmt.Fprintf(
+		b,
+		"if %s >= %s then goto %s end\n",
+		idxVar,
+		lenVar,
+		ctx.BreakLabel,
+	)
+
+	b.WriteString("do\n")
+
+	if luaIdent(stmt.Var) != "" {
+		fmt.Fprintf(b, "local %s = %s\n", luaIdent(stmt.Var), idxVar)
+	}
+	if luaIdent(stmt.Var2) != "" {
+		element := fmt.Sprintf("%s.t[%s.o + %s]", rangeVar, rangeVar, idxVar)
+		if elem := viewElement(t.info.Types[stmt.Range]); elem != nil && isAggregate(elem) {
+			element = t.aggregateFns(elem).copyName + "(" + element + ")"
+		}
+		fmt.Fprintf(b, "local %s = %s\n", luaIdent(stmt.Var2), element)
 	}
 
 	if err := t.compileStatement(b, stmt.Body); err != nil {
@@ -389,7 +457,7 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 		t.flushPending(b)
 		start = text
 	}
-	fmt.Fprintf(b, "local %s = %s\n", stmt.Var, start)
+	fmt.Fprintf(b, "local %s = %s\n", luaIdent(stmt.Var), start)
 
 	end, err := t.compileExprScratch(stmt.End)
 	if err != nil {
@@ -415,11 +483,11 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 	}
 
 	upVar := t.newLabel("for_up")
-	fmt.Fprintf(b, "local %s = %s <= %s\n", upVar, stmt.Var, endVar)
+	fmt.Fprintf(b, "local %s = %s <= %s\n", upVar, luaIdent(stmt.Var), endVar)
 
 	fmt.Fprintf(b, "::%s::\n", conditionLabel)
 	fmt.Fprintf(b, "if %s then\nif %s > %s then goto %s end\nelse\nif %s < %s then goto %s end\nend\n",
-		upVar, stmt.Var, endVar, ctx.BreakLabel, stmt.Var, endVar, ctx.BreakLabel)
+		upVar, luaIdent(stmt.Var), endVar, ctx.BreakLabel, luaIdent(stmt.Var), endVar, ctx.BreakLabel)
 
 	b.WriteString("do\n")
 
@@ -430,7 +498,7 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 	b.WriteString("end\n")
 
 	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
-	fmt.Fprintf(b, "if %s then %s = %s + %s else %s = %s - %s end\n", upVar, stmt.Var, stmt.Var, stepVar, stmt.Var, stmt.Var, stepVar)
+	fmt.Fprintf(b, "if %s then %s = %s + %s else %s = %s - %s end\n", upVar, luaIdent(stmt.Var), luaIdent(stmt.Var), stepVar, luaIdent(stmt.Var), luaIdent(stmt.Var), stepVar)
 
 	fmt.Fprintf(b, "goto %s\n", conditionLabel)
 	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)
@@ -548,13 +616,13 @@ func (t *LuaTarget) compileNativeStatement(b *strings.Builder, stmt *ast.NativeS
 }
 
 func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignStmt) error {
-	targets := make([]string, len(stmt.Targets))
+	places := make([]placeSpec, len(stmt.Targets))
 	for i, target := range stmt.Targets {
-		text, err := t.compileExprScratch(target)
+		place, err := t.compilePlace(target)
 		if err != nil {
 			return err
 		}
-		targets[i] = text
+		places[i] = place
 	}
 
 	values := make([]string, len(stmt.Values))
@@ -568,65 +636,109 @@ func (t *LuaTarget) compileAssignStatement(b *strings.Builder, stmt *ast.AssignS
 
 	t.flushPending(b)
 
-	b.WriteString(strings.Join(targets, ", "))
-	b.WriteString(" = ")
-
-	if stmt.Op == "=" {
-		b.WriteString(strings.Join(values, ", "))
-		b.WriteByte('\n')
+	if stmt.Op != "=" {
+		t.stabilize(b, &places[0])
+		value := t.compoundText(stmt, places[0].get(), values[0])
+		b.WriteString(places[0].set(value))
 		return nil
 	}
 
-	target, value := targets[0], values[0]
+	allText := true
+	for _, place := range places {
+		if place.kind != placeText || place.into != "" {
+			allText = false
+		}
+	}
+
+	if allText {
+		targets := make([]string, len(places))
+		for i, place := range places {
+			targets[i] = place.text
+		}
+		fmt.Fprintf(b, "%s = %s\n", strings.Join(targets, ", "), strings.Join(values, ", "))
+		return nil
+	}
+
+	if len(places) == 1 {
+		b.WriteString(places[0].set(values[0]))
+		return nil
+	}
+
+	for i := range values {
+		if i < len(stmt.Values) {
+			values[i] = t.valueText(stmt.Values[i], values[i])
+		}
+	}
+
+	temps := make([]string, len(places))
+	for i := range temps {
+		temps[i] = t.newLabel("assign")
+	}
+	fmt.Fprintf(b, "local %s = %s\n", strings.Join(temps, ", "), strings.Join(values, ", "))
+	for i, place := range places {
+		b.WriteString(place.set(temps[i]))
+	}
+	return nil
+}
+
+func (t *LuaTarget) compoundText(stmt *ast.AssignStmt, target, value string) string {
 	targetType := t.info.Types[stmt.Targets[0]]
 	op := strings.TrimSuffix(stmt.Op, "=")
 
-	var text string
+	if pointee(targetType) != nil {
+		if op == "-" {
+			return fmt.Sprintf("__wisp_padd(%s, -(%s))", target, value)
+		}
+		return fmt.Sprintf("__wisp_padd(%s, %s)", target, value)
+	}
+
 	switch op {
 	case "+":
 		if pt, ok := targetType.(analyser.PrimitiveType); ok && pt.Name == "string" {
 			if vt, ok := t.info.Types[stmt.Values[0]].(analyser.PrimitiveType); ok && vt.Name == "char" {
-				value = fmt.Sprintf("string.char(%s)", value)
+				value = fmt.Sprintf("__lua_string.char(%s)", value)
 			}
-			text = fmt.Sprintf("(%s .. %s)", target, value)
-		} else {
-			text = wrapInt(fmt.Sprintf("(%s + %s)", target, value), targetType)
+			return fmt.Sprintf("(%s .. %s)", target, value)
 		}
+		return wrapInt(fmt.Sprintf("(%s + %s)", target, value), targetType)
 	case "-", "*":
-		text = wrapInt(fmt.Sprintf("(%s %s %s)", target, op, value), targetType)
+		return wrapInt(fmt.Sprintf("(%s %s %s)", target, op, value), targetType)
 	case "<<":
-		text = wrapInt(fmt.Sprintf("(%s << %s)", target, value), targetType)
+		return wrapInt(fmt.Sprintf("(%s << %s)", target, value), targetType)
 	case ">>":
 		if isSignedInt(targetType) {
-			text = fmt.Sprintf("__wisp_sar(%s, %s)", target, value)
-		} else {
-			text = fmt.Sprintf("(%s >> %s)", target, value)
+			return fmt.Sprintf("__wisp_sar(%s, %s)", target, value)
 		}
+		return fmt.Sprintf("(%s >> %s)", target, value)
 	case "/", "%":
-		text = t.divisionText(op, target, value, targetType)
+		return t.divisionText(op, target, value, targetType)
 	case "^":
-		text = fmt.Sprintf("(%s ~ %s)", target, value)
-	default:
-		text = fmt.Sprintf("(%s %s %s)", target, op, value)
+		return fmt.Sprintf("(%s ~ %s)", target, value)
 	}
-
-	b.WriteString(text)
-	b.WriteByte('\n')
-
-	return nil
+	return fmt.Sprintf("(%s %s %s)", target, op, value)
 }
 
 func (t *LuaTarget) compileIncDecStatement(b *strings.Builder, stmt *ast.IncDecStmt) error {
-	target, err := t.compileExprScratch(stmt.Target)
+	place, err := t.compilePlace(stmt.Target)
 	if err != nil {
 		return err
 	}
 
 	t.flushPending(b)
+	t.stabilize(b, &place)
 
-	text := wrapInt(fmt.Sprintf("(%s %c 1)", target, stmt.Op[0]), t.info.Types[stmt.Target])
-	fmt.Fprintf(b, "%s = %s\n", target, text)
+	targetType := t.info.Types[stmt.Target]
+	if pointee(targetType) != nil {
+		step := "1"
+		if stmt.Op[0] == '-' {
+			step = "-1"
+		}
+		b.WriteString(place.set(fmt.Sprintf("__wisp_padd(%s, %s)", place.get(), step)))
+		return nil
+	}
 
+	text := wrapInt(fmt.Sprintf("(%s %c 1)", place.get(), stmt.Op[0]), targetType)
+	b.WriteString(place.set(text))
 	return nil
 }
 
