@@ -131,7 +131,7 @@ func mayLeave(stmt ast.Statement) bool {
 			switch n := v.Interface().(type) {
 			case *ast.FuncLiteral:
 				return
-			case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt:
+			case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt, *ast.YieldStmt:
 				found = true
 				return
 			case *ast.PropagateExpr:

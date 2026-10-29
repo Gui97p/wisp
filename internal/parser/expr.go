@@ -644,6 +644,8 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 		return p.parseReturnHandler(expr)
 	case lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE:
 		return p.parseJumpHandler(expr)
+	case lexer.TOKEN_SWITCH:
+		return p.parseSwitchHandler(expr)
 	}
 
 	if p.current.Type == lexer.TOKEN_PIPE {
@@ -676,6 +678,9 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 		case lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE:
 			p.advance()
 			return p.parseJumpHandler(expr)
+		case lexer.TOKEN_SWITCH:
+			p.advance()
+			return p.parseSwitchHandler(expr)
 		}
 
 		p.advance()
@@ -693,6 +698,15 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 	}
 
 	expr.Default = def
+	return expr
+}
+
+func (p *Parser) parseSwitchHandler(expr *ast.CoalesceExpr) ast.Expression {
+	block, ok := p.parseSwitchStatement().(*ast.BlockStmt)
+	if !ok || block == nil {
+		return nil
+	}
+	expr.Block = block
 	return expr
 }
 

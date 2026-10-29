@@ -136,6 +136,7 @@ const (
 	TOKEN_AT // @
 
 	TOKEN_DEFER
+	TOKEN_YIELD
 )
 
 var keywords = map[string]TokenType{
@@ -165,6 +166,7 @@ var keywords = map[string]TokenType{
 	"as":       TOKEN_AS,
 	"native":   TOKEN_NATIVE,
 	"defer":    TOKEN_DEFER,
+	"yield":    TOKEN_YIELD,
 
 	"int":    TOKEN_INT,
 	"uint":   TOKEN_UINT,

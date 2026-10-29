@@ -14,6 +14,7 @@ var safeTokens = map[lexer.TokenType]bool{
 	lexer.TOKEN_FOR:    true,
 	lexer.TOKEN_LOOP:   true,
 	lexer.TOKEN_RETURN: true,
+	lexer.TOKEN_YIELD:  true,
 }
 
 func (p *Parser) synchronize() {

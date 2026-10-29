@@ -12,7 +12,15 @@ import (
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
+type coalesceFrame struct {
+	slots      []Mem
+	end        string
+	deferDepth int
+}
+
 type X64Target struct {
+	coalesceFrames []coalesceFrame
+
 	program *ast.Program
 	info    *analyser.Info
 	isEntry bool

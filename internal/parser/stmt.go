@@ -54,6 +54,8 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		stmt = p.parseVarStatement()
 	case lexer.TOKEN_RETURN:
 		stmt = p.parseReturnStatement()
+	case lexer.TOKEN_YIELD:
+		stmt = p.parseYieldStatement()
 	case lexer.TOKEN_SWITCH:
 		stmt = p.parseSwitchStatement()
 	case lexer.TOKEN_IF:
@@ -188,7 +190,7 @@ func startsStatement(t lexer.TokenType) bool {
 	switch t {
 	case lexer.TOKEN_LET, lexer.TOKEN_CONST, lexer.TOKEN_IF, lexer.TOKEN_FOR, lexer.TOKEN_LOOP,
 		lexer.TOKEN_RETURN, lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE, lexer.TOKEN_NATIVE,
-		lexer.TOKEN_SWITCH, lexer.TOKEN_DEFER:
+		lexer.TOKEN_SWITCH, lexer.TOKEN_DEFER, lexer.TOKEN_YIELD:
 		return true
 	}
 	return false
@@ -404,6 +406,31 @@ func (p *Parser) parseAssignStatement(targets []ast.Expression) ast.Statement {
 	if stmt.Op != "=" && len(stmt.Values) > 1 {
 		p.errorf("operator %s accepts a single value", stmt.Op)
 		return nil
+	}
+
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
+		return nil
+	}
+
+	return stmt
+}
+
+func (p *Parser) parseYieldStatement() ast.Statement {
+	stmt := &ast.YieldStmt{}
+
+	for {
+		p.advance()
+
+		expr := p.parseExpression()
+		if expr == nil {
+			return nil
+		}
+		stmt.Values = append(stmt.Values, expr)
+
+		if p.peek.Type != lexer.TOKEN_COMMA {
+			break
+		}
+		p.advance()
 	}
 
 	if !p.expect(lexer.TOKEN_SEMICOLON) {

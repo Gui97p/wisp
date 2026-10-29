@@ -126,20 +126,29 @@ func (a *Analyser) rejectDeferredExits(d *ast.DeferStmt) {
 	}
 	collect(reflect.ValueOf(d.Body))
 
-	var walk func(v reflect.Value, loops int)
-	walk = func(v reflect.Value, loops int) {
+	var walk func(v reflect.Value, loops, handlers int)
+	walk = func(v reflect.Value, loops, handlers int) {
 		switch v.Kind() {
 		case reflect.Ptr:
 			if v.IsNil() {
 				return
 			}
-			next := loops
+			next, nextHandlers := loops, handlers
 			switch n := v.Interface().(type) {
 			case *ast.FuncLiteral:
 				return
 			case *ast.ReturnStmt:
 				a.error(n, "a deferred statement cannot return").
 					WithHelp("deferred code runs while the block is already being left")
+			case *ast.YieldStmt:
+				if handlers == 0 {
+					a.error(n, "a deferred statement cannot yield").
+						WithHelp("a yield belongs to the ?? handler it is written in")
+				}
+			case *ast.CoalesceExpr:
+				if n.Block != nil {
+					nextHandlers++
+				}
 			case *ast.BreakStmt:
 				if (n.Label == "" && loops == 0) || (n.Label != "" && !labels[n.Label]) {
 					a.error(n, "a deferred statement cannot break out of its block")
@@ -158,20 +167,20 @@ func (a *Analyser) rejectDeferredExits(d *ast.DeferStmt) {
 					next++
 				}
 			}
-			walk(v.Elem(), next)
+			walk(v.Elem(), next, nextHandlers)
 		case reflect.Interface:
 			if !v.IsNil() {
-				walk(v.Elem(), loops)
+				walk(v.Elem(), loops, handlers)
 			}
 		case reflect.Struct:
 			for i := 0; i < v.NumField(); i++ {
-				walk(v.Field(i), loops)
+				walk(v.Field(i), loops, handlers)
 			}
 		case reflect.Slice:
 			for i := 0; i < v.Len(); i++ {
-				walk(v.Index(i), loops)
+				walk(v.Index(i), loops, handlers)
 			}
 		}
 	}
-	walk(reflect.ValueOf(d.Body), 0)
+	walk(reflect.ValueOf(d.Body), 0, 0)
 }

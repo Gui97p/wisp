@@ -217,6 +217,8 @@ func (t TokenType) DisplayName() string {
 		return "@"
 	case TOKEN_DEFER:
 		return "defer"
+	case TOKEN_YIELD:
+		return "yield"
 
 	default:
 		return t.String()

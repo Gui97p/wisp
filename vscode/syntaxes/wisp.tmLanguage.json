@@ -288,7 +288,7 @@
                 },
                 {
                     "name": "keyword.control.flow.wisp",
-                    "match": "\\b(return|break|continue)\\b"
+                    "match": "\\b(return|break|continue|yield)\\b"
                 },
                 {
                     "name": "keyword.control.defer.wisp",

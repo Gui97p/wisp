@@ -769,7 +769,10 @@ func (t *X64Target) compileCoalesce(expr *ast.CoalesceExpr) ([]Operand, error) {
 
 	if expr.Block != nil {
 		t.collectVariables(expr.Block)
-		if err := t.compileStatement(expr.Block); err != nil {
+		t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{slots: slots, end: endLabel, deferDepth: len(t.deferScopes)})
+		err := t.compileStatement(expr.Block)
+		t.coalesceFrames = t.coalesceFrames[:len(t.coalesceFrames)-1]
+		if err != nil {
 			return nil, err
 		}
 	} else {

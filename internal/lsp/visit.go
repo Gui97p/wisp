@@ -45,6 +45,8 @@ func walkStmt(stmt ast.Statement, fn func(ast.Expression)) {
 		walkExprs(s.Values, fn)
 	case *ast.ReturnStmt:
 		walkExprs(s.Values, fn)
+	case *ast.YieldStmt:
+		walkExprs(s.Values, fn)
 	case *ast.IfStmt:
 		walkExpr(s.Condition, fn)
 		walkStmt(s.Then, fn)

@@ -4,10 +4,9 @@ import "std/fmt";
 
 // An enum is the family of an error: each member is one kind of failure. The
 // member's number is the exit code if the error ends the program, so the
-// first member is the "all fine" one and the failures start after it.
+// first member is written `= 1`: code 0 would read as success.
 enum DivError {
-  Ok,
-  DivByZero
+  DivByZero = 1
 }
 
 // A `!` before the return list marks a function that can fail. Inside it,
@@ -29,7 +28,8 @@ func halveThenDouble(int a, b) !int {
 }
 
 // A handler block runs on failure and has to leave: `return` here returns
-// from describe itself.
+// from describe itself. (`yield`, further down, leaves the block with a value
+// instead.)
 func describe(int a, b) string {
   let n = divide(a, b) ?? |e| {
     return e.message;
@@ -57,12 +57,40 @@ func sumGood(int a, int b) int {
   return total;
 }
 
+// `yield value` leaves the handler block with a value, and that value is what
+// the `??` gives. It lets a handler do some work and carry on. `return` leaves
+// the function, `yield` only the handler.
+func divideOr(int a, b, fallback) int {
+  int n = divide(a, b) ?? |e| {
+    fmt.printf("divide failed: {}\n", e.message);
+    yield fallback;
+  };
+  return n;
+}
+
+// A handler can also be a `switch`. It picks what to do by the error: some
+// cases `yield` a value and others leave. Every case has to end one way or the
+// other, and `default` catches the rest. A plain `break` only leaves the
+// switch, so leave a loop with `continue` or a labeled `break`.
+func codeOf(int a, int b) int {
+  int n = divide(a, b) ?? |e| switch e {
+    case DivError.DivByZero:
+      yield -1;
+    default:
+      return -2;
+  };
+  return n;
+}
+
 public func demo() {
   // `??` unwraps the result, falling back to a default value on failure.
   int ok = divide(10, 2) ?? -1;
   int fallback = divide(10, 0) ?? -1;
   fmt.printf("divide(10, 2) ?? -1 = {}\n", ok);
   fmt.printf("divide(10, 0) ?? -1 = {}\n", fallback);
+
+  fmt.printf("divideOr(10, 0, 99) = {}\n", divideOr(10, 0, 99));
+  fmt.printf("codeOf(10, 0) = {}, codeOf(10, 2) = {}\n", codeOf(10, 0), codeOf(10, 2));
 
   // `?? |e| value` computes the fallback from the error.
   int code = divide(10, 0) ?? |e| e.line;

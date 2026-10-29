@@ -28,7 +28,7 @@ func (a *Analyser) checkStatements(stmts []ast.Statement) {
 		}
 		a.checkStmt(stmt)
 		switch stmt.(type) {
-		case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt:
+		case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt, *ast.YieldStmt:
 			terminated = true
 		}
 	}
@@ -51,6 +51,8 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		}
 	case *ast.ReturnStmt:
 		a.checkReturnStmt(s)
+	case *ast.YieldStmt:
+		a.checkYieldStmt(s)
 	case *ast.VarStmt:
 		a.markHandlers(s.Values)
 		a.checkVarStmt(s)

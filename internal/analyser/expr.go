@@ -128,12 +128,12 @@ func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
 		}
 	}
 
-	prevReturns, prevFallible := a.currentReturns, a.currentFallible
-	a.currentReturns, a.currentFallible = returns, expr.Fallible
+	prevReturns, prevFallible, prevFrames := a.currentReturns, a.currentFallible, a.yieldFrames
+	a.currentReturns, a.currentFallible, a.yieldFrames = returns, expr.Fallible, nil
 
 	a.checkBlock(expr.Block)
 
-	a.currentReturns, a.currentFallible = prevReturns, prevFallible
+	a.currentReturns, a.currentFallible, a.yieldFrames = prevReturns, prevFallible, prevFrames
 	a.exitScope()
 
 	if len(returns) > 0 && !blockTerminates(expr.Block) {
@@ -892,7 +892,7 @@ func (a *Analyser) checkCoalesce(expr *ast.CoalesceExpr) []Type {
 	}
 
 	if expr.Block != nil {
-		if !a.checkHandlerBlock(expr, len(ft.Values) == 0) {
+		if !a.checkHandlerBlock(expr, ft.Values) {
 			return invalid
 		}
 		return ft.Values
@@ -908,7 +908,8 @@ func (a *Analyser) checkCoalesce(expr *ast.CoalesceExpr) []Type {
 	return ft.Values
 }
 
-func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr, valueless bool) bool {
+func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr, values []Type) bool {
+	valueless := len(values) == 0
 	b, ok := expr.Block.(*ast.BlockStmt)
 	if !ok {
 		a.errorf(expr, "expected valid block for coalesce")
@@ -920,11 +921,16 @@ func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr, valueless bool) boo
 
 	a.enterScope()
 	a.defineErrorBind(expr)
+	a.yieldFrames = append(a.yieldFrames, yieldFrame{values: values})
 	a.checkBlock(b)
+	a.yieldFrames = a.yieldFrames[:len(a.yieldFrames)-1]
 	a.exitScope()
 
 	if !valueless && !blockDiverges(b) {
-		a.error(expr, "the handler block must end with return, break or continue")
+		d := a.error(expr, "the handler block must end with yield, return, break or continue")
+		if endsInSwitch(b) {
+			d.WithHelp("a switch handler needs a default, and every case must end with yield, return, continue or a labeled break: a plain break only leaves the switch")
+		}
 		return false
 	}
 	return true
@@ -974,18 +980,43 @@ func (a *Analyser) checkDefaults(expr *ast.CoalesceExpr, values []Type) bool {
 	return valid
 }
 
-func blockDiverges(block *ast.BlockStmt) bool {
-	if blockTerminates(block) {
-		return true
-	}
+func endsInSwitch(block *ast.BlockStmt) bool {
 	if len(block.Statements) == 0 {
 		return false
 	}
-	switch block.Statements[len(block.Statements)-1].(type) {
-	case *ast.BreakStmt, *ast.ContinueStmt:
-		return true
+	last, ok := block.Statements[len(block.Statements)-1].(*ast.IfStmt)
+	return ok && last.IsSwitch
+}
+
+func blockDiverges(block *ast.BlockStmt) bool {
+	return listDiverges(block.Statements, false)
+}
+
+func listDiverges(list []ast.Statement, inSwitch bool) bool {
+	if len(list) == 0 {
+		return false
 	}
-	return false
+	return stmtDiverges(list[len(list)-1], inSwitch)
+}
+
+func stmtDiverges(stmt ast.Statement, inSwitch bool) bool {
+	switch s := stmt.(type) {
+	case *ast.ReturnStmt, *ast.ContinueStmt, *ast.YieldStmt:
+		return true
+	case *ast.BreakStmt:
+		return s.Label != "" || !inSwitch
+	case *ast.IfStmt:
+		if s.Else == nil {
+			return false
+		}
+		inSwitch = inSwitch || s.IsSwitch
+		return listDiverges(s.Then.Statements, inSwitch) && stmtDiverges(s.Else, inSwitch)
+	case *ast.BlockStmt:
+		return listDiverges(s.Statements, inSwitch)
+	case *ast.GroupStmt:
+		return listDiverges(s.Statements, inSwitch)
+	}
+	return stmtTerminates(stmt)
 }
 
 func (a *Analyser) rejectFallible(exprs []ast.Expression, types []Type) []Type {

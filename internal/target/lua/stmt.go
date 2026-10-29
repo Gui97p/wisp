@@ -25,6 +25,8 @@ func (t *LuaTarget) compileStatementNode(b *strings.Builder, stmt ast.Statement)
 		return t.compileDefinition(b, s, s.Vars, s.Values)
 	case *ast.ReturnStmt:
 		return t.compileReturnStatement(b, s)
+	case *ast.YieldStmt:
+		return t.compileYieldStatement(b, s)
 	case *ast.ExpressionStmt:
 		return t.compileExpressionStatement(b, s)
 	case *ast.IfStmt:
@@ -63,7 +65,7 @@ func (t *LuaTarget) compileBlockStatement(b *strings.Builder, block *ast.BlockSt
 
 	if len(block.Statements) > 0 {
 		switch block.Statements[len(block.Statements)-1].(type) {
-		case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt:
+		case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt, *ast.YieldStmt:
 			return nil
 		}
 	}
@@ -637,5 +639,29 @@ func (t *LuaTarget) compileIncDecStatement(b *strings.Builder, stmt *ast.IncDecS
 	text := wrapInt(fmt.Sprintf("(%s %c 1)", target, stmt.Op[0]), t.info.Types[stmt.Target])
 	fmt.Fprintf(b, "%s = %s\n", target, text)
 
+	return nil
+}
+
+func (t *LuaTarget) compileYieldStatement(b *strings.Builder, stmt *ast.YieldStmt) error {
+	if len(t.coalesceFrames) == 0 {
+		return fmt.Errorf("lua: yield outside a ?? handler")
+	}
+	frame := t.coalesceFrames[len(t.coalesceFrames)-1]
+
+	texts := make([]string, len(stmt.Values))
+	for i, value := range stmt.Values {
+		text, err := t.compileExprScratch(value)
+		if err != nil {
+			return err
+		}
+		texts[i] = text
+	}
+
+	t.flushPending(b)
+	fmt.Fprintf(b, "%s = %s\n", strings.Join(frame.results, ", "), strings.Join(texts, ", "))
+	if err := t.emitDefers(b, frame.deferDepth, false); err != nil {
+		return err
+	}
+	fmt.Fprintf(b, "goto %s\n", frame.label)
 	return nil
 }

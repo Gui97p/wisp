@@ -42,7 +42,7 @@ func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 		}
 		if last != nil && err == nil {
 			switch last.(type) {
-			case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt:
+			case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt, *ast.YieldStmt:
 			default:
 				err = t.emitDefers(len(t.deferScopes)-1, false)
 			}
@@ -59,6 +59,8 @@ func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 		err = t.compileVarStmt(s)
 	case *ast.ReturnStmt:
 		err = t.compileReturnStmt(s)
+	case *ast.YieldStmt:
+		err = t.compileYieldStmt(s)
 	case *ast.AssignStmt:
 		err = t.compileAssignStmt(s)
 	case *ast.IncDecStmt:
@@ -410,5 +412,26 @@ func (t *X64Target) compileContinueStmt(stmt *ast.ContinueStmt) error {
 	}
 	t.text.printft("jmp %s\n", loop.ContinueLabel)
 
+	return nil
+}
+
+func (t *X64Target) compileYieldStmt(stmt *ast.YieldStmt) error {
+	if len(t.coalesceFrames) == 0 {
+		return fmt.Errorf("x86-64: yield outside a ?? handler")
+	}
+	frame := t.coalesceFrames[len(t.coalesceFrames)-1]
+
+	for i, value := range stmt.Values {
+		op, err := t.compileExpr(value)
+		if err != nil {
+			return err
+		}
+		t.store(op, frame.slots[i])
+	}
+
+	if err := t.emitDefers(frame.deferDepth, false); err != nil {
+		return err
+	}
+	t.text.printft("jmp %s\n", frame.end)
 	return nil
 }

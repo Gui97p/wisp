@@ -17,6 +17,7 @@ type Analyser struct {
 
 	currentReturns  []Type
 	currentFallible bool
+	yieldFrames     []yieldFrame
 	deferredFree    map[*Symbol]*ast.DeferStmt
 	loopFrames      []loopFrame
 	untilScope      *Scope

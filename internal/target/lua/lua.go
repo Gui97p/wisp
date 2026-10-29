@@ -11,7 +11,15 @@ import (
 	"github.com/Gui97p/wisp/internal/diag"
 )
 
+type coalesceFrame struct {
+	results    []string
+	label      string
+	deferDepth int
+}
+
 type LuaTarget struct {
+	coalesceFrames []coalesceFrame
+
 	program *ast.Program
 	info    *analyser.Info
 	isEntry bool

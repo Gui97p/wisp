@@ -241,6 +241,8 @@ func exprInStmt(stmt ast.Statement, line, col int) ast.Expression {
 		return firstExpr(line, col, s.Values...)
 	case *ast.ReturnStmt:
 		return firstExpr(line, col, s.Values...)
+	case *ast.YieldStmt:
+		return firstExpr(line, col, s.Values...)
 	case *ast.IfStmt:
 		if r := exprAt(s.Condition, line, col); r != nil {
 			return r

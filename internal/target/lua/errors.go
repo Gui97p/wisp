@@ -118,6 +118,7 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 	t.pending = nil
 
 	var branch strings.Builder
+	endLabel := ""
 	fmt.Fprintf(&branch, "if %s ~= nil then\n", errName)
 
 	switch {
@@ -131,7 +132,11 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 		if expr.ErrorBind != "" {
 			fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
 		}
-		if err := t.compileStatement(&branch, block); err != nil {
+		endLabel = t.newLabel("coend")
+		t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{results: results, label: endLabel, deferDepth: len(t.deferScopes)})
+		err := t.compileStatement(&branch, block)
+		t.coalesceFrames = t.coalesceFrames[:len(t.coalesceFrames)-1]
+		if err != nil {
 			t.pending = outer
 			return err
 		}
@@ -164,6 +169,9 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 		branch.WriteString("else\n")
 	}
 	branch.WriteString("end\n")
+	if endLabel != "" {
+		fmt.Fprintf(&branch, "::%s::\n", endLabel)
+	}
 
 	t.pending = outer
 	t.emitPending(branch.String())

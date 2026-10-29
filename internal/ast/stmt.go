@@ -157,6 +157,30 @@ func (r *ReturnStmt) Tree(indent string) string {
 	return b.String()
 }
 
+type YieldStmt struct {
+	Values []Expression
+
+	NodePos
+}
+
+func (*YieldStmt) stmt() {}
+func (y *YieldStmt) Tree(indent string) string {
+	var b strings.Builder
+
+	b.WriteString(indent)
+	b.WriteString("YieldStmt\n")
+
+	for i, value := range y.Values {
+		if i == len(y.Values)-1 {
+			b.WriteString(value.Tree(indent + "└─ "))
+		} else {
+			b.WriteString(value.Tree(indent + "├─ "))
+		}
+	}
+
+	return b.String()
+}
+
 type IfStmt struct {
 	Condition Expression
 	Then      *BlockStmt

@@ -3594,6 +3594,179 @@ func main() {
 }
 `, expected: []string{"a switch without a value picks the first true case", "a switch without a value falls to default", "a switch statement without a value", "a comma between conditions is an or", "a switch without a value initialises a variable", "a switch without a value with a compound condition"}},
 
+	{dir: "handler_switch", src: `enum Kind {
+    NotFound = 1,
+    Denied,
+    Other
+}
+
+func load(int n) !int {
+    switch n {
+        case 0:
+            return Error(Kind.NotFound);
+        case 1:
+            return Error(Kind.Denied);
+        case 2:
+            return Error(Kind.Other);
+    }
+    return n * 10;
+}
+
+func pick(int n) int {
+    return load(n) ?? |e| switch e {
+        case Kind.NotFound:
+            return -1;
+        case Kind.Denied:
+            return -2;
+        default:
+            return -3;
+    };
+}
+
+func sum(int a, int b, int c) int {
+    int total;
+    for i in 0..2 {
+        int n = i == 0 ? a : (i == 1 ? b : c);
+        int v = load(n) ?? |e| switch e {
+            case Kind.NotFound:
+                continue;
+            default:
+                return -100;
+        };
+        total += v;
+    }
+    return total;
+}
+
+func firstGood(int a, int b, int c) int {
+    int total;
+    :scan for i in 0..2 {
+        int n = i == 0 ? a : (i == 1 ? b : c);
+        int v = load(n) ?? |e| switch e {
+            case Kind.Denied:
+                break scan;
+            default:
+                continue;
+        };
+        total += v;
+    }
+    return total;
+}
+
+func plain(int n) int {
+    return load(n) ?? switch {
+        case n == 0:
+            return 7;
+        default:
+            return 8;
+    };
+}
+
+func main() {
+    check(pick(0) == -1 && pick(1) == -2 && pick(2) == -3, "a switch handler picks the result by the error");
+    check(sum(5, 0, 6) == 110, "a switch handler can leave the loop with continue");
+    check(firstGood(5, 1, 6) == 50, "a switch handler can leave the loop with a labeled break");
+    check(plain(0) == 7 && plain(1) == 8, "a switch handler without a value uses plain conditions");
+    check(pick(5) == 50, "a switch handler is not used when the call works");
+}
+`, expected: []string{"a switch handler picks the result by the error", "a switch handler can leave the loop with continue", "a switch handler can leave the loop with a labeled break", "a switch handler without a value uses plain conditions", "a switch handler is not used when the call works"}},
+
+	{dir: "handler_yield", src: `enum Kind {
+    NotFound = 1,
+    Denied,
+    Other
+}
+
+int trace;
+
+func load(int n) !int {
+    switch n {
+        case 0:
+            return Error(Kind.NotFound);
+        case 1:
+            return Error(Kind.Denied);
+        case 2:
+            return Error(Kind.Other);
+    }
+    return n * 10;
+}
+
+func pair(int n) !(int, int) {
+    if n == 0 {
+        return Error(Kind.NotFound);
+    }
+    return n, n * 2;
+}
+
+func settle(int n) !int {
+    int v = load(n) ?? |e| switch e {
+        case Kind.NotFound:
+            yield 7;
+        case Kind.Denied:
+            yield -2;
+        default:
+            return e;
+    };
+    return v;
+}
+
+func main() {
+    int a = load(0) ?? |e| {
+        yield -1;
+    };
+    check(a == -1, "yield gives the value of the handler");
+
+    int b = load(0) ?? |e| {
+        trace = 5;
+        yield e.code * 100;
+    };
+    check(b == 100 && trace == 5, "yield after other statements keeps their effects");
+
+    let x, y = pair(0) ?? |e| {
+        yield 1, 2;
+    };
+    check(x == 1 && y == 2, "yield with several values");
+
+    let s0 = settle(0)!!;
+    let s1 = settle(1)!!;
+    check(s0 == 7 && s1 == -2, "a switch handler can yield for one error and leave for another");
+    let s2, e2 = settle(2);
+    check(e2 == Kind.Other, "a switch handler leaves with the original error");
+
+    int c = load(1) ?? |e| {
+        if e == Kind.Denied {
+            yield 100;
+        }
+        yield 200;
+    };
+    check(c == 100, "yield from one branch of an if");
+
+    int d = load(0) ?? |e| {
+        for i in 0..5 {
+            if i == 3 {
+                yield i * 10;
+            }
+        }
+        yield -1;
+    };
+    check(d == 30, "yield from inside a loop in the handler");
+
+    trace = 0;
+    int f = load(0) ?? |e| {
+        defer trace += 1;
+        trace += 10;
+        yield 5;
+    };
+    check(f == 5 && trace == 11, "yield runs the defers of the handler block");
+
+    int g = load(4) ?? |e| {
+        trace = -1;
+        yield 0;
+    };
+    check(g == 40 && trace == 11, "a handler that does not run leaves the value alone");
+}
+`, expected: []string{"yield gives the value of the handler", "yield after other statements keeps their effects", "yield with several values", "a switch handler can yield for one error and leave for another", "a switch handler leaves with the original error", "yield from one branch of an if", "yield from inside a loop in the handler", "yield runs the defers of the handler block", "a handler that does not run leaves the value alone"}},
+
 	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
     *int8 b = malloc(16)!;
     for i in 0..15 {
