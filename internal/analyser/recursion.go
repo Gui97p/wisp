@@ -52,8 +52,6 @@ func (a *Analyser) stmtRecurses(fd *ast.FuncDecl, stmt ast.Statement) bool {
 		return s.Else != nil && a.alwaysRecurses(fd, s.Then.Statements) && a.stmtRecurses(fd, s.Else)
 	case *ast.BlockStmt:
 		return a.alwaysRecurses(fd, s.Statements)
-	case *ast.GroupStmt:
-		return a.alwaysRecurses(fd, s.Statements)
 	case *ast.LoopStmt:
 		return s.Condition == nil && s.UntilCondition == nil && a.alwaysRecurses(fd, s.Body.Statements)
 	case *ast.ForStmt:

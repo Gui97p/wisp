@@ -76,10 +76,10 @@ public func (*Dir d) next() !(string, global.FileKind, bool) {
 		}
 
 		global.FileKind tp = switch d.buf[d.pos + 18] {
-			case sys.DT_REG => .File,
-			case sys.DT_DIR => .Dir,
-			case sys.DT_LNK => .Link,
-			default => .Other
+			case sys.DT_REG => .File;
+			case sys.DT_DIR => .Dir;
+			case sys.DT_LNK => .Link;
+			default => .Other;
 		};
 		
 		int d_reclen = int(d.buf[d.pos+16]) | int(d.buf[d.pos+17]) << 8;

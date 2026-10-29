@@ -56,6 +56,21 @@ func (a *Analyser) resolveDot(expr ast.Expression, to Type) bool {
 		a.info.Types[ternary] = to
 		return true
 	}
+	if sw, isSwitch := expr.(*ast.SwitchExpr); isSwitch {
+		if _, stillImplicit := to.(ImplicitEnumType); stillImplicit {
+			return true
+		}
+		for _, arm := range switchArms(sw) {
+			if len(arm.Values) == 1 {
+				a.resolveDot(arm.Values[0], to)
+			}
+		}
+		a.info.Types[sw] = to
+		if values := a.info.SwitchValues[sw]; len(values) == 1 {
+			values[0] = to
+		}
+		return true
+	}
 	node, ok := expr.(*ast.DotIdent)
 	if !ok {
 		return false

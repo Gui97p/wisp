@@ -10,20 +10,20 @@ internal struct Piece {
 func number(char[] buf, uint mag, bool neg, spec.Spec s) !Piece {
 	Piece piece;
 	int base = switch s.kind {
-		case 'x', 'X' => 16,
-		case 'b' => 2,
-		case 'o' => 8,
-		default => 10
+		case 'x', 'X' => 16;
+		case 'b' => 2;
+		case 'o' => 8;
+		default => 10;
 	};
 	piece.body = conv.formatUint(buf, mag, base, s.kind == 'X')!;
 	piece.sign = neg ? "-" : "";
 	if s.alt {
 		piece.radix = switch s.kind {
-			case 'x' => "0x",
-			case 'X' => "0X",
-			case 'b' => "0b",
-			case 'o' => "0o",
-			default => ""
+			case 'x' => "0x";
+			case 'X' => "0X";
+			case 'b' => "0b";
+			case 'o' => "0o";
+			default => "";
 		};
 	}
 	return piece;

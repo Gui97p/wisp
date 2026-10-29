@@ -123,12 +123,6 @@ func typeRefInStmt(stmt ast.Statement, line, col int) *ast.TypeRef {
 				return r
 			}
 		}
-	case *ast.GroupStmt:
-		for _, inner := range s.Statements {
-			if r := typeRefInStmt(inner, line, col); r != nil {
-				return r
-			}
-		}
 	case *ast.VarStmt:
 		return refInParams(s.Vars, line, col)
 	case *ast.ConstStmt:

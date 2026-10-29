@@ -195,6 +195,15 @@ func (a *Analyser) fixUntyped(expr ast.Expression, target Type) {
 	case *ast.TernaryExpr:
 		a.fixUntyped(e.Then, target)
 		a.fixUntyped(e.Else, target)
+	case *ast.SwitchExpr:
+		for _, arm := range switchArms(e) {
+			if len(arm.Values) == 1 {
+				a.fixUntyped(arm.Values[0], target)
+			}
+		}
+		if values := a.info.SwitchValues[e]; len(values) == 1 {
+			values[0] = target
+		}
 	}
 }
 
@@ -424,6 +433,13 @@ func (a *Analyser) defaultUntyped() {
 	for expr, t := range a.info.Types {
 		if containsUntyped(t) {
 			a.info.Types[expr] = defaultType(t)
+		}
+	}
+	for _, values := range a.info.SwitchValues {
+		for i, t := range values {
+			if containsUntyped(t) {
+				values[i] = defaultType(t)
+			}
 		}
 	}
 }

@@ -126,6 +126,17 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		}
 
 		return ops[0], nil
+	case *ast.SwitchExpr:
+		ops, err := t.compileSwitchValues(e)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(ops) == 0 {
+			return nil, nil
+		}
+
+		return ops[0], nil
 	default:
 		return nil, fmt.Errorf("%s is not supported yet", ast.Describe(expr))
 	}
@@ -767,26 +778,12 @@ func (t *X64Target) compileCoalesce(expr *ast.CoalesceExpr) ([]Operand, error) {
 	t.text.printft("jz %s\n", endLabel)
 	t.ctx.FreeRegister(reg)
 
-	if expr.Block != nil {
-		t.collectVariables(expr.Block)
-		t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{slots: slots, end: endLabel, deferDepth: len(t.deferScopes)})
-		err := t.compileStatement(expr.Block)
-		t.coalesceFrames = t.coalesceFrames[:len(t.coalesceFrames)-1]
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		defaults := []ast.Expression{expr.Default}
-		if e, ok := expr.Default.(*ast.TupleExpr); ok {
-			defaults = e.Elements
-		}
-		for i, def := range defaults {
-			op, err := t.compileExpr(def)
-			if err != nil {
-				return nil, err
-			}
-			t.store(op, slots[i])
-		}
+	t.collectVariables(expr.Block)
+	t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{slots: slots, end: endLabel, deferDepth: len(t.deferScopes)})
+	err = t.compileStatement(expr.Block)
+	t.coalesceFrames = t.coalesceFrames[:len(t.coalesceFrames)-1]
+	if err != nil {
+		return nil, err
 	}
 
 	t.text.printf("%s:\n", endLabel)
@@ -796,4 +793,70 @@ func (t *X64Target) compileCoalesce(expr *ast.CoalesceExpr) ([]Operand, error) {
 		res[i] = s
 	}
 	return res, nil
+}
+
+func (t *X64Target) compileSwitchValues(expr *ast.SwitchExpr) ([]Operand, error) {
+	tps := t.info.SwitchValues[expr]
+	slots := make([]Mem, len(tps))
+	for i, tp := range tps {
+		size := sizeOf(tp)
+		slots[i] = slot(t.ctx.Reserve(size), size)
+	}
+
+	for _, stmt := range expr.Prelude {
+		t.collectVariables(stmt)
+		if err := t.compileStatement(stmt); err != nil {
+			return nil, err
+		}
+	}
+
+	arms := make([]*ast.SwitchArm, 0, len(expr.Arms)+1)
+	for i := range expr.Arms {
+		arms = append(arms, &expr.Arms[i])
+	}
+	arms = append(arms, expr.Default)
+
+	endLabel := t.newLabel("switch_end")
+	for _, arm := range arms {
+		nextLabel := ""
+		if arm.Condition != nil {
+			nextLabel = t.newLabel("switch_next")
+			cond, err := t.compileExpr(arm.Condition)
+			if err != nil {
+				return nil, err
+			}
+			size := sizeOf(t.info.Types[arm.Condition])
+			reg := t.materialize(cond, size)
+			regStr := t.ctx.GetRegister(reg, size)
+			t.text.printft("test %s, %s\n", regStr, regStr)
+			t.ctx.FreeRegister(reg)
+			t.text.printft("jz %s\n", nextLabel)
+		}
+
+		if arm.Exit != nil {
+			if err := t.compileStatement(arm.Exit); err != nil {
+				return nil, err
+			}
+		} else {
+			err := t.eachValue(arm.Values, func(i int, op Operand) error {
+				t.store(op, slots[i])
+				return nil
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		if arm.Condition != nil {
+			t.text.printft("jmp %s\n", endLabel)
+			t.text.printf("%s:\n", nextLabel)
+		}
+	}
+	t.text.printf("%s:\n", endLabel)
+
+	ops := make([]Operand, len(slots))
+	for i, s := range slots {
+		ops[i] = s
+	}
+	return ops, nil
 }

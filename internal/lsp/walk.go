@@ -89,12 +89,6 @@ func paramInStmt(stmt ast.Statement, line, col int) (*ast.Param, ast.Node, int) 
 				return p, owner, idx
 			}
 		}
-	case *ast.GroupStmt:
-		for _, inner := range s.Statements {
-			if p, owner, idx := paramInStmt(inner, line, col); p != nil {
-				return p, owner, idx
-			}
-		}
 	case *ast.VarStmt:
 		for i := range s.Vars {
 			if paramContains(&s.Vars[i], line, col) {
@@ -190,9 +184,23 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 	case *ast.PropagateExpr:
 		child = exprAt(e.Value, line, col)
 	case *ast.CoalesceExpr:
-		child = firstExpr(line, col, e.Left, e.Default)
+		child = firstExpr(line, col, e.Left)
 		if child == nil {
 			child = exprInStmt(e.Block, line, col)
+		}
+	case *ast.SwitchExpr:
+		child = exprInStmtList(e.Prelude, line, col)
+		for _, arm := range switchArms(e) {
+			if child != nil {
+				break
+			}
+			child = firstExpr(line, col, arm.Condition)
+			if child == nil {
+				child = firstExpr(line, col, arm.Values...)
+			}
+			if child == nil {
+				child = exprInStmt(arm.Exit, line, col)
+			}
 		}
 	case *ast.TupleExpr:
 		child = firstExpr(line, col, e.Elements...)
@@ -232,8 +240,6 @@ func exprInStmt(stmt ast.Statement, line, col int) ast.Expression {
 	case *ast.ExpressionStmt:
 		return exprAt(s.Expr, line, col)
 	case *ast.BlockStmt:
-		return exprInStmtList(s.Statements, line, col)
-	case *ast.GroupStmt:
 		return exprInStmtList(s.Statements, line, col)
 	case *ast.VarStmt:
 		return firstExpr(line, col, s.Values...)
@@ -279,4 +285,15 @@ func exprInStmtList(stmts []ast.Statement, line, col int) ast.Expression {
 		}
 	}
 	return nil
+}
+
+func switchArms(expr *ast.SwitchExpr) []*ast.SwitchArm {
+	arms := make([]*ast.SwitchArm, 0, len(expr.Arms)+1)
+	for i := range expr.Arms {
+		arms = append(arms, &expr.Arms[i])
+	}
+	if expr.Default != nil {
+		arms = append(arms, expr.Default)
+	}
+	return arms
 }

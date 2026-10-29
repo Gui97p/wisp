@@ -216,6 +216,8 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 		if e.Synthetic {
 			return ""
 		}
+	case *ast.SwitchExpr:
+		return ""
 	}
 
 	switch e := expr.(type) {

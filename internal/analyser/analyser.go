@@ -25,7 +25,6 @@ type Analyser struct {
 	untilSawBody    bool
 
 	mustUse      []*Symbol
-	handlerOK    map[ast.Expression]bool
 	pendingDots  map[*ast.DotIdent]bool
 	pendingEmpty map[*ast.ArrayLiteral]bool
 
@@ -64,7 +63,6 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 		modules:      modules,
 		declFiles:    declFiles,
 		module:       module,
-		handlerOK:    map[ast.Expression]bool{},
 		pendingDots:  map[*ast.DotIdent]bool{},
 		pendingEmpty: map[*ast.ArrayLiteral]bool{},
 	}

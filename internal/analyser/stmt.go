@@ -15,10 +15,6 @@ func (a *Analyser) checkBlock(block *ast.BlockStmt) {
 	a.checkStatements(block.Statements)
 }
 
-func (a *Analyser) checkGroup(group *ast.GroupStmt) {
-	a.checkStatements(group.Statements)
-}
-
 func (a *Analyser) checkStatements(stmts []ast.Statement) {
 	terminated, warned := false, false
 	for _, stmt := range stmts {
@@ -37,7 +33,6 @@ func (a *Analyser) checkStatements(stmts []ast.Statement) {
 func (a *Analyser) checkStmt(stmt ast.Statement) {
 	switch s := stmt.(type) {
 	case *ast.ExpressionStmt:
-		a.markHandlers([]ast.Expression{s.Expr})
 		switch e := s.Expr.(type) {
 		case *ast.CallExpr:
 			returns := a.checkCallExpr(e)
@@ -54,13 +49,10 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 	case *ast.YieldStmt:
 		a.checkYieldStmt(s)
 	case *ast.VarStmt:
-		a.markHandlers(s.Values)
 		a.checkVarStmt(s)
 	case *ast.ConstStmt:
-		a.markHandlers(s.Values)
 		a.checkConstStmt(s)
 	case *ast.AssignStmt:
-		a.markHandlers(s.Values)
 		a.checkAssignStmt(s)
 	case *ast.IncDecStmt:
 		a.checkIncDecStmt(s)
@@ -82,22 +74,11 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		a.enterScope()
 		a.checkBlock(s)
 		a.exitScope()
-	case *ast.GroupStmt:
-		a.checkGroup(s)
-	}
-}
-
-func (a *Analyser) markHandlers(exprs []ast.Expression) {
-	for _, e := range exprs {
-		if c, ok := e.(*ast.CoalesceExpr); ok {
-			a.handlerOK[c] = true
-		}
 	}
 }
 
 func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 	a.warnReturnedFree(stmt)
-	a.markHandlers(stmt.Values)
 	types := a.rejectFallible(stmt.Values, a.checkExprList(stmt.Values))
 
 	if a.currentFallible && len(types) == 1 {
@@ -503,8 +484,6 @@ func stmtTerminates(stmt ast.Statement) bool {
 		return s.Condition == nil && s.UntilCondition == nil
 	case *ast.BlockStmt:
 		return blockTerminates(s)
-	case *ast.GroupStmt:
-		return blockTerminates((*ast.BlockStmt)(s))
 	default:
 		return false
 	}

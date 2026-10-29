@@ -100,6 +100,11 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 		return fmt.Errorf("lua: ?? applied to a call that cannot fail")
 	}
 
+	block, ok := expr.Block.(*ast.BlockStmt)
+	if !ok {
+		return fmt.Errorf("lua: ?? expects a block")
+	}
+
 	values := make([]string, len(fallible.Values))
 	results := make([]string, len(fallible.Values))
 	for i := range values {
@@ -118,49 +123,18 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 	t.pending = nil
 
 	var branch strings.Builder
-	endLabel := ""
 	fmt.Fprintf(&branch, "if %s ~= nil then\n", errName)
 
-	switch {
-	case expr.Block != nil:
-		block, ok := expr.Block.(*ast.BlockStmt)
-		if !ok {
-			t.pending = outer
-			return fmt.Errorf("lua: coalesce expects a block")
-		}
-
-		if expr.ErrorBind != "" {
-			fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
-		}
-		endLabel = t.newLabel("coend")
-		t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{results: results, label: endLabel, deferDepth: len(t.deferScopes)})
-		err := t.compileStatement(&branch, block)
-		t.coalesceFrames = t.coalesceFrames[:len(t.coalesceFrames)-1]
-		if err != nil {
-			t.pending = outer
-			return err
-		}
-	default:
-		if expr.ErrorBind != "" {
-			fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
-		}
-
-		defaults := []ast.Expression{expr.Default}
-		if tuple, isTuple := expr.Default.(*ast.TupleExpr); isTuple {
-			defaults = tuple.Elements
-		}
-
-		texts := make([]string, len(defaults))
-		for i, d := range defaults {
-			text, err := t.compileExprScratch(d)
-			if err != nil {
-				t.pending = outer
-				return err
-			}
-			texts[i] = text
-		}
-		t.flushPending(&branch)
-		fmt.Fprintf(&branch, "%s = %s\n", strings.Join(results, ", "), strings.Join(texts, ", "))
+	if expr.ErrorBind != "" {
+		fmt.Fprintf(&branch, "local %s = %s\n", expr.ErrorBind, errName)
+	}
+	endLabel := t.newLabel("coend")
+	t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{results: results, label: endLabel, deferDepth: len(t.deferScopes)})
+	err = t.compileStatement(&branch, block)
+	t.coalesceFrames = t.coalesceFrames[:len(t.coalesceFrames)-1]
+	if err != nil {
+		t.pending = outer
+		return err
 	}
 
 	if len(results) > 0 {
@@ -169,9 +143,7 @@ func (t *LuaTarget) compileCoalesceExpr(b *strings.Builder, expr *ast.CoalesceEx
 		branch.WriteString("else\n")
 	}
 	branch.WriteString("end\n")
-	if endLabel != "" {
-		fmt.Fprintf(&branch, "::%s::\n", endLabel)
-	}
+	fmt.Fprintf(&branch, "::%s::\n", endLabel)
 
 	t.pending = outer
 	t.emitPending(branch.String())
@@ -258,4 +230,82 @@ end
 func isNullLiteral(expr ast.Expression) bool {
 	_, ok := expr.(*ast.NullLiteral)
 	return ok
+}
+
+func (t *LuaTarget) compileSwitchExpression(b *strings.Builder, expr *ast.SwitchExpr) error {
+	values := t.info.SwitchValues[expr]
+	results := make([]string, len(values))
+	for i := range results {
+		results[i] = t.newLabel("sw")
+	}
+	if len(results) > 0 {
+		t.emitPending(fmt.Sprintf("local %s\n", strings.Join(results, ", ")))
+	}
+
+	outer := t.pending
+	t.pending = nil
+
+	var branch strings.Builder
+	for _, stmt := range expr.Prelude {
+		if err := t.compileStatement(&branch, stmt); err != nil {
+			t.pending = outer
+			return err
+		}
+	}
+
+	arms := make([]*ast.SwitchArm, 0, len(expr.Arms)+1)
+	for i := range expr.Arms {
+		arms = append(arms, &expr.Arms[i])
+	}
+	arms = append(arms, expr.Default)
+
+	opened := 0
+	for _, arm := range arms {
+		if arm.Condition != nil {
+			cond, err := t.compileExprScratch(arm.Condition)
+			if err != nil {
+				t.pending = outer
+				return err
+			}
+			t.flushPending(&branch)
+			fmt.Fprintf(&branch, "if %s then\n", cond)
+			opened++
+		}
+
+		if err := t.compileSwitchArm(&branch, arm, results); err != nil {
+			t.pending = outer
+			return err
+		}
+
+		if arm.Condition != nil {
+			branch.WriteString("else\n")
+		}
+	}
+	for range opened {
+		branch.WriteString("end\n")
+	}
+
+	t.pending = outer
+	t.emitPending(branch.String())
+
+	b.WriteString(strings.Join(results, ", "))
+	return nil
+}
+
+func (t *LuaTarget) compileSwitchArm(b *strings.Builder, arm *ast.SwitchArm, results []string) error {
+	if arm.Exit != nil {
+		return t.compileStatement(b, arm.Exit)
+	}
+
+	texts := make([]string, len(arm.Values))
+	for i, value := range arm.Values {
+		text, err := t.compileExprScratch(value)
+		if err != nil {
+			return err
+		}
+		texts[i] = text
+	}
+	t.flushPending(b)
+	fmt.Fprintf(b, "%s = %s\n", strings.Join(results, ", "), strings.Join(texts, ", "))
+	return nil
 }

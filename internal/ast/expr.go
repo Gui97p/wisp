@@ -242,9 +242,8 @@ func (i *TernaryExpr) Tree(indent string) string {
 }
 
 type CoalesceExpr struct {
-	Left    Expression
-	Default Expression
-	Block   Statement
+	Left  Expression
+	Block Statement
 
 	ErrorBind   string
 	ErrorBindAt Position
@@ -262,11 +261,7 @@ func (c *CoalesceExpr) Tree(indent string) string {
 	b.WriteString("├─ Left\n")
 	b.WriteString(c.Left.Tree(indent + "│  "))
 
-	if c.Default != nil {
-		b.WriteString(indent)
-		b.WriteString("└─ Default\n")
-		b.WriteString(c.Default.Tree(indent + "   "))
-	} else if c.Block != nil {
+	if c.Block != nil {
 		b.WriteString(indent)
 		fmt.Fprintf(&b, "└─ Block(%s)\n", c.ErrorBind)
 		b.WriteString(c.Block.Tree(indent + "   "))
@@ -387,6 +382,61 @@ func (p *PropagateExpr) Tree(indent string) string {
 	b.WriteString(indent)
 	b.WriteString("└─ Value\n")
 	b.WriteString(p.Value.Tree(indent + "   "))
+
+	return b.String()
+}
+
+type SwitchArm struct {
+	Condition Expression
+	Values    []Expression
+	Exit      Statement
+
+	NodePos
+}
+
+type SwitchExpr struct {
+	Prelude []Statement
+	Arms    []SwitchArm
+	Default *SwitchArm
+
+	NodePos
+}
+
+func (*SwitchExpr) expr() {}
+func (s *SwitchExpr) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sSwitchExpr\n", indent)
+
+	for i := range s.Arms {
+		b.WriteString(s.Arms[i].tree(indent+"├─ ", indent+"│  "))
+	}
+	if s.Default != nil {
+		b.WriteString(s.Default.tree(indent+"└─ ", indent+"   "))
+	}
+
+	return b.String()
+}
+
+func (a *SwitchArm) Tree(indent string) string {
+	return a.tree(indent, indent)
+}
+
+func (a *SwitchArm) tree(head, pad string) string {
+	var b strings.Builder
+
+	if a.Condition != nil {
+		b.WriteString(head + "Case\n")
+		b.WriteString(a.Condition.Tree(pad + "├─ "))
+	} else {
+		b.WriteString(head + "Default\n")
+	}
+	for _, v := range a.Values {
+		b.WriteString(v.Tree(pad + "└─ "))
+	}
+	if a.Exit != nil {
+		b.WriteString(a.Exit.Tree(pad + "└─ "))
+	}
 
 	return b.String()
 }

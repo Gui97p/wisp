@@ -36,15 +36,15 @@ public enum IOError {
 
 public func errorIO(int code) Error {
 	return switch code {
-		case 2 => Error(IOError.NotFound),
-		case 1, 13 => Error(IOError.Denied),
-		case 17 => Error(IOError.Exists),
-		case 4 => Error(IOError.Interrupted),
-		case 22, 34, 36 => Error(errors.Kind.Invalid),
-		case 20 => Error(IOError.NotDir),
-		case 21 => Error(IOError.IsDir),
-		case 39 => Error(IOError.NotEmpty),
-		default => Error(IOError.IO)
+		case 2 => Error(IOError.NotFound);
+		case 1, 13 => Error(IOError.Denied);
+		case 17 => Error(IOError.Exists);
+		case 4 => Error(IOError.Interrupted);
+		case 22, 34, 36 => Error(errors.Kind.Invalid);
+		case 20 => Error(IOError.NotDir);
+		case 21 => Error(IOError.IsDir);
+		case 39 => Error(IOError.NotEmpty);
+		default => Error(IOError.IO);
 	};
 }
 

@@ -71,6 +71,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkSliceExpr(e)
 	case *ast.TernaryExpr:
 		t = a.checkTernaryExpr(e)
+	case *ast.SwitchExpr:
+		t = a.checkSwitchExprValue(e)
 	case *ast.CoalesceExpr:
 		t = a.checkCoalesceExpr(e)
 	case *ast.PropagateExpr:
@@ -601,6 +603,19 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 			continue
 		}
 
+		if se, ok := e.(*ast.SwitchExpr); ok {
+			values := a.checkSwitchExpr(se, nil)
+			if len(values) == 0 {
+				a.error(se, "this switch gives no value").
+					WithHelp("at least one case has to give a value")
+				types = append(types, InvalidType{})
+				continue
+			}
+			a.recordValues(se, values)
+			types = append(types, values...)
+			continue
+		}
+
 		if call, ok := e.(*ast.CallExpr); ok {
 			returns := a.checkCallExpr(call)
 			if len(returns) == 0 {
@@ -891,37 +906,36 @@ func (a *Analyser) checkCoalesce(expr *ast.CoalesceExpr) []Type {
 		return invalid
 	}
 
-	if expr.Block != nil {
-		if !a.checkHandlerBlock(expr, ft.Values) {
-			return invalid
-		}
-		return ft.Values
-	}
-
-	if len(ft.Values) == 0 {
+	if len(ft.Values) == 0 && implicitHandler(expr) {
 		a.error(expr, "?? on a call without a value needs a handler block")
 		return invalid
 	}
-	if !a.checkDefaults(expr, ft.Values) {
+
+	if !a.checkHandlerBlock(expr, ft.Values) {
 		return invalid
 	}
 	return ft.Values
+}
+
+func implicitHandler(expr *ast.CoalesceExpr) bool {
+	block, ok := expr.Block.(*ast.BlockStmt)
+	if !ok || len(block.Statements) != 1 {
+		return false
+	}
+	yield, ok := block.Statements[0].(*ast.YieldStmt)
+	return ok && yield.Implicit
 }
 
 func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr, values []Type) bool {
 	valueless := len(values) == 0
 	b, ok := expr.Block.(*ast.BlockStmt)
 	if !ok {
-		a.errorf(expr, "expected valid block for coalesce")
+		a.errorf(expr, "expected valid block for ??")
 		return false
 	}
-	if !a.handlerOK[expr] {
-		a.error(expr, "a handler block can only be the value of a let, an assignment, a return or a statement")
-	}
-
 	a.enterScope()
 	a.defineErrorBind(expr)
-	a.yieldFrames = append(a.yieldFrames, yieldFrame{values: values})
+	a.yieldFrames = append(a.yieldFrames, yieldFrame{values: values, bound: expr.ErrorBind != ""})
 	a.checkBlock(b)
 	a.yieldFrames = a.yieldFrames[:len(a.yieldFrames)-1]
 	a.exitScope()
@@ -934,50 +948,6 @@ func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr, values []Type) bool
 		return false
 	}
 	return true
-}
-
-func (a *Analyser) checkDefaults(expr *ast.CoalesceExpr, values []Type) bool {
-	if expr.Default == nil {
-		a.error(expr, "expected default value or block in coalesce")
-		return false
-	}
-
-	slots := []*ast.Expression{&expr.Default}
-	if tuple, isTuple := expr.Default.(*ast.TupleExpr); isTuple {
-		slots = make([]*ast.Expression, len(tuple.Elements))
-		for i := range tuple.Elements {
-			slots[i] = &tuple.Elements[i]
-		}
-	}
-
-	if len(slots) != len(values) {
-		if len(values) > 1 {
-			a.errorf(expr, "?? needs %d values for this call, written as a tuple (a, b), got %d", len(values), len(slots))
-		} else {
-			a.errorf(expr, "?? needs 1 value for this call, got %d", len(slots))
-		}
-		return false
-	}
-
-	if expr.ErrorBind != "" {
-		a.enterScope()
-		a.defineErrorBind(expr)
-		defer a.exitScope()
-	}
-
-	valid := true
-	for i, slot := range slots {
-		got := a.checkExpr(*slot)
-		if !a.coerce(slot, got, values[i]) {
-			if expr.ErrorBind != "" {
-				a.errorf(expr, "expected %s for the handler value, got %s", values[i], got)
-			} else {
-				a.errorf(expr, "expected %s for default value, got %s", values[i], got)
-			}
-			valid = false
-		}
-	}
-	return valid
 }
 
 func endsInSwitch(block *ast.BlockStmt) bool {
@@ -1012,8 +982,6 @@ func stmtDiverges(stmt ast.Statement, inSwitch bool) bool {
 		inSwitch = inSwitch || s.IsSwitch
 		return listDiverges(s.Then.Statements, inSwitch) && stmtDiverges(s.Else, inSwitch)
 	case *ast.BlockStmt:
-		return listDiverges(s.Statements, inSwitch)
-	case *ast.GroupStmt:
 		return listDiverges(s.Statements, inSwitch)
 	}
 	return stmtTerminates(stmt)

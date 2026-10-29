@@ -56,6 +56,8 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 		return t.compileSliceExpression(b, e)
 	case *ast.CoalesceExpr:
 		return t.compileCoalesceExpr(b, e)
+	case *ast.SwitchExpr:
+		return t.compileSwitchExpression(b, e)
 	case *ast.PropagateExpr:
 		return t.compilePropagate(b, e)
 

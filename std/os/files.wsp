@@ -80,10 +80,10 @@ public func stat(string p) !global.Stat {
 	}
 	int mode = s.st_mode & sys.S_IFMT;
 	global.FileKind kind = switch mode {
-		case sys.S_IFREG => .File,
-		case sys.S_IFLNK => .Link,
-		case sys.S_IFDIR => .Dir,
-		default => .Other
+		case sys.S_IFREG => .File;
+		case sys.S_IFLNK => .Link;
+		case sys.S_IFDIR => .Dir;
+		default => .Other;
 	};
 	return global.Stat{mode: s.st_mode, kind: kind, modified: os.toNs(s.st_mtim.tv_sec, s.st_mtim.tv_nsec), size: s.st_size};
 }

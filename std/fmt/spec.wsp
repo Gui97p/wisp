@@ -44,19 +44,20 @@ internal func parse(string text) !Spec {
 	cursor.Cursor c = cursor.Cursor{text: text};
 
 	bool align;
-	if c.peekAt(1) in aligns {
-		spec.fill = c.peek();
-		c.advance();
-		align = true;
-	} else if c.peek() in aligns {
-		align = true;
+	switch {
+		case c.peekAt(1) in aligns:
+			spec.fill = c.peek();
+			c.advance();
+			align = true;
+		case c.peek() in aligns:
+			align = true;
 	}
 	if align {
 		spec.align = switch c.peek() {
-			case '<' => Align.Left,
-			case '>' => Align.Right,
-			case '^' => Align.Center,
-			default => Align.Default
+			case '<' => .Left;
+			case '>' => .Right;
+			case '^' => .Center;
+			default => .Default;
 		};
 		c.advance();
 	}

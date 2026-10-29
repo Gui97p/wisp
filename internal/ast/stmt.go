@@ -45,26 +45,6 @@ func (b *BlockStmt) Tree(indent string) string {
 	return sb.String()
 }
 
-type GroupStmt struct {
-	Statements []Statement
-
-	NodePos
-}
-
-func (*GroupStmt) stmt() {}
-func (g *GroupStmt) Tree(indent string) string {
-	var sb strings.Builder
-
-	sb.WriteString(indent)
-	sb.WriteString("GroupStmt\n")
-
-	for _, stmt := range g.Statements {
-		sb.WriteString(stmt.Tree(indent + "│  "))
-	}
-
-	return sb.String()
-}
-
 type VarStmt struct {
 	Vars   []Param
 	Values []Expression
@@ -158,7 +138,8 @@ func (r *ReturnStmt) Tree(indent string) string {
 }
 
 type YieldStmt struct {
-	Values []Expression
+	Values   []Expression
+	Implicit bool
 
 	NodePos
 }

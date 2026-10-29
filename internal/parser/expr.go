@@ -64,6 +64,8 @@ func (p *Parser) parsePrefix() ast.Expression {
 
 func (p *Parser) parsePrefixInner() ast.Expression {
 	switch p.current.Type {
+	case lexer.TOKEN_SWITCH:
+		return p.parseSwitchExpression()
 	case lexer.TOKEN_INT_LITERAL:
 		u, err := p.parseUintLiteral(p.current.Literal)
 		if err != nil {
@@ -627,7 +629,7 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 	line, col := p.current.Line, p.current.Column
 	p.advance()
 
-	expr := &ast.CoalesceExpr{Left: left, Default: nil, Block: nil}
+	expr := &ast.CoalesceExpr{Left: left}
 	expr.SetPos(line, col)
 
 	if p.current.Type == lexer.TOKEN_LBRACE {
@@ -644,8 +646,6 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 		return p.parseReturnHandler(expr)
 	case lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE:
 		return p.parseJumpHandler(expr)
-	case lexer.TOKEN_SWITCH:
-		return p.parseSwitchHandler(expr)
 	}
 
 	if p.current.Type == lexer.TOKEN_PIPE {
@@ -678,36 +678,37 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 		case lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE:
 			p.advance()
 			return p.parseJumpHandler(expr)
-		case lexer.TOKEN_SWITCH:
-			p.advance()
-			return p.parseSwitchHandler(expr)
 		}
 
 		p.advance()
-		handler := p.parseExpression()
-		if handler == nil {
-			return nil
-		}
-		expr.Default = handler
-		return expr
 	}
 
-	def := p.parseExpression()
-	if def == nil {
+	value := p.parseExpression()
+	if value == nil {
 		return nil
 	}
 
-	expr.Default = def
+	expr.Block = valueHandler(value)
 	return expr
 }
 
-func (p *Parser) parseSwitchHandler(expr *ast.CoalesceExpr) ast.Expression {
-	block, ok := p.parseSwitchStatement().(*ast.BlockStmt)
-	if !ok || block == nil {
-		return nil
+func valueHandler(value ast.Expression) *ast.BlockStmt {
+	values := []ast.Expression{value}
+	if tuple, ok := value.(*ast.TupleExpr); ok {
+		values = tuple.Elements
 	}
-	expr.Block = block
-	return expr
+
+	line, col := value.Position()
+	endLine, endCol := value.EndPosition()
+
+	yield := &ast.YieldStmt{Values: values, Implicit: true}
+	yield.SetPos(line, col)
+	yield.SetEndPos(endLine, endCol)
+
+	block := &ast.BlockStmt{Statements: []ast.Statement{yield}}
+	block.SetPos(line, col)
+	block.SetEndPos(endLine, endCol)
+	return block
 }
 
 func (p *Parser) parseJumpHandler(expr *ast.CoalesceExpr) ast.Expression {
@@ -801,82 +802,145 @@ func (p *Parser) parseInExpr(left ast.Expression) ast.Expression {
 	return expr
 }
 
-func (p *Parser) parseSwitchExpr() (*ast.GroupStmt, ast.Expression) {
+func (p *Parser) parseSwitchExpression() ast.Expression {
 	line, col := p.current.Line, p.current.Column
 	p.advance()
 	block, value := p.parseSwitchHeader(line, col)
 	if block == nil {
-		return nil, nil
+		return nil
 	}
-	group := &ast.GroupStmt{Statements: block.Statements}
-	group.SetPos(line, col)
 
 	if value != nil && !p.expect(lexer.TOKEN_LBRACE) {
-		return nil, nil
+		return nil
 	}
 
-	first := true
-	ternaryExpr := &ast.TernaryExpr{Synthetic: true}
-	ternaryExpr.SetPos(line, col)
-	currentTernary := ternaryExpr
+	expr := &ast.SwitchExpr{Prelude: block.Statements}
 
 	for p.peek.Type == lexer.TOKEN_CASE {
-		if !first {
-			newTernary := &ast.TernaryExpr{Synthetic: true}
-			newTernary.SetPos(line, col)
-			currentTernary.Else = newTernary
-			currentTernary = newTernary
-		} else {
-			first = false
+		armLine, armCol := p.peek.Line, p.peek.Column
+		condition := p.parseCaseExpression(value, line, col)
+		if condition == nil {
+			return nil
 		}
-
-		expr := p.parseCaseExpression(value, line, col)
-
-		currentTernary.Condition = expr
 
 		if !p.expect(lexer.TOKEN_ARROW) {
-			return nil, nil
+			return nil
 		}
-		p.advance()
 
-		expr = p.parseExpression()
-		if expr == nil {
-			return nil, nil
+		arm, ok := p.parseSwitchArm()
+		if !ok {
+			return nil
 		}
-		currentTernary.Then = expr
-		currentTernary.SetEndPos(p.currentEnd())
-
-		if !p.expect(lexer.TOKEN_COMMA) {
-			return nil, nil
-		}
+		arm.Condition = condition
+		arm.SetPos(armLine, armCol)
+		expr.Arms = append(expr.Arms, arm)
 	}
 
+	armLine, armCol := p.peek.Line, p.peek.Column
 	if !p.expect(lexer.TOKEN_DEFAULT) {
-		return nil, nil
+		return nil
 	}
 
 	if !p.expect(lexer.TOKEN_ARROW) {
-		return nil, nil
+		return nil
 	}
 
-	p.advance()
-	expr := p.parseExpression()
-	if expr == nil {
-		return nil, nil
+	arm, ok := p.parseSwitchArm()
+	if !ok {
+		return nil
 	}
-	currentTernary.Else = expr
-	currentTernary.SetEndPos(p.currentEnd())
-
-	if p.peek.Type == lexer.TOKEN_COMMA {
-		p.advance()
-	}
+	arm.SetPos(armLine, armCol)
+	expr.Default = &arm
 
 	if !p.expect(lexer.TOKEN_RBRACE) {
-		return nil, nil
+		return nil
 	}
 
-	ternaryExpr.SetEndPos(p.currentEnd())
-	group.SetEndPos(p.currentEnd())
+	return expr
+}
 
-	return group, ternaryExpr
+func (p *Parser) parseSwitchArm() (ast.SwitchArm, bool) {
+	var arm ast.SwitchArm
+	p.advance()
+
+	switch p.current.Type {
+	case lexer.TOKEN_RETURN:
+		stmt := p.parseReturnArm()
+		if stmt == nil {
+			return arm, false
+		}
+		arm.Exit = stmt
+	case lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE:
+		arm.Exit = p.parseJumpArm()
+	default:
+		for {
+			value := p.parseExpression()
+			if value == nil {
+				return arm, false
+			}
+			arm.Values = append(arm.Values, value)
+
+			if p.peek.Type != lexer.TOKEN_COMMA {
+				break
+			}
+			p.advance()
+			p.advance()
+		}
+	}
+
+	arm.SetEndPos(p.currentEnd())
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
+		return arm, false
+	}
+	return arm, true
+}
+
+func (p *Parser) parseReturnArm() ast.Statement {
+	line, col := p.current.Line, p.current.Column
+	ret := &ast.ReturnStmt{}
+
+	if p.peek.Type != lexer.TOKEN_SEMICOLON {
+		for {
+			p.advance()
+			value := p.parseExpression()
+			if value == nil {
+				return nil
+			}
+			ret.Values = append(ret.Values, value)
+
+			if p.peek.Type != lexer.TOKEN_COMMA {
+				break
+			}
+			p.advance()
+		}
+	}
+
+	ret.SetPos(line, col)
+	ret.SetEndPos(p.currentEnd())
+	return ret
+}
+
+func (p *Parser) parseJumpArm() ast.Statement {
+	line, col := p.current.Line, p.current.Column
+	isBreak := p.current.Type == lexer.TOKEN_BREAK
+
+	label := ""
+	if p.peek.Type == lexer.TOKEN_IDENT {
+		p.advance()
+		label = p.current.Literal
+	}
+
+	var stmt ast.Statement
+	if isBreak {
+		jump := &ast.BreakStmt{Label: label}
+		jump.SetPos(line, col)
+		jump.SetEndPos(p.currentEnd())
+		stmt = jump
+	} else {
+		jump := &ast.ContinueStmt{Label: label}
+		jump.SetPos(line, col)
+		jump.SetEndPos(p.currentEnd())
+		stmt = jump
+	}
+	return stmt
 }

@@ -35,10 +35,6 @@ func walkStmt(stmt ast.Statement, fn func(ast.Expression)) {
 		for _, inner := range s.Statements {
 			walkStmt(inner, fn)
 		}
-	case *ast.GroupStmt:
-		for _, inner := range s.Statements {
-			walkStmt(inner, fn)
-		}
 	case *ast.VarStmt:
 		walkExprs(s.Values, fn)
 	case *ast.ConstStmt:
@@ -92,8 +88,17 @@ func walkExpr(expr ast.Expression, fn func(ast.Expression)) {
 	case *ast.TernaryExpr:
 		walkExprs([]ast.Expression{e.Condition, e.Then, e.Else}, fn)
 	case *ast.CoalesceExpr:
-		walkExprs([]ast.Expression{e.Left, e.Default}, fn)
+		walkExpr(e.Left, fn)
 		walkStmt(e.Block, fn)
+	case *ast.SwitchExpr:
+		for _, stmt := range e.Prelude {
+			walkStmt(stmt, fn)
+		}
+		for _, arm := range switchArms(e) {
+			walkExpr(arm.Condition, fn)
+			walkExprs(arm.Values, fn)
+			walkStmt(arm.Exit, fn)
+		}
 	case *ast.TupleExpr:
 		walkExprs(e.Elements, fn)
 	case *ast.CastExpr:

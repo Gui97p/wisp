@@ -2027,9 +2027,9 @@ func main() {
 
 	{dir: "flow_switch_expr", src: `func pick(int v) int {
     return switch v {
-        case 1 => 100,
-        case 2 => 200,
-        default => 0,
+        case 1 => 100;
+        case 2 => 200;
+        default => 0;
     };
 }
 
@@ -2039,14 +2039,14 @@ func main() {
     check(pick(9) == 0, "switch expr default");
     int v = 2;
     let doubled = switch v {
-        case 2 => 4,
-        default => 0,
+        case 2 => 4;
+        default => 0;
     };
     check(doubled == 4, "switch expr let");
     int assigned = 0;
     assigned = switch v {
-        case 2 => 7,
-        default => 0,
+        case 2 => 7;
+        default => 0;
     };
     check(assigned == 7, "switch expr assignment");
 }
@@ -2589,9 +2589,9 @@ func pick(int x) !int {
 func classify(int x) int {
     let v, e = pick(x);
     return switch e {
-        case null => v,
-        case Kind.A => 100,
-        default => 200,
+        case null => v;
+        case Kind.A => 100;
+        default => 200;
     };
 }
 
@@ -3258,9 +3258,9 @@ func main() ! {
 
 func pick(int m) Kind {
     return switch m {
-        case 1 => .File,
-        case 2 => .Dir,
-        default => .Other
+        case 1 => .File;
+        case 2 => .Dir;
+        default => .Other;
     };
 }
 
@@ -3271,8 +3271,8 @@ func is(Kind k, Kind want) bool {
 func main() {
     int m = 2;
     Kind k = switch m {
-        case 1 => .File,
-        default => .Dir
+        case 1 => .File;
+        default => .Dir;
     };
     check(k == Kind.Dir, "a switch expression infers .Member from the declared type");
     check(pick(1) == Kind.File && pick(3) == Kind.Other, "a switch expression infers .Member from the return type");
@@ -3550,9 +3550,9 @@ func main() {
 
 	{dir: "switch_tagless", src: `func classify(int a, int b) string {
     return switch {
-        case a > b => "greater",
-        case a == b => "equal",
-        default => "less"
+        case a > b => "greater";
+        case a == b => "equal";
+        default => "less";
     };
 }
 
@@ -3581,14 +3581,14 @@ func main() {
     }
     check(either, "a comma between conditions is an or");
     string size = switch {
-        case x < 5 => "small",
-        case x < 10 => "medium",
-        default => "large"
+        case x < 5 => "small";
+        case x < 10 => "medium";
+        default => "large";
     };
     check(size == "medium", "a switch without a value initialises a variable");
     let msg = switch {
-        case x == 7 && y == 0 => "both",
-        default => "other"
+        case x == 7 && y == 0 => "both";
+        default => "other";
     };
     check(msg == "both", "a switch without a value with a compound condition");
 }
@@ -3614,12 +3614,9 @@ func load(int n) !int {
 
 func pick(int n) int {
     return load(n) ?? |e| switch e {
-        case Kind.NotFound:
-            return -1;
-        case Kind.Denied:
-            return -2;
-        default:
-            return -3;
+        case Kind.NotFound => return -1;
+        case Kind.Denied => return -2;
+        default => return -3;
     };
 }
 
@@ -3628,10 +3625,8 @@ func sum(int a, int b, int c) int {
     for i in 0..2 {
         int n = i == 0 ? a : (i == 1 ? b : c);
         int v = load(n) ?? |e| switch e {
-            case Kind.NotFound:
-                continue;
-            default:
-                return -100;
+            case Kind.NotFound => continue;
+            default => return -100;
         };
         total += v;
     }
@@ -3643,10 +3638,8 @@ func firstGood(int a, int b, int c) int {
     :scan for i in 0..2 {
         int n = i == 0 ? a : (i == 1 ? b : c);
         int v = load(n) ?? |e| switch e {
-            case Kind.Denied:
-                break scan;
-            default:
-                continue;
+            case Kind.Denied => break scan;
+            default => continue;
         };
         total += v;
     }
@@ -3655,10 +3648,8 @@ func firstGood(int a, int b, int c) int {
 
 func plain(int n) int {
     return load(n) ?? switch {
-        case n == 0:
-            return 7;
-        default:
-            return 8;
+        case n == 0 => return 7;
+        default => return 8;
     };
 }
 
@@ -3700,12 +3691,9 @@ func pair(int n) !(int, int) {
 
 func settle(int n) !int {
     int v = load(n) ?? |e| switch e {
-        case Kind.NotFound:
-            yield 7;
-        case Kind.Denied:
-            yield -2;
-        default:
-            return e;
+        case Kind.NotFound => 7;
+        case Kind.Denied => -2;
+        default => return e;
     };
     return v;
 }
@@ -3766,6 +3754,105 @@ func main() {
     check(g == 40 && trace == 11, "a handler that does not run leaves the value alone");
 }
 `, expected: []string{"yield gives the value of the handler", "yield after other statements keeps their effects", "yield with several values", "a switch handler can yield for one error and leave for another", "a switch handler leaves with the original error", "yield from one branch of an if", "yield from inside a loop in the handler", "yield runs the defers of the handler block", "a handler that does not run leaves the value alone"}},
+
+	{dir: "switch_values", src: `enum Kind {
+    NotFound = 1,
+    Other
+}
+
+func load(int n) !int {
+    if n == 0 {
+        return Error(Kind.NotFound);
+    }
+    return n * 10;
+}
+
+func pair(int n) !(int, int) {
+    switch n {
+        case 0:
+            return Error(Kind.NotFound);
+        case 1:
+            return Error(Kind.Other);
+    }
+    return n, n * 2;
+}
+
+func twice(int v) int {
+    return v * 2;
+}
+
+func early(int n) int {
+    int v = switch n {
+        case 0 => return -1;
+        default => n * 2;
+    };
+    return v + 1;
+}
+
+func two(int n) (int, int) {
+    return switch n {
+        case 1 => 1, 2;
+        default => 3, 4;
+    };
+}
+
+func pairOr(int n) int {
+    let a, b = pair(n) ?? |e| switch e {
+        case Kind.NotFound => 1, 2;
+        default => return -9;
+    };
+    return a * 100 + b;
+}
+
+func sumUntilZero(int a, int b, int c) int {
+    int total;
+    for i in 0..2 {
+        int n = i == 0 ? a : (i == 1 ? b : c);
+        total += switch n {
+            case 0 => break;
+            case 1 => continue;
+            default => n;
+        };
+    }
+    return total;
+}
+
+func sign(int n) int {
+    return switch {
+        case n > 0 => 1;
+        case n < 0 => return -1;
+        default => 0;
+    };
+}
+
+func main() {
+    int x = 1;
+    let a, b = switch x {
+        case 1 => 10, 20;
+        default => 0, 0;
+    };
+    check(a == 10 && b == 20, "a switch gives two values to a let");
+
+    check(early(0) == -1 && early(3) == 7, "a case can leave the function with return");
+    check(sumUntilZero(5, 1, 7) == 12, "a case can continue the loop");
+    check(sumUntilZero(5, 0, 7) == 5, "a case can break the loop");
+    check(twice(switch x { case 1 => 5; default => 6; }) == 10, "a switch is an argument of a call");
+    check(twice(load(0) ?? |e| { yield 5; }) == 10, "a block handler works inside an expression");
+    check(pairOr(0) == 102 && pairOr(1) == -9 && pairOr(3) == 306, "a switch handler gives two values");
+    let p, q = two(1);
+    let r, t = two(2);
+    check(p == 1 && q == 2 && r == 3 && t == 4, "a function returns a switch of two values");
+
+    int8 small = 3;
+    let w = switch x {
+        case 1 => small;
+        default => 3;
+    };
+    int8 same = w;
+    check(w == 3 && same == 3, "an untyped arm takes the type of the typed one");
+    check(sign(5) == 1 && sign(0) == 0 && sign(-4) == -1, "a switch without a value can leave too");
+}
+`, expected: []string{"a switch gives two values to a let", "a case can leave the function with return", "a case can continue the loop", "a case can break the loop", "a switch is an argument of a call", "a block handler works inside an expression", "a switch handler gives two values", "a function returns a switch of two values", "an untyped arm takes the type of the typed one", "a switch without a value can leave too"}},
 
 	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
     *int8 b = malloc(16)!;

@@ -68,16 +68,14 @@ func divideOr(int a, b, fallback) int {
   return n;
 }
 
-// A handler can also be a `switch`. It picks what to do by the error: some
-// cases `yield` a value and others leave. Every case has to end one way or the
-// other, and `default` catches the rest. A plain `break` only leaves the
-// switch, so leave a loop with `continue` or a labeled `break`.
+// A handler can also be a `switch` expression. It picks what to do by the
+// error: a case gives a value, or leaves with `return`, `continue` or `break`.
+// `default` catches the rest. To run statements, write a block and put a
+// `switch` statement inside it.
 func codeOf(int a, int b) int {
   int n = divide(a, b) ?? |e| switch e {
-    case DivError.DivByZero:
-      yield -1;
-    default:
-      return -2;
+    case DivError.DivByZero => -1;
+    default => return -2;
   };
   return n;
 }
@@ -115,9 +113,9 @@ public func demo() {
   // which enum to look in, so `.DivByZero` would be ambiguous.
   let _, err = divide(7, 0);
   string what = switch err {
-    case null => "no error",
-    case DivError.DivByZero => "divided by zero",
-    default => err.message,
+    case null => "no error";
+    case DivError.DivByZero => "divided by zero";
+    default => err.message;
   };
   fmt.printf("the switch says: {}\n", what);
 

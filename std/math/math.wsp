@@ -19,36 +19,37 @@ public func checkedMul(int a, b) !int {
     if a == 0 || b == 0 {
         return 0;
     }
-	Error error = Error(errors.Kind.Overflow);
+	Error err = Error(errors.Kind.Overflow);
 
-    if a == -1 {
-        if b == constants.MIN_INT {
-            return error;
-        }
-    } else if b == -1 {
-        if a == constants.MIN_INT {
-            return error;
-        }
-    }
+	switch {
+		case a == -1:
+			if b == constants.MIN_INT {
+				return err;
+			}
+		case b == -1:
+			if a == constants.MIN_INT {
+				return err;
+			}
+	}
 
     if a > 0 {
         if b > 0 {
             if a > constants.MAX_INT / b {
-                return error;
+                return err;
             }
         } else {
             if b <constants. MIN_INT / a {
-                return error;
+                return err;
             }
         }
     } else {
         if b > 0 {
             if a < constants.MIN_INT / b {
-                return error;
+                return err;
             }
         } else {
             if a < constants.MAX_INT / b {
-                return error;
+                return err;
             }
         }
     }

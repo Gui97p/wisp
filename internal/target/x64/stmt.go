@@ -48,13 +48,6 @@ func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 			}
 		}
 		t.popDeferScope()
-	case *ast.GroupStmt:
-		for _, stmt := range s.Statements {
-			err = t.compileStatement(stmt)
-			if err != nil {
-				break
-			}
-		}
 	case *ast.VarStmt:
 		err = t.compileVarStmt(s)
 	case *ast.ReturnStmt:
@@ -302,7 +295,6 @@ func (t *X64Target) compileForStmt(stmt *ast.ForStmt) error {
 	switch {
 	case stmt.Range != nil:
 		return t.compileForRange(stmt)
-
 	case stmt.Start != nil:
 		return t.compileForNumeric(stmt)
 
@@ -421,12 +413,12 @@ func (t *X64Target) compileYieldStmt(stmt *ast.YieldStmt) error {
 	}
 	frame := t.coalesceFrames[len(t.coalesceFrames)-1]
 
-	for i, value := range stmt.Values {
-		op, err := t.compileExpr(value)
-		if err != nil {
-			return err
-		}
+	err := t.eachValue(stmt.Values, func(i int, op Operand) error {
 		t.store(op, frame.slots[i])
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
 	if err := t.emitDefers(frame.deferDepth, false); err != nil {

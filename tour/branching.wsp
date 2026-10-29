@@ -23,21 +23,30 @@ public func demo() {
       fmt.printf("something else\n");
   }
 
-  // `switch` as an expression. Cases use `=>` and `default` is mandatory,
-  // because the expression must always produce a value. It is only valid as
-  // the direct right-hand side of `let`, `const`, `return` or an assignment.
+  // `switch` as an expression. Cases use `=>` and each one ends with `;`.
+  // `default` is mandatory, because the expression must always produce a
+  // value. It can be written wherever an expression can.
   let label = switch limit {
-    case 10 => "ten",
-    default => "other",
+    case 10 => "ten";
+    default => "other";
   };
   fmt.printf("the label of {} is {}\n", limit, label);
 
   int doubled;
   doubled = switch limit {
-    case 12 => 24,
-    default => 0,
+    case 12 => 24;
+    default => 0;
   };
   fmt.printf("doubled is {}\n", doubled);
+
+  // A case can give several values, which `let a, b = switch ...` receives, or
+  // leave with `return`, `break` or `continue` instead of giving a value.
+  let low, high = switch limit {
+    case 10 => 0, 10;
+    case 11..20 => 11, 20;
+    default => return;
+  };
+  fmt.printf("the range of {} is {}..{}\n", limit, low, high);
 
   // A `switch` with no value puts a condition in each case, and the first one
   // that is true wins. A comma between conditions means "or". It works as a
@@ -52,9 +61,9 @@ public func demo() {
   }
 
   string size = switch {
-    case limit < 10 => "small",
-    case limit < 100 => "medium",
-    default => "large",
+    case limit < 10 => "small";
+    case limit < 100 => "medium";
+    default => "large";
   };
   fmt.printf("{} is {}\n", limit, size);
 }

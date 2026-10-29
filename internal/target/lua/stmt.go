@@ -17,8 +17,6 @@ func (t *LuaTarget) compileStatementNode(b *strings.Builder, stmt ast.Statement)
 	switch s := stmt.(type) {
 	case *ast.BlockStmt:
 		return t.compileBlockStatement(b, s)
-	case *ast.GroupStmt:
-		return t.compileGroupStatement(b, s)
 	case *ast.ConstStmt:
 		return t.compileDefinition(b, s, s.Vars, s.Values)
 	case *ast.VarStmt:
@@ -70,15 +68,6 @@ func (t *LuaTarget) compileBlockStatement(b *strings.Builder, block *ast.BlockSt
 		}
 	}
 	return t.emitDefers(b, len(t.deferScopes)-1, false)
-}
-
-func (t *LuaTarget) compileGroupStatement(b *strings.Builder, group *ast.GroupStmt) error {
-	for _, stmt := range group.Statements {
-		if err := t.compileStatement(b, stmt); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (t *LuaTarget) compileReturnStatement(b *strings.Builder, stmt *ast.ReturnStmt) error {
@@ -179,7 +168,6 @@ func (t *LuaTarget) compileForStatement(b *strings.Builder, stmt *ast.ForStmt) e
 	switch {
 	case stmt.Range != nil:
 		return t.compileForRange(b, stmt)
-
 	case stmt.Start != nil:
 		return t.compileForNumeric(b, stmt)
 
@@ -657,8 +645,17 @@ func (t *LuaTarget) compileYieldStatement(b *strings.Builder, stmt *ast.YieldStm
 		texts[i] = text
 	}
 
+	if len(frame.results) == 0 || (len(texts) == 1 && texts[0] == "") {
+		t.flushPending(b)
+		return t.finishYield(b, frame)
+	}
+
 	t.flushPending(b)
 	fmt.Fprintf(b, "%s = %s\n", strings.Join(frame.results, ", "), strings.Join(texts, ", "))
+	return t.finishYield(b, frame)
+}
+
+func (t *LuaTarget) finishYield(b *strings.Builder, frame coalesceFrame) error {
 	if err := t.emitDefers(b, frame.deferDepth, false); err != nil {
 		return err
 	}

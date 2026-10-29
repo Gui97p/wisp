@@ -103,21 +103,6 @@ func (p *Parser) parseConstStatement() ast.Statement {
 
 	p.advance()
 
-	if p.current.Type == lexer.TOKEN_SWITCH {
-		group, value := p.parseSwitchExpr()
-		if value == nil {
-			return nil
-		}
-		stmt.Values = append(stmt.Values, value)
-
-		if !p.expect(lexer.TOKEN_SEMICOLON) {
-			return nil
-		}
-
-		group.Statements = append(group.Statements, stmt)
-		return group
-	}
-
 	values := p.parseConstValues()
 	if values == nil {
 		return nil
@@ -321,20 +306,6 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	}
 
 	p.advance()
-	if p.current.Type == lexer.TOKEN_SWITCH {
-		group, value := p.parseSwitchExpr()
-		if value == nil {
-			return nil
-		}
-		stmt.Values = append(stmt.Values, value)
-
-		if !p.expect(lexer.TOKEN_SEMICOLON) {
-			return nil
-		}
-
-		group.Statements = append(group.Statements, stmt)
-		return group
-	}
 
 	value := p.parseExpression()
 	if value == nil {
@@ -366,26 +337,6 @@ func (p *Parser) parseAssignStatement(targets []ast.Expression) ast.Statement {
 	stmt.Op = p.current.Literal
 
 	p.advance()
-
-	if p.current.Type == lexer.TOKEN_SWITCH {
-		if len(targets) > 1 {
-			p.errorf("switch expression cannot be assigned to multiple targets")
-			return nil
-		}
-
-		group, value := p.parseSwitchExpr()
-		if value == nil {
-			return nil
-		}
-		stmt.Values = append(stmt.Values, value)
-
-		if !p.expect(lexer.TOKEN_SEMICOLON) {
-			return nil
-		}
-
-		group.Statements = append(group.Statements, stmt)
-		return group
-	}
 
 	value := p.parseExpression()
 	if value == nil {
@@ -446,22 +397,6 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 	if p.peek.Type == lexer.TOKEN_SEMICOLON {
 		p.advance()
 		return stmt
-	}
-
-	if p.peek.Type == lexer.TOKEN_SWITCH {
-		p.advance()
-		group, value := p.parseSwitchExpr()
-		if value == nil {
-			return nil
-		}
-		stmt.Values = append(stmt.Values, value)
-
-		if !p.expect(lexer.TOKEN_SEMICOLON) {
-			return nil
-		}
-
-		group.Statements = append(group.Statements, stmt)
-		return group
 	}
 
 	for {

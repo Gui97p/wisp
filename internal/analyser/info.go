@@ -26,6 +26,7 @@ type Info struct {
 	Boxes         map[ast.Expression]Type
 	TypeCases     map[*ast.BinaryExpr]*TypeCase
 	Narrowed      map[*Symbol]*Symbol
+	SwitchValues  map[*ast.SwitchExpr][]Type
 }
 
 type TypeCase struct {
@@ -55,6 +56,7 @@ func NewInfo() *Info {
 		Boxes:         make(map[ast.Expression]Type),
 		TypeCases:     make(map[*ast.BinaryExpr]*TypeCase),
 		Narrowed:      make(map[*Symbol]*Symbol),
+		SwitchValues:  make(map[*ast.SwitchExpr][]Type),
 	}
 }
 
