@@ -59,10 +59,10 @@ public func cut(string s, sep) (string, string, bool) {
 
 public struct Splitter {
 	internal string s, sep;
-	internal bool done;
+	internal bool done, skipEmpty;
 }
 
-public func (*Splitter s) next() (string, bool) {
+internal func (*Splitter s) nextStep() (string, bool) {
 	if s.done {
 		return "", false;
 	}
@@ -87,10 +87,23 @@ public func (*Splitter s) next() (string, bool) {
 	return left, true;
 }
 
+public func (*Splitter s) next() (string, bool) {
+	string str;
+	bool found;
+	loop {
+		str, found = s.nextStep();
+	} until !s.skipEmpty || str != "" || !found;
+	return str, found;
+}
+
 public func (*Splitter s) rest() string {
 	return s.s;
 }
 
 public func splitter(string s, sep) Splitter {
 	return Splitter{s: s, sep: sep};
+}
+
+public func tokens(string s, sep) Splitter {
+	return Splitter{s: s, sep: sep, skipEmpty: true};
 }

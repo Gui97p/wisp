@@ -170,8 +170,33 @@ func typeItems(info *analyser.Info, line, col int, ctx typeContext) []protocol.C
 		}
 	}
 
+	if info != nil {
+		items = append(items, importedTypeItems(scopeAt(info, line, col))...)
+	}
+
 	if ctx.own != "" && !seen[ctx.own] {
 		items = append(items, item(ctx.own, protocol.CompletionItemKindStruct, "struct"))
+	}
+	return items
+}
+
+func importedTypeItems(scope *analyser.Scope) []protocol.CompletionItem {
+	var items []protocol.CompletionItem
+	for _, sym := range scope.Visible() {
+		mt, isModule := sym.Type.(*analyser.ModuleType)
+		if sym.Kind != analyser.MODULE || !isModule {
+			continue
+		}
+		for _, ex := range mt.Exports {
+			if !isTypeSymbol(ex) {
+				continue
+			}
+			it := symbolItem(ex, "")
+			it.Label = sym.Name + "." + ex.Name
+			it.FilterText = ptr(ex.Name)
+			it.SortText = ptr("y" + ex.Name)
+			items = append(items, it)
+		}
 	}
 	return items
 }

@@ -1,0 +1,78 @@
+import "std/strings";
+import "std/path";
+import "std/math";
+
+public func join(char[] buf, string ...parts) !string {
+	int total;
+	bool seen, firstPassed;
+
+	for _, p in parts {
+		if p == "" {
+			continue;
+		}
+		if !seen {
+			seen = true;
+			if path.isAbs(p) {
+				total += len(strings.copy(buf[total:], path.sep)!);
+			}
+		}
+		let elems = path.elements(p);
+		loop {
+			let n, found = elems.next();
+			if !found {
+				break;
+			}
+			if firstPassed {
+				total += len(strings.copy(buf[total:], path.sep)!);
+			}
+			total += len(strings.copy(buf[total:], n)!);
+			firstPassed = true;
+		}
+	}
+	return string(buf[:total]);
+}
+
+public func clean(char[] buf, string p) !string {	
+	int total, depth;
+	bool abs = path.isAbs(p);
+	if abs {
+		strings.copy(buf, "/")!;
+		total++;
+	}
+	int rootLen = abs ? 1 : 0;
+
+	let elems = path.elements(p);
+	loop {
+		let n, found = elems.next();
+		if !found {
+			break;
+		}
+
+		switch n {
+			case ".":
+				continue;
+			case "..":
+				if depth > 0 {
+					total = math.max(strings.lastIndexOf(string(buf[:total]), path.sep), rootLen);
+					depth--;
+					continue;
+				} else if abs {
+					continue;
+				}
+			default:
+				depth++;
+		}
+		
+		if total > rootLen {
+			total += len(strings.copy(buf[total:], path.sep)!);
+		}
+		total += len(strings.copy(buf[total:], n)!);
+	}
+
+	if total == 0 {
+		strings.copy(buf, ".")!;
+		total++;
+	}
+
+	return string(buf[:total]);
+}

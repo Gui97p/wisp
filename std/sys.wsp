@@ -210,7 +210,7 @@ internal func getcwd(*char buf, int n) int {
 }
 
 internal func environ() **char {
-        **char r;
-        native linux_x64(out r) "extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
-        return r;
+	**char r;
+	native linux_x64(out r) "extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
+	return r;
 }

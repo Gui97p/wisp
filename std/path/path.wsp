@@ -1,0 +1,55 @@
+import "std/strings";
+
+internal const sep = "/";
+
+public func base(string p) string {
+	if p == "" {
+		return ".";
+	}
+	p = strings.trimRight(p, sep);
+	if p == "" {
+		return sep;
+	}
+
+	int idx = strings.lastIndexOf(p, sep);
+	return p[idx+1:];
+}
+
+public func dir(string p) string {
+	if p == "" {
+		return ".";
+	}
+	p = strings.trimRight(p, sep);
+	if p == "" {
+		return sep;
+	}
+	int idx = strings.lastIndexOf(p, sep);
+	if idx < 0 {
+		return ".";
+	}
+
+	string head = strings.trimRight(p[:idx], sep);
+	if head == "" {
+		return sep;
+	}
+	return head;
+}
+
+public func ext(string p) string {
+	p = base(p);
+
+	int idx = strings.lastIndexOfByte(p, '.');
+	return idx <= 0 || idx == len(p)-1 ? "" : p[idx:];
+}
+
+public func stem(string p) string {
+	return strings.trimSuffix(base(p), ext(p));
+}
+
+public func isAbs(string p) bool {
+	return strings.startsWith(p, sep);
+}
+
+public func elements(string p) strings.Splitter {
+	return strings.tokens(p, sep);
+}

@@ -3298,6 +3298,87 @@ func main() {
 }
 `, expected: []string{"getenv finds a variable that is always set", "getenv of a missing variable is false", "getenv does not match a prefix of a name"}},
 
+	{dir: "path_core", x64Only: true, src: `import "std/path";
+import "std/strings";
+
+func main() ! {
+    char[64] buf;
+
+    check(path.base("a/b") == "b", "base takes the last element");
+    check(path.base("a/b/") == "b", "base ignores trailing separators");
+    check(path.base("/") == "/" && path.base("///") == "/", "base of only separators is the root");
+    check(path.base("") == ".", "base of an empty path is a dot");
+    check(path.base("my file ") == "my file ", "base keeps a trailing space");
+    check(path.dir("a/b") == "a" && path.dir("a//b") == "a", "dir drops the last element");
+    check(path.dir("/a") == "/" && path.dir("//a") == "/", "dir of a path under the root is the root");
+    check(path.dir("/") == "/" && path.dir("///") == "/", "dir of the root is the root");
+    check(path.dir("a") == "." && path.dir("") == ".", "dir of a single name is a dot");
+    check(path.dir("/a/b/") == "/a", "dir ignores trailing separators");
+    check(path.dir("../a") == "..", "dir does not clean");
+    check(path.ext("a.tar.gz") == ".gz" && path.stem("a.tar.gz") == "a.tar", "ext is the last dot and stem is the rest");
+    check(path.ext(".gitignore") == "" && path.stem(".gitignore") == ".gitignore", "a leading dot is part of the name");
+    check(path.ext("b.") == "" && path.stem("b.") == "b.", "a trailing dot is part of the name");
+    check(path.ext("d/x.y/z") == "", "ext looks only at the base");
+    check(path.isAbs("/a") && !path.isAbs("a") && !path.isAbs(""), "isAbs");
+
+    check(path.join(buf, "a", "b")!! == "a/b", "join puts one separator between parts");
+    check(path.join(buf, "a//", "//b")!! == "a/b", "join collapses repeated separators");
+    check(path.join(buf, "", "a", "", "b")!! == "a/b", "join skips empty parts");
+    check(path.join(buf, "/", "a")!! == "/a" && path.join(buf, "/a", "b")!! == "/a/b", "join keeps the root of the first part");
+    check(path.join(buf, "/", "/", "a", "b")!! == "/a/b", "join writes the root once");
+    check(path.join(buf, "", "/a")!! == "/a", "join takes the root from the first part that is not empty");
+    check(path.join(buf, "a", "/")!! == "a", "join of a name and the root is the name");
+    check(path.join(buf)!! == "" && path.join(buf, "")!! == "", "join of nothing is empty");
+    check(path.join(buf, "/")!! == "/", "join of the root is the root");
+    char[3] tiny;
+    string cut = path.join(tiny, "abc", "d") ?? "full";
+    check(cut == "full", "join reports NoSpace");
+    string cutRoot = path.join(tiny, "/ab", "c") ?? "full";
+    check(cutRoot == "full", "join with a root reports NoSpace");
+
+    strings.Splitter el = path.elements("/a//b/");
+    int count;
+    string joined = "";
+    loop {
+        let piece, ok = el.next();
+        if !ok {
+            break;
+        }
+        count++;
+        joined = piece;
+    }
+    check(count == 2 && joined == "b", "elements skips empty pieces");
+    strings.Splitter rootEl = path.elements("/");
+    let none, rootOk = rootEl.next();
+    strings.Splitter emptyEl = path.elements("");
+    let nothing, emptyOk = emptyEl.next();
+    check(!rootOk && !emptyOk && none == "" && nothing == "", "elements of a root or an empty path is nothing");
+    strings.Splitter toks = strings.tokens("a,b,", ",");
+    int tokCount;
+    loop {
+        let piece, ok = toks.next();
+        if !ok {
+            break;
+        }
+        tokCount++;
+    }
+    check(tokCount == 2, "tokens skips the empty piece at the end");
+
+    check(path.clean(buf, "")!! == "." && path.clean(buf, "./")!! == ".", "clean of an empty path is a dot");
+    check(path.clean(buf, "a//b")!! == "a/b", "clean collapses separators");
+    check(path.clean(buf, "a/./b")!! == "a/b", "clean drops dots");
+    check(path.clean(buf, "a/b/../c")!! == "a/c", "clean resolves dot dot");
+    check(path.clean(buf, "a/..")!! == ".", "clean can end in a dot");
+    check(path.clean(buf, "../../a")!! == "../../a", "clean keeps leading dot dots in a relative path");
+    check(path.clean(buf, "a/../..")!! == "..", "clean keeps the dot dot that has nothing to undo");
+    check(path.clean(buf, "/..")!! == "/" && path.clean(buf, "/a/../..")!! == "/", "clean never goes above the root");
+    check(path.clean(buf, "/a/b/")!! == "/a/b", "clean drops the trailing separator");
+    check(path.clean(buf, "a/b/c/../../d")!! == "a/d", "clean undoes several elements");
+    string cutClean = path.clean(tiny, "abcd/e") ?? "full";
+    check(cutClean == "full", "clean reports NoSpace");
+}
+`, expected: []string{"base takes the last element", "base ignores trailing separators", "base of only separators is the root", "base of an empty path is a dot", "base keeps a trailing space", "dir drops the last element", "dir of a path under the root is the root", "dir of the root is the root", "dir of a single name is a dot", "dir ignores trailing separators", "dir does not clean", "ext is the last dot and stem is the rest", "a leading dot is part of the name", "a trailing dot is part of the name", "ext looks only at the base", "isAbs", "join puts one separator between parts", "join collapses repeated separators", "join skips empty parts", "join keeps the root of the first part", "join writes the root once", "join takes the root from the first part that is not empty", "join of a name and the root is the name", "join of nothing is empty", "join of the root is the root", "join reports NoSpace", "join with a root reports NoSpace", "elements skips empty pieces", "elements of a root or an empty path is nothing", "tokens skips the empty piece at the end", "clean of an empty path is a dot", "clean collapses separators", "clean drops dots", "clean resolves dot dot", "clean can end in a dot", "clean keeps leading dot dots in a relative path", "clean keeps the dot dot that has nothing to undo", "clean never goes above the root", "clean drops the trailing separator", "clean undoes several elements", "clean reports NoSpace"}},
+
 	{dir: "ptr_slice", x64Only: true, src: `func main() ! {
     *int8 b = malloc(16)!;
     for i in 0..15 {
