@@ -38,6 +38,12 @@ type project struct {
 }
 
 func loadProject(root string, cfg *module.Config) (*project, error) {
+	tgt, err := resolveTarget(cfg)
+	if err != nil {
+		return nil, err
+	}
+	module.ConfigureTarget(tgt.Name)
+
 	modules, err := module.DiscoverProject(root)
 	if err != nil {
 		return nil, err

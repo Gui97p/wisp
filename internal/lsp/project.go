@@ -17,6 +17,7 @@ type projectSettings struct {
 	stdDisabled  bool
 	configErr    error
 	configSource string
+	target       string
 }
 
 var (
@@ -54,6 +55,7 @@ func loadSettings(path string) *projectSettings {
 	}
 
 	if s.configErr == nil {
+		s.target = cfg.Target
 		if cfg.Entry != "" {
 			s.entry = filepath.Join(root, cfg.Entry)
 		}

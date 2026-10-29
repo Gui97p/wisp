@@ -3989,6 +3989,42 @@ func main() {
 }
 `, expected: []string{"Lua keywords work as names of variables, parameters and functions", "Lua keywords work as names of fields", "Lua keywords work as loop and handler names", "a module named math does not hide the Lua math library"}},
 
+	{dir: "target_files", files: map[string]string{"where/where.wsp": `public func name() int {
+    return which() + extra();
+}
+
+public func pieces() int {
+    return both();
+}
+`, "where/where_x64.wsp": `func which() int {
+    return 10;
+}
+
+func both() int {
+    return 100;
+}
+`, "where/where_linux_x64.wsp": `func extra() int {
+    return 1;
+}
+`, "where/where_lua.wsp": `func which() int {
+    return 10;
+}
+
+func extra() int {
+    return 1;
+}
+
+func both() int {
+    return 100;
+}
+`}, src: `import "where";
+
+func main() {
+    check(where.name() == 11, "a file named after a target is part of the module on that target only");
+    check(where.pieces() == 100, "a file named after an OS and arch is part of the module on that platform only");
+}
+`, expected: []string{"a file named after a target is part of the module on that target only", "a file named after an OS and arch is part of the module on that platform only"}},
+
 	{dir: "ptr_slice", src: `func main() ! {
     *int8 b = malloc(16)!;
     for i in 0..15 {

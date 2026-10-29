@@ -136,7 +136,7 @@ func resolveImportPath(projectRoot, path string) (key, dir string, files []strin
 				return "", "", nil, err
 			}
 		}
-		return key, filepath.Dir(base), []string{file}, nil
+		return key, filepath.Dir(base), withVariants([]string{file}), nil
 	case dirExists:
 		modFile := filepath.Join(base, filepath.Base(base)+".wsp")
 		if info, statErr := os.Stat(modFile); statErr != nil || info.IsDir() {
@@ -148,7 +148,7 @@ func resolveImportPath(projectRoot, path string) (key, dir string, files []strin
 				return "", "", nil, err
 			}
 		}
-		return key, base, []string{modFile}, nil
+		return key, base, withVariants([]string{modFile}), nil
 	default:
 		return "", "", nil, fmt.Errorf("cannot resolve import %q", path)
 	}
@@ -161,7 +161,7 @@ func BuildGraph(entryFile string) ([]*Module, error) {
 func BuildGraphWithOverrides(entryFile string, overrides map[string][]byte) ([]*Module, error) {
 	root := FindProjectRoot(filepath.Dir(entryFile))
 
-	return buildOrder(root, []moduleRoot{{path: "", dir: filepath.Dir(entryFile), files: []string{entryFile}}}, overrides), nil
+	return buildOrder(root, []moduleRoot{{path: "", dir: filepath.Dir(entryFile), files: withVariants([]string{entryFile})}}, overrides), nil
 }
 
 func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []*Module {
@@ -307,14 +307,14 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(p, ".wsp") {
+		if !strings.HasSuffix(p, ".wsp") || !FileApplies(p) || isVariantFile(p) {
 			return nil
 		}
 		path, err := canonicalModulePath(root, p)
 		if err != nil {
 			return err
 		}
-		roots = append(roots, moduleRoot{path: path, dir: filepath.Dir(p), files: []string{p}})
+		roots = append(roots, moduleRoot{path: path, dir: filepath.Dir(p), files: withVariants([]string{p})})
 		return nil
 	})
 	if err != nil {
@@ -413,7 +413,7 @@ func importableUnder(root, prefix string, skipNested bool) []ImportCandidate {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(p, ".wsp") {
+		if !strings.HasSuffix(p, ".wsp") || !FileApplies(p) || isVariantFile(p) {
 			return nil
 		}
 
@@ -473,11 +473,11 @@ func packageParts(root string, mod *Module) []moduleRoot {
 	var parts []moduleRoot
 	for _, entry := range entries {
 		file := filepath.Join(mod.Dir, entry.Name())
-		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || file == entryFile {
+		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || file == entryFile || !FileApplies(file) || isVariantFile(file) {
 			continue
 		}
 		key := importKey(root, strings.TrimSuffix(file, ".wsp"))
-		parts = append(parts, moduleRoot{path: key, dir: mod.Dir, files: []string{file}})
+		parts = append(parts, moduleRoot{path: key, dir: mod.Dir, files: withVariants([]string{file})})
 	}
 	return parts
 }
@@ -494,11 +494,11 @@ func methodSiblings(root string, mod *Module, overrides map[string][]byte) []mod
 	var found []moduleRoot
 	for _, entry := range entries {
 		file := filepath.Join(mod.Dir, entry.Name())
-		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || slices.Contains(mod.FilePaths, file) {
+		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || slices.Contains(mod.FilePaths, file) || !FileApplies(file) || isVariantFile(file) {
 			continue
 		}
 
-		sibling := loadModule("", mod.Dir, []string{file}, overrides)
+		sibling := loadModule("", mod.Dir, withVariants([]string{file}), overrides)
 		resolved := map[string]string{}
 		for _, imp := range sibling.Imports {
 			if key, _, _, err := resolveImportPath(root, imp.Path); err == nil {
@@ -522,7 +522,7 @@ func methodSiblings(root string, mod *Module, overrides map[string][]byte) []mod
 		if base := filepath.Base(mod.Dir); entry.Name() == base+".wsp" {
 			key = importKey(root, mod.Dir)
 		}
-		found = append(found, moduleRoot{path: key, dir: mod.Dir, files: []string{file}})
+		found = append(found, moduleRoot{path: key, dir: mod.Dir, files: withVariants([]string{file})})
 	}
 	return found
 }

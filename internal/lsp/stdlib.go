@@ -9,6 +9,7 @@ func buildProjectGraph(entry string, overrides map[string][]byte) ([]*module.Mod
 	} else {
 		module.ConfigureStdlib(s.stdPath, s.stdDisabled)
 	}
+	module.ConfigureTarget(s.target)
 
 	return module.BuildGraphWithOverrides(entry, overrides)
 }
@@ -20,6 +21,7 @@ func discoverProjectGraph(path string, overrides map[string][]byte) ([]*module.M
 	} else {
 		module.ConfigureStdlib(s.stdPath, s.stdDisabled)
 	}
+	module.ConfigureTarget(s.target)
 
 	return module.DiscoverProjectWithOverrides(s.root, overrides)
 }
