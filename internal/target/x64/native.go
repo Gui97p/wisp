@@ -74,6 +74,36 @@ func (t *X64Target) nativeOperand(ref string, path []string, addr bool, v native
 	return text, nil
 }
 
+func (t *X64Target) nativeConstant(parts []string, addr bool) (string, bool, error) {
+	if addr || t.info.Module == nil {
+		return "", false, nil
+	}
+	sym, rest := analyser.NativeConstantRef(t.info.Module, parts)
+	if sym == nil || sym.Kind != analyser.CONST || sym.Const == nil {
+		return "", false, nil
+	}
+
+	if sym.Const.Kind == analyser.ConstString {
+		if len(rest) != 1 || (rest[0] != "ptr" && rest[0] != "len") {
+			return "", false, fmt.Errorf("the string constant %s has the parts ptr and len: write {%s.ptr} or {%s.len}", sym.Name, sym.Name, sym.Name)
+		}
+		label, size, err := t.stringData(sym.Const.Str)
+		if err != nil {
+			return "", false, err
+		}
+		if rest[0] == "ptr" {
+			return label, true, nil
+		}
+		return fmt.Sprint(size), true, nil
+	}
+
+	if len(rest) != 0 {
+		return "", false, fmt.Errorf("the constant %s has no part %s", sym.Name, rest[0])
+	}
+	value, ok := analyser.NativeConstant(sym)
+	return value, ok, nil
+}
+
 func nativeError(at ast.Position, format string, args ...any) error {
 	return &diag.Error{Diagnostic: diag.Diagnostic{
 		Message: fmt.Sprintf(format, args...),
@@ -139,6 +169,15 @@ func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
 		parts := strings.Split(ref, ".")
 		variable, ok := variables[parts[0]]
 		if !ok {
+			value, isConst, err := t.nativeConstant(parts, addr)
+			if err != nil {
+				return nativeError(at, "%s", err)
+			}
+			if isConst {
+				b.WriteString(value)
+				i = end + 1
+				continue
+			}
 			return nativeError(at, "undeclared binding %s", ref)
 		}
 

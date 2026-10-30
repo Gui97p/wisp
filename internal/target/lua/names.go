@@ -41,4 +41,4 @@ func luaIdents(names []string) string {
 	return strings.Join(out, ", ")
 }
 
-const luaGlobals = "local __lua_math, __lua_string, __lua_table, __lua_io, __lua_os, __lua_package = math, string, table, io, os, package\n"
+const luaGlobals = "local __lua_math, __lua_string, __lua_table, __lua_io, __lua_os, __lua_package, __lua_fs, __lua_shell = math, string, table, io, os, package, fs, shell\n"

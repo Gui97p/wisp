@@ -369,6 +369,8 @@ func (a *Analyser) checkNativeStmt(s *ast.NativeStmt) {
 		}
 	}
 
+	a.markNativeConstants(s)
+
 	for _, bd := range s.Bindings {
 		if _, ok := a.checkExpr(bd.Var).(InvalidType); ok {
 			continue

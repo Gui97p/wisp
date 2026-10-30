@@ -45,6 +45,11 @@ func nativeItems(path string, pos protocol.Position, info *analyser.Info) ([]pro
 			}
 			items = append(items, item(name, protocol.CompletionItemKindVariable, detail))
 		}
+		for _, sym := range scope.Visible() {
+			if _, isConst := analyser.NativeConstant(sym); isConst && !slices.Contains(bound, sym.Name) {
+				items = append(items, item(sym.Name, protocol.CompletionItemKindConstant, sym.Type.String()))
+			}
+		}
 		return items, true
 	}
 
