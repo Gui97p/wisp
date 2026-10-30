@@ -1,5 +1,6 @@
 import "std/strings";
 import "std/strings/character";
+import "std/mem";
 
 public enum StringError {
 	Ok,
@@ -127,7 +128,7 @@ public func clone(string s) !char[] {
 	if len(s) == 0 {
 		return [];
 	}
-	char[] buf = (*char)(malloc(sizeof(char) * len(s))!)[:len(s)];
+	char[] buf = (*char)(mem.alloc(sizeof(char) * len(s))!)[:len(s)];
 	copy(buf, s)!;
 	return buf;
 }

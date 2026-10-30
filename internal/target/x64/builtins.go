@@ -2,12 +2,10 @@ package x64
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/target"
-	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) useChars() string {
@@ -185,10 +183,6 @@ func (t *X64Target) compileBuiltin(name string, expr *ast.CallExpr) ([]Operand, 
 	case "sizeof":
 		tp := t.info.SizeOf[expr]
 		return []Operand{Imm(sizeOf(tp))}, nil
-	case "malloc", "realloc":
-		return t.compileAllocatorBuiltin(name, expr)
-	case "free":
-		return t.compileFreeBuiltin(expr)
 	default:
 		return nil, fmt.Errorf("x86-64: builtin %s not supported", name)
 	}
@@ -257,57 +251,4 @@ func (t *X64Target) compilePanicBuiltin(expr *ast.CallExpr) ([]Operand, error) {
 
 	_, err = t.compileCall("__wisp_panic", true, expr.Args, nil, false)
 	return nil, err
-}
-
-func (t *X64Target) compileAllocatorBuiltin(name string, expr *ast.CallExpr) ([]Operand, error) {
-	mod, err := target.Lookup(t.target)
-	if err != nil {
-		return nil, err
-	}
-	if mod.RuntimeSource == "" {
-		return nil, fmt.Errorf("x86-64: target %s does not provide %s", mod.Name, name)
-	}
-
-	return t.compileCall(fmt.Sprintf("__wisp_%s", name), true, expr.Args, t.info.CallReturns[expr], false)
-}
-
-func (t *X64Target) compileFreeBuiltin(expr *ast.CallExpr) ([]Operand, error) {
-	mod, err := target.Lookup(t.target)
-	if err != nil {
-		return nil, err
-	}
-	if mod.RuntimeSource == "" {
-		return nil, fmt.Errorf("x86-64: target %s does not provide free", mod.Name)
-	}
-
-	if len(expr.Args) == 1 {
-		return t.compileCall("__wisp_free", true, expr.Args, nil, false)
-	}
-
-	regs := t.ctx.AllocatedRegisters()
-	for _, reg := range regs {
-		t.pushWord(Reg{reg, 8})
-	}
-
-	n := 0
-	err = t.eachValue(expr.Args, func(i int, op Operand) error {
-		t.pushValue(t.field(op, 0))
-		n++
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	t.prelude.define("__wisp_free")
-	for range n {
-		t.pop(x64context.DI)
-		t.text.printlnt("call __wisp_free")
-	}
-
-	for _, reg := range slices.Backward(regs) {
-		t.pop(reg)
-	}
-
-	return nil, nil
 }

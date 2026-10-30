@@ -1,5 +1,6 @@
 public enum Kind {
 	NoSpace = 1,
 	Invalid,
-	Overflow
+	Overflow,
+	OutOfMemory
 }

@@ -2,6 +2,7 @@ import "std/sys";
 import "std/os/global";
 import "std/os";
 import "std/errors";
+import "std/mem";
 
 public func open(string p, int flags) !int {
 	char[4096] buf;
@@ -39,8 +40,8 @@ public func readFile(string p) !char[] {
 	if size == 0 {
 		return [];
 	}
-	*char alloc = malloc(size)!;
-	defer! free(alloc);
+	*char alloc = mem.alloc(size)!;
+	defer! mem.free(alloc);
 	char[] buf = alloc[0:size];
 	int total;
 	loop {

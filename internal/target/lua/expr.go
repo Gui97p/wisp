@@ -198,9 +198,6 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 		if _, ok := t.getBuiltin(ident.Value); ok {
 			return t.compileBuiltinCall(b, ident.Value, expr.Args)
 		}
-		if sym := t.info.Idents[ident]; sym != nil && sym.Kind == analyser.FUNC && sym.File == "" && rawMemoryBuiltins[ident.Value] {
-			return t.compileRawMemoryCall(b, ident.Value, expr)
-		}
 	}
 
 	if member, ok := expr.Name.(*ast.MemberExpr); ok {

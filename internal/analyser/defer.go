@@ -47,7 +47,7 @@ func (a *Analyser) recordDeferredFree(d *ast.DeferStmt) {
 	if !ok {
 		return
 	}
-	if name, isIdent := call.Name.(*ast.IdentLiteral); !isIdent || name.Value != "free" {
+	if !a.isMemFree(call) {
 		return
 	}
 
@@ -55,6 +55,9 @@ func (a *Analyser) recordDeferredFree(d *ast.DeferStmt) {
 		a.deferredFree = map[*Symbol]*ast.DeferStmt{}
 	}
 	for _, arg := range call.Args {
+		if cast, isCast := arg.(*ast.CastExpr); isCast && cast.Implicit {
+			arg = cast.Value
+		}
 		id, isIdent := arg.(*ast.IdentLiteral)
 		if !isIdent {
 			continue
@@ -63,6 +66,27 @@ func (a *Analyser) recordDeferredFree(d *ast.DeferStmt) {
 			a.deferredFree[sym] = d
 		}
 	}
+}
+
+func (a *Analyser) isMemFree(call *ast.CallExpr) bool {
+	member, ok := call.Name.(*ast.MemberExpr)
+	if !ok || member.Field != "free" {
+		return false
+	}
+	object, ok := member.Object.(*ast.IdentLiteral)
+	if !ok {
+		return false
+	}
+	sym, found := a.scope.Resolve(object.Value)
+	if !found {
+		return false
+	}
+	mt, isModule := sym.Type.(*ModuleType)
+	if !isModule {
+		return false
+	}
+	free, exported := mt.Exports["free"]
+	return exported && free.Module == "std/mem"
 }
 
 func (a *Analyser) warnReturnedFree(stmt *ast.ReturnStmt) {

@@ -7,6 +7,7 @@
 // ask for is memory you give back.
 
 import "std/fmt";
+import "std/mem";
 
 struct Pair {
   int a, b;
@@ -33,10 +34,10 @@ public func demo() ! {
   *int nothing = null;
   fmt.printf("nothing == null: {}\n", nothing == null);
 
-  // `malloc` asks for a number of bytes and can fail, so it is a fallible
-  // call: the error is AllocError.OutOfMemory. `sizeof` takes a type or an
+  // `mem.alloc` asks for a number of bytes and can fail, so it is a fallible
+  // call: the error is errors.Kind.OutOfMemory. `sizeof` takes a type or an
   // expression. The result is a *void, which converts to any pointer type.
-  *int heap = malloc(sizeof(int) * 4)!;
+  *int heap = mem.alloc(sizeof(int) * 4)!;
 
   // A pointer can be indexed and sliced. A slice of a pointer is a span, so
   // the usual span operations apply. Pointer indexing is not bounds-checked:
@@ -56,16 +57,17 @@ public func demo() ! {
   fmt.printf("after second++, second@ = {}\n", second@);
   fmt.printf("heap < second: {}\n", heap < second);
 
-  // `realloc` resizes a block and keeps its contents. If it cannot, the
+  // `mem.realloc` resizes a block and keeps its contents. If it cannot, the
   // original block is left untouched.
-  heap = realloc(heap, sizeof(int) * 8)!;
+  heap = mem.realloc(heap, sizeof(int) * 8)!;
   heap[7] = 80;
   fmt.printf("after realloc: {}, {}, {}\n", heap[0], heap[3], heap[7]);
 
-  // `free` takes pointers and slices, any number of them at once. A string
-  // is only a view, so it is never freed: free the buffer it came from. All
-  // the arguments are evaluated before anything is released.
-  free(heap);
+  // `mem.free` takes pointers, any number of them at once. A slice is freed
+  // through its base, as in `mem.free((*int)(s))`. A string is only a view,
+  // so it is never freed: free the buffer it came from. All the arguments
+  // are evaluated before anything is released.
+  mem.free(heap);
 
   // Pointers and integers convert explicitly, and so do pointers of
   // different types. A pointer type that is not a plain name goes in
@@ -80,7 +82,7 @@ public func demo() ! {
   // Bytes become a string without a copy, and a string gives the address of
   // its bytes. The second one is only safe to hand to C when the string ends
   // in a zero byte, which string literals do and slices of them do not.
-  *int8 bytes = malloc(3)!;
+  *int8 bytes = mem.alloc(3)!;
   bytes[0] = 104;
   bytes[1] = 105;
   bytes[2] = 0;
@@ -89,7 +91,7 @@ public func demo() ! {
 
   *int8 literal = (*int8)("hey");
   fmt.printf("\"hey\" starts with {} and ends with {}\n", literal[0], literal[3]);
-  free(bytes);
+  mem.free(bytes);
 
   // An array or a span converts to a pointer to its first element, which is
   // what a system call or a C function takes. The pointer is to the element

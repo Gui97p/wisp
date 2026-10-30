@@ -1234,7 +1234,8 @@ func main() {
     check(third == null && value == 3 && trace == 0, "defer! stays quiet when the function succeeds");
 }
 `, expected: []string{"defer! reads an error passed up with !", "defer! reads an error returned by return Error", "defer! stays quiet when the function succeeds"}},
-	{dir: "empty_literal", src: `struct Holder {
+	{dir: "empty_literal", src: `import "std/mem";
+struct Holder {
     char[] data;
 }
 
@@ -1265,7 +1266,7 @@ func main() {
     int[3] arr = [];
     check(len(arr) == 3 && arr[0] == 0 && arr[2] == 0, "[] is also the zero array");
 
-    free(a, b);
+    mem.free((*char)(a), (*char)(b));
     check(true, "free accepts an empty slice");
 }
 `, expected: []string{"return [] gives an empty slice", "a declaration takes the type of the slice", "an assignment can empty a slice", "a struct field can be []", "an argument can be []", "[] is also the zero array", "free accepts an empty slice"}},
@@ -3065,58 +3066,63 @@ func main() {
     check(seen == 4, "rangetypes step of a narrow type");
 }
 `},
-	{dir: "alloc_basic", src: `func main() ! {
-    *int p = malloc(sizeof(int) * 4)!;
+	{dir: "alloc_basic", src: `import "std/mem";
+func main() ! {
+    *int p = mem.alloc(sizeof(int) * 4)!;
     p@ = 42;
     check(p@ == 42, "malloc write and read");
-    free(p);
+    mem.free(p);
     check(sizeof(int) == 8, "sizeof int");
     check(sizeof(int8) == 1, "sizeof int8");
     check(sizeof(int32) == 4, "sizeof int32");
 }
 `, expected: []string{"malloc write and read", "sizeof int", "sizeof int8", "sizeof int32"}},
 
-	{dir: "alloc_reuse", src: `func main() ! {
-    *int a = malloc(24)!;
-    free(a);
-    *int b = malloc(24)!;
+	{dir: "alloc_reuse", src: `import "std/mem";
+func main() ! {
+    *int a = mem.alloc(24)!;
+    mem.free(a);
+    *int b = mem.alloc(24)!;
     check(a == b, "freed block is reused");
-    free(b);
-    free(null);
+    mem.free(b);
+    mem.free(null);
     check(true, "free null is a no-op");
 }
 `, expected: []string{"freed block is reused", "free null is a no-op"}},
 
-	{dir: "alloc_realloc", src: `func main() ! {
-    *int p = malloc(8)!;
+	{dir: "alloc_realloc", src: `import "std/mem";
+func main() ! {
+    *int p = mem.alloc(8)!;
     p@ = 1234;
-    *int same = realloc(p, 8)!;
+    *int same = mem.realloc(p, 8)!;
     check(same == p, "realloc within capacity keeps the block");
-    *int big = realloc(p, 100)!;
+    *int big = mem.realloc(p, 100)!;
     check(big@ == 1234, "realloc keeps the contents");
-    *int fresh = realloc(null, 50)!;
+    *int fresh = mem.realloc(null, 50)!;
     check(fresh != null, "realloc of null allocates");
-    *int huge = realloc(big, 100000)!;
+    *int huge = mem.realloc(big, 100000)!;
     check(huge@ == 1234, "realloc to a large block keeps the contents");
-    free(huge);
-    free(fresh);
+    mem.free(huge);
+    mem.free(fresh);
 }
 `, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc of null allocates", "realloc to a large block keeps the contents"}},
 
-	{dir: "abort_malloc_oom", exit: 1, src: `func main() ! {
+	{dir: "abort_malloc_oom", exit: 4, src: `import "std/mem";
+func main() ! {
     check(true, "oom before the failure");
-    *int p = malloc(-1)!;
-    free(p);
+    *int p = mem.alloc(-1)!;
+    mem.free(p);
 }
-`, expected: []string{"oom before the failure"}, abort: "error[runtime.AllocError]: out of memory"},
+`, expected: []string{"oom before the failure"}, abort: "error[std/errors.Kind]: Kind.OutOfMemory"},
 
-	{dir: "ptr_index", src: `struct P {
+	{dir: "ptr_index", src: `import "std/mem";
+struct P {
     int a;
     int8 b;
 }
 
 func main() ! {
-    *int p = malloc(sizeof(int) * 4)!;
+    *int p = mem.alloc(sizeof(int) * 4)!;
     p[0] = 10;
     p[1] = 20;
     p[3] = 40;
@@ -3128,25 +3134,26 @@ func main() ! {
     *int mid = (*int)(p);
     check(mid[3] == 40, "pointer index through a converted pointer");
 
-    *int8 b = malloc(16)!;
+    *int8 b = mem.alloc(16)!;
     b[4] = 7;
     *int8 q = (*int8)(b);
     check(q[4] == 7, "pointer index on bytes");
     int i = 4;
     check(b[i] == 7, "pointer index with a variable");
 
-    *P ps = malloc(sizeof(P) * 3)!;
+    *P ps = mem.alloc(sizeof(P) * 3)!;
     ps[2].a = 99;
     ps[2].b = 5;
     check(ps[2].a == 99, "pointer index struct field a");
     check(ps[2].b == 5, "pointer index struct field b");
-    free(ps);
-    free(b);
-    free(p);
+    mem.free(ps);
+    mem.free(b);
+    mem.free(p);
 }
 `, expected: []string{"pointer index first", "pointer index second", "pointer index last", "pointer index compound assign", "pointer index through a converted pointer", "pointer index on bytes", "pointer index with a variable", "pointer index struct field a", "pointer index struct field b"}},
 
-	{dir: "strings_core", src: `import "std/strings";
+	{dir: "strings_core", src: `import "std/mem";
+import "std/strings";
 
 func main() ! {
     char[64] buf;
@@ -3241,7 +3248,7 @@ func main() ! {
 
     char[] copy = strings.clone("hey")!;
     check(string(copy) == "hey", "clone copies the bytes");
-    free(copy);
+    mem.free((*char)(copy));
     char[] empty = strings.clone("")!;
     check(len(empty) == 0, "clone of an empty string");
 }
@@ -4028,8 +4035,9 @@ func main() {
 }
 `, expected: []string{"a file named after a target is part of the module on that target only", "a file named after an OS and arch is part of the module on that platform only"}},
 
-	{dir: "ptr_slice", src: `func main() ! {
-    *int8 b = malloc(16)!;
+	{dir: "ptr_slice", src: `import "std/mem";
+func main() ! {
+    *int8 b = mem.alloc(16)!;
     for i in 0..15 {
         b[i] = int8(i * 2);
     }
@@ -4047,17 +4055,18 @@ func main() {
     check(len(u) == 5, "pointer slice with variable bounds");
     int8[] head = b[:3];
     check(len(head) == 3 && head[2] == 4, "pointer slice with the start omitted begins at the pointer");
-    free(b);
+    mem.free(b);
 }
 `, expected: []string{"pointer slice length", "pointer slice first", "pointer slice last", "pointer slice writes through to the buffer", "slice of a pointer slice", "pointer slice with variable bounds", "pointer slice with the start omitted begins at the pointer"}},
 
-	{dir: "ptr_convert", x64Only: true, src: `struct P {
+	{dir: "ptr_convert", x64Only: true, src: `import "std/mem";
+struct P {
     int a;
     int b;
 }
 
 func main() ! {
-    *int p = malloc(32)!;
+    *int p = mem.alloc(32)!;
     p[0] = 1234;
     uint64 addr = uint64(p);
     check(addr != 0, "pointer to integer is not null");
@@ -4076,17 +4085,18 @@ func main() ! {
     *int8 bytes = (*int8)(sp);
     check(bytes[0] == 77, "bytes view of a struct pointer");
     check((*int)(0) == null, "converted zero is the null pointer");
-    free(p);
+    mem.free(p);
 }
 `, expected: []string{"pointer to integer is not null", "pointer to int matches uint64", "integer to pointer round trip", "write through a converted integer", "read through a converted integer", "struct pointer reinterpreted from int pointer", "bytes view of a struct pointer", "converted zero is the null pointer"}},
 
-	{dir: "ptr_arith", src: `struct P {
+	{dir: "ptr_arith", src: `import "std/mem";
+struct P {
     int a;
     int8 b;
 }
 
 func main() ! {
-    *int p = malloc(sizeof(int) * 8)!;
+    *int p = mem.alloc(sizeof(int) * 8)!;
     *int q = p + 2;
     q@ = 7;
     check(p[2] == 7, "pointer plus offset");
@@ -4100,12 +4110,12 @@ func main() ! {
     check(q - p == 4, "pointer plus assign");
     check(q - 4 == p, "pointer minus offset");
 
-    *int8 b = malloc(16)!;
+    *int8 b = mem.alloc(16)!;
     *int8 c = b + 5;
     check(c - b == 5, "byte pointer difference");
     check(uint64(c) - uint64(b) == 5, "byte pointer address step");
 
-    *P ps = malloc(sizeof(P) * 4)!;
+    *P ps = mem.alloc(sizeof(P) * 4)!;
     *P p2 = ps + 1;
     check(p2 - ps == 1, "struct pointer difference");
     check(uint64(p2) - uint64(ps) == uint64(sizeof(P)), "struct pointer steps by sizeof");
@@ -4129,14 +4139,15 @@ func main() ! {
     *P sw = ps;
     sw++;
     check(uint64(sw) - uint64(ps) == uint64(sizeof(P)), "struct pointer increment");
-    free(ps);
-    free(b);
-    free(p);
+    mem.free(ps);
+    mem.free(b);
+    mem.free(p);
 }
 `, expected: []string{"pointer plus offset", "pointer difference", "offset plus pointer", "pointer ordering", "pointer ordering reversed", "pointer minus assign", "pointer plus assign", "pointer minus offset", "byte pointer difference", "byte pointer address step", "struct pointer difference", "struct pointer steps by sizeof", "pointer plus variable", "pointer plus narrow integer", "pointer increment steps one element", "pointer decrement steps one element", "byte pointer increment", "struct pointer increment"}},
 
-	{dir: "string_from_bytes", x64Only: true, src: `func main() ! {
-    *int8 b = malloc(8)!;
+	{dir: "string_from_bytes", x64Only: true, src: `import "std/mem";
+func main() ! {
+    *int8 b = mem.alloc(8)!;
     b[0] = 104;
     b[1] = 105;
     string s = string(b[0:2]);
@@ -4145,7 +4156,7 @@ func main() ! {
     b[1] = 111;
     check(s == "ho", "string is a view of the buffer");
 
-    *char c = malloc(4)!;
+    *char c = mem.alloc(4)!;
     c[0] = 'o';
     c[1] = 'k';
     char[] cs = c[0:2];
@@ -4159,61 +4170,64 @@ func main() ! {
     check(string(us) == "ABC", "string from uint8 array slice");
     check(string(arr[1:3]) == "BC", "string from inline slice");
     check(len(string(us)) == 3, "string from bytes length");
-    free(b);
-    free(c);
+    mem.free(b);
+    mem.free(c);
 }
 `, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string is a view of the buffer", "string from char slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
 
-	{dir: "free_slice", src: `func main() ! {
-    *int8 b = malloc(24)!;
+	{dir: "free_slice", src: `import "std/mem";
+func main() ! {
+    *int8 b = mem.alloc(24)!;
     b[0] = 120;
     int8[] s = b[0:5];
-    free(s);
-    *int8 c = malloc(24)!;
+    mem.free((*int8)(s));
+    *int8 c = mem.alloc(24)!;
     check(b == c, "free of a slice releases its block");
-    free(c);
-    free(null);
+    mem.free(c);
+    mem.free(null);
     check(true, "free of null still works");
 }
 `, expected: []string{"free of a slice releases its block", "free of null still works"}},
 
-	{dir: "free_many", x64Only: true, src: `func main() ! {
-    *int a = malloc(24)!;
-    *int b = malloc(24)!;
-    *int c = malloc(100)!;
-    free(a, b, c);
-    *int x = malloc(24)!;
-    *int y = malloc(24)!;
-    *int z = malloc(100)!;
+	{dir: "free_many", x64Only: true, src: `import "std/mem";
+func main() ! {
+    *int a = mem.alloc(24)!;
+    *int b = mem.alloc(24)!;
+    *int c = mem.alloc(100)!;
+    mem.free(a, b, c);
+    *int x = mem.alloc(24)!;
+    *int y = mem.alloc(24)!;
+    *int z = mem.alloc(100)!;
     check((x == a && y == b) || (x == b && y == a), "free of many releases every small block");
     check(z == c, "free of many releases the last block");
 
-    *int8 raw = malloc(40)!;
+    *int8 raw = mem.alloc(40)!;
     int8[] s = raw[0:3];
-    *int d = malloc(40)!;
-    free(s, d);
-    *int8 raw2 = malloc(40)!;
-    *int d2 = malloc(40)!;
+    *int d = mem.alloc(40)!;
+    mem.free((*int8)(s), d);
+    *int8 raw2 = mem.alloc(40)!;
+    *int d2 = mem.alloc(40)!;
     check((raw2 == raw && uint64(d2) == uint64(d)) || (uint64(raw2) == uint64(d) && d2 == (*int)(raw)), "free of mixed slice and pointer");
-    free(raw2, d2, null);
+    mem.free(raw2, d2, null);
     check(true, "free of many accepts null");
 }
 `, expected: []string{"free of many releases every small block", "free of many releases the last block", "free of mixed slice and pointer", "free of many accepts null"}},
 
-	{dir: "free_node_next", src: `struct Node {
+	{dir: "free_node_next", src: `import "std/mem";
+struct Node {
     *Node next;
     int v;
 }
 
 func main() ! {
-    *Node first = malloc(sizeof(Node))!;
-    *Node second = malloc(sizeof(Node))!;
+    *Node first = mem.alloc(sizeof(Node))!;
+    *Node second = mem.alloc(sizeof(Node))!;
     first.next = second;
     second.v = 42;
     second.next = null;
-    free(first, first.next);
-    *Node a = malloc(sizeof(Node))!;
-    *Node b = malloc(sizeof(Node))!;
+    mem.free(first, first.next);
+    *Node a = mem.alloc(sizeof(Node))!;
+    *Node b = mem.alloc(sizeof(Node))!;
     check((a == first && b == second) || (a == second && b == first), "free reads every argument before releasing any");
 }
 `, expected: []string{"free reads every argument before releasing any"}},
@@ -5261,7 +5275,8 @@ int sum_bytes(const char *p, int n) {
 int twice(int x) { return 2 * x; }
 unsigned char low_byte(unsigned int v) { return (unsigned char)(v & 0xff); }
 int count_calls(void) { static int n = 0; return ++n; }
-`}, src: `extern func add(int32 a, int32 b) int32;
+`}, src: `import "std/mem";
+extern func add(int32 a, int32 b) int32;
 extern func mul64(int64 a, int64 b) int64;
 extern func sum_bytes(*int8 p, int32 n) int32;
 extern func twice(int32 x) int32 as c_twice;
@@ -5271,13 +5286,13 @@ extern func count_calls() int32;
 func main() ! {
     check(add(2, 3) == 5, "extern function with two arguments");
     check(mul64(6, 7) == 42, "extern function with 64-bit arguments");
-    *int8 b = malloc(4)!;
+    *int8 b = mem.alloc(4)!;
     b[0] = 1;
     b[1] = 2;
     b[2] = 3;
     b[3] = 4;
     check(sum_bytes(b, 4) == 10, "extern function taking a pointer");
-    free(b);
+    mem.free(b);
     check(c_twice(21) == 42, "extern function renamed with as");
     check(low_byte(0x1234) == 0x34, "extern function returning uint8");
     count_calls();

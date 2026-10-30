@@ -1,0 +1,106 @@
+import "std/math";
+import "std/sys";
+
+struct Class { *void head; }
+Class[11] classes;
+*char cur, end;
+
+const HEAD_SIZE = 16;
+const MIN_BLOCK = 32;
+const LOW_LIMIT = 32768;
+const CHUNK_SIZE = 1048576;
+const PAGE_SIZE = 4096;
+
+func header(*void p) int {
+	return (*int)((*char)(p) - 16)@;
+}
+
+func setHeader(*void p, int v) {
+	(*int)((*char)(p)-16)@ = v;
+}
+
+func classOf(int total) int {
+	int bits = int(64 - math.leadingZeros(uint(total - 1)));
+	return math.max(bits, 5) - 5;
+}
+
+func failed(*void r) bool {
+	return int(r) in -4095..-1;
+}
+
+internal func rawAlloc(int n) *void {
+	if n < 0 {
+		return null;
+	}
+
+	int total = n + HEAD_SIZE;
+	if total <= LOW_LIMIT {
+		int class = classOf(total);
+		if classes[class].head != null {
+			*void p = classes[class].head;
+			classes[class].head = ((**void)(p))@;
+			return p;
+		}
+		int size = MIN_BLOCK << class;
+		if cur + size > end {
+			*void chunk = sys.mmap(CHUNK_SIZE);
+			if failed(chunk) {
+				return null;
+			}
+			cur = chunk;
+			end = (*char)(chunk) + CHUNK_SIZE;
+		}
+		*void p = cur;
+		cur += size;
+		*void head = (*char)(p) + 16;
+		setHeader(head, class);
+		return head;
+	}
+
+	int mapped = (total + (PAGE_SIZE-1)) / PAGE_SIZE  * PAGE_SIZE;
+	*void p = sys.mmap(mapped);
+	if failed(p) {
+		return null;
+	}
+	*void head = (*char)(p) + 16;
+	setHeader(head, mapped);
+	return head;
+}
+
+internal func rawFree(*void p) {
+	if p == null {
+		return;
+	}
+
+	int h = header(p);
+	if h < 11 {
+		((**void)(p))@ = classes[h].head;
+		classes[h].head = p;
+	} else {
+		sys.munmap((*char)(p)-16, h);
+	}
+}
+
+internal func rawRealloc(*void p, int n) *void {
+	if p == null {
+		return rawAlloc(n);
+	}
+	
+	int h = header(p);
+	int cap = (h < 11 ? (MIN_BLOCK << h) : h) - 16;
+	if n <= cap {
+		return p;
+	}
+
+	*void np = rawAlloc(n);
+	if np == null {
+		return null;
+	}
+	rawCopy(np, p, cap);
+	rawFree(p);
+	return np;
+}
+
+internal func rawCopy(*void dst, src, int n) {
+	native x64(in dst, src, n) "mov rdi, {dst}; mov rsi, {src}; mov rcx, {n}; rep movsb";
+}

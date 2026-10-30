@@ -1,4 +1,27 @@
-public func copy(*char dst, *char src, int n) {
-	native x64(in dst, src, n) "mov rdi, {dst}; mov rsi, {src}; mov rcx, {n}; rep movsb";
-	native lua(in dst, src, n) "for i = 0, n - 1 do dst.t[dst.o + i] = src.t[src.o + i] end";
+import "std/errors";
+
+public func alloc(int n) !*void {
+	*void p = rawAlloc(n);
+	if p == null {
+		return Error(errors.Kind.OutOfMemory);
+	}
+	return p;
+}
+
+public func free(*void ...p) {
+	for _, v in p {
+		rawFree(v);
+	}
+}
+
+public func realloc(*void p, int n) !*void {
+	*void new = rawRealloc(p, n);
+	if new == null {
+		return Error(errors.Kind.OutOfMemory);
+	}
+	return new;
+}
+
+public func copy(*void dst, src, int n) {
+	rawCopy(dst, src, n);
 }

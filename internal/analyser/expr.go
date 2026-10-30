@@ -336,13 +336,6 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 		return returns
 	}
 
-	if a.isBuiltinCall(expr, "free") {
-		a.checkFree(expr)
-		returns := []Type{}
-		a.info.CallReturns[expr] = returns
-		return returns
-	}
-
 	if a.isBuiltinCall(expr, "sizeof") {
 		returns := []Type{a.checkSizeof(expr)}
 		a.info.CallReturns[expr] = returns
@@ -1229,29 +1222,6 @@ func (a *Analyser) checkSizeof(expr *ast.CallExpr) Type {
 
 	a.info.SizeOf[expr] = measured
 	return intType
-}
-
-func (a *Analyser) checkFree(expr *ast.CallExpr) {
-	if len(expr.Args) == 0 {
-		a.error(expr, "free expects at least 1 argument")
-		return
-	}
-
-	for _, arg := range expr.Args {
-		t := a.checkExpr(arg)
-		switch u := underlyingOf(t).(type) {
-		case InvalidType, PointerType, NullType, SpanType:
-		case PrimitiveType:
-			if u.Name == "string" {
-				a.errorf(arg, "a string is a view and is never freed").
-					WithHelp("free the buffer it came from: a pointer or a slice that malloc returned")
-			} else {
-				a.errorf(arg, "free expects a pointer or a slice, got %s", t.String())
-			}
-		default:
-			a.errorf(arg, "free expects a pointer or a slice, got %s", t.String())
-		}
-	}
 }
 
 func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes []Type) {

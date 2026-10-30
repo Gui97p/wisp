@@ -74,26 +74,3 @@ func (t *LuaTarget) compilePanic(b *strings.Builder, args []ast.Expression) erro
 	b.WriteString(")\n")
 	return nil
 }
-
-var rawMemoryBuiltins = map[string]bool{"malloc": true, "realloc": true, "free": true}
-
-func (t *LuaTarget) compileRawMemoryCall(b *strings.Builder, name string, expr *ast.CallExpr) error {
-	args := make([]string, len(expr.Args))
-	for i, arg := range expr.Args {
-		text, err := t.compileExprScratch(arg)
-		if err != nil {
-			return err
-		}
-		args[i] = text
-	}
-
-	switch name {
-	case "malloc":
-		fmt.Fprintf(b, "__wisp_alloc(%s)", strings.Join(args, ", "))
-	case "realloc":
-		fmt.Fprintf(b, "__wisp_realloc(%s)", strings.Join(args, ", "))
-	default:
-		fmt.Fprintf(b, "__wisp_free(%s)", strings.Join(args, ", "))
-	}
-	return nil
-}

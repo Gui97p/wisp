@@ -17,13 +17,10 @@ type builtinHelp struct {
 }
 
 var builtinHelps = map[string]builtinHelp{
-	"emit":    {"func emit(string text)", "Writes a string and a newline to standard output."},
-	"len":     {"func len(x) int", "The length of an array, slice, string or variadic parameter."},
-	"panic":   {"func panic(string message)", "Stops the program with the message and the source position, and exits with code 1."},
-	"malloc":  {"func malloc(int size) !*void", "Asks for `size` bytes of heap. Fails with `AllocError.OutOfMemory`, so it is used with `!`, `??` or destructuring. The `*void` converts to any pointer type."},
-	"realloc": {"func realloc(*void p, int size) !*void", "Resizes a block and keeps its contents. `realloc(null, n)` is `malloc(n)`. If it fails, the original block is untouched."},
-	"free":    {"func free(p, ...)", "Releases any number of pointers, strings or maps. `free(null)` does nothing, and every argument is evaluated before anything is released."},
-	"sizeof":  {"func sizeof(x) int", "The size in bytes of a type or of an expression."},
+	"emit":   {"func emit(string text)", "Writes a string and a newline to standard output."},
+	"len":    {"func len(x) int", "The length of an array, slice, string or variadic parameter."},
+	"panic":  {"func panic(string message)", "Stops the program with the message and the source position, and exits with code 1."},
+	"sizeof": {"func sizeof(x) int", "The size in bytes of a type or of an expression."},
 }
 
 var errorFieldDocs = map[string]string{

@@ -253,36 +253,130 @@ func memberBase(prefix string) (string, bool) {
 	if end >= 2 && prefix[end-2] == '.' {
 		return "", false
 	}
-	start := end - 1
-	for start > 0 && (isIdentByte(prefix[start-1]) || (prefix[start-1] == '.' && start > 1 && isIdentByte(prefix[start-2]))) {
-		start--
+	dot := end - 1
+	start := dot
+	for {
+		seg := start
+		for seg > 0 && prefix[seg-1] == ']' {
+			open := matchingBracket(prefix, seg-1)
+			if open < 0 {
+				return "", false
+			}
+			seg = open
+		}
+		word := seg
+		for word > 0 && isIdentByte(prefix[word-1]) {
+			word--
+		}
+		if word == seg {
+			break
+		}
+		start = word
+		if word > 1 && prefix[word-1] == '.' && (isIdentByte(prefix[word-2]) || prefix[word-2] == ']') {
+			start = word - 1
+			continue
+		}
+		break
 	}
-	if start == end-1 {
+	if start == dot {
 		return "", false
 	}
-	return prefix[start : end-1], true
+	return prefix[start:dot], true
+}
+
+func matchingBracket(text string, close int) int {
+	depth := 0
+	for i := close; i >= 0; i-- {
+		switch text[i] {
+		case ']':
+			depth++
+		case '[':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+func splitChain(chain string) []string {
+	var parts []string
+	depth, from := 0, 0
+	for i := 0; i < len(chain); i++ {
+		switch chain[i] {
+		case '[':
+			depth++
+		case ']':
+			depth--
+		case '.':
+			if depth == 0 {
+				parts = append(parts, chain[from:i])
+				from = i + 1
+			}
+		}
+	}
+	return append(parts, chain[from:])
+}
+
+func splitIndexes(part string) (string, int) {
+	count := 0
+	for strings.HasSuffix(part, "]") {
+		open := matchingBracket(part, len(part)-1)
+		if open < 0 {
+			break
+		}
+		part = part[:open]
+		count++
+	}
+	return part, count
+}
+
+func indexed(tp analyser.Type, count int) analyser.Type {
+	for ; count > 0 && tp != nil; count-- {
+		switch t := tp.(type) {
+		case analyser.ArrayType:
+			tp = t.Element
+		case analyser.SpanType:
+			tp = t.Element
+		case analyser.PointerType:
+			tp = t.Element
+		default:
+			return nil
+		}
+	}
+	return tp
 }
 
 func resolveChain(scope *analyser.Scope, chain string) (*analyser.Symbol, bool) {
-	parts := strings.Split(chain, ".")
-	sym, ok := scope.Resolve(parts[0])
+	parts := splitChain(chain)
+	name, count := splitIndexes(parts[0])
+	sym, ok := scope.Resolve(name)
 	if !ok {
 		return nil, false
 	}
+	if count > 0 {
+		tp := indexed(sym.Type, count)
+		if tp == nil {
+			return nil, false
+		}
+		sym = &analyser.Symbol{Name: name, Kind: analyser.VAR, Type: tp}
+	}
 	for _, part := range parts[1:] {
+		field, count := splitIndexes(part)
 		if module, isModule := sym.Type.(*analyser.ModuleType); isModule {
-			next, found := module.Exports[part]
+			next, found := module.Exports[field]
 			if !found {
 				return nil, false
 			}
 			sym = next
 			continue
 		}
-		tp := chainFieldType(sym.Type, part)
+		tp := indexed(chainFieldType(sym.Type, field), count)
 		if tp == nil {
 			return nil, false
 		}
-		sym = &analyser.Symbol{Name: part, Kind: analyser.VAR, Type: tp}
+		sym = &analyser.Symbol{Name: field, Kind: analyser.VAR, Type: tp}
 	}
 	return sym, true
 }

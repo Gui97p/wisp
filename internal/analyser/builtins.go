@@ -18,26 +18,5 @@ func (a *Analyser) registerBuiltins() {
 		Name: "sizeof", Params: []Type{AnyType{}}, Returns: []Type{intType},
 	}})
 
-	a.universe.Define(&Symbol{Name: "AllocError", Kind: TYPE, Type: NamedType{
-		Name:        "AllocError",
-		Underlying:  intType,
-		Methods:     map[string]*FuncType{},
-		Enum:        true,
-		Module:      "runtime",
-		Exported:    true,
-		Members:     map[string]int64{"OutOfMemory": 1},
-		MemberOrder: []string{"OutOfMemory"},
-	}})
-
-	a.universe.Define(&Symbol{Name: "malloc", Kind: FUNC, Type: &FuncType{
-		Name: "malloc", Params: []Type{intType}, Returns: []Type{PointerType{Element: VoidType{}}}, Fallible: true,
-	}})
-	a.universe.Define(&Symbol{Name: "realloc", Kind: FUNC, Type: &FuncType{
-		Name: "realloc", Params: []Type{PointerType{Element: VoidType{}}, intType}, Returns: []Type{PointerType{Element: VoidType{}}}, Fallible: true,
-	}})
-	a.universe.Define(&Symbol{Name: "free", Kind: FUNC, Type: &FuncType{
-		Name: "free", Params: []Type{AnyType{}}, Returns: nil, Variadic: true,
-	}})
-
 	a.universe.Define(&Symbol{Name: "Error", Kind: TYPE, Type: ErrorType{}})
 }
