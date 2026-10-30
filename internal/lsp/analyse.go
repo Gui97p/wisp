@@ -188,6 +188,32 @@ func analyseEntryChecked(path string) (program *ast.Program, info *analyser.Info
 	return nil, nil, false
 }
 
+func declarationFiles(path string) map[ast.Declaration]string {
+	pa, err := analyseProject(path)
+	if err != nil || pa == nil {
+		return nil
+	}
+	for _, m := range pa.modules {
+		if slices.Contains(m.mod.FilePaths, path) {
+			return m.declFiles
+		}
+	}
+	return nil
+}
+
+func declarationsOf(program *ast.Program, files map[ast.Declaration]string, path string) *ast.Program {
+	if files == nil {
+		return program
+	}
+	own := &ast.Program{}
+	for _, d := range program.Declarations {
+		if file, known := files[d]; !known || file == path {
+			own.Declarations = append(own.Declarations, d)
+		}
+	}
+	return own
+}
+
 func withoutGenerated(decls []ast.Declaration) []ast.Declaration {
 	kept := make([]ast.Declaration, 0, len(decls))
 	for _, d := range decls {

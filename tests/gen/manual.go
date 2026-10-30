@@ -2231,6 +2231,52 @@ func main() {
 }
 `},
 
+	{dir: "const_group", files: map[string]string{"limits/limits.wsp": `public const {
+    Rows = 4;
+    Cols = Rows * 2;
+}
+
+internal const int8 {
+    Small = 100;
+    Tiny = 5;
+}
+
+public func total() int {
+    return Small + Tiny;
+}
+`, "main.wsp": `import "limits";
+
+const {
+    Limit = 10;
+    Double = Limit * 2;
+}
+
+const uint8 {
+    Mask = 0xF0;
+    Low = 0x0F;
+}
+
+func check(bool ok, string name) {
+    if ok {
+        emit(name);
+    } else {
+        emit("FAIL");
+        emit(name);
+    }
+}
+
+func main() {
+    int[Double] cells;
+    check(Limit == 10 && Double == 20, "members of a group can use the ones before them");
+    check(len(cells) == 20, "a group member is a constant expression");
+    check(Mask + Low == 255, "the type of a group applies to every member");
+    uint8 m = Mask;
+    check(m == 240, "a typed group member converts like a typed const");
+    check(limits.Rows == 4 && limits.Cols == 8, "public makes every member of a group public");
+    check(limits.total() == 105, "internal members stay usable inside their folder");
+}
+`}, expected: []string{"members of a group can use the ones before them", "a group member is a constant expression", "the type of a group applies to every member", "a typed group member converts like a typed const", "public makes every member of a group public", "internal members stay usable inside their folder"}},
+
 	{dir: "const_decl", src: `const Limit = 100;
 const Double = Limit * 2;
 const Mask = 0xF0 | 0x0F;

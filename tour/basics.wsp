@@ -26,6 +26,14 @@ import "std/fmt";
 // assigned again.
 const MaxScore = 100;
 
+// Several constants can share one declaration. A visibility or a type written
+// before the braces applies to every member, and a member can use the ones
+// above it.
+const int {
+  MinScore = 0;
+  Range = MaxScore - MinScore;
+}
+
 public func demo() {
   // `let` infers the type from the value; an explicit type works too. The
   // type always comes first, as in `int limit`.
@@ -39,6 +47,7 @@ public func demo() {
   fmt.printf("total = {}\n", total);
   fmt.printf("limit = {}\n", limit);
   fmt.printf("MaxScore = {}\n", MaxScore);
+  fmt.printf("Range = {}\n", Range);
 
   // A variable declared without a value starts zeroed.
   int zeroed;

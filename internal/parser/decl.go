@@ -17,6 +17,11 @@ func (p *Parser) parseDeclaration() []ast.Declaration {
 	}
 	setDoc(decls[0], doc)
 	for _, decl := range decls {
+		if member, isConst := decl.(*ast.ConstDecl); isConst {
+			if placed, _ := member.Position(); placed != 0 {
+				continue
+			}
+		}
 		decl.SetPos(line, col)
 		decl.SetEndPos(p.currentEnd())
 	}
@@ -29,11 +34,7 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 
 	switch p.current.Type {
 	case lexer.TOKEN_CONST:
-		decl := p.parseConstDeclaration()
-		if decl == nil {
-			return nil
-		}
-		decls = append(decls, decl)
+		return p.parseConstDeclarations()
 	case lexer.TOKEN_FUNC:
 		decl := p.parseFuncDeclaration()
 		if decl == nil {
@@ -171,12 +172,13 @@ func (p *Parser) parseExported() []ast.Declaration {
 
 	switch p.current.Type {
 	case lexer.TOKEN_CONST:
-		decl := p.parseConstDeclaration()
-		if decl == nil {
+		decls = p.parseConstDeclarations()
+		if decls == nil {
 			return nil
 		}
-		decl.Exported = true
-		decls = append(decls, decl)
+		for _, decl := range decls {
+			decl.(*ast.ConstDecl).Exported = true
+		}
 
 	case lexer.TOKEN_FUNC:
 		decl := p.parseFuncDeclaration()

@@ -34,6 +34,8 @@ func semanticTokens(context *glsp.Context, params *protocol.SemanticTokensParams
 		program, info = prev.program, prev.info
 	}
 
+	program = declarationsOf(program, declarationFiles(path), path)
+
 	return &protocol.SemanticTokens{Data: encodeTokens(collectTokens(program, info))}, nil
 }
 
