@@ -78,7 +78,7 @@ public func demo() {
   fmt.printf("break outer left both loops after {} visit\n", visits);
 
   // `for ... in` walks any collection. With two names you get the index
-  // (or the key, for a map) and the element; with a single name you get
+  // and the element; with a single name you get
   // just the index. A variable you never use is reported, and a name that is
   // just `_` (or starts with one) says you meant to leave it out.
   int[3] values = [10, 20, 30];

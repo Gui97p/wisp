@@ -78,8 +78,8 @@ Without `[output]`, files go under a folder named after the target: `bin/<target
 
 | Target | Status |
 | --- | --- |
-| `linux_x64` | The main backend: NASM assembly, linked with `ld`, System V calling convention. Floating point, maps and function values are still missing. |
-| `lua` | Secondary. It has floating point, maps and function values, but no pointers, `extern` or `malloc`. |
+| `linux_x64` | The main backend: NASM assembly, linked with `ld`, System V calling convention. Floating point and function values are still missing. |
+| `lua` | Secondary. It has floating point and function values, but no pointers, `extern` or `malloc`. |
 
 A target of your own is a `[targets.<name>]` block with a start file and a runtime file. `wisp init target <name>` writes both, with comments that say what each routine must do. A block named after a built-in target adjusts it.
 

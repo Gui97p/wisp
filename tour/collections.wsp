@@ -1,7 +1,4 @@
 // Tour - Arrays, slices and strings.
-//
-// Maps are part of the language too, but the x86-64 backend does not
-// generate them yet: see _pending/maps.wsp.
 
 import "std/fmt";
 

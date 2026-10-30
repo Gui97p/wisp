@@ -185,7 +185,7 @@
                     ]
                 },
                 {
-                    "begin": "\\b(u?int(?:8|16|32|64)?|float(?:32|64)|bool|char|string|map|void)((?:\\s*\\[[^\\]]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)(?=\\s*[=;,)])",
+                    "begin": "\\b(u?int(?:8|16|32|64)?|float(?:32|64)|bool|char|string|void)((?:\\s*\\[[^\\]]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)(?=\\s*[=;,)])",
                     "beginCaptures": {
                         "1": {
                             "name": "storage.type.primitive.wisp"
@@ -322,7 +322,7 @@
             "patterns": [
                 {
                     "name": "storage.type.primitive.wisp",
-                    "match": "\\b(int|uint|int8|uint8|int16|uint16|int32|uint32|int64|uint64|float|float32|float64|bool|char|string|map|void)\\b"
+                    "match": "\\b(int|uint|int8|uint8|int16|uint16|int32|uint32|int64|uint64|float|float32|float64|bool|char|string|void)\\b"
                 }
             ]
         },
@@ -506,7 +506,7 @@
                     "include": "#comments"
                 },
                 {
-                    "match": "\\b(u?int(?:8|16|32|64)?|float(?:32|64)|bool|char|string|map|void)((?:\\s*\\[[^\\]]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+                    "match": "\\b(u?int(?:8|16|32|64)?|float(?:32|64)|bool|char|string|void)((?:\\s*\\[[^\\]]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
                     "captures": {
                         "1": {
                             "name": "storage.type.primitive.wisp"
