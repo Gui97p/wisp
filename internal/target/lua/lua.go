@@ -23,6 +23,7 @@ type LuaTarget struct {
 	program *ast.Program
 	info    *analyser.Info
 	isEntry bool
+	target  string
 
 	loopStack    []loopContext
 	labelCounter uint64
@@ -56,6 +57,10 @@ func (t *LuaTarget) extraModule(path string) string {
 
 func (t *LuaTarget) SetID(id string) {
 	t.id = id
+}
+
+func (t *LuaTarget) SetTarget(name string) {
+	t.target = name
 }
 
 func (t *LuaTarget) SetFiles(files map[ast.Declaration]string) {

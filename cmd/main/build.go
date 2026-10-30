@@ -56,7 +56,7 @@ func addBuildFlags(cmd *cobra.Command) {
 	f.StringVar(&asmOut, "asm", "", "output directory for generated .asm files (x86-64 targets)")
 	f.StringVar(&objOut, "obj", "", "output directory for generated .o files (x86-64 targets)")
 	f.StringVar(&binOut, "bin", "", "output path for the final binary (x86-64 targets)")
-	f.StringVar(&luaOut, "lua", "", "output directory for generated .lua files (lua target)")
+	f.StringVar(&luaOut, "lua", "", "output directory for generated .lua files (cc target)")
 	f.StringVar(&targetOpt, "target", "", "target name (e.g. linux_x64, lua)")
 	f.StringArrayVar(&linkOpt, "link", nil, "extra argument for the linker, repeatable (object files, archives, -L, -l); x86-64 targets")
 	f.BoolVar(&libcOpt, "libc", false, "link the system C library and use its startup code instead of the Wisp start stub (x86-64 targets)")

@@ -38,6 +38,7 @@ dev/
 tests/*
 !tests/gen
 !tests/run.sh
+!tests/shim/
 *.vsix
 
 # VS Code extension build

@@ -72,7 +72,7 @@ var linuxRuntime string
 
 var builtin = []Target{
 	{Name: "linux_x64", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
-	{Name: "lua", Arch: "lua", Builtin: true},
+	{Name: "cc", Arch: "lua", Builtin: true},
 }
 
 var project []Target

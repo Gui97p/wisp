@@ -50,6 +50,7 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 		backend := lua.New(c.merged, c.info, isEntry)
 		backend.SetFiles(c.declFiles)
 		backend.SetID(lua.ModuleID(c.mod.Path))
+		backend.SetTarget(tgt.Name)
 		source, err := backend.Compile()
 		if err != nil {
 			return nil, c.reportFailure(err)

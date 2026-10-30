@@ -608,7 +608,7 @@ func (t *LuaTarget) compileContinueStatement(b *strings.Builder, stmt *ast.Conti
 }
 
 func (t *LuaTarget) compileNativeStatement(b *strings.Builder, stmt *ast.NativeStmt) error {
-	if stmt.Backend != "" && !target.MatchesName("lua", stmt.Backend) {
+	if stmt.Backend != "" && !target.MatchesName(t.target, stmt.Backend) {
 		return nil
 	}
 	_, err := fmt.Fprintln(b, stmt.Code)

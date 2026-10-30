@@ -10,6 +10,7 @@ FILTER="${2:-}"
 ROOT="$(cd "$(dirname "$0")/numeric" && pwd)"
 OUT="$(mktemp -d)"
 RESULTS="$OUT/results.txt"
+export LUA_INIT="@$(cd "$(dirname "$0")/shim" && pwd)/fs.lua"
 : >"$RESULTS"
 
 clean() {
@@ -22,22 +23,22 @@ for dir in "$ROOT"/*/; do
         continue
     fi
 
-    if [[ "$TARGET" == "lua" && -f "$dir/x64-only" ]]; then
+    if [[ "$TARGET" == "cc" && -f "$dir/x64-only" ]]; then
         continue
     fi
 
-    if [[ "$TARGET" != "lua" && -f "$dir/lua-only" ]]; then
+    if [[ "$TARGET" != "cc" && -f "$dir/lua-only" ]]; then
         continue
     fi
 
     out="$OUT/$name.out"
     err="$OUT/$name.err"
-    if [[ "$TARGET" == "lua" ]]; then
+    if [[ "$TARGET" == "cc" ]]; then
         flags=(--lua "$OUT/lua/$name")
     else
         flags=(--bin "$OUT/bin/$name" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name")
     fi
-    if [[ "$TARGET" != "lua" ]]; then
+    if [[ "$TARGET" != "cc" ]]; then
         if [[ -f "$dir/lib.c" ]]; then
             mkdir -p "$OUT/c"
             if ! cc -c -O1 -fno-stack-protector -fno-pic -ffreestanding "$dir/lib.c" -o "$OUT/c/$name.o" 2>"$err"; then

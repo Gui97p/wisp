@@ -22,8 +22,8 @@ var initCmd = &cobra.Command{
 }
 
 var initLuaCmd = &cobra.Command{
-	Use:          "lua",
-	Short:        "Initialize a project that targets Lua",
+	Use:          "cc",
+	Short:        "Initialize a project that targets CC: Tweaked",
 	Args:         cobra.NoArgs,
 	RunE:         runInitLua,
 	SilenceUsage: true,
@@ -66,7 +66,7 @@ bin = "bin/main"
 # asm = "build/asm"
 `
 
-const luaTomlContent = `target = "lua"
+const luaTomlContent = `target = "cc"
 
 # entry = "main.wsp"
 

@@ -1,4 +1,4 @@
-.PHONY: build prod install ext run clean version testgen test test-lua test-x64
+.PHONY: build prod install ext run clean version testgen test test-cc test-x64
 APP=wisp
 DIST=dist/wisp
 STAGE=dist/wisp-tmp
@@ -39,13 +39,13 @@ run:
 testgen:
 	go run ./tests/gen
 
-test-lua: build testgen
-	WISP=bin/$(APP) tests/run.sh lua $(FILTER)
+test-cc: build testgen
+	WISP=bin/$(APP) tests/run.sh cc $(FILTER)
 
 test-x64: build testgen
 	WISP=bin/$(APP) tests/run.sh linux_x64 $(FILTER)
 
-test: test-lua test-x64
+test: test-cc test-x64
 
 clean:
 	rm -rf bin
