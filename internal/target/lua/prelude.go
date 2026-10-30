@@ -100,7 +100,7 @@ end
 		local j = math.min(i + 4096, v.n)
 		local chunk = {}
 		for k = i, j - 1 do
-			chunk[#chunk + 1] = v.t[v.o + k] & 255
+			chunk[#chunk + 1] = v.t[v.o + k] % 256
 		end
 		parts[#parts + 1] = string.char(table.unpack(chunk))
 		i = j
@@ -166,6 +166,22 @@ end
 	{name: "__wisp_shared", code: `local __wisp_shared = package.loaded.__wisp_shared or {next = 268435456, regs = {}, free = {}}
 package.loaded.__wisp_shared = __wisp_shared
 `},
+	{name: "__wisp_fds", deps: []string{"__wisp_shared"}, code: `local __wisp_fds = __wisp_shared.fds or {}
+__wisp_shared.fds = __wisp_fds
+`},
+	{name: "__wisp_cstr", code: `local function __wisp_cstr(p)
+	if p == nil then return "" end
+	local parts = {}
+	local i = 0
+	while true do
+		local c = p.t[p.o + i]
+		if c == nil or c == 0 then break end
+		parts[#parts + 1] = c % 256
+		i = i + 1
+	end
+	return string.char(table.unpack(parts))
+end
+`},
 	{name: "__wisp_class", code: `local function __wisp_class(n)
 	local c = 16
 	while c < n do c = c * 2 end
@@ -216,7 +232,7 @@ end
 	{name: "__wisp_cast", code: `local function __wisp_cast(r, zero, size)
 	if r == nil or r.t ~= nil then return r end
 	if r.same ~= nil then return r.same end
-	local count = r.raw // size
+	local count = math.floor(r.raw / size)
 	local t = r.reuse
 	if t ~= nil then
 		for k in pairs(t) do
@@ -259,7 +275,7 @@ end
 	local base = a - a % 268435456
 	local t = __wisp_shared.regs[base]
 	if t == nil then return nil end
-	return {t = t, o = (a - base) // size}
+	return {t = t, o = math.floor((a - base) / size)}
 end
 `},
 	{name: "__wisp_bytes", code: `local function __wisp_bytes(s)
@@ -281,9 +297,9 @@ end
 `},
 	{name: "__wisp_idiv", deps: []string{"__wisp_panic"}, code: `local function __wisp_idiv(a, b)
 	if b == 0 then __wisp_panic("integer divide by zero") end
-	local q = a // b
-	if q < 0 and q * b ~= a then q = q + 1 end
-	return q
+	local q = a / b
+	if q >= 0 then return math.floor(q) end
+	return math.ceil(q)
 end
 `},
 	{name: "__wisp_imod", deps: []string{"__wisp_panic"}, code: `local function __wisp_imod(a, b)
@@ -291,51 +307,69 @@ end
 	return math.fmod(a, b)
 end
 `},
-	{name: "__wisp_udiv", deps: []string{"__wisp_panic"}, code: `local function __wisp_udiv(a, b)
-	if b == 0 then __wisp_panic("integer divide by zero") end
-	if b < 0 then
-		if math.ult(a, b) then return 0 end
-		return 1
-	end
-	if a >= 0 then return a // b end
-	local q = ((a >> 1) // b) << 1
-	local r = a - q * b
-	if not math.ult(r, b) then q = q + 1 end
-	return q
-end
-`},
-	{name: "__wisp_umod", deps: []string{"__wisp_udiv"}, code: `local function __wisp_umod(a, b)
-	return a - __wisp_udiv(a, b) * b
-end
-`},
 	{name: "__wisp_sar", code: `local function __wisp_sar(a, n)
-	if n >= 63 then
+	if n >= 64 then
 		if a < 0 then return -1 end
 		return 0
 	end
-	return a // (1 << n)
+	return math.floor(a / 2 ^ n)
 end
 `},
-	{name: "__wisp_ule", code: `local function __wisp_ule(a, b)
-	return not math.ult(b, a)
+	{name: "__wisp_shr", code: `local function __wisp_shr(a, n)
+	if n >= 64 then return 0 end
+	return math.floor(a / 2 ^ n)
 end
 `},
-	{name: "__wisp_ugt", code: `local function __wisp_ugt(a, b)
-	return math.ult(b, a)
+	{name: "__wisp_shl", code: `local function __wisp_shl(a, n, bits)
+	if n >= bits then return 0 end
+	if bits < 64 then return (a % 2 ^ (bits - n)) * 2 ^ n end
+	return a * 2 ^ n
 end
 `},
-	{name: "__wisp_uge", code: `local function __wisp_uge(a, b)
-	return not math.ult(a, b)
+	{name: "__wisp_mulw", code: `local function __wisp_mulw(a, b)
+	a = a % 4294967296
+	b = b % 4294967296
+	local high = math.floor(a / 65536)
+	local low = a % 65536
+	return (((high * b) % 65536) * 65536 + low * b) % 4294967296
+end
+`},
+	{name: "__wisp_bitop", code: `local function __wisp_bitop(op, a, b, signed)
+	local alo = a % 4294967296
+	local ahi = ((a - alo) / 4294967296) % 4294967296
+	local blo = b % 4294967296
+	local bhi = ((b - blo) / 4294967296) % 4294967296
+	local lo = op(alo, blo)
+	local hi = op(ahi, bhi)
+	if signed and hi >= 2147483648 then hi = hi - 4294967296 end
+	return hi * 4294967296 + lo
+end
+`},
+	{name: "__wisp_band", deps: []string{"__wisp_bitop"}, code: `local function __wisp_band(a, b, signed)
+	return __wisp_bitop(bit32.band, a, b, signed)
+end
+`},
+	{name: "__wisp_bor", deps: []string{"__wisp_bitop"}, code: `local function __wisp_bor(a, b, signed)
+	return __wisp_bitop(bit32.bor, a, b, signed)
+end
+`},
+	{name: "__wisp_bxor", deps: []string{"__wisp_bitop"}, code: `local function __wisp_bxor(a, b, signed)
+	return __wisp_bitop(bit32.bxor, a, b, signed)
+end
+`},
+	{name: "__wisp_tou64", code: `local function __wisp_tou64(x)
+	if x < 0 then return x + 18446744073709551616 end
+	return x
+end
+`},
+	{name: "__wisp_toi64", code: `local function __wisp_toi64(x)
+	if x >= 9223372036854775808 then return x - 18446744073709551616 end
+	return x
 end
 `},
 	{name: "__wisp_f2i", code: `local function __wisp_f2i(x)
 	if x >= 0 then return math.floor(x) end
 	return math.ceil(x)
-end
-`},
-	{name: "__wisp_u2f", code: `local function __wisp_u2f(x)
-	if x >= 0 then return x + 0.0 end
-	return (x + 0.0) + 18446744073709551616.0
 end
 `},
 	{name: "__wisp_box", code: `local function __wisp_box(t, v, e)

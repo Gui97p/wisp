@@ -1,0 +1,82 @@
+shared const {
+	O_RDONLY = 0;
+	O_WRONLY = 1;
+	O_RDWR = 2;
+	O_CREAT = 64;
+	O_EXCL = 128;
+	O_TRUNC = 512;
+	O_APPEND = 1024;
+	O_DIRECTORY = 65536;
+	O_CLOEXEC = 524288;
+
+	SEEK_SET = 0;
+	SEEK_CUR = 1;
+	SEEK_END = 2;
+
+	CLOCK_REALTIME = 0;
+	CLOCK_MONOTONIC = 1;
+
+	AT_REMOVEDIR = 512;
+
+	S_IFMT = 0o170000;
+	S_IFREG = 0o100000;
+	S_IFDIR = 0o040000;
+	S_IFLNK = 0o120000;
+
+	DT_UNKNOWN = 0;
+	DT_DIR = 4;
+	DT_REG = 8;
+	DT_LNK = 10;
+
+	EPERM = 1;
+	ENOENT = 2;
+	EINTR = 4;
+	EIO = 5;
+	EBADF = 9;
+	EACCES = 13;
+	EEXIST = 17;
+	ENOTDIR = 20;
+	EISDIR = 21;
+	EINVAL = 22;
+	ENOTTY = 25;
+	ERANGE = 34;
+	ENAMETOOLONG = 36;
+	ENOSYS = 38;
+	ENOTEMPTY = 39;
+}
+
+shared struct Timespec {
+	int tv_sec;
+	int tv_nsec;
+}
+
+shared struct Stat {
+	uint64 st_dev;
+	uint64 st_ino;
+	uint64 st_nlink;
+
+	uint32 st_mode;
+	uint32 st_uid;
+	uint32 st_gid;
+	uint32 pad0;
+
+	uint64 st_rdev;
+	int st_size;
+	int st_blksize;
+	int st_blocks;
+
+	Timespec st_atim;
+	Timespec st_mtim;
+	Timespec st_ctim;
+
+	int __reserved0;
+	int __reserved1;
+	int __reserved2;
+}
+
+shared func errno(int raw) int {
+	if raw < 0 && raw >= -4095 {
+		return -raw;
+	}
+	return 0;
+}

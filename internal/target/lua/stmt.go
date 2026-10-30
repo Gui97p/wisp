@@ -692,6 +692,10 @@ func (t *LuaTarget) compoundText(stmt *ast.AssignStmt, target, value string) str
 		return fmt.Sprintf("__wisp_padd(%s, %s)", target, value)
 	}
 
+	if text, ok := integerOp(op, target, value, targetType); ok {
+		return text
+	}
+
 	switch op {
 	case "+":
 		if pt, ok := targetType.(analyser.PrimitiveType); ok && pt.Name == "string" {
@@ -703,17 +707,8 @@ func (t *LuaTarget) compoundText(stmt *ast.AssignStmt, target, value string) str
 		return wrapInt(fmt.Sprintf("(%s + %s)", target, value), targetType)
 	case "-", "*":
 		return wrapInt(fmt.Sprintf("(%s %s %s)", target, op, value), targetType)
-	case "<<":
-		return wrapInt(fmt.Sprintf("(%s << %s)", target, value), targetType)
-	case ">>":
-		if isSignedInt(targetType) {
-			return fmt.Sprintf("__wisp_sar(%s, %s)", target, value)
-		}
-		return fmt.Sprintf("(%s >> %s)", target, value)
 	case "/", "%":
 		return t.divisionText(op, target, value, targetType)
-	case "^":
-		return fmt.Sprintf("(%s ~ %s)", target, value)
 	}
 	return fmt.Sprintf("(%s %s %s)", target, op, value)
 }

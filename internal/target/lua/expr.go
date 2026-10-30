@@ -2,6 +2,7 @@ package lua
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -67,7 +68,7 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 	case *ast.IntLiteral:
 		b.WriteString(intLiteralText(e))
 	case *ast.FloatLiteral:
-		fmt.Fprintf(b, "%f", e.Value)
+		b.WriteString(floatLiteralText(e.Value))
 	case *ast.FuncLiteral:
 		return t.compileFuncLiteral(b, e)
 	case *ast.ArrayLiteral:
@@ -411,4 +412,15 @@ func (t *LuaTarget) compileIndex(b *strings.Builder, e *ast.IndexExpr) error {
 		fmt.Fprintf(b, "%s[%s]", array, index)
 	}
 	return nil
+}
+
+func floatLiteralText(value float64) string {
+	text := strconv.FormatFloat(value, 'g', -1, 64)
+	if !strings.ContainsAny(text, ".e") {
+		text += ".0"
+	}
+	if value < 0 {
+		return "(" + text + ")"
+	}
+	return text
 }

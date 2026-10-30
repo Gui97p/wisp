@@ -43,24 +43,71 @@ func isIntType(tp analyser.Type) bool {
 	return ok
 }
 
+func intBits(tp analyser.Type) (int, bool) {
+	bits, signed, ok := analyser.IntegerRange(tp)
+	if !ok {
+		return 64, true
+	}
+	return bits, signed
+}
+
 func wrapInt(text string, tp analyser.Type) string {
 	bits, signed, ok := analyser.IntegerRange(tp)
 	if !ok || bits == 64 {
 		return text
 	}
 
-	mask := uint64(1)<<bits - 1
+	modulus := uint64(1) << bits
 	if signed {
-		half := uint64(1) << (bits - 1)
-		return fmt.Sprintf("((((%s) + %d) & %d) - %d)", text, half, mask, half)
+		half := modulus >> 1
+		return fmt.Sprintf("((((%s) + %d) %% %d) - %d)", text, half, modulus, half)
 	}
-	return fmt.Sprintf("((%s) & %d)", text, mask)
+	return fmt.Sprintf("((%s) %% %d)", text, modulus)
+}
+
+func integerOp(op, left, right string, result analyser.Type) (string, bool) {
+	if !isIntType(result) {
+		return "", false
+	}
+
+	bits, signed := intBits(result)
+	switch op {
+	case "&", "|", "^":
+		fn := map[string]string{"&": "__wisp_band", "|": "__wisp_bor", "^": "__wisp_bxor"}[op]
+		return wrapInt(fmt.Sprintf("%s(%s, %s, %t)", fn, left, right, bits < 64 || signed), result), true
+	case "<<":
+		return wrapInt(fmt.Sprintf("__wisp_shl(%s, %s, %d)", left, right, bits), result), true
+	case ">>":
+		if signed {
+			return fmt.Sprintf("__wisp_sar(%s, %s)", left, right), true
+		}
+		return fmt.Sprintf("__wisp_shr(%s, %s)", left, right), true
+	case "*":
+		if bits == 32 {
+			return wrapInt(fmt.Sprintf("__wisp_mulw(%s, %s)", left, right), result), true
+		}
+	}
+	return "", false
+}
+
+func complementText(value string, tp analyser.Type) string {
+	bits, signed := intBits(tp)
+	if signed {
+		return fmt.Sprintf("(-(%s) - 1)", value)
+	}
+	max := uint64(math.MaxUint64)
+	if bits < 64 {
+		max = uint64(1)<<bits - 1
+	}
+	return fmt.Sprintf("(%d - (%s))", max, value)
 }
 
 func intLiteralText(e *ast.IntLiteral) string {
 	switch {
+	case e.Unsigned && e.Value < 0:
+		return fmt.Sprintf("%d", uint64(e.Value))
 	case e.Value == math.MinInt64:
-		return "__lua_math.mininteger"
+		return "(-9223372036854775808)"
 	case e.Value < 0:
 		return fmt.Sprintf("(%d)", e.Value)
 	}
@@ -94,14 +141,16 @@ func (t *LuaTarget) compileBinaryExpr(b *strings.Builder, e *ast.BinaryExpr) err
 	}
 
 	result := t.info.Types[e]
-	operand := typedOperand(t.info.Types[e.Left], t.info.Types[e.Right])
+
+	if text, ok := integerOp(e.Operator, left, right, result); ok {
+		b.WriteString(text)
+		return nil
+	}
 
 	var text string
 	switch e.Operator {
 	case "!=":
 		text = fmt.Sprintf("(%s ~= %s)", left, right)
-	case "^":
-		text = fmt.Sprintf("(%s ~ %s)", left, right)
 	case "+":
 		if pt, ok := t.info.Types[e.Left].(analyser.PrimitiveType); ok && pt.Name == "string" {
 			if rt, ok := t.info.Types[e.Right].(analyser.PrimitiveType); ok && rt.Name == "char" {
@@ -113,18 +162,10 @@ func (t *LuaTarget) compileBinaryExpr(b *strings.Builder, e *ast.BinaryExpr) err
 		}
 	case "-", "*":
 		text = wrapInt(fmt.Sprintf("(%s %s %s)", left, e.Operator, right), result)
-	case "<<":
-		text = wrapInt(fmt.Sprintf("(%s << %s)", left, right), result)
-	case ">>":
-		if isSignedInt(result) {
-			text = fmt.Sprintf("__wisp_sar(%s, %s)", left, right)
-		} else {
-			text = fmt.Sprintf("(%s >> %s)", left, right)
-		}
 	case "/", "%":
 		text = t.divisionText(e.Operator, left, right, result)
 	case "<", "<=", ">", ">=":
-		text = comparisonText(e.Operator, left, right, operand)
+		text = fmt.Sprintf("(%s %s %s)", left, e.Operator, right)
 	default:
 		text = fmt.Sprintf("(%s %s %s)", left, e.Operator, right)
 	}
@@ -138,35 +179,10 @@ func (t *LuaTarget) divisionText(op, left, right string, result analyser.Type) s
 		return fmt.Sprintf("(%s %s %s)", left, op, right)
 	}
 
-	fn := "__wisp_idiv"
-	if isUnsigned64(result) {
-		fn = "__wisp_udiv"
-	}
 	if op == "%" {
-		fn = "__wisp_imod"
-		if isUnsigned64(result) {
-			fn = "__wisp_umod"
-		}
-		return fmt.Sprintf("%s(%s, %s)", fn, left, right)
+		return fmt.Sprintf("__wisp_imod(%s, %s)", left, right)
 	}
-	return wrapInt(fmt.Sprintf("%s(%s, %s)", fn, left, right), result)
-}
-
-func comparisonText(op, left, right string, operand analyser.Type) string {
-	if !isUnsigned64(operand) {
-		return fmt.Sprintf("(%s %s %s)", left, op, right)
-	}
-
-	switch op {
-	case "<":
-		return fmt.Sprintf("__lua_math.ult(%s, %s)", left, right)
-	case "<=":
-		return fmt.Sprintf("__wisp_ule(%s, %s)", left, right)
-	case ">":
-		return fmt.Sprintf("__wisp_ugt(%s, %s)", left, right)
-	default:
-		return fmt.Sprintf("__wisp_uge(%s, %s)", left, right)
-	}
+	return wrapInt(fmt.Sprintf("__wisp_idiv(%s, %s)", left, right), result)
 }
 
 func (t *LuaTarget) compileUnaryExpr(b *strings.Builder, e *ast.UnaryExpr) error {
@@ -185,7 +201,7 @@ func (t *LuaTarget) compileUnaryExpr(b *strings.Builder, e *ast.UnaryExpr) error
 	case "!":
 		fmt.Fprintf(b, "(not %s)", value)
 	case "~":
-		b.WriteString(wrapInt(fmt.Sprintf("(~%s)", value), t.info.Types[e]))
+		b.WriteString(complementText(value, t.info.Types[e]))
 	default:
 		return fmt.Errorf("lua: unsupported unary operator %s", e.Operator)
 	}
@@ -213,15 +229,11 @@ func (t *LuaTarget) compileCastExpr(b *strings.Builder, e *ast.CastExpr) error {
 	case analyser.LosslessWidening(src, dst):
 		b.WriteString(value)
 	case isFloatType(dst) && isIntType(src):
-		if isUnsigned64(src) {
-			fmt.Fprintf(b, "__wisp_u2f(%s)", value)
-		} else {
-			fmt.Fprintf(b, "(%s + 0.0)", value)
-		}
+		fmt.Fprintf(b, "(%s + 0.0)", value)
 	case isIntType(dst) && isFloatType(src):
 		b.WriteString(wrapInt(fmt.Sprintf("__wisp_f2i(%s)", value), dst))
 	case isIntType(dst) && isIntType(src):
-		b.WriteString(wrapInt(value, dst))
+		b.WriteString(integerCast(value, src, dst))
 	default:
 		b.WriteString(value)
 	}
@@ -301,4 +313,16 @@ func (t *LuaTarget) compileTernary(b *strings.Builder, e *ast.TernaryExpr) error
 	t.emitPending(fmt.Sprintf("local %s\nif %s then\n%s%s = %s\nelse\n%s%s = %s\nend\n", result, cond, thenStmts, result, thenText, elseStmts, result, elseText))
 	b.WriteString(result)
 	return nil
+}
+
+func integerCast(value string, src, dst analyser.Type) string {
+	dstBits, dstSigned := intBits(dst)
+	srcBits, srcSigned := intBits(src)
+	if dstBits == 64 && !dstSigned && srcSigned {
+		return fmt.Sprintf("__wisp_tou64(%s)", value)
+	}
+	if dstBits == 64 && dstSigned && !srcSigned && srcBits == 64 {
+		return fmt.Sprintf("__wisp_toi64(%s)", value)
+	}
+	return wrapInt(value, dst)
 }

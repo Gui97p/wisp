@@ -200,6 +200,7 @@ func opCase(feature, op string, t ty, build func(g *gen)) {
 	g := &gen{}
 	build(g)
 	emitCase(feature+"_"+op+"_"+t.name, g)
+	cases[len(cases)-1].x64Only = t.bits == 64
 }
 
 func arith(t ty) {

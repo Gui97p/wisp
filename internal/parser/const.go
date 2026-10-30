@@ -133,27 +133,23 @@ func (p *Parser) parseConstGroup() []ast.Declaration {
 		p.advance()
 		if p.current.Type != lexer.TOKEN_IDENT {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
-			p.skipConstGroup()
-			return nil
+			return p.abandonConstGroup(decls)
 		}
 
 		line, col := p.current.Line, p.current.Column
 		name := p.current.Literal
 		nameLine, nameCol, nameEndLine, nameEndCol := p.currentIdentPos()
 		if !p.checkReservedName(name) {
-			p.skipConstGroup()
-			return nil
+			return p.abandonConstGroup(decls)
 		}
 		if !p.expect(lexer.TOKEN_ASSIGN) {
-			p.skipConstGroup()
-			return nil
+			return p.abandonConstGroup(decls)
 		}
 		p.advance()
 
 		values := p.parseConstValues()
 		if values == nil {
-			p.skipConstGroup()
-			return nil
+			return p.abandonConstGroup(decls)
 		}
 
 		decl := &ast.ConstDecl{
@@ -172,6 +168,14 @@ func (p *Parser) parseConstGroup() []ast.Declaration {
 	}
 
 	return decls
+}
+
+func (p *Parser) abandonConstGroup(kept []ast.Declaration) []ast.Declaration {
+	p.skipConstGroup()
+	if len(kept) == 0 {
+		return nil
+	}
+	return kept
 }
 
 func (p *Parser) skipConstGroup() {

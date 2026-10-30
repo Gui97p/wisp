@@ -1,0 +1,346 @@
+func pathKind(*char path) int {
+	int kind;
+	native lua(in path, out kind) "local p = __wisp_cstr(path); if not __lua_fs.exists(p) then kind = 0 elseif __lua_fs.isDir(p) then kind = 2 else kind = 1 end";
+	return kind;
+}
+
+func parentKind(*char path) int {
+	int kind;
+	native lua(in path, out kind) "local d = __lua_fs.getDir(__wisp_cstr(path)); if d == '' then kind = 2 elseif not __lua_fs.exists(d) then kind = 0 elseif __lua_fs.isDir(d) then kind = 2 else kind = 1 end";
+	return kind;
+}
+
+func pathSize(*char path) int {
+	int size;
+	native lua(in path, out size) "size = __lua_fs.getSize(__wisp_cstr(path))";
+	return size;
+}
+
+func pathModified(*char path) int {
+	int ms;
+	native lua(in path, out ms) "local a = __lua_fs.attributes(__wisp_cstr(path)); ms = __lua_math.floor(a.modified or 0)";
+	return ms;
+}
+
+func dirEmpty(*char path) bool {
+	bool empty;
+	native lua(in path, out empty) "empty = #__lua_fs.list(__wisp_cstr(path)) == 0";
+	return empty;
+}
+
+func pathDelete(*char path) int {
+	int r;
+	native lua(in path, out r) "r = 0; local ok = pcall(__lua_fs.delete, __wisp_cstr(path)); if not ok then r = -13 end";
+	return r;
+}
+
+func pathMakeDir(*char path) int {
+	int r;
+	native lua(in path, out r) "r = 0; local ok = pcall(__lua_fs.makeDir, __wisp_cstr(path)); if not ok then r = -13 end";
+	return r;
+}
+
+func pathMove(*char from, to) int {
+	int r;
+	native lua(in from, to, out r) "r = 0; local ok = pcall(__lua_fs.move, __wisp_cstr(from), __wisp_cstr(to)); if not ok then r = -13 end";
+	return r;
+}
+
+func samePath(*char from, to) bool {
+	bool same;
+	native lua(in from, to, out same) "same = __lua_fs.combine(__wisp_cstr(from)) == __lua_fs.combine(__wisp_cstr(to))";
+	return same;
+}
+
+func pathInside(*char dir, path) bool {
+	bool inside;
+	native lua(in dir, path, out inside) "local d = __lua_fs.combine(__wisp_cstr(dir)); inside = __lua_string.sub(__lua_fs.combine(__wisp_cstr(path)), 1, #d + 1) == d .. '/'";
+	return inside;
+}
+
+func fdKind(int fd) int {
+	int kind;
+	native lua(in fd, out kind) "local e = __wisp_fds[fd]; if fd >= 0 and fd <= 2 then kind = 3 elseif e == nil then kind = 0 elseif e.names then kind = 2 else kind = 1 end";
+	return kind;
+}
+
+func openFile(*char path, string fsMode) int {
+	int fd;
+	native lua(in path, fsMode, out fd) "local h, err = __lua_fs.open(__wisp_cstr(path), fsMode); if h == nil then fd = (err and __lua_string.find(err, 'ccess')) and -13 or -2 else local n = 3; while __wisp_fds[n] ~= nil do n = n + 1 end; __wisp_fds[n] = {h = h}; fd = n end";
+	return fd;
+}
+
+func dirOpen(*char path) int {
+	int fd;
+	native lua(in path, out fd) "local p = __wisp_cstr(path); local names = __lua_fs.list(p); __lua_table.sort(names); local n = 3; while __wisp_fds[n] ~= nil do n = n + 1 end; __wisp_fds[n] = {names = names, pos = 1, path = p}; fd = n";
+	return fd;
+}
+
+func dirName(int fd) string {
+	string name;
+	native lua(in fd, out name) "local e = __wisp_fds[fd]; name = e and e.names and e.names[e.pos] or ''";
+	return name;
+}
+
+func dirKind(int fd) int {
+	int kind;
+	native lua(in fd, out kind) "local e = __wisp_fds[fd]; kind = __lua_fs.isDir(__lua_fs.combine(e.path, e.names[e.pos])) and 4 or 8";
+	return kind;
+}
+
+func dirSkip(int fd) {
+	native lua(in fd) "local e = __wisp_fds[fd]; e.pos = e.pos + 1";
+}
+
+func fill(*Stat s, int kind, int size, int ms) {
+	s.st_mode = uint32(kind == 2 ? S_IFDIR | 0o755 : S_IFREG | 0o644);
+	s.st_size = size;
+	s.st_mtim.tv_sec = ms / 1000;
+	s.st_mtim.tv_nsec = (ms % 1000) * 1_000_000;
+}
+
+shared func read(int fd, *char buf, int n) int {
+	int r;
+	native lua(in fd, buf, n, out r) "local e = __wisp_fds[fd]; local s; if fd == 0 then s = __lua_io.read(n) elseif e == nil then r = -9 elseif e.h == nil then r = -21 else s = e.h:read(n) end; if r >= 0 then if s == nil then r = 0 else for i = 1, #s do buf.t[buf.o + i - 1] = __lua_string.byte(s, i) end; r = #s end end";
+	return r;
+}
+
+shared func write(int fd, *char buf, int n) int {
+	int r;
+	native lua(in fd, buf, n, out r) "local e = __wisp_fds[fd]; if fd == 1 or fd == 2 then local f = fd == 2 and (__lua_io.stderr or __lua_io.stdout) or __lua_io.stdout; f:write(__wisp_pstr(buf, n)); r = n elseif e == nil or fd == 0 then r = -9 elseif e.h == nil then r = -21 else e.h:write(__wisp_pstr(buf, n)); r = n end";
+	return r;
+}
+
+shared func open(*char path, int flags, int _mode) int {
+	if path[0] == '\0' {
+		return -ENOENT;
+	}
+	int kind = pathKind(path);
+	int access = flags & 3;
+	bool create = (flags & O_CREAT) != 0;
+
+	if (flags & O_DIRECTORY) != 0 {
+		if kind == 0 {
+			return -ENOENT;
+		}
+		if kind != 2 {
+			return -ENOTDIR;
+		}
+		return dirOpen(path);
+	}
+
+	if kind == 2 {
+		if access != O_RDONLY {
+			return -EISDIR;
+		}
+		return dirOpen(path);
+	}
+
+	if kind == 0 && !create {
+		return -ENOENT;
+	}
+	if kind != 0 && create && (flags & O_EXCL) != 0 {
+		return -EEXIST;
+	}
+	if kind == 0 && access == O_RDONLY {
+		int made = openFile(path, "wb");
+		if made < 0 {
+			return made;
+		}
+		close(made);
+	}
+
+	bool truncate = kind == 0 || (flags & O_TRUNC) != 0;
+	bool append = (flags & O_APPEND) != 0;
+	string fsMode = switch access {
+		case O_RDONLY => "rb";
+		case O_WRONLY => append ? "ab" : (truncate ? "wb" : "r+b");
+		default => truncate ? "w+b" : "r+b";
+	};
+	return openFile(path, fsMode);
+}
+
+shared func close(int fd) int {
+	int r;
+	native lua(in fd, out r) "local e = __wisp_fds[fd]; if fd >= 0 and fd <= 2 then r = 0 elseif e == nil then r = -9 else if e.h then e.h:close() end; __wisp_fds[fd] = nil; r = 0 end";
+	return r;
+}
+
+shared func seek(int fd, offset, whence) int {
+	int off;
+	native lua(in fd, offset, whence, out off) "local e = __wisp_fds[fd]; if e == nil or fd <= 2 then off = -9 elseif e.h == nil then off = -21 else off = e.h:seek(({'set', 'cur', 'end'})[whence + 1], offset) or -22 end";
+	return off;
+}
+
+shared func sync(int fd) int {
+	int r;
+	native lua(in fd, out r) "local e = __wisp_fds[fd]; r = 0; if fd > 2 and e == nil then r = -9 elseif e and e.h then e.h:flush() end";
+	return r;
+}
+
+shared func size(int fd) int {
+	int r;
+	native lua(in fd, out r) "local e = __wisp_fds[fd]; if e == nil or fd <= 2 then r = -9 elseif e.h == nil then r = -21 else local pos = e.h:seek('cur'); r = e.h:seek('end'); e.h:seek('set', pos) end";
+	return r;
+}
+
+shared func remove(*char path, int flags) int {
+	int kind = pathKind(path);
+	if kind == 0 {
+		return -ENOENT;
+	}
+	if (flags & AT_REMOVEDIR) != 0 {
+		if kind != 2 {
+			return -ENOTDIR;
+		}
+		if !dirEmpty(path) {
+			return -ENOTEMPTY;
+		}
+	} else if kind == 2 {
+		return -EISDIR;
+	}
+	return pathDelete(path);
+}
+
+shared func mkdir(*char path, int _mode) int {
+	if path[0] == '\0' {
+		return -ENOENT;
+	}
+	if pathKind(path) != 0 {
+		return -EEXIST;
+	}
+	int parent = parentKind(path);
+	if parent != 2 {
+		return parent == 0 ? -ENOENT : -ENOTDIR;
+	}
+	return pathMakeDir(path);
+}
+
+shared func rename(*char from, to) int {
+	if from[0] == '\0' || to[0] == '\0' {
+		return -ENOENT;
+	}
+	int source = pathKind(from);
+	if source == 0 {
+		return -ENOENT;
+	}
+	int parent = parentKind(to);
+	if parent != 2 {
+		return parent == 0 ? -ENOENT : -ENOTDIR;
+	}
+	if samePath(from, to) {
+		return 0;
+	}
+	if source == 2 && pathInside(from, to) {
+		return -EINVAL;
+	}
+
+	int target = pathKind(to);
+	if target != 0 {
+		if source == 2 && target != 2 {
+			return -ENOTDIR;
+		}
+		if source != 2 && target == 2 {
+			return -EISDIR;
+		}
+		if target == 2 && !dirEmpty(to) {
+			return -ENOTEMPTY;
+		}
+		int r = pathDelete(to);
+		if r < 0 {
+			return r;
+		}
+	}
+	return pathMove(from, to);
+}
+
+shared func stat(*char path, *void buf) int {
+	int kind = pathKind(path);
+	if kind == 0 {
+		return -ENOENT;
+	}
+	fill((*Stat)(buf), kind, pathSize(path), pathModified(path));
+	return 0;
+}
+
+shared func getdents(int fd, *char buf, int n) int {
+	int kind = fdKind(fd);
+	if kind == 0 || kind == 3 {
+		return -EBADF;
+	}
+	if kind != 2 {
+		return -ENOTDIR;
+	}
+
+	int w;
+	loop {
+		string name = dirName(fd);
+		if name == "" {
+			break;
+		}
+		int need = len(name) + 2;
+		if w + need > n {
+			return w == 0 ? -EINVAL : w;
+		}
+		buf[w] = char(dirKind(fd));
+		for i, c in name {
+			buf[w + 1 + i] = c;
+		}
+		buf[w + 1 + len(name)] = '\0';
+		w += need;
+		dirSkip(fd);
+	}
+	return w;
+}
+
+shared func parseDirent(*char buf, int pos) (string, int, int) {
+	int start = pos + 1;
+	int stop = start;
+	loop buf[stop] != '\0' {
+		stop++;
+	}
+	return string(buf[start:stop]), int(buf[pos]), stop + 1;
+}
+
+shared func getcwd(*char buf, int n) int {
+	string dir;
+	native lua(out dir) "dir = '/' .. (__lua_shell and __lua_shell.dir() or '')";
+	if len(dir) + 1 > n {
+		return -ERANGE;
+	}
+	for i, c in dir {
+		buf[i] = c;
+	}
+	buf[len(dir)] = '\0';
+	return len(dir) + 1;
+}
+
+shared func environ() **char {
+	**char r;
+	native lua(out r) "r = nil";
+	return r;
+}
+
+shared func time(int clock) (int, int) {
+	Timespec ts;
+	native lua(in clock, ts) "if clock == 0 then local ms = __lua_os.epoch and __lua_os.epoch('utc') or __lua_os.time() * 1000; ts.tv_sec = __lua_math.floor(ms / 1000); ts.tv_nsec = __lua_math.floor(ms % 1000) * 1000000 else local c = __lua_os.clock(); ts.tv_sec = __lua_math.floor(c); ts.tv_nsec = __lua_math.floor((c - ts.tv_sec) * 1000000000) end";
+	return ts.tv_sec, ts.tv_nsec;
+}
+
+shared func sleep(int sec, nsec) int {
+	native lua(in sec, nsec) "local t = sec + nsec / 1000000000; if __lua_os.sleep then __lua_os.sleep(t) else __lua_os.execute('sleep ' .. t) end";
+	return 0;
+}
+
+shared func random(*void buf, int n) int {
+	native lua(in buf, n) "for i = 0, n - 1 do buf.t[buf.o + i] = __lua_math.random(0, 255) end";
+	return n;
+}
+
+shared func isatty(int fd) bool {
+	return fd >= 0 && fd <= 2;
+}
+
+shared func exit(int code) {
+	native lua(in code) "if __lua_os.exit then __lua_os.exit(code) else error('exit ' .. code, 0) end";
+}

@@ -133,12 +133,8 @@ const targetRuntimeContent = `; Runtime of the %[1]s target: routines the compil
 ; Needed only when the program uses them:
 ; __wisp_error_emit, for a main that can fail and ends in an error: rdi holds the
 ; address of an error record. It writes the error to the error output and returns.
-; __wisp_malloc backs malloc: rdi holds the size in bytes. It returns the address
-; in rax and 0 in rdx, or 0 in rax and the address of an error record in rdx
-; when it fails (a negative size fails too).
-; __wisp_realloc backs realloc: rdi holds the address (or 0) and rsi the new
-; size. It returns like malloc and keeps the old block when it fails.
-; __wisp_free backs free: rdi holds the address (or 0). It returns nothing.
+; The allocator is not part of the runtime: it lives in the std/mem module, written
+; in Wisp over the sys syscalls of the target.
 ;
 ; They follow the System V calling convention and must keep rbx, rbp and r12
 ; to r15.

@@ -79,7 +79,7 @@ Without `[output]`, files go under a folder named after the target: `bin/<target
 | Target | Status |
 | --- | --- |
 | `linux_x64` | The main backend: NASM assembly, linked with `ld`, System V calling convention. Floating point and function values are still missing. |
-| `cc` | Secondary: Lua for CC: Tweaked computers, the stdlib uses its `fs` API. It has floating point and function values, but no `extern`. |
+| `cc` | Secondary: Lua for CC: Tweaked computers, the stdlib uses its `fs` API. It has floating point and function values, but no `extern`. Numbers are doubles there: integers are exact up to 2^53 and `int64` and `uint64` do not wrap around. |
 
 A target of your own is a `[targets.<name>]` block with a start file and a runtime file. `wisp init target <name>` writes both, with comments that say what each routine must do. A block named after a built-in target adjusts it.
 

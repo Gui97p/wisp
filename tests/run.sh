@@ -10,7 +10,7 @@ FILTER="${2:-}"
 ROOT="$(cd "$(dirname "$0")/numeric" && pwd)"
 OUT="$(mktemp -d)"
 RESULTS="$OUT/results.txt"
-export LUA_INIT="@$(cd "$(dirname "$0")/shim" && pwd)/fs.lua"
+export LUA_INIT="@$(cd "$(dirname "$0")/shim" && pwd)/cc.lua"
 : >"$RESULTS"
 
 clean() {

@@ -1,3 +1,11 @@
+if bit32 == nil then
+    bit32 = {
+        band = load("return function(a, b) return a & b end")(),
+        bor = load("return function(a, b) return a | b end")(),
+        bxor = load("return function(a, b) return a ~ b end")(),
+    }
+end
+
 if fs ~= nil then
     return
 end

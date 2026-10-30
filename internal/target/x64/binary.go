@@ -344,6 +344,7 @@ func (t *X64Target) compileBitwise(op string, left, right Operand, leftType, res
 	case "<<", ">>":
 		signed := isSigned(leftType)
 		allocated := false
+		claimed := false
 		length := size * 8
 		zeroLabel := t.newLabel("zero")
 		doneLabel := t.newLabel("done")
@@ -367,6 +368,7 @@ func (t *X64Target) compileBitwise(op string, left, right Operand, leftType, res
 			}
 
 			allocated = !t.ctx.AllocRegister(x64context.CX)
+			claimed = !allocated
 			if allocated {
 				t.push(x64context.CX)
 			}
@@ -400,7 +402,7 @@ func (t *X64Target) compileBitwise(op string, left, right Operand, leftType, res
 
 		if allocated {
 			t.pop(x64context.CX)
-		} else {
+		} else if claimed {
 			t.ctx.FreeRegister(x64context.CX)
 		}
 

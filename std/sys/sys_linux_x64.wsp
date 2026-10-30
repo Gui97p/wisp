@@ -1,223 +1,179 @@
-internal const O_RDONLY = 0;
-internal const O_WRONLY = 1;
-internal const O_RDWR = 2;
-internal const O_CREAT = 64;
-internal const O_EXCL = 128;
-internal const O_TRUNC = 512;
-internal const O_APPEND = 1024;
-internal const O_DIRECTORY = 65536;
-internal const O_CLOEXEC = 524288;
+const {
+	SYS_READ = 0;
+	SYS_WRITE = 1;
+	SYS_CLOSE = 3;
+	SYS_FSTAT = 5;
+	SYS_LSEEK = 8;
+	SYS_MMAP = 9;
+	SYS_MUNMAP = 11;
+	SYS_IOCTL = 16;
+	SYS_NANOSLEEP = 35;
+	SYS_GETDENTS64 = 217;
+	SYS_GETCWD = 79;
+	SYS_FSYNC = 74;
+	SYS_EXIT_GROUP = 231;
+	SYS_OPENAT = 257;
+	SYS_MKDIRAT = 258;
+	SYS_NEWFSTATAT = 262;
+	SYS_UNLINKAT = 263;
+	SYS_RENAMEAT = 264;
+	SYS_CLOCK_GETTIME = 228;
+	SYS_GETRANDOM = 318;
 
-internal const SEEK_SET = 0;
-internal const SEEK_CUR = 1;
-internal const SEEK_END = 2;
+	AT_FDCWD = -100;
 
-internal const CLOCK_REALTIME = 0;
-internal const CLOCK_MONOTONIC = 1;
+	PROT_READ = 1;
+	PROT_WRITE = 2;
+	PROT_RW = PROT_READ | PROT_WRITE;
 
-internal const AT_FDCWD = -100;
-internal const AT_REMOVEDIR = 512;
+	MAP_PRIVATE = 2;
+	MAP_ANONYMOUS = 32;
+	MAP_PRIVATE_ANON = MAP_PRIVATE | MAP_ANONYMOUS;
 
-struct Timespec {
-	int tv_sec;
-    int tv_nsec;
+	TCGETS = 0x5401;
+
+	NO_FD = -1;
 }
 
-internal struct Stat {
-	uint64 st_dev;
-    uint64 st_ino;
-    uint64 st_nlink;
-	
-    uint32 st_mode;
-    uint32 st_uid;
-    uint32 st_gid;
-    uint32 pad0;
-	
-    uint64 st_rdev;
-    int st_size;
-    int st_blksize;
-    int st_blocks;
-	
-    Timespec st_atim;
-    Timespec st_mtim;
-    Timespec st_ctim;
-	
-    int __reserved0;
-    int __reserved1;
-    int __reserved2;
-}
-
-internal const S_IFMT = 0o170000;
-internal const S_IFREG = 0o100000;
-internal const S_IFDIR = 0o040000;
-internal const S_IFLNK = 0o120000;
-
-internal const DT_UNKNOWN = 0;
-internal const DT_DIR = 4;
-internal const DT_REG = 8;
-internal const DT_LNK = 10;
-
-internal func errno(int raw) int {
-    if raw < 0 && raw >= -4095 {
-        return -raw;
-    }
-    return 0;
-}
-
-internal func read(int fd, *char buf, int n) int {
+shared func read(int fd, *char buf, int n) int {
 	int r;
-	native linux_x64(in fd, buf, n, out r) "xor eax, eax; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
-	native lua() "error('sys.read is not available on lua')";
+	native linux_x64(in fd, buf, n, out r) "mov eax, {SYS_READ}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func write(int fd, *char buf, int n) int {
+shared func write(int fd, *char buf, int n) int {
     int r;
-    native linux_x64(in fd, buf, n, out r) "mov rax, 1; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
-	native lua(in fd, buf, n, out r) "local f = fd == 2 and io.stderr or io.stdout; f:write(__wisp_pstr(buf, n)); r = n";
+    native linux_x64(in fd, buf, n, out r) "mov eax, {SYS_WRITE}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func open(*char path, int flags, int mode) int {
+shared func open(*char path, int flags, int mode) int {
 	int fd;
-	native linux_x64(in path, flags, mode, out fd) "mov rax, 257; mov rdi, -100; mov rsi, {path}; mov rdx, {flags}; mov r10, {mode}; syscall; mov {fd}, rax";
-	native lua "error('sys.open is not available on lua')";
+	native linux_x64(in path, flags, mode, out fd) "mov eax, {SYS_OPENAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; mov r10, {mode}; syscall; mov {fd}, rax";
 	return fd;
 }
 
-internal func close(int fd) int {
+shared func close(int fd) int {
 	int r;
-	native linux_x64(in fd, out r) "mov rax, 3; mov rdi, {fd}; syscall; mov {r}, rax";
-	native lua "error('sys.close is not available on lua')";
+	native linux_x64(in fd, out r) "mov eax, {SYS_CLOSE}; mov rdi, {fd}; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func seek(int fd, offset, whence) int {
+shared func seek(int fd, offset, whence) int {
 	int off;
-	native linux_x64(in fd, offset, whence, out off) "mov rax, 8; mov rdi, {fd}; mov rsi, {offset}; mov rdx, {whence}; syscall; mov {off}, rax";
-	native lua "error('sys.seek is not available on lua')";
+	native linux_x64(in fd, offset, whence, out off) "mov eax, {SYS_LSEEK}; mov rdi, {fd}; mov rsi, {offset}; mov rdx, {whence}; syscall; mov {off}, rax";
 	return off;
 }
 
-internal func sync(int fd) int {
+shared func sync(int fd) int {
 	int r;
-	native linux_x64(in fd, out r) "mov rax, 74; mov rdi, {fd}; syscall; mov {r}, rax";
-	native lua "error('sys.sync is not available on lua')";
+	native linux_x64(in fd, out r) "mov eax, {SYS_FSYNC}; mov rdi, {fd}; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func size(int fd) int {
+shared func size(int fd) int {
 	Stat stat;
 	int r;
-	native linux_x64(in fd, stat, out r) "mov rax, 5; mov rdi, {fd}; lea rsi, {&stat}; syscall; mov {r}, rax";
-	native lua "error('sys.size is not available on lua')";
+	native linux_x64(in fd, stat, out r) "mov eax, {SYS_FSTAT}; mov rdi, {fd}; lea rsi, {&stat}; syscall; mov {r}, rax";
 	return r < 0 ? r : stat.st_size;
 }
 
-internal func remove(*char path, int flags) int {
+shared func remove(*char path, int flags) int {
 	int r;
-	native linux_x64(in path, flags, out r) "mov rax, 263; mov rdi, -100; mov rsi, {path}; mov rdx, {flags}; syscall; mov {r}, rax";
-	native lua "error('sys.remove is not available on lua')";
+	native linux_x64(in path, flags, out r) "mov eax, {SYS_UNLINKAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func mmap(int len) *void {
+shared func mmap(int len) *void {
 	*void r;
-	native linux_x64(in len, out r) "mov rax, 9; xor edi, edi; mov rsi, {len}; mov rdx, 3; mov r10, 34; mov r8, -1; xor r9d, r9d; syscall; mov {r}, rax";
-	native lua "error('sys.mmap is not available on lua')";
+	native linux_x64(in len, out r) "mov eax, {SYS_MMAP}; xor edi, edi; mov rsi, {len}; mov rdx, {PROT_RW}; mov r10, {MAP_PRIVATE_ANON}; mov r8, {NO_FD}; xor r9d, r9d; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func munmap(*void addr, int len) int {
+shared func munmap(*void addr, int len) int {
     int r;
-    native linux_x64(in addr, in len, out r) "mov rax, 11; mov rdi, {addr}; mov rsi, {len}; syscall; mov {r}, rax";
-    native lua "error('sys.mumap is not available on lua')";
+    native linux_x64(in addr, in len, out r) "mov eax, {SYS_MUNMAP}; mov rdi, {addr}; mov rsi, {len}; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func time(int clock) (int, int) {
+shared func time(int clock) (int, int) {
 	Timespec ts;
-	native linux_x64(in clock, ts) "mov rax, 228; mov rdi, {clock}; lea rsi, {&ts}; syscall";
-	native lua(in clock, ts) "if clock == 0 then ts.tv_sec = os.time(); ts.tv_nsec = 0 else local c = os.clock(); ts.tv_sec = math.floor(c); ts.tv_nsec = math.floor((c - ts.tv_sec) * 1000000000) end";
+	native linux_x64(in clock, ts) "mov eax, {SYS_CLOCK_GETTIME}; mov rdi, {clock}; lea rsi, {&ts}; syscall";
 	return ts.tv_sec, ts.tv_nsec;
 }
 
-internal func sleep(int sec, nsec) int {
+shared func sleep(int sec, nsec) int {
 	Timespec req = Timespec{tv_sec: sec, tv_nsec: nsec};
 	int r;
-	native linux_x64(in req, out r) "mov rax, 35; lea rdi, {&req}; xor esi, esi; syscall; mov {r}, rax";
-	native lua "error('sys.sleep is not available on lua')";
+	native linux_x64(in req, out r) "mov eax, {SYS_NANOSLEEP}; lea rdi, {&req}; xor esi, esi; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func random(*void buf, int n) int {
+shared func random(*void buf, int n) int {
 	int r;
-	native linux_x64(in buf, n, out r) "mov rax, 318; mov rdi, {buf}; mov rsi, {n}; xor edx, edx; syscall; mov {r}, rax";
-	native lua "error('sys.random is not available on lua')";
+	native linux_x64(in buf, n, out r) "mov eax, {SYS_GETRANDOM}; mov rdi, {buf}; mov rsi, {n}; xor edx, edx; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func isatty(int fd) bool {
+shared func isatty(int fd) bool {
 	char[64] termios;
 	int r;
-	native linux_x64(in fd, termios, out r) "mov rax, 16; mov rdi, {fd}; mov rsi, 0x5401; lea rdx, {&termios}; syscall; mov {r}, rax";
-	native lua "error('sys.isatty is not available on lua')";
+	native linux_x64(in fd, termios, out r) "mov eax, {SYS_IOCTL}; mov rdi, {fd}; mov rsi, {TCGETS}; lea rdx, {&termios}; syscall; mov {r}, rax";
 	return r == 0;
 }
 
-internal func exit(int code) {
-    native linux_x64(in code) "mov rax, 231; mov rdi, {code}; syscall";
-    native lua(in code) "os.exit(code)";
+shared func exit(int code) {
+    native linux_x64(in code) "mov eax, {SYS_EXIT_GROUP}; mov rdi, {code}; syscall";
 }
 
-internal func mkdir(*char path, int mode) int {
+shared func mkdir(*char path, int mode) int {
 	int r;
-	native linux_x64(in path, mode, out r) "mov rax, 258; mov rdi, -100; mov rsi, {path}; mov rdx, {mode}; syscall; mov {r}, rax";
-	native lua "error('sys.mkdir is not available on lua')";
+	native linux_x64(in path, mode, out r) "mov eax, {SYS_MKDIRAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {mode}; syscall; mov {r}, rax";
 	return r;
 }
 
-internal func rename(*char from, to) int {
+shared func rename(*char from, to) int {
 	int r;
-
-    native linux_x64(in from, in to, out r)
-        "mov rax, 264; mov rdi, -100; mov rsi, {from}; mov rdx, -100; mov r10, {to}; syscall; mov {r}, rax";
-    native lua "error('sys.rename is not available on lua')";
-
+    native linux_x64(in from, in to, out r) "mov eax, {SYS_RENAMEAT}; mov rdi, {AT_FDCWD}; mov rsi, {from}; mov rdx, {AT_FDCWD}; mov r10, {to}; syscall; mov {r}, rax";
     return r;
 }
 
-internal func stat(*char path, *void buf) int {
+shared func stat(*char path, *void buf) int {
     int r;
-    native linux_x64(in path, buf, out r) "mov rax, 262; mov rdi, -100; mov rsi, {path}; mov rdx, {buf}; xor r10, r10; syscall; mov {r}, rax";
-    native lua "error('sys.stat is not available on lua')";
+    native linux_x64(in path, buf, out r) "mov eax, {SYS_NEWFSTATAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {buf}; xor r10, r10; syscall; mov {r}, rax";
     return r;
 }
 
-internal func fstat(int fd, *void buf) int {
+shared func fstat(int fd, *void buf) int {
     int r;
-    native linux_x64(in fd, in buf, out r) "mov rax, 5; mov rdi, {fd}; mov rsi, {buf}; syscall; mov {r}, rax";
-    native lua "error('sys.fstat is not available on lua')";
+    native linux_x64(in fd, in buf, out r) "mov eax, {SYS_FSTAT}; mov rdi, {fd}; mov rsi, {buf}; syscall; mov {r}, rax";
     return r;
 }
 
-internal func getdents(int fd, *char buf, int n) int {
+shared func getdents(int fd, *char buf, int n) int {
     int r;
-    native linux_x64(in fd, in buf, in n, out r) "mov rax, 217; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
-    native lua "error('sys.getdents is not available on lua')";
+    native linux_x64(in fd, in buf, in n, out r) "mov eax, {SYS_GETDENTS64}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
     return r;
 }
 
-internal func getcwd(*char buf, int n) int {
+shared func getcwd(*char buf, int n) int {
     int r;
-    native linux_x64(in buf, in n, out r) "mov rax, 79; mov rdi, {buf}; mov rsi, {n}; syscall; mov {r}, rax";
-    native lua "error('sys.getcwd is not available on lua')";
+    native linux_x64(in buf, in n, out r) "mov eax, {SYS_GETCWD}; mov rdi, {buf}; mov rsi, {n}; syscall; mov {r}, rax";
     return r;
 }
 
-internal func environ() **char {
+shared func environ() **char {
 	**char r;
 	native linux_x64(out r) "extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
-	native lua "error('sys.environ is not available on lua')";
 	return r;
+}
+
+shared func parseDirent(*char buf, int pos) (string, int, int) {
+	int start = pos + 19;
+	int end = start;
+	loop buf[end] != '\0' {
+		end++;
+	}
+
+	return string(buf[start:end]), buf[pos + 18], pos + (int(buf[pos+16]) | int(buf[pos+17]) << 8);
 }

@@ -61,6 +61,58 @@ func main() {
     check(h == 9223372036854775808, "biglit uint64 two to the 63");
     check(u != h, "biglit uint64 distinct");
     uint64 w = h + h;
+    uint64 x = 0;
+    x -= 1;
+}
+`},
+
+	{dir: "big_literal_wide", x64Only: true, src: `func id(int64 x) int64 {
+    return x;
+}
+
+func eighth(int64 a, int64 b, int64 c, int64 d, int64 e, int64 f, int64 g, int64 h) int64 {
+    return h;
+}
+
+func big() int64 {
+    return 5000000000;
+}
+
+func main() {
+    int64 a = 5000000000;
+    check(a == 5000000000, "biglit init and compare right");
+    check(5000000000 == a, "biglit compare left");
+    check(a != 4999999999, "biglit not equal");
+    int64 b = a + 5000000000;
+    check(b == 10000000000, "biglit add right operand");
+    int64 c = 5000000000 + a;
+    check(c == 10000000000, "biglit add left operand");
+    int64 d = a - 4999999999;
+    check(d == 1, "biglit sub right operand");
+    int64 e = 20000000000 - a;
+    check(e == 15000000000, "biglit sub left operand");
+    int64 f = a * 3;
+    check(f == 15000000000, "biglit mul small literal");
+    a += 5000000000;
+    check(a == 10000000000, "biglit compound add");
+    a -= 1;
+    check(a == 9999999999, "biglit compound sub small");
+    a = 4294967296;
+    check(a == 4294967296, "biglit two to the 32");
+    a = 2147483648;
+    check(a == 2147483648, "biglit two to the 31");
+    a = 2147483647;
+    a += 1;
+    check(a == 2147483648, "biglit crossing 32 bit boundary by add");
+    check(id(5000000000) == 5000000000, "biglit as argument");
+    check(big() == 5000000000, "biglit as return value");
+    check(eighth(1, 2, 3, 4, 5, 6, 7, 5000000000) == 5000000000, "biglit as stack argument");
+    uint64 u = 18446744073709551615;
+    check(u == 18446744073709551615, "biglit uint64 max equality");
+    uint64 h = 9223372036854775808;
+    check(h == 9223372036854775808, "biglit uint64 two to the 63");
+    check(u != h, "biglit uint64 distinct");
+    uint64 w = h + h;
     check(w == 0, "biglit uint64 wraps to zero");
     uint64 x = 0;
     x -= 1;
@@ -309,6 +361,24 @@ func main() {
     check(a == m, "alias int wraps like int64");
     uint u = 0;
     u -= 1;
+    char c = 65;
+    c += 1;
+    check(c == 66, "alias char arithmetic");
+    char d = 255;
+    d += 1;
+    check(d == 0, "alias char wraps like uint8");
+}
+`},
+
+	{dir: "alias_types_wide", x64Only: true, src: `func main() {
+    int a = 9223372036854775807;
+    a += 1;
+    int m = 0;
+    m -= 9223372036854775807;
+    m -= 1;
+    check(a == m, "alias int wraps like int64");
+    uint u = 0;
+    u -= 1;
     check(u == 18446744073709551615, "alias uint wraps like uint64");
     char c = 65;
     c += 1;
@@ -320,6 +390,31 @@ func main() {
 `},
 
 	{dir: "cast_literal", src: `func main() {
+    int big = 300;
+    uint8 a = uint8(big);
+    check(a == 44, "castlit 300 to uint8");
+    int two = 200;
+    int8 b = int8(two);
+    check(b + 56 == 0, "castlit 200 to int8");
+    int wide = 70000;
+    uint16 c = uint16(wide);
+    check(c == 4464, "castlit 70000 to uint16");
+    int64 huge = 4294967295;
+    int32 d = int32(huge);
+    check(d + 1 == 0, "castlit 4294967295 to int32");
+    int64 five = 5000000000;
+    uint32 e = uint32(five);
+    check(e == 705032704, "castlit 5000000000 to uint32");
+    uint64 top = 18446744073709551615;
+    int64 f = int64(top);
+    uint8 g = uint8(200);
+    check(g == 200, "castlit constant that fits");
+    int8 h = int8(0 + 100);
+    check(h == 100, "castlit constant expression");
+}
+`},
+
+	{dir: "cast_literal_wide", x64Only: true, src: `func main() {
     int big = 300;
     uint8 a = uint8(big);
     check(a == 44, "castlit 300 to uint8");
@@ -976,7 +1071,7 @@ func main() {
     check(shapes.boxArea(3) == 6, "an internal field is used by the files of its package");
 }
 `, expected: []string{"a package entry reaches its internal files", "a package exposes what its files make public", "an internal method works inside its package", "an internal field is used by the files of its package"}},
-	{dir: "array_to_slice", x64Only: true, src: `struct Box {
+	{dir: "array_to_slice", src: `struct Box {
     int[3] items;
 }
 
@@ -1018,12 +1113,8 @@ func main() {
 
     check(total([4, 5, 6]) == 15, "an array literal passes as a slice");
 
-    char[3] word = ['a', 'b', 'c'];
-    string seen = string(word);
-    word[0] = 'x';
-    check(seen == "xbc", "a char array converts to a string view of itself");
 }
-`, expected: []string{"an array variable passes as a slice", "the slice is a view of the array", "an array initialises a slice variable", "an array is assigned to a slice", "an array field passes as a slice", "an array element passes as a slice", "an explicit slice still works", "an array literal passes as a slice", "a char array converts to a string view of itself"}},
+`, expected: []string{"an array variable passes as a slice", "the slice is a view of the array", "an array initialises a slice variable", "an array is assigned to a slice", "an array field passes as a slice", "an array element passes as a slice", "an explicit slice still works", "an array literal passes as a slice"}},
 	{dir: "main_args", luaOnly: true, src: `func main(string[] args) !int {
     check(len(args) == 0, "main receives the arguments as a string[]");
     for _, a in args {
@@ -2231,6 +2322,77 @@ func main() {
 }
 `},
 
+	{dir: "view_semantics", x64Only: true, src: `import "std/fmt";
+import "std/mem";
+
+char[64] scratch;
+char[64] other;
+
+func main() ! {
+    char[3] word = ['a', 'b', 'c'];
+    string seen = string(word);
+    word[0] = 'x';
+    check(seen == "xbc", "a char array converts to a string view of itself");
+
+    *int8 b = mem.alloc(8)!;
+    b[0] = 104;
+    b[1] = 105;
+    string s = string(b[0:2]);
+    b[1] = 111;
+    check(s == "ho", "string is a view of the buffer");
+    mem.free(b);
+
+    int x = 5;
+    *int p = &x;
+    let n, err = fmt.sprintf(scratch[:], "{}", p);
+    check(err == null && n > 2 && string(scratch[0:2]) == "0x", "a pointer starts with 0x");
+    let m, err2 = fmt.sprintf(other[:], "{p}", p);
+    check(err2 == null && m == n && string(scratch[0:n]) == string(other[0:m]), "p is the default for a pointer");
+}
+`, expected: []string{"a char array converts to a string view of itself", "string is a view of the buffer", "a pointer starts with 0x", "p is the default for a pointer"}},
+
+	{dir: "native_consts", x64Only: true, files: map[string]string{"limits/limits.wsp": `public const {
+    Base = 40;
+    Extra = 2;
+}
+`, "main.wsp": `import "limits";
+
+const {
+    Greeting = "hey";
+    Bias = -1;
+    Enabled = true;
+}
+
+func check(bool ok, string name) {
+    if ok {
+        emit(name);
+    } else {
+        emit("FAIL");
+        emit(name);
+    }
+}
+
+func main() {
+    int sum;
+    native linux_x64(out sum) "mov {sum}, {limits.Base}; add {sum}, {limits.Extra}";
+    check(sum == 42, "a constant of another module is an immediate");
+
+    int bias;
+    native linux_x64(out bias) "mov {bias}, {Bias}";
+    check(bias == -1, "a negative constant keeps its sign");
+
+    int on;
+    native linux_x64(out on) "mov {on}, {Enabled}";
+    check(on == 1, "a bool constant is 1 or 0");
+
+    int n;
+    *char p;
+    native linux_x64(out n, p) "mov {n}, {Greeting.len}; lea rax, [rel {Greeting.ptr}]; mov {p}, rax";
+    check(n == 3, "the length of a string constant");
+    check(string(p[:n]) == "hey", "the address of a string constant");
+}
+`}, expected: []string{"a constant of another module is an immediate", "a negative constant keeps its sign", "a bool constant is 1 or 0", "the length of a string constant", "the address of a string constant"}},
+
 	{dir: "const_group", files: map[string]string{"limits/limits.wsp": `public const {
     Rows = 4;
     Cols = Rows * 2;
@@ -2782,6 +2944,41 @@ func main() {
     check(u % v == 4, "divreg uint8 remainder");
     uint64 big = 18446744073709551615;
     uint64 three = 3;
+    int x = 100;
+    x /= c;
+    check(x == 25, "divreg compound division");
+    x %= 7;
+    check(x == 4, "divreg compound remainder");
+}
+`},
+
+	{dir: "divmod_registers_wide", x64Only: true, src: `func idiv(int a, int b) int {
+    return a / b;
+}
+
+func main() {
+    int a1 = 1;
+    int a2 = 2;
+    int b = 20;
+    int c = 4;
+    check((a1 + a2) + (b / c) == 8, "divreg ax busy while dividing");
+    check((a1 + a2) + (b % 7) == 9, "divreg ax busy while taking the remainder");
+    check((b / c) + (b / c) == 10, "divreg two divisions in one expression");
+    check((a1 + b) / (a2 + c) == 3, "divreg operands are registers");
+    check((b + c) % (a1 + a2) == 0, "divreg remainder of registers");
+    check(b / c / a2 == 2, "divreg chained divisions");
+    check((a1 + a2) + ((b / c) + ((a1 + a2) + (c / a2))) == 13, "divreg nested with live registers");
+    check(idiv(100, 7) + idiv(9, 2) == 18, "divreg through calls");
+    int8 s = 100;
+    int8 t = 7;
+    check(s / t == 14, "divreg int8 quotient");
+    check(s % t == 2, "divreg int8 remainder");
+    uint8 u = 200;
+    uint8 v = 7;
+    check(u / v == 28, "divreg uint8 quotient");
+    check(u % v == 4, "divreg uint8 remainder");
+    uint64 big = 18446744073709551615;
+    uint64 three = 3;
     check(big / three == 6148914691236517205, "divreg uint64 high values");
     check(big % three == 0, "divreg uint64 remainder");
     int x = 100;
@@ -2819,7 +3016,7 @@ func main() {
 }
 `, expected: []string{"abortdiv8 before the division by zero"}, abort: "panic: integer divide by zero"},
 
-	{dir: "abort_div_zero_uint64", src: `func main() {
+	{dir: "abort_div_zero_uint64", x64Only: true, src: `func main() {
     uint64 a = 18446744073709551615;
     uint64 z = 0;
     check(a / 2 == 9223372036854775807, "abortdivu64 before the division by zero");
@@ -2855,6 +3052,32 @@ func main() {
 `, expected: []string{"abortpanic before the panic"}, abort: "panic: custom message"},
 
 	{dir: "div_min_by_minus_one", src: `func main() {
+    int8 min8 = 0;
+    min8 -= 100;
+    min8 -= 28;
+    int8 neg8 = 0;
+    neg8 -= 1;
+    check(min8 / neg8 == min8, "minneg int8 quotient wraps to min");
+    check(min8 % neg8 == 0, "minneg int8 remainder is zero");
+    int32 min32 = 0;
+    min32 -= 2147483647;
+    min32 -= 1;
+    int32 neg32 = 0;
+    neg32 -= 1;
+    check(min32 / neg32 == min32, "minneg int32 quotient wraps to min");
+    check(min32 % neg32 == 0, "minneg int32 remainder is zero");
+    int64 min64 = 0;
+    min64 -= 9223372036854775807;
+    min64 -= 1;
+    int64 neg64 = 0;
+    neg64 -= 1;
+    check(min64 % neg64 == 0, "minneg int64 remainder is zero");
+    int64 seven = 7;
+    check(seven / neg64 == 0 - 7, "minneg ordinary value by minus one");
+}
+`},
+
+	{dir: "div_min_by_minus_one_wide", x64Only: true, src: `func main() {
     int8 min8 = 0;
     min8 -= 100;
     min8 -= 28;
@@ -3429,7 +3652,7 @@ func main() ! {
 }
 `, expected: []string{"base takes the last element", "base ignores trailing separators", "base of only separators is the root", "base of an empty path is a dot", "base keeps a trailing space", "dir drops the last element", "dir of a path under the root is the root", "dir of the root is the root", "dir of a single name is a dot", "dir ignores trailing separators", "dir does not clean", "ext is the last dot and stem is the rest", "a leading dot is part of the name", "a trailing dot is part of the name", "ext looks only at the base", "isAbs", "join puts one separator between parts", "join collapses repeated separators", "join skips empty parts", "join keeps the root of the first part", "join writes the root once", "join takes the root from the first part that is not empty", "join of a name and the root is the name", "join of nothing is empty", "join of the root is the root", "join reports NoSpace", "join with a root reports NoSpace", "elements skips empty pieces", "elements of a root or an empty path is nothing", "tokens skips the empty piece at the end", "clean of an empty path is a dot", "clean collapses separators", "clean drops dots", "clean resolves dot dot", "clean can end in a dot", "clean keeps leading dot dots in a relative path", "clean keeps the dot dot that has nothing to undo", "clean never goes above the root", "clean drops the trailing separator", "clean undoes several elements", "clean reports NoSpace"}},
 
-	{dir: "os_dir", x64Only: true, src: `import "std/os";
+	{dir: "os_dir", src: `import "std/os";
 import "std/path";
 import "std/conv";
 
@@ -3501,7 +3724,7 @@ func main() ! {
 }
 `, expected: []string{"a directory lists its files and subdirectories with their kinds", "the entries . and .. are not listed", "an empty directory lists nothing", "openDir on a file is NotDir", "a listing that needs several reads finds every entry"}},
 
-	{dir: "os_mkdirall", x64Only: true, src: `import "std/os";
+	{dir: "os_mkdirall", src: `import "std/os";
 import "std/path";
 
 func main() ! {
@@ -3538,6 +3761,52 @@ func main() ! {
 `, expected: []string{"mkdirAll creates every missing level", "mkdirAll of an existing directory is not an error", "mkdirAll creates only what is missing", "mkdirAll accepts a trailing separator", "mkdirAll over a file is NotDir", "mkdirAll under a file is NotDir", "mkdirAll of an empty path is NotFound"}},
 
 	{dir: "math_core", src: `import "std/math";
+import "std/errors";
+
+func main() {
+    check(math.min(5) == 5 && math.max(7) == 7, "min and max of a single argument");
+    check(math.min(5, 2, 9) == 2 && math.max(5, 2, 9) == 9, "min and max of several arguments");
+    check(math.min() == 0 && math.max() == 0, "min and max of nothing are zero");
+    check(math.abs(-3) == 3 && math.abs(3) == 3, "abs");
+    check(math.clamp(5, 1, 3) == 3 && math.clamp(-5, 1, 3) == 1 && math.clamp(2, 1, 3) == 2, "clamp");
+    check(math.mod(-7, 3) == 2 && math.mod(7, -3) == 1 && math.mod(-7, -3) == 2 && math.mod(6, 3) == 0, "mod is never negative");
+    check(math.gcd(12, 18) == 6 && math.gcd(4, -6) == 2 && math.gcd(-4, 6) == 2, "gcd is not negative");
+    check(math.gcd(0, 5) == 5 && math.gcd(0, 0) == 0, "gcd with a zero");
+    check(math.sqrt(0) == 0 && math.sqrt(1) == 1 && math.sqrt(2) == 1 && math.sqrt(15) == 3 && math.sqrt(16) == 4, "sqrt rounds down");
+    check(math.sqrt(-9) == 0, "sqrt of a negative is zero");
+    check(math.sqrt(math.MAX_INT) == 3037000499 && math.sqrt(9223372030926249001) == 3037000499, "sqrt at the top of the range");
+    check(math.leadingZeros(1) == 63 && math.leadingZeros(0) == 64 && math.leadingZeros(0x8000000000000000) == 0 && math.leadingZeros(255) == 56, "leadingZeros");
+    check(math.MIN_INT8 == -128 && math.MAX_INT8 == 127 && math.MIN_INT16 == -32768 && math.MAX_INT16 == 32767 && math.MIN_INT32 == -2147483648 && math.MAX_INT32 == 2147483647, "the signed limits");
+    check(math.MAX_UINT8 == 255 && math.MAX_UINT16 == 65535 && math.MAX_UINT32 == 4294967295 && math.MAX_UINT64 == 0xFFFFFFFFFFFFFFFF && math.MAX_UINT == math.MAX_UINT64, "the unsigned limits");
+    check(math.checkedAdd(math.MAX_INT, -1)!! == 9223372036854775806, "checkedAdd inside the range");
+    check(math.checkedSub(5, 7)!! == -2, "checkedSub inside the range");
+    check(math.checkedMul(3037000499, 3037000499)!! == 9223372030926249001, "checkedMul at the top of the range");
+    check(math.checkedMul(-3037000499, 3037000499)!! == -9223372030926249001, "checkedMul of mixed signs");
+    check(math.checkedMul(-4611686018427387904, 2)!! == math.MIN_INT, "checkedMul that lands on the minimum");
+    check(math.checkedMul(0, math.MIN_INT)!! == 0, "checkedMul by zero");
+    check(math.checkedAbs(-5)!! == 5, "checkedAbs");
+    check(math.pow(2, 62)!! == 4611686018427387904, "pow 2 to the 62");
+    check(math.pow(10, 18)!! == 1000000000000000000, "pow 10 to the 18");
+    check(math.pow(-2, 63)!! == math.MIN_INT, "pow -2 to the 63 is the minimum");
+    check(math.pow(0, 0)!! == 1 && math.pow(5, 0)!! == 1 && math.pow(0, 5)!! == 0 && math.pow(3, 4)!! == 81, "pow with a zero");
+    check(math.lcm(4, 6)!! == 12 && math.lcm(-4, 6)!! == 12, "lcm is not negative");
+    check(math.lcm(0, 5)!! == 0 && math.lcm(0, 0)!! == 0 && math.lcm(5, 0)!! == 0, "lcm with a zero");
+    let ve30, e30 = math.checkedAdd(math.MAX_INT, 1);
+    check(e30 == errors.Kind.Overflow, "checkedAdd past the top is Overflow");
+    let ve38, e38 = math.checkedMul(math.MIN_INT, -1);
+    check(e38 == errors.Kind.Overflow, "checkedMul of the minimum by -1 is Overflow");
+    let ve40, e40 = math.checkedMul(-1, math.MIN_INT);
+    check(e40 == errors.Kind.Overflow, "checkedMul of -1 by the minimum is Overflow");
+    let ve42, e42 = math.checkedMul(3037000500, 3037000500);
+    check(e42 == errors.Kind.Overflow, "checkedMul past the top is Overflow");
+    let ve48, e48 = math.checkedAbs(math.MIN_INT);
+    check(e48 == errors.Kind.Overflow, "checkedAbs of the minimum is Overflow");
+    let ve52, e52 = math.pow(3, 40);
+    check(e52 == errors.Kind.Overflow, "pow 3 to the 40 is Overflow");
+}
+`, expected: []string{"min and max of a single argument", "min and max of several arguments", "min and max of nothing are zero", "abs", "clamp", "mod is never negative", "gcd is not negative", "gcd with a zero", "sqrt rounds down", "sqrt of a negative is zero", "sqrt at the top of the range", "leadingZeros", "the signed limits", "the unsigned limits", "checkedAdd inside the range", "checkedSub inside the range", "checkedMul at the top of the range", "checkedMul of mixed signs", "checkedMul that lands on the minimum", "checkedMul by zero", "checkedAbs", "pow 2 to the 62", "pow 10 to the 18", "pow -2 to the 63 is the minimum", "pow with a zero", "lcm is not negative", "lcm with a zero", "checkedAdd past the top is Overflow", "checkedMul of the minimum by -1 is Overflow", "checkedMul of -1 by the minimum is Overflow", "checkedMul past the top is Overflow", "checkedAbs of the minimum is Overflow", "pow 3 to the 40 is Overflow"}},
+
+	{dir: "math_core_wide", x64Only: true, src: `import "std/math";
 import "std/errors";
 
 func main() {
@@ -4191,7 +4460,7 @@ func main() ! {
 }
 `, expected: []string{"pointer plus offset", "pointer difference", "offset plus pointer", "pointer ordering", "pointer ordering reversed", "pointer minus assign", "pointer plus assign", "pointer minus offset", "byte pointer difference", "byte pointer address step", "struct pointer difference", "struct pointer steps by sizeof", "pointer plus variable", "pointer plus narrow integer", "pointer increment steps one element", "pointer decrement steps one element", "byte pointer increment", "struct pointer increment"}},
 
-	{dir: "string_from_bytes", x64Only: true, src: `import "std/mem";
+	{dir: "string_from_bytes", src: `import "std/mem";
 func main() ! {
     *int8 b = mem.alloc(8)!;
     b[0] = 104;
@@ -4199,8 +4468,6 @@ func main() ! {
     string s = string(b[0:2]);
     check(len(s) == 2, "string from int8 pointer slice length");
     check(s == "hi", "string from int8 pointer slice content");
-    b[1] = 111;
-    check(s == "ho", "string is a view of the buffer");
 
     *char c = mem.alloc(4)!;
     c[0] = 'o';
@@ -4219,7 +4486,7 @@ func main() ! {
     mem.free(b);
     mem.free(c);
 }
-`, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string is a view of the buffer", "string from char slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
+`, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string from char slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
 
 	{dir: "free_slice", src: `import "std/mem";
 func main() ! {
@@ -4368,7 +4635,179 @@ func main() {
 }
 `, expected: []string{"global zero initializer", "global constant expression initializer", "global string initializer", "global inferred initializer", "global enum initializer", "global array initializer", "global struct initializer", "global multiple declaration", "global bool and char", "global compound assign", "global increment", "global array element write", "global struct field write", "global string write", "global used by a function above it", "global bool write", "global is shared across calls"}},
 
-	{dir: "fmt_core", x64Only: true, src: `import "std/fmt";
+	{dir: "fmt_core", src: `import "std/fmt";
+import "std/os";
+import "std/errors";
+
+enum Color {
+    Red,
+    Green,
+}
+
+char[256] scratch;
+
+func fm(string format, ...args) string {
+    let n, err = fmt.sprintf(scratch[:], format, args...);
+    if err != null {
+        return "<error>";
+    }
+    return string(scratch[0:n]);
+}
+
+func eq(string got, string want, string what) {
+    check(got == want, what);
+}
+
+type Meters int;
+
+func fl(string format, ...args) string {
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], mode: fmt.BufMode.Full};
+    let _, _ = w.format(format, args...);
+    return string(scratch[0:w.buffered()]);
+}
+
+func fe(string format, ...args) Error {
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], mode: fmt.BufMode.Full};
+    let _, err = w.format(format, args...);
+    return err;
+}
+
+func main() {
+    uint big = 18446744073709551615;
+    int8 small = -5;
+    eq(fm("{}", 42), "42", "decimal");
+    eq(fm("{}", -42), "-42", "negative decimal");
+    eq(fm("{}", 0), "0", "zero");
+    eq(fm("{}", small), "-5", "int8");
+    eq(fm("{d}", 7), "7", "d type letter");
+    eq(fm("{x}", 255), "ff", "hex lower case");
+    eq(fm("{X}", 255), "FF", "hex upper case");
+    eq(fm("{#x}", 255), "0xff", "hex prefix");
+    eq(fm("{b}", 5), "101", "binary");
+    eq(fm("{#b}", 5), "0b101", "binary prefix");
+    eq(fm("{o}", 8), "10", "octal");
+    eq(fm("{#o}", 8), "0o10", "octal prefix");
+    eq(fm("{x}", -255), "-ff", "negative hex");
+    eq(fm("{5}", 42), "   42", "number aligns right");
+    eq(fm("{<5}", 42), "42   ", "left align");
+    eq(fm("{^6}", 42), "  42  ", "center with even padding");
+    eq(fm("{^5}", 42), " 42  ", "center with odd padding puts the extra space on the right");
+    eq(fm("{05}", 42), "00042", "zero padding");
+    eq(fm("{05}", -42), "-0042", "zero padding goes after the sign");
+    eq(fm("{05x}", 255), "000ff", "zero padded hex");
+    eq(fm("{#06x}", 255), "0x00ff", "zeros go after the prefix");
+    eq(fm("{1}", 1234), "1234", "width smaller than the text changes nothing");
+    eq(fm("{-<6}", 7), "7-----", "custom fill");
+    eq(fm("{*^7}", "ab"), "**ab***", "custom fill with center");
+    eq(fm("{}", "hi"), "hi", "string");
+    eq(fm("{5}", "ab"), "ab   ", "string aligns left");
+    eq(fm("{>5}", "ab"), "   ab", "string right align");
+    eq(fm("{.3}", "abcdef"), "abc", "precision cuts a string");
+    eq(fm("{5.3}", "abcdef"), "abc  ", "width and precision");
+    eq(fm("[{}]", ""), "[]", "empty string");
+    eq(fm("{}", 'x'), "x", "char");
+    eq(fm("{d}", 'A'), "65", "char as a number");
+    eq(fm("{x}", 'A'), "41", "char in hex");
+    eq(fm("{c}", 65), "A", "integer as a char");
+    eq(fm("{}", true), "true", "true");
+    eq(fm("{}", false), "false", "false");
+    eq(fm("{6}", true), "true  ", "bool aligns left");
+    eq(fm("{}", Color.Green), "1", "an enum prints its number");
+    eq(fm("{}", Color.Green.name()), "Green", "an enum by name through name()");
+    eq(fm("plain"), "plain", "plain text");
+    eq(fm("a{}b", 1), "a1b", "text around a placeholder");
+    eq(fm("{} {} {}", 1, "two", true), "1 two true", "several placeholders of different types");
+    eq(fm("{{}}"), "{}", "escaped braces");
+    eq(fm("{{{}", 5), "{5", "an escaped brace before a placeholder");
+    eq(fm("{}}}", 5), "5}", "an escaped brace after a placeholder");
+    eq(fm("a {} b {x}", 1), "a 1 b {x}", "fewer arguments keep the placeholder as written");
+    eq(fm("{}"), "{}", "no arguments");
+    Meters meters = Meters(3);
+    check(fl("a {x} b", "hi") == "a {x} b" && fe("{x}", "hi") == fmt.FormatError.WrongType, "a type letter that does not fit the type is written back and reported as WrongType");
+    check(fl("{5.}", 1) == "{5.}" && fe("{5.}", 1) == fmt.FormatError.BadSpec, "a number with no digits in a spec is BadSpec");
+    check(fl("{z}", 1) == "{z}" && fe("{z}", 1) == fmt.FormatError.BadSpec, "an unknown type letter is BadSpec");
+    check(fl("{x5}", 1) == "{x5}" && fe("{x5}", 1) == fmt.FormatError.BadSpec, "text after the type letter is BadSpec");
+    check(fl("a { b", 1) == "a { b" && fe("a { b", 1) == fmt.FormatError.Unmatched, "an open brace with no close is Unmatched");
+    check(fl("a } b") == "a } b" && fe("a } b") == fmt.FormatError.Unmatched, "a lone close brace is Unmatched");
+    check(fl("a", 1) == "a" && fe("a", 1) == fmt.FormatError.ExtraArgument, "an extra argument is ExtraArgument");
+    check(fl("{}", meters) == "{}" && fe("{}", meters) == fmt.FormatError.UnsupportedType, "an argument of a named type is UnsupportedType");
+    check(fl("{x} and {}", "hi", 7) == "{x} and 7", "a problem does not stop the text after it, and takes its argument");
+    check(fe("{} {}", 1) == null && fl("{} {}", 1) == "1 {}", "fewer arguments are not an error");
+    check(fe("{} {x}", 1, 255) == null, "a good format reports no error");
+
+    char[16] out;
+    let n, e1 = fmt.sprintf(out[:], "ab{}", 12);
+    check(e1 == null && n == 4, "sprintf returns the byte count");
+    char[3] tiny;
+    let _, e2 = fmt.sprintf(tiny[:], "abcdef");
+    check(e2 == errors.Kind.NoSpace, "sprintf into a buffer that is too small is NoSpace");
+
+    char[32] mem;
+    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], mode: fmt.BufMode.Full};
+    let k, _ = w.format("x={}", 5);
+    check(k == 3 && w.buffered() == 3 && string(mem[0:3]) == "x=5", "a memory writer collects the text");
+    let _, _ = w.format("y");
+    check(w.buffered() == 4 && string(mem[0:4]) == "x=5y", "a second call appends");
+    char[4] narrow;
+    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[:], mode: fmt.BufMode.Full};
+    let _, e3 = ws.format("abcde");
+    check(e3 == errors.Kind.NoSpace, "a memory writer that fills up is NoSpace");
+
+    let file, _ = os.create("fmt_core.txt");
+    char[64] store;
+    fmt.Writer full = fmt.Writer{fd: file, buf: store[:], mode: fmt.BufMode.Full};
+    let _, _ = full.format("hello");
+    let held, _ = os.size(file);
+    check(held == 0, "a full writer holds the text until flush");
+    let _ = full.flush();
+    let flushed, _ = os.size(file);
+    check(flushed == 5, "flush writes the text");
+
+    let lineFile, _ = os.create("fmt_line.txt");
+    char[64] lineStore;
+    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[:], mode: fmt.BufMode.Line};
+    let _, _ = line.format("ab");
+    let beforeNewline, _ = os.size(lineFile);
+    check(beforeNewline == 0, "a line writer holds the text until a newline");
+    let _, _ = line.format("c\n");
+    let afterNewline, _ = os.size(lineFile);
+    check(afterNewline == 4, "a line writer flushes at the newline");
+
+    let rawFile, _ = os.create("fmt_none.txt");
+    char[8] rawStore;
+    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[:], mode: fmt.BufMode.None};
+    let _, _ = raw.format("xyz");
+    let atOnce, _ = os.size(rawFile);
+    check(atOnce == 3, "a writer with no buffering writes at once");
+
+    let streamFile, _ = os.create("fmt_stream.txt");
+    char[4] streamStore;
+    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[:], mode: fmt.BufMode.Full};
+    let _, _ = stream.format("abcdefghij");
+    let _ = stream.flush();
+    let streamed, _ = os.size(streamFile);
+    check(streamed == 10, "a small buffer is flushed as it fills");
+
+    let again, _ = os.create("fmt_call.txt");
+    let _, _ = fmt.fprintf(again, "n={}", 42);
+    let wrote, _ = os.size(again);
+    check(wrote == 4, "fprintf writes everything in one call");
+
+    let badFile, _ = os.create("fmt_bad.txt");
+    let _, problem = fmt.fprintf(badFile, "a{b", 1);
+    let written, _ = os.size(badFile);
+    check(problem == fmt.FormatError.Unmatched && written == 3, "fprintf still writes the text when the format has a problem");
+    let _ = os.remove("fmt_bad.txt");
+
+    let _ = os.remove("fmt_core.txt");
+    let _ = os.remove("fmt_line.txt");
+    let _ = os.remove("fmt_none.txt");
+    let _ = os.remove("fmt_stream.txt");
+    let _ = os.remove("fmt_call.txt");
+}
+`, expected: []string{"decimal", "negative decimal", "zero", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "char", "char as a number", "char in hex", "integer as a char", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "sprintf returns the byte count", "sprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
+
+	{dir: "fmt_core_wide", x64Only: true, src: `import "std/fmt";
 import "std/os";
 import "std/errors";
 
@@ -4468,11 +4907,6 @@ func main() {
     check(fl("{x} and {}", "hi", 7) == "{x} and 7", "a problem does not stop the text after it, and takes its argument");
     check(fe("{} {}", 1) == null && fl("{} {}", 1) == "1 {}", "fewer arguments are not an error");
     check(fe("{} {x}", 1, 255) == null, "a good format reports no error");
-    int x = 5;
-    *int p = &x;
-    string shown = fm("{}", p);
-    check(len(shown) > 2 && shown[0:2] == "0x", "a pointer starts with 0x");
-    check(shown == fm("{p}", p), "p is the default for a pointer");
 
     char[16] out;
     let n, e1 = fmt.sprintf(out[:], "ab{}", 12);
@@ -4544,7 +4978,7 @@ func main() {
     let _ = os.remove("fmt_stream.txt");
     let _ = os.remove("fmt_call.txt");
 }
-`, expected: []string{"decimal", "negative decimal", "zero", "largest uint", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "char", "char as a number", "char in hex", "integer as a char", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "a pointer starts with 0x", "p is the default for a pointer", "sprintf returns the byte count", "sprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
+`, expected: []string{"decimal", "negative decimal", "zero", "largest uint", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "char", "char as a number", "char in hex", "integer as a char", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "sprintf returns the byte count", "sprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
 
 	{dir: "variadic_method", src: `struct Counter {
     int seen;

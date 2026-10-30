@@ -69,23 +69,15 @@ public func (*Dir d) next() !(string, global.FileKind, bool) {
 			d.pos = 0;
 		}
 
-		int start = d.pos + 19;
-		int end = start;
-		loop d.buf[end] != '\0' {
-			end++;
-		}
-
-		global.FileKind tp = switch d.buf[d.pos + 18] {
+		let name, kind, next = sys.parseDirent((*char)(d.buf), d.pos);
+		global.FileKind tp = switch kind {
 			case sys.DT_REG => .File;
 			case sys.DT_DIR => .Dir;
 			case sys.DT_LNK => .Link;
 			default => .Other;
 		};
-		
-		int d_reclen = int(d.buf[d.pos+16]) | int(d.buf[d.pos+17]) << 8;
-		d.pos += d_reclen;
+		d.pos = next;
 
-		string name = string(d.buf[start:end]);
 		if name == "." || name == ".." {
 			continue;
 		}
