@@ -115,7 +115,6 @@ var primitiveDocs = map[string]string{
 	"bool":    "`true` or `false`.",
 	"char":    "A single character, stored in one byte.",
 	"string":  "Text: a pointer to bytes and a length, compared by content.",
-	"map":     "A collection of values found by key.",
 }
 
 func typeRefHover(ref *ast.TypeRef, program *ast.Program, info *analyser.Info, line, col int) string {
@@ -519,9 +518,6 @@ func variableHover(sym *analyser.Symbol) string {
 }
 
 func refText(ref ast.TypeRef) string {
-	if ref.IsMap && ref.MapKey != nil && ref.MapValue != nil {
-		return "map[" + refText(*ref.MapKey) + "]" + refText(*ref.MapValue)
-	}
 	if ref.IsFunc {
 		params := make([]string, len(ref.FuncParams))
 		for i, p := range ref.FuncParams {

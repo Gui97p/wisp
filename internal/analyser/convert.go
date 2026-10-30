@@ -23,8 +23,6 @@ func containsUntyped(t Type) bool {
 		return containsUntyped(v.Element)
 	case SpanType:
 		return containsUntyped(v.Element)
-	case *MapType:
-		return containsUntyped(v.Key) || containsUntyped(v.Value)
 	}
 	return false
 }
@@ -41,8 +39,6 @@ func defaultType(t Type) Type {
 	case SpanType:
 		v.Element = defaultType(v.Element)
 		return v
-	case *MapType:
-		return &MapType{Key: defaultType(v.Key), Value: defaultType(v.Value)}
 	}
 	return t
 }
@@ -419,19 +415,6 @@ func (a *Analyser) commonElement(current, next Type) (Type, bool) {
 		return commonType(current, next)
 	}
 	return nil, false
-}
-
-func (a *Analyser) fixMapLiteral(expr ast.Expression, key, value Type) {
-	lit, ok := expr.(*ast.MapLiteral)
-	if !ok {
-		return
-	}
-
-	for i := range lit.Keys {
-		a.coerce(&lit.Keys[i], a.info.Types[lit.Keys[i]], key)
-		a.coerce(&lit.Values[i], a.info.Types[lit.Values[i]], value)
-	}
-	a.info.Types[lit] = &MapType{Key: key, Value: value}
 }
 
 func (a *Analyser) defaultUntyped() {

@@ -155,20 +155,6 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		return &FuncType{Params: params, Returns: returns, Fallible: ref.FuncFallible}
 	}
 
-	if ref.IsMap {
-		keyType := a.resolveTypeRef(node, scope, *ref.MapKey)
-		valueType := a.resolveTypeRef(node, scope, *ref.MapValue)
-		if keyType == nil || valueType == nil {
-			return nil
-		}
-
-		var result Type = &MapType{Key: keyType, Value: valueType}
-		for i := 0; i < ref.PointerDepth; i++ {
-			result = PointerType{Element: result}
-		}
-		return result
-	}
-
 	var result Type
 
 	if primitives[ref.Name] {

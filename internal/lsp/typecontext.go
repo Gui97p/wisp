@@ -96,11 +96,6 @@ func typeContextAt(text string) (typeContext, bool) {
 			ctx, _ := typingType(body[i+1:])
 			return ctx, true
 		}
-	case '[':
-		if strings.HasSuffix(header, "map") {
-			ctx, _ := typingType(body)
-			return ctx, true
-		}
 	}
 	return typeContext{}, false
 }

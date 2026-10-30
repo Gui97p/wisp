@@ -40,33 +40,6 @@ func (a *ArrayLiteral) Tree(indent string) string {
 	return b.String()
 }
 
-type MapLiteral struct {
-	Keys   []Expression
-	Values []Expression
-
-	NodePos
-}
-
-func (*MapLiteral) expr() {}
-func (m *MapLiteral) Tree(indent string) string {
-	var b strings.Builder
-	b.WriteString(indent)
-	b.WriteString("MapLiteral\n")
-
-	for i := range m.Keys {
-		branch, childIndent := "├─ ", "│  "
-		if i == len(m.Keys)-1 {
-			branch, childIndent = "└─ ", "   "
-		}
-
-		fmt.Fprintf(&b, "%s%sEntry(%d)\n", indent, branch, i)
-		b.WriteString(m.Keys[i].Tree(indent + childIndent + "├─ "))
-		b.WriteString(m.Values[i].Tree(indent + childIndent + "└─ "))
-	}
-
-	return b.String()
-}
-
 type IntLiteral struct {
 	Value    int64
 	Unsigned bool

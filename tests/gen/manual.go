@@ -2227,9 +2227,6 @@ func main() {
     let ys = [a, b];
     check(ys[1] == 300, "literal array takes the common element type");
     check(a in xs, "in widens the left operand");
-    map[string]int64 m = {"one": a, "big": c};
-    check(m["one"] == 1, "literal map widens a value");
-    check(m["big"] == 5000000000, "literal map keeps an int64 value");
 }
 `},
 
@@ -3989,15 +3986,19 @@ func main() {
 }
 `, expected: []string{"Lua keywords work as names of variables, parameters and functions", "Lua keywords work as names of fields", "Lua keywords work as loop and handler names", "a module named math does not hide the Lua math library"}},
 
-	{dir: "target_files", files: map[string]string{"where/where.wsp": `public func name() int {
-    return which() + extra();
+	{dir: "target_files", files: map[string]string{"where/where.wsp": `import "std/math";
+
+public func name() int {
+    return which() + extra() + math.min(0, 1);
 }
 
 public func pieces() int {
     return both();
 }
-`, "where/where_x64.wsp": `func which() int {
-    return 10;
+`, "where/where_x64.wsp": `import "std/math";
+
+func which() int {
+    return math.max(10, 3);
 }
 
 func both() int {
@@ -4006,8 +4007,10 @@ func both() int {
 `, "where/where_linux_x64.wsp": `func extra() int {
     return 1;
 }
-`, "where/where_lua.wsp": `func which() int {
-    return 10;
+`, "where/where_lua.wsp": `import "std/math";
+
+func which() int {
+    return math.max(10, 3);
 }
 
 func extra() int {

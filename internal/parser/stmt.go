@@ -50,8 +50,6 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		} else {
 			stmt = p.parseSimpleStatement()
 		}
-	case lexer.TOKEN_MAP:
-		stmt = p.parseVarStatement()
 	case lexer.TOKEN_RETURN:
 		stmt = p.parseReturnStatement()
 	case lexer.TOKEN_YIELD:

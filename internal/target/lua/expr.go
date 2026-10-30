@@ -72,18 +72,6 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 		return t.compileFuncLiteral(b, e)
 	case *ast.ArrayLiteral:
 		return t.compileArrayLiteral(b, e)
-	case *ast.MapLiteral:
-		b.WriteByte('{')
-		for k, v := range e.Keys {
-			b.WriteByte('[')
-			t.compileExpression(b, v)
-			b.WriteString("] = ")
-			t.compileExpression(b, e.Values[k])
-			if k != len(e.Keys)-1 {
-				b.WriteByte(',')
-			}
-		}
-		b.WriteByte('}')
 	case *ast.StructLiteral:
 		return t.compileStructLiteral(b, e)
 	case *ast.IdentLiteral:
@@ -324,12 +312,6 @@ func (t *LuaTarget) compileSliceExpression(b *strings.Builder, expr *ast.SliceEx
 
 func (t *LuaTarget) compileInExpression(b *strings.Builder, expr *ast.InExpr) error {
 	switch t.info.Types[expr.Right].(type) {
-	case *analyser.MapType:
-		b.WriteByte('(')
-		t.compileExpression(b, expr.Right)
-		b.WriteByte('[')
-		t.compileExpression(b, expr.Left)
-		b.WriteString("] ~= nil)")
 	case analyser.PrimitiveType:
 		b.WriteString("(__lua_string.find(")
 		t.compileExpression(b, expr.Right)

@@ -50,8 +50,6 @@ func (t TokenType) DisplayName() string {
 		return "char"
 	case TOKEN_STRING:
 		return "string"
-	case TOKEN_MAP:
-		return "map"
 	case TOKEN_NULL:
 		return "null"
 

@@ -70,9 +70,6 @@ func zeroValue(t analyser.Type) (string, error) {
 	case analyser.NullType:
 		return "nil", nil
 
-	case *analyser.MapType:
-		return "{}", nil
-
 	case analyser.SpanType:
 		return "__wisp_empty()", nil
 

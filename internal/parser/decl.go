@@ -96,7 +96,7 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 
 func (p *Parser) startsVarDeclaration() bool {
 	switch p.current.Type {
-	case lexer.TOKEN_LET, lexer.TOKEN_MAP:
+	case lexer.TOKEN_LET:
 		return true
 	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN:
 		return p.looksLikeTypeDeclaration()
@@ -194,7 +194,7 @@ func (p *Parser) parseExported() []ast.Declaration {
 		decl.Exported = true
 		decls = append(decls, decl)
 
-	case lexer.TOKEN_LET, lexer.TOKEN_MAP, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN:
+	case lexer.TOKEN_LET, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN:
 		decl := p.parseVarDeclaration()
 		if decl == nil {
 			return nil

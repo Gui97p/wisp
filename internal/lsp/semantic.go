@@ -65,7 +65,7 @@ func collectTokens(program *ast.Program, info *analyser.Info) []semanticToken {
 	}
 
 	walkTypeRefs(reflect.ValueOf(program), func(ref ast.TypeRef) {
-		if ref.Name == "" || ref.IsMap || ref.IsFunc || ref.Line == 0 || ref.EndLine != ref.Line {
+		if ref.Name == "" || ref.IsFunc || ref.Line == 0 || ref.EndLine != ref.Line {
 			return
 		}
 		if primitiveType(ref.Name) && ref.Module == "" {
@@ -157,7 +157,7 @@ func encodeTokens(tokens []semanticToken) []uint32 {
 func primitiveType(name string) bool {
 	switch name {
 	case "int", "uint", "int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64",
-		"float", "float32", "float64", "bool", "char", "string", "void", "map":
+		"float", "float32", "float64", "bool", "char", "string", "void":
 		return true
 	}
 	return false

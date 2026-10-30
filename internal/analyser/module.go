@@ -272,6 +272,9 @@ func (a *Analyser) registerImports() {
 			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
 			continue
 		}
+		if a.repeatsImport(imp) {
+			continue
+		}
 		mt := &ModuleType{}
 		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: mt, Line: line, Col: col, File: a.currentFile}
 		if !a.scope.Define(symbol) {
@@ -284,6 +287,15 @@ func (a *Analyser) registerImports() {
 			a.applyLink(link, true)
 		}
 	}
+}
+
+func (a *Analyser) repeatsImport(imp *ast.ImportDecl) bool {
+	for _, l := range a.links {
+		if l.imp.Alias == imp.Alias && l.imp.Path == imp.Path && l.file != a.currentFile {
+			return true
+		}
+	}
+	return false
 }
 
 type importLink struct {

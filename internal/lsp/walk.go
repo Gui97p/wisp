@@ -212,11 +212,6 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 		child = firstExpr(line, col, e.Left, e.Right)
 	case *ast.ArrayLiteral:
 		child = firstExpr(line, col, e.Elements...)
-	case *ast.MapLiteral:
-		child = firstExpr(line, col, e.Keys...)
-		if child == nil {
-			child = firstExpr(line, col, e.Values...)
-		}
 	case *ast.StructLiteral:
 		child = firstExpr(line, col, e.Values...)
 	case *ast.FuncLiteral:

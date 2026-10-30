@@ -10,7 +10,7 @@ func (p *Parser) parseConstIdentifiers() []ast.Param {
 
 	p.advance()
 
-	isTypedDecl := p.isPrimitiveType() || p.current.Type == lexer.TOKEN_MAP || (p.current.Type == lexer.TOKEN_IDENT && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR))
+	isTypedDecl := p.isPrimitiveType() || (p.current.Type == lexer.TOKEN_IDENT && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR))
 
 	var currentType ast.TypeRef
 	if isTypedDecl {

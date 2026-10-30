@@ -53,8 +53,6 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkFuncLiteral(e)
 	case *ast.ArrayLiteral:
 		t = a.checkArrayLiteral(e)
-	case *ast.MapLiteral:
-		t = a.checkMapLiteral(e)
 	case *ast.BinaryExpr:
 		t = a.checkBinaryExpr(e)
 	case *ast.UnaryExpr:
@@ -193,58 +191,6 @@ func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
 	}
 
 	return ArrayType{Element: common, Size: int64(len(expr.Elements))}
-}
-
-func (a *Analyser) checkMapLiteral(expr *ast.MapLiteral) Type {
-	if len(expr.Keys) == 0 {
-		a.error(expr, "impossible to infer type of an empty map")
-		return InvalidType{}
-	}
-
-	keyTypes := make([]Type, len(expr.Keys))
-	valueTypes := make([]Type, len(expr.Values))
-
-	for i := range expr.Keys {
-		keyTypes[i] = a.checkExpr(expr.Keys[i])
-		valueTypes[i] = a.checkExpr(expr.Values[i])
-	}
-
-	firstKey, firstValue := keyTypes[0], valueTypes[0]
-	if _, ok := firstKey.(InvalidType); ok {
-		return InvalidType{}
-	}
-	if _, ok := firstValue.(InvalidType); ok {
-		return InvalidType{}
-	}
-
-	commonKey, commonValue := firstKey, firstValue
-	for i := 1; i < len(keyTypes); i++ {
-		if _, ok := keyTypes[i].(InvalidType); !ok {
-			if next, ok := a.commonElement(commonKey, keyTypes[i]); ok {
-				commonKey = next
-			} else {
-				a.errorf(expr, "map key %d expected %s, got %s", i+1, commonKey.String(), keyTypes[i].String())
-			}
-		}
-		if _, ok := valueTypes[i].(InvalidType); !ok {
-			if next, ok := a.commonElement(commonValue, valueTypes[i]); ok {
-				commonValue = next
-			} else {
-				a.errorf(expr, "map value %d expected %s, got %s", i+1, commonValue.String(), valueTypes[i].String())
-			}
-		}
-	}
-
-	for i := range expr.Keys {
-		if _, ok := keyTypes[i].(InvalidType); !ok {
-			a.coerce(&expr.Keys[i], keyTypes[i], commonKey)
-		}
-		if _, ok := valueTypes[i].(InvalidType); !ok {
-			a.coerce(&expr.Values[i], valueTypes[i], commonValue)
-		}
-	}
-
-	return &MapType{Key: commonKey, Value: commonValue}
 }
 
 func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
@@ -747,11 +693,6 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 			a.errorf(expr, "pointer index must be an integer, got %s", idxType.String())
 		}
 		return t.Element
-	case *MapType:
-		if _, invalid := idxType.(InvalidType); !invalid && !idxType.Equals(t.Key) {
-			a.errorf(expr, "map index expected %s, got %s", t.Key.String(), idxType.String())
-		}
-		return t.Value
 	case PrimitiveType:
 		if t.Name != "string" {
 			a.errorf(expr, "%s can't be indexed", arrType.String())
@@ -1217,11 +1158,6 @@ func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {
 			a.errorf(expr, "'in' expects %s, got %s", rt.Element, left)
 		}
 		a.checkConstFits(expr.Left, rt.Element)
-	case *MapType:
-		if !a.coerce(&expr.Left, left, rt.Key) {
-			a.errorf(expr, "'in' expects %s, got %s", rt.Key, left)
-		}
-		a.checkConstFits(expr.Left, rt.Key)
 	case PrimitiveType:
 		if rt.Name != "string" {
 			a.errorf(expr, "'in' not supported for %s", right)
@@ -1304,16 +1240,16 @@ func (a *Analyser) checkFree(expr *ast.CallExpr) {
 	for _, arg := range expr.Args {
 		t := a.checkExpr(arg)
 		switch u := underlyingOf(t).(type) {
-		case InvalidType, PointerType, NullType, *MapType, SpanType:
+		case InvalidType, PointerType, NullType, SpanType:
 		case PrimitiveType:
 			if u.Name == "string" {
 				a.errorf(arg, "a string is a view and is never freed").
 					WithHelp("free the buffer it came from: a pointer or a slice that malloc returned")
 			} else {
-				a.errorf(arg, "free expects a pointer, slice or map, got %s", t.String())
+				a.errorf(arg, "free expects a pointer or a slice, got %s", t.String())
 			}
 		default:
-			a.errorf(arg, "free expects a pointer, slice or map, got %s", t.String())
+			a.errorf(arg, "free expects a pointer or a slice, got %s", t.String())
 		}
 	}
 }

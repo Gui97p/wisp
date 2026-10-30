@@ -111,9 +111,6 @@ func walkExpr(expr ast.Expression, fn func(ast.Expression)) {
 		walkExpr(e.Value, fn)
 	case *ast.ArrayLiteral:
 		walkExprs(e.Elements, fn)
-	case *ast.MapLiteral:
-		walkExprs(e.Keys, fn)
-		walkExprs(e.Values, fn)
 	case *ast.StructLiteral:
 		walkExprs(e.Values, fn)
 	case *ast.FuncLiteral:

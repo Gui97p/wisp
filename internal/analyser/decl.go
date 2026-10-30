@@ -117,8 +117,6 @@ func (a *Analyser) constantInitializer(expr ast.Expression) bool {
 			}
 		}
 		return true
-	case *ast.MapLiteral:
-		return false
 	}
 
 	_, ok := a.evalConst(expr)
@@ -287,8 +285,6 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 						default:
 							a.errorDeclaredAs(node, v.Name, declaredType, valueType)
 						}
-					} else if declMap, isMap := declaredType.(*MapType); isMap && a.mapLiteralAssignable(values, len(vars), i, valueType, declMap) {
-						a.fixMapLiteral(values[i], declMap.Key, declMap.Value)
 					} else if !a.coerceAt(values, len(vars), i, valueType, declaredType) {
 						a.errorDeclaredAs(node, v.Name, declaredType, valueType)
 					} else {
@@ -343,23 +339,6 @@ func (a *Analyser) arrayElementAssignable(values []ast.Expression, n, i int, fro
 		return false
 	}
 	return implicitConversion(from, to)
-}
-
-func (a *Analyser) mapLiteralAssignable(values []ast.Expression, n, i int, from Type, to *MapType) bool {
-	slot := a.valueSlot(values, n, i)
-	if slot == nil {
-		return false
-	}
-	if _, isLiteral := (*slot).(*ast.MapLiteral); !isLiteral {
-		return false
-	}
-	vm, ok := from.(*MapType)
-	if !ok {
-		return false
-	}
-	keyOK := vm.Key.Equals(to.Key) || implicitConversion(vm.Key, to.Key)
-	valueOK := vm.Value.Equals(to.Value) || implicitConversion(vm.Value, to.Value)
-	return keyOK && valueOK
 }
 
 func (a *Analyser) warnUnusedFuncs() {

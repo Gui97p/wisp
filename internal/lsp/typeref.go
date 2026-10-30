@@ -29,14 +29,6 @@ func refIn(ref *ast.TypeRef, line, col int) *ast.TypeRef {
 		return nil
 	}
 
-	if ref.IsMap {
-		if r := refIn(ref.MapKey, line, col); r != nil {
-			return r
-		}
-		if r := refIn(ref.MapValue, line, col); r != nil {
-			return r
-		}
-	}
 	if ref.IsFunc {
 		for i := range ref.FuncParams {
 			if r := refIn(&ref.FuncParams[i], line, col); r != nil {

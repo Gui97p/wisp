@@ -5,44 +5,6 @@ import (
 	"github.com/Gui97p/wisp/internal/lexer"
 )
 
-func (p *Parser) parseMapPrefix() *ast.TypeRef {
-	ref := &ast.TypeRef{}
-	if p.current.Type == lexer.TOKEN_MAP {
-		ref.Name = "map"
-		ref.IsMap = true
-		ref.Line, ref.Col, ref.EndLine, ref.EndCol = p.currentIdentPos()
-		if !p.expect(lexer.TOKEN_LBRACKET) {
-			return nil
-		}
-		p.advance()
-
-		if !p.isPointerType() {
-			p.errorType(p.current.Type)
-			return nil
-		}
-		ref.MapKey = p.parseTypeDefinitionPrefix()
-		if ref.MapKey == nil {
-			return nil
-		}
-
-		if !p.expect(lexer.TOKEN_RBRACKET) {
-			return nil
-		}
-		p.advance()
-
-		if !p.isPointerType() {
-			p.errorType(p.current.Type)
-			return nil
-		}
-		ref.MapValue = p.parseTypeDefinitionPrefix()
-		if ref.MapValue == nil {
-			return nil
-		}
-	}
-
-	return ref
-}
-
 func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 	if p.current.Type == lexer.TOKEN_NOT {
 		p.error("`!` marks the whole return list: write `func f() !(int, string)`")
@@ -53,24 +15,18 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 		return p.parseFuncTypePrefix()
 	}
 
-	ref := p.parseMapPrefix()
-	if ref == nil {
-		return nil
-	}
-
-	if !ref.IsMap {
-		ref.PointerDepth = p.parsePointerDepth()
-		ref.Name = p.current.Literal
-		ref.Line, ref.Col, ref.EndLine, ref.EndCol = p.currentIdentPos()
-		if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_DOT {
-			p.advance()
-			if !p.expect(lexer.TOKEN_IDENT) {
-				return nil
-			}
-			ref.Module = ref.Name
-			ref.Name = p.current.Literal
-			_, _, ref.EndLine, ref.EndCol = p.currentIdentPos()
+	ref := &ast.TypeRef{}
+	ref.PointerDepth = p.parsePointerDepth()
+	ref.Name = p.current.Literal
+	ref.Line, ref.Col, ref.EndLine, ref.EndCol = p.currentIdentPos()
+	if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_DOT {
+		p.advance()
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil
 		}
+		ref.Module = ref.Name
+		ref.Name = p.current.Literal
+		_, _, ref.EndLine, ref.EndCol = p.currentIdentPos()
 	}
 
 	return ref
@@ -114,8 +70,6 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 	p.parsePointerDepth()
 
 	switch {
-	case p.current.Type == lexer.TOKEN_MAP:
-		return true
 	case p.isPrimitiveType():
 		return p.peek.Type != lexer.TOKEN_LPAREN
 	case p.current.Type == lexer.TOKEN_LPAREN:
@@ -179,7 +133,7 @@ func (p *Parser) isPrimitiveType() bool {
 }
 
 func (p *Parser) isStartType() bool {
-	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT || p.current.Type == lexer.TOKEN_MAP || p.current.Type == lexer.TOKEN_LPAREN
+	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT || p.current.Type == lexer.TOKEN_LPAREN
 }
 
 func (p *Parser) isPointerType() bool {

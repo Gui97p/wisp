@@ -40,11 +40,6 @@ func pointee(tp analyser.Type) analyser.Type {
 	return nil
 }
 
-func isMap(tp analyser.Type) bool {
-	_, ok := underlying(tp).(*analyser.MapType)
-	return ok
-}
-
 func viewElement(tp analyser.Type) analyser.Type {
 	switch v := underlying(tp).(type) {
 	case analyser.ArrayType:

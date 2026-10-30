@@ -190,23 +190,6 @@ func (s SpanType) Equals(other Type) bool {
 	return s.Element.Equals(o.Element)
 }
 
-type MapType struct {
-	Key   Type
-	Value Type
-}
-
-func (m *MapType) String() string {
-	return fmt.Sprintf("map[%s]%s", m.Key, m.Value)
-}
-
-func (m *MapType) Equals(other Type) bool {
-	o, ok := other.(*MapType)
-	if !ok {
-		return false
-	}
-	return m.Key.Equals(o.Key) && m.Value.Equals(o.Value)
-}
-
 type NamedType struct {
 	Name        string
 	Underlying  Type

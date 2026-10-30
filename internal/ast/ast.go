@@ -89,10 +89,6 @@ type TypeRef struct {
 
 	Dims []ArrayDim
 
-	IsMap    bool
-	MapKey   *TypeRef
-	MapValue *TypeRef
-
 	IsFunc       bool
 	FuncParams   []TypeRef
 	FuncReturns  []TypeRef
@@ -121,21 +117,6 @@ func (t *TypeRef) Tree(indent string) string {
 				fmt.Fprintf(&b, "%s│  └─ ArraySize\n%s│     %d\n", indent, indent, dim.Size)
 			}
 		}
-	}
-
-	fmt.Fprintf(&b, "%s└─ IsMap\n", indent)
-	if t.IsMap {
-		fmt.Fprintf(&b, "%s   true\n", indent)
-
-		b.WriteString(indent)
-		b.WriteString("   ├─ MapKey\n")
-		b.WriteString(t.MapKey.Tree(indent + "   │  "))
-
-		b.WriteString(indent)
-		b.WriteString("   └─ MapValue\n")
-		b.WriteString(t.MapValue.Tree(indent + "      "))
-	} else {
-		fmt.Fprintf(&b, "%s   false\n", indent)
 	}
 
 	return b.String()

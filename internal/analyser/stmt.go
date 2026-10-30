@@ -144,11 +144,6 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 			if stmt.Var2 != "" {
 				a.defineLoopVar(stmt, stmt.Var2, t.Element, stmt.Var2At, line, col)
 			}
-		case *MapType:
-			a.defineLoopVar(stmt, stmt.Var, t.Key, stmt.VarAt, line, col)
-			if stmt.Var2 != "" {
-				a.defineLoopVar(stmt, stmt.Var2, t.Value, stmt.Var2At, line, col)
-			}
 		case PrimitiveType:
 			if t.Name == "string" {
 				a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, stmt.VarAt, line, col)

@@ -15,9 +15,6 @@ func (t *X64Target) pushLoop(ctx x64context.LoopContext) {
 
 func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 	tp := t.info.Types[stmt.Range]
-	if _, ok := tp.(*analyser.MapType); ok {
-		return fmt.Errorf("x86-64: for over map not supported")
-	}
 	base, limit, err := t.baseMem(stmt.Range)
 	if err != nil {
 		return err
