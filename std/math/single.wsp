@@ -1,0 +1,136 @@
+import "std/math/exp";
+import "std/math/log";
+import "std/math/trig";
+import "std/math/atan";
+import "std/math/hyper";
+import "std/math/root";
+import "std/math/pow";
+import "std/math/ieee";
+
+public func expf(float32 x) float32 {
+	return float32(exp.exp(x));
+}
+
+public func expm1f(float32 x) float32 {
+	return float32(exp.expm1(x));
+}
+
+public func exp2f(float32 x) float32 {
+	return float32(exp.exp2(x));
+}
+
+public func logf(float32 x) float32 {
+	return float32(log.log(x));
+}
+
+public func log1pf(float32 x) float32 {
+	return float32(log.log1p(x));
+}
+
+public func log2f(float32 x) float32 {
+	return float32(log.log2(x));
+}
+
+public func log10f(float32 x) float32 {
+	return float32(log.log10(x));
+}
+
+public func sinf(float32 x) float32 {
+	return float32(trig.sin(x));
+}
+
+public func cosf(float32 x) float32 {
+	return float32(trig.cos(x));
+}
+
+public func tanf(float32 x) float32 {
+	return float32(trig.tan(x));
+}
+
+public func asinf(float32 x) float32 {
+	return float32(atan.asin(x));
+}
+
+public func acosf(float32 x) float32 {
+	return float32(atan.acos(x));
+}
+
+public func atanf(float32 x) float32 {
+	return float32(atan.atan(x));
+}
+
+public func sinhf(float32 x) float32 {
+	return float32(hyper.sinh(x));
+}
+
+public func coshf(float32 x) float32 {
+	return float32(hyper.cosh(x));
+}
+
+public func tanhf(float32 x) float32 {
+	return float32(hyper.tanh(x));
+}
+
+public func cbrtf(float32 x) float32 {
+	return float32(root.cbrt(x));
+}
+
+public func fabsf(float32 x) float32 {
+	return float32(ieee.fabs(x));
+}
+
+public func floorf(float32 x) float32 {
+	return float32(ieee.floor(x));
+}
+
+public func ceilf(float32 x) float32 {
+	return float32(ieee.ceil(x));
+}
+
+public func truncf(float32 x) float32 {
+	return float32(ieee.trunc(x));
+}
+
+public func roundf(float32 x) float32 {
+	return float32(ieee.round(x));
+}
+
+public func roundEvenf(float32 x) float32 {
+	return float32(ieee.roundEven(x));
+}
+
+public func fsqrtf(float32 x) float32 {
+	return float32(ieee.fsqrt(x));
+}
+
+public func fpowf(float32 x, y) float32 {
+	return float32(pow.fpow(x, y));
+}
+
+public func atan2f(float32 x, y) float32 {
+	return float32(atan.atan2(x, y));
+}
+
+public func hypotf(float32 x, y) float32 {
+	return float32(root.hypot(x, y));
+}
+
+public func fmodf(float32 x, y) float32 {
+	return float32(ieee.fmod(x, y));
+}
+
+public func copysignf(float32 x, y) float32 {
+	return float32(ieee.copysign(x, y));
+}
+
+public func fminf(float32 x, y) float32 {
+	return float32(ieee.fmin(x, y));
+}
+
+public func fmaxf(float32 x, y) float32 {
+	return float32(ieee.fmax(x, y));
+}
+
+public func fclampf(float32 x, low, high) float32 {
+	return float32(ieee.fclamp(x, low, high));
+}

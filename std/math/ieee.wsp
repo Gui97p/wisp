@@ -208,6 +208,23 @@ public func frexp(float x) (float, int) {
 	return fromWords(hx, lx), e;
 }
 
+public func decompose(float x) (uint, int) {
+	uint hx, lx = words(x);
+	int biased = int((hx >> 20) & 0x7ff);
+	uint fraction = ((hx & 0xfffff) << 32) | lx;
+
+	if biased == 0x7ff {
+		return fraction, 0;
+	}
+	if biased == 0 {
+		if fraction == 0 {
+			return 0, 0;
+		}
+		return fraction, -1074;
+	}
+	return fraction | (1 << 52), biased - 1075;
+}
+
 internal func highWord(float x) uint {
 	uint h, _ = words(x);
 	return h;
