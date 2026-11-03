@@ -109,9 +109,19 @@ func isFloat32(tp analyser.Type) bool {
 	return ok && p.Name == "float32"
 }
 
+func isUint64(tp analyser.Type) bool {
+	p, ok := underlying(tp).(analyser.PrimitiveType)
+	return ok && (p.Name == "uint" || p.Name == "uint64")
+}
+
 func isInteger(tp analyser.Type) bool {
 	p, ok := underlying(tp).(analyser.PrimitiveType)
 	return ok && (strings.HasPrefix(p.Name, "int") || strings.HasPrefix(p.Name, "uint"))
+}
+
+func isStruct(tp analyser.Type) bool {
+	_, ok := underlying(tp).(*analyser.StructType)
+	return ok
 }
 
 func isSpan(tp analyser.Type) bool {

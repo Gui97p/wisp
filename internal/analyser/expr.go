@@ -1251,6 +1251,12 @@ func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes
 		case UntypedFloatType:
 			a.fixUntyped(value, PrimitiveType{Name: "float64"})
 		default:
+			if pt, isPrimitive := at.(PrimitiveType); isPrimitive && pt.Name == "float32" {
+				if slot := a.valueSlot(expr.Args, len(argTypes), i); slot != nil {
+					a.insertCast(slot, PrimitiveType{Name: "float64"})
+				}
+				break
+			}
 			if !cCompatible(at) {
 				d := a.errorf(expr, "argument %d from %s has type %s, which C cannot take", i+1, ft.Name, at.String())
 				if isString(at) {

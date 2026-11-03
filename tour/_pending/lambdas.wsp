@@ -3,7 +3,7 @@
 // A function literal is a value: it can be stored in a variable and called.
 // The analyser checks this file, but the x86-64 backend does not generate
 // function values yet. They run on the Lua backend: copy this file and
-// expect.wsp into a project of its own and use `wisp run --target lua`.
+// expect.wsp into a project of its own and use `wisp run --target cc`.
 
 import "expect";
 

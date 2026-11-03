@@ -186,7 +186,8 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		offset, _ := t.ctx.Get(sym)
 		size := sizeOf(sym.Type)
 		for j, reg := range arg.Regs {
-			t.storeWord(slot(offset, size).at(8*j, min(8, size-8*j)), Reg{reg, 8})
+			wordSize := min(8, size-8*j)
+			t.storeWord(slot(offset, size).at(8*j, wordSize), Reg{reg, wordSize})
 		}
 	}
 

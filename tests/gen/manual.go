@@ -2450,6 +2450,200 @@ func main() ! {
 }
 `, expected: []string{"less", "less or equal when equal", "less or equal when less", "greater", "greater or equal when equal", "greater or equal when greater", "equal", "not equal", "a smaller number is not greater", "a bigger number is not less", "different numbers are not equal", "a smaller number is not greater or equal", "float32 less", "float32 greater or equal", "float32 equal", "float32 not equal", "NaN is not equal to itself", "NaN is different from itself", "NaN is not less", "NaN is not greater", "NaN is not less or equal", "NaN is not greater or equal", "nothing is less than NaN", "nothing is greater than NaN", "nothing is equal to NaN", "a float comparison drives an if"}},
 
+	{dir: "float_abi", src: `struct Vec {
+    float x;
+    float y;
+}
+
+struct Tag {
+    int id;
+    float weight;
+}
+
+struct Small {
+    float32 a;
+    float32 b;
+}
+
+struct Wide {
+    float a;
+    float b;
+    float c;
+}
+
+func add(float a, float b) int {
+    return int(a + b);
+}
+
+func mix(int n, float x, int m, float y) int {
+    return n + m + int(x + y);
+}
+
+func small(float32 a, float32 b) int {
+    return int(a * b);
+}
+
+func many(float a, float b, float c, float d, float e, float f, float g, float h, float i, float j) int {
+    return int(a + b + c + d + e + f + g + h + i + j);
+}
+
+func half(float x) float {
+    return x / 2.0;
+}
+
+func twice(float a) (float, int) {
+    return a * 2.0, int(a);
+}
+
+func swap(float a, float b) (float, float) {
+    return b, a;
+}
+
+func fall(int n) !float {
+    return float(n) * 1.5;
+}
+
+func mixed(int n, float x) (int, float, int) {
+    return n, x, n + 1;
+}
+
+func three(float a) (float, float, float) {
+    return a, a * 2.0, a * 3.0;
+}
+
+func length(Vec v) int {
+    return int(v.x + v.y);
+}
+
+func scale(Vec v, float k) Vec {
+    return Vec{x: v.x * k, y: v.y * k};
+}
+
+func describe(Tag t) float {
+    return t.weight * float(t.id);
+}
+
+func make(int id, float w) Tag {
+    return Tag{id: id, weight: w};
+}
+
+func shrink(Small s) Small {
+    return Small{a: s.a / 2.0, b: s.b / 2.0};
+}
+
+func total(Wide w) int {
+    return int(w.a + w.b + w.c);
+}
+
+func main() ! {
+    check(add(2.5, 3.5) == 6, "two floats arrive in xmm0 and xmm1");
+    check(mix(1, 2.5, 2, 3.5) == 9, "integer and float registers are counted apart");
+    check(small(1.5, 4.0) == 6, "float32 arguments");
+    check(many(1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0) == 10, "more floats than registers spill to the stack");
+
+    check(int(half(5.0) * 10.0) == 25, "a float result comes back in xmm0");
+    let d, i = twice(2.5);
+    check(int(d) == 5 && i == 2, "a float and an int come back together");
+    let s1, s2 = swap(1.5, 4.5);
+    check(int(s1) == 4 && int(s2) == 1, "two floats come back in xmm0 and xmm1 without crossing");
+    float f = fall(2)!;
+    check(int(f) == 3, "a fallible function returns a float");
+    let a, b, c = mixed(7, 2.5);
+    check(a == 7 && int(b) == 2 && c == 8, "two ints and a float come back in rax, rdx and xmm0");
+    let t1, t2, t3 = three(1.0);
+    check(int(t1) == 1 && int(t2) == 2 && int(t3) == 3, "three floats come back through memory");
+
+    check(length(Vec{x: 2.5, y: 3.5}) == 6, "a struct of two floats is passed in two xmm registers");
+    Vec scaled = scale(Vec{x: 1.5, y: 2.5}, 2.0);
+    check(int(scaled.x) == 3 && int(scaled.y) == 5, "a struct of two floats is returned in xmm0 and xmm1");
+    check(int(describe(Tag{id: 3, weight: 2.5})) == 7, "a struct with an int and a float is passed in one of each");
+    Tag tag = make(4, 1.5);
+    check(tag.id == 4 && int(tag.weight * 10.0) == 15, "a struct with an int and a float is returned in rax and xmm0");
+    Small sm = shrink(Small{a: 3.0, b: 5.0});
+    check(int(sm.a * 10.0) == 15 && int(sm.b * 10.0) == 25, "two float32 fields share one xmm register");
+    check(total(Wide{a: 1.0, b: 2.0, c: 3.0}) == 6, "a struct larger than sixteen bytes goes through memory");
+}
+`, expected: []string{"two floats arrive in xmm0 and xmm1", "integer and float registers are counted apart", "float32 arguments", "more floats than registers spill to the stack", "a float result comes back in xmm0", "a float and an int come back together", "two floats come back in xmm0 and xmm1 without crossing", "a fallible function returns a float", "two ints and a float come back in rax, rdx and xmm0", "three floats come back through memory", "a struct of two floats is passed in two xmm registers", "a struct of two floats is returned in xmm0 and xmm1", "a struct with an int and a float is passed in one of each", "a struct with an int and a float is returned in rax and xmm0", "two float32 fields share one xmm register", "a struct larger than sixteen bytes goes through memory"}},
+
+	{dir: "float_uint64", x64Only: true, src: `func main() {
+    uint64 big = 18446744073709551615;
+    float f = float(big);
+    check(f > 18000000000000000000.0 && f < 19000000000000000000.0, "the largest uint64 becomes a float near two to the 64");
+
+    uint64 half = 9223372036854775808;
+    check(float(half) == 9223372036854775808.0, "two to the 63 converts exactly");
+
+    float up = 9223372036854775808.0;
+    check(uint64(up) == 9223372036854775808, "a float of two to the 63 converts back");
+    check(uint64(18446744073709549568.0) == 18446744073709549568, "the largest double below two to the 64 converts back");
+
+    uint64 small = 5;
+    check(float(small) == 5.0, "a small uint64 converts to a float");
+    check(uint64(7.9) == 7, "a float converts to a uint64 by truncating");
+
+    float32 narrow = float32(big);
+    check(narrow > 18000000000000000000.0 && narrow < 19000000000000000000.0, "a uint64 converts to a float32");
+
+    uint64 odd = 9223372036854775809;
+    check(float(odd) == 9223372036854775808.0, "the dropped bit rounds to even");
+    uint64 rounded = 18446744073709551614;
+    check(float(rounded) == 18446744073709551616.0, "a value near the top rounds up");
+
+    uint64 mid = 4611686018427387904;
+    check(uint64(float(mid)) == mid, "a uint64 below two to the 63 makes the round trip");
+
+    float32 sm = 3.5;
+    check(uint64(sm) == 3, "a float32 converts to a uint64");
+
+    uint32 word = 4000000000;
+    check(float(word) == 4000000000.0, "a uint32 converts to a float");
+    check(uint32(float(word)) == word, "a float converts to a uint32");
+}
+`, expected: []string{"the largest uint64 becomes a float near two to the 64", "two to the 63 converts exactly", "a float of two to the 63 converts back", "the largest double below two to the 64 converts back", "a small uint64 converts to a float", "a float converts to a uint64 by truncating", "a uint64 converts to a float32", "the dropped bit rounds to even", "a value near the top rounds up", "a uint64 below two to the 63 makes the round trip", "a float32 converts to a uint64", "a uint32 converts to a float", "a float converts to a uint32"}},
+
+	{dir: "float_any", src: `func sum(...args) int {
+    int total;
+    for _, arg in args {
+        switch let v = arg {
+            case float32:
+                total += int(v * 10.0);
+            case float64:
+                total += int(v);
+            case int:
+                total += v;
+        }
+    }
+    return total;
+}
+
+func typed(float ...xs) int {
+    float total = 0.0;
+    for _, x in xs {
+        total += x;
+    }
+    return int(total);
+}
+
+func forward(...args) int {
+    return sum(args...);
+}
+
+func half(float x) float {
+    return x / 2.0;
+}
+
+func main() {
+    float32 a = 1.5;
+    float b = 4.0;
+    float neg = 0.0 - 2.5;
+    check(sum(2.5, a, 7, b) == 28, "floats and an int in a variadic of any");
+    check(sum(b * 2.0, a * 2.0, half(b), -b, float32(b) + a, 3) == 94, "a computed float is boxed");
+    check(sum(neg) == -2, "a negative float keeps its sign in the box");
+    check(forward(a, 2.5, 3) == 20, "floats are forwarded with a spread");
+    check(typed(1.5, 2.5, half(8.0)) == 8, "a variadic of float takes computed floats");
+}
+`, expected: []string{"floats and an int in a variadic of any", "a computed float is boxed", "a negative float keeps its sign in the box", "floats are forwarded with a spread", "a variadic of float takes computed floats"}},
+
 	{dir: "native_consts", x64Only: true, files: map[string]string{"limits/limits.wsp": `public const {
     Base = 40;
     Extra = 2;
@@ -5919,6 +6113,18 @@ func main() {
     puts((*int8)("hi"));
 }
 `, expected: []string{"libc strlen on a string literal", "hi"}},
+
+	{dir: "interop_libc_float", x64Only: true, libc: true, src: `extern func printf(*int8 fmt, ...) int32;
+
+func main() int {
+    float32 narrow = 1.5;
+    printf((*int8)("%f %d %f\n"), 2.5, 7, 4.25);
+    printf((*int8)("%f\n"), narrow);
+    printf((*int8)("%f %f %f %f %f %f %f %f %f %f\n"), 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0);
+    printf((*int8)("no floats\n"));
+    return 0;
+}
+`, expected: []string{"2.500000 7 4.250000", "1.500000", "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 8.000000 9.000000 10.000000", "no floats"}},
 
 	{dir: "interop_libc_printf", x64Only: true, libc: true, src: `extern func printf(*int8 fmt, ...) int32;
 

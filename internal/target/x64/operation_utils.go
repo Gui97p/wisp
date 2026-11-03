@@ -11,13 +11,18 @@ import (
 )
 
 func (t *X64Target) pop(reg x64context.Register) {
-	t.text.printft("pop %s\n", t.ctx.GetRegister(reg, 8))
+	regStr := t.ctx.GetRegister(reg, 8)
+	if reg.Class() == x64context.SSE {
+		t.text.printft("movsd %s, [rsp]\n", regStr)
+		t.text.printlnt("add rsp, 8")
+	} else {
+		t.text.printft("pop %s\n", regStr)
+	}
 	t.ctx.AddPushed(-1)
 }
 
 func (t *X64Target) push(reg x64context.Register) {
-	t.text.printft("push %s\n", t.ctx.GetRegister(reg, 8))
-	t.ctx.AddPushed(1)
+	t.pushWord(Reg{reg, 8})
 }
 
 func (t *X64Target) panic(message string) {

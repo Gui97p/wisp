@@ -504,11 +504,42 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 			return nil, err
 		}
 		reg := t.ctx.AllocFreeRegister()
-		inst := "cvttsd2si"
+		regStr := t.ctx.GetRegister(reg, 8)
+		inst := "sd"
 		if isFloat32(srcType) {
-			inst = "cvttss2si"
+			inst = "ss"
 		}
-		t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(reg, 8), t.opText(op, srcSize))
+		if isUint64(dstType) {
+			xmm := t.materializeXmm(op, srcSize)
+			xmmStr := t.ctx.GetRegister(xmm, srcSize)
+			tmp := t.ctx.AllocFreeRegister()
+			tmpStr := t.ctx.GetRegister(tmp, 8)
+
+			bigLabel := t.newLabel("cast_big")
+			doneLabel := t.newLabel("cast_done")
+
+			mem, err := t.resolveFloatLiteral(9223372036854775808.0, srcSize)
+			if err != nil {
+				return nil, err
+			}
+			memText := t.opText(mem, srcSize)
+
+			t.text.printft("ucomi%s %s, %s\n", inst, xmmStr, memText)
+			t.text.printft("jae %s\n", bigLabel)
+			t.text.printft("cvtt%s2si %s, %s\n", inst, regStr, xmmStr)
+			t.text.printft("jmp %s\n", doneLabel)
+			t.text.printf("%s:\n", bigLabel)
+			t.text.printft("sub%s %s, %s\n", inst, xmmStr, memText)
+			t.text.printft("cvtt%s2si %s, %s\n", inst, regStr, xmmStr)
+			t.text.printft("mov %s, 0x8000000000000000\n", tmpStr)
+			t.text.printft("xor %s, %s\n", regStr, tmpStr)
+			t.text.printf("%s:\n", doneLabel)
+
+			t.ctx.FreeRegister(xmm)
+			t.ctx.FreeRegister(tmp)
+		} else {
+			t.text.printft("cvtt%s2si %s, %s\n", inst, regStr, t.opText(op, srcSize))
+		}
 		t.freeOp(op)
 		return Reg{reg, dstSize}, nil
 	case isInteger(srcType) && isFloat(dstType):
@@ -517,12 +548,38 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 			return nil, err
 		}
 		reg := t.materialize(t.widen(op, srcType, 8), 8)
+		regStr := t.ctx.GetRegister(reg, 8)
 		xmm := t.ctx.AllocFreeXmm()
-		inst := "cvtsi2sd"
+		xmmStr := t.ctx.GetRegister(xmm, 8)
+		inst := "sd"
 		if isFloat32(dstType) {
-			inst = "cvtsi2ss"
+			inst = "ss"
 		}
-		t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(xmm, 8), t.ctx.GetRegister(reg, 8))
+		if isUint64(srcType) {
+			bigLabel := t.newLabel("cast_big")
+			doneLabel := t.newLabel("cast_done")
+
+			t.text.printft("test %s, %s\n", regStr, regStr)
+			t.text.printft("js %s\n", bigLabel)
+			t.text.printft("cvtsi2%s %s, %s\n", inst, xmmStr, regStr)
+			t.text.printft("jmp %s\n", doneLabel)
+
+			tmp := t.ctx.AllocFreeRegister()
+			tmpStr := t.ctx.GetRegister(tmp, 8)
+
+			t.text.printf("%s:\n", bigLabel)
+			t.text.printft("mov %s, %s\n", tmpStr, regStr)
+			t.text.printft("shr %s, 1\n", tmpStr)
+			t.text.printft("and %s, 1\n", t.ctx.GetRegister(reg, 4))
+			t.text.printft("or %s, %s\n", tmpStr, regStr)
+			t.text.printft("cvtsi2%s %s, %s\n", inst, xmmStr, tmpStr)
+			t.text.printft("add%s %s, %s\n", inst, xmmStr, xmmStr)
+			t.text.printf("%s:\n", doneLabel)
+
+			t.ctx.FreeRegister(tmp)
+		} else {
+			t.text.printft("cvtsi2%s %s, %s\n", inst, xmmStr, regStr)
+		}
 		t.freeOp(op)
 		t.ctx.FreeRegister(reg)
 		return Reg{xmm, dstSize}, nil

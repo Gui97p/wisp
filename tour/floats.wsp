@@ -1,0 +1,71 @@
+// Tour - Floating point numbers.
+//
+// The language has float32 and float64, with `float` as another name for
+// float64 (the way `int` is for int64). A literal with a decimal point is a
+// float, and an integer literal turns into one where a float is expected.
+//
+// fmt does not format floats yet, so this file shows them through
+// comparisons and through `int(...)`.
+
+import "std/fmt";
+
+struct Vec {
+  float x;
+  float y;
+}
+
+func average(float a, float b) float {
+  return (a + b) / 2.0;
+}
+
+func bounds(float a, float b) (float, float) {
+  return a < b ? a : b, a < b ? b : a;
+}
+
+func dot(Vec a, Vec b) float {
+  return a.x * b.x + a.y * b.y;
+}
+
+public func demo() {
+  float ratio = 2.5;
+  fmt.printf("ratio * 2 == 5.0: {}\n", ratio * 2 == 5.0);
+  fmt.printf("ratio is between 2 and 3: {}\n", ratio > 2 && ratio < 3);
+
+  // Division keeps the fraction, and the operators work on assignments too.
+  // `-ratio` flips the sign.
+  fmt.printf("7.0 / 2.0 * 2.0 = {}\n", int(7.0 / 2.0 * 2.0));
+  float total = 10.0;
+  total += 2.5;
+  total *= 2.0;
+  fmt.printf("total = {}\n", int(total));
+  fmt.printf("-ratio = {}\n", int(-ratio));
+
+  // An integer converts to a float and back by naming the type. Going back
+  // drops the fraction, toward zero.
+  int whole = 3;
+  float widened = float(whole);
+  fmt.printf("float(3) / 2 == 1.5: {}\n", widened / 2 == 1.5);
+  fmt.printf("int(3.9) = {}, int(-3.9) = {}\n", int(3.9), int(-3.9));
+
+  // float32 widens to float on its own, and float and float64 are the same
+  // type for every purpose.
+  float32 small = 1.5;
+  float64 big = small;
+  float same = big;
+  fmt.printf("float32 widens, and float is float64: {}\n", same == 1.5);
+
+  // NaN is not equal to anything, itself included, and every ordering
+  // comparison with it is false. `!=` is the only one that holds.
+  float zero = 0.0;
+  float nan = zero / zero;
+  fmt.printf("nan == nan: {}, nan != nan: {}\n", nan == nan, nan != nan);
+  fmt.printf("nan < 1.0: {}, nan > 1.0: {}\n", nan < 1.0, nan > 1.0);
+
+  // Floats go through functions, come back from them, and sit in structs.
+  fmt.printf("average(2.0, 5.0) * 2 = {}\n", int(average(2.0, 5.0) * 2.0));
+  let low, high = bounds(4.5, 1.5);
+  fmt.printf("bounds(4.5, 1.5) = ({}, {})\n", int(low * 10.0), int(high * 10.0));
+  Vec a = Vec{x: 1.5, y: 2.0};
+  Vec b = Vec{x: 2.0, y: 4.0};
+  fmt.printf("dot = {}\n", int(dot(a, b)));
+}

@@ -10,7 +10,7 @@ import (
 )
 
 func usesSret(types []analyser.Type) bool {
-	total := 0
+	totalInts, totalSSE := 0, 0
 	for _, tp := range types {
 		classes := classify(tp)
 		length := len(classes)
@@ -19,10 +19,16 @@ func usesSret(types []analyser.Type) bool {
 			return true
 		}
 
-		total += length
+		for _, class := range classes {
+			if class == x64context.SSE {
+				totalSSE++
+			} else {
+				totalInts++
+			}
+		}
 	}
 
-	return total > 2
+	return totalInts > 2 || totalSSE > 2
 }
 
 func retOffsets(types []analyser.Type) []int {
@@ -37,6 +43,36 @@ func retOffsets(types []analyser.Type) []int {
 	return offsets
 }
 
+func markInts(tp analyser.Type, base int, classes []x64context.Class) {
+	switch {
+	case isFloat(tp):
+	case isStruct(tp):
+		st := structOf(tp)
+		layout := layoutOf(st)
+
+		for _, field := range layout.Fields {
+			markInts(field.Type, base+field.Offset, classes)
+		}
+	case isArray(tp):
+		at, _ := arrayOf(tp)
+		size := sizeOf(at.Element)
+		for i := range int(at.Size) {
+			markInts(at.Element, base+i*size, classes)
+		}
+	default:
+		size := sizeOf(tp)
+		if size == 0 {
+			return
+		}
+		start := base / 8
+		end := (base + size - 1) / 8
+
+		for i := start; i <= end; i++ {
+			classes[i] = x64context.Int
+		}
+	}
+}
+
 func classify(tp analyser.Type) []x64context.Class {
 	size := sizeOf(tp)
 
@@ -44,21 +80,41 @@ func classify(tp analyser.Type) []x64context.Class {
 		return []x64context.Class{}
 	}
 
-	if size <= 8 {
-		return []x64context.Class{x64context.Int}
+	if isFloat(tp) {
+		return []x64context.Class{x64context.SSE}
 	}
 
-	if size <= 16 {
-		return []x64context.Class{x64context.Int, x64context.Int}
+	if size > 16 {
+		return []x64context.Class{x64context.Memory}
 	}
 
-	return []x64context.Class{x64context.Memory}
+	if !isStruct(tp) && !isArray(tp) {
+		words := (size + 7) / 8
+		classes := make([]x64context.Class, words)
+
+		for i := range classes {
+			classes[i] = x64context.Int
+		}
+
+		return classes
+	}
+
+	words := (size + 7) / 8
+	classes := make([]x64context.Class, words)
+
+	for i := range classes {
+		classes[i] = x64context.SSE
+	}
+
+	markInts(tp, 0, classes)
+
+	return classes
 }
 
 func assignArgs(types []analyser.Type, sret bool) []x64context.ArgLoc {
 	argLocs := []x64context.ArgLoc{}
 
-	pi := 0
+	pi, xi := 0, 0
 	if sret {
 		pi = 1
 	}
@@ -75,14 +131,32 @@ func assignArgs(types []analyser.Type, sret bool) []x64context.ArgLoc {
 			})
 			stack += (sizeOf(tp) + 7) / 8 * 8
 		} else {
-			need := len(classes)
-			if pi+need <= len(x64context.ParamOrder) {
-				argLoc := x64context.ArgLoc{}
-				for i := 0; i < need; i++ {
-					argLoc.Regs = append(argLoc.Regs, x64context.ParamOrder[pi+i])
+			ints, sses := 0, 0
+			for _, class := range classes {
+				if class == x64context.SSE {
+					sses++
+				} else {
+					ints++
 				}
+			}
+			need := len(classes)
+			if pi+ints <= len(x64context.ParamOrder) && xi+sses <= len(x64context.XMMParamOrder) {
+				argLoc := x64context.ArgLoc{}
+				ii, ss := 0, 0
+				for i := range need {
+					var reg x64context.Register
+					if classes[i] == x64context.SSE {
+						reg = x64context.XMMParamOrder[xi+ss]
+						ss++
+					} else {
+						reg = x64context.ParamOrder[pi+ii]
+						ii++
+					}
+					argLoc.Regs = append(argLoc.Regs, reg)
+				}
+				pi += ints
+				xi += sses
 				argLocs = append(argLocs, argLoc)
-				pi += need
 			} else {
 				argLocs = append(argLocs, x64context.ArgLoc{
 					Stack: stack,
@@ -109,42 +183,38 @@ func (t *X64Target) captureReturn(types []analyser.Type, memSlot Mem) []Operand 
 		}
 	} else {
 		n := 0
-		for _, tp := range types {
-			n += len(classify(tp))
-		}
-
 		rs := []x64context.Register{}
-		for range n {
-			reg := t.ctx.AllocFreeRegister()
-			if reg == x64context.NoReg {
-				t.fail("x86-64: no available registers")
-				return nil
+		srcs := []x64context.Register{}
+		nr, nx := 0, 0
+		for _, tp := range types {
+			for _, class := range classify(tp) {
+				var reg x64context.Register
+				if class == x64context.SSE {
+					reg = t.ctx.AllocFreeXmm()
+					srcs = append(srcs, x64context.XMMReturnOrder[nx])
+					nx++
+				} else {
+					reg = t.ctx.AllocFreeRegister()
+					srcs = append(srcs, x64context.ReturnOrder[nr])
+					nr++
+				}
+				if reg == x64context.NoReg {
+					t.fail("x86-64: no available registers")
+					return nil
+				}
+				rs = append(rs, reg)
+				n++
 			}
-			rs = append(rs, reg)
 		}
 
 		if len(rs) == 1 {
-			if rs[0] != x64context.AX {
-				t.text.printft("mov %s, rax\n", t.ctx.GetRegister(rs[0], 8))
-			}
+			t.loadWord(rs[0], Reg{srcs[0], 8})
 		} else if n > 0 {
-			r1, r2 := rs[0], rs[1]
-
-			if r1 == x64context.DX {
-				if r2 == x64context.AX {
-					t.text.printlnt("xchg rax, rdx")
-				} else {
-					t.text.printft("mov %s, rdx\n", t.ctx.GetRegister(r2, 8))
-					t.text.printlnt("mov rdx, rax")
-				}
-			} else {
-				if r1 != x64context.AX {
-					t.text.printft("mov %s, rax\n", t.ctx.GetRegister(r1, 8))
-				}
-
-				if r2 != x64context.DX {
-					t.text.printft("mov %s, rdx\n", t.ctx.GetRegister(r2, 8))
-				}
+			for _, r := range srcs {
+				t.push(r)
+			}
+			for _, r := range slices.Backward(rs) {
+				t.pop(r)
 			}
 		}
 
@@ -184,18 +254,26 @@ func (t *X64Target) returnValue(ops []Operand, types []analyser.Type, hidden Mem
 		t.ctx.FreeRegister(p)
 		t.loadWord(x64context.AX, hidden)
 	} else {
-		n := 0
 		for _, op := range ops {
-			n += t.pushValue(op)
+			t.pushValue(op)
 		}
 
-		if n == 2 {
-			t.pop(x64context.DX)
-			n--
+		nreg, nxmm := 0, 0
+		rs := []x64context.Register{}
+		for _, tp := range types {
+			for _, word := range classify(tp) {
+				if word == x64context.SSE {
+					rs = append(rs, x64context.XMMReturnOrder[nxmm])
+					nxmm++
+				} else {
+					rs = append(rs, x64context.ReturnOrder[nreg])
+					nreg++
+				}
+			}
 		}
 
-		if n == 1 {
-			t.pop(x64context.AX)
+		for _, r := range slices.Backward(rs) {
+			t.pop(r)
 		}
 	}
 }
@@ -230,9 +308,18 @@ func (t *X64Target) boxArg(dst Mem, arg analyser.Type, op Operand) {
 	if str {
 		t.store(op, dst.at(8, 16))
 	} else {
-		widenOp := t.widen(op, arg, 8)
-		t.storeWord(dst.at(8, 8), widenOp)
-		t.freeOp(widenOp)
+		if isFloat(arg) {
+			size := sizeOf(arg)
+			t.storeWord(dst.at(8, size), op)
+			if size == 4 {
+				t.storeWord(dst.at(12, 4), Imm(0))
+			}
+			t.freeOp(op)
+		} else {
+			widenOp := t.widen(op, arg, 8)
+			t.storeWord(dst.at(8, 8), widenOp)
+			t.freeOp(widenOp)
+		}
 
 		var w1 Operand = Imm(0)
 		switch layout.Identity {
@@ -437,7 +524,19 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 	}
 
 	if cVariadic {
-		t.text.printlnt("xor eax, eax")
+		xi := 0
+		for _, arg := range argLocs {
+			for _, reg := range arg.Regs {
+				if reg.Class() == x64context.SSE {
+					xi++
+				}
+			}
+		}
+		if xi == 0 {
+			t.text.printlnt("xor eax, eax")
+		} else {
+			t.text.printft("mov eax, %d\n", xi)
+		}
 	}
 	t.text.printft("call %s\n", sym)
 

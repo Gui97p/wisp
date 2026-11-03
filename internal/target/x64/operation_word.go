@@ -79,7 +79,17 @@ func (t *X64Target) pushWord(w Operand) {
 	case Imm:
 		t.text.printft("push %d\n", o)
 	case Reg:
-		t.text.printft("push %s\n", t.ctx.GetRegister(o.Reg, 8))
+		reg := t.ctx.GetRegister(o.Reg, 8)
+		if o.Reg.Class() == x64context.SSE {
+			inst := "movsd"
+			if o.Size == 4 {
+				inst = "movss"
+			}
+			t.text.printlnt("sub rsp, 8")
+			t.text.printft("%s [rsp], %s\n", inst, reg)
+		} else {
+			t.text.printft("push %s\n", reg)
+		}
 	case Mem:
 		if o.Size < 8 {
 			reg := t.ctx.AllocFreeRegister()

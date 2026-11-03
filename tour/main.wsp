@@ -17,6 +17,7 @@ import "variadics";
 import "anyargs";
 import "cleanup";
 import "types";
+import "floats";
 import "structs";
 import "collections";
 import "errors";
@@ -56,6 +57,9 @@ func main() !int {
 
   fmt.printf("\n== types ==\n");
   types.demo();
+
+  fmt.printf("\n== floats ==\n");
+  floats.demo();
 
   fmt.printf("\n== structs ==\n");
   structs.demo();

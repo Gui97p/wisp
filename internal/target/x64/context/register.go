@@ -56,8 +56,11 @@ func (r Register) Class() Class {
 }
 
 var ParamOrder = []Register{DI, SI, DX, CX, R8, R9}
+var ReturnOrder = []Register{AX, DX}
 var RegisterOrder = []Register{AX, CX, DX, DI, SI, R8, R9, R10, R11}
 var XMMOrder = []Register{X0, X1, X2, X3, X4, X5, X6, X7, X8, X9, X10, X11, X12, X13, X14, X15}
+var XMMParamOrder = []Register{X0, X1, X2, X3, X4, X5, X6, X7}
+var XMMReturnOrder = []Register{X0, X1}
 
 var registers = map[Register]map[int]string{
 	AX:  {1: "al", 2: "ax", 4: "eax", 8: "rax"},
