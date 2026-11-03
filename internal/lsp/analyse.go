@@ -58,7 +58,8 @@ func analyseProject(path string) (*projectAnalysis, error) {
 	analysisMu.Lock()
 	defer analysisMu.Unlock()
 
-	whole, err := cachedAnalysis("project:"+root, gen, func() (*projectAnalysis, error) {
+	tg := analysisTarget(path)
+	whole, err := cachedAnalysis("project:"+root+"|"+tg, gen, func() (*projectAnalysis, error) {
 		return runProjectAnalysis(path, fileBuffer)
 	})
 	if err == nil && whole != nil && analysisHas(whole, path) {
@@ -66,7 +67,7 @@ func analyseProject(path string) (*projectAnalysis, error) {
 	}
 
 	entry := resolveProjectEntry(path)
-	return cachedAnalysis("entry:"+entry, gen, func() (*projectAnalysis, error) {
+	return cachedAnalysis("entry:"+entry+"|"+analysisTarget(entry), gen, func() (*projectAnalysis, error) {
 		return runAnalysis(entry)
 	})
 }

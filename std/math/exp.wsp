@@ -1,0 +1,206 @@
+/*
+ * ====================================================
+ * Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
+ *
+ * Permission to use, copy, modify, and distribute this
+ * software is freely granted, provided that this notice
+ * is preserved.
+ * ====================================================
+ */
+
+import "std/math/ieee";
+
+const {
+	one = 1.0;
+	huge = 1.0e+300;
+	twom1000 = 9.33263618503218878990e-302;
+	o_threshold = 7.09782712893383973096e+02;
+	u_threshold = -7.45133219101941108420e+02;
+	invln2 = 1.44269504088896338700e+00;
+	P1 = 1.66666666666666019037e-01;
+	P2 = -2.77777777770155933842e-03;
+	P3 = 6.61375632143793436117e-05;
+	P4 = -1.65339022054652515390e-06;
+	P5 = 4.13813679705723846039e-08;
+	tiny = 1.0e-300;
+	ln2_hi = 6.93147180369123816490e-01;
+	ln2_lo = 1.90821492927058770002e-10;
+	Q1 = -3.33333333333331316428e-02;
+	Q2 = 1.58730158725481460165e-03;
+	Q3 = -7.93650757867487942473e-05;
+	Q4 = 4.00821782732936239552e-06;
+	Q5 = -2.01099218183624371326e-07;
+}
+
+float[2] halF = [0.5, -0.5];
+float[2] ln2HI = [6.93147180369123816490e-01, -6.93147180369123816490e-01];
+float[2] ln2LO = [1.90821492927058770002e-10, -1.90821492927058770002e-10];
+
+public func exp(float x) float {
+	uint hx = ieee.highWord(x);
+	int xsb = int((hx >> 31) & 1);
+	hx = hx & 0x7fffffff;
+
+	if hx >= 0x40862E42 {
+		if hx >= 0x7ff00000 {
+			if ((hx & 0xfffff) | ieee.lowWord(x)) != 0 {
+				return x + x;
+			}
+			if xsb == 0 {
+				return x;
+			}
+			return 0.0;
+		}
+		if x > o_threshold {
+			return huge * huge;
+		}
+		if x < u_threshold {
+			return twom1000 * twom1000;
+		}
+	}
+
+	float hi;
+	float lo;
+	int k;
+	if hx > 0x3fd62e42 {
+		if hx < 0x3FF0A2B2 {
+			hi = x - ln2HI[xsb];
+			lo = ln2LO[xsb];
+			k = 1 - xsb - xsb;
+		} else {
+			k = int(invln2 * x + halF[xsb]);
+			float t = float(k);
+			hi = x - t * ln2HI[0];
+			lo = t * ln2LO[0];
+		}
+		x = hi - lo;
+	} else if hx < 0x3e300000 {
+		if huge + x > one {
+			return one + x;
+		}
+	}
+
+	float sq = x * x;
+	float c = x - sq * (P1 + sq * (P2 + sq * (P3 + sq * (P4 + sq * P5))));
+	if k == 0 {
+		return one - ((x * c) / (c - 2.0) - x);
+	}
+	float y = one - ((lo - (x * c) / (2.0 - c)) - hi);
+	if k >= -1021 {
+		return ieee.addExponent(y, k);
+	}
+	return ieee.addExponent(y, k + 1000) * twom1000;
+}
+
+public func expm1(float x) float {
+	uint hx = ieee.highWord(x);
+	uint xsb = hx & 0x80000000;
+	hx = hx & 0x7fffffff;
+
+	if hx >= 0x4043687A {
+		if hx >= 0x40862E42 {
+			if hx >= 0x7ff00000 {
+				if ((hx & 0xfffff) | ieee.lowWord(x)) != 0 {
+					return x + x;
+				}
+				if xsb == 0 {
+					return x;
+				}
+				return -1.0;
+			}
+			if x > o_threshold {
+				return huge * huge;
+			}
+		}
+		if xsb != 0 {
+			if x + tiny < 0.0 {
+				return tiny - one;
+			}
+		}
+	}
+
+	float hi;
+	float lo;
+	float c;
+	int k;
+	if hx > 0x3fd62e42 {
+		if hx < 0x3FF0A2B2 {
+			if xsb == 0 {
+				hi = x - ln2_hi;
+				lo = ln2_lo;
+				k = 1;
+			} else {
+				hi = x + ln2_hi;
+				lo = -ln2_lo;
+				k = -1;
+			}
+		} else {
+			float bias = 0.5;
+			if xsb != 0 {
+				bias = -0.5;
+			}
+			k = int(invln2 * x + bias);
+			float t = float(k);
+			hi = x - t * ln2_hi;
+			lo = t * ln2_lo;
+		}
+		x = hi - lo;
+		c = (hi - x) - lo;
+	} else if hx < 0x3c900000 {
+		float t = huge + x;
+		return x - (t - (huge + x));
+	}
+
+	float hfx = 0.5 * x;
+	float hxs = x * hfx;
+	float r1 = one + hxs * (Q1 + hxs * (Q2 + hxs * (Q3 + hxs * (Q4 + hxs * Q5))));
+	float t3 = 3.0 - r1 * hfx;
+	float e = hxs * ((r1 - t3) / (6.0 - x * t3));
+	if k == 0 {
+		return x - (x * e - hxs);
+	}
+	e = (x * (e - c) - c);
+	e -= hxs;
+	if k == -1 {
+		return 0.5 * (x - e) - 0.5;
+	}
+	if k == 1 {
+		if x < -0.25 {
+			return -2.0 * (e - (x + 0.5));
+		}
+		return one + 2.0 * (x - e);
+	}
+	float y;
+	if k <= -2 || k > 56 {
+		y = one - (e - x);
+		y = ieee.addExponent(y, k);
+		return y - one;
+	}
+	float tt = one;
+	if k < 20 {
+		tt = ieee.setHighWord(tt, uint(0x3ff00000 - (0x200000 >> k)));
+		y = tt - (e - x);
+		y = ieee.addExponent(y, k);
+	} else {
+		tt = ieee.setHighWord(tt, uint((0x3ff - k) << 20));
+		y = x - (e + tt);
+		y += one;
+		y = ieee.addExponent(y, k);
+	}
+	return y;
+}
+
+public func exp2(float x) float {
+	if ieee.isNaN(x) {
+		return x;
+	}
+	if x >= 1024.0 {
+		return ieee.inf(1);
+	}
+	if x <= -1075.0 {
+		return 0.0;
+	}
+	float k = ieee.floor(x + 0.5);
+	float r = x - k;
+	return ieee.ldexp(exp(r * 0.6931471805599453), int(k));
+}

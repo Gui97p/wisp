@@ -426,7 +426,9 @@ func (t *X64Target) compileBitwise(op string, left, right Operand, leftType, res
 	if t.err != nil {
 		return nil, t.err
 	}
-	t.freeOp(right)
+	if op != "<<" && op != ">>" {
+		t.freeOp(right)
+	}
 	reg := t.ctx.GetRegister(leftReg, size)
 
 	switch op {

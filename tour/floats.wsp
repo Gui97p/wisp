@@ -1,8 +1,9 @@
 // Tour - Floating point numbers.
 //
 // The language has float32 and float64, with `float` as another name for
-// float64 (the way `int` is for int64). A literal with a decimal point is a
-// float, and an integer literal turns into one where a float is expected.
+// float64 (the way `int` is for int64). A literal with a decimal point or an
+// exponent (`2.5`, `1e3`, `4.5e-7`) is a float, and an integer literal turns
+// into one where a float is expected.
 //
 // fmt does not format floats yet, so this file shows them through
 // comparisons and through `int(...)`.
@@ -29,6 +30,7 @@ func dot(Vec a, Vec b) float {
 public func demo() {
   float ratio = 2.5;
   fmt.printf("ratio * 2 == 5.0: {}\n", ratio * 2 == 5.0);
+  fmt.printf("25e-1 == ratio: {}\n", 25e-1 == ratio);
   fmt.printf("ratio is between 2 and 3: {}\n", ratio > 2 && ratio < 3);
 
   // Division keeps the fraction, and the operators work on assignments too.

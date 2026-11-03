@@ -160,3 +160,23 @@ public func atoi(string s) !int {
 public func atou(string s) !uint {
 	return parseUint(s, 10)!;
 }
+
+public func floatToInt(float x) !int {
+	if math.isNaN(x) {
+		return Error(errors.Kind.Invalid);
+	}
+	if x >= 9223372036854775808.0 || x < -9223372036854775808.0 {
+		return Error(errors.Kind.Overflow);
+	}
+	return int(x);
+}
+
+public func floatToUint(float x) !uint {
+	if math.isNaN(x) {
+		return Error(errors.Kind.Invalid);
+	}
+	if x <= -1.0 || x >= 18446744073709551616.0 {
+		return Error(errors.Kind.Overflow);
+	}
+	return uint(x);
+}

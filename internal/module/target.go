@@ -33,6 +33,21 @@ func currentTarget() string {
 }
 
 func FileApplies(path string) bool {
+	return FileAppliesTo(path, currentTarget())
+}
+
+func VariantSelector(path string) (string, bool) {
+	if !isVariantFile(path) {
+		return "", false
+	}
+	_, selector, _ := targetSuffix(path)
+	return selector, true
+}
+
+func FileAppliesTo(path, targetName string) bool {
+	if targetName == "" {
+		targetName = runtime.GOOS + "_x64"
+	}
 	base := strings.TrimSuffix(filepath.Base(path), ".wsp")
 
 	selectors := target.Selectors()
@@ -41,7 +56,7 @@ func FileApplies(path string) bool {
 	for _, selector := range selectors {
 		suffix := "_" + selector
 		if len(base) > len(suffix) && strings.HasSuffix(base, suffix) {
-			return target.MatchesName(currentTarget(), selector)
+			return target.MatchesName(targetName, selector)
 		}
 	}
 	return true

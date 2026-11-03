@@ -1,5 +1,17 @@
-import "std/math";
 import "std/sys";
+
+func leadingZeros(uint x) uint {
+	if x == 0 {
+		return 64;
+	}
+
+	uint n;
+	loop (x & 0x8000000000000000) == 0 {
+		x <<= 1;
+		n++;
+	}
+	return n;
+}
 
 struct Class { *void head; }
 Class[11] classes;
@@ -20,8 +32,8 @@ func setHeader(*void p, int v) {
 }
 
 func classOf(int total) int {
-	int bits = int(64 - math.leadingZeros(uint(total - 1)));
-	return math.max(bits, 5) - 5;
+	int bits = int(64 - leadingZeros(uint(total - 1)));
+	return (bits > 5 ? bits : 5) - 5;
 }
 
 func failed(*void r) bool {

@@ -1,0 +1,133 @@
+/*
+ * ====================================================
+ * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+ *
+ * Developed at SunSoft, a Sun Microsystems, Inc. business.
+ * Permission to use, copy, modify, and distribute this
+ * software is freely granted, provided that this notice
+ * is preserved.
+ * ====================================================
+ *
+ */
+
+import "std/math/ieee";
+
+const {
+	B1 = 715094163;
+	B2 = 696219795;
+	C = 5.42857142857142815906e-01;
+	D = -7.05306122448979611050e-01;
+	E = 1.41428571428571436819e+00;
+	F = 1.60714285714285720630e+00;
+	G = 3.57142857142857150787e-01;
+}
+
+public func cbrt(float x) float {
+	uint uhx = ieee.highWord(x);
+	uint sign = uhx & 0x80000000;
+	uint hx = uhx ^ sign;
+
+	if hx >= 0x7ff00000 {
+		return x + x;
+	}
+	if (hx | ieee.lowWord(x)) == 0 {
+		return x;
+	}
+	x = ieee.setHighWord(x, hx);
+
+	float t;
+	if hx < 0x00100000 {
+		t = ieee.fromWords(0x43500000, 0);
+		t *= x;
+		t = ieee.setHighWord(t, ieee.highWord(t) / 3 + B2);
+	} else {
+		t = ieee.fromWords(hx / 3 + B1, 0);
+	}
+
+	float r = t * t / x;
+	float s = C + r * t;
+	t *= G + F / (s + E + D / s);
+
+	t = ieee.fromWords(ieee.highWord(t) + 1, 0);
+	s = t * t;
+	r = x / s;
+	float w = t + t;
+	r = (r - t) / (w + r);
+	t = t + t * r;
+	return ieee.setHighWord(t, ieee.highWord(t) | sign);
+}
+
+public func hypot(float x, float y) float {
+	int ha = int(ieee.highWord(x) & 0x7fffffff);
+	int hb = int(ieee.highWord(y) & 0x7fffffff);
+	float a = x;
+	float b = y;
+	if hb > ha {
+		a = y;
+		b = x;
+		int swap = ha;
+		ha = hb;
+		hb = swap;
+	}
+	a = ieee.setHighWord(a, uint(ha));
+	b = ieee.setHighWord(b, uint(hb));
+	if (ha - hb) > 0x3c00000 {
+		return a + b;
+	}
+
+	int k = 0;
+	if ha > 0x5f300000 {
+		if ha >= 0x7ff00000 {
+			float w = a + b;
+			if ((uint(ha) & 0xfffff) | ieee.lowWord(a)) == 0 {
+				w = a;
+			}
+			if ((uint(hb) ^ 0x7ff00000) | ieee.lowWord(b)) == 0 {
+				w = b;
+			}
+			return w;
+		}
+		ha -= 0x25800000;
+		hb -= 0x25800000;
+		k += 600;
+		a = ieee.setHighWord(a, uint(ha));
+		b = ieee.setHighWord(b, uint(hb));
+	}
+	if hb < 0x20b00000 {
+		if hb <= 0x000fffff {
+			if (uint(hb) | ieee.lowWord(b)) == 0 {
+				return a;
+			}
+			float t1 = ieee.fromWords(0x7fd00000, 0);
+			b *= t1;
+			a *= t1;
+			k -= 1022;
+			ha = int(ieee.highWord(a));
+			hb = int(ieee.highWord(b));
+		} else {
+			ha += 0x25800000;
+			hb += 0x25800000;
+			k -= 600;
+			a = ieee.setHighWord(a, uint(ha));
+			b = ieee.setHighWord(b, uint(hb));
+		}
+	}
+
+	float w = a - b;
+	if w > b {
+		float t1 = ieee.fromWords(uint(ha), 0);
+		float t2 = a - t1;
+		w = ieee.fsqrt(t1 * t1 - (b * (-b) - t2 * (a + t1)));
+	} else {
+		a = a + a;
+		float y1 = ieee.fromWords(uint(hb), 0);
+		float y2 = b - y1;
+		float t1 = ieee.fromWords(uint(ha + 0x00100000), 0);
+		float t2 = a - t1;
+		w = ieee.fsqrt(t1 * y1 - (w * (-w) - (t1 * y2 + t2 * b)));
+	}
+	if k != 0 {
+		return ieee.addExponent(1.0, k) * w;
+	}
+	return w;
+}
