@@ -51,7 +51,7 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 	if fd.Extern {
 		line, col := fd.Position()
 		endLine, endCol := fd.SignatureEnd()
-		return diag.Locate("lua", fmt.Errorf("extern function %s is not available on the lua target", fd.Name), line, col, endLine, endCol)
+		return diag.Locate("lua", fmt.Errorf("extern function %s is not available on the cc target", fd.Name), line, col, endLine, endCol)
 	}
 	if fd.Body == nil {
 		return nil

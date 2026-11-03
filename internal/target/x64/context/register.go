@@ -20,6 +20,23 @@ const (
 
 	BP
 	SP
+
+	X0
+	X1
+	X2
+	X3
+	X4
+	X5
+	X6
+	X7
+	X8
+	X9
+	X10
+	X11
+	X12
+	X13
+	X14
+	X15
 )
 
 type Class int
@@ -31,11 +48,16 @@ const (
 )
 
 func (r Register) Class() Class {
+	switch r {
+	case X0, X1, X2, X3, X4, X5, X6, X7, X8, X9, X10, X11, X12, X13, X14, X15:
+		return SSE
+	}
 	return Int
 }
 
 var ParamOrder = []Register{DI, SI, DX, CX, R8, R9}
 var RegisterOrder = []Register{AX, CX, DX, DI, SI, R8, R9, R10, R11}
+var XMMOrder = []Register{X0, X1, X2, X3, X4, X5, X6, X7, X8, X9, X10, X11, X12, X13, X14, X15}
 
 var registers = map[Register]map[int]string{
 	AX:  {1: "al", 2: "ax", 4: "eax", 8: "rax"},
@@ -52,6 +74,23 @@ var registers = map[Register]map[int]string{
 
 	BP: {1: "bpl", 2: "bp", 4: "ebp", 8: "rbp"},
 	SP: {1: "spl", 2: "sp", 4: "esp", 8: "rsp"},
+
+	X0:  {4: "xmm0", 8: "xmm0"},
+	X1:  {4: "xmm1", 8: "xmm1"},
+	X2:  {4: "xmm2", 8: "xmm2"},
+	X3:  {4: "xmm3", 8: "xmm3"},
+	X4:  {4: "xmm4", 8: "xmm4"},
+	X5:  {4: "xmm5", 8: "xmm5"},
+	X6:  {4: "xmm6", 8: "xmm6"},
+	X7:  {4: "xmm7", 8: "xmm7"},
+	X8:  {4: "xmm8", 8: "xmm8"},
+	X9:  {4: "xmm9", 8: "xmm9"},
+	X10: {4: "xmm10", 8: "xmm10"},
+	X11: {4: "xmm11", 8: "xmm11"},
+	X12: {4: "xmm12", 8: "xmm12"},
+	X13: {4: "xmm13", 8: "xmm13"},
+	X14: {4: "xmm14", 8: "xmm14"},
+	X15: {4: "xmm15", 8: "xmm15"},
 }
 
 func (c *Context) GetRegister(reg Register, size int) string {
@@ -90,6 +129,16 @@ func (c *Context) FreeRegister(reg Register) {
 
 func (c *Context) AllocFreeRegister() Register {
 	for _, reg := range RegisterOrder {
+		if _, ok := c.registers[reg]; !ok {
+			c.AllocRegister(reg)
+			return reg
+		}
+	}
+	return NoReg
+}
+
+func (c *Context) AllocFreeXmm() Register {
+	for _, reg := range XMMOrder {
 		if _, ok := c.registers[reg]; !ok {
 			c.AllocRegister(reg)
 			return reg

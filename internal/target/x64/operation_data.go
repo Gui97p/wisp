@@ -28,6 +28,17 @@ var usetccOperators = map[string]string{
 	">=": "setae",
 }
 
+var ucomiOperators = map[string]string{
+	"==": "sete",
+	"!=": "setne",
+
+	"<":  "seta",
+	"<=": "setae",
+
+	">":  "seta",
+	">=": "setae",
+}
+
 var castOperators = map[int]map[int]string{
 	1: {
 		2: "movsx",
@@ -61,6 +72,8 @@ var ucastOperators = map[int]map[int]string{
 var mathOperators = map[string]string{
 	"+": "add",
 	"-": "sub",
+	"*": "mul",
+	"/": "div",
 	"&": "and",
 	"|": "or",
 	"^": "xor",

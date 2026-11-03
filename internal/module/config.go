@@ -17,7 +17,7 @@ import (
 
 type Config struct {
 	Entry        string                  `toml:"entry" doc:"Entry file of the project, relative to the project root. Defaults to main.wsp."`
-	Target       string                  `toml:"target" doc:"Default compilation target. Built-in: linux_x64, lua, or a name declared in [targets.<name>]."`
+	Target       string                  `toml:"target" doc:"Default compilation target. Built-in: linux_x64, cc, or a name declared in [targets.<name>]."`
 	Std          string                  `toml:"std" doc:"Path to a standard library folder that replaces the bundled one. Cannot be combined with freestanding."`
 	Freestanding bool                    `toml:"freestanding" doc:"Compile without any standard library. Cannot be combined with std."`
 	Link         []string                `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`

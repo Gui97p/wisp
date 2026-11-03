@@ -1,23 +1,44 @@
 package x64
 
 import (
+	"fmt"
 	"slices"
 
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
+func (t *X64Target) rejectSSE(dst x64context.Register, op string) {
+	if dst.Class() == x64context.SSE {
+		t.fail("x86-64: cannot load %s into an xmm register", op)
+	}
+}
+
 func (t *X64Target) loadWord(dst x64context.Register, w Operand) {
 	switch o := w.(type) {
 	case Imm:
+		t.rejectSSE(dst, fmt.Sprintf("%d", o))
 		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(dst, 8), o)
 	case Reg:
 		if o.Reg != dst {
-			t.text.printft("mov %s, %s\n", t.ctx.GetRegister(dst, o.Size), t.ctx.GetRegister(o.Reg, o.Size))
+			var inst string
+			srcSSE, dstSSE := o.Reg.Class() == x64context.SSE, dst.Class() == x64context.SSE
+			if (srcSSE && !dstSSE) || (!srcSSE && dstSSE) {
+				if o.Size == 8 {
+					inst = "movq"
+				} else {
+					inst = "movd"
+				}
+			} else {
+				inst = mov(o.Reg, o.Size)
+			}
+			t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(dst, o.Size), t.ctx.GetRegister(o.Reg, o.Size))
 		}
 	case Mem:
-		t.text.printft("mov %s, %s\n", t.ctx.GetRegister(dst, o.Size), t.memText(o))
+		t.text.printft("%s %s, %s\n", mov(dst, o.Size), t.ctx.GetRegister(dst, o.Size), t.memText(o))
 	case Addr:
-		t.text.printft("lea %s, %s\n", t.ctx.GetRegister(dst, 8), t.memText(o.Of))
+		memText := t.memText(o.Of)
+		t.rejectSSE(dst, memText)
+		t.text.printft("lea %s, %s\n", t.ctx.GetRegister(dst, 8), memText)
 	default:
 		t.fail("x86-64: unsupported operand %s", o)
 	}
@@ -28,7 +49,7 @@ func (t *X64Target) storeWord(dst Mem, w Operand) {
 	case Imm:
 		t.text.printft("mov %s, %d\n", t.memText(dst), o)
 	case Reg:
-		t.text.printft("mov %s, %s\n", t.memText(dst), t.ctx.GetRegister(o.Reg, dst.Size))
+		t.text.printft("%s %s, %s\n", mov(o.Reg, o.Size), t.memText(dst), t.ctx.GetRegister(o.Reg, dst.Size))
 	case Mem:
 		reg := t.ctx.AllocFreeRegister()
 		if reg == x64context.NoReg {

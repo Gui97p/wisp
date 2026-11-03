@@ -79,7 +79,7 @@ type rodataSection struct {
 
 func NewRodata() *rodataSection {
 	section := &rodataSection{}
-	section.println("section .rodata")
+	section.println("section .rodata align=16")
 	return section
 }
 

@@ -164,6 +164,25 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 	return x64context.NoReg
 }
 
+func (t *X64Target) materializeXmm(op Operand, size int) x64context.Register {
+	switch o := op.(type) {
+	case Reg:
+		return o.Reg
+	case Mem:
+		reg := t.ctx.AllocFreeXmm()
+		if reg == x64context.NoReg {
+			t.fail("x86-64: no available registers")
+			return reg
+		}
+		t.loadWord(reg, o)
+		t.freeWord(o)
+		return reg
+	default:
+		t.fail("x86-64: unsupported operand %s", o)
+	}
+	return x64context.NoReg
+}
+
 func (t *X64Target) compileInto(expr ast.Expression, dst Mem, tp analyser.Type) error {
 	switch e := expr.(type) {
 	case *ast.StructLiteral:

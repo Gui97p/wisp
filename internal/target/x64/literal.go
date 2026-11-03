@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
@@ -25,6 +26,31 @@ func (*X64Target) resolveBoolLiteral(value bool) (Operand, error) {
 	} else {
 		return Imm(0), nil
 	}
+}
+
+func floatBits(value float64, size int) uint64 {
+	if size == 4 {
+		return uint64(math.Float32bits(float32(value)))
+	}
+	return math.Float64bits(value)
+}
+
+type floatdata struct {
+	bits uint64
+	size int
+}
+
+func (t *X64Target) resolveFloatLiteral(value float64, size int) (Operand, error) {
+	bits := floatBits(value, size)
+	l, ok := t.createData("float", floatdata{bits: bits, size: size})
+	if !ok {
+		s := "dq"
+		if size == 4 {
+			s = "dd"
+		}
+		t.rodata.printf("%s %s %d\n", l, s, bits)
+	}
+	return label(l, size), nil
 }
 
 func (t *X64Target) resolveStringLiteral(value string) (Operand, error) {

@@ -2351,6 +2351,105 @@ func main() ! {
 }
 `, expected: []string{"a char array converts to a string view of itself", "string is a view of the buffer", "a pointer starts with 0x", "p is the default for a pointer"}},
 
+	{dir: "float_basic", src: `func main() {
+    float x = 2.5;
+    check(int(x) == 2, "a float literal truncates toward zero");
+    check(int(0.0 - 2.9) == -2, "a negative float truncates toward zero");
+
+    float32 small = 1.5;
+    float widened = small;
+    check(int(widened * 4.0) == 6, "float32 widens to float");
+    float32 narrowed = float32(widened);
+    check(int(narrowed * 2.0) == 3, "float narrows to float32");
+
+    int n = 7;
+    float fromInt = float(n);
+    check(int(fromInt) == 7, "an int converts to a float");
+    int8 minus = -3;
+    check(int(float(minus)) == -3, "a negative int8 converts to a float");
+    uint8 high = 200;
+    check(int(float(high)) == 200, "a uint8 converts to a float");
+    int64 big = 4000000000;
+    check(int(float(big)) == 4000000000, "an int64 converts to a float and back");
+
+    float copy = x;
+    check(int(copy) == 2, "a float variable is copied");
+}
+`, expected: []string{"a float literal truncates toward zero", "a negative float truncates toward zero", "float32 widens to float", "float narrows to float32", "an int converts to a float", "a negative int8 converts to a float", "a uint8 converts to a float", "an int64 converts to a float and back", "a float variable is copied"}},
+
+	{dir: "float_arith", src: `func main() {
+    float a = 2.5;
+    float b = a * 2.0 + 1.0;
+    check(int(b) == 6, "multiply then add");
+    check(int(b - 1.0) == 5, "subtract");
+    check(int(7.0 / 2.0 * 2.0) == 7, "divide keeps the fraction");
+    check(int(1.0 / 4.0 * 100.0) == 25, "a fraction is not truncated before the next operation");
+
+    float x = 10.0;
+    x += 2.5;
+    x *= 2.0;
+    x /= 5.0;
+    x -= 0.5;
+    check(int(x) == 4, "compound assignment on a float");
+
+    float32 f = 1.5;
+    float32 g = f * 4.0;
+    check(int(g) == 6, "float32 arithmetic");
+    check(int(float(g) / 2.0) == 3, "float32 widened into a float divide");
+
+    check(int(a * a * a) == 15, "chained multiplication");
+    check(int((a + 0.5) * (a - 0.5)) == 6, "parenthesised operands");
+    float zero = 0.0;
+    check(int(1.0 / 3.0 * 3.0 + zero) == 1, "no panic is needed to divide by a float");
+}
+`, expected: []string{"multiply then add", "subtract", "divide keeps the fraction", "a fraction is not truncated before the next operation", "compound assignment on a float", "float32 arithmetic", "float32 widened into a float divide", "chained multiplication", "parenthesised operands", "no panic is needed to divide by a float"}},
+
+	{dir: "float_compare", src: `func main() {
+    float a = 1.5;
+    float b = 2.5;
+    check(a < b, "less");
+    check(a <= a, "less or equal when equal");
+    check(a <= b, "less or equal when less");
+    check(b > a, "greater");
+    check(b >= b, "greater or equal when equal");
+    check(b >= a, "greater or equal when greater");
+    check(a == a, "equal");
+    check(a != b, "not equal");
+    checkEq(a > b, false, "a smaller number is not greater");
+    checkEq(b < a, false, "a bigger number is not less");
+    checkEq(a == b, false, "different numbers are not equal");
+    checkEq(a >= b, false, "a smaller number is not greater or equal");
+
+    float32 s = 1.5;
+    float32 u = 2.5;
+    check(s < u, "float32 less");
+    check(u >= s, "float32 greater or equal");
+    check(s == s, "float32 equal");
+    check(s != u, "float32 not equal");
+
+    float zero = 0.0;
+    float nan = zero / zero;
+    checkEq(nan == nan, false, "NaN is not equal to itself");
+    check(nan != nan, "NaN is different from itself");
+    checkEq(nan < 1.0, false, "NaN is not less");
+    checkEq(nan > 1.0, false, "NaN is not greater");
+    checkEq(nan <= nan, false, "NaN is not less or equal");
+    checkEq(nan >= nan, false, "NaN is not greater or equal");
+    checkEq(1.0 < nan, false, "nothing is less than NaN");
+    checkEq(1.0 > nan, false, "nothing is greater than NaN");
+    check(1.0 != nan, "nothing is equal to NaN");
+
+    int count = 0;
+    if a < b {
+        count++;
+    }
+    if b < a {
+        count += 10;
+    }
+    check(count == 1, "a float comparison drives an if");
+}
+`, expected: []string{"less", "less or equal when equal", "less or equal when less", "greater", "greater or equal when equal", "greater or equal when greater", "equal", "not equal", "a smaller number is not greater", "a bigger number is not less", "different numbers are not equal", "a smaller number is not greater or equal", "float32 less", "float32 greater or equal", "float32 equal", "float32 not equal", "NaN is not equal to itself", "NaN is different from itself", "NaN is not less", "NaN is not greater", "NaN is not less or equal", "NaN is not greater or equal", "nothing is less than NaN", "nothing is greater than NaN", "nothing is equal to NaN", "a float comparison drives an if"}},
+
 	{dir: "native_consts", x64Only: true, files: map[string]string{"limits/limits.wsp": `public const {
     Base = 40;
     Extra = 2;

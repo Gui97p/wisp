@@ -22,11 +22,17 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 	case *ast.NullLiteral:
 		return Imm(0), nil
 	case *ast.IntLiteral:
+		tp := t.info.Types[e]
+		if isFloat(tp) {
+			return t.resolveFloatLiteral(float64(e.Value), sizeOf(tp))
+		}
 		return t.resolveIntLiteral(e.Value)
 	case *ast.BoolLiteral:
 		return t.resolveBoolLiteral(e.Value)
 	case *ast.CharLiteral:
 		return Imm(e.Value), nil
+	case *ast.FloatLiteral:
+		return t.resolveFloatLiteral(e.Value, sizeOf(t.info.Types[e]))
 	case *ast.StringLiteral:
 		return t.resolveStringLiteral(e.Value)
 	case *ast.StructLiteral, *ast.ArrayLiteral:
@@ -54,7 +60,7 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		case sym.Global:
 			return t.globalMem(sym, size), nil
 		case sym.Kind == analyser.CONST:
-			return t.constOperand(sym)
+			return t.constOperand(sym, t.info.Types[e])
 		}
 
 		offset, ok := t.ctx.Get(sym)
@@ -88,7 +94,7 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 				return nil, err
 			}
 			if sym.Kind == analyser.CONST {
-				return t.constOperand(sym)
+				return t.constOperand(sym, t.info.Types[e])
 			}
 		}
 		return t.compileLValue(e)
@@ -150,13 +156,18 @@ func (t *X64Target) globalMem(sym *analyser.Symbol, size int) Mem {
 	return label(l, size)
 }
 
-func (t *X64Target) constOperand(sym *analyser.Symbol) (Operand, error) {
+func (t *X64Target) constOperand(sym *analyser.Symbol, tp analyser.Type) (Operand, error) {
 	if sym.Const == nil {
 		return nil, fmt.Errorf("x86-64: null constant")
 	}
 	switch sym.Const.Kind {
 	case analyser.ConstInt:
+		if isFloat(tp) {
+			return t.resolveFloatLiteral(float64(sym.Const.Bits()), sizeOf(tp))
+		}
 		return t.resolveIntLiteral(sym.Const.Bits())
+	case analyser.ConstFloat:
+		return t.resolveFloatLiteral(sym.Const.Float, sizeOf(tp))
 	case analyser.ConstBool:
 		return t.resolveBoolLiteral(sym.Const.Bool)
 	case analyser.ConstString:
@@ -341,6 +352,8 @@ func (t *X64Target) compileTypeCase(expr *ast.BinaryExpr, tc *analyser.TypeCase)
 	return Reg{reg, 1}, nil
 }
 
+type signMask struct{ size int }
+
 func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
 	if expr.Cast != nil {
 		return t.compileExpr(expr.Cast)
@@ -360,7 +373,27 @@ func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
 		return nil, err
 	}
 
-	size := sizeOf(t.info.Types[expr])
+	tp := t.info.Types[expr]
+	size := sizeOf(tp)
+	if isFloat(tp) && expr.Operator == "-" {
+		reg := t.materializeXmm(value, size)
+		mask := fmt.Sprintf("0x%0*x", size*2, uint64(1)<<(size*8-1))
+		l, ok := t.createData(fmt.Sprintf("_fmask_%d", size), signMask{size: size})
+		if !ok {
+			t.rodata.printlnt("align 16")
+			t.rodata.printf("%s:\n", l)
+			df := "dq"
+			ext := ", 0"
+			if size == 4 {
+				df = "dd"
+				ext = ", 0, 0, 0"
+			}
+			t.rodata.printft("%s %s%s\n", df, mask, ext)
+		}
+		t.text.printft("xorps %s, [rel %s]\n", t.ctx.GetRegister(reg, size), l)
+		return Reg{reg, size}, nil
+	}
+
 	reg := t.materialize(value, size)
 	regStr := t.ctx.GetRegister(reg, size)
 
@@ -434,6 +467,7 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 		return t.compileExpr(expr.Value)
 	}
 
+	srcSize := sizeOf(srcType)
 	dstSize := sizeOf(dstType)
 
 	switch {
@@ -464,6 +498,51 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 			return nil, err
 		}
 		return Addr{Of: op}, nil
+	case isFloat(srcType) && isInteger(dstType):
+		op, err := t.compileExpr(expr.Value)
+		if err != nil {
+			return nil, err
+		}
+		reg := t.ctx.AllocFreeRegister()
+		inst := "cvttsd2si"
+		if isFloat32(srcType) {
+			inst = "cvttss2si"
+		}
+		t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(reg, 8), t.opText(op, srcSize))
+		t.freeOp(op)
+		return Reg{reg, dstSize}, nil
+	case isInteger(srcType) && isFloat(dstType):
+		op, err := t.compileExpr(expr.Value)
+		if err != nil {
+			return nil, err
+		}
+		reg := t.materialize(t.widen(op, srcType, 8), 8)
+		xmm := t.ctx.AllocFreeXmm()
+		inst := "cvtsi2sd"
+		if isFloat32(dstType) {
+			inst = "cvtsi2ss"
+		}
+		t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(xmm, 8), t.ctx.GetRegister(reg, 8))
+		t.freeOp(op)
+		t.ctx.FreeRegister(reg)
+		return Reg{xmm, dstSize}, nil
+	case isFloat(srcType) && isFloat(dstType):
+		if srcSize == dstSize {
+			return t.compileExpr(expr.Value)
+		}
+		op, err := t.compileExpr(expr.Value)
+		if err != nil {
+			return nil, err
+		}
+		xmm := t.ctx.AllocFreeXmm()
+
+		inst := "cvtss2sd"
+		if dstSize == 4 {
+			inst = "cvtsd2ss"
+		}
+		t.text.printft("%s %s, %s\n", inst, t.ctx.GetRegister(xmm, dstSize), t.opText(op, srcSize))
+		t.freeOp(op)
+		return Reg{xmm, dstSize}, nil
 	default:
 		op, err := t.compileExpr(expr.Value)
 		if err != nil {

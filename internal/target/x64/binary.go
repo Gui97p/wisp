@@ -17,8 +17,14 @@ func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightTy
 
 	switch op {
 	case "+", "-", "*", "/", "%":
+		if isFloat(resultType) {
+			return t.compileFloatArithmetic(op, left, right, resultType)
+		}
 		return t.compileArithmetic(op, left, right, resultType)
 	case "==", "!=", ">", ">=", "<", "<=":
+		if isFloat(leftType) || isFloat(rightType) {
+			return t.compileFloatComparison(op, left, right, leftType, rightType, resultType)
+		}
 		return t.compileComparison(op, left, right, leftType, rightType, resultType)
 	case "&", "|", "^", "<<", ">>":
 		return t.compileBitwise(op, left, right, leftType, resultType)
@@ -124,6 +130,30 @@ func (t *X64Target) compilePointerArithmetic(op string, left, right Operand, lef
 		off := t.offset(left, leftType, elemSize(rightType))
 		return t.compileArithmetic("+", right, off, resultType)
 	}
+}
+
+func (t *X64Target) compileFloatArithmetic(op string, left, right Operand, tp analyser.Type) (Operand, error) {
+	size := sizeOf(tp)
+
+	leftReg := t.materializeXmm(left, size)
+	opText := t.opText(right, size)
+	if t.err != nil {
+		return nil, t.err
+	}
+	t.freeOp(right)
+	reg := t.ctx.GetRegister(leftReg, size)
+
+	sizeInst := "sd"
+	if size == 4 {
+		sizeInst = "ss"
+	}
+	switch op {
+	case "+", "-", "*", "/":
+		t.text.printft("%s%s %s, %s\n", mathOperators[op], sizeInst, reg, opText)
+	default:
+		return nil, fmt.Errorf("x86-64: binary operator %s not supported", op)
+	}
+	return Reg{Reg: leftReg, Size: size}, nil
 }
 
 func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyser.Type) (Operand, error) {
@@ -243,6 +273,67 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 		return nil, fmt.Errorf("x86-64: binary operator %s not supported", op)
 	}
 	return Reg{Reg: leftReg, Size: size}, nil
+}
+
+func (t *X64Target) compileFloatComparison(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
+	var tp analyser.Type
+	switch leftType.(type) {
+	case analyser.UntypedFloatType, analyser.UntypedIntType:
+		tp = rightType
+	default:
+		tp = leftType
+	}
+	var opSize int
+	var leftReg x64context.Register
+	opSize = sizeOf(tp)
+	switch op {
+	case "<", "<=":
+		right, left = left, right
+	}
+	leftReg = t.materializeXmm(left, opSize)
+	opText := t.opText(right, opSize)
+	if t.err != nil {
+		return nil, t.err
+	}
+
+	size := sizeOf(resultType)
+	resultReg := t.ctx.AllocFreeRegister()
+	if resultReg == x64context.NoReg {
+		return nil, fmt.Errorf("x86-64: no available registers")
+	}
+	resultRegStr := t.ctx.GetRegister(resultReg, size)
+
+	sdop := "sd"
+	if opSize == 4 {
+		sdop = "ss"
+	}
+
+	leftCmp := t.ctx.GetRegister(leftReg, opSize)
+	ccop := ucomiOperators[op]
+
+	t.text.printft("xor %s, %s\n", resultRegStr, resultRegStr)
+	t.text.printft("ucomi%s %s, %s\n", sdop, leftCmp, opText)
+	switch op {
+	case "==", "!=":
+		tmp := t.ctx.AllocFreeRegister()
+		tmpStr := t.ctx.GetRegister(tmp, 1)
+		difop := "setp"
+		cmpop := "or"
+		if ccop == "sete" {
+			difop = "setnp"
+			cmpop = "and"
+		}
+		t.text.printft("%s %s\n%s %s\n", ccop, resultRegStr, difop, tmpStr)
+		t.text.printft("%s %s, %s\n", cmpop, resultRegStr, tmpStr)
+		t.ctx.FreeRegister(tmp)
+	default:
+		t.text.printft("%s %s\n", ccop, resultRegStr)
+	}
+
+	t.ctx.FreeRegister(leftReg)
+	t.freeOp(right)
+
+	return Reg{Reg: resultReg, Size: size}, nil
 }
 
 func (t *X64Target) compileComparison(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {

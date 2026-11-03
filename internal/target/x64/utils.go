@@ -7,6 +7,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func abs(n int) int {
@@ -96,6 +97,21 @@ func isString(tp analyser.Type) bool {
 func isChar(tp analyser.Type) bool {
 	p, ok := underlying(tp).(analyser.PrimitiveType)
 	return ok && p.Name == "char"
+}
+
+func isFloat(tp analyser.Type) bool {
+	p, ok := underlying(tp).(analyser.PrimitiveType)
+	return ok && strings.HasPrefix(p.Name, "float")
+}
+
+func isFloat32(tp analyser.Type) bool {
+	p, ok := underlying(tp).(analyser.PrimitiveType)
+	return ok && p.Name == "float32"
+}
+
+func isInteger(tp analyser.Type) bool {
+	p, ok := underlying(tp).(analyser.PrimitiveType)
+	return ok && (strings.HasPrefix(p.Name, "int") || strings.HasPrefix(p.Name, "uint"))
 }
 
 func isSpan(tp analyser.Type) bool {
@@ -202,4 +218,15 @@ func underlying(tp analyser.Type) analyser.Type {
 	default:
 		return t
 	}
+}
+
+func mov(reg x64context.Register, size int) string {
+	inst := "mov"
+	if reg.Class() == x64context.SSE {
+		inst = "movsd"
+		if size == 4 {
+			inst = "movss"
+		}
+	}
+	return inst
 }
