@@ -51,6 +51,11 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 			args = append(args, "-e", t.Entry)
 		}
 	}
+	if opts.Libc {
+		args = append(args, "-Wl,--gc-sections")
+	} else {
+		args = append(args, "--gc-sections")
+	}
 	args = append(args, "-o", outputPath)
 
 	if t.StartSource != "" && !opts.Libc {

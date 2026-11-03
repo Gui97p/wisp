@@ -163,7 +163,8 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		t.text.printf("global %s\n", name)
 	}
 
-	t.text.printf("\n%s:\n", name)
+	t.text.printf("\nsection .text.%s progbits alloc exec nowrite align=16\n", name)
+	t.text.printf("%s:\n", name)
 	t.text.printlnt("push rbp")
 	t.text.printlnt("mov rbp, rsp")
 
@@ -252,6 +253,7 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	t.text.printlnt("pop rbp")
 	t.text.printlnt("ret")
 	t.text.printft(".frame equ %d\n", t.ctx.AlignTo(16))
+	t.text.println("section .text")
 
 	if t.ctx.Pushed() != 0 {
 		return fmt.Errorf("x86-64: stack alignment failed")
