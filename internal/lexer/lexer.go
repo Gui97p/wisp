@@ -234,6 +234,7 @@ func (l *Lexer) NextToken() Token {
 			for isNumeric(l.peek()) {
 				builder.WriteByte(l.advance())
 			}
+			l.exponent(&builder)
 			t = l.token(TOKEN_FLOAT_LITERAL, builder.String())
 		} else {
 			t = l.token(TOKEN_DOT, ".")
@@ -369,12 +370,18 @@ func (l *Lexer) NextToken() Token {
 						}
 						builder.WriteByte(c)
 					}
+					l.exponent(&builder)
 					t = l.token(TOKEN_FLOAT_LITERAL, builder.String())
 					l.advance()
 					return t
 				} else {
 					return l.token(TOKEN_ILLEGAL, "invalid float definition")
 				}
+			}
+			if l.exponent(&builder) {
+				t = l.token(TOKEN_FLOAT_LITERAL, builder.String())
+				l.advance()
+				return t
 			}
 			t = l.token(TOKEN_INT_LITERAL, builder.String())
 		} else {
@@ -384,6 +391,33 @@ func (l *Lexer) NextToken() Token {
 
 	l.advance()
 	return t
+}
+
+func (l *Lexer) exponent(b *strings.Builder) bool {
+	if l.peek() != 'e' && l.peek() != 'E' {
+		return false
+	}
+
+	digit := l.peekNext()
+	if digit == '+' || digit == '-' {
+		digit = l.read(l.pos + 3)
+	}
+	if !isNumeric(digit) {
+		return false
+	}
+
+	b.WriteByte(l.advance())
+	if l.peek() == '+' || l.peek() == '-' {
+		b.WriteByte(l.advance())
+	}
+	for isNumeric(l.peek()) || l.peek() == '_' {
+		c := l.advance()
+		if c == '_' {
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return true
 }
 
 func (l *Lexer) token(t TokenType, lit string) Token {

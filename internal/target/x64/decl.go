@@ -86,7 +86,13 @@ func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
 				t.data.println("0")
 			}
 		case analyser.ConstInt:
-			t.data.printf("%d\n", value.Bits())
+			if isFloat(tp) {
+				t.data.printf("%d\n", floatBits(float64(value.Bits()), size))
+			} else {
+				t.data.printf("%d\n", value.Bits())
+			}
+		case analyser.ConstFloat:
+			t.data.printf("%d\n", floatBits(value.Float, size))
 		}
 		return nil
 	case analyser.PointerType:

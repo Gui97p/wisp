@@ -78,7 +78,11 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 	case lexer.TOKEN_CHAR_LITERAL:
 		return &ast.CharLiteral{Value: p.current.Literal[0]}
 	case lexer.TOKEN_FLOAT_LITERAL:
-		f, _ := strconv.ParseFloat(p.current.Literal, 64)
+		f, err := strconv.ParseFloat(p.current.Literal, 64)
+		if err != nil {
+			p.error("float literal out of range")
+			return nil
+		}
 		return &ast.FloatLiteral{Value: f}
 	case lexer.TOKEN_TRUE, lexer.TOKEN_FALSE:
 		return &ast.BoolLiteral{Value: p.current.Type == lexer.TOKEN_TRUE}

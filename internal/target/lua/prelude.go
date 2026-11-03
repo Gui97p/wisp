@@ -345,16 +345,22 @@ end
 	return hi * 4294967296 + lo
 end
 `},
-	{name: "__wisp_band", deps: []string{"__wisp_bitop"}, code: `local function __wisp_band(a, b, signed)
-	return __wisp_bitop(bit32.band, a, b, signed)
+	{name: "__wisp_bit32", code: `local __wisp_bit32 = bit32 or {
+	band = load("return function(a, b) return a & b end")(),
+	bor = load("return function(a, b) return a | b end")(),
+	bxor = load("return function(a, b) return a ~ b end")(),
+}
+`},
+	{name: "__wisp_band", deps: []string{"__wisp_bitop", "__wisp_bit32"}, code: `local function __wisp_band(a, b, signed)
+	return __wisp_bitop(__wisp_bit32.band, a, b, signed)
 end
 `},
-	{name: "__wisp_bor", deps: []string{"__wisp_bitop"}, code: `local function __wisp_bor(a, b, signed)
-	return __wisp_bitop(bit32.bor, a, b, signed)
+	{name: "__wisp_bor", deps: []string{"__wisp_bitop", "__wisp_bit32"}, code: `local function __wisp_bor(a, b, signed)
+	return __wisp_bitop(__wisp_bit32.bor, a, b, signed)
 end
 `},
-	{name: "__wisp_bxor", deps: []string{"__wisp_bitop"}, code: `local function __wisp_bxor(a, b, signed)
-	return __wisp_bitop(bit32.bxor, a, b, signed)
+	{name: "__wisp_bxor", deps: []string{"__wisp_bitop", "__wisp_bit32"}, code: `local function __wisp_bxor(a, b, signed)
+	return __wisp_bitop(__wisp_bit32.bxor, a, b, signed)
 end
 `},
 	{name: "__wisp_tou64", code: `local function __wisp_tou64(x)
