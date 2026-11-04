@@ -63,8 +63,9 @@ public func demo() ! {
   heap[7] = 80;
   fmt.printf("after realloc: {}, {}, {}\n", heap[0], heap[3], heap[7]);
 
-  // `mem.free` takes pointers, any number of them at once. A slice is freed
-  // through its base, as in `mem.free((*int)(s))`. A string is only a view,
+  // `mem.free` takes pointers, any number of them at once. A slice or an
+  // array is converted to its base pointer on its own, so `mem.free(s)` works
+  // when `s` came from `mem.alloc`. A string is only a view,
   // so it is never freed: free the buffer it came from. All the arguments
   // are evaluated before anything is released.
   mem.free(heap);
@@ -94,11 +95,12 @@ public func demo() ! {
   mem.free(bytes);
 
   // An array or a span converts to a pointer to its first element, which is
-  // what a system call or a C function takes. The pointer is to the element
-  // type, or *void. The pointer of an empty span is still where it starts, and
-  // an array has to be a variable, since a temporary has no address to give.
+  // what a system call or a C function takes, and it does so on its own
+  // wherever a pointer is expected. The pointer is to the element type, or
+  // *void. The pointer of an empty span is still where it starts, and an array
+  // has to be a variable, since a temporary has no address to give.
   char[4] letters;
-  *char start = (*char)(letters);
+  *char start = letters;
   start@ = 'a';
   (start + 3)@ = 'd';
   fmt.printf("letters = {}...{}\n", letters[0], letters[3]);

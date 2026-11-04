@@ -273,7 +273,39 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 		}
 	}
 
+	if decaysTo(from, to) && (!isArrayType(from) || isAddressable(*slot)) {
+		a.insertCast(slot, to)
+		return true
+	}
+
 	return false
+}
+
+func isArrayType(t Type) bool {
+	_, ok := t.(ArrayType)
+	return ok
+}
+
+func decaysTo(from, to Type) bool {
+	pointer, ok := to.(PointerType)
+	if !ok {
+		return false
+	}
+
+	var element Type
+	switch f := from.(type) {
+	case ArrayType:
+		element = f.Element
+	case SpanType:
+		element = f.Element
+	default:
+		return false
+	}
+
+	if _, isVoid := pointer.Element.(VoidType); isVoid {
+		return true
+	}
+	return element.Equals(pointer.Element)
 }
 
 func (a *Analyser) valueSlot(values []ast.Expression, n, i int) *ast.Expression {

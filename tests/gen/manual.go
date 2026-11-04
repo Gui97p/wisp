@@ -7397,4 +7397,32 @@ func main() {
     check(chosen == null, "a function variable is set to null");
 }
 `, expected: []string{"a global function variable starts as a function", "a global function variable starts as a function literal", "a global array of function values", "a global struct with a function field", "a global of a function type written in full", "a function converts to a named function type", "a function value is compared with null", "a function variable is set to null"}},
+
+	{dir: "pointer_decay", src: `func first(*int p) int {
+    return p@;
+}
+
+func present(*void p) bool {
+    return p != null;
+}
+
+func main() {
+    int[4] arr = [7, 8, 9, 10];
+    int[] tail = arr[1:];
+    *int fromArray = arr;
+    *int fromSlice = tail;
+    *void untyped = tail;
+    check(fromArray@ == 7, "an array converts to a pointer to its first element");
+    check(fromSlice@ == 8, "a slice converts to a pointer to its first element");
+    check((*int)(untyped)@ == 8, "a slice converts to a void pointer");
+    check(first(arr) == 7 && first(tail) == 8, "an array and a slice are passed where a pointer is expected");
+    check(present(arr) && present(tail), "an array and a slice are passed as a void pointer");
+
+    char[8] text;
+    char[] view = text[:];
+    text[2] = 'z';
+    *char at = view;
+    check((at + 2)@ == 'z', "a slice of characters converts to a character pointer");
+}
+`, expected: []string{"an array converts to a pointer to its first element", "a slice converts to a pointer to its first element", "a slice converts to a void pointer", "an array and a slice are passed where a pointer is expected", "an array and a slice are passed as a void pointer", "a slice of characters converts to a character pointer"}},
 }
