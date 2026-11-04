@@ -92,6 +92,7 @@ type FuncDecl struct {
 	CExport     string
 	CVariadic   bool
 	Generated   bool
+	NameAt      Position
 
 	NodePos
 }

@@ -23,6 +23,13 @@ func (a *Analyser) errorf(node ast.Node, format string, args ...any) *diag.Diagn
 	return a.errors.Add(a.currentFile, line, col, endLine, endCol, format, args...)
 }
 
+func (a *Analyser) errorAtName(fd *ast.FuncDecl, format string, args ...any) *diag.Diagnostic {
+	if fd.NameAt.Line == 0 {
+		return a.errorf(fd, format, args...)
+	}
+	return a.errorRange(fd.NameAt, format, args...)
+}
+
 func (a *Analyser) errorRange(at ast.Position, format string, args ...any) *diag.Diagnostic {
 	return a.errors.Add(a.currentFile, at.Line, at.Col, at.EndLine, at.EndCol, format, args...)
 }
@@ -50,7 +57,12 @@ func (a *Analyser) error(node ast.Node, msg string) *diag.Diagnostic {
 }
 
 func (a *Analyser) errorAlreadyDeclared(node ast.Node, kind SymbolKind, name string) {
-	d := a.errorf(node, "%s %s already declared in this scope", kind, name)
+	var d *diag.Diagnostic
+	if fd, ok := node.(*ast.FuncDecl); ok {
+		d = a.errorAtName(fd, "%s %s already declared in this scope", kind, name)
+	} else {
+		d = a.errorf(node, "%s %s already declared in this scope", kind, name)
+	}
 	if prev, ok := a.scope.symbols[name]; ok {
 		a.notePrevious(d, prev, "first declared here")
 	}

@@ -269,6 +269,8 @@ type FuncType struct {
 	Exported     bool
 	InternalDir  string
 	Module       string
+	DeclFile     string
+	DeclLine     int
 }
 
 func (f *FuncType) String() string {

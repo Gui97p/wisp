@@ -1,6 +1,9 @@
 package lsp
 
 import (
+	"path/filepath"
+
+	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/version"
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
@@ -142,15 +145,36 @@ func NewHandler() *protocol.Handler {
 	return handler
 }
 
+var published = map[string]map[string]bool{}
+
 func publish(context *glsp.Context, uri protocol.DocumentUri) {
 	path := uriToPath(uri)
 	diagsByFile := diagnoseFile(path)
+
+	root := module.FindProjectRoot(filepath.Dir(path))
+	if root == "" {
+		root = filepath.Dir(path)
+	}
+	if published[root] == nil {
+		published[root] = map[string]bool{}
+	}
+
+	for file := range published[root] {
+		if _, ok := diagsByFile[file]; !ok {
+			context.Notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
+				URI:         pathToURI(file),
+				Diagnostics: []protocol.Diagnostic{},
+			})
+			delete(published[root], file)
+		}
+	}
 
 	for file, diags := range diagsByFile {
 		context.Notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
 			URI:         pathToURI(file),
 			Diagnostics: diags,
 		})
+		published[root][file] = true
 	}
 }
 

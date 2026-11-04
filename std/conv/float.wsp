@@ -1,0 +1,170 @@
+
+import "std/errors";
+import "std/math";
+import "std/strings";
+import "std/conv/decimal";
+
+public func floatToInt(float x) !int {
+	if math.isNaN(x) {
+		return Error(errors.Kind.Invalid);
+	}
+	if x >= 9223372036854775808.0 || x < -9223372036854775808.0 {
+		return Error(errors.Kind.Overflow);
+	}
+	return int(x);
+}
+
+public func floatToUint(float x) !uint {
+	if math.isNaN(x) {
+		return Error(errors.Kind.Invalid);
+	}
+	if x <= -1.0 || x >= 18446744073709551616.0 {
+		return Error(errors.Kind.Overflow);
+	}
+	return uint(x);
+}
+
+func special(char[] buf, float x) !(string, bool) {
+	if math.isNaN(x) {
+		return strings.copy(buf, "NaN")!, true;
+	}
+	if math.isInf(x, 1) {
+		return strings.copy(buf, "inf")!, true;
+	}
+	if math.isInf(x, -1) {
+		return strings.copy(buf, "-inf")!, true;
+	}
+	return "", false;
+}
+
+func layoutFixed(char[] buf, bool neg, *decimal.Decimal dec, int decimals) !string {
+	int size = (neg ? 1 : 0) + math.max(1, dec.dp) + (decimals > 0 ? 1 + decimals : 0);
+	if len(buf) < size {
+		return Error(errors.Kind.NoSpace);
+	}
+	int i;
+	if neg {
+		buf[0] = '-';
+		i++;
+	}
+	if dec.dp <= 0 {
+		buf[i] = '0';
+		i++;
+	} else {
+		for k in 0..dec.dp-1 {
+			buf[i] = char(dec.digitAt(k) + '0');
+			i++;
+		}
+	}
+
+	if decimals > 0 {
+		buf[i] = '.';
+		i++;
+	
+		for k in 0..decimals-1 {
+			buf[i] = char(dec.digitAt(dec.dp + k) + '0');
+			i++;
+		}
+	}
+
+	return string(buf[:size]);
+}
+
+func layoutExp(char[] buf, bool neg, *decimal.Decimal dec, int decimals, bool upper) !string {
+	int exp = 0;
+	if dec.n > 0 {
+		exp = dec.dp - 1;
+	}
+	int mag = exp < 0 ? -exp : exp;
+	
+	int size = (neg ? 1 : 0) + 1 + (decimals > 0 ? 1 + decimals : 0) + 2 + (mag >= 100 ? 3 : 2);
+	if len(buf) < size {
+		return Error(errors.Kind.NoSpace);
+	}
+	int i;
+	if neg {
+		buf[0] = '-';
+		i++;
+	}
+	buf[i] = char(dec.digitAt(0) + '0');
+	i++;
+
+	if decimals > 0 {
+		buf[i] = '.';
+		i++;
+	
+		for k in 1..decimals {
+			buf[i] = char(dec.digitAt(k) + '0');
+			i++;
+		}
+	}
+
+	buf[i] = upper ? 'E' : 'e';
+	i++;
+
+	buf[i] = exp >= 0 ? '+' : '-';
+	i++;
+
+	if mag >= 100 {
+		buf[i] = char(mag / 100 + '0');
+		i++;
+	}
+	buf[i] = char((mag / 10) % 10 + '0');
+	i++;
+	buf[i] = char(mag % 10 + '0');
+	i++;
+
+	return string(buf[:size]);
+}
+
+public func ftoa(char[] buf, float x) !string {
+	let view, spec = special(buf, x) ?? |e| return switch e {
+		case strings.StringError.NoSpace => Error(errors.Kind.NoSpace);
+		default => e;
+	};
+	if spec {
+		return view;
+	}
+
+	bool neg = math.signbit(x);
+	decimal.Decimal dec;
+	dec.setShortest(math.fabs(x));
+	
+	if dec.dp-1 in -5..20 {
+		return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))!;
+	} else {
+		return layoutExp(buf, neg, &dec, dec.n-1, false)!;
+	}
+}
+
+public func formatFixed(char[] buf, float x, int n) !string {
+	let view, spec = special(buf, x) ?? |e| return switch e {
+		case strings.StringError.NoSpace => Error(errors.Kind.NoSpace);
+		default => e;
+	};
+	if spec {
+		return view;
+	}
+
+	bool neg = math.signbit(x);
+	decimal.Decimal dec;
+	dec.setFixed(math.fabs(x), n);
+
+	return layoutFixed(buf, neg, &dec, n)!;
+}
+
+public func formatExp(char[] buf, float x, int n, bool upper) !string {
+	let view, spec = special(buf, x) ?? |e| return switch e {
+		case strings.StringError.NoSpace => Error(errors.Kind.NoSpace);
+		default => e;
+	};
+	if spec {
+		return view;
+	}
+
+	bool neg = math.signbit(x);
+	decimal.Decimal dec;
+	dec.setSignificant(math.fabs(x), n + 1);
+	
+	return layoutExp(buf, neg, &dec, n, upper)!;
+}

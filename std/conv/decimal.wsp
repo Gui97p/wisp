@@ -1,0 +1,245 @@
+import "std/math";
+
+internal struct Decimal {
+	uint[1100] d;
+	int n, dp;
+}
+
+internal func (*Decimal dec) load(uint digit) {
+	dec.d[dec.n] = digit;
+	dec.n++;
+}
+
+internal func (*Decimal dec) trim() {
+	loop dec.n > 1 && dec.d[dec.n - 1] == 0 {
+        dec.n--;
+    }
+}
+
+internal func (*Decimal dec) setUint(uint m) {
+    dec.n = 0;
+
+    uint tmp = m;
+    int counter;
+
+    loop tmp != 0 {
+        counter++;
+        tmp /= 10;
+    }
+
+    if counter == 0 {
+        dec.load(0);
+        dec.dp = 1;
+        return;
+    }
+
+    uint divisor = 1;
+    loop counter > 1 {
+        divisor *= 10;
+        counter--;
+    }
+
+    loop divisor != 0 {
+        uint digit = m / divisor;
+        dec.load(digit);
+
+        m %= divisor;
+        divisor /= 10;
+    }
+
+    dec.dp = dec.n;
+    dec.trim();
+}
+
+internal func (*Decimal dec) shiftLeft() {
+	uint carry;
+	for i in dec.n-1..0 {
+		uint cur = dec.d[i]*2 + carry;
+		dec.d[i] = cur % 10;
+		carry = cur / 10;
+	}
+
+	if carry != 0 {
+		for i in dec.n-1..0 {
+			dec.d[i+1] = dec.d[i];
+		}
+		dec.n++;
+		dec.dp++;
+		dec.d[0] = carry;
+	}
+
+	dec.trim();
+}
+
+internal func (*Decimal dec) shiftRight() {
+	uint carry;
+	int write;
+
+	for i in 0..dec.n-1 {
+		uint cur = carry*10 + dec.d[i];
+		dec.d[i] = cur / 2;
+		carry = cur % 2;
+		write++;
+	}
+
+	dec.n = write;
+
+	if carry != 0 {
+		dec.load(5);
+	}
+
+	if dec.d[0] == 0 && dec.n > 1 {
+        for i in 1..dec.n - 1 {
+            dec.d[i - 1] = dec.d[i];
+        }
+
+        dec.n--;
+        dec.dp--;
+    }
+
+	dec.trim();
+}
+
+internal func (*Decimal dec) assign(uint m, int e) {
+	dec.setUint(m);
+	for e {
+		dec.shiftLeft();
+	}
+	for -e {
+		dec.shiftRight();
+	}
+}
+
+internal func (*Decimal dec) shouldRoundUp(int nd) bool {
+	if nd < 0 || nd >= dec.n {
+		return false;
+	}
+
+	uint d = dec.d[nd];
+	if d == 5 && nd+1 == dec.n {
+		return nd == 0 ? false : dec.d[nd-1] % 2 == 1;
+	}
+
+	return d >= 5;
+}
+
+internal func (*Decimal dec) roundDown(int nd) {
+	dec.n = nd;
+	dec.trim();
+}
+
+internal func (*Decimal dec) roundUp(int nd) {
+	if nd > 0 {
+		for i in nd-1..0 {
+			if dec.d[i] < 9 {
+				dec.d[i]++;
+				dec.n = i + 1;
+				return;
+			}
+		}
+	}
+
+	dec.d[0] = 1;
+	dec.n = 1;
+	dec.dp++;
+}
+
+internal func (*Decimal dec) round(int nd) {
+	if nd < 0 || nd >= dec.n {
+		return;
+	}
+
+	if dec.shouldRoundUp(nd) {
+		dec.roundUp(nd);
+	} else {
+		dec.roundDown(nd);
+	}
+}
+
+internal func (*Decimal dec) digitAt(int i) uint {
+	return i < 0 || i >= dec.n ? 0 : dec.d[i];
+}
+
+internal func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive) {
+	int upperDelta;
+	for ui in 0..dec.n {
+		int mi = ui - upper.dp + dec.dp;
+		if mi >= dec.n {
+			break;
+		}
+		int li = ui - upper.dp + lower.dp;
+
+		uint l = lower.digitAt(li);
+		uint m = dec.digitAt(mi);
+		uint u = upper.digitAt(ui);
+
+		bool okdown = l != m || (inclusive && li + 1 == lower.n);
+		switch {
+			case upperDelta == 0 && m+1 < u, upperDelta == 1 && (m != 9 || u != 0):
+				upperDelta = 2;
+			case upperDelta == 0 && m != u:
+				upperDelta = 1;
+		}
+		bool okup = upperDelta > 0 && (inclusive || upperDelta > 1 || ui + 1 < upper.n);
+
+		switch {
+			case okdown && okup:
+				dec.round(mi + 1);
+				return;
+			case okdown:
+				dec.roundDown(mi + 1);
+				return;
+			case okup:
+				dec.roundUp(mi+1);
+				return;
+		}
+	}
+}
+
+internal func (*Decimal dec) setShortest(float x) {
+	let mant, exp = math.decompose(x);
+	if mant == 0 {
+		dec.n = 0;
+		dec.dp = 0;
+		return;
+	}
+	dec.assign(mant, exp);
+
+	uint m = 1;
+	if mant == 1 << 52 && exp > -1074 {
+		m = 2;
+	}
+
+	Decimal upper, lower;
+	upper.assign(m*2*mant+m, exp-int(m));
+	lower.assign(m*2*mant-1, exp-int(m));
+
+	dec.roundShortest(&lower, &upper, mant % 2 == 0);
+}
+
+internal func (*Decimal dec) setFixed(float x, int n) {
+	let mant, exp = math.decompose(x);
+	if mant == 0 {
+		dec.n = 0;
+		dec.dp = 0;
+		return;
+	}
+	dec.assign(mant, exp);
+	if dec.dp + n < 0 {
+		dec.n = 0;
+		dec.dp = 0;
+		return;
+	}
+	dec.round(dec.dp + n);
+}
+
+internal func (*Decimal dec) setSignificant(float x, int nd) {
+    let mant, exp = math.decompose(x);
+    if mant == 0 {
+        dec.n = 0;
+        dec.dp = 0;
+        return;
+    }
+    dec.assign(mant, exp);
+    dec.round(nd);
+}

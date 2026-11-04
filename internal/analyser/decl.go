@@ -146,8 +146,11 @@ func (a *Analyser) registerMethods() {
 				WithHelp("a method lives in the folder of its type, so declare it in %s, or write a function that takes the value", owner)
 			continue
 		}
-		if _, exists := methods[fd.Name]; exists {
-			a.errorf(fd, "method %s already declared for %s", fd.Name, recvType)
+		line, _ := fd.Position()
+		previous, exists := methods[fd.Name]
+		sameDecl := exists && previous.DeclFile == a.currentFile && previous.DeclLine == line
+		if exists && !sameDecl {
+			a.errorAtName(fd, "method %s already declared for %s", fd.Name, recvType)
 			continue
 		}
 
@@ -183,7 +186,9 @@ func (a *Analyser) registerMethods() {
 		if fd.Receiver != nil {
 			receiverName = fd.Receiver.Name
 		}
-		methods[fd.Name] = &FuncType{Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported, InternalDir: reachDir(fd.Reach, a.currentFile), Module: a.module}
+		if !sameDecl {
+			methods[fd.Name] = &FuncType{DeclFile: a.currentFile, DeclLine: line, Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported, InternalDir: reachDir(fd.Reach, a.currentFile), Module: a.module}
+		}
 		a.info.FuncReturns[fd] = returns
 		_, _, ownerExported := methodOwner(recvType)
 		a.info.MethodVisible[fd] = fd.Exported && ownerExported
@@ -351,9 +356,13 @@ func (a *Analyser) warnUnusedFuncs() {
 		if !found || sym.Used {
 			continue
 		}
-		line, col := decl.Position()
-		col += len("func ")
-		a.errors.Warn(a.declFiles[d], line, col, line, col+len(decl.Name)-1, "function %s is never used", decl.Name).
+		at := decl.NameAt
+		if at.Line == 0 {
+			line, col := decl.Position()
+			col += len("func ")
+			at = ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + len(decl.Name) - 1}
+		}
+		a.errors.Warn(a.declFiles[d], at.Line, at.Col, at.EndLine, at.EndCol, "function %s is never used", decl.Name).
 			WithHelp("remove it, or make it public if other modules use it")
 	}
 }

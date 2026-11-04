@@ -63,6 +63,8 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 		return nil
 	}
 	decl.Name = p.current.Literal
+	line, col, endLine, endCol := p.currentIdentPos()
+	decl.NameAt = ast.Position{Line: line, Col: col, EndLine: endLine, EndCol: endCol}
 
 	if !p.checkReservedName(decl.Name) {
 		return nil
