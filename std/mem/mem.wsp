@@ -1,7 +1,15 @@
 import "std/errors";
 
 public func alloc(int n) !*void {
-	*void p = rawAlloc(n);
+	*void p = rawAllocate(n, true);
+	if p == null {
+		return Error(errors.Kind.OutOfMemory);
+	}
+	return p;
+}
+
+public func allocDirty(int n) !*void {
+	*void p = rawAllocate(n, false);
 	if p == null {
 		return Error(errors.Kind.OutOfMemory);
 	}
@@ -24,4 +32,16 @@ public func realloc(*void p, int n) !*void {
 
 public func copy(*void dst, src, int n) {
 	rawCopy(dst, src, n);
+}
+
+public func move(*void dst, src, int n) {
+	if dst > src && dst < (*char)(src) + n {
+		rawCopyBackward(dst, src, n);
+	} else {
+		rawCopy(dst, src, n);
+	}
+}
+
+public func fill(*void dst, char value, int n) {
+	rawSet(dst, value, n);
 }

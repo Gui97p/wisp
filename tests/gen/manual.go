@@ -7425,4 +7425,112 @@ func main() {
     check((at + 2)@ == 'z', "a slice of characters converts to a character pointer");
 }
 `, expected: []string{"an array converts to a pointer to its first element", "a slice converts to a pointer to its first element", "a slice converts to a void pointer", "an array and a slice are passed where a pointer is expected", "an array and a slice are passed as a void pointer", "a slice of characters converts to a character pointer"}},
+
+	{dir: "mem_zeroed", src: `import "std/mem";
+
+func dirty(*char p, int n) int {
+    int count;
+    for i in 0..n-1 {
+        if p[i] != 0 {
+            count++;
+        }
+    }
+    return count;
+}
+
+func main() !int {
+    *char a = mem.alloc(100)!;
+    *char b = mem.alloc(100)!;
+    *char c = mem.alloc(100)!;
+    check(dirty(a, 100) == 0, "a new block is zeroed");
+    mem.fill(a, 85, 100);
+    mem.fill(b, 85, 100);
+    mem.fill(c, 85, 100);
+    check(a[0] == 85 && a[99] == 85 && c[50] == 85, "fill sets every byte");
+    mem.free(a, b, c);
+
+    *char x = mem.alloc(100)!;
+    *char y = mem.alloc(100)!;
+    *char z = mem.alloc(100)!;
+    check(dirty(x, 100) + dirty(y, 100) + dirty(z, 100) == 0, "a reused block is zeroed");
+    mem.free(x, y, z);
+
+    *char grown = mem.alloc(16)!;
+    mem.fill(grown, 7, 16);
+    grown = mem.realloc(grown, 4000)!;
+    check(grown[0] == 7 && grown[15] == 7, "realloc keeps the old contents");
+    mem.free(grown);
+
+    char[8] letters;
+    mem.fill(letters, 'q', 8);
+    check(letters[0] == 'q' && letters[7] == 'q', "fill takes an array");
+    return 0;
+}
+`, expected: []string{"a new block is zeroed", "fill sets every byte", "a reused block is zeroed", "realloc keeps the old contents", "fill takes an array"}},
+
+	{dir: "mem_limits", x64Only: true, src: `import "std/mem";
+import "std/errors";
+
+func main() {
+    *void huge = mem.alloc(9223372036854775800) ?? null;
+    *void over = mem.alloc((1 << 47) + 1) ?? null;
+    check(huge == null && over == null, "a size that cannot exist is refused");
+    *void hugeDirty = mem.allocDirty(9223372036854775800) ?? null;
+    check(hugeDirty == null, "allocDirty refuses a size that cannot exist too");
+
+    let _, problem = mem.alloc(9223372036854775800);
+    check(problem == errors.Kind.OutOfMemory, "the refusal is OutOfMemory");
+
+    *char a = mem.alloc(100) ?? null;
+    *char b = mem.alloc(100) ?? null;
+    *char c = mem.alloc(100) ?? null;
+    mem.free(a, b, c);
+    *char x = mem.alloc(100) ?? null;
+    *char y = mem.alloc(100) ?? null;
+    *char z = mem.alloc(100) ?? null;
+    check(x == c && y == b && z == a, "freed blocks are reused without losing the list");
+
+    *int big = mem.alloc(100000) ?? null;
+    mem.fill(big, 1, 100000);
+    mem.free(big);
+    *int again = mem.alloc(100000) ?? null;
+    check(again != null && again[0] == 0 && again[12000] == 0, "a large block is zeroed too");
+}
+`, expected: []string{"a size that cannot exist is refused", "allocDirty refuses a size that cannot exist too", "the refusal is OutOfMemory", "freed blocks are reused without losing the list", "a large block is zeroed too"}},
+
+	{dir: "mem_move", src: `import "std/mem";
+
+func fill(char[] t, string word) {
+    for i, c in word {
+        t[i] = c;
+    }
+}
+
+func main() {
+    char[8] a;
+    char[8] b;
+    char[8] c;
+    fill(a, "abcdef");
+    fill(b, "abcdef");
+    fill(c, "abcdef");
+    mem.move((*char)(a) + 2, a, 4);
+    mem.move(b, (*char)(b) + 2, 4);
+    mem.move((*char)(c) + 3, c, 0);
+    check(string(a[0:6]) == "ababcd", "move copies forward over an overlap");
+    check(string(b[0:6]) == "cdefef", "move copies backward over an overlap");
+    check(string(c[0:6]) == "abcdef", "move of zero bytes changes nothing");
+
+    char[8] apart;
+    char[4] source;
+    fill(source, "xyz");
+    mem.move(apart, source, 3);
+    check(string(apart[0:3]) == "xyz", "move works when the regions do not overlap");
+
+    *char dirty = mem.allocDirty(64) ?? null;
+    check(dirty != null, "allocDirty gives a block");
+    mem.fill(dirty, 9, 64);
+    check(dirty[0] == 9 && dirty[63] == 9, "a dirty block is usable");
+    mem.free(dirty);
+}
+`, expected: []string{"move copies forward over an overlap", "move copies backward over an overlap", "move of zero bytes changes nothing", "move works when the regions do not overlap", "allocDirty gives a block", "a dirty block is usable"}},
 }

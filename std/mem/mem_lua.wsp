@@ -1,6 +1,6 @@
-internal func rawAlloc(int n) *void {
+internal func rawAllocate(int n, bool zero) *void {
 	*void p;
-	native lua(in n, out p) "p = (__wisp_alloc(n))";
+	native lua(in n, zero, out p) "p = (__wisp_alloc(n))";
 	return p;
 }
 
@@ -16,4 +16,12 @@ internal func rawRealloc(*void p, int n) *void {
 
 internal func rawCopy(*void dst, src, int n) {
 	native lua(in dst, src, n) "for i = 0, n - 1 do dst.t[dst.o + i] = src.t[src.o + i] end";
+}
+
+internal func rawCopyBackward(*void dst, src, int n) {
+	native lua(in dst, src, n) "for i = n - 1, 0, -1 do dst.t[dst.o + i] = src.t[src.o + i] end";
+}
+
+internal func rawSet(*void dst, char value, int n) {
+	native lua(in dst, value, n) "for i = 0, n - 1 do dst.t[dst.o + i] = value end";
 }

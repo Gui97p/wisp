@@ -17,11 +17,14 @@ struct Class { *void head; }
 Class[11] classes;
 *char cur, end;
 
-const HEAD_SIZE = 16;
-const MIN_BLOCK = 32;
-const LOW_LIMIT = 32768;
-const CHUNK_SIZE = 1048576;
-const PAGE_SIZE = 4096;
+const {
+	HEAD_SIZE = 16;
+	MIN_BLOCK = 32;
+	LOW_LIMIT = 32768;
+	CHUNK_SIZE = 1048576;
+	PAGE_SIZE = 4096;
+	MAX_ALLOC = 1 << 47;
+}
 
 func header(*void p) int {
 	return (*int)((*char)(p) - 16)@;
@@ -40,20 +43,23 @@ func failed(*void r) bool {
 	return int(r) in -4095..-1;
 }
 
-internal func rawAlloc(int n) *void {
-	if n < 0 {
+internal func rawAllocate(int n, bool zero) *void {
+	if n < 0 || n > MAX_ALLOC {
 		return null;
 	}
 
 	int total = n + HEAD_SIZE;
 	if total <= LOW_LIMIT {
 		int class = classOf(total);
+		int size = MIN_BLOCK << class;
 		if classes[class].head != null {
 			*void p = classes[class].head;
 			classes[class].head = ((**void)(p))@;
+			if zero {
+				rawSet(p, 0, size - HEAD_SIZE);
+			}
 			return p;
 		}
-		int size = MIN_BLOCK << class;
 		if cur + size > end {
 			*void chunk = sys.mmap(CHUNK_SIZE);
 			if failed(chunk) {
@@ -95,7 +101,7 @@ internal func rawFree(*void p) {
 
 internal func rawRealloc(*void p, int n) *void {
 	if p == null {
-		return rawAlloc(n);
+		return rawAllocate(n, true);
 	}
 	
 	int h = header(p);
@@ -104,7 +110,7 @@ internal func rawRealloc(*void p, int n) *void {
 		return p;
 	}
 
-	*void np = rawAlloc(n);
+	*void np = rawAllocate(n, true);
 	if np == null {
 		return null;
 	}
@@ -115,4 +121,12 @@ internal func rawRealloc(*void p, int n) *void {
 
 internal func rawCopy(*void dst, src, int n) {
 	native x64(in dst, src, n) "mov rdi, {dst}; mov rsi, {src}; mov rcx, {n}; rep movsb";
+}
+
+internal func rawCopyBackward(*void dst, src, int n) {
+	native x64(in dst, src, n) "mov rdi, {dst}; add rdi, {n}; dec rdi; mov rsi, {src}; add rsi, {n}; dec rsi; mov rcx, {n}; std; rep movsb; cld";
+}
+
+internal func rawSet(*void dst, char value, int n) {
+	native x64(in dst, value, n) "mov rdi, {dst}; mov al, {value}; mov rcx, {n}; rep stosb";
 }
