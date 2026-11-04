@@ -228,6 +228,15 @@ func (n NamedType) Equals(other Type) bool {
 		return isFloat(n.Underlying)
 	}
 
+	if ft, isFunc := n.Underlying.(*FuncType); isFunc {
+		switch o := other.(type) {
+		case *FuncType:
+			return ft.Equals(o)
+		case NullType:
+			return true
+		}
+	}
+
 	o, ok := other.(NamedType)
 	return ok && n.Name == o.Name
 }
@@ -303,6 +312,14 @@ func (f *FuncType) String() string {
 }
 
 func (f *FuncType) Equals(other Type) bool {
+	if _, ok := other.(NullType); ok {
+		return true
+	}
+	if nt, isNamed := other.(NamedType); isNamed {
+		if of, ok := nt.Underlying.(*FuncType); ok {
+			return f.Equals(of)
+		}
+	}
 	o, ok := other.(*FuncType)
 	if !ok {
 		return false

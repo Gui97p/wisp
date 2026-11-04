@@ -325,10 +325,15 @@ func (a *Analyser) retypeNull(expr ast.Expression, from, to Type) bool {
 	if !ok {
 		return false
 	}
-	switch to.(type) {
-	case PointerType, ErrorType:
+	switch t := to.(type) {
+	case PointerType, ErrorType, *FuncType:
 		a.info.Types[lit] = to
 		return true
+	case NamedType:
+		if _, isFunc := t.Underlying.(*FuncType); isFunc {
+			a.info.Types[lit] = to
+			return true
+		}
 	}
 	return false
 }

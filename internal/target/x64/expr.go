@@ -45,6 +45,8 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 			return nil, err
 		}
 		return memSlot, nil
+	case *ast.FuncLiteral:
+		return t.compileFuncLiteral(e)
 	case *ast.IdentLiteral:
 		sym, ok := t.info.Idents[e]
 		if !ok {
@@ -61,6 +63,8 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 			return t.globalMem(sym, size), nil
 		case sym.Kind == analyser.CONST:
 			return t.constOperand(sym, t.info.Types[e])
+		case sym.Kind == analyser.FUNC:
+			return Addr{Of: label(t.funcLabel(sym), size)}, nil
 		}
 
 		offset, ok := t.ctx.Get(sym)
@@ -93,8 +97,11 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 			if err != nil {
 				return nil, err
 			}
-			if sym.Kind == analyser.CONST {
+			switch sym.Kind {
+			case analyser.CONST:
 				return t.constOperand(sym, t.info.Types[e])
+			case analyser.FUNC:
+				return Addr{Of: label(t.funcLabel(sym), 8)}, nil
 			}
 		}
 		return t.compileLValue(e)
@@ -146,6 +153,17 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 	default:
 		return nil, fmt.Errorf("%s is not supported yet", ast.Describe(expr))
 	}
+}
+
+func (t *X64Target) funcLabel(sym *analyser.Symbol) string {
+	symName := t.funcSymbol(sym.Module, sym.Name)
+	if sym.CName != "" {
+		symName = sym.CName
+	}
+	if sym.Module != t.module || sym.Extern {
+		t.prelude.define(symName)
+	}
+	return symName
 }
 
 func (t *X64Target) globalMem(sym *analyser.Symbol, size int) Mem {

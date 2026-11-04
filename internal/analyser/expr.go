@@ -40,6 +40,10 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		a.info.Idents[e] = symbol
 		symbol.Used = true
 		t = symbol.Type
+		if (symbol.Kind == VAR || symbol.Kind == PARAM) && a.scope.captures(e.Value, a.moduleScope) {
+			a.errorf(expr, "a function literal cannot use %s, a variable of the function around it", e.Value).
+				WithHelp("a function value is only code and carries no variables: pass %s as a parameter", e.Value)
+		}
 		if a.untilScope != nil && a.untilScope.symbols[e.Value] == symbol {
 			if a.loopFrames[a.untilFrame].Continued {
 				a.errorf(expr, "%s is declared in the loop body, which uses continue", e.Value).
@@ -117,9 +121,12 @@ func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
 
 	line, col := expr.Position()
 	a.enterScope()
+	a.scope.lambda = true
 	for i, p := range expr.Params {
 		paramLine, paramCol := identPos(p, line, col)
-		a.scope.Define(&Symbol{Name: p.Name, Kind: PARAM, Type: params[i], Line: paramLine, Col: paramCol, File: a.currentFile})
+		sym := &Symbol{Name: p.Name, Kind: PARAM, Type: params[i], Line: paramLine, Col: paramCol, File: a.currentFile}
+		a.scope.Define(sym)
+		a.info.VarSymbols[expr] = append(a.info.VarSymbols[expr], sym)
 	}
 
 	if len(returns) == 0 {
@@ -404,6 +411,11 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 	}
 
 	nameType := a.checkExpr(expr.Name)
+	if nt, isNamed := nameType.(NamedType); isNamed {
+		if _, isFunc := nt.Underlying.(*FuncType); isFunc {
+			nameType = nt.Underlying
+		}
+	}
 
 	switch ct := nameType.(type) {
 	case *FuncType:

@@ -16,11 +16,11 @@ func (t *LuaTarget) compileDeclarations(b *strings.Builder, decls []ast.Declarat
 				return err
 			}
 		case *ast.ConstDecl:
-			if err := t.compileDefinition(b, d, d.Vars, d.Values); err != nil {
+			if err := t.compileDefinition(b, d, d.Vars, d.Values, false); err != nil {
 				return err
 			}
 		case *ast.VarDecl:
-			if err := t.compileDefinition(b, d, d.Vars, d.Values); err != nil {
+			if err := t.compileDefinition(b, d, d.Vars, d.Values, false); err != nil {
 				return err
 			}
 		}
@@ -33,6 +33,23 @@ func funcName(fd *ast.FuncDecl) string {
 		return fd.Receiver.Type.Name + "_" + fd.Name
 	}
 	return luaIdent(fd.Name)
+}
+
+func collectDataNames(decls []ast.Declaration) []string {
+	var names []string
+	for _, d := range decls {
+		switch d := d.(type) {
+		case *ast.ConstDecl:
+			for _, v := range d.Vars {
+				names = append(names, luaIdent(v.Name))
+			}
+		case *ast.VarDecl:
+			for _, v := range d.Vars {
+				names = append(names, luaIdent(v.Name))
+			}
+		}
+	}
+	return names
 }
 
 func collectFuncNames(decls []ast.Declaration) []string {

@@ -36,7 +36,8 @@ type Analyser struct {
 	importErrors map[string]string
 	module       string
 
-	universe *Scope
+	universe    *Scope
+	moduleScope *Scope
 
 	declFiles   map[ast.Declaration]string
 	arraySizes  map[ast.Expression]arraySizeResult
@@ -55,11 +56,13 @@ func (a *Analyser) SetImportErrors(errors map[string]string) {
 
 func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles map[ast.Declaration]string, module string) *Analyser {
 	universe := NewScope(nil)
+	moduleScope := NewScope(universe)
 	return &Analyser{
 		program:      program,
 		info:         NewInfo(),
 		universe:     universe,
-		scope:        NewScope(universe),
+		scope:        moduleScope,
+		moduleScope:  moduleScope,
 		modules:      modules,
 		declFiles:    declFiles,
 		module:       module,

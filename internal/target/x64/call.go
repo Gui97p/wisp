@@ -554,6 +554,22 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 	return ops, nil
 }
 
+func (t *X64Target) compileIndirectCall(expr *ast.CallExpr) ([]Operand, error) {
+	op, err := t.compileExpr(expr.Name)
+	if err != nil {
+		return nil, err
+	}
+	off := t.ctx.Reserve(8)
+	s := slot(off, 8)
+	t.store(op, s)
+	t.freeOp(op)
+	reg := t.ctx.AllocFreeRegister()
+	t.loadWord(reg, s)
+	t.checkNotNull(reg)
+	t.ctx.FreeRegister(reg)
+	return t.compileCall(t.memText(s), false, expr.Args, t.info.CallReturns[expr], false)
+}
+
 func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 	if e, ok := t.info.ErrorLiterals[expr]; ok {
 		op, err := t.compileErrorLiteral(e)
@@ -581,13 +597,33 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		return t.compileCall(sym, mc.Module != t.module, args, rets, false)
 	}
 
+	switch n := expr.Name.(type) {
+	case *ast.CallExpr, *ast.IndexExpr:
+		return t.compileIndirectCall(expr)
+	case *ast.MemberExpr:
+		if t.info.Members[n].Kind == analyser.MemberField {
+			return t.compileIndirectCall(expr)
+		}
+	}
+
 	sym, err := t.resolveCallee(expr.Name)
 	if err != nil {
 		return nil, err
 	}
+	if _, ok := underlying(sym.Type).(*analyser.FuncType); ok && (sym.Kind == analyser.VAR || sym.Kind == analyser.PARAM) {
+		op, err := t.compileExpr(expr.Name)
+		if err != nil {
+			return nil, err
+		}
+		reg := t.ctx.AllocFreeRegister()
+		t.loadWord(reg, op)
+		t.checkNotNull(reg)
+		t.ctx.FreeRegister(reg)
+		return t.compileCall(t.opText(op, 8), false, expr.Args, t.info.CallReturns[expr], false)
+	}
 	if sym.CName != "" {
 		cVariadic := false
-		if ft, ok := sym.Type.(*analyser.FuncType); ok {
+		if ft, ok := underlying(sym.Type).(*analyser.FuncType); ok {
 			cVariadic = ft.CVariadic
 		}
 		return t.compileCall(sym.CName, sym.Extern || sym.Module != t.module, expr.Args, t.info.CallReturns[expr], cVariadic)
@@ -597,7 +633,7 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 	}
 
 	symbol := t.funcSymbol(sym.Module, sym.Name)
-	if ft, ok := sym.Type.(*analyser.FuncType); ok {
+	if ft, ok := underlying(sym.Type).(*analyser.FuncType); ok {
 		if ft.Variadic {
 			return t.compileVariadicCall(symbol, sym.Module != t.module, nil, expr, ft, t.info.CallReturns[expr])
 		}

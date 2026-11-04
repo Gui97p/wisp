@@ -7,7 +7,7 @@ import (
 	"github.com/Gui97p/wisp/internal/ast"
 )
 
-func (t *LuaTarget) compileDefinition(b *strings.Builder, node ast.Node, vars []ast.Param, values []ast.Expression) error {
+func (t *LuaTarget) compileDefinition(b *strings.Builder, node ast.Node, vars []ast.Param, values []ast.Expression, local bool) error {
 	var texts []string
 
 	if len(values) > 0 {
@@ -51,7 +51,9 @@ func (t *LuaTarget) compileDefinition(b *strings.Builder, node ast.Node, vars []
 		}
 	}
 
-	b.WriteString("local ")
+	if local {
+		b.WriteString("local ")
+	}
 	for k, variable := range vars {
 		if k > 0 {
 			b.WriteString(", ")

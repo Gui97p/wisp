@@ -112,7 +112,7 @@ func (p *Parser) looksLikeLambda() bool {
 
 	if p.peek.Type != lexer.TOKEN_ARROW {
 		p.advance()
-		if _, _, ok := p.parseReturnSpec(); !ok {
+		if _, _, ok := p.parseReturnSpec(true, false); !ok {
 			return false
 		}
 	}
@@ -120,12 +120,25 @@ func (p *Parser) looksLikeLambda() bool {
 	return p.peek.Type == lexer.TOKEN_ARROW
 }
 
-func (p *Parser) looksLikeFuncTypeReturn() bool {
+func (p *Parser) looksLikeFuncTypeReturn(header, extern bool) bool {
 	cp := p.checkpoint()
 	defer p.restore(cp)
 
 	ref := p.parseFuncTypePrefix()
-	return ref != nil && ref.FuncReturns != nil
+	if ref == nil || ref.FuncReturns == nil {
+		return false
+	}
+	if !header {
+		return true
+	}
+
+	switch p.peek.Type {
+	case lexer.TOKEN_LBRACE, lexer.TOKEN_ARROW, lexer.TOKEN_AS:
+		return true
+	case lexer.TOKEN_SEMICOLON:
+		return extern
+	}
+	return false
 }
 
 func (p *Parser) isPrimitiveType() bool {

@@ -188,7 +188,7 @@ func (p *Parser) parseFuncLiteral() ast.Expression {
 
 	if p.peek.Type != lexer.TOKEN_ARROW {
 		p.advance()
-		types, fallible, ok := p.parseReturnSpec()
+		types, fallible, ok := p.parseReturnSpec(true, false)
 		if !ok {
 			return nil
 		}
@@ -209,6 +209,7 @@ func (p *Parser) parseFuncLiteral() ast.Expression {
 	} else {
 		line, col := p.current.Line, p.current.Column
 
+		want := max(1, len(lit.ReturnTypes))
 		stmt := &ast.ReturnStmt{}
 		for {
 			p.advance()
@@ -219,7 +220,7 @@ func (p *Parser) parseFuncLiteral() ast.Expression {
 			}
 			stmt.Values = append(stmt.Values, expr)
 
-			if p.peek.Type != lexer.TOKEN_COMMA {
+			if len(stmt.Values) >= want || p.peek.Type != lexer.TOKEN_COMMA {
 				break
 			}
 			p.advance()

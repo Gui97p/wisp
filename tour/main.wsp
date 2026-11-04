@@ -13,6 +13,7 @@ import "printing";
 import "branching";
 import "loops";
 import "functions";
+import "lambdas";
 import "variadics";
 import "anyargs";
 import "cleanup";
@@ -45,6 +46,9 @@ func main() !int {
 
   fmt.printf("\n== functions ==\n");
   functions.demo();
+
+  fmt.printf("\n== function values ==\n");
+  lambdas.demo();
 
   fmt.printf("\n== variadics ==\n");
   variadics.demo();

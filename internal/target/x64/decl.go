@@ -20,7 +20,10 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		t.ctx = x64context.NewContext()
 		err := t.compileFunc(d)
 		t.ctx = ctx
-		return err
+		if err != nil {
+			return err
+		}
+		return t.drainLambdas()
 	case *ast.VarDecl:
 		syms := t.info.VarSymbols[d]
 		for i := range d.Vars {
@@ -38,6 +41,7 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 			if err := t.emitData(init, sym.Type); err != nil {
 				return err
 			}
+			t.drainLambdas()
 		}
 		return nil
 	case *ast.StructDecl:
@@ -51,6 +55,21 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 	case *ast.ImportDecl, *ast.ConstDecl:
 	default:
 		return fmt.Errorf("x86-64: unsupported declaration %T", d)
+	}
+	return nil
+}
+
+func (t *X64Target) drainLambdas() error {
+	for len(t.lambdas) > 0 {
+		l := t.lambdas[0]
+		t.lambdas = t.lambdas[1:]
+		ctx := t.ctx
+		t.ctx = x64context.NewContext()
+		err := t.compileFuncBody(l.name, false, t.info.VarSymbols[l.lit], t.info.Types[l.lit].(*analyser.FuncType).Returns, l.lit.Fallible, l.lit.Block)
+		t.ctx = ctx
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -140,9 +159,127 @@ func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
 			t.data.printft("times %d db 0\n", layout.Size-pos)
 		}
 		return nil
+	case *analyser.FuncType:
+		switch e := expr.(type) {
+		case *ast.NullLiteral:
+			t.data.printlnt("dq 0")
+		case *ast.FuncLiteral:
+			t.data.printft("dq %s\n", t.queueLambda(e))
+		case *ast.IdentLiteral:
+			t.data.printft("dq %s\n", t.funcLabel(t.info.Idents[e]))
+		case *ast.MemberExpr:
+			sym, err := t.resolveCallee(e)
+			if err != nil {
+				return err
+			}
+			t.data.printft("dq %s\n", t.funcLabel(sym))
+		default:
+			return fmt.Errorf("x86-64: unsupported global initializer")
+		}
+		return nil
 	}
 
 	return fmt.Errorf("x86-64: unsupported global initializer")
+}
+
+func (t *X64Target) compileFuncBody(name string, entry bool, params []*analyser.Symbol, returns []analyser.Type, fallible bool, body *ast.BlockStmt) error {
+	t.text.printf("\nsection .text.%s progbits alloc exec nowrite align=16\n", name)
+	t.text.printf("%s:\n", name)
+	t.text.printlnt("push rbp")
+	t.text.printlnt("mov rbp, rsp")
+
+	types := []analyser.Type{}
+	for _, sym := range params {
+		t.ctx.Set(sym, sizeOf(sym.Type))
+		types = append(types, sym.Type)
+	}
+	t.collectVariables(body)
+	t.text.printlnt("sub rsp, .frame\n")
+
+	t.funcReturns = slices.Clone(returns)
+	t.fallible = fallible
+	if fallible {
+		t.funcReturns = append(t.funcReturns, analyser.ErrorType{})
+	}
+	sret := usesSret(t.funcReturns)
+	if sret {
+		t.hidden = slot(t.ctx.Reserve(8), 8)
+		t.text.printft("mov %s, rdi\n", t.memText(t.hidden))
+	}
+
+	args := assignArgs(types, sret)
+	for i, arg := range args {
+		sym := params[i]
+		offset, _ := t.ctx.Get(sym)
+		size := sizeOf(sym.Type)
+		for j, reg := range arg.Regs {
+			wordSize := min(8, size-8*j)
+			t.storeWord(slot(offset, size).at(8*j, wordSize), Reg{reg, wordSize})
+		}
+	}
+
+	for i, arg := range args {
+		sym := params[i]
+		offset, _ := t.ctx.Get(sym)
+		size := sizeOf(sym.Type)
+		if len(arg.Regs) == 0 && size > 0 {
+			for k := range (size + 7) / 8 {
+				reg := t.ctx.AllocFreeRegister()
+				if reg == x64context.NoReg {
+					return fmt.Errorf("x86-64: no available registers")
+				}
+				t.loadWord(reg, deref(x64context.BP, 16+arg.Stack+8*k, 8))
+				t.storeWord(slot(offset, size).at(8*k, min(8, size-8*k)), Reg{reg, 8})
+				t.ctx.FreeRegister(reg)
+			}
+		}
+	}
+
+	t.deferScopes = nil
+	if err := t.compileStatement(body); err != nil {
+		return err
+	}
+
+	t.text.newLine()
+	if fallible && len(t.funcReturns) == 1 {
+		t.text.printlnt("xor eax, eax")
+	}
+	t.text.println(".return:")
+
+	if entry {
+		if fallible {
+			reg := "rax"
+			if len(returns) > 0 {
+				reg = "rdx"
+			}
+
+			t.prelude.define("__wisp_error_emit")
+			t.text.printft(`test %s, %s
+		jz .ok
+		push %s
+		mov rdi, %s
+		call __wisp_error_emit
+		pop rax
+		mov rax, [rax+16]
+	
+		.ok:
+	`, reg, reg, reg, reg)
+		} else if len(returns) == 0 {
+			t.text.printlnt("xor eax, eax")
+		}
+	}
+
+	t.text.printlnt("mov rsp, rbp")
+	t.text.printlnt("pop rbp")
+	t.text.printlnt("ret")
+	t.text.printft(".frame equ %d\n", t.ctx.AlignTo(16))
+	t.text.println("section .text")
+
+	if t.ctx.Pushed() != 0 {
+		return fmt.Errorf("x86-64: stack alignment failed")
+	}
+
+	return nil
 }
 
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
@@ -163,103 +300,7 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		t.text.printf("global %s\n", name)
 	}
 
-	t.text.printf("\nsection .text.%s progbits alloc exec nowrite align=16\n", name)
-	t.text.printf("%s:\n", name)
-	t.text.printlnt("push rbp")
-	t.text.printlnt("mov rbp, rsp")
-
-	types := []analyser.Type{}
-	for _, sym := range t.info.VarSymbols[fd] {
-		t.ctx.Set(sym, sizeOf(sym.Type))
-		types = append(types, sym.Type)
-	}
-	t.collectVariables(fd.Body)
-	t.text.printlnt("sub rsp, .frame\n")
-
-	t.funcReturns = slices.Clone(t.info.FuncReturns[fd])
-	t.fallible = fd.Fallible
-	if fd.Fallible {
-		t.funcReturns = append(t.funcReturns, analyser.ErrorType{})
-	}
-	sret := usesSret(t.funcReturns)
-	if sret {
-		t.hidden = slot(t.ctx.Reserve(8), 8)
-		t.text.printft("mov %s, rdi\n", t.memText(t.hidden))
-	}
-
-	args := assignArgs(types, sret)
-	for i, arg := range args {
-		sym := t.info.VarSymbols[fd][i]
-		offset, _ := t.ctx.Get(sym)
-		size := sizeOf(sym.Type)
-		for j, reg := range arg.Regs {
-			wordSize := min(8, size-8*j)
-			t.storeWord(slot(offset, size).at(8*j, wordSize), Reg{reg, wordSize})
-		}
-	}
-
-	for i, arg := range args {
-		sym := t.info.VarSymbols[fd][i]
-		offset, _ := t.ctx.Get(sym)
-		size := sizeOf(sym.Type)
-		if len(arg.Regs) == 0 && size > 0 {
-			for k := range (size + 7) / 8 {
-				reg := t.ctx.AllocFreeRegister()
-				if reg == x64context.NoReg {
-					return fmt.Errorf("x86-64: no available registers")
-				}
-				t.loadWord(reg, deref(x64context.BP, 16+arg.Stack+8*k, 8))
-				t.storeWord(slot(offset, size).at(8*k, min(8, size-8*k)), Reg{reg, 8})
-				t.ctx.FreeRegister(reg)
-			}
-		}
-	}
-
-	t.deferScopes = nil
-	if err := t.compileStatement(fd.Body); err != nil {
-		return err
-	}
-
-	t.text.newLine()
-	if fd.Fallible && len(t.funcReturns) == 1 {
-		t.text.printlnt("xor eax, eax")
-	}
-	t.text.println(".return:")
-
-	if t.isEntry && fd.Name == "main" {
-		if fd.Fallible {
-			reg := "rax"
-			if len(fd.ReturnTypes) > 0 {
-				reg = "rdx"
-			}
-
-			t.prelude.define("__wisp_error_emit")
-			t.text.printft(`test %s, %s
-		jz .ok
-		push %s
-		mov rdi, %s
-		call __wisp_error_emit
-		pop rax
-		mov rax, [rax+16]
-	
-		.ok:
-	`, reg, reg, reg, reg)
-		} else if len(fd.ReturnTypes) == 0 {
-			t.text.printlnt("xor eax, eax")
-		}
-	}
-
-	t.text.printlnt("mov rsp, rbp")
-	t.text.printlnt("pop rbp")
-	t.text.printlnt("ret")
-	t.text.printft(".frame equ %d\n", t.ctx.AlignTo(16))
-	t.text.println("section .text")
-
-	if t.ctx.Pushed() != 0 {
-		return fmt.Errorf("x86-64: stack alignment failed")
-	}
-
-	return nil
+	return t.compileFuncBody(name, t.isEntry && fd.Name == "main", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
 }
 
 func (t *X64Target) collectVariables(stmt ast.Statement) {

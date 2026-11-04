@@ -91,7 +91,7 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 		decl.ReturnTypes = []ast.TypeRef{}
 	} else {
 		p.advance()
-		types, fallible, ok := p.parseReturnSpec()
+		types, fallible, ok := p.parseReturnSpec(true, extern)
 		if !ok {
 			return nil
 		}
@@ -278,7 +278,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 	return params
 }
 
-func (p *Parser) parseReturnSpec() ([]ast.TypeRef, bool, bool) {
+func (p *Parser) parseReturnSpec(header, extern bool) ([]ast.TypeRef, bool, bool) {
 	fallible := false
 	if p.current.Type == lexer.TOKEN_NOT {
 		fallible = true
@@ -289,18 +289,18 @@ func (p *Parser) parseReturnSpec() ([]ast.TypeRef, bool, bool) {
 		p.advance()
 	}
 
-	types := p.parseReturnTypes()
+	types := p.parseReturnTypes(header, extern)
 	if types == nil {
 		return nil, false, false
 	}
 	return types, fallible, true
 }
 
-func (p *Parser) parseReturnTypes() []ast.TypeRef {
+func (p *Parser) parseReturnTypes(header, extern bool) []ast.TypeRef {
 	returnTypes := []ast.TypeRef{}
 
 	if p.current.Type == lexer.TOKEN_LPAREN {
-		if p.looksLikeFuncTypeReturn() {
+		if p.looksLikeFuncTypeReturn(header, extern) {
 			ref := p.parseFuncTypePrefix()
 			if ref == nil {
 				return nil
@@ -385,7 +385,7 @@ func (p *Parser) parseFuncTypePrefix() *ast.TypeRef {
 	p.advance()
 	p.advance()
 
-	types, fallible, ok := p.parseReturnSpec()
+	types, fallible, ok := p.parseReturnSpec(false, false)
 	if !ok {
 		return nil
 	}

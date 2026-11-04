@@ -249,7 +249,14 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 		}
 	}
 
+	checked := t.isFunctionValue(expr.Name)
+	if checked {
+		b.WriteString("__wisp_nn(")
+	}
 	t.compileExpression(b, expr.Name)
+	if checked {
+		b.WriteByte(')')
+	}
 	b.WriteByte('(')
 	for k := range expr.Args {
 		if err := t.compileArgument(b, expr, k); err != nil {
@@ -261,6 +268,19 @@ func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr
 	}
 	b.WriteByte(')')
 	return nil
+}
+
+func (t *LuaTarget) isFunctionValue(callee ast.Expression) bool {
+	switch n := callee.(type) {
+	case *ast.IdentLiteral:
+		sym := t.info.Idents[n]
+		return sym != nil && (sym.Kind == analyser.VAR || sym.Kind == analyser.PARAM)
+	case *ast.MemberExpr:
+		return t.info.Members[n].Kind == analyser.MemberField
+	case *ast.CallExpr, *ast.IndexExpr:
+		return true
+	}
+	return false
 }
 
 func (t *LuaTarget) compileSliceExpression(b *strings.Builder, expr *ast.SliceExpr) error {

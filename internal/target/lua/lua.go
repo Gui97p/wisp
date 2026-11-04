@@ -98,12 +98,12 @@ func (t *LuaTarget) Compile() (string, error) {
 		}
 	}
 
-	names := collectFuncNames(t.program.Declarations)
+	names := append(collectFuncNames(t.program.Declarations), collectDataNames(t.program.Declarations)...)
 	if len(names) > 0 {
 		fmt.Fprintf(&b, "local %s\n", strings.Join(names, ", "))
 	}
 
-	for _, hoisted := range []bool{true, false} {
+	for _, hoisted := range []bool{false, true} {
 		for _, d := range t.program.Declarations {
 			if isDataDecl(d) != hoisted {
 				continue

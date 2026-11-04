@@ -1,0 +1,57 @@
+// Tour - Function values.
+//
+// A function is a value: it can be stored in a variable, passed to another
+// function, returned, kept in a struct or in an array, and called through
+// that name. The type of a function value lists the parameter types and, after
+// `=>`, the results: `(int, int) => int`. A function with no result is just
+// `(int)`.
+//
+// A function literal writes the function where it is used: `(int x) int => x * 3`
+// for a single expression, or a block after the `=>`. A function value is only
+// code. It does not carry variables from the function around it, so a literal
+// can use its own parameters, globals, constants and other functions, but not
+// a local of the function that contains it. When a callback needs some state,
+// pass it as a parameter, the way C passes a `void *`.
+//
+// `type Step (int) => int;` gives a function type a name, which is also how
+// you write an array of them: `Step[2]`. A plain function converts to the
+// named type. A function value can be `null`, and calling a null one stops the
+// program the way a null pointer does.
+
+import "std/fmt";
+
+type Step (int) => int;
+
+struct Op {
+  string name;
+  (int, int) => int apply;
+}
+
+func inc(int x) int => x + 1;
+func dec(int x) int => x - 1;
+
+func twice(Step f, int value) int {
+  return f(f(value));
+}
+
+func pick(bool up) (int) => int {
+  return up ? inc : dec;
+}
+
+public func demo() {
+  let triple = (int x) int => x * 3;
+  fmt.printf("triple(5) = {}\n", triple(5));
+
+  fmt.printf("twice(inc, 1) = {}\n", twice(inc, 1));
+  fmt.printf("twice with a literal = {}\n", twice((int x) int => x * 2, 3));
+  fmt.printf("pick(true)(10) = {}, pick(false)(10) = {}\n", pick(true)(10), pick(false)(10));
+
+  Op add = Op{name: "add", apply: (int a, int b) int => a + b};
+  fmt.printf("{}(2, 3) = {}\n", add.name, add.apply(2, 3));
+
+  Step[2] table = [inc, dec];
+  fmt.printf("table[0](5) = {}, table[1](5) = {}\n", table[0](5), table[1](5));
+
+  Step none = null;
+  fmt.printf("none is null: {}, triple is null: {}\n", none == null, triple == null);
+}

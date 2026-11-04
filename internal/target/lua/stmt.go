@@ -18,9 +18,9 @@ func (t *LuaTarget) compileStatementNode(b *strings.Builder, stmt ast.Statement)
 	case *ast.BlockStmt:
 		return t.compileBlockStatement(b, s)
 	case *ast.ConstStmt:
-		return t.compileDefinition(b, s, s.Vars, s.Values)
+		return t.compileDefinition(b, s, s.Vars, s.Values, true)
 	case *ast.VarStmt:
-		return t.compileDefinition(b, s, s.Vars, s.Values)
+		return t.compileDefinition(b, s, s.Vars, s.Values, true)
 	case *ast.ReturnStmt:
 		return t.compileReturnStatement(b, s)
 	case *ast.YieldStmt:

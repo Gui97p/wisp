@@ -50,6 +50,8 @@ type X64Target struct {
 	hidden      Mem
 
 	deferScopes []*deferScope
+	lambdas     []pendingLambda
+	lambdaCount int
 
 	libc bool
 }

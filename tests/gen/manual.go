@@ -7311,4 +7311,90 @@ func main() {
     check(float(narrowed) == float(a), "narrowing a float rounds to the nearest float32");
 }
 `, expected: []string{"a float32 sum is rounded to single precision", "a float32 accumulator rounds at every step", "float32 multiplication and division round each result", "an int converts to the nearest float32", "a float32 product keeps single precision", "narrowing a float rounds to the nearest float32"}},
+
+	{dir: "lambda_values", src: `int offset = 100;
+
+struct Op {
+    string name;
+    (int, int) => int apply;
+}
+
+func twice((int) => int f, int v) int {
+    return f(f(v));
+}
+
+type Step (int) => int;
+
+func inc(int x) int => x + 1;
+func dec(int x) int => x - 1;
+
+func pick(bool up) (int) => int {
+    return up ? inc : dec;
+}
+
+func both(int a, int b) (int, int) {
+    return a + b, a - b;
+}
+
+func main() {
+    let triple = (int x) int => x * 3;
+    check(triple(5) == 15, "a function literal called through a variable");
+    check(twice(inc, 1) == 3, "a named function passed as a value");
+    check(twice((int x) int => x * 2, 3) == 12, "a function literal passed as an argument");
+    check(pick(true)(10) == 11 && pick(false)(10) == 9, "a function returned from a function");
+
+    Op add = Op{name: "add", apply: (int a, int b) int => a + b};
+    check(add.apply(2, 3) == 5, "a function value in a struct field");
+
+    let shifted = (int x) int => x + offset;
+    check(shifted(1) == 101, "a function literal reads a global variable");
+
+    (int, int) => (int, int) pair = both;
+    let sum, diff = pair(7, 3);
+    check(sum == 10 && diff == 4, "a function value with several results");
+
+    Step[2] table = [inc, dec];
+    check(table[0](5) == 6 && table[1](5) == 4, "an array of function values");
+
+    (int) => int again = triple;
+    again = inc;
+    check(again(1) == 2, "a function variable takes another function");
+}
+`, expected: []string{"a function literal called through a variable", "a named function passed as a value", "a function literal passed as an argument", "a function returned from a function", "a function value in a struct field", "a function literal reads a global variable", "a function value with several results", "an array of function values", "a function variable takes another function"}},
+
+	{dir: "lambda_globals", src: `type Step (int) => int;
+
+func inc(int x) int => x + 1;
+func dec(int x) int => x - 1;
+
+Step chosen = inc;
+Step made = (int x) int => x * 10;
+Step missing = null;
+Step[2] table = [inc, dec];
+(int) => int plain = dec;
+
+struct Hooks {
+    (int) => int before;
+}
+
+Hooks hooks = Hooks{before: inc};
+
+func apply(Step s, int v) int {
+    return s(v);
+}
+
+func main() {
+    check(chosen(1) == 2, "a global function variable starts as a function");
+    check(made(2) == 20, "a global function variable starts as a function literal");
+    check(table[0](5) == 6 && table[1](5) == 4, "a global array of function values");
+    check(hooks.before(1) == 2, "a global struct with a function field");
+    check(plain(1) == 0, "a global of a function type written in full");
+    check(apply(inc, 1) == 2, "a function converts to a named function type");
+
+    Step local = null;
+    check(missing == null && local == null && chosen != null, "a function value is compared with null");
+    chosen = null;
+    check(chosen == null, "a function variable is set to null");
+}
+`, expected: []string{"a global function variable starts as a function", "a global function variable starts as a function literal", "a global array of function values", "a global struct with a function field", "a global of a function type written in full", "a function converts to a named function type", "a function value is compared with null", "a function variable is set to null"}},
 }

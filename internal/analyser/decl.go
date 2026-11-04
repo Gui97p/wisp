@@ -103,6 +103,16 @@ func (a *Analyser) constantInitializer(expr ast.Expression) bool {
 	switch e := expr.(type) {
 	case *ast.IntLiteral, *ast.FloatLiteral, *ast.StringLiteral, *ast.CharLiteral, *ast.BoolLiteral, *ast.NullLiteral, *ast.DotIdent:
 		return true
+	case *ast.FuncLiteral:
+		return true
+	case *ast.IdentLiteral:
+		if sym, ok := a.scope.Resolve(e.Value); ok && sym.Kind == FUNC {
+			return true
+		}
+	case *ast.MemberExpr:
+		if _, isFunc := a.info.Types[e].(*FuncType); isFunc && a.info.Members[e].Kind == MemberModule {
+			return true
+		}
 	case *ast.ArrayLiteral:
 		for _, element := range e.Elements {
 			if !a.constantInitializer(element) {
@@ -200,7 +210,7 @@ func (a *Analyser) checkConstDecl(decl *ast.ConstDecl) {
 }
 
 func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []ast.Expression, kind SymbolKind) {
-	hasExplicitType := vars[0].Type.Name != ""
+	hasExplicitType := vars[0].Type.Name != "" || vars[0].Type.IsFunc
 	line, col := node.Position()
 
 	if len(values) == 0 {

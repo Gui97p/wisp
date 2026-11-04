@@ -58,6 +58,7 @@ type Symbol struct {
 type Scope struct {
 	parent  *Scope
 	symbols map[string]*Symbol
+	lambda  bool
 }
 
 func NewScope(parent *Scope) *Scope {
@@ -83,6 +84,19 @@ func (s *Scope) Resolve(name string) (*Symbol, bool) {
 		return s.parent.Resolve(name)
 	}
 	return nil, false
+}
+
+func (s *Scope) captures(name string, module *Scope) bool {
+	crossed := false
+	for scope := s; scope != nil; scope = scope.parent {
+		if _, ok := scope.symbols[name]; ok {
+			return crossed && scope != module
+		}
+		if scope.lambda {
+			crossed = true
+		}
+	}
+	return false
 }
 
 func (s *Scope) Visible() []*Symbol {

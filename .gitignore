@@ -40,6 +40,8 @@ tests/*
 !tests/run.sh
 !tests/shim/
 *.vsix
+std/wisp.toml
+tour/bin/
 
 # VS Code extension build
 vscode/node_modules/

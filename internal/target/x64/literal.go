@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/Gui97p/wisp/internal/analyser"
+	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
@@ -88,6 +89,22 @@ func (t *X64Target) compileErrorLiteral(e *analyser.ErrorLiteral) (Operand, erro
 	reg := t.ctx.AllocFreeRegister()
 	t.text.printft("lea %s, [rel %s]\n", t.ctx.GetRegister(reg, 8), l)
 	return Reg{reg, 8}, nil
+}
+
+type pendingLambda struct {
+	name string
+	lit  *ast.FuncLiteral
+}
+
+func (t *X64Target) compileFuncLiteral(e *ast.FuncLiteral) (Operand, error) {
+	return Addr{Of: label(t.queueLambda(e), 8)}, nil
+}
+
+func (t *X64Target) queueLambda(e *ast.FuncLiteral) string {
+	name := fmt.Sprintf("__wisp_lambda_%d", t.lambdaCount)
+	t.lambdaCount++
+	t.lambdas = append(t.lambdas, pendingLambda{name: name, lit: e})
+	return name
 }
 
 var errFieldOffset = map[string]int{
