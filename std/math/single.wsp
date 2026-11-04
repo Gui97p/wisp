@@ -123,6 +123,10 @@ public func copysignf(float32 x, y) float32 {
 	return float32(ieee.copysign(x, y));
 }
 
+public func absf(float32 x) float32 {
+	return float32(ieee.fabs(x));
+}
+
 public func fminf(float32 x, y) float32 {
 	return float32(ieee.fmin(x, y));
 }

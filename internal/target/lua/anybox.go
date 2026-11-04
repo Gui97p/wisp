@@ -56,10 +56,7 @@ func (t *LuaTarget) compileTypeCase(b *strings.Builder, e *ast.BinaryExpr, tc *a
 	layout := analyser.Layout(tc.Type)
 	switch {
 	case tc.Group:
-		name := map[string]string{"int": "__wisp_isint", "uint": "__wisp_isuint", "float": "__wisp_isfloat"}[layout.Code]
-		if layout.Code == "float64" {
-			name = "__wisp_isfloat"
-		}
+		name := map[string]string{"int": "__wisp_isint", "uint": "__wisp_isuint"}[layout.Code]
 		fmt.Fprintf(b, "%s(%s)", name, subject)
 	case layout.Named():
 		fmt.Fprintf(b, "(%s.t == %q)", subject, layout.Identity)

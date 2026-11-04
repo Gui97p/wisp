@@ -117,7 +117,7 @@ func layoutExp(char[] buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 	return string(buf[:size]);
 }
 
-public func ftoa(char[] buf, float x) !string {
+func shortestText(char[] buf, float x, bool single) !string {
 	let view, spec = special(buf, x) ?? |e| return switch e {
 		case strings.StringError.NoSpace => Error(errors.Kind.NoSpace);
 		default => e;
@@ -128,13 +128,25 @@ public func ftoa(char[] buf, float x) !string {
 
 	bool neg = math.signbit(x);
 	decimal.Decimal dec;
-	dec.setShortest(math.fabs(x));
+	if single {
+		dec.setShortest32(math.absf(float32(x)));
+	} else {
+		dec.setShortest(math.fabs(x));
+	}
 	
 	if dec.dp-1 in -5..20 {
 		return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))!;
 	} else {
 		return layoutExp(buf, neg, &dec, dec.n-1, false)!;
 	}
+}
+
+public func ftoa(char[] buf, float x) !string {
+	return shortestText(buf, x, false)!;
+}
+
+public func ftoa32 (char[] buf, float32 x) !string {
+	return shortestText(buf, x, true)!;
 }
 
 public func formatFixed(char[] buf, float x, int n) !string {

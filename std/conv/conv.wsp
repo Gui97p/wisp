@@ -1,7 +1,10 @@
 import "std/errors";
 import "std/math";
 
-public const MaxDigits = 65;
+public const {
+	MaxDigits = 65;
+	MaxFloat = 1400;
+}
 
 func formatUnsigned(char[] buf, uint n, int base, bool upper) !string {
     int i = 0;

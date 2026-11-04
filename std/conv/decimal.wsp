@@ -196,17 +196,11 @@ internal func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive
 	}
 }
 
-internal func (*Decimal dec) setShortest(float x) {
-	let mant, exp = math.decompose(x);
-	if mant == 0 {
-		dec.n = 0;
-		dec.dp = 0;
-		return;
-	}
+internal func (*Decimal dec) shortest(uint mant, int exp, uint hidden, int minExp) {
 	dec.assign(mant, exp);
 
 	uint m = 1;
-	if mant == 1 << 52 && exp > -1074 {
+	if mant == hidden && exp > minExp {
 		m = 2;
 	}
 
@@ -215,6 +209,30 @@ internal func (*Decimal dec) setShortest(float x) {
 	lower.assign(m*2*mant-1, exp-int(m));
 
 	dec.roundShortest(&lower, &upper, mant % 2 == 0);
+}
+
+internal func (*Decimal dec) setShortest(float x) {
+	let mant, exp = math.decompose(x);
+	if mant == 0 {
+		dec.n = 0;
+		dec.dp = 0;
+		return;
+	}
+	dec.shortest(mant, exp, 1 << 52, -1074);
+}
+
+internal func (*Decimal dec) setShortest32(float32 x) {
+	let mant, exp = math.decompose(x);
+	if mant == 0 {
+		dec.n = 0;
+		dec.dp = 0;
+		return;
+	}
+
+	int e24 = math.max(exp + 29, -149);
+	uint m24 = mant >> (e24 - exp);
+
+	dec.shortest(m24, e24, 1 << 23, -149);
 }
 
 internal func (*Decimal dec) setFixed(float x, int n) {

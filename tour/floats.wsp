@@ -5,8 +5,9 @@
 // exponent (`2.5`, `1e3`, `4.5e-7`) is a float, and an integer literal turns
 // into one where a float is expected.
 //
-// fmt does not format floats yet, so this file shows them through
-// comparisons and through `int(...)`.
+// `fmt` prints a float with `{}` as the shortest text that reads back as the
+// same number (`2.5`, `0.1`, `100`), and with `{.2f}` or `{e}` when you want
+// to choose the digits. printing.wsp has the whole spec.
 
 import "std/fmt";
 
@@ -35,12 +36,12 @@ public func demo() {
 
   // Division keeps the fraction, and the operators work on assignments too.
   // `-ratio` flips the sign.
-  fmt.printf("7.0 / 2.0 * 2.0 = {}\n", int(7.0 / 2.0 * 2.0));
+  fmt.printf("7.0 / 2.0 * 2.0 = {}\n", 7.0 / 2.0 * 2.0);
   float total = 10.0;
   total += 2.5;
   total *= 2.0;
-  fmt.printf("total = {}\n", int(total));
-  fmt.printf("-ratio = {}\n", int(-ratio));
+  fmt.printf("total = {}\n", total);
+  fmt.printf("-ratio = {}\n", -ratio);
 
   // An integer converts to a float and back by naming the type. Going back
   // drops the fraction, toward zero.
@@ -56,18 +57,31 @@ public func demo() {
   float same = big;
   fmt.printf("float32 widens, and float is float64: {}\n", same == 1.5);
 
+  // Each width prints the shortest text for its own precision. The float32
+  // below is the nearest float32 to 1.1, and it still prints as 1.1.
+  float32 narrow = 1.1;
+  fmt.printf("float32 {}, float {}\n", narrow, 1.1);
+
   // NaN is not equal to anything, itself included, and every ordering
   // comparison with it is false. `!=` is the only one that holds.
   float zero = 0.0;
   float nan = zero / zero;
   fmt.printf("nan == nan: {}, nan != nan: {}\n", nan == nan, nan != nan);
   fmt.printf("nan < 1.0: {}, nan > 1.0: {}\n", nan < 1.0, nan > 1.0);
+  fmt.printf("nan prints as {}, and {} divided by zero is {}\n", nan, 1.0, 1.0 / zero);
+
+  // `.N` writes N digits after the point, rounded to nearest on the exact
+  // value, `f` is six digits as in C, `e` is scientific and a leading 0
+  // pads with zeros after the sign.
+  float pi = 3.141592653589793;
+  fmt.printf("[{.2f}] [{f}] [{e}] [{.3e}] [{010.3f}]\n", pi, pi, pi, pi, -pi);
+  fmt.printf("[{}] [{}] [{}]\n", 1e21, 0.00001, 0.000001);
 
   // Floats go through functions, come back from them, and sit in structs.
-  fmt.printf("average(2.0, 5.0) * 2 = {}\n", int(average(2.0, 5.0) * 2.0));
+  fmt.printf("average(2.0, 5.0) = {}\n", average(2.0, 5.0));
   let low, high = bounds(4.5, 1.5);
-  fmt.printf("bounds(4.5, 1.5) = ({}, {})\n", int(low * 10.0), int(high * 10.0));
+  fmt.printf("bounds(4.5, 1.5) = ({}, {})\n", low, high);
   Vec a = Vec{x: 1.5, y: 2.0};
   Vec b = Vec{x: 2.0, y: 4.0};
-  fmt.printf("dot = {}\n", int(dot(a, b)));
+  fmt.printf("dot = {}\n", dot(a, b));
 }

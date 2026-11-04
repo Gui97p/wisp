@@ -182,7 +182,7 @@ func (a *Analyser) checkTypeCase(expr *ast.BinaryExpr) Type {
 	group := false
 	if _, isLabel := expr.Right.(*ast.TypeLabel); isLabel {
 		if p, isPrimitive := t.(PrimitiveType); isPrimitive {
-			group = p.Name == "int" || p.Name == "uint" || p.Name == "float"
+			group = p.Name == "int" || p.Name == "uint"
 		}
 	}
 
@@ -223,15 +223,6 @@ func isTypeSymbol(sym *Symbol) bool {
 	return sym.Kind == TYPE || sym.Kind == STRUCT
 }
 
-func narrowedType(tc *TypeCase) Type {
-	if tc.Group {
-		if p, ok := tc.Type.(PrimitiveType); ok && p.Name == "float" {
-			return PrimitiveType{Name: "float64"}
-		}
-	}
-	return tc.Type
-}
-
 func (a *Analyser) narrowSwitchVariable(condition ast.Expression) {
 	match, ok := condition.(*ast.BinaryExpr)
 	if !ok {
@@ -250,7 +241,7 @@ func (a *Analyser) narrowSwitchVariable(condition ast.Expression) {
 		return
 	}
 
-	narrowed := &Symbol{Name: original.Name, Kind: VAR, Type: narrowedType(tc), File: original.File, Used: true}
+	narrowed := &Symbol{Name: original.Name, Kind: VAR, Type: tc.Type, File: original.File, Used: true}
 	a.scope.Define(narrowed)
 	a.info.Narrowed[narrowed] = original
 }

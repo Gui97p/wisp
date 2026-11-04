@@ -176,6 +176,17 @@ func (*Writer w) putPointer(char[] buf, *void v, spec.Spec s) !bool {
 	return true;
 }
 
+func (*Writer w) putFloat(char[] buf, float x, spec.Spec s, bool single) !bool {
+	spec.validate(s, spec.Value.Float) ?? return false;
+	render.Piece piece = render.renderFloat(buf, x, s, single)!;
+	spec.Spec copy = s;
+	if !math.isFinite(x) {
+		copy.zero = false;
+	}
+	w.writePiece(piece, copy, true)!;
+	return true;
+}
+
 public func (*Writer w) format(string format, ...args) !int {
 	char[conv.MaxDigits] buf;
 	int argIndex;
@@ -246,6 +257,8 @@ public func (*Writer w) format(string format, ...args) !int {
 			case bool:  ok = w.putBool(v, s)!;
 			case string: ok = w.putString(v, s)!;
 			case *void: ok = w.putPointer(buf[:], v, s)!;
+			case float64: char[conv.MaxFloat] fBuf; ok = w.putFloat(fBuf[:], v, s, false)!;
+			case float32: char[conv.MaxFloat] fBuf; ok = w.putFloat(fBuf[:], v, s, true)!;
 			default:    bad = Error(FormatError.UnsupportedType);
 		}
 		argIndex++;

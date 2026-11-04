@@ -304,12 +304,9 @@ func (t *X64Target) compileTypeCase(expr *ast.BinaryExpr, tc *analyser.TypeCase)
 			if strings.Contains(tp.Name, "uint") {
 				lo = analyser.BoxCode("uint")
 				hi = analyser.BoxCode("uint64")
-			} else if strings.Contains(tp.Name, "int") {
+			} else {
 				lo = analyser.BoxCode("int")
 				hi = analyser.BoxCode("int64")
-			} else {
-				lo = analyser.BoxCode("float")
-				hi = analyser.BoxCode("float64")
 			}
 		}
 		t.text.printft("sub %s, %d\ncmp %s, %d\n", tmpStr, lo, tmpStr, hi-lo)
