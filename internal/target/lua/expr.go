@@ -66,9 +66,17 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 		return t.compileCastExpr(b, e.Cast)
 
 	case *ast.IntLiteral:
-		b.WriteString(intLiteralText(e))
+		if isFloat32(t.info.Types[e]) {
+			b.WriteString(floatLiteralText(float64(float32(e.Value))))
+		} else {
+			b.WriteString(intLiteralText(e))
+		}
 	case *ast.FloatLiteral:
-		b.WriteString(floatLiteralText(e.Value))
+		if isFloat32(t.info.Types[e]) {
+			b.WriteString(floatLiteralText(float64(float32(e.Value))))
+		} else {
+			b.WriteString(floatLiteralText(e.Value))
+		}
 	case *ast.FuncLiteral:
 		return t.compileFuncLiteral(b, e)
 	case *ast.ArrayLiteral:

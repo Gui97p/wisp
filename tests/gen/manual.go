@@ -7280,4 +7280,35 @@ func main() {
     check(rejects == 3, "a spec that is not for a float is reported");
 }
 `, expected: []string{"floats match the reference for every spec and value", "a float32 prints the shortest text of its own width", "a float that does not fit the buffer is reported", "a spec that is not for a float is reported"}},
+
+	{dir: "float32_round", src: `func main() {
+    float32 a = 0.1;
+    float32 b = 0.2;
+    float32 c = a + b;
+    check(float(c) == 0.30000001192092896, "a float32 sum is rounded to single precision");
+
+    float32 sum = 0.0;
+    for i in 0..9 {
+        sum += a;
+    }
+    check(float(sum) == 1.0000001192092896, "a float32 accumulator rounds at every step");
+
+    float32 three = 3.0;
+    float32 seven = 7.0;
+    float32 q = a * three / seven;
+    check(float(q) == 0.04285714402794838, "float32 multiplication and division round each result");
+
+    int whole = 16777217;
+    float32 widened = float32(whole);
+    check(float(widened) == 16777216.0, "an int converts to the nearest float32");
+
+    float32 huge = 1e30;
+    float32 product = 1.5 * huge;
+    check(float(product) == 1.500000098129063e+30, "a float32 product keeps single precision");
+
+    float wide = 0.1;
+    float32 narrowed = float32(wide);
+    check(float(narrowed) == float(a), "narrowing a float rounds to the nearest float32");
+}
+`, expected: []string{"a float32 sum is rounded to single precision", "a float32 accumulator rounds at every step", "float32 multiplication and division round each result", "an int converts to the nearest float32", "a float32 product keeps single precision", "narrowing a float rounds to the nearest float32"}},
 }

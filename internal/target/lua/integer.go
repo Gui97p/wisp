@@ -51,7 +51,18 @@ func intBits(tp analyser.Type) (int, bool) {
 	return bits, signed
 }
 
+func isFloat32(tp analyser.Type) bool {
+	if nt, ok := tp.(analyser.NamedType); ok {
+		tp = nt.Underlying
+	}
+	p, ok := tp.(analyser.PrimitiveType)
+	return ok && p.Name == "float32"
+}
+
 func wrapInt(text string, tp analyser.Type) string {
+	if isFloat32(tp) {
+		return fmt.Sprintf("__wisp_f32(%s)", text)
+	}
 	bits, signed, ok := analyser.IntegerRange(tp)
 	if !ok || bits == 64 {
 		return text
@@ -176,7 +187,7 @@ func (t *LuaTarget) compileBinaryExpr(b *strings.Builder, e *ast.BinaryExpr) err
 
 func (t *LuaTarget) divisionText(op, left, right string, result analyser.Type) string {
 	if !isIntType(result) {
-		return fmt.Sprintf("(%s %s %s)", left, op, right)
+		return wrapInt(fmt.Sprintf("(%s %s %s)", left, op, right), result)
 	}
 
 	if op == "%" {
@@ -228,6 +239,8 @@ func (t *LuaTarget) compileCastExpr(b *strings.Builder, e *ast.CastExpr) error {
 		fmt.Fprintf(b, "__wisp_str(%s)", value)
 	case analyser.LosslessWidening(src, dst):
 		b.WriteString(value)
+	case isFloat32(dst) && (isFloatType(src) || isIntType(src)):
+		b.WriteString(wrapInt(fmt.Sprintf("(%s + 0.0)", value), dst))
 	case isFloatType(dst) && isIntType(src):
 		fmt.Fprintf(b, "(%s + 0.0)", value)
 	case isIntType(dst) && isFloatType(src):

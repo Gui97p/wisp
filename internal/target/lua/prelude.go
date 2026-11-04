@@ -378,6 +378,10 @@ end
 	return math.ceil(x)
 end
 `},
+	{name: "__wisp_f32", code: `local function __wisp_f32(x)
+	return (string.unpack("<f", string.pack("<f", x)))
+end
+`},
 	{name: "__wisp_box", code: `local function __wisp_box(t, v, e)
 	return {t = t, v = v, e = e}
 end
