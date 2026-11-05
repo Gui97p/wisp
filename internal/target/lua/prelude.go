@@ -291,8 +291,13 @@ end
 	return e ~= nil and e.domain == domain and e.code == code
 end
 `},
-	{name: "__wisp_unwrap", deps: []string{"__wisp_panic"}, code: `local function __wisp_unwrap(e)
-	__wisp_panic("unwrapped error " .. e.message .. ", raised at " .. e.file .. ":" .. e.line)
+	{name: "__wisp_unwrap", deps: []string{"__wisp_panic"}, code: `local function __wisp_unwrap(e, site)
+	io.stderr:write(e.block or ("error[" .. e.domain .. "]: " .. e.message .. "\n--> " .. e.file .. ":" .. e.line .. "\n"), "\n")
+	if site then
+		io.stderr:write(site)
+		os.exit(1)
+	end
+	__wisp_panic("unwrapped error")
 end
 `},
 	{name: "__wisp_idiv", deps: []string{"__wisp_panic"}, code: `local function __wisp_idiv(a, b)

@@ -11,8 +11,8 @@ import (
 )
 
 func (t *X64Target) compileStatement(stmt ast.Statement) error {
-	line, col := t.enter(stmt)
-	defer t.leave(line, col)
+	line, col, endLine, endCol := t.enter(stmt)
+	defer t.leave(line, col, endLine, endCol)
 
 	return t.locate(stmt, t.compileStatementNode(stmt))
 }

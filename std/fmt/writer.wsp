@@ -187,6 +187,31 @@ func (*Writer w) putFloat(char[] buf, float x, spec.Spec s, bool single) !bool {
 	return true;
 }
 
+func (*Writer w) putError(char[] buf, Error e, spec.Spec s) !bool {
+	spec.validate(s, spec.Value.Error) ?? return false;
+	if e == null {
+		w.write("<null error>")!;
+		return true;
+	}
+	switch s.kind {
+		case 0:
+			render.Piece piece = render.renderString(e.message, s);
+			w.writePiece(piece, s, false)!;
+		default:
+			w.write("error[")!;
+			w.write(e.domain)!;
+			w.write("]: ")!;
+			w.write(e.message)!;
+			w.write(" (")!;
+			w.write(e.file)!;
+			w.writeByte(':')!;
+			render.Piece piece = render.renderInt(buf, e.line, spec.Spec{fill: ' ', precision: -1})!;
+			w.writePiece(piece, s, false)!;
+			w.writeByte(')')!;
+	}
+	return true;
+}
+
 public func (*Writer w) format(string format, ...args) !int {
 	char[conv.MaxDigits] buf;
 	int argIndex;
@@ -251,14 +276,15 @@ public func (*Writer w) format(string format, ...args) !int {
 		bool ok;
 		Error bad = Error(FormatError.WrongType);
 		switch let v = args[argIndex] {
-			case int:   ok = w.putInt(buf[:], v, s)!;
-			case uint:  ok = w.putUint(buf[:], v, s)!;
-			case char:  ok = w.putChar(buf[:], v, s)!;
+			case int:   ok = w.putInt(buf, v, s)!;
+			case uint:  ok = w.putUint(buf, v, s)!;
+			case char:  ok = w.putChar(buf, v, s)!;
 			case bool:  ok = w.putBool(v, s)!;
 			case string: ok = w.putString(v, s)!;
-			case *void: ok = w.putPointer(buf[:], v, s)!;
-			case float64: char[conv.MaxFloat] fBuf; ok = w.putFloat(fBuf[:], v, s, false)!;
-			case float32: char[conv.MaxFloat] fBuf; ok = w.putFloat(fBuf[:], v, s, true)!;
+			case *void: ok = w.putPointer(buf, v, s)!;
+			case float64: char[conv.MaxFloat] fBuf; ok = w.putFloat(fBuf, v, s, false)!;
+			case float32: char[conv.MaxFloat] fBuf; ok = w.putFloat(fBuf, v, s, true)!;
+			case Error: ok = w.putError(buf, v, s)!;
 			default:    bad = Error(FormatError.UnsupportedType);
 		}
 		argIndex++;

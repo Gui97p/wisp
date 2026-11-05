@@ -35,5 +35,12 @@ func Execute() {
 }
 
 func init() {
+	diag.StdRoot = func() string {
+		root, err := module.StdlibRoot()
+		if err != nil {
+			return ""
+		}
+		return root
+	}
 	rootCmd.AddCommand(buildCmd, runCmd, checkCmd, cleanCmd, envCmd, targetsCmd, docCmd, debugCmd, initCmd, cacheCmd, versionCmd, lspCmd)
 }

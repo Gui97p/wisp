@@ -313,8 +313,10 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 			}
 			c := c
 			obj, err := stdc.object(c.mod.Path, func(objPath string) error {
+				c.info.RenderErrorBlocks(c.mod.BufferMap())
 				std := x64.New(c.merged, c.info, false, tgt.Name, c.mod.Path)
 				std.SetFiles(c.declFiles)
+				std.SetSources(c.mod.BufferMap())
 				source, err := std.Compile()
 				if err != nil {
 					return fmt.Errorf("cannot build %s, %w", c.mod.Path, c.reportFailure(err))
@@ -335,8 +337,10 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
+		c.info.RenderErrorBlocks(c.mod.BufferMap())
 		backend := x64.New(c.merged, c.info, isEntry, tgt.Name, c.mod.Path)
 		backend.SetFiles(c.declFiles)
+		backend.SetSources(c.mod.BufferMap())
 		backend.SetLibc(useLibc(cfg, tgt))
 		source, err := backend.Compile()
 		if err != nil {

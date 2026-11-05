@@ -7533,6 +7533,111 @@ func main() {
     mem.free(dirty);
 }
 `, expected: []string{"move copies forward over an overlap", "move copies backward over an overlap", "move of zero bytes changes nothing", "move works when the regions do not overlap", "allocDirty gives a block", "a dirty block is usable"}},
+	{dir: "any_error", src: `enum Kind {
+    Bad = 1,
+    Worse
+}
+
+func fail(int n) !int {
+    if n < 0 {
+        return Error(Kind.Bad, "negative");
+    }
+    if n == 0 {
+        return Error(Kind.Worse);
+    }
+    return n;
+}
+
+func describe(...args) int {
+    int seen = 0;
+    for _, arg in args {
+        switch let v = arg {
+            case int:
+                seen += v;
+            case Error:
+                if v == null {
+                    check(true, "a null error is held as null");
+                } else {
+                    check(v.message == "negative" || v.message == "Kind.Worse", "an error keeps its message in an any");
+                    check(v == Kind.Bad || v == Kind.Worse, "an error keeps its member in an any");
+                }
+                seen += 100;
+            default:
+                seen += 1000;
+        }
+    }
+    return seen;
+}
+
+func main() {
+    let _, e1 = fail(-1);
+    let _, e2 = fail(0);
+    let _, e3 = fail(1);
+    check(describe(e1, e2, e3, 5) == 305, "errors and ints are told apart in an any");
+    check(describe("x") == 1000, "a string is not an error");
+}
+`, expected: []string{"an error keeps its message in an any", "an error keeps its member in an any", "an error keeps its message in an any", "an error keeps its member in an any", "a null error is held as null", "errors and ints are told apart in an any", "a string is not an error"}},
+	{dir: "method_error_param", src: `struct Box {
+    int n;
+}
+
+func (*Box b) accept(Error e, int add) !int {
+    if e != null {
+        return Error(Kind.Bad, "refused");
+    }
+    return b.n + add;
+}
+
+func (*Box b) last() Error {
+    return Error(Kind.Bad, "last");
+}
+
+enum Kind {
+    Bad = 1
+}
+
+func main() {
+    Box b = Box{n: 4};
+    Error none;
+    check((b.accept(none, 3) ?? -1) == 7, "a method takes an Error parameter");
+    check((b.accept(b.last(), 3) ?? -1) == -1, "a method returns and receives an Error");
+    check(b.last() == Kind.Bad, "a method returns an Error");
+}
+`, expected: []string{"a method takes an Error parameter", "a method returns and receives an Error", "a method returns an Error"}},
+	{dir: "fmt_error", src: `import "std/fmt";
+import "std/errors";
+
+enum Fail {
+    Bad = 1
+}
+
+func risky(int n) !int {
+    if n < 0 {
+        return Error(Fail.Bad, "negative input");
+    }
+    if n == 0 {
+        return Error(errors.Kind.Invalid);
+    }
+    return n;
+}
+
+func text(char[] buf, string format, ...args) string {
+    int n = fmt.sprintf(buf, format, args...)!!;
+    return string(buf[0:n]);
+}
+
+func main() {
+    let _, e1 = risky(-1);
+    let _, e2 = risky(0);
+    let _, none = risky(3);
+    char[64] buf;
+    check(text(buf, "{}", e1) == "negative input", "an error prints its message");
+    check(text(buf, "{}", e2) == "Kind.Invalid", "a default message is the member");
+    check(text(buf, "[{>16}]", e1) == "[  negative input]", "the message aligns like a string");
+    check(text(buf, "{}", none) == "<null error>", "a null error prints a placeholder");
+    check(text(buf, "{v}", none) == "<null error>", "a null error prints the same in verbose");
+}
+`, expected: []string{"an error prints its message", "a default message is the member", "the message aligns like a string", "a null error prints a placeholder", "a null error prints the same in verbose"}},
 	{dir: "mem_fixed", src: `import "std/mem";
 import "std/errors";
 

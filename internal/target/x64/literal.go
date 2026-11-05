@@ -79,11 +79,15 @@ func (t *X64Target) compileErrorLiteral(e *analyser.ErrorLiteral) (Operand, erro
 	if err != nil {
 		return nil, err
 	}
+	el, en, err := t.stringData(e.Block)
+	if err != nil {
+		return nil, err
+	}
 
 	key := fmt.Sprintf("%s|%d|%s|%s|%d", e.Domain, e.Code, e.Message, displayFile(e.File), e.Line)
 	l, ok := t.createData("err", key)
 	if !ok {
-		t.rodata.printf("%s: dq %s, %d, %d, %s, %d, %s, %d, %d\n", l, dl, dn, e.Code, ml, mn, fl, fn, e.Line)
+		t.rodata.printf("%s: dq %s, %d, %d, %s, %d, %s, %d, %d, %s, %d\n", l, dl, dn, e.Code, ml, mn, fl, fn, e.Line, el, en)
 	}
 
 	reg := t.ctx.AllocFreeRegister()
@@ -113,4 +117,5 @@ var errFieldOffset = map[string]int{
 	"message": 24,
 	"file":    40,
 	"line":    56,
+	"block":   64,
 }

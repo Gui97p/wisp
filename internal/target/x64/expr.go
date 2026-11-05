@@ -10,8 +10,8 @@ import (
 )
 
 func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
-	line, col := t.enter(expr)
-	defer t.leave(line, col)
+	line, col, endLine, endCol := t.enter(expr)
+	defer t.leave(line, col, endLine, endCol)
 
 	op, err := t.compileExprNode(expr)
 	return op, t.locate(expr, err)
@@ -391,7 +391,7 @@ func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
 	tp := t.info.Types[expr]
 	size := sizeOf(tp)
 	if isFloat(tp) && expr.Operator == "-" {
-		reg := t.materializeXmm(value, size)
+		reg := t.materializeXmm(value)
 		mask := fmt.Sprintf("0x%0*x", size*2, uint64(1)<<(size*8-1))
 		l, ok := t.createData(fmt.Sprintf("_fmask_%d", size), signMask{size: size})
 		if !ok {
@@ -525,7 +525,7 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 			inst = "ss"
 		}
 		if isUint64(dstType) {
-			xmm := t.materializeXmm(op, srcSize)
+			xmm := t.materializeXmm(op)
 			xmmStr := t.ctx.GetRegister(xmm, srcSize)
 			tmp := t.ctx.AllocFreeRegister()
 			tmpStr := t.ctx.GetRegister(tmp, 8)
@@ -868,6 +868,8 @@ func (t *X64Target) returnError(errOp Operand) error {
 }
 
 func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error) {
+	line, col, endLine, endCol := t.enter(expr)
+	defer t.leave(line, col, endLine, endCol)
 	ops, err := t.compileCallValues(expr.Value.(*ast.CallExpr))
 	if err != nil {
 		return nil, err

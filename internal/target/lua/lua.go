@@ -24,6 +24,8 @@ type LuaTarget struct {
 	info    *analyser.Info
 	isEntry bool
 	target  string
+	sources map[string][]byte
+	curFile string
 
 	loopStack    []loopContext
 	labelCounter uint64
@@ -61,6 +63,10 @@ func (t *LuaTarget) SetID(id string) {
 
 func (t *LuaTarget) SetTarget(name string) {
 	t.target = name
+}
+
+func (t *LuaTarget) SetSources(sources map[string][]byte) {
+	t.sources = sources
 }
 
 func (t *LuaTarget) SetFiles(files map[ast.Declaration]string) {
@@ -108,6 +114,7 @@ func (t *LuaTarget) Compile() (string, error) {
 			if isDataDecl(d) != hoisted {
 				continue
 			}
+			t.curFile = t.files[d]
 			if err := t.compileDeclarations(&b, []ast.Declaration{d}); err != nil {
 				return "", diag.InFile(err, t.files[d])
 			}

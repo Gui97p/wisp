@@ -10,7 +10,7 @@ var BoxCodes = []string{
 	"int", "int8", "int16", "int32", "int64",
 	"uint", "uint8", "uint16", "uint32", "uint64",
 	"float32", "float64",
-	"bool", "char", "string", "pointer",
+	"bool", "char", "string", "pointer", "error",
 }
 
 func BoxCode(name string) int {
@@ -66,6 +66,8 @@ func Layout(t Type) BoxLayout {
 			return BoxLayout{Code: "int", Identity: BoxKey(v)}
 		}
 		return BoxLayout{Identity: BoxKey(v)}
+	case ErrorType:
+		return BoxLayout{Code: "error"}
 	case PointerType:
 		pointee := "void"
 		switch elem := v.Element.(type) {
@@ -91,7 +93,7 @@ func boxable(t Type) (bool, string) {
 		return true, ""
 	case NamedType:
 		return boxable(v.Underlying)
-	case PointerType:
+	case PointerType, ErrorType:
 		return true, ""
 	case *StructType:
 		return false, "pass a pointer to it instead"

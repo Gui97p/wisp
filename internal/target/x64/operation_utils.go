@@ -25,8 +25,15 @@ func (t *X64Target) push(reg x64context.Register) {
 	t.pushWord(Reg{reg, 8})
 }
 
+var panicLabels = map[string]string{
+	"unwrapped error":             "the error was unwrapped here",
+	"integer divide by zero":      "the divisor is zero",
+	"null pointer dereference":    "this pointer is null",
+	"range step must be positive": "the step is not positive",
+}
+
 func (t *X64Target) panic(message string) {
-	message += t.where()
+	message += t.where(panicLabels[message])
 	t.prelude.define("__wisp_panic")
 	label, ok := t.createData("str", message)
 	if !ok {
@@ -169,7 +176,7 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 	return x64context.NoReg
 }
 
-func (t *X64Target) materializeXmm(op Operand, size int) x64context.Register {
+func (t *X64Target) materializeXmm(op Operand) x64context.Register {
 	switch o := op.(type) {
 	case Reg:
 		return o.Reg

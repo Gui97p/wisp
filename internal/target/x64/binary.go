@@ -135,7 +135,7 @@ func (t *X64Target) compilePointerArithmetic(op string, left, right Operand, lef
 func (t *X64Target) compileFloatArithmetic(op string, left, right Operand, tp analyser.Type) (Operand, error) {
 	size := sizeOf(tp)
 
-	leftReg := t.materializeXmm(left, size)
+	leftReg := t.materializeXmm(left)
 	opText := t.opText(right, size)
 	if t.err != nil {
 		return nil, t.err
@@ -290,7 +290,7 @@ func (t *X64Target) compileFloatComparison(op string, left, right Operand, leftT
 	case "<", "<=":
 		right, left = left, right
 	}
-	leftReg = t.materializeXmm(left, opSize)
+	leftReg = t.materializeXmm(left)
 	opText := t.opText(right, opSize)
 	if t.err != nil {
 		return nil, t.err

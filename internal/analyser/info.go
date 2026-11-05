@@ -1,7 +1,10 @@
 package analyser
 
 import (
+	"fmt"
+
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/diag"
 )
 
 type Info struct {
@@ -96,4 +99,19 @@ type ErrorLiteral struct {
 	Message string
 	File    string
 	Line    int
+	Col     int
+	EndLine int
+	EndCol  int
+	Block   string
+}
+
+func (i *Info) RenderErrorBlocks(buffers map[string][]byte) {
+	for _, lit := range i.ErrorLiterals {
+		source, ok := buffers[lit.File]
+		if !ok {
+			continue
+		}
+		header := fmt.Sprintf("error[%s]: %s", lit.Domain, lit.Message)
+		lit.Block = diag.RuntimeBlock(header, lit.File, source, lit.Line, lit.Col, lit.EndLine, lit.EndCol, "raised here")
+	}
 }

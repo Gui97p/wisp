@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -41,8 +42,9 @@ type X64Target struct {
 	err   error
 	files map[ast.Declaration]string
 
-	file      string
-	line, col int
+	file            string
+	line, col       int
+	endLine, endCol int
 
 	labels      map[string]int
 	funcReturns []analyser.Type
@@ -52,6 +54,8 @@ type X64Target struct {
 	deferScopes []*deferScope
 	lambdas     []pendingLambda
 	lambdaCount int
+
+	sources map[string][]byte
 
 	libc bool
 }
@@ -80,38 +84,45 @@ func (t *X64Target) SetLibc(libc bool) {
 	t.libc = libc
 }
 
+func (t *X64Target) SetSources(sources map[string][]byte) {
+	t.sources = sources
+}
+
 func (t *X64Target) SetFiles(files map[ast.Declaration]string) {
 	t.files = files
 }
 
-func (t *X64Target) enter(node ast.Node) (line, col int) {
-	line, col = t.line, t.col
+func (t *X64Target) enter(node ast.Node) (line, col, endLine, endCol int) {
+	line, col, endLine, endCol = t.line, t.col, t.endLine, t.endCol
 	t.line, t.col = node.Position()
-	return line, col
+	t.endLine, t.endCol = node.EndPosition()
+	return
 }
 
-func (t *X64Target) leave(line, col int) {
+func (t *X64Target) leave(line, col, endLine, endCol int) {
 	t.line, t.col = line, col
+	t.endLine, t.endCol = endLine, endCol
 }
 
 func displayFile(file string) string {
-	if cwd, err := os.Getwd(); err == nil && file != "" {
-		if rel, err := filepath.Rel(cwd, file); err == nil {
-			return rel
-		}
-	}
-	return file
+	return diag.DisplayPath(file)
 }
 
-func (t *X64Target) where() string {
+func (t *X64Target) where(label string) string {
 	if t.line == 0 {
 		return ""
 	}
+	if src, ok := t.sources[t.file]; ok {
+		block := diag.RuntimeBlock("", t.file, src, t.line, t.col, t.endLine, t.endCol, label)
+		if block != "" {
+			return strings.TrimSuffix(block, "\n")
+		}
+	}
 	file := displayFile(t.file)
 	if file == "" {
-		return fmt.Sprintf("\n  at line %d:%d", t.line, t.col)
+		return fmt.Sprintf("\n--> line %d:%d", t.line, t.col)
 	}
-	return fmt.Sprintf("\n  at %s:%d:%d", file, t.line, t.col)
+	return fmt.Sprintf("\n--> %s:%d:%d", file, t.line, t.col)
 }
 
 func (t *X64Target) locate(node ast.Node, err error) error {

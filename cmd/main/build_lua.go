@@ -47,8 +47,12 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 	for _, c := range proj.compiled {
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
+		if !strings.HasPrefix(c.mod.Path, "std/") {
+			c.info.RenderErrorBlocks(c.mod.BufferMap())
+		}
 		backend := lua.New(c.merged, c.info, isEntry)
 		backend.SetFiles(c.declFiles)
+		backend.SetSources(c.mod.BufferMap())
 		backend.SetID(lua.ModuleID(c.mod.Path))
 		backend.SetTarget(tgt.Name)
 		source, err := backend.Compile()

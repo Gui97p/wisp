@@ -6,6 +6,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/diag"
 )
 
 func luaString(value string) string {
@@ -33,8 +34,12 @@ func luaString(value string) string {
 }
 
 func errorTable(lit *analyser.ErrorLiteral) string {
-	return fmt.Sprintf("{domain=%s, code=%d, message=%s, file=%s, line=%d}",
-		luaString(lit.Domain), lit.Code, luaString(lit.Message), luaString(lit.File), lit.Line)
+	block := ""
+	if lit.Block != "" {
+		block = ", block=" + luaString(lit.Block)
+	}
+	return fmt.Sprintf("{domain=%s, code=%d, message=%s, file=%s, line=%d%s}",
+		luaString(lit.Domain), lit.Code, luaString(lit.Message), luaString(diag.DisplayPath(lit.File)), lit.Line, block)
 }
 
 func (t *LuaTarget) payloadZeros() ([]string, error) {
@@ -70,7 +75,15 @@ func (t *LuaTarget) compilePropagate(b *strings.Builder, expr *ast.PropagateExpr
 	t.emitPending(fmt.Sprintf("local %s = %s\n", strings.Join(targets, ", "), call))
 
 	if expr.Assert {
-		t.emitPending(fmt.Sprintf("if %s ~= nil then __wisp_unwrap(%s) end\n", errName, errName))
+		site := "nil"
+		if source, ok := t.sources[t.curFile]; ok {
+			line, col := expr.Position()
+			endLine, endCol := expr.EndPosition()
+			if block := diag.RuntimeBlock("panic: unwrapped error", t.curFile, source, line, col, endLine, endCol, "the error was unwrapped here"); block != "" {
+				site = luaString(block)
+			}
+		}
+		t.emitPending(fmt.Sprintf("if %s ~= nil then __wisp_unwrap(%s, %s) end\n", errName, errName, site))
 		b.WriteString(strings.Join(names, ", "))
 		return nil
 	}
@@ -226,7 +239,7 @@ func (t *LuaTarget) entryErrorCheck() string {
 		return prelude + `local __main_result = __lua_table.pack(` + call + `)
 local __main_error = __main_result[__main_result.n]
 if __main_error ~= nil then
-	__lua_io.stderr:write("error[", __main_error.domain, "]: ", __main_error.message, "\n  at ", __main_error.file, ":", __main_error.line, "\n")
+	__lua_io.stderr:write(__main_error.block or ("error[" .. __main_error.domain .. "]: " .. __main_error.message .. "\n--> " .. __main_error.file .. ":" .. __main_error.line .. "\n"), "\n")
 	__lua_os.exit(__main_error.code)
 end
 `

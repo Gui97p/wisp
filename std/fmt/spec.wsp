@@ -31,7 +31,8 @@ internal enum Value {
 	Bool,
 	String,
 	Pointer,
-	Float
+	Float,
+	Error
 }
 
 internal func parse(string text) !Spec {
@@ -40,7 +41,7 @@ internal func parse(string text) !Spec {
 		return spec;
 	}
 	char[3] aligns = ['<', '>', '^'];
-	const kinds = "dxXbocpeEf";
+	const kinds = "dxXbocpeEfv";
 	
 	cursor.Cursor c = cursor.Cursor{text: text};
 
@@ -105,7 +106,7 @@ internal func parse(string text) !Spec {
 internal func validate(Spec s, Value v) ! {
 	switch v {
 		case .Int, .Uint:
-			if s.kind == 'p' ||
+			if s.kind in "pv" ||
 			(s.zero && s.kind == 'c') ||
 			(s.alt && !(s.kind in "xXbop")) ||
 			s.precision >= 0 {
@@ -132,6 +133,10 @@ internal func validate(Spec s, Value v) ! {
 			}
 		case .Float:
 			if !(s.kind == 0 || s.kind in "eEf") || s.alt || s.precision > 1000 {
+				return Error(SpecError.NotForType);
+			}
+		case .Error:
+			if (s.kind != 0 && s.kind != 'v') || s.zero || s.alt || s.precision >= 0 || (s.kind == 'v' && s.width > 0) {
 				return Error(SpecError.NotForType);
 			}
 	}

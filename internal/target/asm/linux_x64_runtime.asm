@@ -44,6 +44,15 @@ __wisp_error_emit:
 	mov rbx, rdi
 	sub rsp, 32
 
+	mov rdx, [rbx+72]
+	test rdx, rdx
+	jz .fallback
+
+	mov rsi, [rbx+64]
+	call __wisp_write_error
+	jmp .end
+
+.fallback:
 	lit "error["
 	mov rsi, [rbx]
 	mov rdx, [rbx+8]
@@ -54,7 +63,7 @@ __wisp_error_emit:
 	mov rdx, [rbx+32]
 	call __wisp_write_error
 
-	lit `\n  at `
+	lit `\n--> `
 	mov rsi, [rbx+40]
 	mov rdx, [rbx+48]
 	call __wisp_write_error
@@ -67,6 +76,7 @@ __wisp_error_emit:
 	mov rsi, rax
 	call __wisp_write_error
 
+.end:
 	lit `\n`
 	add rsp, 32
 	pop rbx

@@ -1030,13 +1030,17 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 		}
 	}
 
-	line, _ := expr.Position()
+	line, col := expr.Position()
+	endLine, endCol := expr.EndPosition()
 	a.info.ErrorLiterals[expr] = &ErrorLiteral{
 		Domain:  enum.Module + "." + enum.Name,
 		Code:    code.Bits(),
 		Message: message,
 		File:    a.currentFile,
 		Line:    line,
+		Col:     col,
+		EndLine: endLine,
+		EndCol:  endCol,
 	}
 	return ErrorType{}
 }

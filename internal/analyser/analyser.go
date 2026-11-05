@@ -79,6 +79,7 @@ func (a *Analyser) Analyze() *Info {
 func AnalyzeGroup(group []*Analyser) {
 	for _, a := range group {
 		a.info.Module = a.scope
+		a.registerBuiltins()
 		a.registerImports()
 		a.registerStructNames()
 	}
@@ -92,7 +93,6 @@ func AnalyzeGroup(group []*Analyser) {
 	for _, a := range group {
 		a.registerMethods()
 		a.registerStructFields()
-		a.registerBuiltins()
 		a.registerFuncSignatures()
 		a.registerGlobals()
 	}
