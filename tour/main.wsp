@@ -24,6 +24,7 @@ import "collections";
 import "errors";
 import "assertions";
 import "pointers";
+import "memory";
 import "globals";
 import "interop";
 import "std/fmt";
@@ -79,6 +80,9 @@ func main() !int {
 
   fmt.printf("\n== pointers ==\n");
   pointers.demo()!;
+
+  fmt.printf("\n== allocators ==\n");
+  memory.demo()!;
 
   fmt.printf("\n== globals ==\n");
   globals.demo();

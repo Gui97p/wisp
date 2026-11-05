@@ -7533,4 +7533,199 @@ func main() {
     mem.free(dirty);
 }
 `, expected: []string{"move copies forward over an overlap", "move copies backward over an overlap", "move of zero bytes changes nothing", "move works when the regions do not overlap", "allocDirty gives a block", "a dirty block is usable"}},
+	{dir: "mem_fixed", src: `import "std/mem";
+import "std/errors";
+
+func main() {
+    char[100] storage;
+    mem.fill(storage, 7, 100);
+    mem.Fixed f = mem.Fixed{buffer: storage};
+
+    *char a = f.alloc(10) ?? null;
+    *char b = f.alloc(20) ?? null;
+    check(a != null && b != null, "fixed gives blocks");
+    check(int(b) - int(a) == 16, "a block is rounded up to 16 bytes");
+    check(a[0] == 0 && a[9] == 0 && b[0] == 0 && b[19] == 0, "alloc zeroes the block");
+    *char base = storage;
+    check(int(a) - int(base) >= 0 && int(b) - int(base) < 100, "blocks live inside the buffer");
+
+    *char c = f.allocDirty(48) ?? null;
+    check(c != null, "allocDirty gives a block");
+    check(int(c) - int(a) == 48, "blocks are contiguous");
+
+    let full, e1 = f.alloc(40);
+    check(full == null && e1 == errors.Kind.NoSpace, "a full buffer reports NoSpace");
+    let neg, e2 = f.alloc(-1);
+    check(neg == null && e2 == errors.Kind.Invalid, "a negative size is invalid");
+
+    f.reset();
+    *char d = f.alloc(10) ?? null;
+    check(d == a, "reset reuses the buffer");
+    check(d[0] == 0, "alloc zeroes memory that was used before");
+}
+`, expected: []string{"fixed gives blocks", "a block is rounded up to 16 bytes", "alloc zeroes the block", "blocks live inside the buffer", "allocDirty gives a block", "blocks are contiguous", "a full buffer reports NoSpace", "a negative size is invalid", "reset reuses the buffer", "alloc zeroes memory that was used before"}},
+	{dir: "mem_arena", src: `import "std/mem";
+
+func main() {
+    mem.Arena a;
+    *char p = a.alloc(10) ?? null;
+    *char q = a.alloc(20) ?? null;
+    check(p != null && q != null, "a zero arena works without init");
+    check(int(q) - int(p) == 16, "arena blocks are rounded to 16 bytes");
+    check(int(p) % 16 == 0 && int(q) % 16 == 0, "arena blocks are aligned");
+    check(p[0] == 0 && p[9] == 0 && q[19] == 0, "arena alloc is zeroed");
+    p[0] = 5;
+    q[0] = 6;
+    check(p[0] == 5 && q[0] == 6, "arena blocks do not overlap");
+
+    int total = 0;
+    bool ok = true;
+    *char last = null;
+    for i in 0..40 {
+        *char b = a.alloc(5000) ?? null;
+        if b == null {
+            ok = false;
+        } else {
+            b[0] = char(i);
+            b[4999] = char(i);
+            total += 5008;
+        }
+    }
+    check(ok, "arena grows over several chunks");
+    check(total > 65536, "arena used more than one chunk");
+
+    *char big = a.alloc(300000) ?? null;
+    check(big != null, "arena serves a block bigger than a chunk");
+    big[0] = 1;
+    big[299999] = 2;
+    check(big[0] == 1 && big[299999] == 2, "a big block is usable");
+    *char after = a.alloc(10) ?? null;
+    check(after != null && after[0] == 0, "arena keeps allocating after a big block");
+    check(p[0] == 5 && q[0] == 6, "old blocks survive growth");
+
+    let neg, e1 = a.alloc(-1);
+    check(neg == null && e1 != null, "arena rejects a negative size");
+}
+`, expected: []string{"a zero arena works without init", "arena blocks are rounded to 16 bytes", "arena blocks are aligned", "arena alloc is zeroed", "arena blocks do not overlap", "arena grows over several chunks", "arena used more than one chunk", "arena serves a block bigger than a chunk", "a big block is usable", "arena keeps allocating after a big block", "old blocks survive growth", "arena rejects a negative size"}, x64Only: true},
+	{dir: "mem_arena_reset", src: `import "std/mem";
+
+func main() {
+    mem.Arena a;
+    bool ok = true;
+    for i in 0..30 {
+        *char b = a.alloc(5000) ?? null;
+        if b == null {
+            ok = false;
+        } else {
+            mem.fill(b, 9, 5000);
+        }
+    }
+    *char big = a.alloc(200000) ?? null;
+    check(ok && big != null, "arena filled before reset");
+    mem.fill(big, 9, 200000);
+
+    a.reset();
+    *char x = a.alloc(100) ?? null;
+    *char y = a.alloc(100) ?? null;
+    check(x != null && y != null, "arena works after reset");
+    check(int(y) - int(x) == 112, "reset starts a fresh chunk");
+    bool clean = true;
+    for i in 0..99 {
+        if x[i] != 0 || y[i] != 0 {
+            clean = false;
+        }
+    }
+    check(clean, "alloc after reset is zeroed");
+
+    for round in 0..4 {
+        a.reset();
+        bool good = true;
+        for i in 0..20 {
+            *char b = a.alloc(5000) ?? null;
+            if b == null || b[0] != 0 {
+                good = false;
+            } else {
+                b[0] = 1;
+            }
+        }
+        check(good, "arena survives repeated resets");
+    }
+
+    a.reset();
+    a.reset();
+    *char again = a.alloc(10) ?? null;
+    check(again != null, "reset twice in a row is harmless");
+
+    mem.Arena empty;
+    empty.reset();
+    empty.free();
+    *char fresh = empty.alloc(10) ?? null;
+    check(fresh != null, "reset and free on an empty arena are harmless");
+
+    a.free();
+    *char z = a.alloc(64) ?? null;
+    check(z != null && z[0] == 0 && z[63] == 0, "arena is usable after free");
+    z[0] = 4;
+    a.free();
+    a.free();
+    *char w = a.alloc(64) ?? null;
+    check(w != null && w[0] == 0, "free twice in a row is harmless");
+    a.free();
+}
+`, expected: []string{"arena filled before reset", "arena works after reset", "reset starts a fresh chunk", "alloc after reset is zeroed", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "reset twice in a row is harmless", "reset and free on an empty arena are harmless", "arena is usable after free", "free twice in a row is harmless"}, x64Only: true},
+	{dir: "mem_arena_mark", src: `import "std/mem";
+
+func main() {
+    mem.Arena a;
+    *char keep = a.alloc(100) ?? null;
+    keep[0] = 42;
+    keep[99] = 43;
+
+    mem.Mark m = a.mark();
+    *char t1 = a.alloc(200) ?? null;
+    t1[0] = 1;
+    a.rewind(m);
+    *char t2 = a.alloc(200) ?? null;
+    check(t1 == t2, "rewind reuses the space");
+    check(t2[0] == 0, "alloc after rewind is zeroed");
+    check(keep[0] == 42 && keep[99] == 43, "blocks before the mark survive");
+
+    mem.Mark m2 = a.mark();
+    bool ok = true;
+    for i in 0..29 {
+        *char b = a.alloc(5000) ?? null;
+        if b == null {
+            ok = false;
+        } else {
+            mem.fill(b, 9, 5000);
+        }
+    }
+    check(ok, "arena grows after a mark");
+    a.rewind(m2);
+    *char t3 = a.alloc(100) ?? null;
+    check(t3 == t2 + 208 && t3[0] == 0, "rewind across chunks returns to the marked spot");
+    check(keep[0] == 42 && t2[0] == 0, "old blocks survive a rewind over several chunks");
+
+    mem.Arena empty;
+    mem.Mark e = empty.mark();
+    *char x = empty.alloc(70000) ?? null;
+    check(x != null, "an empty arena allocates after mark");
+    empty.rewind(e);
+    *char y = empty.alloc(10) ?? null;
+    check(y != null && y[0] == 0, "rewind to an empty mark leaves a usable arena");
+
+    mem.Mark nested1 = a.mark();
+    *char n1 = a.alloc(64) ?? null;
+    mem.Mark nested2 = a.mark();
+    *char n2 = a.alloc(64) ?? null;
+    a.rewind(nested2);
+    *char n3 = a.alloc(64) ?? null;
+    check(n3 == n2, "an inner rewind keeps the outer blocks");
+    a.rewind(nested1);
+    *char n4 = a.alloc(64) ?? null;
+    check(n4 == n1, "an outer rewind drops them all");
+    a.free();
+    empty.free();
+}
+`, expected: []string{"rewind reuses the space", "alloc after rewind is zeroed", "blocks before the mark survive", "arena grows after a mark", "rewind across chunks returns to the marked spot", "old blocks survive a rewind over several chunks", "an empty arena allocates after mark", "rewind to an empty mark leaves a usable arena", "an inner rewind keeps the outer blocks", "an outer rewind drops them all"}, x64Only: true},
 }

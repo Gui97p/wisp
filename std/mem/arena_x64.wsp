@@ -1,0 +1,115 @@
+import "std/math";
+import "std/mem";
+import "std/errors";
+
+const {
+	HEADER = 32;
+	CHUNK_SIZE = 64 * 1024;
+} 
+
+struct Chunk {
+	*Chunk next;
+	int size;
+	int used;
+}
+
+func (*Chunk c) data() *char {
+	return (*char)(c) + HEADER;
+}
+
+func newChunk(int need) !*Chunk {
+	int size = math.max(CHUNK_SIZE - HEADER, need);
+	*Chunk p = mem.allocDirty(HEADER + size)!;
+	p.size = size;
+	p.used = 0;
+	p.next = null;
+	return p;
+}
+
+public struct Mark {
+	internal *Chunk chunk;
+	internal int used;
+}
+
+public struct Arena {
+	internal *Chunk head;
+}
+
+public func (*Arena a) alloc(int n) !*void {
+	*char p = a.allocDirty(n)!;
+	mem.fill(p, 0, n);
+	return p;
+}
+
+public func (*Arena a) allocDirty(int n) !*void {
+	if n < 0 {
+		return Error(errors.Kind.Invalid);
+	}
+	n = (n + 15) & ~15;
+	if n < 0 {
+		return Error(errors.Kind.Invalid);
+	}
+	if a.head != null && a.head.used + n <= a.head.size {
+		defer a.head.used += n;
+		return a.head.data() + a.head.used;
+	}
+	*Chunk p = newChunk(n)!;
+	if n <= CHUNK_SIZE - HEADER {
+		p.next = a.head;
+		a.head = p;
+	} else {
+		if a.head != null {
+			p.next = a.head.next;
+			a.head.next = p;
+		} else {
+			a.head = p;
+		}
+	}
+	p.used = n;
+	return p.data();
+}
+
+public func (*Arena a) free() {
+	if a.head != null {
+		*Chunk c = a.head;
+		loop c != null {
+			*Chunk next = c.next;
+			mem.free(c);
+			c = next;
+		}
+		a.head = null;
+	}
+}
+
+public func (*Arena a) reset() {
+	if a.head != null {
+		*Chunk c = a.head.next;
+		loop c != null {
+			*Chunk next = c.next;
+			mem.free(c);
+			c = next;
+		}
+		a.head.next = null;
+		a.head.used = 0;
+	}
+}
+
+public func (*Arena a) mark() Mark {
+	int used = a.head != null ? a.head.used : 0;
+	return Mark{chunk: a.head, used: used};
+}
+
+public func (*Arena a) rewind(Mark m) {
+	if a.head != null {
+		*Chunk c = a.head;
+		loop c != null && c != m.chunk {
+			*Chunk next = c.next;
+			mem.free(c);
+			c = next;
+		}
+		a.head = m.chunk;
+		if m.chunk != null {
+			m.chunk.used = m.used;
+		}
+	}
+}
