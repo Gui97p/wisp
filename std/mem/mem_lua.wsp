@@ -25,3 +25,6 @@ internal func rawCopyBackward(*void dst, src, int n) {
 internal func rawSet(*void dst, char value, int n) {
 	native lua(in dst, value, n) "for i = 0, n - 1 do dst.t[dst.o + i] = value end";
 }
+
+func track(*void _) {}
+func trackFree(*void _) {}

@@ -1,4 +1,7 @@
 import "std/sys";
+import "std/os";
+import "std/strings";
+import "std/fmt";
 
 func leadingZeros(uint x) uint {
 	if x == 0 {
@@ -13,9 +16,15 @@ func leadingZeros(uint x) uint {
 	return n;
 }
 
-struct Class { *void head; }
-Class[11] classes;
+[11]*void classes;
 *char cur, end;
+
+int mode;
+[1024]*void ring;
+int ringStart, ringCount;
+
+struct Entry { *void block; string site, freed; }
+*Entry table;
 
 const {
 	HEAD_SIZE = 16;
@@ -24,6 +33,7 @@ const {
 	CHUNK_SIZE = 1048576;
 	PAGE_SIZE = 4096;
 	MAX_ALLOC = 1 << 47;
+	SLOTS = 65536;
 	uint LIVE = 0x57495350414C4956;
 	uint DEAD = 0x5749535044454144;
 }
@@ -53,6 +63,214 @@ func failed(*void r) bool {
 	return int(r) in -4095..-1;
 }
 
+func report() {
+	if table == null {
+		return;
+	}
+
+	[64]string sites;
+	[64]int counts, bytes;
+	int groups, others;
+
+	for i in 0..SLOTS-1 {
+		*Entry entry = &table[i];
+		if entry.block == null || entry.block == (*void)(1) || state(entry.block) != LIVE {
+			continue;
+		}
+
+		int h = header(entry.block);
+		int size = (h < 11 ? (MIN_BLOCK << h) : h) - 16;
+
+		int j;
+		loop j < groups && sites[j] != entry.site {
+			j++;
+		}
+		if j == groups {
+			if groups == len(sites) {
+				others++;
+				continue;
+			}
+			sites[j] = entry.site;
+			groups++;
+		}
+		counts[j]++;
+		bytes[j] += size;
+	}
+
+	if groups == 0 && others == 0 {
+		return;
+	}
+
+	int k;
+	loop k < groups {
+		fmt.fprintf(2, "leak: {} blocks, {} bytes, allocated at\n", counts[k], bytes[k])!!;
+		fmt.fprint(2, sites[k]);
+		k++;
+	}
+
+	if others > 0 {
+		fmt.fprintf(2, "leak: {} more blocks from other places\n", others)!!;
+	}
+}
+
+func debugOn() bool {
+	if mode == 0 {
+		let value, found = os.getenv("WISP_DEBUG_ALLOC");
+		mode = found && len(value) > 0 && value != "0" ? 2 : 1;
+	}
+	bool on = mode == 2;
+	if on {
+		setExitHook(report);
+	}
+	return on;
+}
+
+func checkPoison(*void p, int cap) {
+	for i in 0..cap-1 {
+		if (*uint8)(p)[i] != 0xDD {
+			fail(p, "use after free");
+		}
+	}
+}
+
+func quarantine(*void p, int h) {
+	int cap = (MIN_BLOCK << h) - 16;
+	rawSet(p, 0xDD, cap);
+	if ringCount == len(ring) {
+		*void old = ring[ringStart];
+		int hOld = header(old);
+		int capOld = (MIN_BLOCK << hOld) - 16;
+		checkPoison(old, capOld);
+		((**void)(old))@ = classes[hOld];
+		classes[hOld] = old;
+		forget(old);
+		ringStart = (ringStart + 1) % 1024;
+		ringCount--;
+	}
+	ring[(ringStart + ringCount) % 1024] = p;
+	ringCount++;
+}
+
+func find(*void p) int {
+	if table == null {
+		return -1;
+	}
+
+	int slot = (int(p) >> 4) % SLOTS;
+	for i in 0..SLOTS-1 {
+		int at = (slot + i) % SLOTS;
+		*void block = table[at].block;
+		if block == null {
+			return -1;
+		}
+		if block == p {
+			return at;
+		}
+	}
+	return -1;
+}
+
+func remember(*void p, string site) {
+	if table == null {
+		table = sys.mmap(SLOTS * sizeof(Entry));
+	}
+
+	forget(p);
+	int slot = (int(p) >> 4) % SLOTS;
+	for i in 0..SLOTS-1 {
+		int at = (slot + i) % SLOTS;
+		*Entry entry = &table[at];
+		if entry.block == null || entry.block == (*void)(1) {
+			entry.block = p;
+			entry.site = site;
+			break;
+		}
+	}
+}
+
+func forget(*void p) {
+	int i = find(p);
+	if i >= 0 {
+		table[i].block = (*void)(1);
+	}
+}
+
+func entryOf(*void p) *Entry {
+	int i = find(p);
+	return i >= 0 ? &table[i] : null;
+}
+
+func fail(*void p, string what) {
+	[2048]char buf;
+	*Entry entry = entryOf(p);
+	if entry != null && len(entry.site) > 0 {
+		if len(entry.freed) > 0 {
+			string both = strings.concat(buf, what, "\nthe block was allocated at ", entry.site, "the block was freed at ", entry.freed[:len(entry.freed)-1]) ?? what;
+			panic(both);
+        }
+        string text = strings.concat(buf, what, "\nthe block was allocated at ", entry.site[:len(entry.site)-1]) ?? what;
+        panic(text);
+	}
+	panic(what);
+}
+
+func setExitHook(() => () hook) {
+	native x64(in hook) "extern __wisp_exit_hook; mov rax, {hook}; mov [rel __wisp_exit_hook], rax";
+}
+
+func track(*void p) {
+	if p == null || !debugOn() {
+		return;
+	}
+	*void f;
+	native x64(out f) "mov rax, [rbp]; mov {f}, rax";
+	string site = callerSite(f);
+	if len(site) <= 0 {
+		site = "";
+	}
+	remember(p, site);
+}
+
+func trackFree(*void p) {
+    if p == null || !debugOn() || state(p) != LIVE {
+        return;
+    }
+    *void f;
+    native x64(out f) "mov rax, [rbp]; mov {f}, rax";
+    int i = find(p);
+	if i >= 0 {
+		table[i].freed = callerSite(f);
+	}
+}
+
+func siteOf(*void f) string {
+	string s;
+	native x64(in f, out s) "extern __wisp_site; mov rdi, {f}; call __wisp_site; mov {s.ptr}, rax; mov {s.len}, rdx";
+	return s;
+}
+
+func parent(*void f) *void {
+	*void g;
+	native x64(in f, out g) "mov rax, {f}; mov rax, [rax]; mov {g}, rax";
+	return g;
+}
+
+func callerSite(*void f) string {
+	string first = siteOf(f);
+	*void at = f;
+	loop true {
+		string s = siteOf(at);
+		if len(s) <= 0 {
+			return first;
+		}
+		if len(s) < 4 || s[:4] != "std/" {
+			return s;
+		}
+		at = parent(at);
+	}
+	return first;
+}
+
 internal func rawAllocate(int n, bool zero) *void {
 	if n < 0 || n > MAX_ALLOC {
 		return null;
@@ -62,11 +280,13 @@ internal func rawAllocate(int n, bool zero) *void {
 	if total <= LOW_LIMIT {
 		int class = classOf(total);
 		int size = MIN_BLOCK << class;
-		if classes[class].head != null {
-			*void p = classes[class].head;
-			classes[class].head = ((**void)(p))@;
+		if classes[class] != null {
+			*void p = classes[class];
+			classes[class] = ((**void)(p))@;
 			if zero {
 				rawSet(p, 0, size - HEAD_SIZE);
+			} else if debugOn() {
+				rawSet(p, 0xCD, size - HEAD_SIZE);
 			}
 			setState(p, LIVE);
 			return p;
@@ -105,7 +325,7 @@ internal func rawFree(*void p) {
 
 	switch state(p) {
 		case DEAD:
-			panic("double free");
+			fail(p, "double free");
 		case LIVE:
 			setState(p, DEAD);
 		default:
@@ -114,9 +334,16 @@ internal func rawFree(*void p) {
 
 	int h = header(p);
 	if h < 11 {
-		((**void)(p))@ = classes[h].head;
-		classes[h].head = p;
+		if debugOn() {
+			quarantine(p, h);
+		} else {
+			((**void)(p))@ = classes[h];
+			classes[h] = p;
+		}
 	} else {
+		if debugOn() {
+			forget(p);
+		}
 		sys.munmap((*char)(p)-16, h);
 	}
 }

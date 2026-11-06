@@ -92,6 +92,21 @@ for dir in "$ROOT"/*/; do
     fi
 
     if diff -q "$out" "$dir/expected.txt" >/dev/null; then
+        if [[ -f "$dir/stderr.txt" ]]; then
+            missing=""
+            while IFS= read -r want; do
+                [[ -z "$want" ]] && continue
+                if [[ "$want" == '!'* ]]; then
+                    grep -qF -- "${want:1}" "$err.clean" && missing="unexpected: ${want:1}"
+                else
+                    grep -qF -- "$want" "$err.clean" || missing="missing: $want"
+                fi
+            done <"$dir/stderr.txt"
+            if [[ -n "$missing" ]]; then
+                printf 'WRONG %s  stderr %s\n' "$name" "$missing" >>"$RESULTS"
+                continue
+            fi
+        fi
         printf 'PASS  %s\n' "$name" >>"$RESULTS"
         continue
     fi

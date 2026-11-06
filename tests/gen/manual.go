@@ -11,6 +11,7 @@ type manualCase struct {
 	libc     bool
 	cmain    bool
 	env      string
+	stderr   string
 	files    map[string]string
 }
 
@@ -3512,6 +3513,110 @@ func main() {
     check(true, "panic location never printed");
 }
 `, expected: []string{"panic location before the panic"}, abort: "--> main.wsp", x64Only: true},
+
+	{dir: "mem_debug_clean", src: `import "std/mem";
+
+func main() {
+    *char first = mem.alloc(48) ?? null;
+    mem.fill(first, 7, 48);
+    mem.free(first);
+    bool zeroed = true;
+    for i in 0..2500 {
+        *char q = mem.alloc(48) ?? null;
+        if q == null || q[0] != 0 || q[47] != 0 {
+            zeroed = false;
+        }
+        q[0] = 9;
+        mem.free(q);
+    }
+    check(zeroed, "debug mode still hands out zeroed blocks after reuse");
+    *char big = mem.alloc(100000) ?? null;
+    check(big != null, "debug mode serves a large block");
+    mem.free(big);
+    *char again = mem.alloc(48) ?? null;
+    check(again != null && again[10] == 0, "debug mode recycles quarantined blocks");
+    mem.free(again);
+}
+`, expected: []string{"debug mode still hands out zeroed blocks after reuse", "debug mode serves a large block", "debug mode recycles quarantined blocks"}, env: "WISP_DEBUG_ALLOC=1", x64Only: true},
+
+	{dir: "abort_use_after_free", src: `import "std/mem";
+
+func main() {
+    *char p = mem.alloc(48) ?? null;
+    check(p != null, "use after free before the stale write");
+    mem.free(p);
+    p[5] = 1;
+    for i in 0..1100 {
+        *char q = mem.alloc(48) ?? null;
+        mem.free(q);
+    }
+    check(true, "use after free never printed");
+}
+`, expected: []string{"use after free before the stale write"}, abort: "the block was freed at", env: "WISP_DEBUG_ALLOC=1", x64Only: true},
+
+	{dir: "abort_double_free_reused", src: `import "std/mem";
+
+func main() {
+    *char p = mem.alloc(48) ?? null;
+    mem.free(p);
+    *char q = mem.alloc(48) ?? null;
+    check(q != null && q != p, "a freed block is not reused right away in debug mode");
+    mem.free(p);
+    check(true, "double free after reuse never printed");
+}
+`, expected: []string{"a freed block is not reused right away in debug mode"}, abort: "the block was freed at", env: "WISP_DEBUG_ALLOC=1", x64Only: true},
+
+	{dir: "mem_leak_report", src: `import "std/mem";
+
+func leaky() {
+    *char p = mem.alloc(48) ?? null;
+    p[0] = 1;
+}
+
+func clean() {
+    *char q = mem.alloc(64) ?? null;
+    mem.free(q);
+}
+
+func main() {
+    leaky();
+    leaky();
+    clean();
+    *char big = mem.alloc(100000) ?? null;
+    big[0] = 1;
+    check(true, "the program runs to the end with leaks");
+}
+`, expected: []string{"the program runs to the end with leaks"}, env: "WISP_DEBUG_ALLOC=1", stderr: "leak: 2 blocks, 96 bytes, allocated at\nin main.leaky\nleak: 1 blocks\nin main.main", x64Only: true},
+
+	{dir: "mem_leak_none", src: `import "std/mem";
+
+func main() {
+    *char p = mem.alloc(48) ?? null;
+    *char q = mem.alloc(100000) ?? null;
+    mem.free(p);
+    mem.free(q);
+    check(true, "everything was freed");
+}
+`, expected: []string{"everything was freed"}, env: "WISP_DEBUG_ALLOC=1", stderr: "!leak:", x64Only: true},
+
+	{dir: "mem_leak_off", src: `import "std/mem";
+
+func main() {
+    *char p = mem.alloc(48) ?? null;
+    p[0] = 1;
+    check(true, "no report without the debug variable");
+}
+`, expected: []string{"no report without the debug variable"}, stderr: "!leak:", x64Only: true},
+
+	{dir: "mem_leak_arena", src: `import "std/mem";
+
+func main() {
+    mem.Arena arena;
+    *char a = arena.alloc(100) ?? null;
+    a[0] = 1;
+    check(true, "an arena leak runs to the end");
+}
+`, expected: []string{"an arena leak runs to the end"}, env: "WISP_DEBUG_ALLOC=1", stderr: "leak: 1 blocks\nmain.wsp:\n!arena_x64.wsp", x64Only: true},
 
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
@@ -7889,6 +7994,33 @@ func main() {
     check((&cells[2] - &cells[0]) * 2 == 4, "address differences take part in arithmetic");
 }
 `, expected: []string{"a pointer equals the address of its target", "an address on the left works too", "a pointer differs from another address", "array elements compare with addresses", "two addresses compare", "pointer arithmetic compares with an address", "the difference of two addresses counts elements", "address differences take part in arithmetic"}},
+	{dir: "func_param_noargs", src: `type Hook () => ();
+
+int calls;
+
+func bump() {
+    calls++;
+}
+
+func twice(() => () hook) {
+    hook();
+    hook();
+}
+
+func mixed(int n, () => () hook, int m) int {
+    hook();
+    return n + m;
+}
+
+func main() {
+    twice(bump);
+    check(calls == 2, "a parameter can be a function without arguments or results");
+    check(mixed(3, bump, 4) == 7 && calls == 3, "such a parameter can sit between others");
+    Hook h = bump;
+    twice(h);
+    check(calls == 5, "a named function type of that shape is accepted");
+}
+`, expected: []string{"a parameter can be a function without arguments or results", "such a parameter can sit between others", "a named function type of that shape is accepted"}},
 	{dir: "mem_fixed", src: `import "std/mem";
 import "std/errors";
 

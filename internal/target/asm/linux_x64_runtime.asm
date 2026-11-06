@@ -4,7 +4,10 @@ global __wisp_panic_at
 global __wisp_panic
 extern __wisp_main
 global __wisp_envp
+global __wisp_site
+global __wisp_trace
 global __wisp_after_main
+global __wisp_exit_hook
 
 global main
 
@@ -22,6 +25,7 @@ section .rodata
 
 section .bss
 __wisp_envp: resq 1
+__wisp_exit_hook: resq 1
 
 section .text
 __wisp_emit:
@@ -158,59 +162,70 @@ __wisp_utoa:
 
 	ret
 
-__wisp_trace:
-	push rbx
-	push r12
-	push r13
-	push r14
-	mov r12, rbp
-	xor r13d, r13d
+__wisp_site:
+        mov rax, [rdi+8]
+        lea rcx, [rel __wisp_after_main]
+        cmp rax, rcx
+        je .end
+        mov rcx, [rdi]
+        test rcx, rcx
+        jz .end
+        mov rcx, [rcx-8]
+        mov rdx, 0x57495350
+        cmp [rcx], rdx
+        jne .end
+        sub rax, [rcx+8]
+        mov rdx, [rcx+16]
+        lea rsi, [rcx+24]
+.search:
+        test rdx, rdx
+        jz .none
+        cmp [rsi], rax
+        je .found
+        add rsi, 24
+        dec rdx
+        jmp .search
+.found:
+        mov rax, [rsi+8]
+        mov rdx, [rsi+16]
+        ret
+.none:
+        xor eax, eax
+        xor edx, edx
+        ret
+.end:
+        xor eax, eax
+        mov rdx, -1
+        ret
 
-	lit `\n`
+__wisp_trace:
+        push r12
+        push r13
+        mov r12, rbp
+        xor r13d, r13d
+
+        lit `\n`
 
 .next:
-	mov r14, [r12+8]
-	lea rax, [rel __wisp_after_main]
-	cmp r14, rax
-	je .done
-	mov r12, [r12]
-	test r12, r12
-	jz .done
-	mov rbx, [r12-8]
-	mov rax, 0x57495350
-	cmp [rbx], rax
-	jne .done
-	mov rax, r14
-	sub rax, [rbx+8]
-	mov rcx, [rbx+16]
-	lea rdi, [rbx+24]
+        mov rdi, r12
+        call __wisp_site
+        cmp rdx, -1
+        je .done
+        mov r12, [r12]
+        test rax, rax
+        jz .next
+        mov rsi, rax
+        call __wisp_write_error
+        inc r13
+        cmp r13, 16
+        jne .next
 
-.search:
-	test rcx, rcx
-	jz .next
-	cmp [rdi], rax
-	je .found
-	add rdi, 24
-	dec rcx
-	jmp .search
-
-.found:
-	mov rsi, [rdi+8]
-	mov rdx, [rdi+16]
-	call __wisp_write_error
-	inc r13
-	cmp r13, 16
-	jne .next
-
-	lit "... more frames\n"
-	jmp .next
+        lit `... more frames\n`
 
 .done:
-	pop r14
-	pop r13
-	pop r12
-	pop rbx
-	ret
+        pop r13
+        pop r12
+        ret
 
 main:
 	push rbp
@@ -245,6 +260,15 @@ main:
 	mov rdi, rsp
 	call __wisp_main
 __wisp_after_main:
+	push rax
+	push rax
+	mov rax, [rel __wisp_exit_hook]
+	test rax, rax
+	jz .nohook
+	call rax
+.nohook:
+	pop rax
+	pop rax
 	leave
 	ret
 

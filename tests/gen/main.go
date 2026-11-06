@@ -187,6 +187,7 @@ type testcase struct {
 	luaOnly  bool
 	libc     bool
 	env      string
+	stderr   string
 	cmain    bool
 	files    map[string]string
 }
@@ -530,7 +531,7 @@ func main() {
 		if m.cmain {
 			src = ""
 		}
-		cases = append(cases, testcase{dir: m.dir, src: src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, luaOnly: m.luaOnly, libc: m.libc, cmain: m.cmain, env: m.env, files: m.files})
+		cases = append(cases, testcase{dir: m.dir, src: src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, luaOnly: m.luaOnly, libc: m.libc, cmain: m.cmain, env: m.env, stderr: m.stderr, files: m.files})
 	}
 
 	os.RemoveAll(root)
@@ -584,6 +585,12 @@ func main() {
 		}
 		if c.env != "" {
 			if err := os.WriteFile(filepath.Join(dir, "env.txt"), []byte(c.env+"\n"), 0644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+		if c.stderr != "" {
+			if err := os.WriteFile(filepath.Join(dir, "stderr.txt"), []byte(c.stderr+"\n"), 0644); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

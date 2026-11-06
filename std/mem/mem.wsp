@@ -5,6 +5,7 @@ public func alloc(int n) !*void {
 	if p == null {
 		return Error(errors.Kind.OutOfMemory);
 	}
+	track(p);
 	return p;
 }
 
@@ -13,20 +14,24 @@ public func allocDirty(int n) !*void {
 	if p == null {
 		return Error(errors.Kind.OutOfMemory);
 	}
+	track(p);
 	return p;
 }
 
 public func free(*void ...p) {
 	for _, v in p {
+		trackFree(v);
 		rawFree(v);
 	}
 }
 
 public func realloc(*void p, int n) !*void {
+	trackFree(p);
 	*void new = rawRealloc(p, n);
 	if new == null {
 		return Error(errors.Kind.OutOfMemory);
 	}
+	track(new);
 	return new;
 }
 
