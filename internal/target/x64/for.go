@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -11,6 +12,82 @@ import (
 func (t *X64Target) pushLoop(ctx x64context.LoopContext) {
 	ctx.DeferDepth = len(t.deferScopes)
 	t.ctx.PushLoop(ctx)
+}
+
+func (t *X64Target) constantRange(stmt *ast.ForStmt) (end, step int64, up, ok bool) {
+	start, okStart := t.info.Folded(stmt.Start)
+	last, okEnd := t.info.Folded(stmt.End)
+	if !okStart || !okEnd || start.Kind != analyser.ConstInt || last.Kind != analyser.ConstInt {
+		return 0, 0, false, false
+	}
+
+	stepValue := big.NewInt(1)
+	if stmt.Step != nil {
+		s, okStep := t.info.Folded(stmt.Step)
+		if !okStep || s.Kind != analyser.ConstInt {
+			return 0, 0, false, false
+		}
+		stepValue = s.Int
+	}
+	if stepValue.Sign() <= 0 {
+		return 0, 0, false, false
+	}
+
+	up = start.Int.Cmp(last.Int) <= 0
+	after := new(big.Int)
+	if up {
+		after.Add(last.Int, stepValue)
+	} else {
+		after.Sub(last.Int, stepValue)
+	}
+	if !after.IsInt64() || !last.Int.IsInt64() || !stepValue.IsInt64() {
+		return 0, 0, false, false
+	}
+
+	end, step = last.Int.Int64(), stepValue.Int64()
+	if int64(int32(end)) != end || int64(int32(step)) != step {
+		return 0, 0, false, false
+	}
+	return end, step, up, true
+}
+
+func (t *X64Target) compileForConstant(stmt *ast.ForStmt, end, step int64, up bool) error {
+	size := sizeOf(t.info.Types[stmt.Start])
+
+	start, err := t.compileExpr(stmt.Start)
+	if err != nil {
+		return err
+	}
+	startOffset, _ := t.ctx.Get(t.info.VarSymbols[stmt][0])
+	i := slot(startOffset, size)
+	t.store(start, i)
+
+	ctx := x64context.LoopContext{
+		Label:            stmt.Label,
+		ContinueLabel:    t.newLabel("for_continue"),
+		BreakLabel:       t.newLabel("for_break"),
+		SupportsContinue: true,
+	}
+	t.pushLoop(ctx)
+	defer t.ctx.PopLoop()
+
+	body := t.newLabel("body")
+	t.text.printf("%s:\n", body)
+	if err := t.compileStatement(stmt.Body); err != nil {
+		return err
+	}
+
+	t.text.printf("%s:\n", ctx.ContinueLabel)
+	instruction, jump := "add", "jle"
+	if !up {
+		instruction, jump = "sub", "jge"
+	}
+	t.text.printft("%s %s, %d\n", instruction, t.memText(i), step)
+	t.text.printft("cmp %s, %d\n", t.memText(i), end)
+	t.text.printft("%s %s\n", jump, body)
+	t.text.printf("%s:\n", ctx.BreakLabel)
+
+	return nil
 }
 
 func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
@@ -96,6 +173,10 @@ func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 }
 
 func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
+	if end, step, up, ok := t.constantRange(stmt); ok {
+		return t.compileForConstant(stmt, end, step, up)
+	}
+
 	tp := t.info.Types[stmt.Start]
 	size := sizeOf(tp)
 

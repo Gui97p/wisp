@@ -5471,6 +5471,431 @@ func main() {
 }
 `, expected: []string{"return a constant", "return a variable", "return an expression", "return a call result", "return two values swapped", "return two computed values", "return three values", "return the values of another call", "return a value or an error", "return two values or an error", "return an error without a value", "return a bool", "return a narrow signed integer", "return a narrow unsigned integer", "return a pointer", "return a string", "return a float", "return a struct", "return with a deferred call", "return two values with a deferred call", "return from several places"}},
 
+	{dir: "for_ranges", src: `func main() {
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 0..9 {
+            count++;
+            sum += i;
+        }
+        int a = 0;
+        int b = 9;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 10 && sum == 45 && count2 == 10 && sum2 == 45, "range 0..9:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 0..9:2 {
+            count++;
+            sum += i;
+        }
+        int a = 0;
+        int b = 9;
+        int step = 2;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 5 && sum == 20 && count2 == 5 && sum2 == 20, "range 0..9:2 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 0..9:3 {
+            count++;
+            sum += i;
+        }
+        int a = 0;
+        int b = 9;
+        int step = 3;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 4 && sum == 18 && count2 == 4 && sum2 == 18, "range 0..9:3 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 3..3 {
+            count++;
+            sum += i;
+        }
+        int a = 3;
+        int b = 3;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 1 && sum == 3 && count2 == 1 && sum2 == 3, "range 3..3:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 10..0 {
+            count++;
+            sum += i;
+        }
+        int a = 10;
+        int b = 0;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 11 && sum == 55 && count2 == 11 && sum2 == 55, "range 10..0:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 10..0:3 {
+            count++;
+            sum += i;
+        }
+        int a = 10;
+        int b = 0;
+        int step = 3;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 4 && sum == 22 && count2 == 4 && sum2 == 22, "range 10..0:3 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in -5..5 {
+            count++;
+            sum += i;
+        }
+        int a = -5;
+        int b = 5;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 11 && sum == 0 && count2 == 11 && sum2 == 0, "range -5..5:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 5..-5:2 {
+            count++;
+            sum += i;
+        }
+        int a = 5;
+        int b = -5;
+        int step = 2;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 6 && sum == 0 && count2 == 6 && sum2 == 0, "range 5..-5:2 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 1..100:7 {
+            count++;
+            sum += i;
+        }
+        int a = 1;
+        int b = 100;
+        int step = 7;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 15 && sum == 750 && count2 == 15 && sum2 == 750, "range 1..100:7 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 100..1:7 {
+            count++;
+            sum += i;
+        }
+        int a = 100;
+        int b = 1;
+        int step = 7;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 15 && sum == 765 && count2 == 15 && sum2 == 765, "range 100..1:7 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in -100..-90 {
+            count++;
+            sum += i;
+        }
+        int a = -100;
+        int b = -90;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 11 && sum == -1045 && count2 == 11 && sum2 == -1045, "range -100..-90:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 0..1000 {
+            count++;
+            sum += i;
+        }
+        int a = 0;
+        int b = 1000;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 1001 && sum == 500500 && count2 == 1001 && sum2 == 500500, "range 0..1000:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 1000..0:10 {
+            count++;
+            sum += i;
+        }
+        int a = 1000;
+        int b = 0;
+        int step = 10;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 101 && sum == 50500 && count2 == 101 && sum2 == 50500, "range 1000..0:10 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 1073741824..1073741830 {
+            count++;
+            sum += i;
+        }
+        int a = 1073741824;
+        int b = 1073741830;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 7 && sum == 7516192789 && count2 == 7 && sum2 == 7516192789, "range 1073741824..1073741830:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in -1073741830..-1073741824:2 {
+            count++;
+            sum += i;
+        }
+        int a = -1073741830;
+        int b = -1073741824;
+        int step = 2;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 4 && sum == -4294967308 && count2 == 4 && sum2 == -4294967308, "range -1073741830..-1073741824:2 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 2147483640..2147483650 {
+            count++;
+            sum += i;
+        }
+        int a = 2147483640;
+        int b = 2147483650;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 11 && sum == 23622320095 && count2 == 11 && sum2 == 23622320095, "range 2147483640..2147483650:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in -2147483650..-2147483640:3 {
+            count++;
+            sum += i;
+        }
+        int a = -2147483650;
+        int b = -2147483640;
+        int step = 3;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 4 && sum == -8589934582 && count2 == 4 && sum2 == -8589934582, "range -2147483650..-2147483640:3 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 5000000000..5000000009 {
+            count++;
+            sum += i;
+        }
+        int a = 5000000000;
+        int b = 5000000009;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 10 && sum == 50000000045 && count2 == 10 && sum2 == 50000000045, "range 5000000000..5000000009:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 9..0 {
+            count++;
+            sum += i;
+        }
+        int a = 9;
+        int b = 0;
+        int step = 1;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 10 && sum == 45 && count2 == 10 && sum2 == 45, "range 9..0:1 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int count = 0;
+        int sum = 0;
+        for i in 0..0:5 {
+            count++;
+            sum += i;
+        }
+        int a = 0;
+        int b = 0;
+        int step = 5;
+        int count2 = 0;
+        int sum2 = 0;
+        for j in a..b:step {
+            count2++;
+            sum2 += j;
+        }
+        check(count == 1 && sum == 0 && count2 == 1 && sum2 == 0, "range 0..0:5 agrees with its runtime form and the expected count");
+    }
+    if true {
+        int seen = 0;
+        for i in 1..20 {
+            if i % 2 == 0 {
+                continue;
+            }
+            if i > 15 {
+                break;
+            }
+            seen += i;
+        }
+        check(seen == 1 + 3 + 5 + 7 + 9 + 11 + 13 + 15, "continue and break in a constant range");
+    }
+    if true {
+        int cells = 0;
+        :outer for i in 1..5 {
+            for j in 1..5 {
+                if j > i {
+                    continue outer;
+                }
+                if i == 4 {
+                    break outer;
+                }
+                cells++;
+            }
+        }
+        check(cells == 1 + 2 + 3, "labeled loops over constant ranges");
+    }
+    if true {
+        int total = 0;
+        for i in 5..1 {
+            for j in 1..3 {
+                total += i * j;
+            }
+        }
+        check(total == (5 + 4 + 3 + 2 + 1) * 6, "nested constant ranges, one descending");
+    }
+    if true {
+        int value = 0;
+        for i in 0..4 {
+            defer value += 1;
+            value += 10;
+        }
+        check(value == 55, "a defer inside a constant range runs on every pass");
+    }
+    if true {
+        int count = 0;
+        int n = 0;
+        for i in 0..n-1 {
+            count++;
+        }
+        check(count == 2, "a runtime end below the start counts down, so 0..n-1 with n = 0 runs twice");
+    }
+    if true {
+        int visited = 0;
+        for i in 0..9 {
+            visited += 1;
+            i += 2;
+        }
+        check(visited == 4, "the loop variable can be changed in the body");
+    }
+}
+`, expected: []string{"range 0..9:1 agrees with its runtime form and the expected count", "range 0..9:2 agrees with its runtime form and the expected count", "range 0..9:3 agrees with its runtime form and the expected count", "range 3..3:1 agrees with its runtime form and the expected count", "range 10..0:1 agrees with its runtime form and the expected count", "range 10..0:3 agrees with its runtime form and the expected count", "range -5..5:1 agrees with its runtime form and the expected count", "range 5..-5:2 agrees with its runtime form and the expected count", "range 1..100:7 agrees with its runtime form and the expected count", "range 100..1:7 agrees with its runtime form and the expected count", "range -100..-90:1 agrees with its runtime form and the expected count", "range 0..1000:1 agrees with its runtime form and the expected count", "range 1000..0:10 agrees with its runtime form and the expected count", "range 1073741824..1073741830:1 agrees with its runtime form and the expected count", "range -1073741830..-1073741824:2 agrees with its runtime form and the expected count", "range 2147483640..2147483650:1 agrees with its runtime form and the expected count", "range -2147483650..-2147483640:3 agrees with its runtime form and the expected count", "range 5000000000..5000000009:1 agrees with its runtime form and the expected count", "range 9..0:1 agrees with its runtime form and the expected count", "range 0..0:5 agrees with its runtime form and the expected count", "continue and break in a constant range", "labeled loops over constant ranges", "nested constant ranges, one descending", "a defer inside a constant range runs on every pass", "a runtime end below the start counts down, so 0..n-1 with n = 0 runs twice", "the loop variable can be changed in the body"}},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;
