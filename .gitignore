@@ -46,3 +46,5 @@ tour/bin/
 # VS Code extension build
 vscode/node_modules/
 vscode/out/
+# Benchmark build output
+/benchmark/build/

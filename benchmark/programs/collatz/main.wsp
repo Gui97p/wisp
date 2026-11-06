@@ -1,0 +1,25 @@
+import "std/fmt";
+
+const LIMIT = 1000000;
+
+func main() {
+	int bestStart = 1;
+	int bestLength = 1;
+	for start in 1..LIMIT-1 {
+		int n = start;
+		int length = 1;
+		loop n != 1 {
+			if n % 2 == 0 {
+				n = n / 2;
+			} else {
+				n = 3 * n + 1;
+			}
+			length++;
+		}
+		if length > bestLength {
+			bestLength = length;
+			bestStart = start;
+		}
+	}
+	fmt.printf("{} {}\n", bestStart, bestLength);
+}

@@ -1,0 +1,25 @@
+import "std/fmt";
+import "std/mem";
+
+const SIZE = 16777216;
+const REPEAT = 8;
+
+func main() {
+	*uint8 buf = mem.alloc(SIZE)!!;
+	uint64 x = 88172645463325252;
+	for i in 0..SIZE-1 {
+		x ^= x << 13;
+		x ^= x >> 7;
+		x ^= x << 17;
+		buf[i] = uint8(x);
+	}
+	uint64 h = 0xcbf29ce484222325;
+	for _ in 0..REPEAT-1 {
+		for i in 0..SIZE-1 {
+			h ^= uint64(buf[i]);
+			h *= 1099511628211;
+		}
+	}
+	fmt.printf("{}\n", h);
+	mem.free(buf);
+}

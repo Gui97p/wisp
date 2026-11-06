@@ -1,0 +1,15 @@
+import "std/fmt";
+
+const N = 300000000;
+
+func add(int a, int b) int {
+	return a + b;
+}
+
+func main() {
+	int total = 0;
+	for i in 0..N-1 {
+		total = add(total, (i ^ total) & 1023);
+	}
+	fmt.printf("{}\n", total);
+}

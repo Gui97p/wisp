@@ -1,0 +1,21 @@
+import "std/fmt";
+import "std/mem";
+
+const N = 50000000;
+
+func main() {
+	*uint8 composite = mem.alloc(N + 1)!!;
+	int count = 0;
+	for i in 2..N {
+		if composite[i] == 0 {
+			count++;
+			if i <= N / i {
+				for j in i * i..N:i {
+					composite[j] = 1;
+				}
+			}
+		}
+	}
+	fmt.printf("{}\n", count);
+	mem.free(composite);
+}

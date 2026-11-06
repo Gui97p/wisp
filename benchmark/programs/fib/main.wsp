@@ -1,0 +1,12 @@
+import "std/fmt";
+
+func fib(int n) int {
+	if n < 2 {
+		return n;
+	}
+	return fib(n - 1) + fib(n - 2);
+}
+
+func main() {
+	fmt.printf("{}\n", fib(38));
+}

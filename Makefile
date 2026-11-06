@@ -1,4 +1,4 @@
-.PHONY: build prod install ext run clean version testgen test test-cc test-x64
+.PHONY: build prod install ext run clean version testgen test test-cc test-x64 bench
 APP=wisp
 DIST=dist/wisp
 STAGE=dist/wisp-tmp
@@ -46,6 +46,9 @@ test-x64: build testgen
 	WISP=bin/$(APP) tests/run.sh linux_x64 $(FILTER)
 
 test: test-cc test-x64
+
+bench:
+	python3 benchmark/bench.py $(ARGS)
 
 clean:
 	rm -rf bin
