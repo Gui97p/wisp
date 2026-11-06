@@ -6,6 +6,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/diag"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
@@ -539,6 +540,10 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 		}
 	}
 	t.text.printft("call %s\n", sym)
+	label := fmt.Sprintf(".site_%d", len(t.sites))
+	t.text.printf("%s:\n", label)
+	text := diag.FrameBlock(t.file, t.sources[t.file], t.line, t.col, t.endLine, t.endCol, t.funcName)
+	t.sites = append(t.sites, callSite{label, text})
 
 	ops := t.captureReturn(rets, memSlot)
 	t.alignStack(stackBytes + 8*pad)
@@ -571,6 +576,8 @@ func (t *X64Target) compileIndirectCall(expr *ast.CallExpr) ([]Operand, error) {
 }
 
 func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
+	line, col, endLine, endCol := t.enter(expr)
+	defer t.leave(line, col, endLine, endCol)
 	if e, ok := t.info.ErrorLiterals[expr]; ok {
 		op, err := t.compileErrorLiteral(e)
 		if err != nil {

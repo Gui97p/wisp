@@ -19,6 +19,11 @@ type coalesceFrame struct {
 	deferDepth int
 }
 
+type callSite struct {
+	label string
+	text  string
+}
+
 type X64Target struct {
 	coalesceFrames []coalesceFrame
 
@@ -55,7 +60,9 @@ type X64Target struct {
 	lambdas     []pendingLambda
 	lambdaCount int
 
-	sources map[string][]byte
+	sources  map[string][]byte
+	sites    []callSite
+	funcName string
 
 	libc bool
 }

@@ -3,6 +3,7 @@ global __wisp_error_emit
 global __wisp_panic
 extern __wisp_main
 global __wisp_envp
+global __wisp_after_main
 
 global main
 
@@ -102,6 +103,8 @@ __wisp_panic:
 	mov edx, 1
 	call __wisp_write_error
 
+	call __wisp_trace
+
 	mov edi, 1
 	mov eax, 60
 	syscall
@@ -125,6 +128,60 @@ __wisp_utoa:
 	mov rdx, r8
 	sub rdx, rsi
 
+	ret
+
+__wisp_trace:
+	push rbx
+	push r12
+	push r13
+	push r14
+	mov r12, rbp
+	xor r13d, r13d
+
+	lit `\n`
+
+.next:
+	mov r14, [r12+8]
+	lea rax, [rel __wisp_after_main]
+	cmp r14, rax
+	je .done
+	mov r12, [r12]
+	test r12, r12
+	jz .done
+	mov rbx, [r12-8]
+	mov rax, 0x57495350
+	cmp [rbx], rax
+	jne .done
+	mov rax, r14
+	sub rax, [rbx+8]
+	mov rcx, [rbx+16]
+	lea rdi, [rbx+24]
+
+.search:
+	test rcx, rcx
+	jz .next
+	cmp [rdi], rax
+	je .found
+	add rdi, 24
+	dec rcx
+	jmp .search
+
+.found:
+	mov rsi, [rdi+8]
+	mov rdx, [rdi+16]
+	call __wisp_write_error
+	inc r13
+	cmp r13, 16
+	jne .next
+
+	lit "... more frames\n"
+	jmp .next
+
+.done:
+	pop r14
+	pop r13
+	pop r12
+	pop rbx
 	ret
 
 main:
@@ -159,6 +216,7 @@ main:
 	mov rsi, rdi
 	mov rdi, rsp
 	call __wisp_main
+__wisp_after_main:
 	leave
 	ret
 

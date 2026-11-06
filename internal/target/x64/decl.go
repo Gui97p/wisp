@@ -65,7 +65,7 @@ func (t *X64Target) drainLambdas() error {
 		t.lambdas = t.lambdas[1:]
 		ctx := t.ctx
 		t.ctx = x64context.NewContext()
-		err := t.compileFuncBody(l.name, false, t.info.VarSymbols[l.lit], t.info.Types[l.lit].(*analyser.FuncType).Returns, l.lit.Fallible, l.lit.Block)
+		err := t.compileFuncBody(l.name, l.display, false, t.info.VarSymbols[l.lit], t.info.Types[l.lit].(*analyser.FuncType).Returns, l.lit.Fallible, l.lit.Block)
 		t.ctx = ctx
 		if err != nil {
 			return err
@@ -182,11 +182,14 @@ func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
 	return fmt.Errorf("x86-64: unsupported global initializer")
 }
 
-func (t *X64Target) compileFuncBody(name string, entry bool, params []*analyser.Symbol, returns []analyser.Type, fallible bool, body *ast.BlockStmt) error {
+func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*analyser.Symbol, returns []analyser.Type, fallible bool, body *ast.BlockStmt) error {
+	t.funcName = display
+	t.sites = nil
 	t.text.printf("\nsection .text.%s progbits alloc exec nowrite align=16\n", name)
 	t.text.printf("%s:\n", name)
 	t.text.printlnt("push rbp")
 	t.text.printlnt("mov rbp, rsp")
+	t.ctx.Reserve(8)
 
 	types := []analyser.Type{}
 	for _, sym := range params {
@@ -195,6 +198,8 @@ func (t *X64Target) compileFuncBody(name string, entry bool, params []*analyser.
 	}
 	t.collectVariables(body)
 	t.text.printlnt("sub rsp, .frame\n")
+	t.text.printft("lea r11, [rel desc_%s]\n", name)
+	t.text.printlnt("mov [rbp-8], r11")
 
 	t.funcReturns = slices.Clone(returns)
 	t.fallible = fallible
@@ -273,13 +278,36 @@ func (t *X64Target) compileFuncBody(name string, entry bool, params []*analyser.
 	t.text.printlnt("pop rbp")
 	t.text.printlnt("ret")
 	t.text.printft(".frame equ %d\n", t.ctx.AlignTo(16))
+
+	t.emitDescriptor(name)
 	t.text.println("section .text")
 
 	if t.ctx.Pushed() != 0 {
 		return fmt.Errorf("x86-64: stack alignment failed")
 	}
 
+	t.funcName = ""
 	return nil
+}
+
+const descriptorMagic = 0x57495350
+
+func (t *X64Target) emitDescriptor(name string) {
+	t.text.printf("section .rodata.%s progbits alloc noexec nowrite align=8\n", name)
+	t.text.printf("desc_%s:\n", name)
+	t.text.printft("dq 0x%x\n", descriptorMagic)
+	t.text.printft("dq %s\n", name)
+	t.text.printft("dq %d\n", len(t.sites))
+	for i, site := range t.sites {
+		t.text.printft("dq %s%s - %s, .s%d, %d\n", name, site.label, name, i, len(site.text))
+	}
+	for i, site := range t.sites {
+		data := bytesToAsm([]byte(site.text))
+		if data == "" {
+			data = "0"
+		}
+		t.text.printf(".s%d: db %s\n", i, data)
+	}
 }
 
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
@@ -288,19 +316,22 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		fdName = fmt.Sprintf("%s_%s", fd.Receiver.Type.Name, fd.Name)
 	}
 	name := t.funcSymbol(t.module, fdName)
+	display := t.module + "."
 	if fd.CExport != "" {
 		name = fd.CExport
+		display = fd.CExport
 	}
 
 	visible := fd.Exported
 	if fd.Receiver != nil {
 		visible = t.info.MethodVisible[fd]
+		display += fd.Receiver.Type.Name + "."
 	}
 	if visible {
 		t.text.printf("global %s\n", name)
 	}
 
-	return t.compileFuncBody(name, t.isEntry && fd.Name == "main", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
+	return t.compileFuncBody(name, display+fd.Name, t.isEntry && fd.Name == "main", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
 }
 
 func (t *X64Target) collectVariables(stmt ast.Statement) {

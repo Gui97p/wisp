@@ -46,3 +46,15 @@ func RuntimeBlock(header, file string, source []byte, line, col, endLine, endCol
 	writeSnippet(&b, lines, width, line, col, endLine, endCol, "", label, palette{})
 	return b.String()
 }
+
+func FrameBlock(file string, source []byte, line, col, endLine, endCol int, function string) string {
+	head := fmt.Sprintf("%s:%d:%d: in %s\n", DisplayPath(file), line, col, function)
+	if source == nil {
+		return head
+	}
+	text, pad, carets, ok := underline(splitLines(source), line, col, endLine, endCol)
+	if !ok {
+		return head
+	}
+	return head + "    " + text + "\n    " + pad + carets + "\n"
+}

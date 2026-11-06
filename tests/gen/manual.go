@@ -3363,6 +3363,127 @@ func main() {
 }
 `},
 
+	{dir: "trace_nested", src: `func div(int a, int b) int {
+    return a / b;
+}
+
+func compute(int x) int {
+    int c = div(10, x);
+    return c;
+}
+
+func outer(int x) int {
+    return compute(x) + 1;
+}
+
+func main() {
+    check(outer(5) == 3, "trace before the failing call");
+    int r = outer(0);
+    check(r == 0, "trace never printed");
+}
+`, expected: []string{"trace before the failing call"}, abort: ": in main.compute", x64Only: true},
+
+	{dir: "trace_outer", src: `func div(int a, int b) int {
+    return a / b;
+}
+
+func compute(int x) int {
+    int c = div(10, x);
+    return c;
+}
+
+func outer(int x) int {
+    return compute(x) + 1;
+}
+
+func main() {
+    check(outer(5) == 3, "trace outer before the failing call");
+    int r = outer(0);
+    check(r == 0, "trace outer never printed");
+}
+`, expected: []string{"trace outer before the failing call"}, abort: ": in main.outer", x64Only: true},
+
+	{dir: "trace_main", src: `func div(int a, int b) int {
+    return a / b;
+}
+
+func main() {
+    check(div(4, 2) == 2, "trace main before the failing call");
+    int r = div(1, 0);
+    check(r == 0, "trace main never printed");
+}
+`, expected: []string{"trace main before the failing call"}, abort: ": in main.main", x64Only: true},
+
+	{dir: "trace_method", src: `struct Counter {
+    int n;
+}
+
+func (*Counter c) share(int by) int {
+    return c.n / by;
+}
+
+func (*Counter c) split(int by) int {
+    return c.share(by);
+}
+
+func main() {
+    Counter c = Counter{n: 8};
+    check(c.split(2) == 4, "trace method before the failing call");
+    int r = c.split(0);
+    check(r == 0, "trace method never printed");
+}
+`, expected: []string{"trace method before the failing call"}, abort: ": in main.Counter.split", x64Only: true},
+
+	{dir: "trace_unwrap", src: `enum Fail {
+    Bad = 1
+}
+
+func risky(int n) !int {
+    if n < 0 {
+        return Error(Fail.Bad, "negative input");
+    }
+    return n;
+}
+
+func settle(int n) int {
+    return risky(n)!!;
+}
+
+func main() {
+    check(settle(2) == 2, "trace unwrap before the failing call");
+    int r = settle(-1);
+    check(r == 0, "trace unwrap never printed");
+}
+`, expected: []string{"trace unwrap before the failing call"}, abort: ": in main.main", x64Only: true},
+
+	{dir: "trace_lambda", src: `func apply(Step f, int v) int {
+    return f(v);
+}
+
+type Step (int) => int;
+
+func main() {
+    Step half = (int v) => 10 / v;
+    check(apply(half, 5) == 2, "trace lambda before the failing call");
+    int r = apply(half, 0);
+    check(r == 0, "trace lambda never printed");
+}
+`, expected: []string{"trace lambda before the failing call"}, abort: ": in main.apply", x64Only: true},
+
+	{dir: "trace_deep", src: `func down(int n) int {
+    if n == 0 {
+        return 1 / n;
+    }
+    return down(n - 1) + 1;
+}
+
+func main() {
+    check(true, "trace deep before the failing call");
+    int r = down(60);
+    check(r == 0, "trace deep never printed");
+}
+`, expected: []string{"trace deep before the failing call"}, abort: "more frames", x64Only: true},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;
@@ -7642,8 +7763,8 @@ func main() {
 import "std/errors";
 
 func main() {
-    char[100] storage;
-    mem.fill(storage, 7, 100);
+    char[128] storage;
+    mem.fill(storage, 7, 128);
     mem.Fixed f = mem.Fixed{buffer: storage};
 
     *char a = f.alloc(10) ?? null;
@@ -7652,7 +7773,7 @@ func main() {
     check(int(b) - int(a) == 16, "a block is rounded up to 16 bytes");
     check(a[0] == 0 && a[9] == 0 && b[0] == 0 && b[19] == 0, "alloc zeroes the block");
     *char base = storage;
-    check(int(a) - int(base) >= 0 && int(b) - int(base) < 100, "blocks live inside the buffer");
+    check(int(a) - int(base) >= 0 && int(b) - int(base) < 128, "blocks live inside the buffer");
 
     *char c = f.allocDirty(48) ?? null;
     check(c != null, "allocDirty gives a block");

@@ -144,17 +144,14 @@ func splitLines(source []byte) []string {
 	return strings.Split(strings.ReplaceAll(string(source), "\r\n", "\n"), "\n")
 }
 
-func writeSnippet(w io.Writer, lines []string, width, line, col, endLine, endCol int, color, label string, p palette) {
+func underline(lines []string, line, col, endLine, endCol int) (text, pad, carets string, ok bool) {
 	if line-1 < 0 || line-1 >= len(lines) {
-		return
+		return "", "", "", false
 	}
 
-	text := lines[line-1]
+	text = lines[line-1]
 	runes := []rune(text)
-	start := max(col-1, 0)
-	if start > len(runes) {
-		start = len(runes)
-	}
+	start := min(max(col-1, 0), len(runes))
 
 	last := start
 	switch {
@@ -167,17 +164,24 @@ func writeSnippet(w io.Writer, lines []string, width, line, col, endLine, endCol
 	}
 	last = min(max(last, start), max(len(runes)-1, start))
 
-	var pad strings.Builder
+	var b strings.Builder
 	for _, r := range runes[:start] {
 		if r == '\t' {
-			pad.WriteRune('\t')
+			b.WriteRune('\t')
 		} else {
-			pad.WriteRune(' ')
+			b.WriteRune(' ')
 		}
 	}
-	carets := strings.Repeat("^", last-start+1)
+	return text, b.String(), strings.Repeat("^", last-start+1), true
+}
+
+func writeSnippet(w io.Writer, lines []string, width, line, col, endLine, endCol int, color, label string, p palette) {
+	text, pad, carets, ok := underline(lines, line, col, endLine, endCol)
+	if !ok {
+		return
+	}
 
 	num := strconv.Itoa(line)
 	fmt.Fprintf(w, "%s%*s |%s %s\n", p.cyan, width, num, p.reset, text)
-	fmt.Fprintf(w, "%s%s |%s %s%s%s%s%s\n", p.cyan, strings.Repeat(" ", width), p.reset, pad.String(), color, carets, p.reset, label)
+	fmt.Fprintf(w, "%s%s |%s %s%s%s%s%s\n", p.cyan, strings.Repeat(" ", width), p.reset, pad, color, carets, p.reset, label)
 }

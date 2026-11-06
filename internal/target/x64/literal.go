@@ -96,8 +96,8 @@ func (t *X64Target) compileErrorLiteral(e *analyser.ErrorLiteral) (Operand, erro
 }
 
 type pendingLambda struct {
-	name string
-	lit  *ast.FuncLiteral
+	name, display string
+	lit           *ast.FuncLiteral
 }
 
 func (t *X64Target) compileFuncLiteral(e *ast.FuncLiteral) (Operand, error) {
@@ -107,7 +107,11 @@ func (t *X64Target) compileFuncLiteral(e *ast.FuncLiteral) (Operand, error) {
 func (t *X64Target) queueLambda(e *ast.FuncLiteral) string {
 	name := fmt.Sprintf("__wisp_lambda_%d", t.lambdaCount)
 	t.lambdaCount++
-	t.lambdas = append(t.lambdas, pendingLambda{name: name, lit: e})
+	display := t.funcName
+	if display == "" {
+		display = t.module
+	}
+	t.lambdas = append(t.lambdas, pendingLambda{name: name, lit: e, display: display + ".<lambda>"})
 	return name
 }
 
