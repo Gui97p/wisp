@@ -263,21 +263,7 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 	c, ok := t.info.Folded(stmt.Condition)
 	folded := ok && c.Kind == analyser.ConstBool
 	if !folded {
-		op, err := t.compileExpr(stmt.Condition)
-		if err != nil {
-			return err
-		}
-		size := sizeOf(t.info.Types[stmt.Condition])
-
-		reg := t.materialize(op, size)
-		opText := t.ctx.GetRegister(reg, size)
-		if t.err != nil {
-			return t.err
-		}
-		t.text.printft("test %s, %s\n", opText, opText)
-		t.text.printft("jz %s\n", elseLabel)
-
-		t.ctx.FreeRegister(reg)
+		t.branch(stmt.Condition, elseLabel, false)
 	}
 
 	if c.Bool || !folded {
@@ -317,30 +303,10 @@ func (t *X64Target) compileForStmt(stmt *ast.ForStmt) error {
 }
 
 func (t *X64Target) loopCondition(cond ast.Expression, breakLabel string, until bool) error {
-	tp := t.info.Types[cond]
-	size := sizeOf(tp)
-
 	if cond == nil {
 		return nil
 	}
-	op, err := t.compileExpr(cond)
-	if err != nil {
-		return err
-	}
-	reg := t.materialize(op, size)
-	regStr := t.ctx.GetRegister(reg, size)
-
-	t.text.printft("test %s, %s\n", regStr, regStr)
-	t.ctx.FreeRegister(reg)
-
-	if until {
-		t.text.printft("jnz ")
-	} else {
-		t.text.printft("jz ")
-	}
-	t.text.println(breakLabel)
-
-	return nil
+	return t.branch(cond, breakLabel, until)
 }
 
 func (t *X64Target) compileLoopStmt(stmt *ast.LoopStmt) error {

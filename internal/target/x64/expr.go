@@ -635,6 +635,13 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 }
 
 func (t *X64Target) compileTernaryExpr(expr *ast.TernaryExpr) (Operand, error) {
+	if c, ok := t.info.Folded(expr.Condition); ok && c.Kind == analyser.ConstBool {
+		if c.Bool {
+			return t.compileExpr(expr.Then)
+		}
+		return t.compileExpr(expr.Else)
+	}
+
 	elseLabel := t.newLabel("ternary_else")
 	endLabel := t.newLabel("ternary_end")
 
@@ -644,17 +651,9 @@ func (t *X64Target) compileTernaryExpr(expr *ast.TernaryExpr) (Operand, error) {
 	offset := t.ctx.Reserve(size)
 	dest := slot(offset, size)
 
-	cond, err := t.compileExpr(expr.Condition)
-	if err != nil {
+	if err := t.branch(expr.Condition, elseLabel, false); err != nil {
 		return nil, err
 	}
-
-	condSize := sizeOf(t.info.Types[expr.Condition])
-	reg := t.materialize(cond, condSize)
-	regStr := t.ctx.GetRegister(reg, condSize)
-	t.text.printft("test %s, %s\n", regStr, regStr)
-	t.ctx.FreeRegister(reg)
-	t.text.printft("jz %s\n", elseLabel)
 
 	thenOp, err := t.compileExpr(expr.Then)
 	if err != nil {

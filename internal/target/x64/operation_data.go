@@ -7,25 +7,25 @@ import (
 )
 
 var setccOperators = map[string]string{
-	"==": "sete",
-	"!=": "setne",
+	"==": "e",
+	"!=": "ne",
 
-	"<":  "setl",
-	"<=": "setle",
+	"<":  "l",
+	"<=": "le",
 
-	">":  "setg",
-	">=": "setge",
+	">":  "g",
+	">=": "ge",
 }
 
 var usetccOperators = map[string]string{
-	"==": "sete",
-	"!=": "setne",
+	"==": "e",
+	"!=": "ne",
 
-	"<":  "setb",
-	"<=": "setbe",
+	"<":  "b",
+	"<=": "be",
 
-	">":  "seta",
-	">=": "setae",
+	">":  "a",
+	">=": "ae",
 }
 
 var ucomiOperators = map[string]string{
@@ -37,6 +37,14 @@ var ucomiOperators = map[string]string{
 
 	">":  "seta",
 	">=": "setae",
+}
+
+var inverseCondition = map[string]string{
+	"e": "ne", "ne": "e",
+	"l": "ge", "ge": "l",
+	"le": "g", "g": "le",
+	"b": "ae", "ae": "b",
+	"be": "a", "a": "be",
 }
 
 var castOperators = map[int]map[int]string{

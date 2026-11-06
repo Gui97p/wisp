@@ -394,7 +394,114 @@ func (t *X64Target) compileFloatComparison(op string, left, right Operand, leftT
 	return Reg{Reg: resultReg, Size: size}, nil
 }
 
-func (t *X64Target) compileComparison(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
+func (t *X64Target) branch(cond ast.Expression, label string, whenTrue bool) error {
+	if c, folded := t.info.Folded(cond); folded && c.Kind == analyser.ConstBool {
+		if c.Bool == whenTrue {
+			t.text.printft("jmp %s\n", label)
+		}
+		return nil
+	}
+
+	switch c := cond.(type) {
+	case *ast.UnaryExpr:
+		if c.Operator == "!" {
+			return t.branch(c.Value, label, !whenTrue)
+		}
+	case *ast.BinaryExpr:
+		switch c.Operator {
+		case "&&", "||":
+			if whenTrue == (c.Operator == "||") {
+				if err := t.branch(c.Left, label, whenTrue); err != nil {
+					return err
+				}
+				return t.branch(c.Right, label, whenTrue)
+			} else {
+				skip := t.newLabel("skip")
+				if err := t.branch(c.Left, skip, !whenTrue); err != nil {
+					return err
+				}
+				err := t.branch(c.Right, label, whenTrue)
+				t.text.printf("%s:\n", skip)
+				return err
+			}
+		}
+		if t.fusableComparison(c) {
+			return t.branchCompare(c, label, whenTrue)
+		}
+	}
+
+	return t.branchValue(cond, label, whenTrue)
+}
+
+func (t *X64Target) fusableComparison(c *ast.BinaryExpr) bool {
+	switch c.Operator {
+	case "==", "!=", "<", "<=", ">", ">=":
+	default:
+		return false
+	}
+	if _, isTypeCase := t.info.TypeCases[c]; isTypeCase {
+		return false
+	}
+	left, right := t.info.Types[c.Left], t.info.Types[c.Right]
+	if isString(left) || isString(right) || isFloat(left) || isFloat(right) {
+		return false
+	}
+	if _, _, _, isError := t.errorMember(c); isError {
+		return false
+	}
+	return true
+}
+
+func (t *X64Target) branchCompare(c *ast.BinaryExpr, label string, whenTrue bool) error {
+	left, err := t.compileExpr(c.Left)
+	if err != nil {
+		return err
+	}
+	free := len(x64context.RegisterOrder) - len(t.ctx.AllocatedOrderRegisters())
+	if regsNeeded(c.Right) > free {
+		left = t.spill(left)
+	}
+	right, err := t.compileExpr(c.Right)
+	if err != nil {
+		return err
+	}
+	if _, isAddr := right.(Addr); isAddr {
+		size := sizeOf(t.info.Types[c.Right])
+		right = Reg{Reg: t.materialize(right, size), Size: size}
+	}
+	cc, err := t.emitCompare(c.Operator, left, right, t.info.Types[c.Left], t.info.Types[c.Right])
+	if err != nil {
+		return err
+	}
+	if !whenTrue {
+		cc = inverseCondition[cc]
+	}
+	t.text.printft("j%s %s\n", cc, label)
+	return nil
+}
+
+func (t *X64Target) branchValue(cond ast.Expression, label string, whenTrue bool) error {
+	op, err := t.compileExpr(cond)
+	if err != nil {
+		return err
+	}
+	size := sizeOf(t.info.Types[cond])
+	reg := t.materialize(op, size)
+	if t.err != nil {
+		return t.err
+	}
+	regStr := t.ctx.GetRegister(reg, size)
+	t.text.printft("test %s, %s\n", regStr, regStr)
+	t.ctx.FreeRegister(reg)
+	jump := "jz"
+	if whenTrue {
+		jump = "jnz"
+	}
+	t.text.printft("%s %s\n", jump, label)
+	return nil
+}
+
+func (t *X64Target) emitCompare(op string, left, right Operand, leftType, rightType analyser.Type) (string, error) {
 	var tp analyser.Type
 	switch leftType.(type) {
 	case analyser.UntypedFloatType, analyser.UntypedIntType:
@@ -402,32 +509,40 @@ func (t *X64Target) compileComparison(op string, left, right Operand, leftType, 
 	default:
 		tp = leftType
 	}
+
 	opSize := sizeOf(tp)
 	leftReg := t.materialize(left, opSize)
 	opText := t.opText(right, opSize)
 	if t.err != nil {
-		return nil, t.err
+		return "", t.err
 	}
-
-	size := sizeOf(resultType)
-	resultReg := t.ctx.AllocFreeRegister()
-	if resultReg == x64context.NoReg {
-		return nil, fmt.Errorf("x86-64: no available registers")
-	}
-	resultRegStr := t.ctx.GetRegister(resultReg, size)
 
 	ccop := usetccOperators[op]
 	if isSigned(tp) {
 		ccop = setccOperators[op]
 	}
 
-	t.text.printft("xor %s, %s\n", resultRegStr, resultRegStr)
 	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(leftReg, opSize), opText)
-	t.text.printft("%s %s\n", ccop, resultRegStr)
 
 	t.ctx.FreeRegister(leftReg)
 	t.freeOp(right)
 
+	return ccop, nil
+}
+
+func (t *X64Target) compileComparison(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {
+	size := sizeOf(resultType)
+	resultReg := t.ctx.AllocFreeRegister()
+	if resultReg == x64context.NoReg {
+		return nil, fmt.Errorf("x86-64: no available registers")
+	}
+	resultRegStr := t.ctx.GetRegister(resultReg, size)
+	t.text.printft("xor %s, %s\n", resultRegStr, resultRegStr)
+	ccop, err := t.emitCompare(op, left, right, leftType, rightType)
+	if err != nil {
+		return nil, err
+	}
+	t.text.printft("set%s %s\n", ccop, resultRegStr)
 	return Reg{Reg: resultReg, Size: size}, nil
 }
 

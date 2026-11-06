@@ -4179,6 +4179,1075 @@ func main() {
 }
 `, expected: []string{"int division and modulo by constants match a runtime divisor", "int32 division and modulo by constants match a runtime divisor", "int16 division and modulo by constants match a runtime divisor", "int8 division and modulo by constants match a runtime divisor", "uint division and modulo by constants match a runtime divisor", "uint32 division and modulo by constants match a runtime divisor", "uint16 division and modulo by constants match a runtime divisor", "uint8 division and modulo by constants match a runtime divisor"}},
 
+	{dir: "branch_conditions", src: `func cmp_int(int x, int y) int {
+    int bad = 0;
+    bool v0 = x == y;
+    bool w0 = (x == y) && (y == x);
+    bool o0 = (x == y) || (y == x);
+    bool a0 = false;
+    if x == y { a0 = true; }
+    bool n0 = true;
+    if !(x == y) { n0 = false; }
+    bool t0 = x == y ? true : false;
+    bool l0 = false;
+    loop x == y { l0 = true; break; }
+    bool u0 = false;
+    if x == y && y == x { u0 = true; }
+    bool p0 = false;
+    if x == y || y == x { p0 = true; }
+    bool q0 = false;
+    if !(x == y && y == x) { q0 = true; }
+    bool r0 = false;
+    if !(x == y || y == x) { r0 = true; }
+    if a0 != v0 || n0 != v0 || t0 != v0 || l0 != v0 || u0 != w0 || p0 != o0 || q0 == w0 || r0 == o0 { bad |= 1; }
+    bool v1 = x != y;
+    bool w1 = (x != y) && (y != x);
+    bool o1 = (x != y) || (y != x);
+    bool a1 = false;
+    if x != y { a1 = true; }
+    bool n1 = true;
+    if !(x != y) { n1 = false; }
+    bool t1 = x != y ? true : false;
+    bool l1 = false;
+    loop x != y { l1 = true; break; }
+    bool u1 = false;
+    if x != y && y != x { u1 = true; }
+    bool p1 = false;
+    if x != y || y != x { p1 = true; }
+    bool q1 = false;
+    if !(x != y && y != x) { q1 = true; }
+    bool r1 = false;
+    if !(x != y || y != x) { r1 = true; }
+    if a1 != v1 || n1 != v1 || t1 != v1 || l1 != v1 || u1 != w1 || p1 != o1 || q1 == w1 || r1 == o1 { bad |= 2; }
+    bool v2 = x < y;
+    bool w2 = (x < y) && (y < x);
+    bool o2 = (x < y) || (y < x);
+    bool a2 = false;
+    if x < y { a2 = true; }
+    bool n2 = true;
+    if !(x < y) { n2 = false; }
+    bool t2 = x < y ? true : false;
+    bool l2 = false;
+    loop x < y { l2 = true; break; }
+    bool u2 = false;
+    if x < y && y < x { u2 = true; }
+    bool p2 = false;
+    if x < y || y < x { p2 = true; }
+    bool q2 = false;
+    if !(x < y && y < x) { q2 = true; }
+    bool r2 = false;
+    if !(x < y || y < x) { r2 = true; }
+    if a2 != v2 || n2 != v2 || t2 != v2 || l2 != v2 || u2 != w2 || p2 != o2 || q2 == w2 || r2 == o2 { bad |= 4; }
+    bool v3 = x <= y;
+    bool w3 = (x <= y) && (y <= x);
+    bool o3 = (x <= y) || (y <= x);
+    bool a3 = false;
+    if x <= y { a3 = true; }
+    bool n3 = true;
+    if !(x <= y) { n3 = false; }
+    bool t3 = x <= y ? true : false;
+    bool l3 = false;
+    loop x <= y { l3 = true; break; }
+    bool u3 = false;
+    if x <= y && y <= x { u3 = true; }
+    bool p3 = false;
+    if x <= y || y <= x { p3 = true; }
+    bool q3 = false;
+    if !(x <= y && y <= x) { q3 = true; }
+    bool r3 = false;
+    if !(x <= y || y <= x) { r3 = true; }
+    if a3 != v3 || n3 != v3 || t3 != v3 || l3 != v3 || u3 != w3 || p3 != o3 || q3 == w3 || r3 == o3 { bad |= 8; }
+    bool v4 = x > y;
+    bool w4 = (x > y) && (y > x);
+    bool o4 = (x > y) || (y > x);
+    bool a4 = false;
+    if x > y { a4 = true; }
+    bool n4 = true;
+    if !(x > y) { n4 = false; }
+    bool t4 = x > y ? true : false;
+    bool l4 = false;
+    loop x > y { l4 = true; break; }
+    bool u4 = false;
+    if x > y && y > x { u4 = true; }
+    bool p4 = false;
+    if x > y || y > x { p4 = true; }
+    bool q4 = false;
+    if !(x > y && y > x) { q4 = true; }
+    bool r4 = false;
+    if !(x > y || y > x) { r4 = true; }
+    if a4 != v4 || n4 != v4 || t4 != v4 || l4 != v4 || u4 != w4 || p4 != o4 || q4 == w4 || r4 == o4 { bad |= 16; }
+    bool v5 = x >= y;
+    bool w5 = (x >= y) && (y >= x);
+    bool o5 = (x >= y) || (y >= x);
+    bool a5 = false;
+    if x >= y { a5 = true; }
+    bool n5 = true;
+    if !(x >= y) { n5 = false; }
+    bool t5 = x >= y ? true : false;
+    bool l5 = false;
+    loop x >= y { l5 = true; break; }
+    bool u5 = false;
+    if x >= y && y >= x { u5 = true; }
+    bool p5 = false;
+    if x >= y || y >= x { p5 = true; }
+    bool q5 = false;
+    if !(x >= y && y >= x) { q5 = true; }
+    bool r5 = false;
+    if !(x >= y || y >= x) { r5 = true; }
+    if a5 != v5 || n5 != v5 || t5 != v5 || l5 != v5 || u5 != w5 || p5 != o5 || q5 == w5 || r5 == o5 { bad |= 32; }
+    return bad;
+}
+
+func cmp_int32(int32 x, int32 y) int {
+    int bad = 0;
+    bool v0 = x == y;
+    bool w0 = (x == y) && (y == x);
+    bool o0 = (x == y) || (y == x);
+    bool a0 = false;
+    if x == y { a0 = true; }
+    bool n0 = true;
+    if !(x == y) { n0 = false; }
+    bool t0 = x == y ? true : false;
+    bool l0 = false;
+    loop x == y { l0 = true; break; }
+    bool u0 = false;
+    if x == y && y == x { u0 = true; }
+    bool p0 = false;
+    if x == y || y == x { p0 = true; }
+    bool q0 = false;
+    if !(x == y && y == x) { q0 = true; }
+    bool r0 = false;
+    if !(x == y || y == x) { r0 = true; }
+    if a0 != v0 || n0 != v0 || t0 != v0 || l0 != v0 || u0 != w0 || p0 != o0 || q0 == w0 || r0 == o0 { bad |= 1; }
+    bool v1 = x != y;
+    bool w1 = (x != y) && (y != x);
+    bool o1 = (x != y) || (y != x);
+    bool a1 = false;
+    if x != y { a1 = true; }
+    bool n1 = true;
+    if !(x != y) { n1 = false; }
+    bool t1 = x != y ? true : false;
+    bool l1 = false;
+    loop x != y { l1 = true; break; }
+    bool u1 = false;
+    if x != y && y != x { u1 = true; }
+    bool p1 = false;
+    if x != y || y != x { p1 = true; }
+    bool q1 = false;
+    if !(x != y && y != x) { q1 = true; }
+    bool r1 = false;
+    if !(x != y || y != x) { r1 = true; }
+    if a1 != v1 || n1 != v1 || t1 != v1 || l1 != v1 || u1 != w1 || p1 != o1 || q1 == w1 || r1 == o1 { bad |= 2; }
+    bool v2 = x < y;
+    bool w2 = (x < y) && (y < x);
+    bool o2 = (x < y) || (y < x);
+    bool a2 = false;
+    if x < y { a2 = true; }
+    bool n2 = true;
+    if !(x < y) { n2 = false; }
+    bool t2 = x < y ? true : false;
+    bool l2 = false;
+    loop x < y { l2 = true; break; }
+    bool u2 = false;
+    if x < y && y < x { u2 = true; }
+    bool p2 = false;
+    if x < y || y < x { p2 = true; }
+    bool q2 = false;
+    if !(x < y && y < x) { q2 = true; }
+    bool r2 = false;
+    if !(x < y || y < x) { r2 = true; }
+    if a2 != v2 || n2 != v2 || t2 != v2 || l2 != v2 || u2 != w2 || p2 != o2 || q2 == w2 || r2 == o2 { bad |= 4; }
+    bool v3 = x <= y;
+    bool w3 = (x <= y) && (y <= x);
+    bool o3 = (x <= y) || (y <= x);
+    bool a3 = false;
+    if x <= y { a3 = true; }
+    bool n3 = true;
+    if !(x <= y) { n3 = false; }
+    bool t3 = x <= y ? true : false;
+    bool l3 = false;
+    loop x <= y { l3 = true; break; }
+    bool u3 = false;
+    if x <= y && y <= x { u3 = true; }
+    bool p3 = false;
+    if x <= y || y <= x { p3 = true; }
+    bool q3 = false;
+    if !(x <= y && y <= x) { q3 = true; }
+    bool r3 = false;
+    if !(x <= y || y <= x) { r3 = true; }
+    if a3 != v3 || n3 != v3 || t3 != v3 || l3 != v3 || u3 != w3 || p3 != o3 || q3 == w3 || r3 == o3 { bad |= 8; }
+    bool v4 = x > y;
+    bool w4 = (x > y) && (y > x);
+    bool o4 = (x > y) || (y > x);
+    bool a4 = false;
+    if x > y { a4 = true; }
+    bool n4 = true;
+    if !(x > y) { n4 = false; }
+    bool t4 = x > y ? true : false;
+    bool l4 = false;
+    loop x > y { l4 = true; break; }
+    bool u4 = false;
+    if x > y && y > x { u4 = true; }
+    bool p4 = false;
+    if x > y || y > x { p4 = true; }
+    bool q4 = false;
+    if !(x > y && y > x) { q4 = true; }
+    bool r4 = false;
+    if !(x > y || y > x) { r4 = true; }
+    if a4 != v4 || n4 != v4 || t4 != v4 || l4 != v4 || u4 != w4 || p4 != o4 || q4 == w4 || r4 == o4 { bad |= 16; }
+    bool v5 = x >= y;
+    bool w5 = (x >= y) && (y >= x);
+    bool o5 = (x >= y) || (y >= x);
+    bool a5 = false;
+    if x >= y { a5 = true; }
+    bool n5 = true;
+    if !(x >= y) { n5 = false; }
+    bool t5 = x >= y ? true : false;
+    bool l5 = false;
+    loop x >= y { l5 = true; break; }
+    bool u5 = false;
+    if x >= y && y >= x { u5 = true; }
+    bool p5 = false;
+    if x >= y || y >= x { p5 = true; }
+    bool q5 = false;
+    if !(x >= y && y >= x) { q5 = true; }
+    bool r5 = false;
+    if !(x >= y || y >= x) { r5 = true; }
+    if a5 != v5 || n5 != v5 || t5 != v5 || l5 != v5 || u5 != w5 || p5 != o5 || q5 == w5 || r5 == o5 { bad |= 32; }
+    return bad;
+}
+
+func cmp_int16(int16 x, int16 y) int {
+    int bad = 0;
+    bool v0 = x == y;
+    bool w0 = (x == y) && (y == x);
+    bool o0 = (x == y) || (y == x);
+    bool a0 = false;
+    if x == y { a0 = true; }
+    bool n0 = true;
+    if !(x == y) { n0 = false; }
+    bool t0 = x == y ? true : false;
+    bool l0 = false;
+    loop x == y { l0 = true; break; }
+    bool u0 = false;
+    if x == y && y == x { u0 = true; }
+    bool p0 = false;
+    if x == y || y == x { p0 = true; }
+    bool q0 = false;
+    if !(x == y && y == x) { q0 = true; }
+    bool r0 = false;
+    if !(x == y || y == x) { r0 = true; }
+    if a0 != v0 || n0 != v0 || t0 != v0 || l0 != v0 || u0 != w0 || p0 != o0 || q0 == w0 || r0 == o0 { bad |= 1; }
+    bool v1 = x != y;
+    bool w1 = (x != y) && (y != x);
+    bool o1 = (x != y) || (y != x);
+    bool a1 = false;
+    if x != y { a1 = true; }
+    bool n1 = true;
+    if !(x != y) { n1 = false; }
+    bool t1 = x != y ? true : false;
+    bool l1 = false;
+    loop x != y { l1 = true; break; }
+    bool u1 = false;
+    if x != y && y != x { u1 = true; }
+    bool p1 = false;
+    if x != y || y != x { p1 = true; }
+    bool q1 = false;
+    if !(x != y && y != x) { q1 = true; }
+    bool r1 = false;
+    if !(x != y || y != x) { r1 = true; }
+    if a1 != v1 || n1 != v1 || t1 != v1 || l1 != v1 || u1 != w1 || p1 != o1 || q1 == w1 || r1 == o1 { bad |= 2; }
+    bool v2 = x < y;
+    bool w2 = (x < y) && (y < x);
+    bool o2 = (x < y) || (y < x);
+    bool a2 = false;
+    if x < y { a2 = true; }
+    bool n2 = true;
+    if !(x < y) { n2 = false; }
+    bool t2 = x < y ? true : false;
+    bool l2 = false;
+    loop x < y { l2 = true; break; }
+    bool u2 = false;
+    if x < y && y < x { u2 = true; }
+    bool p2 = false;
+    if x < y || y < x { p2 = true; }
+    bool q2 = false;
+    if !(x < y && y < x) { q2 = true; }
+    bool r2 = false;
+    if !(x < y || y < x) { r2 = true; }
+    if a2 != v2 || n2 != v2 || t2 != v2 || l2 != v2 || u2 != w2 || p2 != o2 || q2 == w2 || r2 == o2 { bad |= 4; }
+    bool v3 = x <= y;
+    bool w3 = (x <= y) && (y <= x);
+    bool o3 = (x <= y) || (y <= x);
+    bool a3 = false;
+    if x <= y { a3 = true; }
+    bool n3 = true;
+    if !(x <= y) { n3 = false; }
+    bool t3 = x <= y ? true : false;
+    bool l3 = false;
+    loop x <= y { l3 = true; break; }
+    bool u3 = false;
+    if x <= y && y <= x { u3 = true; }
+    bool p3 = false;
+    if x <= y || y <= x { p3 = true; }
+    bool q3 = false;
+    if !(x <= y && y <= x) { q3 = true; }
+    bool r3 = false;
+    if !(x <= y || y <= x) { r3 = true; }
+    if a3 != v3 || n3 != v3 || t3 != v3 || l3 != v3 || u3 != w3 || p3 != o3 || q3 == w3 || r3 == o3 { bad |= 8; }
+    bool v4 = x > y;
+    bool w4 = (x > y) && (y > x);
+    bool o4 = (x > y) || (y > x);
+    bool a4 = false;
+    if x > y { a4 = true; }
+    bool n4 = true;
+    if !(x > y) { n4 = false; }
+    bool t4 = x > y ? true : false;
+    bool l4 = false;
+    loop x > y { l4 = true; break; }
+    bool u4 = false;
+    if x > y && y > x { u4 = true; }
+    bool p4 = false;
+    if x > y || y > x { p4 = true; }
+    bool q4 = false;
+    if !(x > y && y > x) { q4 = true; }
+    bool r4 = false;
+    if !(x > y || y > x) { r4 = true; }
+    if a4 != v4 || n4 != v4 || t4 != v4 || l4 != v4 || u4 != w4 || p4 != o4 || q4 == w4 || r4 == o4 { bad |= 16; }
+    bool v5 = x >= y;
+    bool w5 = (x >= y) && (y >= x);
+    bool o5 = (x >= y) || (y >= x);
+    bool a5 = false;
+    if x >= y { a5 = true; }
+    bool n5 = true;
+    if !(x >= y) { n5 = false; }
+    bool t5 = x >= y ? true : false;
+    bool l5 = false;
+    loop x >= y { l5 = true; break; }
+    bool u5 = false;
+    if x >= y && y >= x { u5 = true; }
+    bool p5 = false;
+    if x >= y || y >= x { p5 = true; }
+    bool q5 = false;
+    if !(x >= y && y >= x) { q5 = true; }
+    bool r5 = false;
+    if !(x >= y || y >= x) { r5 = true; }
+    if a5 != v5 || n5 != v5 || t5 != v5 || l5 != v5 || u5 != w5 || p5 != o5 || q5 == w5 || r5 == o5 { bad |= 32; }
+    return bad;
+}
+
+func cmp_int8(int8 x, int8 y) int {
+    int bad = 0;
+    bool v0 = x == y;
+    bool w0 = (x == y) && (y == x);
+    bool o0 = (x == y) || (y == x);
+    bool a0 = false;
+    if x == y { a0 = true; }
+    bool n0 = true;
+    if !(x == y) { n0 = false; }
+    bool t0 = x == y ? true : false;
+    bool l0 = false;
+    loop x == y { l0 = true; break; }
+    bool u0 = false;
+    if x == y && y == x { u0 = true; }
+    bool p0 = false;
+    if x == y || y == x { p0 = true; }
+    bool q0 = false;
+    if !(x == y && y == x) { q0 = true; }
+    bool r0 = false;
+    if !(x == y || y == x) { r0 = true; }
+    if a0 != v0 || n0 != v0 || t0 != v0 || l0 != v0 || u0 != w0 || p0 != o0 || q0 == w0 || r0 == o0 { bad |= 1; }
+    bool v1 = x != y;
+    bool w1 = (x != y) && (y != x);
+    bool o1 = (x != y) || (y != x);
+    bool a1 = false;
+    if x != y { a1 = true; }
+    bool n1 = true;
+    if !(x != y) { n1 = false; }
+    bool t1 = x != y ? true : false;
+    bool l1 = false;
+    loop x != y { l1 = true; break; }
+    bool u1 = false;
+    if x != y && y != x { u1 = true; }
+    bool p1 = false;
+    if x != y || y != x { p1 = true; }
+    bool q1 = false;
+    if !(x != y && y != x) { q1 = true; }
+    bool r1 = false;
+    if !(x != y || y != x) { r1 = true; }
+    if a1 != v1 || n1 != v1 || t1 != v1 || l1 != v1 || u1 != w1 || p1 != o1 || q1 == w1 || r1 == o1 { bad |= 2; }
+    bool v2 = x < y;
+    bool w2 = (x < y) && (y < x);
+    bool o2 = (x < y) || (y < x);
+    bool a2 = false;
+    if x < y { a2 = true; }
+    bool n2 = true;
+    if !(x < y) { n2 = false; }
+    bool t2 = x < y ? true : false;
+    bool l2 = false;
+    loop x < y { l2 = true; break; }
+    bool u2 = false;
+    if x < y && y < x { u2 = true; }
+    bool p2 = false;
+    if x < y || y < x { p2 = true; }
+    bool q2 = false;
+    if !(x < y && y < x) { q2 = true; }
+    bool r2 = false;
+    if !(x < y || y < x) { r2 = true; }
+    if a2 != v2 || n2 != v2 || t2 != v2 || l2 != v2 || u2 != w2 || p2 != o2 || q2 == w2 || r2 == o2 { bad |= 4; }
+    bool v3 = x <= y;
+    bool w3 = (x <= y) && (y <= x);
+    bool o3 = (x <= y) || (y <= x);
+    bool a3 = false;
+    if x <= y { a3 = true; }
+    bool n3 = true;
+    if !(x <= y) { n3 = false; }
+    bool t3 = x <= y ? true : false;
+    bool l3 = false;
+    loop x <= y { l3 = true; break; }
+    bool u3 = false;
+    if x <= y && y <= x { u3 = true; }
+    bool p3 = false;
+    if x <= y || y <= x { p3 = true; }
+    bool q3 = false;
+    if !(x <= y && y <= x) { q3 = true; }
+    bool r3 = false;
+    if !(x <= y || y <= x) { r3 = true; }
+    if a3 != v3 || n3 != v3 || t3 != v3 || l3 != v3 || u3 != w3 || p3 != o3 || q3 == w3 || r3 == o3 { bad |= 8; }
+    bool v4 = x > y;
+    bool w4 = (x > y) && (y > x);
+    bool o4 = (x > y) || (y > x);
+    bool a4 = false;
+    if x > y { a4 = true; }
+    bool n4 = true;
+    if !(x > y) { n4 = false; }
+    bool t4 = x > y ? true : false;
+    bool l4 = false;
+    loop x > y { l4 = true; break; }
+    bool u4 = false;
+    if x > y && y > x { u4 = true; }
+    bool p4 = false;
+    if x > y || y > x { p4 = true; }
+    bool q4 = false;
+    if !(x > y && y > x) { q4 = true; }
+    bool r4 = false;
+    if !(x > y || y > x) { r4 = true; }
+    if a4 != v4 || n4 != v4 || t4 != v4 || l4 != v4 || u4 != w4 || p4 != o4 || q4 == w4 || r4 == o4 { bad |= 16; }
+    bool v5 = x >= y;
+    bool w5 = (x >= y) && (y >= x);
+    bool o5 = (x >= y) || (y >= x);
+    bool a5 = false;
+    if x >= y { a5 = true; }
+    bool n5 = true;
+    if !(x >= y) { n5 = false; }
+    bool t5 = x >= y ? true : false;
+    bool l5 = false;
+    loop x >= y { l5 = true; break; }
+    bool u5 = false;
+    if x >= y && y >= x { u5 = true; }
+    bool p5 = false;
+    if x >= y || y >= x { p5 = true; }
+    bool q5 = false;
+    if !(x >= y && y >= x) { q5 = true; }
+    bool r5 = false;
+    if !(x >= y || y >= x) { r5 = true; }
+    if a5 != v5 || n5 != v5 || t5 != v5 || l5 != v5 || u5 != w5 || p5 != o5 || q5 == w5 || r5 == o5 { bad |= 32; }
+    return bad;
+}
+
+func cmp_uint(uint x, uint y) int {
+    int bad = 0;
+    bool v0 = x == y;
+    bool w0 = (x == y) && (y == x);
+    bool o0 = (x == y) || (y == x);
+    bool a0 = false;
+    if x == y { a0 = true; }
+    bool n0 = true;
+    if !(x == y) { n0 = false; }
+    bool t0 = x == y ? true : false;
+    bool l0 = false;
+    loop x == y { l0 = true; break; }
+    bool u0 = false;
+    if x == y && y == x { u0 = true; }
+    bool p0 = false;
+    if x == y || y == x { p0 = true; }
+    bool q0 = false;
+    if !(x == y && y == x) { q0 = true; }
+    bool r0 = false;
+    if !(x == y || y == x) { r0 = true; }
+    if a0 != v0 || n0 != v0 || t0 != v0 || l0 != v0 || u0 != w0 || p0 != o0 || q0 == w0 || r0 == o0 { bad |= 1; }
+    bool v1 = x != y;
+    bool w1 = (x != y) && (y != x);
+    bool o1 = (x != y) || (y != x);
+    bool a1 = false;
+    if x != y { a1 = true; }
+    bool n1 = true;
+    if !(x != y) { n1 = false; }
+    bool t1 = x != y ? true : false;
+    bool l1 = false;
+    loop x != y { l1 = true; break; }
+    bool u1 = false;
+    if x != y && y != x { u1 = true; }
+    bool p1 = false;
+    if x != y || y != x { p1 = true; }
+    bool q1 = false;
+    if !(x != y && y != x) { q1 = true; }
+    bool r1 = false;
+    if !(x != y || y != x) { r1 = true; }
+    if a1 != v1 || n1 != v1 || t1 != v1 || l1 != v1 || u1 != w1 || p1 != o1 || q1 == w1 || r1 == o1 { bad |= 2; }
+    bool v2 = x < y;
+    bool w2 = (x < y) && (y < x);
+    bool o2 = (x < y) || (y < x);
+    bool a2 = false;
+    if x < y { a2 = true; }
+    bool n2 = true;
+    if !(x < y) { n2 = false; }
+    bool t2 = x < y ? true : false;
+    bool l2 = false;
+    loop x < y { l2 = true; break; }
+    bool u2 = false;
+    if x < y && y < x { u2 = true; }
+    bool p2 = false;
+    if x < y || y < x { p2 = true; }
+    bool q2 = false;
+    if !(x < y && y < x) { q2 = true; }
+    bool r2 = false;
+    if !(x < y || y < x) { r2 = true; }
+    if a2 != v2 || n2 != v2 || t2 != v2 || l2 != v2 || u2 != w2 || p2 != o2 || q2 == w2 || r2 == o2 { bad |= 4; }
+    bool v3 = x <= y;
+    bool w3 = (x <= y) && (y <= x);
+    bool o3 = (x <= y) || (y <= x);
+    bool a3 = false;
+    if x <= y { a3 = true; }
+    bool n3 = true;
+    if !(x <= y) { n3 = false; }
+    bool t3 = x <= y ? true : false;
+    bool l3 = false;
+    loop x <= y { l3 = true; break; }
+    bool u3 = false;
+    if x <= y && y <= x { u3 = true; }
+    bool p3 = false;
+    if x <= y || y <= x { p3 = true; }
+    bool q3 = false;
+    if !(x <= y && y <= x) { q3 = true; }
+    bool r3 = false;
+    if !(x <= y || y <= x) { r3 = true; }
+    if a3 != v3 || n3 != v3 || t3 != v3 || l3 != v3 || u3 != w3 || p3 != o3 || q3 == w3 || r3 == o3 { bad |= 8; }
+    bool v4 = x > y;
+    bool w4 = (x > y) && (y > x);
+    bool o4 = (x > y) || (y > x);
+    bool a4 = false;
+    if x > y { a4 = true; }
+    bool n4 = true;
+    if !(x > y) { n4 = false; }
+    bool t4 = x > y ? true : false;
+    bool l4 = false;
+    loop x > y { l4 = true; break; }
+    bool u4 = false;
+    if x > y && y > x { u4 = true; }
+    bool p4 = false;
+    if x > y || y > x { p4 = true; }
+    bool q4 = false;
+    if !(x > y && y > x) { q4 = true; }
+    bool r4 = false;
+    if !(x > y || y > x) { r4 = true; }
+    if a4 != v4 || n4 != v4 || t4 != v4 || l4 != v4 || u4 != w4 || p4 != o4 || q4 == w4 || r4 == o4 { bad |= 16; }
+    bool v5 = x >= y;
+    bool w5 = (x >= y) && (y >= x);
+    bool o5 = (x >= y) || (y >= x);
+    bool a5 = false;
+    if x >= y { a5 = true; }
+    bool n5 = true;
+    if !(x >= y) { n5 = false; }
+    bool t5 = x >= y ? true : false;
+    bool l5 = false;
+    loop x >= y { l5 = true; break; }
+    bool u5 = false;
+    if x >= y && y >= x { u5 = true; }
+    bool p5 = false;
+    if x >= y || y >= x { p5 = true; }
+    bool q5 = false;
+    if !(x >= y && y >= x) { q5 = true; }
+    bool r5 = false;
+    if !(x >= y || y >= x) { r5 = true; }
+    if a5 != v5 || n5 != v5 || t5 != v5 || l5 != v5 || u5 != w5 || p5 != o5 || q5 == w5 || r5 == o5 { bad |= 32; }
+    return bad;
+}
+
+func cmp_uint32(uint32 x, uint32 y) int {
+    int bad = 0;
+    bool v0 = x == y;
+    bool w0 = (x == y) && (y == x);
+    bool o0 = (x == y) || (y == x);
+    bool a0 = false;
+    if x == y { a0 = true; }
+    bool n0 = true;
+    if !(x == y) { n0 = false; }
+    bool t0 = x == y ? true : false;
+    bool l0 = false;
+    loop x == y { l0 = true; break; }
+    bool u0 = false;
+    if x == y && y == x { u0 = true; }
+    bool p0 = false;
+    if x == y || y == x { p0 = true; }
+    bool q0 = false;
+    if !(x == y && y == x) { q0 = true; }
+    bool r0 = false;
+    if !(x == y || y == x) { r0 = true; }
+    if a0 != v0 || n0 != v0 || t0 != v0 || l0 != v0 || u0 != w0 || p0 != o0 || q0 == w0 || r0 == o0 { bad |= 1; }
+    bool v1 = x != y;
+    bool w1 = (x != y) && (y != x);
+    bool o1 = (x != y) || (y != x);
+    bool a1 = false;
+    if x != y { a1 = true; }
+    bool n1 = true;
+    if !(x != y) { n1 = false; }
+    bool t1 = x != y ? true : false;
+    bool l1 = false;
+    loop x != y { l1 = true; break; }
+    bool u1 = false;
+    if x != y && y != x { u1 = true; }
+    bool p1 = false;
+    if x != y || y != x { p1 = true; }
+    bool q1 = false;
+    if !(x != y && y != x) { q1 = true; }
+    bool r1 = false;
+    if !(x != y || y != x) { r1 = true; }
+    if a1 != v1 || n1 != v1 || t1 != v1 || l1 != v1 || u1 != w1 || p1 != o1 || q1 == w1 || r1 == o1 { bad |= 2; }
+    bool v2 = x < y;
+    bool w2 = (x < y) && (y < x);
+    bool o2 = (x < y) || (y < x);
+    bool a2 = false;
+    if x < y { a2 = true; }
+    bool n2 = true;
+    if !(x < y) { n2 = false; }
+    bool t2 = x < y ? true : false;
+    bool l2 = false;
+    loop x < y { l2 = true; break; }
+    bool u2 = false;
+    if x < y && y < x { u2 = true; }
+    bool p2 = false;
+    if x < y || y < x { p2 = true; }
+    bool q2 = false;
+    if !(x < y && y < x) { q2 = true; }
+    bool r2 = false;
+    if !(x < y || y < x) { r2 = true; }
+    if a2 != v2 || n2 != v2 || t2 != v2 || l2 != v2 || u2 != w2 || p2 != o2 || q2 == w2 || r2 == o2 { bad |= 4; }
+    bool v3 = x <= y;
+    bool w3 = (x <= y) && (y <= x);
+    bool o3 = (x <= y) || (y <= x);
+    bool a3 = false;
+    if x <= y { a3 = true; }
+    bool n3 = true;
+    if !(x <= y) { n3 = false; }
+    bool t3 = x <= y ? true : false;
+    bool l3 = false;
+    loop x <= y { l3 = true; break; }
+    bool u3 = false;
+    if x <= y && y <= x { u3 = true; }
+    bool p3 = false;
+    if x <= y || y <= x { p3 = true; }
+    bool q3 = false;
+    if !(x <= y && y <= x) { q3 = true; }
+    bool r3 = false;
+    if !(x <= y || y <= x) { r3 = true; }
+    if a3 != v3 || n3 != v3 || t3 != v3 || l3 != v3 || u3 != w3 || p3 != o3 || q3 == w3 || r3 == o3 { bad |= 8; }
+    bool v4 = x > y;
+    bool w4 = (x > y) && (y > x);
+    bool o4 = (x > y) || (y > x);
+    bool a4 = false;
+    if x > y { a4 = true; }
+    bool n4 = true;
+    if !(x > y) { n4 = false; }
+    bool t4 = x > y ? true : false;
+    bool l4 = false;
+    loop x > y { l4 = true; break; }
+    bool u4 = false;
+    if x > y && y > x { u4 = true; }
+    bool p4 = false;
+    if x > y || y > x { p4 = true; }
+    bool q4 = false;
+    if !(x > y && y > x) { q4 = true; }
+    bool r4 = false;
+    if !(x > y || y > x) { r4 = true; }
+    if a4 != v4 || n4 != v4 || t4 != v4 || l4 != v4 || u4 != w4 || p4 != o4 || q4 == w4 || r4 == o4 { bad |= 16; }
+    bool v5 = x >= y;
+    bool w5 = (x >= y) && (y >= x);
+    bool o5 = (x >= y) || (y >= x);
+    bool a5 = false;
+    if x >= y { a5 = true; }
+    bool n5 = true;
+    if !(x >= y) { n5 = false; }
+    bool t5 = x >= y ? true : false;
+    bool l5 = false;
+    loop x >= y { l5 = true; break; }
+    bool u5 = false;
+    if x >= y && y >= x { u5 = true; }
+    bool p5 = false;
+    if x >= y || y >= x { p5 = true; }
+    bool q5 = false;
+    if !(x >= y && y >= x) { q5 = true; }
+    bool r5 = false;
+    if !(x >= y || y >= x) { r5 = true; }
+    if a5 != v5 || n5 != v5 || t5 != v5 || l5 != v5 || u5 != w5 || p5 != o5 || q5 == w5 || r5 == o5 { bad |= 32; }
+    return bad;
+}
+
+func cmp_uint16(uint16 x, uint16 y) int {
+    int bad = 0;
+    bool v0 = x == y;
+    bool w0 = (x == y) && (y == x);
+    bool o0 = (x == y) || (y == x);
+    bool a0 = false;
+    if x == y { a0 = true; }
+    bool n0 = true;
+    if !(x == y) { n0 = false; }
+    bool t0 = x == y ? true : false;
+    bool l0 = false;
+    loop x == y { l0 = true; break; }
+    bool u0 = false;
+    if x == y && y == x { u0 = true; }
+    bool p0 = false;
+    if x == y || y == x { p0 = true; }
+    bool q0 = false;
+    if !(x == y && y == x) { q0 = true; }
+    bool r0 = false;
+    if !(x == y || y == x) { r0 = true; }
+    if a0 != v0 || n0 != v0 || t0 != v0 || l0 != v0 || u0 != w0 || p0 != o0 || q0 == w0 || r0 == o0 { bad |= 1; }
+    bool v1 = x != y;
+    bool w1 = (x != y) && (y != x);
+    bool o1 = (x != y) || (y != x);
+    bool a1 = false;
+    if x != y { a1 = true; }
+    bool n1 = true;
+    if !(x != y) { n1 = false; }
+    bool t1 = x != y ? true : false;
+    bool l1 = false;
+    loop x != y { l1 = true; break; }
+    bool u1 = false;
+    if x != y && y != x { u1 = true; }
+    bool p1 = false;
+    if x != y || y != x { p1 = true; }
+    bool q1 = false;
+    if !(x != y && y != x) { q1 = true; }
+    bool r1 = false;
+    if !(x != y || y != x) { r1 = true; }
+    if a1 != v1 || n1 != v1 || t1 != v1 || l1 != v1 || u1 != w1 || p1 != o1 || q1 == w1 || r1 == o1 { bad |= 2; }
+    bool v2 = x < y;
+    bool w2 = (x < y) && (y < x);
+    bool o2 = (x < y) || (y < x);
+    bool a2 = false;
+    if x < y { a2 = true; }
+    bool n2 = true;
+    if !(x < y) { n2 = false; }
+    bool t2 = x < y ? true : false;
+    bool l2 = false;
+    loop x < y { l2 = true; break; }
+    bool u2 = false;
+    if x < y && y < x { u2 = true; }
+    bool p2 = false;
+    if x < y || y < x { p2 = true; }
+    bool q2 = false;
+    if !(x < y && y < x) { q2 = true; }
+    bool r2 = false;
+    if !(x < y || y < x) { r2 = true; }
+    if a2 != v2 || n2 != v2 || t2 != v2 || l2 != v2 || u2 != w2 || p2 != o2 || q2 == w2 || r2 == o2 { bad |= 4; }
+    bool v3 = x <= y;
+    bool w3 = (x <= y) && (y <= x);
+    bool o3 = (x <= y) || (y <= x);
+    bool a3 = false;
+    if x <= y { a3 = true; }
+    bool n3 = true;
+    if !(x <= y) { n3 = false; }
+    bool t3 = x <= y ? true : false;
+    bool l3 = false;
+    loop x <= y { l3 = true; break; }
+    bool u3 = false;
+    if x <= y && y <= x { u3 = true; }
+    bool p3 = false;
+    if x <= y || y <= x { p3 = true; }
+    bool q3 = false;
+    if !(x <= y && y <= x) { q3 = true; }
+    bool r3 = false;
+    if !(x <= y || y <= x) { r3 = true; }
+    if a3 != v3 || n3 != v3 || t3 != v3 || l3 != v3 || u3 != w3 || p3 != o3 || q3 == w3 || r3 == o3 { bad |= 8; }
+    bool v4 = x > y;
+    bool w4 = (x > y) && (y > x);
+    bool o4 = (x > y) || (y > x);
+    bool a4 = false;
+    if x > y { a4 = true; }
+    bool n4 = true;
+    if !(x > y) { n4 = false; }
+    bool t4 = x > y ? true : false;
+    bool l4 = false;
+    loop x > y { l4 = true; break; }
+    bool u4 = false;
+    if x > y && y > x { u4 = true; }
+    bool p4 = false;
+    if x > y || y > x { p4 = true; }
+    bool q4 = false;
+    if !(x > y && y > x) { q4 = true; }
+    bool r4 = false;
+    if !(x > y || y > x) { r4 = true; }
+    if a4 != v4 || n4 != v4 || t4 != v4 || l4 != v4 || u4 != w4 || p4 != o4 || q4 == w4 || r4 == o4 { bad |= 16; }
+    bool v5 = x >= y;
+    bool w5 = (x >= y) && (y >= x);
+    bool o5 = (x >= y) || (y >= x);
+    bool a5 = false;
+    if x >= y { a5 = true; }
+    bool n5 = true;
+    if !(x >= y) { n5 = false; }
+    bool t5 = x >= y ? true : false;
+    bool l5 = false;
+    loop x >= y { l5 = true; break; }
+    bool u5 = false;
+    if x >= y && y >= x { u5 = true; }
+    bool p5 = false;
+    if x >= y || y >= x { p5 = true; }
+    bool q5 = false;
+    if !(x >= y && y >= x) { q5 = true; }
+    bool r5 = false;
+    if !(x >= y || y >= x) { r5 = true; }
+    if a5 != v5 || n5 != v5 || t5 != v5 || l5 != v5 || u5 != w5 || p5 != o5 || q5 == w5 || r5 == o5 { bad |= 32; }
+    return bad;
+}
+
+func cmp_uint8(uint8 x, uint8 y) int {
+    int bad = 0;
+    bool v0 = x == y;
+    bool w0 = (x == y) && (y == x);
+    bool o0 = (x == y) || (y == x);
+    bool a0 = false;
+    if x == y { a0 = true; }
+    bool n0 = true;
+    if !(x == y) { n0 = false; }
+    bool t0 = x == y ? true : false;
+    bool l0 = false;
+    loop x == y { l0 = true; break; }
+    bool u0 = false;
+    if x == y && y == x { u0 = true; }
+    bool p0 = false;
+    if x == y || y == x { p0 = true; }
+    bool q0 = false;
+    if !(x == y && y == x) { q0 = true; }
+    bool r0 = false;
+    if !(x == y || y == x) { r0 = true; }
+    if a0 != v0 || n0 != v0 || t0 != v0 || l0 != v0 || u0 != w0 || p0 != o0 || q0 == w0 || r0 == o0 { bad |= 1; }
+    bool v1 = x != y;
+    bool w1 = (x != y) && (y != x);
+    bool o1 = (x != y) || (y != x);
+    bool a1 = false;
+    if x != y { a1 = true; }
+    bool n1 = true;
+    if !(x != y) { n1 = false; }
+    bool t1 = x != y ? true : false;
+    bool l1 = false;
+    loop x != y { l1 = true; break; }
+    bool u1 = false;
+    if x != y && y != x { u1 = true; }
+    bool p1 = false;
+    if x != y || y != x { p1 = true; }
+    bool q1 = false;
+    if !(x != y && y != x) { q1 = true; }
+    bool r1 = false;
+    if !(x != y || y != x) { r1 = true; }
+    if a1 != v1 || n1 != v1 || t1 != v1 || l1 != v1 || u1 != w1 || p1 != o1 || q1 == w1 || r1 == o1 { bad |= 2; }
+    bool v2 = x < y;
+    bool w2 = (x < y) && (y < x);
+    bool o2 = (x < y) || (y < x);
+    bool a2 = false;
+    if x < y { a2 = true; }
+    bool n2 = true;
+    if !(x < y) { n2 = false; }
+    bool t2 = x < y ? true : false;
+    bool l2 = false;
+    loop x < y { l2 = true; break; }
+    bool u2 = false;
+    if x < y && y < x { u2 = true; }
+    bool p2 = false;
+    if x < y || y < x { p2 = true; }
+    bool q2 = false;
+    if !(x < y && y < x) { q2 = true; }
+    bool r2 = false;
+    if !(x < y || y < x) { r2 = true; }
+    if a2 != v2 || n2 != v2 || t2 != v2 || l2 != v2 || u2 != w2 || p2 != o2 || q2 == w2 || r2 == o2 { bad |= 4; }
+    bool v3 = x <= y;
+    bool w3 = (x <= y) && (y <= x);
+    bool o3 = (x <= y) || (y <= x);
+    bool a3 = false;
+    if x <= y { a3 = true; }
+    bool n3 = true;
+    if !(x <= y) { n3 = false; }
+    bool t3 = x <= y ? true : false;
+    bool l3 = false;
+    loop x <= y { l3 = true; break; }
+    bool u3 = false;
+    if x <= y && y <= x { u3 = true; }
+    bool p3 = false;
+    if x <= y || y <= x { p3 = true; }
+    bool q3 = false;
+    if !(x <= y && y <= x) { q3 = true; }
+    bool r3 = false;
+    if !(x <= y || y <= x) { r3 = true; }
+    if a3 != v3 || n3 != v3 || t3 != v3 || l3 != v3 || u3 != w3 || p3 != o3 || q3 == w3 || r3 == o3 { bad |= 8; }
+    bool v4 = x > y;
+    bool w4 = (x > y) && (y > x);
+    bool o4 = (x > y) || (y > x);
+    bool a4 = false;
+    if x > y { a4 = true; }
+    bool n4 = true;
+    if !(x > y) { n4 = false; }
+    bool t4 = x > y ? true : false;
+    bool l4 = false;
+    loop x > y { l4 = true; break; }
+    bool u4 = false;
+    if x > y && y > x { u4 = true; }
+    bool p4 = false;
+    if x > y || y > x { p4 = true; }
+    bool q4 = false;
+    if !(x > y && y > x) { q4 = true; }
+    bool r4 = false;
+    if !(x > y || y > x) { r4 = true; }
+    if a4 != v4 || n4 != v4 || t4 != v4 || l4 != v4 || u4 != w4 || p4 != o4 || q4 == w4 || r4 == o4 { bad |= 16; }
+    bool v5 = x >= y;
+    bool w5 = (x >= y) && (y >= x);
+    bool o5 = (x >= y) || (y >= x);
+    bool a5 = false;
+    if x >= y { a5 = true; }
+    bool n5 = true;
+    if !(x >= y) { n5 = false; }
+    bool t5 = x >= y ? true : false;
+    bool l5 = false;
+    loop x >= y { l5 = true; break; }
+    bool u5 = false;
+    if x >= y && y >= x { u5 = true; }
+    bool p5 = false;
+    if x >= y || y >= x { p5 = true; }
+    bool q5 = false;
+    if !(x >= y && y >= x) { q5 = true; }
+    bool r5 = false;
+    if !(x >= y || y >= x) { r5 = true; }
+    if a5 != v5 || n5 != v5 || t5 != v5 || l5 != v5 || u5 != w5 || p5 != o5 || q5 == w5 || r5 == o5 { bad |= 32; }
+    return bad;
+}
+
+int calls;
+
+func yes() bool {
+    calls++;
+    return true;
+}
+
+func no() bool {
+    calls++;
+    return false;
+}
+
+func main() {
+    [12]int vals_int = [0, 1, -1, 2, -2, 100, -100, 2147483647, -2147483648, 4294967296, 9223372036854775807, -9223372036854775807];
+    int bad_int = 0;
+    for i in 0..11 {
+        for j in 0..11 {
+            bad_int |= cmp_int(vals_int[i], vals_int[j]);
+        }
+    }
+    check(bad_int == 0, "fused comparisons agree with values for int");
+    [9]int32 vals_int32 = [0, 1, -1, 2, -2, 100, -100, 2147483647, -2147483647];
+    int bad_int32 = 0;
+    for i in 0..8 {
+        for j in 0..8 {
+            bad_int32 |= cmp_int32(vals_int32[i], vals_int32[j]);
+        }
+    }
+    check(bad_int32 == 0, "fused comparisons agree with values for int32");
+    [9]int16 vals_int16 = [0, 1, -1, 2, -2, 100, -100, 32767, -32767];
+    int bad_int16 = 0;
+    for i in 0..8 {
+        for j in 0..8 {
+            bad_int16 |= cmp_int16(vals_int16[i], vals_int16[j]);
+        }
+    }
+    check(bad_int16 == 0, "fused comparisons agree with values for int16");
+    [9]int8 vals_int8 = [0, 1, -1, 2, -2, 100, -100, 127, -127];
+    int bad_int8 = 0;
+    for i in 0..8 {
+        for j in 0..8 {
+            bad_int8 |= cmp_int8(vals_int8[i], vals_int8[j]);
+        }
+    }
+    check(bad_int8 == 0, "fused comparisons agree with values for int8");
+    [10]uint vals_uint = [0, 1, 2, 100, 255, 4294967295, 4294967296, 9223372036854775807, 9223372036854775808, 18446744073709551615];
+    int bad_uint = 0;
+    for i in 0..9 {
+        for j in 0..9 {
+            bad_uint |= cmp_uint(vals_uint[i], vals_uint[j]);
+        }
+    }
+    check(bad_uint == 0, "fused comparisons agree with values for uint");
+    [8]uint32 vals_uint32 = [0, 1, 2, 100, 255, 2147483647, 2147483648, 4294967295];
+    int bad_uint32 = 0;
+    for i in 0..7 {
+        for j in 0..7 {
+            bad_uint32 |= cmp_uint32(vals_uint32[i], vals_uint32[j]);
+        }
+    }
+    check(bad_uint32 == 0, "fused comparisons agree with values for uint32");
+    [8]uint16 vals_uint16 = [0, 1, 2, 100, 255, 32767, 32768, 65535];
+    int bad_uint16 = 0;
+    for i in 0..7 {
+        for j in 0..7 {
+            bad_uint16 |= cmp_uint16(vals_uint16[i], vals_uint16[j]);
+        }
+    }
+    check(bad_uint16 == 0, "fused comparisons agree with values for uint16");
+    [8]uint8 vals_uint8 = [0, 1, 2, 100, 127, 128, 200, 255];
+    int bad_uint8 = 0;
+    for i in 0..7 {
+        for j in 0..7 {
+            bad_uint8 |= cmp_uint8(vals_uint8[i], vals_uint8[j]);
+        }
+    }
+    check(bad_uint8 == 0, "fused comparisons agree with values for uint8");
+    calls = 0;
+    if no() && yes() {
+        calls += 100;
+    }
+    check(calls == 1, "&& skips its right side when the left is false");
+    calls = 0;
+    if yes() || no() {
+        calls += 100;
+    }
+    check(calls == 101, "|| skips its right side when the left is true");
+    calls = 0;
+    if !(no() || yes()) && yes() {
+        calls += 100;
+    }
+    check(calls == 2, "a negated || evaluates left to right");
+    calls = 0;
+    int guard = 0;
+    loop guard < 3 && yes() {
+        guard++;
+    }
+    check(guard == 3 && calls == 3, "a loop condition combines a comparison and a call");
+    calls = 0;
+    int pick = (no() || no()) ? 1 : (yes() && yes() ? 2 : 3);
+    check(pick == 2 && calls == 4, "nested conditions in a ternary");
+    bool flag = yes();
+    bool other = no();
+    int mix = 0;
+    if flag && !other {
+        mix += 1;
+    }
+    if flag == !other {
+        mix += 10;
+    }
+    if other != flag || other {
+        mix += 100;
+    }
+    check(mix == 111, "boolean variables as conditions");
+}
+`, expected: []string{"fused comparisons agree with values for int", "fused comparisons agree with values for int32", "fused comparisons agree with values for int16", "fused comparisons agree with values for int8", "fused comparisons agree with values for uint", "fused comparisons agree with values for uint32", "fused comparisons agree with values for uint16", "fused comparisons agree with values for uint8", "&& skips its right side when the left is false", "|| skips its right side when the left is true", "a negated || evaluates left to right", "a loop condition combines a comparison and a call", "nested conditions in a ternary", "boolean variables as conditions"}},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;
