@@ -7759,6 +7759,33 @@ func main() {
     check(text(buf, "{v}", none) == "<null error>", "a null error prints the same in verbose");
 }
 `, expected: []string{"an error prints its message", "a default message is the member", "the message aligns like a string", "a null error prints a placeholder", "a null error prints the same in verbose"}},
+	{dir: "const_group_items", src: `const {
+    uint BIG = 0x8000000000000000;
+    int8 SMALL = 7;
+    float RATIO = 1.5;
+    LIMIT = 100;
+    string NAME = "wisp";
+}
+
+const uint {
+    LOW = 1;
+    HIGH = 2;
+}
+
+func main() {
+    uint big = BIG;
+    int8 small = SMALL;
+    float ratio = RATIO;
+    int limit = LIMIT;
+    uint low = LOW + HIGH;
+    check(big == 9223372036854775808, "a typed item keeps its type in an untyped group");
+    check(small == 7, "an int8 item works in a group");
+    check(ratio == 1.5, "a float item works in a group");
+    check(limit == 100, "an untyped item still works beside typed ones");
+    check(NAME == "wisp", "a string item works in a group");
+    check(low == 3, "a group type still applies to every item");
+}
+`, expected: []string{"a typed item keeps its type in an untyped group", "an int8 item works in a group", "a float item works in a group", "an untyped item still works beside typed ones", "a string item works in a group", "a group type still applies to every item"}},
 	{dir: "mem_fixed", src: `import "std/mem";
 import "std/errors";
 

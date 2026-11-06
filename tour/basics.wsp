@@ -34,6 +34,14 @@ const int {
   Range = MaxScore - MinScore;
 }
 
+// Without a type before the braces, each member can carry its own, written
+// first as everywhere else. Members that do not name one are inferred.
+const {
+  uint Mask = 0xFF;
+  float Ratio = 0.5;
+  Label = "score";
+}
+
 public func demo() {
   // `let` infers the type from the value; an explicit type works too. The
   // type always comes first, as in `int limit`.
@@ -48,6 +56,7 @@ public func demo() {
   fmt.printf("limit = {}\n", limit);
   fmt.printf("MaxScore = {}\n", MaxScore);
   fmt.printf("Range = {}\n", Range);
+  fmt.printf("{} mask {}, ratio {}\n", Label, Mask, Ratio);
 
   // A variable declared without a value starts zeroed.
   int zeroed;

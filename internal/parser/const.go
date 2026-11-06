@@ -119,6 +119,7 @@ func (p *Parser) parseConstGroup() []ast.Declaration {
 	p.advance()
 
 	var groupType ast.TypeRef
+	untyped := p.current.Type == lexer.TOKEN_LBRACE
 	if p.current.Type != lexer.TOKEN_LBRACE {
 		ref := p.parseTypeDefinitionPrefix()
 		if ref == nil || !p.parseArraySuffix(ref) {
@@ -131,12 +132,23 @@ func (p *Parser) parseConstGroup() []ast.Declaration {
 	var decls []ast.Declaration
 	for p.peek.Type != lexer.TOKEN_RBRACE {
 		p.advance()
+		line, col := p.current.Line, p.current.Column
+
+		itemType := groupType
+		if untyped && (p.isPrimitiveType() || (p.current.Type == lexer.TOKEN_IDENT && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR))) {
+			ref := p.parseTypeDefinitionPrefix()
+			if ref == nil || !p.parseArraySuffix(ref) {
+				return p.abandonConstGroup(decls)
+			}
+			p.advance()
+			itemType = *ref
+		}
+
 		if p.current.Type != lexer.TOKEN_IDENT {
 			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 			return p.abandonConstGroup(decls)
 		}
 
-		line, col := p.current.Line, p.current.Column
 		name := p.current.Literal
 		nameLine, nameCol, nameEndLine, nameEndCol := p.currentIdentPos()
 		if !p.checkReservedName(name) {
@@ -153,7 +165,7 @@ func (p *Parser) parseConstGroup() []ast.Declaration {
 		}
 
 		decl := &ast.ConstDecl{
-			Vars:   []ast.Param{{Name: name, Type: groupType, Line: nameLine, Col: nameCol, EndLine: nameEndLine, EndCol: nameEndCol}},
+			Vars:   []ast.Param{{Name: name, Type: itemType, Line: nameLine, Col: nameCol, EndLine: nameEndLine, EndCol: nameEndCol}},
 			Values: values,
 		}
 		decl.SetPos(line, col)
