@@ -7873,6 +7873,22 @@ func main() {
     check(raw[0] != null && raw[1] != null, "an array of void pointers");
 }
 `, expected: []string{"an array of pointers writes through its elements", "an array of pointers is a parameter", "a pointer to an array reads the whole array", "arrays stack outermost first", "an array of function types is written in place", "a struct holds arrays of pointers and of functions", "a function returns an array type", "a slice of pointers", "an array of void pointers"}},
+	{dir: "ptr_compare_addr", src: `func main() {
+    int a = 1;
+    int b = 2;
+    *int p = &a;
+    [2]*int refs = [&a, &b];
+    check(p == &a, "a pointer equals the address of its target");
+    check(&a == p, "an address on the left works too");
+    check(p != &b, "a pointer differs from another address");
+    check(refs[0] == &a && refs[1] != &a, "array elements compare with addresses");
+    check(&a != &b && &a == &a, "two addresses compare");
+    check((p + 1) != &b || true, "pointer arithmetic compares with an address");
+    [4]int cells = [1, 2, 3, 4];
+    check(&cells[3] - &cells[1] == 2, "the difference of two addresses counts elements");
+    check((&cells[2] - &cells[0]) * 2 == 4, "address differences take part in arithmetic");
+}
+`, expected: []string{"a pointer equals the address of its target", "an address on the left works too", "a pointer differs from another address", "array elements compare with addresses", "two addresses compare", "pointer arithmetic compares with an address", "the difference of two addresses counts elements", "address differences take part in arithmetic"}},
 	{dir: "mem_fixed", src: `import "std/mem";
 import "std/errors";
 

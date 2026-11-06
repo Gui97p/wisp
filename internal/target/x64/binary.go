@@ -11,6 +11,12 @@ import (
 )
 
 func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightType, resultType analyser.Type, rightExpr ast.Expression) (Operand, error) {
+	if _, isAddr := right.(Addr); isAddr {
+		opSize := sizeOf(rightType)
+		r := t.materialize(right, opSize)
+		right = Reg{Reg: r, Size: opSize}
+	}
+
 	if (op == "+" || op == "-") && (isPointer(leftType) || isPointer(rightType)) {
 		return t.compilePointerArithmetic(op, left, right, leftType, rightType, resultType)
 	}
