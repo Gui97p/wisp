@@ -1,5 +1,6 @@
 global __wisp_emit
 global __wisp_error_emit
+global __wisp_panic_at
 global __wisp_panic
 extern __wisp_main
 global __wisp_envp
@@ -88,6 +89,33 @@ __wisp_write_error:
 	mov rdi, 2
 	syscall
 	ret
+
+__wisp_panic_at:
+	push rdx
+	push rcx
+	push rdi
+	push rsi
+	lit "panic: "
+
+	pop rdx
+	pop rsi
+	call __wisp_write_error
+
+	push 10
+	mov rsi, rsp
+	mov edx, 1
+	call __wisp_write_error
+	add rsp, 8
+
+	pop rdx
+	pop rsi
+	call __wisp_write_error
+
+	call __wisp_trace
+
+	mov edi, 1
+	mov eax, 60
+	syscall
 
 __wisp_panic:
 	push rdi

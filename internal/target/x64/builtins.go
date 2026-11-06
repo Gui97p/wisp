@@ -2,10 +2,12 @@ package x64
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/target"
+	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) useChars() string {
@@ -249,6 +251,31 @@ func (t *X64Target) compilePanicBuiltin(expr *ast.CallExpr) ([]Operand, error) {
 		return nil, fmt.Errorf("x86-64: panic only accepts 1 parameter")
 	}
 
-	_, err = t.compileCall("__wisp_panic", true, expr.Args, nil, false)
-	return nil, err
+	block := strings.TrimPrefix(t.where(""), "\n") + "\n"
+	l, ok := t.createData("str", block)
+	if !ok {
+		t.rodata.printf("%s db %s\n", l, bytesToAsm(append([]byte(block), 0)))
+	}
+
+	t.prelude.define("__wisp_panic_at")
+	op, err := t.compileExpr(expr.Args[0])
+	if err != nil {
+		return nil, err
+	}
+
+	switch o := op.(type) {
+	case Wide:
+		t.loadWord(x64context.DI, o.Words[0])
+		t.loadWord(x64context.SI, o.Words[1])
+	case Mem:
+		t.loadWord(x64context.DI, o.at(0, 8))
+		t.loadWord(x64context.SI, o.at(8, 8))
+	}
+
+	t.loadWord(x64context.DX, Addr{Of: label(l, 8)})
+	t.loadWord(x64context.CX, Imm(len(block)))
+
+	t.text.printlnt("call __wisp_panic_at")
+
+	return nil, nil
 }

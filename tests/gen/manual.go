@@ -3501,6 +3501,17 @@ func main() {
 }
 `, expected: []string{"double free before the second free", "a freed block is reused without a complaint"}, abort: "panic: double free", x64Only: true},
 
+	{dir: "abort_panic_location", src: `func fail(string why) {
+    panic(why);
+}
+
+func main() {
+    check(true, "panic location before the panic");
+    fail("custom reason");
+    check(true, "panic location never printed");
+}
+`, expected: []string{"panic location before the panic"}, abort: "--> main.wsp", x64Only: true},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;
