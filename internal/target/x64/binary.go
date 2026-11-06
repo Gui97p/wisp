@@ -188,6 +188,11 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 			t.text.printft("imul %s, %s\n", reg, opText)
 		}
 	case "/", "%":
+		if imm, ok := right.(Imm); ok && size >= 4 {
+			if res, done := t.divideByConstant(op, leftReg, int64(imm), size, signed); done {
+				return res, nil
+			}
+		}
 		savedRegisters := []x64context.Register{}
 		for _, reg := range []x64context.Register{x64context.AX, x64context.DX} {
 			if reg != leftReg && slices.Contains(t.ctx.AllocatedRegisters(), reg) {
@@ -227,10 +232,12 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 		notzeroLabel := t.newLabel("ok")
 		doneLabel := t.newLabel("done")
 
-		t.text.printft("test %s, %s\n", divisor, divisor)
-		t.text.printft("jnz %s\n", notzeroLabel)
-		t.panic("integer divide by zero")
-		t.text.printf("%s:\n", notzeroLabel)
+		if imm, ok := right.(Imm); !ok || (imm != 0 && imm != -1) {
+			t.text.printft("test %s, %s\n", divisor, divisor)
+			t.text.printft("jnz %s\n", notzeroLabel)
+			t.panic("integer divide by zero")
+			t.text.printf("%s:\n", notzeroLabel)
+		}
 
 		inst := "div"
 		if signed {
@@ -279,6 +286,51 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 		return nil, fmt.Errorf("x86-64: binary operator %s not supported", op)
 	}
 	return Reg{Reg: leftReg, Size: size}, nil
+}
+
+func (t *X64Target) divideByConstant(op string, reg x64context.Register, imm int64, size int, signed bool) (Operand, bool) {
+	if imm > 1 && imm&(imm-1) == 0 && imm <= 1<<30 {
+		regStr := t.ctx.GetRegister(reg, size)
+		k := bits.TrailingZeros(uint(imm))
+		tmp := t.ctx.AllocFreeRegister()
+		if tmp == x64context.NoReg {
+			return nil, false
+		}
+		tmpStr := t.ctx.GetRegister(tmp, size)
+		w := size * 8
+		switch op {
+		case "/":
+			switch {
+			case imm == 1:
+			case signed:
+				t.text.printft("mov %s, %s\n", tmpStr, regStr)
+				t.text.printft("sar %s, %d\n", tmpStr, w-1)
+				t.text.printft("shr %s, %d\n", tmpStr, w-k)
+				t.text.printft("add %s, %s\n", regStr, tmpStr)
+				t.text.printft("sar %s, %d\n", regStr, k)
+			default:
+				t.text.printft("shr %s, %d\n", regStr, k)
+			}
+		case "%":
+			switch {
+			case imm == 1:
+				regStr32 := t.ctx.GetRegister(reg, 4)
+				t.text.printft("xor %s, %s\n", regStr32, regStr32)
+			case signed:
+				t.text.printft("mov %s, %s\n", tmpStr, regStr)
+				t.text.printft("sar %s, %d\n", tmpStr, w-1)
+				t.text.printft("shr %s, %d\n", tmpStr, w-k)
+				t.text.printft("add %s, %s\n", tmpStr, regStr)
+				t.text.printft("and %s, %d\n", tmpStr, -imm)
+				t.text.printft("sub %s, %s\n", regStr, tmpStr)
+			default:
+				t.text.printft("and %s, %d\n", regStr, imm-1)
+			}
+		}
+		t.ctx.FreeRegister(tmp)
+		return Reg{reg, size}, true
+	}
+	return nil, false
 }
 
 func (t *X64Target) compileFloatComparison(op string, left, right Operand, leftType, rightType, resultType analyser.Type) (Operand, error) {

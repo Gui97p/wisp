@@ -3683,6 +3683,502 @@ func main() {
 }
 `, expected: []string{"constant arithmetic", "constants and named constants fold", "constant division", "constant division truncates toward zero", "constant division with a negative divisor", "constant shifts", "an arithmetic right shift of a negative constant", "constant bitwise operators", "constant booleans", "constant comparisons", "the smallest int", "a typed constant sum wraps at its width", "a wrapped intermediate is not folded exactly", "int8 constants wrap", "int overflow wraps at run time", "an unsigned constant above the signed range", "bitwise not of a constant", "bitwise not of an unsigned constant", "a true constant condition takes the first branch", "a false constant condition is skipped", "a named constant condition", "enum members compare as constants", "a constant bound in a loop"}},
 
+	{dir: "const_divisors", src: `func main() {
+    [29]int values_int = [0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 1000000007, -1000000007, 2147483647, -2147483648, 4294967296, 9223372036854775807, -9223372036854775807, -9223372036854775807 - 1];
+    int bad_int = 0;
+    int v0_int = 1;
+    int v1_int = 2;
+    int v2_int = 4;
+    int v3_int = 8;
+    int v4_int = 16;
+    int v5_int = 1024;
+    int v6_int = 1073741824;
+    int v7_int = 3;
+    int v8_int = 5;
+    int v9_int = 7;
+    int v10_int = 10;
+    int v11_int = 1000;
+    int v12_int = -2;
+    int v13_int = -3;
+    int v14_int = -8;
+    int v15_int = 2147483648;
+    for i in 0..28 {
+        int x = values_int[i];
+        if x / 1 != x / v0_int || x % 1 != x % v0_int {
+            bad_int |= 1;
+        }
+        if x / 2 != x / v1_int || x % 2 != x % v1_int {
+            bad_int |= 2;
+        }
+        if x / 4 != x / v2_int || x % 4 != x % v2_int {
+            bad_int |= 4;
+        }
+        if x / 8 != x / v3_int || x % 8 != x % v3_int {
+            bad_int |= 8;
+        }
+        if x / 16 != x / v4_int || x % 16 != x % v4_int {
+            bad_int |= 16;
+        }
+        if x / 1024 != x / v5_int || x % 1024 != x % v5_int {
+            bad_int |= 32;
+        }
+        if x / 1073741824 != x / v6_int || x % 1073741824 != x % v6_int {
+            bad_int |= 64;
+        }
+        if x / 3 != x / v7_int || x % 3 != x % v7_int {
+            bad_int |= 128;
+        }
+        if x / 5 != x / v8_int || x % 5 != x % v8_int {
+            bad_int |= 256;
+        }
+        if x / 7 != x / v9_int || x % 7 != x % v9_int {
+            bad_int |= 512;
+        }
+        if x / 10 != x / v10_int || x % 10 != x % v10_int {
+            bad_int |= 1024;
+        }
+        if x / 1000 != x / v11_int || x % 1000 != x % v11_int {
+            bad_int |= 2048;
+        }
+        if x / -2 != x / v12_int || x % -2 != x % v12_int {
+            bad_int |= 4096;
+        }
+        if x / -3 != x / v13_int || x % -3 != x % v13_int {
+            bad_int |= 8192;
+        }
+        if x / -8 != x / v14_int || x % -8 != x % v14_int {
+            bad_int |= 16384;
+        }
+        if x / 2147483648 != x / v15_int || x % 2147483648 != x % v15_int {
+            bad_int |= 32768;
+        }
+    }
+    check(bad_int == 0, "int division and modulo by constants match a runtime divisor");
+    [26]int32 values_int32 = [0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 1000000007, -1000000007, 2147483647, -2147483647, -2147483647 - 1];
+    int bad_int32 = 0;
+    int32 v0_int32 = 1;
+    int32 v1_int32 = 2;
+    int32 v2_int32 = 4;
+    int32 v3_int32 = 8;
+    int32 v4_int32 = 16;
+    int32 v5_int32 = 1024;
+    int32 v6_int32 = 1073741824;
+    int32 v7_int32 = 3;
+    int32 v8_int32 = 5;
+    int32 v9_int32 = 7;
+    int32 v10_int32 = 10;
+    int32 v11_int32 = 1000;
+    int32 v12_int32 = -2;
+    int32 v13_int32 = -3;
+    int32 v14_int32 = -8;
+    for i in 0..25 {
+        int32 x = values_int32[i];
+        if x / 1 != x / v0_int32 || x % 1 != x % v0_int32 {
+            bad_int32 |= 1;
+        }
+        if x / 2 != x / v1_int32 || x % 2 != x % v1_int32 {
+            bad_int32 |= 2;
+        }
+        if x / 4 != x / v2_int32 || x % 4 != x % v2_int32 {
+            bad_int32 |= 4;
+        }
+        if x / 8 != x / v3_int32 || x % 8 != x % v3_int32 {
+            bad_int32 |= 8;
+        }
+        if x / 16 != x / v4_int32 || x % 16 != x % v4_int32 {
+            bad_int32 |= 16;
+        }
+        if x / 1024 != x / v5_int32 || x % 1024 != x % v5_int32 {
+            bad_int32 |= 32;
+        }
+        if x / 1073741824 != x / v6_int32 || x % 1073741824 != x % v6_int32 {
+            bad_int32 |= 64;
+        }
+        if x / 3 != x / v7_int32 || x % 3 != x % v7_int32 {
+            bad_int32 |= 128;
+        }
+        if x / 5 != x / v8_int32 || x % 5 != x % v8_int32 {
+            bad_int32 |= 256;
+        }
+        if x / 7 != x / v9_int32 || x % 7 != x % v9_int32 {
+            bad_int32 |= 512;
+        }
+        if x / 10 != x / v10_int32 || x % 10 != x % v10_int32 {
+            bad_int32 |= 1024;
+        }
+        if x / 1000 != x / v11_int32 || x % 1000 != x % v11_int32 {
+            bad_int32 |= 2048;
+        }
+        if x / -2 != x / v12_int32 || x % -2 != x % v12_int32 {
+            bad_int32 |= 4096;
+        }
+        if x / -3 != x / v13_int32 || x % -3 != x % v13_int32 {
+            bad_int32 |= 8192;
+        }
+        if x / -8 != x / v14_int32 || x % -8 != x % v14_int32 {
+            bad_int32 |= 16384;
+        }
+    }
+    check(bad_int32 == 0, "int32 division and modulo by constants match a runtime divisor");
+    [26]int16 values_int16 = [0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 12345, -12345, 32767, -32767, -32767 - 1];
+    int bad_int16 = 0;
+    int16 v0_int16 = 1;
+    int16 v1_int16 = 2;
+    int16 v2_int16 = 4;
+    int16 v3_int16 = 8;
+    int16 v4_int16 = 16;
+    int16 v5_int16 = 1024;
+    int16 v6_int16 = 16384;
+    int16 v7_int16 = 3;
+    int16 v8_int16 = 5;
+    int16 v9_int16 = 7;
+    int16 v10_int16 = 10;
+    int16 v11_int16 = 1000;
+    int16 v12_int16 = -2;
+    int16 v13_int16 = -3;
+    int16 v14_int16 = -8;
+    for i in 0..25 {
+        int16 x = values_int16[i];
+        if x / 1 != x / v0_int16 || x % 1 != x % v0_int16 {
+            bad_int16 |= 1;
+        }
+        if x / 2 != x / v1_int16 || x % 2 != x % v1_int16 {
+            bad_int16 |= 2;
+        }
+        if x / 4 != x / v2_int16 || x % 4 != x % v2_int16 {
+            bad_int16 |= 4;
+        }
+        if x / 8 != x / v3_int16 || x % 8 != x % v3_int16 {
+            bad_int16 |= 8;
+        }
+        if x / 16 != x / v4_int16 || x % 16 != x % v4_int16 {
+            bad_int16 |= 16;
+        }
+        if x / 1024 != x / v5_int16 || x % 1024 != x % v5_int16 {
+            bad_int16 |= 32;
+        }
+        if x / 16384 != x / v6_int16 || x % 16384 != x % v6_int16 {
+            bad_int16 |= 64;
+        }
+        if x / 3 != x / v7_int16 || x % 3 != x % v7_int16 {
+            bad_int16 |= 128;
+        }
+        if x / 5 != x / v8_int16 || x % 5 != x % v8_int16 {
+            bad_int16 |= 256;
+        }
+        if x / 7 != x / v9_int16 || x % 7 != x % v9_int16 {
+            bad_int16 |= 512;
+        }
+        if x / 10 != x / v10_int16 || x % 10 != x % v10_int16 {
+            bad_int16 |= 1024;
+        }
+        if x / 1000 != x / v11_int16 || x % 1000 != x % v11_int16 {
+            bad_int16 |= 2048;
+        }
+        if x / -2 != x / v12_int16 || x % -2 != x % v12_int16 {
+            bad_int16 |= 4096;
+        }
+        if x / -3 != x / v13_int16 || x % -3 != x % v13_int16 {
+            bad_int16 |= 8192;
+        }
+        if x / -8 != x / v14_int16 || x % -8 != x % v14_int16 {
+            bad_int16 |= 16384;
+        }
+    }
+    check(bad_int16 == 0, "int16 division and modulo by constants match a runtime divisor");
+    [24]int8 values_int8 = [0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 127, -127, -127 - 1];
+    int bad_int8 = 0;
+    int8 v0_int8 = 1;
+    int8 v1_int8 = 2;
+    int8 v2_int8 = 4;
+    int8 v3_int8 = 8;
+    int8 v4_int8 = 16;
+    int8 v5_int8 = 64;
+    int8 v6_int8 = 3;
+    int8 v7_int8 = 5;
+    int8 v8_int8 = 7;
+    int8 v9_int8 = 10;
+    int8 v10_int8 = 100;
+    int8 v11_int8 = -2;
+    int8 v12_int8 = -3;
+    int8 v13_int8 = -8;
+    for i in 0..23 {
+        int8 x = values_int8[i];
+        if x / 1 != x / v0_int8 || x % 1 != x % v0_int8 {
+            bad_int8 |= 1;
+        }
+        if x / 2 != x / v1_int8 || x % 2 != x % v1_int8 {
+            bad_int8 |= 2;
+        }
+        if x / 4 != x / v2_int8 || x % 4 != x % v2_int8 {
+            bad_int8 |= 4;
+        }
+        if x / 8 != x / v3_int8 || x % 8 != x % v3_int8 {
+            bad_int8 |= 8;
+        }
+        if x / 16 != x / v4_int8 || x % 16 != x % v4_int8 {
+            bad_int8 |= 16;
+        }
+        if x / 64 != x / v5_int8 || x % 64 != x % v5_int8 {
+            bad_int8 |= 32;
+        }
+        if x / 3 != x / v6_int8 || x % 3 != x % v6_int8 {
+            bad_int8 |= 64;
+        }
+        if x / 5 != x / v7_int8 || x % 5 != x % v7_int8 {
+            bad_int8 |= 128;
+        }
+        if x / 7 != x / v8_int8 || x % 7 != x % v8_int8 {
+            bad_int8 |= 256;
+        }
+        if x / 10 != x / v9_int8 || x % 10 != x % v9_int8 {
+            bad_int8 |= 512;
+        }
+        if x / 100 != x / v10_int8 || x % 100 != x % v10_int8 {
+            bad_int8 |= 1024;
+        }
+        if x / -2 != x / v11_int8 || x % -2 != x % v11_int8 {
+            bad_int8 |= 2048;
+        }
+        if x / -3 != x / v12_int8 || x % -3 != x % v12_int8 {
+            bad_int8 |= 4096;
+        }
+        if x / -8 != x / v13_int8 || x % -8 != x % v13_int8 {
+            bad_int8 |= 8192;
+        }
+    }
+    check(bad_int8 == 0, "int8 division and modulo by constants match a runtime divisor");
+    [19]uint values_uint = [0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 255, 256, 1000000007, 4294967295, 4294967296, 9223372036854775807, 9223372036854775808, 18446744073709551615];
+    int bad_uint = 0;
+    uint v0_uint = 1;
+    uint v1_uint = 2;
+    uint v2_uint = 4;
+    uint v3_uint = 8;
+    uint v4_uint = 16;
+    uint v5_uint = 1024;
+    uint v6_uint = 1073741824;
+    uint v7_uint = 3;
+    uint v8_uint = 5;
+    uint v9_uint = 7;
+    uint v10_uint = 10;
+    uint v11_uint = 1000;
+    uint v12_uint = 2147483648;
+    for i in 0..18 {
+        uint x = values_uint[i];
+        if x / 1 != x / v0_uint || x % 1 != x % v0_uint {
+            bad_uint |= 1;
+        }
+        if x / 2 != x / v1_uint || x % 2 != x % v1_uint {
+            bad_uint |= 2;
+        }
+        if x / 4 != x / v2_uint || x % 4 != x % v2_uint {
+            bad_uint |= 4;
+        }
+        if x / 8 != x / v3_uint || x % 8 != x % v3_uint {
+            bad_uint |= 8;
+        }
+        if x / 16 != x / v4_uint || x % 16 != x % v4_uint {
+            bad_uint |= 16;
+        }
+        if x / 1024 != x / v5_uint || x % 1024 != x % v5_uint {
+            bad_uint |= 32;
+        }
+        if x / 1073741824 != x / v6_uint || x % 1073741824 != x % v6_uint {
+            bad_uint |= 64;
+        }
+        if x / 3 != x / v7_uint || x % 3 != x % v7_uint {
+            bad_uint |= 128;
+        }
+        if x / 5 != x / v8_uint || x % 5 != x % v8_uint {
+            bad_uint |= 256;
+        }
+        if x / 7 != x / v9_uint || x % 7 != x % v9_uint {
+            bad_uint |= 512;
+        }
+        if x / 10 != x / v10_uint || x % 10 != x % v10_uint {
+            bad_uint |= 1024;
+        }
+        if x / 1000 != x / v11_uint || x % 1000 != x % v11_uint {
+            bad_uint |= 2048;
+        }
+        if x / 2147483648 != x / v12_uint || x % 2147483648 != x % v12_uint {
+            bad_uint |= 4096;
+        }
+    }
+    check(bad_uint == 0, "uint division and modulo by constants match a runtime divisor");
+    [17]uint32 values_uint32 = [0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 255, 256, 1000000007, 2147483647, 2147483648, 4294967295];
+    int bad_uint32 = 0;
+    uint32 v0_uint32 = 1;
+    uint32 v1_uint32 = 2;
+    uint32 v2_uint32 = 4;
+    uint32 v3_uint32 = 8;
+    uint32 v4_uint32 = 16;
+    uint32 v5_uint32 = 1024;
+    uint32 v6_uint32 = 1073741824;
+    uint32 v7_uint32 = 3;
+    uint32 v8_uint32 = 5;
+    uint32 v9_uint32 = 7;
+    uint32 v10_uint32 = 10;
+    uint32 v11_uint32 = 1000;
+    uint32 v12_uint32 = 2147483648;
+    for i in 0..16 {
+        uint32 x = values_uint32[i];
+        if x / 1 != x / v0_uint32 || x % 1 != x % v0_uint32 {
+            bad_uint32 |= 1;
+        }
+        if x / 2 != x / v1_uint32 || x % 2 != x % v1_uint32 {
+            bad_uint32 |= 2;
+        }
+        if x / 4 != x / v2_uint32 || x % 4 != x % v2_uint32 {
+            bad_uint32 |= 4;
+        }
+        if x / 8 != x / v3_uint32 || x % 8 != x % v3_uint32 {
+            bad_uint32 |= 8;
+        }
+        if x / 16 != x / v4_uint32 || x % 16 != x % v4_uint32 {
+            bad_uint32 |= 16;
+        }
+        if x / 1024 != x / v5_uint32 || x % 1024 != x % v5_uint32 {
+            bad_uint32 |= 32;
+        }
+        if x / 1073741824 != x / v6_uint32 || x % 1073741824 != x % v6_uint32 {
+            bad_uint32 |= 64;
+        }
+        if x / 3 != x / v7_uint32 || x % 3 != x % v7_uint32 {
+            bad_uint32 |= 128;
+        }
+        if x / 5 != x / v8_uint32 || x % 5 != x % v8_uint32 {
+            bad_uint32 |= 256;
+        }
+        if x / 7 != x / v9_uint32 || x % 7 != x % v9_uint32 {
+            bad_uint32 |= 512;
+        }
+        if x / 10 != x / v10_uint32 || x % 10 != x % v10_uint32 {
+            bad_uint32 |= 1024;
+        }
+        if x / 1000 != x / v11_uint32 || x % 1000 != x % v11_uint32 {
+            bad_uint32 |= 2048;
+        }
+        if x / 2147483648 != x / v12_uint32 || x % 2147483648 != x % v12_uint32 {
+            bad_uint32 |= 4096;
+        }
+    }
+    check(bad_uint32 == 0, "uint32 division and modulo by constants match a runtime divisor");
+    [17]uint16 values_uint16 = [0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 255, 256, 12345, 32767, 32768, 65535];
+    int bad_uint16 = 0;
+    uint16 v0_uint16 = 1;
+    uint16 v1_uint16 = 2;
+    uint16 v2_uint16 = 4;
+    uint16 v3_uint16 = 8;
+    uint16 v4_uint16 = 16;
+    uint16 v5_uint16 = 1024;
+    uint16 v6_uint16 = 16384;
+    uint16 v7_uint16 = 3;
+    uint16 v8_uint16 = 5;
+    uint16 v9_uint16 = 7;
+    uint16 v10_uint16 = 10;
+    uint16 v11_uint16 = 1000;
+    uint16 v12_uint16 = 32768;
+    for i in 0..16 {
+        uint16 x = values_uint16[i];
+        if x / 1 != x / v0_uint16 || x % 1 != x % v0_uint16 {
+            bad_uint16 |= 1;
+        }
+        if x / 2 != x / v1_uint16 || x % 2 != x % v1_uint16 {
+            bad_uint16 |= 2;
+        }
+        if x / 4 != x / v2_uint16 || x % 4 != x % v2_uint16 {
+            bad_uint16 |= 4;
+        }
+        if x / 8 != x / v3_uint16 || x % 8 != x % v3_uint16 {
+            bad_uint16 |= 8;
+        }
+        if x / 16 != x / v4_uint16 || x % 16 != x % v4_uint16 {
+            bad_uint16 |= 16;
+        }
+        if x / 1024 != x / v5_uint16 || x % 1024 != x % v5_uint16 {
+            bad_uint16 |= 32;
+        }
+        if x / 16384 != x / v6_uint16 || x % 16384 != x % v6_uint16 {
+            bad_uint16 |= 64;
+        }
+        if x / 3 != x / v7_uint16 || x % 3 != x % v7_uint16 {
+            bad_uint16 |= 128;
+        }
+        if x / 5 != x / v8_uint16 || x % 5 != x % v8_uint16 {
+            bad_uint16 |= 256;
+        }
+        if x / 7 != x / v9_uint16 || x % 7 != x % v9_uint16 {
+            bad_uint16 |= 512;
+        }
+        if x / 10 != x / v10_uint16 || x % 10 != x % v10_uint16 {
+            bad_uint16 |= 1024;
+        }
+        if x / 1000 != x / v11_uint16 || x % 1000 != x % v11_uint16 {
+            bad_uint16 |= 2048;
+        }
+        if x / 32768 != x / v12_uint16 || x % 32768 != x % v12_uint16 {
+            bad_uint16 |= 4096;
+        }
+    }
+    check(bad_uint16 == 0, "uint16 division and modulo by constants match a runtime divisor");
+    [15]uint8 values_uint8 = [0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 127, 128, 200, 255];
+    int bad_uint8 = 0;
+    uint8 v0_uint8 = 1;
+    uint8 v1_uint8 = 2;
+    uint8 v2_uint8 = 4;
+    uint8 v3_uint8 = 8;
+    uint8 v4_uint8 = 16;
+    uint8 v5_uint8 = 64;
+    uint8 v6_uint8 = 128;
+    uint8 v7_uint8 = 3;
+    uint8 v8_uint8 = 5;
+    uint8 v9_uint8 = 7;
+    uint8 v10_uint8 = 10;
+    uint8 v11_uint8 = 100;
+    for i in 0..14 {
+        uint8 x = values_uint8[i];
+        if x / 1 != x / v0_uint8 || x % 1 != x % v0_uint8 {
+            bad_uint8 |= 1;
+        }
+        if x / 2 != x / v1_uint8 || x % 2 != x % v1_uint8 {
+            bad_uint8 |= 2;
+        }
+        if x / 4 != x / v2_uint8 || x % 4 != x % v2_uint8 {
+            bad_uint8 |= 4;
+        }
+        if x / 8 != x / v3_uint8 || x % 8 != x % v3_uint8 {
+            bad_uint8 |= 8;
+        }
+        if x / 16 != x / v4_uint8 || x % 16 != x % v4_uint8 {
+            bad_uint8 |= 16;
+        }
+        if x / 64 != x / v5_uint8 || x % 64 != x % v5_uint8 {
+            bad_uint8 |= 32;
+        }
+        if x / 128 != x / v6_uint8 || x % 128 != x % v6_uint8 {
+            bad_uint8 |= 64;
+        }
+        if x / 3 != x / v7_uint8 || x % 3 != x % v7_uint8 {
+            bad_uint8 |= 128;
+        }
+        if x / 5 != x / v8_uint8 || x % 5 != x % v8_uint8 {
+            bad_uint8 |= 256;
+        }
+        if x / 7 != x / v9_uint8 || x % 7 != x % v9_uint8 {
+            bad_uint8 |= 512;
+        }
+        if x / 10 != x / v10_uint8 || x % 10 != x % v10_uint8 {
+            bad_uint8 |= 1024;
+        }
+        if x / 100 != x / v11_uint8 || x % 100 != x % v11_uint8 {
+            bad_uint8 |= 2048;
+        }
+    }
+    check(bad_uint8 == 0, "uint8 division and modulo by constants match a runtime divisor");
+}
+`, expected: []string{"int division and modulo by constants match a runtime divisor", "int32 division and modulo by constants match a runtime divisor", "int16 division and modulo by constants match a runtime divisor", "int8 division and modulo by constants match a runtime divisor", "uint division and modulo by constants match a runtime divisor", "uint32 division and modulo by constants match a runtime divisor", "uint16 division and modulo by constants match a runtime divisor", "uint8 division and modulo by constants match a runtime divisor"}},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;
