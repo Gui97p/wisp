@@ -116,7 +116,7 @@ shared func random(*void buf, int n) int {
 }
 
 shared func isatty(int fd) bool {
-	char[64] termios;
+	[64]char termios;
 	int r;
 	native linux_x64(in fd, termios, out r) "mov eax, {SYS_IOCTL}; mov rdi, {fd}; mov rsi, {TCGETS}; lea rdx, {&termios}; syscall; mov {r}, rax";
 	return r == 0;

@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	typeName = `\*{0,}(?:[A-Za-z_]\w*\.)?[A-Za-z_]?\w*`
+	layers   = `(?:\*|\[[^\[\]]*\])*`
+	typeName = layers + `(?:[A-Za-z_]\w*\.)?[A-Za-z_]?\w*`
 	funcHead = `\bfunc\s+(?:\([^)]*\)\s*)?[A-Za-z_]\w*\s*`
 )
 
@@ -19,11 +20,11 @@ var (
 	funcHeader      = regexp.MustCompile(funcHead + `$`)
 	returnHeader    = regexp.MustCompile(funcHead + `\((?:[^()]|\([^()]*\))*\)\s*!?\s*$`)
 	typeSegment     = regexp.MustCompile(`^` + typeName + `$`)
-	qualifiedType   = regexp.MustCompile(`^\*{0,}([A-Za-z_]\w*)\.`)
+	qualifiedType   = regexp.MustCompile(`^` + layers + `([A-Za-z_]\w*)\.`)
 	mapTail         = regexp.MustCompile(`\bmap\[[^\[\]]*\]` + typeName + `$`)
-	lambdaFirst     = regexp.MustCompile(`^\s*\*{0,}[A-Za-z_][\w.]*\s+[A-Za-z_]\w*\s*$`)
+	lambdaFirst     = regexp.MustCompile(`^\s*` + layers + `[A-Za-z_][\w.]*\s+[A-Za-z_]\w*\s*$`)
 	returnTail      = regexp.MustCompile(`^(?:public\s+)?(?:extern\s+)?` + funcHead + `\((?:[^()]|\([^()]*\))*\)\s*!?\s*(` + typeName + `)$`)
-	namePosition    = regexp.MustCompile(`^\*{0,}[\w.]+\s+\w*$`)
+	namePosition    = regexp.MustCompile(`^` + layers + `[\w.]+\s+\w*$`)
 	declarationHead = regexp.MustCompile(`^(?:(?:public|extern)\s+)*`)
 )
 
@@ -111,7 +112,7 @@ func topLevelContext(segment string) (typeContext, bool) {
 	declaration := declarationHead.ReplaceAllString(segment, "")
 	if typeSegment.MatchString(declaration) {
 		ctx, _ := typingType(declaration)
-		ctx.topLevel = !strings.HasPrefix(declaration, "*") && !strings.Contains(declaration, ".")
+		ctx.topLevel = !strings.HasPrefix(declaration, "*") && !strings.HasPrefix(declaration, "[") && !strings.Contains(declaration, ".")
 		return ctx, true
 	}
 	if namePosition.MatchString(declaration) {

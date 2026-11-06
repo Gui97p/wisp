@@ -536,6 +536,6 @@ func (a *Analyser) isStringElement(target ast.Expression) bool {
 		return false
 	}
 	a.error(target, "a string is read-only").
-		WithHelp("write into the char[] it was made from, or build a new string")
+		WithHelp("write into the []char it was made from, or build a new string")
 	return true
 }

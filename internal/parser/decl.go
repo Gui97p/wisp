@@ -99,7 +99,7 @@ func (p *Parser) startsVarDeclaration() bool {
 	switch p.current.Type {
 	case lexer.TOKEN_LET:
 		return true
-	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN:
+	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACKET:
 		return p.looksLikeTypeDeclaration()
 	}
 	return p.isPrimitiveType()
@@ -196,7 +196,7 @@ func (p *Parser) parseExported() []ast.Declaration {
 		decl.Exported = true
 		decls = append(decls, decl)
 
-	case lexer.TOKEN_LET, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN:
+	case lexer.TOKEN_LET, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACKET:
 		decl := p.parseVarDeclaration()
 		if decl == nil {
 			return nil
@@ -309,9 +309,6 @@ func (p *Parser) parseTypeDeclaration() *ast.TypeDecl {
 	p.advance()
 	ref := p.parseTypeDefinitionPrefix()
 	if ref == nil {
-		return nil
-	}
-	if !p.parseArraySuffix(ref) {
 		return nil
 	}
 	decl.Underlying = *ref

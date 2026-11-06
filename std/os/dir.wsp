@@ -11,7 +11,7 @@ public func isDir(string p) bool {
 }
 
 public func removeDir(string p) ! {
-	char[4096] buf;
+	[4096]char buf;
 	if len(p) > 4095 {
 		return Error(errors.Kind.Invalid);
 	}
@@ -26,7 +26,7 @@ public func mkdir(string p) ! {
 	if len(p) > 4095 {
 		return Error(errors.Kind.Invalid);
 	}
-	char[4096] buf;
+	[4096]char buf;
 	global.copypath((*char)(buf), p);
 	int r = sys.mkdir((*char)(buf), 0o755);
 	if r < 0 {
@@ -52,7 +52,7 @@ public func mkdirAll(string p) ! {
 public struct Dir {
 	int fd;
 	internal int pos, len;
-	internal char[4096] buf;
+	internal [4096]char buf;
 }
 
 public func (*Dir d) next() !(string, global.FileKind, bool) {

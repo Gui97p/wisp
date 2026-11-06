@@ -10,15 +10,12 @@ func (p *Parser) parseConstIdentifiers() []ast.Param {
 
 	p.advance()
 
-	isTypedDecl := p.isPrimitiveType() || (p.current.Type == lexer.TOKEN_IDENT && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR))
+	isTypedDecl := p.isPrimitiveType() || p.current.Type == lexer.TOKEN_LBRACKET || (p.current.Type == lexer.TOKEN_IDENT && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR))
 
 	var currentType ast.TypeRef
 	if isTypedDecl {
 		ref := p.parseTypeDefinitionPrefix()
 		if ref == nil {
-			return nil
-		}
-		if !p.parseArraySuffix(ref) {
 			return nil
 		}
 		p.advance()
@@ -107,7 +104,7 @@ func (p *Parser) constGroupAhead() bool {
 	p.advance()
 	if p.current.Type != lexer.TOKEN_LBRACE {
 		ref := p.parseTypeDefinitionPrefix()
-		if ref == nil || !p.parseArraySuffix(ref) {
+		if ref == nil {
 			return false
 		}
 		p.advance()
@@ -122,7 +119,7 @@ func (p *Parser) parseConstGroup() []ast.Declaration {
 	untyped := p.current.Type == lexer.TOKEN_LBRACE
 	if p.current.Type != lexer.TOKEN_LBRACE {
 		ref := p.parseTypeDefinitionPrefix()
-		if ref == nil || !p.parseArraySuffix(ref) {
+		if ref == nil {
 			return nil
 		}
 		p.advance()
@@ -135,9 +132,9 @@ func (p *Parser) parseConstGroup() []ast.Declaration {
 		line, col := p.current.Line, p.current.Column
 
 		itemType := groupType
-		if untyped && (p.isPrimitiveType() || (p.current.Type == lexer.TOKEN_IDENT && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR))) {
+		if untyped && (p.isPrimitiveType() || p.current.Type == lexer.TOKEN_LBRACKET || (p.current.Type == lexer.TOKEN_IDENT && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR))) {
 			ref := p.parseTypeDefinitionPrefix()
-			if ref == nil || !p.parseArraySuffix(ref) {
+			if ref == nil {
 				return p.abandonConstGroup(decls)
 			}
 			p.advance()

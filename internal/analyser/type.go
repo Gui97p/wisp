@@ -163,7 +163,7 @@ type ArrayType struct {
 }
 
 func (a ArrayType) String() string {
-	return fmt.Sprintf("%s[%d]", a.Element, a.Size)
+	return fmt.Sprintf("[%d]%s", a.Size, a.Element)
 }
 
 func (a ArrayType) Equals(other Type) bool {
@@ -179,7 +179,7 @@ type SpanType struct {
 }
 
 func (s SpanType) String() string {
-	return s.Element.String() + "[]"
+	return "[]" + s.Element.String()
 }
 
 func (s SpanType) Equals(other Type) bool {

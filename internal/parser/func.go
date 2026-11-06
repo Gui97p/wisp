@@ -201,9 +201,6 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 		if ref == nil {
 			return params
 		}
-		if !p.parseArraySuffix(ref) {
-			return nil
-		}
 		p.advance()
 		currentType = *ref
 
@@ -243,8 +240,8 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.advance()
 			p.advance()
 
-			if p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_STAR ||
-				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC || p.peek.Type == lexer.TOKEN_DOT || p.peek.Type == lexer.TOKEN_LBRACKET)) {
+			if p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_LBRACKET ||
+				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC || p.peek.Type == lexer.TOKEN_DOT)) {
 				break
 			}
 
@@ -316,10 +313,6 @@ func (p *Parser) parseReturnTypes(header, extern bool) []ast.TypeRef {
 				return nil
 			}
 
-			if !p.parseArraySuffix(rType) {
-				return nil
-			}
-
 			returnTypes = append(returnTypes, *rType)
 
 			if p.peek.Type == lexer.TOKEN_COMMA {
@@ -336,10 +329,6 @@ func (p *Parser) parseReturnTypes(header, extern bool) []ast.TypeRef {
 	} else if p.isStartType() || p.current.Type == lexer.TOKEN_STAR {
 		rType := p.parseTypeDefinitionPrefix()
 		if rType == nil {
-			return nil
-		}
-
-		if !p.parseArraySuffix(rType) {
 			return nil
 		}
 
@@ -362,7 +351,7 @@ func (p *Parser) parseFuncTypePrefix() *ast.TypeRef {
 				return nil
 			}
 			paramType := p.parseTypeDefinitionPrefix()
-			if paramType == nil || !p.parseArraySuffix(paramType) {
+			if paramType == nil {
 				return nil
 			}
 			ref.FuncParams = append(ref.FuncParams, *paramType)

@@ -63,7 +63,7 @@ public func demo() {
 
   // `sprintf` writes into a buffer you provide (an array passes as a slice,
   // see collections.wsp) and returns how many bytes it wrote. It fails with NoSpace if the buffer is too small.
-  char[32] buffer;
+  [32]char buffer;
   let size, problem = fmt.sprintf(buffer, "{} + {} = {}", 2, 3, 5);
   fmt.printf("sprintf wrote {} bytes: {}\n", size, string(buffer[:size]));
   fmt.printf("a fitting format reports a problem: {}\n", problem != null);

@@ -146,6 +146,8 @@ func (a *Analyser) pendingLinks() bool {
 }
 
 func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) Type {
+	var result Type
+
 	if ref.IsFunc {
 		params := make([]Type, len(ref.FuncParams))
 		for i, p := range ref.FuncParams {
@@ -155,14 +157,10 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		for i, r := range ref.FuncReturns {
 			returns[i] = a.resolveTypeRef(node, scope, r)
 		}
-		return &FuncType{Params: params, Returns: returns, Fallible: ref.FuncFallible}
-	}
-
-	var result Type
-
-	if primitives[ref.Name] {
+		result = &FuncType{Params: params, Returns: returns, Fallible: ref.FuncFallible}
+	} else if primitives[ref.Name] {
 		result = PrimitiveType{Name: ref.Name}
-	} else if ref.Name == "void" && ref.Module == "" && ref.PointerDepth > 0 && len(ref.Dims) == 0 {
+	} else if ref.Name == "void" && ref.Module == "" && len(ref.Layers) > 0 && ref.Layers[len(ref.Layers)-1].Pointer {
 		result = VoidType{}
 	} else {
 		symbol, ok := a.lookupType(scope, ref.Module, ref.Name)
@@ -181,22 +179,21 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		}
 	}
 
-	for _, v := range slices.Backward(ref.Dims) {
-		if v.IsSpan {
+	for _, layer := range slices.Backward(ref.Layers) {
+		switch {
+		case layer.Pointer:
+			result = PointerType{Element: result}
+		case layer.IsSpan:
 			result = SpanType{Element: result}
-		} else if v.Expr != nil {
-			size, ok := a.arraySize(v.Expr)
+		case layer.Expr != nil:
+			size, ok := a.arraySize(layer.Expr)
 			if !ok {
 				return nil
 			}
 			result = ArrayType{Element: result, Size: size}
-		} else {
-			result = ArrayType{Element: result, Size: v.Size}
+		default:
+			result = ArrayType{Element: result, Size: layer.Size}
 		}
-	}
-
-	for i := 0; i < ref.PointerDepth; i++ {
-		result = PointerType{Element: result}
 	}
 
 	return result

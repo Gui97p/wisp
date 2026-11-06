@@ -44,7 +44,7 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		lexer.TOKEN_BOOL,
 		lexer.TOKEN_CHAR:
 		stmt = p.parseVarStatement()
-	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN:
+	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACKET:
 		if p.looksLikeTypeDeclaration() {
 			stmt = p.parseVarStatement()
 		} else {
@@ -248,9 +248,6 @@ func (p *Parser) parseVarStatement() ast.Statement {
 	if p.current.Type != lexer.TOKEN_LET {
 		ref := p.parseTypeDefinitionPrefix()
 		if ref == nil {
-			return nil
-		}
-		if !p.parseArraySuffix(ref) {
 			return nil
 		}
 		p.advance()

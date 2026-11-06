@@ -43,7 +43,7 @@ public func demo() {
   fmt.printf("partial is at {}, {}\n", partial.x, partial.y);
 
   // Structs can sit in arrays.
-  Point[2] corners;
+  [2]Point corners;
   corners[1].x = 7;
   fmt.printf("corners[0].x = {}, corners[1].x = {}\n", corners[0].x, corners[1].x);
 }

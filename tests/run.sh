@@ -38,6 +38,11 @@ for dir in "$ROOT"/*/; do
     else
         flags=(--bin "$OUT/bin/$name" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name")
     fi
+    envs=()
+    if [[ -f "$dir/env.txt" ]]; then
+        read -r -a envs <"$dir/env.txt"
+    fi
+
     if [[ "$TARGET" != "cc" ]]; then
         if [[ -f "$dir/lib.c" ]]; then
             mkdir -p "$OUT/c"
@@ -61,7 +66,7 @@ for dir in "$ROOT"/*/; do
                 "$OUT/bin/$name" >>"$out.raw"
         ) 2>"$err"
     else
-        (cd "$dir" && timeout 120 "$WISP" run --target "$TARGET" "${flags[@]}") >"$out.raw" 2>"$err"
+        (cd "$dir" && env "${envs[@]}" timeout 120 "$WISP" run --target "$TARGET" "${flags[@]}") >"$out.raw" 2>"$err"
     fi
     code=$?
 

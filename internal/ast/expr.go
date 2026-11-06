@@ -82,7 +82,7 @@ type TypeLabel struct {
 
 func (*TypeLabel) expr() {}
 func (t *TypeLabel) Tree(indent string) string {
-	return fmt.Sprintf("%sTypeLabel(%s%s)\n", indent, strings.Repeat("*", t.Type.PointerDepth), t.Type.Name)
+	return fmt.Sprintf("%sTypeLabel(%s)\n", indent, t.Type.String())
 }
 
 type CallExpr struct {
@@ -307,7 +307,7 @@ func (*ConvExpr) expr() {}
 func (c *ConvExpr) Tree(indent string) string {
 	var b strings.Builder
 
-	fmt.Fprintf(&b, "%sConvExpr(%s%s)\n", indent, strings.Repeat("*", c.Type.PointerDepth), c.Type.Name)
+	fmt.Fprintf(&b, "%sConvExpr(%s)\n", indent, c.Type.String())
 	for _, a := range c.Args {
 		b.WriteString(a.Tree(indent + "└─ "))
 	}

@@ -81,7 +81,7 @@ public func demo() {
   // and the element; with a single name you get
   // just the index. A variable you never use is reported, and a name that is
   // just `_` (or starts with one) says you meant to leave it out.
-  int[3] values = [10, 20, 30];
+  [3]int values = [10, 20, 30];
   int total;
   for index, v in values {
     fmt.printf("values[{}] = {}\n", index, v);

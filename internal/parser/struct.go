@@ -57,9 +57,6 @@ func (p *Parser) parseStructParamList() []ast.Param {
 		if ref == nil {
 			return params
 		}
-		if !p.parseArraySuffix(ref) {
-			return nil
-		}
 		p.advance()
 		currentType := *ref
 

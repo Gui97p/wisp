@@ -15,7 +15,7 @@ struct Settings {
 
 int counter = 0;
 string name = "wisp";
-int[3] table = [1, 2, 3];
+[3]int table = [1, 2, 3];
 Settings settings = Settings{retries: 3, verbose: true};
 int untouched;
 

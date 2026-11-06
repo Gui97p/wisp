@@ -73,26 +73,48 @@ type Position struct {
 	Line, Col, EndLine, EndCol int
 }
 
-type ArrayDim struct {
-	IsSpan bool
-	Size   int64
-	Expr   Expression
-	Text   string
+type TypeLayer struct {
+	Pointer bool
+	IsSpan  bool
+	Size    int64
+	Expr    Expression
+	Text    string
 }
 
 type TypeRef struct {
-	Module       string
-	Name         string
-	PointerDepth int
+	Module string
+	Name   string
 
 	Line, Col, EndLine, EndCol int
 
-	Dims []ArrayDim
+	Layers []TypeLayer
 
 	IsFunc       bool
 	FuncParams   []TypeRef
 	FuncReturns  []TypeRef
 	FuncFallible bool
+}
+
+func (t *TypeRef) String() string {
+	var b strings.Builder
+	for _, layer := range t.Layers {
+		switch {
+		case layer.Pointer:
+			b.WriteString("*")
+		case layer.IsSpan:
+			b.WriteString("[]")
+		case layer.Expr != nil:
+			fmt.Fprintf(&b, "[%s]", layer.Text)
+		default:
+			fmt.Fprintf(&b, "[%d]", layer.Size)
+		}
+	}
+	if t.Module != "" {
+		b.WriteString(t.Module)
+		b.WriteString(".")
+	}
+	b.WriteString(t.Name)
+	return b.String()
 }
 
 func (t *TypeRef) Tree(indent string) string {
@@ -104,18 +126,18 @@ func (t *TypeRef) Tree(indent string) string {
 		fmt.Fprintf(&b, "%s├─ Module\n%s│  %s\n", indent, indent, t.Module)
 	}
 	fmt.Fprintf(&b, "%s├─ Name\n%s│  %s\n", indent, indent, t.Name)
-	fmt.Fprintf(&b, "%s├─ PointerDepth\n%s│  %d\n", indent, indent, t.PointerDepth)
 
-	for k, dim := range t.Dims {
-		fmt.Fprintf(&b, "%s├─ ArrayDim(%d)\n", indent, k)
-		if dim.IsSpan {
-			fmt.Fprintf(&b, "%s│  └─ IsSpan\n%s│     true\n", indent, indent)
-		} else {
-			if dim.Expr != nil {
-				fmt.Fprintf(&b, "%s│  └─ ArraySize\n%s│     %s\n", indent, indent, dim.Text)
-			} else {
-				fmt.Fprintf(&b, "%s│  └─ ArraySize\n%s│     %d\n", indent, indent, dim.Size)
-			}
+	for k, layer := range t.Layers {
+		fmt.Fprintf(&b, "%s├─ Layer(%d)\n", indent, k)
+		switch {
+		case layer.Pointer:
+			fmt.Fprintf(&b, "%s│  └─ Pointer\n", indent)
+		case layer.IsSpan:
+			fmt.Fprintf(&b, "%s│  └─ Span\n", indent)
+		case layer.Expr != nil:
+			fmt.Fprintf(&b, "%s│  └─ ArraySize\n%s│     %s\n", indent, indent, layer.Text)
+		default:
+			fmt.Fprintf(&b, "%s│  └─ ArraySize\n%s│     %d\n", indent, indent, layer.Size)
 		}
 	}
 

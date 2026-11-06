@@ -6,7 +6,7 @@ public const {
 	MaxFloat = 1400;
 }
 
-func formatUnsigned(char[] buf, uint n, int base, bool upper) !string {
+func formatUnsigned([]char buf, uint n, int base, bool upper) !string {
     int i = 0;
     string digits = upper
         ? "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -45,7 +45,7 @@ func formatUnsigned(char[] buf, uint n, int base, bool upper) !string {
     return string(buf[0:i]);
 }
 
-public func formatInt(char[] buf, int n, base, bool upper) !string {
+public func formatInt([]char buf, int n, base, bool upper) !string {
 	if !(base in 2..36) {
 		return Error(errors.Kind.Invalid);
 	}
@@ -64,18 +64,18 @@ public func formatInt(char[] buf, int n, base, bool upper) !string {
 	return string(buf[0:len(digits)+1]);
 }
 
-public func formatUint(char[] buf, uint n, int base, bool upper) !string {
+public func formatUint([]char buf, uint n, int base, bool upper) !string {
 	if !(base in 2..36) {
 		return Error(errors.Kind.Invalid);
 	}
 	return formatUnsigned(buf, n, base, upper)!;
 }
 
-public func itoa(char[] buf, int n) !string {
+public func itoa([]char buf, int n) !string {
 	return formatInt(buf, n, 10, false)!;
 }
 
-public func utoa(char[] buf, uint n) !string {
+public func utoa([]char buf, uint n) !string {
 	return formatUint(buf, n, 10, false)!;
 }
 

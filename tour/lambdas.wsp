@@ -13,9 +13,9 @@
 // a local of the function that contains it. When a callback needs some state,
 // pass it as a parameter, the way C passes a `void *`.
 //
-// `type Step (int) => int;` gives a function type a name, which is also how
-// you write an array of them: `Step[2]`. A plain function converts to the
-// named type. A function value can be `null`, and calling a null one stops the
+// `type Step (int) => int;` gives a function type a name, which is handy in
+// an array of them: `[2]Step`. The type can also be written in place,
+// as in `[2](int) => int`. A plain function converts to the named type. A function value can be `null`, and calling a null one stops the
 // program the way a null pointer does.
 
 import "std/fmt";
@@ -49,7 +49,7 @@ public func demo() {
   Op add = Op{name: "add", apply: (int a, int b) int => a + b};
   fmt.printf("{}(2, 3) = {}\n", add.name, add.apply(2, 3));
 
-  Step[2] table = [inc, dec];
+  [2]Step table = [inc, dec];
   fmt.printf("table[0](5) = {}, table[1](5) = {}\n", table[0](5), table[1](5));
 
   Step none = null;

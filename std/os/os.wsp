@@ -20,11 +20,11 @@ public func write(int fd, string s) !int {
 	return writeRaw(fd, (*char)(s), len(s))!;
 }
 
-public func writeBytes(int fd, char[] buf) !int {
+public func writeBytes(int fd, []char buf) !int {
 	return writeRaw(fd, (*char)(buf), len(buf))!;
 }
 
-public func read(int fd, char[] buf) !int {
+public func read(int fd, []char buf) !int {
 	int r;
 	loop {
 		r = sys.read(fd, (*char)(buf), len(buf));

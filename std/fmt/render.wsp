@@ -7,7 +7,7 @@ internal struct Piece {
 	string body;
 }
 
-func number(char[] buf, uint mag, bool neg, spec.Spec s) !Piece {
+func number([]char buf, uint mag, bool neg, spec.Spec s) !Piece {
 	Piece piece;
 	int base = switch s.kind {
 		case 'x', 'X' => 16;
@@ -29,7 +29,7 @@ func number(char[] buf, uint mag, bool neg, spec.Spec s) !Piece {
 	return piece;
 }
 
-internal func renderInt(char[] buf, int v, spec.Spec s) !Piece {
+internal func renderInt([]char buf, int v, spec.Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		buf[0] = char(v);
@@ -44,7 +44,7 @@ internal func renderInt(char[] buf, int v, spec.Spec s) !Piece {
 	return number(buf, uint(-(v+1)) + 1, true, s)!;
 }
 
-internal func renderUint(char[] buf, uint v, spec.Spec s) !Piece {
+internal func renderUint([]char buf, uint v, spec.Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		buf[0] = char(v);
@@ -54,7 +54,7 @@ internal func renderUint(char[] buf, uint v, spec.Spec s) !Piece {
 	return number(buf, v, false, s)!;
 }
 
-internal func renderChar(char[] buf, char c, spec.Spec s) !Piece {
+internal func renderChar([]char buf, char c, spec.Spec s) !Piece {
 	Piece piece;
 
 	switch s.kind {
@@ -68,7 +68,7 @@ internal func renderChar(char[] buf, char c, spec.Spec s) !Piece {
 	return piece;
 }
 
-internal func renderPointer(char[] buf, *void v, spec.Spec s) !Piece {
+internal func renderPointer([]char buf, *void v, spec.Spec s) !Piece {
 	spec.Spec t = s;
 	t.kind = 'x';
 	t.alt = true;
@@ -87,7 +87,7 @@ internal func renderString(string t, spec.Spec s) Piece {
 	return piece;
 }
 
-internal func renderFloat(char[] buf, float x, spec.Spec s, bool single) !Piece {
+internal func renderFloat([]char buf, float x, spec.Spec s, bool single) !Piece {
 	Piece piece;
 	string view;
 	int prec = s.precision == -1 ? 6 : s.precision;

@@ -11,12 +11,21 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 		return nil
 	}
 
-	if p.current.Type == lexer.TOKEN_LPAREN {
-		return p.parseFuncTypePrefix()
+	layers, ok := p.parseTypeLayers()
+	if !ok {
+		return nil
 	}
 
-	ref := &ast.TypeRef{}
-	ref.PointerDepth = p.parsePointerDepth()
+	if p.current.Type == lexer.TOKEN_LPAREN {
+		ref := p.parseFuncTypePrefix()
+		if ref == nil {
+			return nil
+		}
+		ref.Layers = layers
+		return ref
+	}
+
+	ref := &ast.TypeRef{Layers: layers}
 	ref.Name = p.current.Literal
 	ref.Line, ref.Col, ref.EndLine, ref.EndCol = p.currentIdentPos()
 	if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_DOT {
@@ -32,42 +41,50 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 	return ref
 }
 
-func (p *Parser) parseArraySuffix(ref *ast.TypeRef) bool {
-	ref.Dims = nil
+func (p *Parser) parseTypeLayers() ([]ast.TypeLayer, bool) {
+	var layers []ast.TypeLayer
 
-	for p.peek.Type == lexer.TOKEN_LBRACKET {
-		p.advance()
-		if p.peek.Type == lexer.TOKEN_RBRACKET {
+	for {
+		switch p.current.Type {
+		case lexer.TOKEN_STAR:
+			layers = append(layers, ast.TypeLayer{Pointer: true})
 			p.advance()
-			ref.Dims = append(ref.Dims, ast.ArrayDim{IsSpan: true})
-			continue
-		}
+		case lexer.TOKEN_LBRACKET:
+			if p.peek.Type == lexer.TOKEN_RBRACKET {
+				p.advance()
+				p.advance()
+				layers = append(layers, ast.TypeLayer{IsSpan: true})
+				continue
+			}
 
-		p.advance()
-		size := p.parseExpression()
-		if size == nil {
-			return false
-		}
+			p.advance()
+			size := p.parseExpression()
+			if size == nil {
+				return nil, false
+			}
+			if !p.expect(lexer.TOKEN_RBRACKET) {
+				return nil, false
+			}
+			p.advance()
 
-		if !p.expect(lexer.TOKEN_RBRACKET) {
-			return false
+			if literal, ok := size.(*ast.IntLiteral); ok {
+				layers = append(layers, ast.TypeLayer{Size: literal.Value})
+				continue
+			}
+			layers = append(layers, ast.TypeLayer{Expr: size, Text: ast.ExprText(size)})
+		default:
+			return layers, true
 		}
-
-		if literal, ok := size.(*ast.IntLiteral); ok {
-			ref.Dims = append(ref.Dims, ast.ArrayDim{Size: literal.Value})
-			continue
-		}
-		ref.Dims = append(ref.Dims, ast.ArrayDim{Expr: size, Text: ast.ExprText(size)})
 	}
-
-	return true
 }
 
 func (p *Parser) looksLikeTypeDeclaration() bool {
 	cp := p.checkpoint()
 	defer p.restore(cp)
 
-	p.parsePointerDepth()
+	if _, ok := p.parseTypeLayers(); !ok {
+		return false
+	}
 
 	switch {
 	case p.isPrimitiveType():
@@ -84,16 +101,6 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 			if !p.expect(lexer.TOKEN_IDENT) {
 				return false
 			}
-		}
-		if p.peek.Type == lexer.TOKEN_IDENT {
-			return true
-		}
-		if p.peek.Type != lexer.TOKEN_LBRACKET {
-			return false
-		}
-		var ref ast.TypeRef
-		if !p.parseArraySuffix(&ref) {
-			return false
 		}
 		return p.peek.Type == lexer.TOKEN_IDENT
 	default:
@@ -146,18 +153,9 @@ func (p *Parser) isPrimitiveType() bool {
 }
 
 func (p *Parser) isStartType() bool {
-	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT || p.current.Type == lexer.TOKEN_LPAREN
+	return p.isPrimitiveType() || p.current.Type == lexer.TOKEN_IDENT || p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_LBRACKET
 }
 
 func (p *Parser) isPointerType() bool {
 	return p.current.Type == lexer.TOKEN_STAR || p.isStartType()
-}
-
-func (p *Parser) parsePointerDepth() int {
-	depth := 0
-	for p.current.Type == lexer.TOKEN_STAR {
-		depth++
-		p.advance()
-	}
-	return depth
 }

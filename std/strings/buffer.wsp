@@ -7,7 +7,7 @@ public enum StringError {
 	NoSpace
 }
 
-public func copy(char[] buf, string s) !string {
+public func copy([]char buf, string s) !string {
 	if len(s) > len(buf) {
 		return Error(StringError.NoSpace);
 	}
@@ -17,7 +17,7 @@ public func copy(char[] buf, string s) !string {
 	return string(buf[:len(s)]);
 }
 
-public func concat(char[] buf, string ...parts) !string {
+public func concat([]char buf, string ...parts) !string {
 	int total;
 	for _, part in parts {
 		copy(buf[total:], part)!;
@@ -26,7 +26,7 @@ public func concat(char[] buf, string ...parts) !string {
 	return string(buf[:total]);
 }
 
-public func join(char[] buf, string[] parts, string sep) !string {
+public func join([]char buf, []string parts, string sep) !string {
 	if len(parts) == 0 {
 		return "";
 	}
@@ -42,7 +42,7 @@ public func join(char[] buf, string[] parts, string sep) !string {
 	return string(buf[:total]);
 }
 
-public func rep(char[] buf, string s, int n) !string {
+public func rep([]char buf, string s, int n) !string {
 	if n <= 0 {
 		return "";
 	}
@@ -60,7 +60,7 @@ public func rep(char[] buf, string s, int n) !string {
 	return string(buf[:total]);
 }
 
-public func replace(char[] buf, string s, old, new, int n) !string {
+public func replace([]char buf, string s, old, new, int n) !string {
 	if old == "" {
 		copy(buf, s)!;
 		return string(buf[:len(s)]);
@@ -88,7 +88,7 @@ public func replace(char[] buf, string s, old, new, int n) !string {
 	return string(buf[:total]);
 }
 
-public func upper(char[] buf, string s) !string {
+public func upper([]char buf, string s) !string {
 	if len(s) > len(buf) {
 		return Error(StringError.NoSpace);
 	}
@@ -97,11 +97,11 @@ public func upper(char[] buf, string s) !string {
 	}
 	return string(buf[:len(s)]);
 }
-public func toUpper(char[] buf) {
+public func toUpper([]char buf) {
 	upper(buf, string(buf))!!;
 }
 
-public func lower(char[] buf, string s) !string {
+public func lower([]char buf, string s) !string {
 	if len(s) > len(buf) {
 		return Error(StringError.NoSpace);
 	}
@@ -110,11 +110,11 @@ public func lower(char[] buf, string s) !string {
 	}
 	return string(buf[:len(s)]);
 }
-public func toLower(char[] buf) {
+public func toLower([]char buf) {
 	lower(buf, string(buf))!!;
 }
 
-public func reverse(char[] buf) {
+public func reverse([]char buf) {
 	int n = len(buf);
 	if n < 2 {
 		return;
@@ -124,11 +124,11 @@ public func reverse(char[] buf) {
 	}
 }
 
-public func clone(string s) !char[] {
+public func clone(string s) ![]char {
 	if len(s) == 0 {
 		return [];
 	}
-	char[] buf = (*char)(mem.alloc(sizeof(char) * len(s))!)[:len(s)];
+	[]char buf = (*char)(mem.alloc(sizeof(char) * len(s))!)[:len(s)];
 	copy(buf, s)!;
 	return buf;
 }

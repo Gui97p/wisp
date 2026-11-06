@@ -1,7 +1,7 @@
 import "std/math";
 
 internal struct Decimal {
-	uint[1100] d;
+	[1100]uint d;
 	int n, dp;
 }
 

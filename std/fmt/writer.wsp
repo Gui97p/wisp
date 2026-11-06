@@ -23,7 +23,7 @@ public enum BufMode {
 
 public struct Writer {
 	int fd;
-	char[] buf;
+	[]char buf;
 	BufMode mode;
 	internal int len, total;
 }
@@ -80,7 +80,7 @@ public func (*Writer w) write(string s) ! {
 public func (*Writer w) writeByte(char c) ! {
 	w.put(&c, 1)!;
 }
-public func (*Writer w) writeBytes(char[] data) ! {
+public func (*Writer w) writeBytes([]char data) ! {
 	w.put((*char)(data), len(data))!;
 }
 public func (*Writer w) fill(char c, int n) ! {
@@ -134,21 +134,21 @@ func (*Writer w) writePiece(render.Piece p, spec.Spec s, bool numeric) ! {
 	}
 }
 
-func (*Writer w) putInt(char[] buf, int v, spec.Spec s) !bool {
+func (*Writer w) putInt([]char buf, int v, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Int) ?? return false;
 	render.Piece piece = render.renderInt(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putUint(char[] buf, uint v, spec.Spec s) !bool {
+func (*Writer w) putUint([]char buf, uint v, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Uint) ?? return false;
 	render.Piece piece = render.renderUint(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putChar(char[] buf, char v, spec.Spec s) !bool {
+func (*Writer w) putChar([]char buf, char v, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Char) ?? return false;
 	render.Piece piece = render.renderChar(buf, v, s)!;
 	w.writePiece(piece, s, false)!;
@@ -169,14 +169,14 @@ func (*Writer w) putString(string v, spec.Spec s) !bool {
 	return true;
 }
 
-func (*Writer w) putPointer(char[] buf, *void v, spec.Spec s) !bool {
+func (*Writer w) putPointer([]char buf, *void v, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Pointer) ?? return false;
 	render.Piece piece = render.renderPointer(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putFloat(char[] buf, float x, spec.Spec s, bool single) !bool {
+func (*Writer w) putFloat([]char buf, float x, spec.Spec s, bool single) !bool {
 	spec.validate(s, spec.Value.Float) ?? return false;
 	render.Piece piece = render.renderFloat(buf, x, s, single)!;
 	spec.Spec copy = s;
@@ -187,7 +187,7 @@ func (*Writer w) putFloat(char[] buf, float x, spec.Spec s, bool single) !bool {
 	return true;
 }
 
-func (*Writer w) putError(char[] buf, Error e, spec.Spec s) !bool {
+func (*Writer w) putError([]char buf, Error e, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Error) ?? return false;
 	if e == null {
 		w.write("<null error>")!;
@@ -213,7 +213,7 @@ func (*Writer w) putError(char[] buf, Error e, spec.Spec s) !bool {
 }
 
 public func (*Writer w) format(string format, ...args) !int {
-	char[conv.MaxDigits] buf;
+	[conv.MaxDigits]char buf;
 	int argIndex;
 	Error problem;
 	cursor.Cursor c = cursor.Cursor{text: format};
@@ -282,8 +282,8 @@ public func (*Writer w) format(string format, ...args) !int {
 			case bool:  ok = w.putBool(v, s)!;
 			case string: ok = w.putString(v, s)!;
 			case *void: ok = w.putPointer(buf, v, s)!;
-			case float64: char[conv.MaxFloat] fBuf; ok = w.putFloat(fBuf, v, s, false)!;
-			case float32: char[conv.MaxFloat] fBuf; ok = w.putFloat(fBuf, v, s, true)!;
+			case float64: [conv.MaxFloat]char fBuf; ok = w.putFloat(fBuf, v, s, false)!;
+			case float32: [conv.MaxFloat]char fBuf; ok = w.putFloat(fBuf, v, s, true)!;
 			case Error: ok = w.putError(buf, v, s)!;
 			default:    bad = Error(FormatError.UnsupportedType);
 		}

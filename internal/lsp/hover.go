@@ -539,23 +539,7 @@ func refText(ref ast.TypeRef) string {
 		return text.String()
 	}
 
-	var text strings.Builder
-	text.WriteString(strings.Repeat("*", ref.PointerDepth))
-	if ref.Module != "" {
-		text.WriteString(ref.Module)
-		text.WriteString(".")
-	}
-	text.WriteString(ref.Name)
-	for _, dim := range ref.Dims {
-		if dim.IsSpan {
-			text.WriteString("[]")
-		} else if dim.Expr != nil {
-			fmt.Fprintf(&text, "[%s]", dim.Text)
-		} else {
-			fmt.Fprintf(&text, "[%d]", dim.Size)
-		}
-	}
-	return text.String()
+	return ref.String()
 }
 
 func declMemberHover(program *ast.Program, line, col int) (string, *protocol.Range) {

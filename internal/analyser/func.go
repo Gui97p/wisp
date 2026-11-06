@@ -168,11 +168,11 @@ func (a *Analyser) checkMainFunc(fd *ast.FuncDecl) {
 		t := a.resolveTypeRef(fd, a.scope, fd.Params[0].Type)
 		want := SpanType{Element: PrimitiveType{Name: "string"}}
 		if t != nil && !t.Equals(want) {
-			a.errorf(fd, "main takes the arguments as string[], got %s", t.String())
+			a.errorf(fd, "main takes the arguments as []string, got %s", t.String())
 		}
 		params = append(params, want)
 	default:
-		a.error(fd, "main takes no parameters, or a single string[] with the arguments")
+		a.error(fd, "main takes no parameters, or a single []string with the arguments")
 	}
 
 	returns := []Type{}

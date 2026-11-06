@@ -2,7 +2,7 @@ import "std/errors";
 import "std/mem";
 
 public struct Fixed {
-	char[] buffer;
+	[]char buffer;
 	internal int bUsed;
 }
 

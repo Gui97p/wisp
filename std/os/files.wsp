@@ -5,7 +5,7 @@ import "std/errors";
 import "std/mem";
 
 public func open(string p, int flags) !int {
-	char[4096] buf;
+	[4096]char buf;
 	if len(p) > 4095 {
 		return Error(errors.Kind.Invalid);
 	}
@@ -22,7 +22,7 @@ public func create(string p) !int {
 }
 
 public func remove(string p) ! {
-	char[4096] buf;
+	[4096]char buf;
 	if len(p) > 4095 {
 		return Error(errors.Kind.Invalid);
 	}
@@ -33,7 +33,7 @@ public func remove(string p) ! {
 	}
 }
 
-public func readFile(string p) !char[] {
+public func readFile(string p) ![]char {
 	int fd = open(p, global.READ)!;
 	defer os.close(fd);
 	int size = os.size(fd)!;
@@ -42,7 +42,7 @@ public func readFile(string p) !char[] {
 	}
 	*char alloc = mem.alloc(size)!;
 	defer! mem.free(alloc);
-	char[] buf = alloc[0:size];
+	[]char buf = alloc[0:size];
 	int total;
 	loop {
 		int r = os.read(fd, buf[total:])!;
@@ -58,7 +58,7 @@ public func rename(string from, to) ! {
 	if len(to) > 4095 {
 		return Error(errors.Kind.Invalid);
 	}
-	char[4096] fromBuf, toBuf;
+	[4096]char fromBuf, toBuf;
 	global.copypath((*char)(fromBuf), from);
 	global.copypath((*char)(toBuf), to);
 	int r = sys.rename((*char)(fromBuf), (*char)(toBuf));
@@ -71,7 +71,7 @@ public func stat(string p) !global.Stat {
 	if len(p) > 4095 {
 		return Error(errors.Kind.Invalid);
 	}
-	char[4096] buf;
+	[4096]char buf;
 	global.copypath((*char)(buf), p);
 	
 	sys.Stat s;
@@ -94,7 +94,7 @@ public func exists(string p) bool {
 	return true;
 }
 
-public func cwd(char[] buf) !string {
+public func cwd([]char buf) !string {
 	int r = sys.getcwd((*char)(buf), len(buf));
 	if r < 0 {
 		return global.errorIO(sys.errno(r));

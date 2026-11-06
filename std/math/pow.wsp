@@ -40,9 +40,9 @@ const {
 	ivln2_l = 1.92596299112661746887e-08;
 }
 
-float[2] bp = [1.0, 1.5];
-float[2] dp_h = [0.0, 5.84962487220764160156e-01];
-float[2] dp_l = [0.0, 1.35003920212974897128e-08];
+[2]float bp = [1.0, 1.5];
+[2]float dp_h = [0.0, 5.84962487220764160156e-01];
+[2]float dp_l = [0.0, 1.35003920212974897128e-08];
 
 public func fpow(float x, float y) float {
 	uint uhx = ieee.highWord(x);

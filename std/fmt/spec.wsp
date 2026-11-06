@@ -40,7 +40,7 @@ internal func parse(string text) !Spec {
 	if len(text) == 0 {
 		return spec;
 	}
-	char[3] aligns = ['<', '>', '^'];
+	[3]char aligns = ['<', '>', '^'];
 	const kinds = "dxXbocpeEfv";
 	
 	cursor.Cursor c = cursor.Cursor{text: text};

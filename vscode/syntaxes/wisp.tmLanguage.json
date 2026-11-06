@@ -185,12 +185,9 @@
                     ]
                 },
                 {
-                    "begin": "\\b(u?int(?:8|16|32|64)?|float(?:32|64)|bool|char|string|void)((?:\\s*\\[[^\\]]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)(?=\\s*[=;,)])",
+                    "begin": "((?:\\[[^\\]]*\\]\\s*|\\*\\s*)*)\\b(u?int(?:8|16|32|64)?|float(?:32|64)|bool|char|string|void)\\s+([A-Za-z_][A-Za-z0-9_]*)(?=\\s*[=;,)])",
                     "beginCaptures": {
                         "1": {
-                            "name": "storage.type.primitive.wisp"
-                        },
-                        "2": {
                             "patterns": [
                                 {
                                     "include": "#delimiters"
@@ -199,6 +196,9 @@
                                     "include": "#numbers"
                                 }
                             ]
+                        },
+                        "2": {
+                            "name": "storage.type.primitive.wisp"
                         },
                         "3": {
                             "name": "variable.other.readwrite.wisp"
@@ -212,12 +212,9 @@
                     ]
                 },
                 {
-                    "begin": "\\b([A-Z][A-Za-z0-9_]*)((?:\\s*\\[[^\\]]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)(?=\\s*[=;,)])",
+                    "begin": "((?:\\[[^\\]]*\\]\\s*|\\*\\s*)*)\\b([A-Z][A-Za-z0-9_]*)\\s+([A-Za-z_][A-Za-z0-9_]*)(?=\\s*[=;,)])",
                     "beginCaptures": {
                         "1": {
-                            "name": "entity.name.type.wisp"
-                        },
-                        "2": {
                             "patterns": [
                                 {
                                     "include": "#delimiters"
@@ -226,6 +223,9 @@
                                     "include": "#numbers"
                                 }
                             ]
+                        },
+                        "2": {
+                            "name": "entity.name.type.wisp"
                         },
                         "3": {
                             "name": "variable.other.readwrite.wisp"
@@ -301,8 +301,12 @@
                 {
                     "begin": "\\b(native)(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*(\\()",
                     "beginCaptures": {
-                        "1": { "name": "keyword.other.native.wisp" },
-                        "2": { "name": "entity.name.function.wisp" }
+                        "1": {
+                            "name": "keyword.other.native.wisp"
+                        },
+                        "2": {
+                            "name": "entity.name.function.wisp"
+                        }
                     },
                     "end": "\\)",
                     "patterns": [
@@ -506,12 +510,9 @@
                     "include": "#comments"
                 },
                 {
-                    "match": "\\b(u?int(?:8|16|32|64)?|float(?:32|64)|bool|char|string|void)((?:\\s*\\[[^\\]]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+                    "match": "((?:\\[[^\\]]*\\]\\s*|\\*\\s*)*)\\b(u?int(?:8|16|32|64)?|float(?:32|64)|bool|char|string|void)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
                     "captures": {
                         "1": {
-                            "name": "storage.type.primitive.wisp"
-                        },
-                        "2": {
                             "patterns": [
                                 {
                                     "include": "#delimiters"
@@ -520,6 +521,9 @@
                                     "include": "#numbers"
                                 }
                             ]
+                        },
+                        "2": {
+                            "name": "storage.type.primitive.wisp"
                         },
                         "3": {
                             "name": "variable.other.readwrite.wisp"
@@ -527,12 +531,9 @@
                     }
                 },
                 {
-                    "match": "\\b([A-Z][A-Za-z0-9_]*)((?:\\s*\\[[^\\]]*\\])*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+                    "match": "((?:\\[[^\\]]*\\]\\s*|\\*\\s*)*)\\b([A-Z][A-Za-z0-9_]*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
                     "captures": {
                         "1": {
-                            "name": "entity.name.type.wisp"
-                        },
-                        "2": {
                             "patterns": [
                                 {
                                     "include": "#delimiters"
@@ -541,6 +542,9 @@
                                     "include": "#numbers"
                                 }
                             ]
+                        },
+                        "2": {
+                            "name": "entity.name.type.wisp"
                         },
                         "3": {
                             "name": "variable.other.readwrite.wisp"

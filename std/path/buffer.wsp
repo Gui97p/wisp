@@ -2,7 +2,7 @@ import "std/strings";
 import "std/path";
 import "std/math";
 
-public func join(char[] buf, string ...parts) !string {
+public func join([]char buf, string ...parts) !string {
 	int total;
 	bool seen, firstPassed;
 
@@ -32,7 +32,7 @@ public func join(char[] buf, string ...parts) !string {
 	return string(buf[:total]);
 }
 
-public func clean(char[] buf, string p) !string {	
+public func clean([]char buf, string p) !string {	
 	int total, depth;
 	bool abs = path.isAbs(p);
 	if abs {

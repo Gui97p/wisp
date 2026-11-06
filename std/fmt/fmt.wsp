@@ -2,7 +2,7 @@ import "std/os";
 import "std/fmt/writer";
 
 public func fprint(int fd, string text) {
-	char[512] buf;
+	[512]char buf;
 	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
 
 	w.write(text) ?? return;
@@ -10,7 +10,7 @@ public func fprint(int fd, string text) {
 }
 
 public func fprintln(int fd, string text) {
-	char[512] buf;
+	[512]char buf;
 	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
 
 	w.write(text) ?? return;
@@ -19,7 +19,7 @@ public func fprintln(int fd, string text) {
 }
 
 public func fprintf(int fd, string format, ...args) !int {
-	char[512] buf;
+	[512]char buf;
 	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
 
 	let r, p = w.format(format, args...);
@@ -34,7 +34,7 @@ public func fprintf(int fd, string format, ...args) !int {
 }
 
 public func print(string text) {
-	char[512] buf;
+	[512]char buf;
 	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf[:], mode: .Full};
 
 	w.write(text) ?? return;
@@ -42,7 +42,7 @@ public func print(string text) {
 }
 
 public func println(string text) {
-	char[512] buf;
+	[512]char buf;
 	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf[:], mode: .Full};
 
 	w.write(text) ?? return;
@@ -54,14 +54,14 @@ public func printf(string format, ...args) {
 	fprintf(os.STDOUT, format, args...) ?? return;
 }
 
-public func sprint(char[] buf, string text) ! {
+public func sprint([]char buf, string text) ! {
 	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.flush() ?? return;
 }
 
-public func sprintln(char[] buf, string text) {
+public func sprintln([]char buf, string text) {
 	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
@@ -69,7 +69,7 @@ public func sprintln(char[] buf, string text) {
 	w.flush() ?? return;
 }
 
-public func sprintf(char[] buf, string format, ...args) !int {
+public func sprintf([]char buf, string format, ...args) !int {
 	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
 
 	let r, p = w.format(format, args...);
