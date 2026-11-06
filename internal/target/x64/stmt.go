@@ -162,7 +162,9 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 	}
 
 	t.returnValue(ops, t.funcReturns, t.hidden)
-	t.text.printlnt("jmp .return")
+	if stmt != t.lastReturn {
+		t.text.printlnt("jmp .return")
+	}
 
 	return nil
 }
@@ -267,10 +269,15 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 	}
 
 	if c.Bool || !folded {
+		endsInReturn := false
+		l := len(stmt.Then.Statements)
+		if l > 0 && isReturn(stmt.Then.Statements[l-1]) {
+			endsInReturn = true
+		}
 		if err := t.compileStatement(stmt.Then); err != nil {
 			return err
 		}
-		if !folded {
+		if !(folded || endsInReturn) {
 			t.text.printft("jmp %s\n", endLabel)
 		}
 	}

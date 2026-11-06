@@ -241,12 +241,17 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	}
 
 	t.deferScopes = nil
+	l := len(body.Statements)
+	t.endsInReturn = l > 0 && isReturn(body.Statements[l-1])
+	if t.endsInReturn {
+		t.lastReturn = body.Statements[l-1]
+	}
 	if err := t.compileStatement(body); err != nil {
 		return err
 	}
 
 	t.text.newLine()
-	if fallible && len(t.funcReturns) == 1 {
+	if fallible && len(t.funcReturns) == 1 && !t.endsInReturn {
 		t.text.printlnt("xor eax, eax")
 	}
 	t.text.println(".return:")
@@ -288,6 +293,11 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 
 	t.funcName = ""
 	return nil
+}
+
+func isReturn(stmt ast.Statement) bool {
+	_, ok := stmt.(*ast.ReturnStmt)
+	return ok
 }
 
 const descriptorMagic = 0x57495350

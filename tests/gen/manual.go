@@ -5324,6 +5324,153 @@ func main() {
 }
 `, expected: []string{"literal arguments", "variable arguments", "variable arguments in another order", "calls as the first arguments", "arithmetic arguments", "calls as every argument", "nested calls as arguments", "arguments that go to the stack", "variables and stack arguments", "calls around stack arguments", "arguments are evaluated left to right", "a call before a variable sees its change", "a variable is read before a later call changes it", "integer and float arguments", "a string argument", "a struct argument", "recursive calls", "calls to a recursive function as arguments"}},
 
+	{dir: "return_values", src: `import "std/errors";
+
+struct Pair {
+    int a;
+    int b;
+}
+
+int hits;
+
+func constant() int {
+    return 42;
+}
+
+func variable(int x) int {
+    int y = x;
+    return y;
+}
+
+func expression(int a, int b) int {
+    return a * b + a - b;
+}
+
+func nested(int a) int {
+    return expression(a, a + 1) + constant();
+}
+
+func swapped(int a, int b) (int, int) {
+    return b, a;
+}
+
+func both(int a, int b) (int, int) {
+    return a + b, a - b;
+}
+
+func three(int a) (int, int, int) {
+    return a, a * 2, a * 3;
+}
+
+func chained(int a, int b) (int, int) {
+    return swapped(b, a);
+}
+
+func fallible(int a) !int {
+    if a < 0 {
+        return Error(errors.Kind.Invalid);
+    }
+    return a * 2;
+}
+
+func fallibleTwo(int a) !(int, int) {
+    if a < 0 {
+        return Error(errors.Kind.Invalid);
+    }
+    return a, a + 1;
+}
+
+func nothing(int a) ! {
+    if a < 0 {
+        return Error(errors.Kind.Invalid);
+    }
+}
+
+func boolean(int a) bool {
+    return a > 3;
+}
+
+func narrow8(int a) int8 {
+    return int8(a);
+}
+
+func narrowU16(int a) uint16 {
+    return uint16(a);
+}
+
+func pointer(*int p) *int {
+    return p;
+}
+
+func text(int a) string {
+    return a > 0 ? "yes" : "no";
+}
+
+func decimal(int a) float {
+    return float(a) / 2.0;
+}
+
+func pair(int a) Pair {
+    return Pair{a: a, b: a + 1};
+}
+
+func withDefer(int a) int {
+    defer hits++;
+    return a * 3;
+}
+
+func withDeferTwo(int a, int b) (int, int) {
+    defer hits++;
+    return b, a;
+}
+
+func early(int a) int {
+    if a > 10 {
+        return a;
+    }
+    if a > 5 {
+        return a * 2;
+    }
+    return a * 3;
+}
+
+func main() {
+    check(constant() == 42, "return a constant");
+    check(variable(7) == 7, "return a variable");
+    check(expression(3, 4) == 11, "return an expression");
+    check(nested(2) == 2 * 3 + 2 - 3 + 42, "return a call result");
+    let s1, s2 = swapped(1, 2);
+    check(s1 == 2 && s2 == 1, "return two values swapped");
+    let b1, b2 = both(10, 3);
+    check(b1 == 13 && b2 == 7, "return two computed values");
+    let t1, t2, t3 = three(4);
+    check(t1 == 4 && t2 == 8 && t3 == 12, "return three values");
+    let c1, c2 = chained(5, 6);
+    check(c1 == 5 && c2 == 6, "return the values of another call");
+    check((fallible(4) ?? -1) == 8 && (fallible(-1) ?? -1) == -1, "return a value or an error");
+    let f1, f2 = fallibleTwo(3) ?? (0, 0);
+    check(f1 == 3 && f2 == 4, "return two values or an error");
+    int failed = 0;
+    nothing(-1) ?? { failed = 1; };
+    nothing(1) ?? { failed = 2; };
+    check(failed == 1, "return an error without a value");
+    check(boolean(5) && !boolean(1), "return a bool");
+    check(narrow8(200) == -56 && narrow8(5) == 5, "return a narrow signed integer");
+    check(narrowU16(70000) == 4464, "return a narrow unsigned integer");
+    int cell = 9;
+    check(pointer(&cell)@ == 9, "return a pointer");
+    check(text(1) == "yes" && text(-1) == "no", "return a string");
+    check(decimal(5) == 2.5, "return a float");
+    Pair p = pair(8);
+    check(p.a == 8 && p.b == 9, "return a struct");
+    hits = 0;
+    check(withDefer(4) == 12 && hits == 1, "return with a deferred call");
+    let d1, d2 = withDeferTwo(1, 2);
+    check(d1 == 2 && d2 == 1 && hits == 2, "return two values with a deferred call");
+    check(early(20) == 20 && early(7) == 14 && early(1) == 3, "return from several places");
+}
+`, expected: []string{"return a constant", "return a variable", "return an expression", "return a call result", "return two values swapped", "return two computed values", "return three values", "return the values of another call", "return a value or an error", "return two values or an error", "return an error without a value", "return a bool", "return a narrow signed integer", "return a narrow unsigned integer", "return a pointer", "return a string", "return a float", "return a struct", "return with a deferred call", "return two values with a deferred call", "return from several places"}},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;

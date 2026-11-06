@@ -51,10 +51,12 @@ type X64Target struct {
 	line, col       int
 	endLine, endCol int
 
-	labels      map[string]int
-	funcReturns []analyser.Type
-	fallible    bool
-	hidden      Mem
+	labels       map[string]int
+	funcReturns  []analyser.Type
+	fallible     bool
+	endsInReturn bool
+	lastReturn   ast.Statement
+	hidden       Mem
 
 	deferScopes []*deferScope
 	lambdas     []pendingLambda

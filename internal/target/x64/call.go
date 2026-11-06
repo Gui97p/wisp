@@ -255,6 +255,11 @@ func (t *X64Target) returnValue(ops []Operand, types []analyser.Type, hidden Mem
 		t.ctx.FreeRegister(p)
 		t.loadWord(x64context.AX, hidden)
 	} else {
+		if t.registerReturn(types) {
+			t.moveTo(x64context.ReturnOrder[:len(ops)], ops, nil)
+			return
+		}
+
 		for _, op := range ops {
 			t.pushValue(op)
 		}
@@ -277,6 +282,19 @@ func (t *X64Target) returnValue(ops []Operand, types []analyser.Type, hidden Mem
 			t.pop(r)
 		}
 	}
+}
+
+func (t *X64Target) registerReturn(types []analyser.Type) bool {
+	if len(types) > len(x64context.ReturnOrder) {
+		return false
+	}
+	for _, tp := range types {
+		classes := classify(tp)
+		if len(classes) != 1 || classes[0] != x64context.Int {
+			return false
+		}
+	}
+	return true
 }
 
 func (t *X64Target) hiddenArg(tp analyser.Type, value Operand) *ast.IdentLiteral {
@@ -672,11 +690,19 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 }
 
 func (t *X64Target) moveArgs(argLocs []x64context.ArgLoc, held []Operand, order []int) {
-	target := map[x64context.Register]int{}
+	dsts := make([]x64context.Register, len(argLocs))
 	for i, loc := range argLocs {
 		if len(loc.Regs) == 1 {
-			target[loc.Regs[0]] = i
+			dsts[i] = loc.Regs[0]
 		}
+	}
+	t.moveTo(dsts, held, order)
+}
+
+func (t *X64Target) moveTo(dsts []x64context.Register, held []Operand, order []int) {
+	target := map[x64context.Register]int{}
+	for i, loc := range dsts {
+		target[loc] = i
 	}
 
 	for i, op := range held {
@@ -697,7 +723,7 @@ func (t *X64Target) moveArgs(argLocs []x64context.ArgLoc, held []Operand, order 
 		if op == nil {
 			continue
 		}
-		dst := argLocs[i].Regs[0]
+		dst := dsts[i]
 		if r, same := op.(Reg); !same || r.Reg != dst {
 			t.loadWord(dst, op)
 		}
@@ -705,7 +731,7 @@ func (t *X64Target) moveArgs(argLocs []x64context.ArgLoc, held []Operand, order 
 	}
 
 	for _, i := range slices.Backward(order) {
-		t.pop(argLocs[i].Regs[0])
+		t.pop(dsts[i])
 	}
 }
 
