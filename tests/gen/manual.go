@@ -3484,6 +3484,23 @@ func main() {
 }
 `, expected: []string{"trace deep before the failing call"}, abort: "more frames", x64Only: true},
 
+	{dir: "abort_double_free", src: `import "std/mem";
+
+func main() {
+    *char p = mem.alloc(48) ?? null;
+    *char q = mem.alloc(48) ?? null;
+    check(p != null && q != null, "double free before the second free");
+    mem.free(p);
+    mem.free(q);
+    mem.free(null);
+    *char r = mem.alloc(48) ?? null;
+    check(r != null, "a freed block is reused without a complaint");
+    mem.free(r);
+    mem.free(r);
+    check(true, "double free never printed");
+}
+`, expected: []string{"double free before the second free", "a freed block is reused without a complaint"}, abort: "panic: double free", x64Only: true},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;
