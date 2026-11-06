@@ -28,13 +28,15 @@ func definition(uri protocol.DocumentUri, pos protocol.Position) []protocol.Loca
 		}
 	}
 
-	if expr := exprInProgram(m.merged, line, col); expr != nil {
+	own := declarationsOf(m.merged, m.declFiles, path)
+
+	if expr := exprInProgram(own, line, col); expr != nil {
 		if locations := exprDefinition(pa, m, expr, line, col); len(locations) > 0 {
 			return locations
 		}
 	}
 
-	if ref := typeRefAt(m.merged, line, col); ref != nil {
+	if ref := typeRefAt(own, line, col); ref != nil {
 		if ref.Module != "" && line == ref.Line && col >= ref.Col && col < ref.Col+len(ref.Module) {
 			return pa.moduleLocations(m, scopeFor(m.info, line, col), ref.Module)
 		}

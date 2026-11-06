@@ -46,8 +46,9 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	if program == nil || info == nil {
 		return nil
 	}
+	local := declarationsOf(program, declarationFiles(path), path)
 
-	if param, owner, idx := paramAt(program, line, col); param != nil {
+	if param, owner, idx := paramAt(local, line, col); param != nil {
 		text := paramHoverText(param, owner, idx, program, info)
 		if text == "" {
 			return nil
@@ -58,11 +59,11 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	var text string
 	var rng *protocol.Range
 
-	if t, r := declMemberHover(program, line, col); t != "" {
+	if t, r := declMemberHover(local, line, col); t != "" {
 		return markdownHover(t, r)
 	}
 
-	if expr := exprInProgram(program, line, col); expr != nil {
+	if expr := exprInProgram(local, line, col); expr != nil {
 		if _, isCoalesce := expr.(*ast.CoalesceExpr); isCoalesce && isHandlerKeyword(wordUnderCursor(fileBuffer[path], line, col)) {
 			return nil
 		}
@@ -76,14 +77,14 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	}
 
 	if text == "" {
-		if ref := typeRefAt(program, line, col); ref != nil {
+		if ref := typeRefAt(local, line, col); ref != nil {
 			text = typeRefHover(ref, program, info, line, col)
 			rng = refRange(ref)
 		}
 	}
 
 	if text == "" {
-		if sym := symbolAt(program, info, fileBuffer[path], line, col); sym != nil {
+		if sym := symbolAt(local, info, fileBuffer[path], line, col); sym != nil {
 			text = symbolHover(sym, program)
 			rng = nil
 		}
