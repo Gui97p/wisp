@@ -157,6 +157,9 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		for i, r := range ref.FuncReturns {
 			returns[i] = a.resolveTypeRef(node, scope, r)
 		}
+		if slices.Contains(params, nil) || slices.Contains(returns, nil) {
+			return nil
+		}
 		result = &FuncType{Params: params, Returns: returns, Fallible: ref.FuncFallible}
 	} else if primitives[ref.Name] {
 		result = PrimitiveType{Name: ref.Name}

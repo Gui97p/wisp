@@ -21,6 +21,10 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 		if ref == nil {
 			return nil
 		}
+		if ref.FuncReturns == nil {
+			p.error("a function type needs `=>` and its results: write `(int) => ()` for a function that returns nothing")
+			return nil
+		}
 		ref.Layers = layers
 		return ref
 	}

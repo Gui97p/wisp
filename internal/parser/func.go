@@ -189,7 +189,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 	var currentType ast.TypeRef
 
 	p.advance()
-	for p.peek.Type != lexer.TOKEN_RPAREN && p.peek.Type != lexer.TOKEN_EOF {
+	for (p.peek.Type != lexer.TOKEN_RPAREN || p.current.Type == lexer.TOKEN_LPAREN) && p.peek.Type != lexer.TOKEN_EOF {
 		if p.current.Type == lexer.TOKEN_VARIADIC {
 			return p.parseAnyVariadic(params)
 		}
@@ -373,6 +373,12 @@ func (p *Parser) parseFuncTypePrefix() *ast.TypeRef {
 	}
 	p.advance()
 	p.advance()
+
+	if p.current.Type == lexer.TOKEN_LPAREN && p.peek.Type == lexer.TOKEN_RPAREN {
+		p.advance()
+		ref.FuncReturns = []ast.TypeRef{}
+		return ref
+	}
 
 	types, fallible, ok := p.parseReturnSpec(false, false)
 	if !ok {

@@ -3,8 +3,8 @@
 // A function is a value: it can be stored in a variable, passed to another
 // function, returned, kept in a struct or in an array, and called through
 // that name. The type of a function value lists the parameter types and, after
-// `=>`, the results: `(int, int) => int`. A function with no result is just
-// `(int)`.
+// `=>`, the results: `(int, int) => int`. A function with no result writes an
+// empty list: `(int) => ()`.
 //
 // A function literal writes the function where it is used: `(int x) int => x * 3`
 // for a single expression, or a block after the `=>`. A function value is only
