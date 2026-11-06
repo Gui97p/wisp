@@ -252,6 +252,9 @@ func (a *Analyser) evalIntBinary(e *ast.BinaryExpr, l, r *big.Int) (ConstValue, 
 		return constInt(new(big.Int).Mul(l, r)), true
 	case "/", "%":
 		if r.Sign() == 0 {
+			if a.quiet {
+				return ConstValue{}, false
+			}
 			a.error(e, "division by zero in constant expression")
 			return constInt(big.NewInt(0)), true
 		}
@@ -267,6 +270,9 @@ func (a *Analyser) evalIntBinary(e *ast.BinaryExpr, l, r *big.Int) (ConstValue, 
 		return constInt(new(big.Int).Xor(l, r)), true
 	case "<<", ">>":
 		if r.Sign() < 0 || !r.IsUint64() || r.Uint64() > 4096 {
+			if a.quiet {
+				return ConstValue{}, false
+			}
 			a.error(e, "invalid shift count in constant expression")
 			return constInt(big.NewInt(0)), true
 		}

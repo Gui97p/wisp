@@ -26,6 +26,7 @@ type Info struct {
 	PartExports   map[string][]string
 	SizeOf        map[*ast.CallExpr]Type
 	ConstValues   map[ast.Expression]ConstValue
+	Folds         map[ast.Expression]ConstValue
 	Boxes         map[ast.Expression]Type
 	TypeCases     map[*ast.BinaryExpr]*TypeCase
 	Narrowed      map[*Symbol]*Symbol
@@ -41,6 +42,7 @@ func NewInfo() *Info {
 	return &Info{
 		VarTypes:      make(map[ast.Node][]Type),
 		ConstValues:   make(map[ast.Expression]ConstValue),
+		Folds:         make(map[ast.Expression]ConstValue),
 		SizeOf:        make(map[*ast.CallExpr]Type),
 		VarSymbols:    make(map[ast.Node][]*Symbol),
 		Types:         make(map[ast.Expression]Type),

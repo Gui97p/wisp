@@ -48,3 +48,5 @@ vscode/node_modules/
 vscode/out/
 # Benchmark build output
 /benchmark/build/
+/benchmark/results/*
+!/benchmark/results/*-baseline.json

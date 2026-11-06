@@ -2,6 +2,7 @@ package lua
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -13,7 +14,35 @@ func (t *LuaTarget) compileExpression(b *strings.Builder, expr ast.Expression) e
 	return t.locate(expr, t.compileExpressionNode(b, expr))
 }
 
+func (t *LuaTarget) foldedText(expr ast.Expression) (string, bool) {
+	if _, recorded := t.info.Folds[expr]; !recorded {
+		return "", false
+	}
+	value, ok := t.info.Folded(expr)
+	if !ok {
+		return "", false
+	}
+	switch value.Kind {
+	case analyser.ConstBool:
+		return strconv.FormatBool(value.Bool), true
+	case analyser.ConstInt:
+		if !value.Int.IsInt64() {
+			return "", false
+		}
+		if value.Int.Int64() == math.MinInt64 {
+			return "math.mininteger", true
+		}
+		return value.Int.String(), true
+	}
+	return "", false
+}
+
 func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expression) error {
+	if text, ok := t.foldedText(expr); ok {
+		b.WriteString(text)
+		return nil
+	}
+
 	switch e := expr.(type) {
 	case *ast.BinaryExpr:
 		return t.compileBinaryExpr(b, e)

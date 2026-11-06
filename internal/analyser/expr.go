@@ -100,6 +100,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	}
 
 	a.info.Types[expr] = t
+	a.recordFold(expr)
 	return t
 }
 

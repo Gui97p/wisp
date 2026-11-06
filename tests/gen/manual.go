@@ -3618,6 +3618,71 @@ func main() {
 }
 `, expected: []string{"an arena leak runs to the end"}, env: "WISP_DEBUG_ALLOC=1", stderr: "leak: 1 blocks\nmain.wsp:\n!arena_x64.wsp", x64Only: true},
 
+	{dir: "const_fold", src: `const K = 10;
+const DEBUG = false;
+
+enum Mode {
+    Slow,
+    Fast
+}
+
+func main() {
+    int a = 3 * 4 + 1;
+    check(a == 13, "constant arithmetic");
+    int b = (K - 8) * K + (2 + 3);
+    check(b == 25, "constants and named constants fold");
+    check(K * K / 4 == 25, "constant division");
+    check(-7 / 2 == -3 && -7 % 2 == -1, "constant division truncates toward zero");
+    check(7 / -2 == -3 && 7 % -2 == 1, "constant division with a negative divisor");
+    check((1 << 20) + (255 >> 4) == 1048591, "constant shifts");
+    check(-16 >> 2 == -4, "an arithmetic right shift of a negative constant");
+    check(((6 & 3) | (8 ^ 1)) == 11, "constant bitwise operators");
+    check(2 > 1 && 5 != 5 || true, "constant booleans");
+    check(!(3 < 2) && (3 >= 3), "constant comparisons");
+    check(-9223372036854775807 - 1 < 0, "the smallest int");
+
+    uint8 wrapped = uint8(200) + uint8(100);
+    check(wrapped == 44, "a typed constant sum wraps at its width");
+    uint8 halved = (uint8(200) + uint8(100)) / uint8(2);
+    check(halved == 22, "a wrapped intermediate is not folded exactly");
+    int8 negative = int8(100) + int8(100);
+    check(negative == -56, "int8 constants wrap");
+    int max = 9223372036854775807;
+    int past = max + 1;
+    check(past < 0, "int overflow wraps at run time");
+    uint64 high = uint64(1) << 63;
+    check(high > 9223372036854775807, "an unsigned constant above the signed range");
+    check(~0 == -1, "bitwise not of a constant");
+    uint8 inverted = ~uint8(15);
+    check(inverted == 240, "bitwise not of an unsigned constant");
+
+    int taken = 0;
+    if 2 > 1 {
+        taken = 1;
+    } else {
+        taken = 2;
+    }
+    check(taken == 1, "a true constant condition takes the first branch");
+    if false {
+        taken = 100;
+    }
+    check(taken == 1, "a false constant condition is skipped");
+    if DEBUG {
+        taken = 200;
+    } else {
+        taken = 3;
+    }
+    check(taken == 3, "a named constant condition");
+    check((Mode.Fast == Mode.Fast) && (Mode.Slow != Mode.Fast), "enum members compare as constants");
+
+    int c = 0;
+    for i in 0..K-1 {
+        c += i * 2 + 1;
+    }
+    check(c == 100, "a constant bound in a loop");
+}
+`, expected: []string{"constant arithmetic", "constants and named constants fold", "constant division", "constant division truncates toward zero", "constant division with a negative divisor", "constant shifts", "an arithmetic right shift of a negative constant", "constant bitwise operators", "constant booleans", "constant comparisons", "the smallest int", "a typed constant sum wraps at its width", "a wrapped intermediate is not folded exactly", "int8 constants wrap", "int overflow wraps at run time", "an unsigned constant above the signed range", "bitwise not of a constant", "bitwise not of an unsigned constant", "a true constant condition takes the first branch", "a false constant condition is skipped", "a named constant condition", "enum members compare as constants", "a constant bound in a loop"}},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;

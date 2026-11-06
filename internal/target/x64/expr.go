@@ -18,6 +18,14 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 }
 
 func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
+	if _, recorded := t.info.Folds[expr]; recorded {
+		if value, ok := t.info.Folded(expr); ok {
+			if value.Kind == analyser.ConstBool {
+				return t.resolveBoolLiteral(value.Bool)
+			}
+			return t.resolveIntLiteral(value.Bits())
+		}
+	}
 	switch e := expr.(type) {
 	case *ast.NullLiteral:
 		return Imm(0), nil

@@ -27,6 +27,7 @@ type Analyser struct {
 	mustUse      []*Symbol
 	pendingDots  map[*ast.DotIdent]bool
 	pendingEmpty map[*ast.ArrayLiteral]bool
+	quiet        bool
 
 	modules map[string]*ModuleInfo
 	links   []*importLink

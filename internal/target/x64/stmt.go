@@ -260,31 +260,43 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 		t.pushLoop(ctx)
 	}
 
-	op, err := t.compileExpr(stmt.Condition)
-	if err != nil {
-		return err
-	}
-	size := sizeOf(t.info.Types[stmt.Condition])
-
-	reg := t.materialize(op, size)
-	opText := t.ctx.GetRegister(reg, size)
-	if t.err != nil {
-		return t.err
-	}
-	t.text.printft("test %s, %s\n", opText, opText)
-	t.text.printft("jz %s\n", elseLabel)
-
-	t.ctx.FreeRegister(reg)
-
-	if err = t.compileStatement(stmt.Then); err != nil {
-		return err
-	}
-	t.text.printft("jmp %s\n", endLabel)
-
-	t.text.printf("%s:\n", elseLabel)
-	if stmt.Else != nil {
-		if err = t.compileStatement(stmt.Else); err != nil {
+	c, ok := t.info.Folded(stmt.Condition)
+	folded := ok && c.Kind == analyser.ConstBool
+	if !folded {
+		op, err := t.compileExpr(stmt.Condition)
+		if err != nil {
 			return err
+		}
+		size := sizeOf(t.info.Types[stmt.Condition])
+
+		reg := t.materialize(op, size)
+		opText := t.ctx.GetRegister(reg, size)
+		if t.err != nil {
+			return t.err
+		}
+		t.text.printft("test %s, %s\n", opText, opText)
+		t.text.printft("jz %s\n", elseLabel)
+
+		t.ctx.FreeRegister(reg)
+	}
+
+	if c.Bool || !folded {
+		if err := t.compileStatement(stmt.Then); err != nil {
+			return err
+		}
+		if !folded {
+			t.text.printft("jmp %s\n", endLabel)
+		}
+	}
+
+	if !c.Bool || !folded {
+		if !folded {
+			t.text.printf("%s:\n", elseLabel)
+		}
+		if stmt.Else != nil {
+			if err := t.compileStatement(stmt.Else); err != nil {
+				return err
+			}
 		}
 	}
 
