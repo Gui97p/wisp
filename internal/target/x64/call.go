@@ -463,6 +463,10 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 	sret := usesSret(rets)
 	argLocs := assignArgs(types, sret)
 
+	fast := t.registerOnly(args, types, argLocs, sret, cVariadic)
+	held := make([]Operand, len(args))
+	pushedOrder := make([]int, 0, len(args))
+
 	regs := t.ctx.AllocatedRegisters()
 	for _, reg := range regs {
 		t.pushWord(Reg{reg, 8})
@@ -489,8 +493,22 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 			if len(argLocs[i].Regs) == 0 {
 				t.store(op, Mem{Base: x64context.SP, Disp: 8*(t.ctx.Pushed()-base) + argLocs[i].Stack, Size: size})
 			} else {
-				if _, ok := underlying(types[i]).(analyser.PrimitiveType); ok && size < 4 && size > 0 {
-					op = t.widen(op, types[i], 4)
+				if fast {
+					size := sizeOf(types[i])
+					if size == 0 {
+						t.freeOp(op)
+						return nil
+					}
+					if _, ok := underlying(types[i]).(analyser.PrimitiveType); ok && size < 4 {
+						op = t.widen(op, types[i], 4)
+					}
+					if t.mustPush(op, args[i+1:]) {
+						t.pushValue(op)
+						pushedOrder = append(pushedOrder, i)
+					} else {
+						held[i] = op
+					}
+					return nil
 				}
 				t.pushValue(op)
 			}
@@ -503,9 +521,13 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 		return nil, err
 	}
 
-	for _, arg := range slices.Backward(argLocs) {
-		for _, reg := range slices.Backward(arg.Regs) {
-			t.pop(reg)
+	if fast {
+		t.moveArgs(argLocs, held, pushedOrder)
+	} else {
+		for _, arg := range slices.Backward(argLocs) {
+			for _, reg := range slices.Backward(arg.Regs) {
+				t.pop(reg)
+			}
 		}
 	}
 
@@ -647,4 +669,138 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 	}
 
 	return t.compileCall(symbol, sym.Module != t.module, expr.Args, t.info.CallReturns[expr], false)
+}
+
+func (t *X64Target) moveArgs(argLocs []x64context.ArgLoc, held []Operand, order []int) {
+	target := map[x64context.Register]int{}
+	for i, loc := range argLocs {
+		if len(loc.Regs) == 1 {
+			target[loc.Regs[0]] = i
+		}
+	}
+
+	for i, op := range held {
+		if op == nil {
+			continue
+		}
+		for _, reg := range operandRegs(op) {
+			if owner, isTarget := target[reg]; isTarget && owner != i {
+				t.pushValue(op)
+				order = append(order, i)
+				held[i] = nil
+				break
+			}
+		}
+	}
+
+	for i, op := range held {
+		if op == nil {
+			continue
+		}
+		dst := argLocs[i].Regs[0]
+		if r, same := op.(Reg); !same || r.Reg != dst {
+			t.loadWord(dst, op)
+		}
+		t.freeOp(op)
+	}
+
+	for _, i := range slices.Backward(order) {
+		t.pop(argLocs[i].Regs[0])
+	}
+}
+
+func operandRegs(op Operand) []x64context.Register {
+	switch o := op.(type) {
+	case Reg:
+		return []x64context.Register{o.Reg}
+	case Mem:
+		return memRegs(o)
+	case Addr:
+		return memRegs(o.Of)
+	}
+	return nil
+}
+
+func memRegs(m Mem) []x64context.Register {
+	var regs []x64context.Register
+	for _, r := range []x64context.Register{m.Base, m.Index} {
+		if r != x64context.NoReg && r != x64context.BP && r != x64context.SP {
+			regs = append(regs, r)
+		}
+	}
+	return regs
+}
+
+func (t *X64Target) registerOnly(args []ast.Expression, types []analyser.Type, argLocs []x64context.ArgLoc, sret, cVariadic bool) bool {
+	if sret || cVariadic || len(types) != len(args) {
+		return false
+	}
+	for i, loc := range argLocs {
+		if sizeOf(types[i]) == 0 {
+			continue
+		}
+		if len(loc.Regs) != 1 || loc.Regs[0].Class() == x64context.SSE {
+			return false
+		}
+	}
+	return true
+}
+
+func (t *X64Target) mustPush(op Operand, later []ast.Expression) bool {
+	free := len(x64context.RegisterOrder) - len(t.ctx.AllocatedOrderRegisters())
+	need := 0
+	for _, expr := range later {
+		need = max(need, regsNeeded(expr))
+	}
+	if need > free {
+		return true
+	}
+	if _, isMem := op.(Mem); isMem && hasCall(later) {
+		return true
+	}
+	return false
+}
+
+func hasCall(exprs []ast.Expression) bool {
+	for _, expr := range exprs {
+		switch e := expr.(type) {
+		case *ast.CallExpr, *ast.PropagateExpr, *ast.CoalesceExpr, *ast.SwitchExpr:
+			return true
+		case *ast.BinaryExpr:
+			if hasCall([]ast.Expression{e.Left, e.Right}) {
+				return true
+			}
+		case *ast.UnaryExpr:
+			return hasCall([]ast.Expression{e.Value})
+		case *ast.CastExpr:
+			return hasCall([]ast.Expression{e.Value})
+		case *ast.ConvExpr:
+			return hasCall([]ast.Expression{e.Cast.Value})
+		case *ast.DerefExpr:
+			return hasCall([]ast.Expression{e.Value})
+		case *ast.MemberExpr:
+			return hasCall([]ast.Expression{e.Object})
+		case *ast.IndexExpr:
+			if hasCall([]ast.Expression{e.Array, e.Index}) {
+				return true
+			}
+		case *ast.SliceExpr:
+			if hasCall([]ast.Expression{e.Array, e.Start, e.End}) {
+				return true
+			}
+		case *ast.TernaryExpr:
+			if hasCall([]ast.Expression{e.Condition, e.Then, e.Else}) {
+				return true
+			}
+		case *ast.InExpr:
+			if hasCall([]ast.Expression{e.Left, e.Right}) {
+				return true
+			}
+		case *ast.ArrayLiteral:
+			return hasCall(e.Elements)
+		case *ast.StructLiteral:
+			return hasCall(e.Values)
+		}
+	}
+	return false
 }

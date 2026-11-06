@@ -5248,6 +5248,82 @@ func main() {
 }
 `, expected: []string{"fused comparisons agree with values for int", "fused comparisons agree with values for int32", "fused comparisons agree with values for int16", "fused comparisons agree with values for int8", "fused comparisons agree with values for uint", "fused comparisons agree with values for uint32", "fused comparisons agree with values for uint16", "fused comparisons agree with values for uint8", "&& skips its right side when the left is false", "|| skips its right side when the left is true", "a negated || evaluates left to right", "a loop condition combines a comparison and a call", "nested conditions in a ternary", "boolean variables as conditions"}},
 
+	{dir: "call_args", src: `struct Pair {
+    int a;
+    int b;
+}
+
+int g;
+
+func bump() int {
+    g++;
+    return g;
+}
+
+func add(int a, int b) int {
+    return a + b;
+}
+
+func sum6(int a, int b, int c, int d, int e, int f) int {
+    return a * 100000 + b * 10000 + c * 1000 + d * 100 + e * 10 + f;
+}
+
+func sum8(int a, int b, int c, int d, int e, int f, int g, int h) int {
+    return a + 2 * b + 3 * c + 4 * d + 5 * e + 6 * f + 7 * g + 8 * h;
+}
+
+func mix(int a, float b, int c, float d) float {
+    return float(a) * b + float(c) * d;
+}
+
+func total(string s, int n) int {
+    return len(s) * n;
+}
+
+func dot(Pair p, int k) int {
+    return (p.a + p.b) * k;
+}
+
+func bumpBy(*int p, int by) int {
+    p@ += by;
+    return p@;
+}
+
+func fib(int n) int {
+    if n < 2 {
+        return n;
+    }
+    return add(fib(n - 1), fib(n - 2));
+}
+
+func main() {
+    int x = 7;
+    int y = 8;
+    check(sum6(1, 2, 3, 4, 5, 6) == 123456, "literal arguments");
+    check(sum6(x, y, x, y, x, y) == 787878, "variable arguments");
+    check(sum6(y, x, y, x, y, x) == 878787, "variable arguments in another order");
+    check(sum6(add(1, 1), add(2, 2), add(3, 3), 4, 5, 6) == 246456, "calls as the first arguments");
+    check(sum6(x * y, x + y, y - x, x / 2, y % 3, x & y) == 5751320, "arithmetic arguments");
+    check(sum6(add(x, y), add(y, x), add(x, x), add(y, y), add(x, 1), add(y, 1)) == 1665689, "calls as every argument");
+    check(sum6(add(add(1, 2), add(3, 4)), 2, add(add(x, y), add(1, 1)), 4, 5, add(1, add(2, add(3, 4)))) == 1037460, "nested calls as arguments");
+    check(sum8(1, 2, 3, 4, 5, 6, 7, 8) == 204, "arguments that go to the stack");
+    check(sum8(x, y, x, y, x, y, x, y) == 272, "variables and stack arguments");
+    check(sum8(add(1, 1), 2, 3, 4, 5, 6, 7, add(4, 4)) == 205, "calls around stack arguments");
+
+    g = 5;
+    check(add(g, bump()) == 11 && g == 6, "arguments are evaluated left to right");
+    check(add(bump(), g) == 14 && g == 7, "a call before a variable sees its change");
+    int cell = 10;
+    check(add(cell, bumpBy(&cell, 5)) == 25 && cell == 15, "a variable is read before a later call changes it");
+
+    check(mix(2, 1.5, 4, 0.25) == 4.0, "integer and float arguments");
+    check(total("abc", add(1, 1)) == 6, "a string argument");
+    check(dot(Pair{a: 1, b: 2}, add(1, 2)) == 9, "a struct argument");
+    check(fib(20) == 6765, "recursive calls");
+    check(add(fib(10), fib(11)) == 144, "calls to a recursive function as arguments");
+}
+`, expected: []string{"literal arguments", "variable arguments", "variable arguments in another order", "calls as the first arguments", "arithmetic arguments", "calls as every argument", "nested calls as arguments", "arguments that go to the stack", "variables and stack arguments", "calls around stack arguments", "arguments are evaluated left to right", "a call before a variable sees its change", "a variable is read before a later call changes it", "integer and float arguments", "a string argument", "a struct argument", "recursive calls", "calls to a recursive function as arguments"}},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;
