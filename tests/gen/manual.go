@@ -6162,6 +6162,65 @@ func main() {
 }
 `, expected: []string{"a propagated success passes through an inline body", "a propagated error leaves only the inline body and then the caller", "nested inline bodies propagate in turn", "an error in a nested inline body reaches the top", "defers run when an inline body propagates", "the propagated error keeps its kind"}},
 
+	{dir: "imul_immediate", src: `struct Box {
+    int n;
+    int32 small;
+}
+
+func main() {
+    int x = 7;
+    check(x * 3 == 21, "a variable times a small constant");
+    check(x * -3 == -21, "a variable times a negative constant");
+    check(x * 0 == 0 && x * 1 == 7, "a variable times zero and one");
+    check(3 * x == 21, "the constant on the left");
+    check(x * 2147483647 == 15032385529, "a variable times the largest 32 bit constant");
+    check(x * -2147483648 == -15032385536, "a variable times the smallest 32 bit constant");
+    check(x * 2147483648 == 15032385536, "a constant just past 32 bits");
+    check(x * 4294967296 == 30064771072, "a constant well past 32 bits");
+
+    int64 big = 3000000000;
+    check(big * 3 == 9000000000, "a 64 bit variable times a constant");
+
+    int32 y = 100000;
+    check(y * 21474 == 2147400000, "an int32 variable times a constant");
+    check(y * -21474 == -2147400000, "an int32 variable times a negative constant");
+
+    int16 z = 300;
+    check(z * 100 == 30000, "an int16 variable times a constant");
+    int8 b = 12;
+    check(b * 10 == 120, "an int8 variable times a constant");
+    uint u = 7;
+    check(u * 5 == 35, "an unsigned variable times a constant");
+
+    [3]int a = [4, 5, 6];
+    int i = 1;
+    check(a[i] * 5 == 25, "an array element times a constant");
+    Box box;
+    box.n = 9;
+    box.small = 11;
+    check(box.n * 6 == 54 && box.small * 6 == 66, "struct fields times a constant");
+    *int p = &x;
+    check(p@ * 7 == 49, "a dereferenced pointer times a constant");
+
+    int w = 2;
+    check(x * 3 + w * 5 + (x + w) * 7 == 21 + 10 + 63, "several multiplications keep their values apart");
+    int acc = 1;
+    for k in 1..5 {
+        acc = acc * 3 + k;
+    }
+    check(acc == 422, "a multiplication inside a loop");
+    check(x == 7 && w == 2, "the operands are untouched");
+
+    int four = 4;
+    check(10 - four == 6, "a constant minus a variable");
+    check(100 / four == 25, "a constant divided by a variable");
+    check(101 % four == 1, "a constant modulo a variable");
+    check(1 << four == 16, "a constant shifted by a variable");
+    check(256 >> four == 16, "a constant shifted right by a variable");
+    check(10 + four == 14 && (10 & four) == 0 && (10 | four) == 14 && (10 ^ four) == 14, "a constant with a variable in the commutative operators");
+}
+`, expected: []string{"a variable times a small constant", "a variable times a negative constant", "a variable times zero and one", "the constant on the left", "a variable times the largest 32 bit constant", "a variable times the smallest 32 bit constant", "a constant just past 32 bits", "a constant well past 32 bits", "a 64 bit variable times a constant", "an int32 variable times a constant", "an int32 variable times a negative constant", "an int16 variable times a constant", "an int8 variable times a constant", "an unsigned variable times a constant", "an array element times a constant", "struct fields times a constant", "a dereferenced pointer times a constant", "several multiplications keep their values apart", "a multiplication inside a loop", "the operands are untouched", "a constant minus a variable", "a constant divided by a variable", "a constant modulo a variable", "a constant shifted by a variable", "a constant shifted right by a variable", "a constant with a variable in the commutative operators"}},
+
 	{dir: "inline_calls", src: `import "std/errors";
 
 type Step (int) => int;

@@ -166,6 +166,26 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 	size := sizeOf(tp)
 	signed := isSigned(tp)
 
+	if op == "*" {
+		if _, ok := left.(Imm); ok {
+			if _, ok := right.(Mem); ok {
+				left, right = right, left
+			}
+		}
+
+		if m, ok := left.(Mem); ok {
+			if i, ok := right.(Imm); ok && size >= 4 && (i >= -2147483648 && i <= 2147483647) {
+				dst := t.ctx.AllocFreeRegister()
+				if dst == x64context.NoReg {
+					return nil, fmt.Errorf("x86-64: no avaiable registers")
+				}
+				t.text.printft("imul %s, %s, %d\n", t.ctx.GetRegister(dst, size), t.memText(m), i)
+				t.freeOp(left)
+				return Reg{dst, size}, nil
+			}
+		}
+	}
+
 	leftReg := t.materialize(left, size)
 	opText := t.opText(right, size)
 	if t.err != nil {
