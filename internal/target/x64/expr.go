@@ -96,6 +96,15 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		return t.compileExpr(e.Cast)
 	case *ast.TernaryExpr:
 		return t.compileTernaryExpr(e)
+	case *ast.ConstRef:
+		value, ok := t.info.Folded(e)
+		if !ok {
+			return nil, fmt.Errorf("x86-64: constant reference without a value")
+		}
+		if value.Kind == analyser.ConstBool {
+			return t.resolveBoolLiteral(value.Bool)
+		}
+		return t.resolveIntLiteral(value.Bits())
 	case *ast.MemberExpr:
 		if value, ok := t.info.EnumValues[e]; ok {
 			return t.resolveIntLiteral(value.Value)

@@ -5896,6 +5896,145 @@ func main() {
 }
 `, expected: []string{"range 0..9:1 agrees with its runtime form and the expected count", "range 0..9:2 agrees with its runtime form and the expected count", "range 0..9:3 agrees with its runtime form and the expected count", "range 3..3:1 agrees with its runtime form and the expected count", "range 10..0:1 agrees with its runtime form and the expected count", "range 10..0:3 agrees with its runtime form and the expected count", "range -5..5:1 agrees with its runtime form and the expected count", "range 5..-5:2 agrees with its runtime form and the expected count", "range 1..100:7 agrees with its runtime form and the expected count", "range 100..1:7 agrees with its runtime form and the expected count", "range -100..-90:1 agrees with its runtime form and the expected count", "range 0..1000:1 agrees with its runtime form and the expected count", "range 1000..0:10 agrees with its runtime form and the expected count", "range 1073741824..1073741830:1 agrees with its runtime form and the expected count", "range -1073741830..-1073741824:2 agrees with its runtime form and the expected count", "range 2147483640..2147483650:1 agrees with its runtime form and the expected count", "range -2147483650..-2147483640:3 agrees with its runtime form and the expected count", "range 5000000000..5000000009:1 agrees with its runtime form and the expected count", "range 9..0:1 agrees with its runtime form and the expected count", "range 0..0:5 agrees with its runtime form and the expected count", "continue and break in a constant range", "labeled loops over constant ranges", "nested constant ranges, one descending", "a defer inside a constant range runs on every pass", "a runtime end below the start counts down, so 0..n-1 with n = 0 runs twice", "the loop variable can be changed in the body"}},
 
+	{dir: "inline_calls", src: `import "std/errors";
+
+type Step (int) => int;
+
+struct Counter {
+    int n;
+}
+
+int calls;
+
+inline func add(int a, int b) int {
+    return a + b;
+}
+
+inline func abs(int x) int {
+    if x < 0 {
+        return -x;
+    }
+    return x;
+}
+
+inline func clamp(int x, int lo, int hi) int {
+    if x < lo {
+        return lo;
+    }
+    if x > hi {
+        return hi;
+    }
+    return x;
+}
+
+inline func divmod(int a, int b) (int, int) {
+    return a / b, a % b;
+}
+
+inline func bump() int {
+    calls++;
+    return calls;
+}
+
+inline func twice(int x) int {
+    return add(x, x);
+}
+
+inline func fact(int n) int {
+    if n <= 1 {
+        return 1;
+    }
+    return n * fact(n - 1);
+}
+
+inline func (*Counter c) inc(int by) {
+    c.n += by;
+}
+
+inline func (*Counter c) get() int {
+    return c.n;
+}
+
+inline func withDefer(int x) int {
+    defer calls += 10;
+    return x * 2;
+}
+
+inline func safeDiv(int a, int b) !int {
+    if b == 0 {
+        return Error(errors.Kind.Invalid);
+    }
+    return a / b;
+}
+
+inline func pick(const int which, int a, int b) int {
+    if which == 0 {
+        return a;
+    }
+    return b;
+}
+
+inline func ensure(bool cond, const errors.Kind kind) ! {
+    if !cond {
+        return Error(kind);
+    }
+}
+
+inline func scaled(int x) int {
+    Step f = (int v) => v * 3;
+    return f(x);
+}
+
+inline func shadow(int x, int y) int {
+    int total = x * 10 + y;
+    return total;
+}
+
+func main() {
+    check(add(2, 3) == 5, "an inline call");
+    check(add(add(1, 2), add(3, 4)) == 10, "inline calls as arguments of inline calls");
+    check(abs(-5) == 5 && abs(4) == 4, "an inline function with an early return");
+    check(clamp(15, 0, 10) == 10 && clamp(-3, 0, 10) == 0 && clamp(4, 0, 10) == 4, "an inline function with several returns");
+    let q, r = divmod(17, 5);
+    check(q == 3 && r == 2, "an inline function with two results");
+    calls = 0;
+    check(add(bump(), bump()) == 3 && calls == 2, "arguments are evaluated once and in order");
+    check(twice(add(1, 2)) == 6, "an inline function that calls another");
+    check(fact(5) == 120, "a recursive inline function becomes a call");
+
+    Counter c = Counter{n: 0};
+    c.inc(3);
+    c.inc(4);
+    check(c.get() == 7, "inline methods");
+
+    calls = 0;
+    check(withDefer(4) == 8 && calls == 10, "a defer in an inline function runs when the expansion ends");
+
+    check((safeDiv(10, 2) ?? -1) == 5, "a fallible inline function that succeeds");
+    check((safeDiv(1, 0) ?? -1) == -1, "a fallible inline function that fails");
+
+    check(pick(0, 1, 2) == 1 && pick(1, 1, 2) == 2, "a const parameter");
+
+    int failed = 0;
+    ensure(1 < 2, errors.Kind.NoSpace) ?? {
+        failed = 1;
+    };
+    check(failed == 0, "ensure passes");
+    ensure(2 < 1, errors.Kind.NoSpace) ?? |e| {
+        failed = 2;
+        check(e == errors.Kind.NoSpace, "ensure fails with the given kind");
+        check(e.file == "main.wsp", "the error reports the call site file");
+    };
+    check(failed == 2, "ensure fails");
+
+    check(scaled(4) == 12, "a lambda inside an inline function");
+    int x = 7;
+    int y = 5;
+    check(shadow(y, x) == 57, "arguments are read before the parameters are declared");
+    check(x == 7 && y == 5, "the caller variables are untouched");
+}
+`, expected: []string{"an inline call", "inline calls as arguments of inline calls", "an inline function with an early return", "an inline function with several returns", "an inline function with two results", "arguments are evaluated once and in order", "an inline function that calls another", "a recursive inline function becomes a call", "inline methods", "a defer in an inline function runs when the expansion ends", "a fallible inline function that succeeds", "a fallible inline function that fails", "a const parameter", "ensure passes", "ensure fails with the given kind", "the error reports the call site file", "ensure fails", "a lambda inside an inline function", "arguments are read before the parameters are declared", "the caller variables are untouched"}},
+
 	{dir: "abort_div_zero", src: `func main() {
     int a = 10;
     int z = 0;
@@ -7995,7 +8134,7 @@ func bump(int n) {
     counted += 1;
 }
 
-func inline(int n) int {
+func early(int n) int {
     int a = risky(n) ?? return -2;
     return a;
 }
@@ -8013,7 +8152,7 @@ func main() {
     check(firstGood(-1, -1, 4) == 8 && firstGood(-1, 3, 4) == 6, "continue after ?? skips the failures");
     check(stopAtBad(1, 2, 3) == 12 && stopAtBad(1, -1, 3) == 2, "break after ?? stops at the first failure");
     check(namedJump(2, -1) == 4 && namedJump(-1, 5) == 10, "continue after ?? with a name that is not used");
-    check(inline(5) == 10 && inline(-1) == -2, "return after ?? with no name");
+    check(early(5) == 10 && early(-1) == -2, "return after ?? with no name");
     check(named(5) == 10 && named(-1) == -3, "return after ?? with a name that is not used");
     check(firstOr(4) == 8, "a handler without a name is skipped on success");
     check(firstOr(-1) == -1, "a handler without a name runs on failure");

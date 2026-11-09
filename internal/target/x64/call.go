@@ -626,6 +626,51 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		return []Operand{op}, nil
 	}
 
+	if call, ok := t.info.Inlines[expr]; ok {
+		if call.Receiver != nil {
+			op, err := t.compileExpr(t.info.MethodCalls[expr].Receiver)
+			if err != nil {
+				return nil, err
+			}
+			size := sizeOf(call.Receiver.Type)
+			off := t.ctx.Set(call.Receiver, size)
+			t.store(op, slot(off, size))
+		}
+		for i, ai := range call.ArgIndex {
+			op, err := t.compileExpr(expr.Args[ai])
+			if err != nil {
+				return nil, err
+			}
+			size := sizeOf(call.Params[i].Type)
+			off := t.ctx.Set(call.Params[i], size)
+			t.store(op, slot(off, size))
+		}
+		slots := make([]Operand, 0, len(call.Returns))
+		for _, r := range call.Returns {
+			size := sizeOf(r)
+			slots = append(slots, slot(t.ctx.Reserve(size), size))
+		}
+		if call.Fallible {
+			slots = append(slots, slot(t.ctx.Reserve(8), 8))
+		}
+
+		funcReturns := t.funcReturns
+		fallible := t.fallible
+		t.funcReturns = call.Returns
+		t.fallible = call.Fallible
+		frame := inlineFrame{call: call, results: slots, label: t.newLabel("inline_end"), deferDepth: len(t.deferScopes)}
+		t.inlineFrames = append(t.inlineFrames, frame)
+		t.collectVariables(call.Body)
+		if err := t.compileStatement(call.Body); err != nil {
+			return nil, err
+		}
+		t.inlineFrames = t.inlineFrames[:len(t.inlineFrames)-1]
+		t.text.printf("%s:\n", frame.label)
+		t.funcReturns = funcReturns
+		t.fallible = fallible
+		return slots, nil
+	}
+
 	if expr.Cast != nil {
 		op, err := t.compileExpr(expr.Cast)
 		if err != nil {

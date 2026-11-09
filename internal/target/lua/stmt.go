@@ -71,6 +71,9 @@ func (t *LuaTarget) compileBlockStatement(b *strings.Builder, block *ast.BlockSt
 }
 
 func (t *LuaTarget) compileReturnStatement(b *strings.Builder, stmt *ast.ReturnStmt) error {
+	if _, inlined := t.info.InlineReturns[stmt]; inlined {
+		return t.compileInlineReturn(b, stmt)
+	}
 	texts := make([]string, 0, len(stmt.Values)+len(t.currentPayloads)+1)
 	for _, value := range stmt.Values {
 		text, err := t.compileExprScratch(value)
@@ -119,7 +122,10 @@ func (t *LuaTarget) compileExpressionStatement(b *strings.Builder, stmt *ast.Exp
 
 	t.flushPending(b)
 
-	if _, isCall := stmt.Expr.(*ast.CallExpr); isCall && text != "" {
+	if call, isCall := stmt.Expr.(*ast.CallExpr); isCall && text != "" {
+		if _, inlined := t.info.Inlines[call]; inlined {
+			return nil
+		}
 		b.WriteString(text)
 		b.WriteRune('\n')
 	}

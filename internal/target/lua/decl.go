@@ -70,7 +70,7 @@ func (t *LuaTarget) compileFuncDeclaration(b *strings.Builder, fd *ast.FuncDecl)
 		endLine, endCol := fd.SignatureEnd()
 		return diag.Locate("lua", fmt.Errorf("extern function %s is not available on the cc target", fd.Name), line, col, endLine, endCol)
 	}
-	if fd.Body == nil {
+	if fd.Body == nil || (fd.Inline && fd.HasConstParams()) {
 		return nil
 	}
 

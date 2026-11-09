@@ -219,6 +219,10 @@ func methodOwnerName(t analyser.Type) (string, bool) {
 }
 
 func (t *LuaTarget) compileCallExpression(b *strings.Builder, expr *ast.CallExpr) error {
+	if call, ok := t.info.Inlines[expr]; ok {
+		return t.compileInlineCall(b, expr, call)
+	}
+
 	if lit, ok := t.info.ErrorLiterals[expr]; ok {
 		b.WriteString(errorTable(lit))
 		return nil

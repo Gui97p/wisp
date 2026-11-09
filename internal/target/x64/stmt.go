@@ -118,7 +118,48 @@ func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 	})
 }
 
+func (t *X64Target) compileInlineReturn(stmt *ast.ReturnStmt) error {
+	frame := t.inlineFrames[len(t.inlineFrames)-1]
+	isError := t.info.ErrorReturns[stmt]
+	last := frame.results[len(frame.results)-1].(Mem)
+
+	if isError {
+		op, err := t.compileExpr(stmt.Values[0])
+		if err != nil {
+			return err
+		}
+		for i := range frame.call.Returns {
+			t.zero(frame.results[i].(Mem))
+		}
+		t.store(op, last)
+	} else {
+		var ops []Operand
+		if err := t.eachValue(stmt.Values, func(i int, op Operand) error {
+			ops = append(ops, op)
+			return nil
+		}); err != nil {
+			return err
+		}
+		for i, op := range ops {
+			t.store(op, frame.results[i].(Mem))
+		}
+		if frame.call.Fallible {
+			t.store(Imm(0), last)
+		}
+	}
+
+	if err := t.emitDefers(frame.deferDepth, isError); err != nil {
+		return err
+	}
+	t.text.printft("jmp %s\n", frame.label)
+	return nil
+}
+
 func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
+	if _, ok := t.info.InlineReturns[stmt]; ok {
+		return t.compileInlineReturn(stmt)
+	}
+
 	if t.info.ErrorReturns[stmt] {
 		op, err := t.compileExpr(stmt.Values[0])
 		if err != nil {

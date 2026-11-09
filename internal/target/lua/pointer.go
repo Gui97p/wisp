@@ -47,6 +47,9 @@ func (t *LuaTarget) collectBoxed() {
 		}
 	}
 	visit(reflect.ValueOf(t.program))
+	for _, call := range t.info.Inlines {
+		visit(reflect.ValueOf(call.Body))
+	}
 }
 
 func (t *LuaTarget) markBoxed(target ast.Expression) {

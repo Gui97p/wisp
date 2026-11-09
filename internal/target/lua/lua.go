@@ -37,6 +37,8 @@ type LuaTarget struct {
 
 	pending []string
 
+	inlineFrames []inlineFrame
+
 	files map[ast.Declaration]string
 	id    string
 

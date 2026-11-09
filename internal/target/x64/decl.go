@@ -321,6 +321,10 @@ func (t *X64Target) emitDescriptor(name string) {
 }
 
 func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
+	if fd.Inline && fd.HasConstParams() {
+		return nil
+	}
+
 	fdName := fd.Name
 	if fd.Receiver != nil {
 		fdName = fmt.Sprintf("%s_%s", fd.Receiver.Type.Name, fd.Name)

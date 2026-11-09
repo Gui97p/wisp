@@ -24,6 +24,13 @@ type callSite struct {
 	text  string
 }
 
+type inlineFrame struct {
+	call       *analyser.InlineCall
+	results    []Operand
+	label      string
+	deferDepth int
+}
+
 type X64Target struct {
 	coalesceFrames []coalesceFrame
 
@@ -57,6 +64,7 @@ type X64Target struct {
 	endsInReturn bool
 	lastReturn   ast.Statement
 	hidden       Mem
+	inlineFrames []inlineFrame
 
 	deferScopes []*deferScope
 	lambdas     []pendingLambda
