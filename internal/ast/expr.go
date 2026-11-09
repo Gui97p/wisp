@@ -435,10 +435,12 @@ func (a *SwitchArm) tree(head, pad string) string {
 	var b strings.Builder
 
 	if a.Condition != nil {
-		b.WriteString(head + "Case\n")
+		b.WriteString(head)
+		b.WriteString("Case\n")
 		b.WriteString(a.Condition.Tree(pad + "├─ "))
 	} else {
-		b.WriteString(head + "Default\n")
+		b.WriteString(head)
+		b.WriteString("Default\n")
 	}
 	for _, v := range a.Values {
 		b.WriteString(v.Tree(pad + "└─ "))

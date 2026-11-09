@@ -87,8 +87,13 @@ func (a *Analyser) expandInline(expr *ast.CallExpr, ft *FuncType) {
 
 	call := &InlineCall{Decl: decl, Returns: ft.Returns, Fallible: ft.Fallible}
 	substitutions := map[string]func() ast.Expression{}
+	fixed := inlineBindings(decl.Body)
 	for i, p := range decl.Params {
 		if !p.Const {
+			if produce, ok := a.propagatedArgument(expr.Args[i], ft.Params[i], p.Name, fixed, at); ok {
+				substitutions[p.Name] = produce
+				continue
+			}
 			call.ArgIndex = append(call.ArgIndex, i)
 			continue
 		}
@@ -163,4 +168,136 @@ func (a *Analyser) expandInline(expr *ast.CallExpr, ft *FuncType) {
 
 	call.Body = body
 	a.info.Inlines[expr] = call
+	if ft.Module != "" && ft.Module != savedModule {
+		a.checkInlineVisibility(expr, decl, body, ft.Module)
+	}
+}
+
+type bindings struct {
+	changed map[string]bool
+	defined map[string]bool
+}
+
+func inlineBindings(body *ast.BlockStmt) bindings {
+	b := bindings{changed: map[string]bool{}, defined: map[string]bool{}}
+	target := func(expr ast.Expression) {
+		if id, ok := expr.(*ast.IdentLiteral); ok {
+			b.changed[id.Value] = true
+		}
+	}
+	define := func(names ...string) {
+		for _, name := range names {
+			if name != "" {
+				b.defined[name] = true
+			}
+		}
+	}
+	ast.Inspect(body, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.AssignStmt:
+			for _, t := range n.Targets {
+				target(t)
+			}
+		case *ast.IncDecStmt:
+			target(n.Target)
+		case *ast.UnaryExpr:
+			if n.Operator == "&" {
+				target(n.Value)
+			}
+		case *ast.NativeStmt:
+			for _, binding := range n.Bindings {
+				if binding.Var != nil {
+					b.changed[binding.Var.Value] = true
+				}
+			}
+		case *ast.VarStmt:
+			for _, v := range n.Vars {
+				define(v.Name)
+			}
+		case *ast.ConstStmt:
+			for _, v := range n.Vars {
+				define(v.Name)
+			}
+		case *ast.ForStmt:
+			define(n.Var, n.Var2)
+		case *ast.FuncLiteral:
+			for _, p := range n.Params {
+				define(p.Name)
+			}
+		case *ast.CoalesceExpr:
+			define(n.ErrorBind)
+		case *ast.DeferStmt:
+			define(n.ErrorBind)
+		}
+		return true
+	})
+	return b
+}
+
+func (a *Analyser) propagatedArgument(arg ast.Expression, tp Type, name string, fixed bindings, at ast.Position) (func() ast.Expression, bool) {
+	if fixed.changed[name] || fixed.defined[name] {
+		return nil, false
+	}
+	base := underlying(tp)
+	if p, ok := base.(PrimitiveType); ok && p.Name != "bool" && !isInteger(base) {
+		return nil, false
+	}
+	if _, isPrimitive := base.(PrimitiveType); !isPrimitive {
+		if named, isNamed := tp.(NamedType); !isNamed || !named.Enum {
+			return nil, false
+		}
+	}
+
+	a.quiet = true
+	value, ok := a.evalConst(arg)
+	a.quiet = false
+	if !ok || (value.Kind != ConstInt && value.Kind != ConstBool) {
+		return nil, false
+	}
+	if value.Kind == ConstInt && value.Int.Sign() == 0 {
+		return nil, false
+	}
+	converted, ok := a.convertConst(value, tp)
+	if !ok {
+		return nil, false
+	}
+
+	var enum *EnumValue
+	if found, isMember := a.info.EnumValues[arg]; isMember {
+		enum = &found
+	}
+	return func() ast.Expression {
+		ref := &ast.ConstRef{}
+		ref.SetPos(at.Line, at.Col)
+		ref.SetEndPos(at.EndLine, at.EndCol)
+		a.info.ConstRefs[ref] = ConstRefInfo{Value: converted, Type: tp, Enum: enum}
+		return ref
+	}, true
+}
+
+func (a *Analyser) checkInlineVisibility(site *ast.CallExpr, decl *ast.FuncDecl, body *ast.BlockStmt, module string) {
+	info, ok := a.modules[module]
+	if !ok {
+		return
+	}
+	reported := map[string]bool{}
+	ast.Inspect(body, func(node ast.Node) bool {
+		id, ok := node.(*ast.IdentLiteral)
+		if !ok {
+			return true
+		}
+		sym := a.info.Idents[id]
+		if sym == nil || sym.Module != module || reported[sym.Name] {
+			return true
+		}
+		if sym.Kind != FUNC && !(sym.Kind == VAR && sym.Global) {
+			return true
+		}
+		if exported, found := info.Exports[sym.Name]; found && exported == sym {
+			return true
+		}
+		reported[sym.Name] = true
+		a.errorf(site, "inline function %s uses %s, which is private to module %s, so it cannot be expanded here", decl.Name, sym.Name, module)
+		return true
+	})
 }

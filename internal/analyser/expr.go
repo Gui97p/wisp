@@ -107,6 +107,12 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 
 	a.info.Types[expr] = t
 	a.recordFold(expr)
+	if ft, ok := t.(*FuncType); ok && ft.Inline && ft.Decl != nil && ft.Decl.HasConstParams() && expr != a.callee {
+		switch expr.(type) {
+		case *ast.IdentLiteral, *ast.MemberExpr:
+			a.errorf(expr, "%s takes const parameters, so it only exists where it is called and cannot be used as a value", ft.Name)
+		}
+	}
 	return t
 }
 
@@ -419,6 +425,7 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 		}
 	}
 
+	a.callee = expr.Name
 	nameType := a.checkExpr(expr.Name)
 	if nt, isNamed := nameType.(NamedType); isNamed {
 		if _, isFunc := nt.Underlying.(*FuncType); isFunc {

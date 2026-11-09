@@ -79,3 +79,36 @@ func cloneValue(v reflect.Value, options CloneOptions) reflect.Value {
 	}
 	return v
 }
+
+func Inspect(node Node, visit func(Node) bool) {
+	inspectValue(reflect.ValueOf(node), visit)
+}
+
+func inspectValue(v reflect.Value, visit func(Node) bool) {
+	switch v.Kind() {
+	case reflect.Pointer:
+		if v.IsNil() {
+			return
+		}
+		if v.Type().Implements(nodeType) {
+			if !visit(v.Interface().(Node)) {
+				return
+			}
+		}
+		inspectValue(v.Elem(), visit)
+	case reflect.Interface:
+		if !v.IsNil() {
+			inspectValue(v.Elem(), visit)
+		}
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if v.Type().Field(i).IsExported() {
+				inspectValue(v.Field(i), visit)
+			}
+		}
+	case reflect.Slice:
+		for i := 0; i < v.Len(); i++ {
+			inspectValue(v.Index(i), visit)
+		}
+	}
+}

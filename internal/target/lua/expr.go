@@ -44,6 +44,23 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 	}
 
 	switch e := expr.(type) {
+	case *ast.ConstRef:
+		value, ok := t.info.Folded(e)
+		if !ok {
+			return fmt.Errorf("lua: a constant argument has no value")
+		}
+		switch value.Kind {
+		case analyser.ConstBool:
+			b.WriteString(strconv.FormatBool(value.Bool))
+		case analyser.ConstInt:
+			if value.Int.IsInt64() && value.Int.Int64() == math.MinInt64 {
+				b.WriteString("math.mininteger")
+			} else {
+				b.WriteString(value.Int.String())
+			}
+		default:
+			return fmt.Errorf("lua: unsupported constant argument")
+		}
 	case *ast.BinaryExpr:
 		return t.compileBinaryExpr(b, e)
 	case *ast.UnaryExpr:

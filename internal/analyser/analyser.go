@@ -32,6 +32,7 @@ type Analyser struct {
 	inlineStack   []*ast.FuncDecl
 	currentInline *InlineCall
 	siteFile      string
+	callee        ast.Expression
 
 	modules map[string]*ModuleInfo
 	links   []*importLink

@@ -1,0 +1,53 @@
+// Tour - Inline functions.
+//
+// `inline func` asks for the body to be written at every call, instead of
+// jumping to one shared copy. This is a guarantee, not a hint: the compiler
+// always expands it, so a small helper costs nothing. The arguments are still
+// evaluated once, in order, as in a normal call, and `return` leaves only the
+// inline body, never the function that called it.
+//
+// A parameter marked `const` has to receive a constant at the call, and the
+// body sees that constant itself. That is how an inline function can use a
+// value that must be known at compile time. Because it has no single
+// compiled copy, a function with `const` parameters cannot be used as a value.
+//
+// An inline function that calls itself is expanded once and then called
+// normally. `...args` is not supported yet. A public inline function can only
+// use public names of its module, since the body ends up in other modules.
+
+import "std/fmt";
+
+inline func add(int a, int b) int => a + b;
+
+inline func abs(int x) int {
+  if x < 0 {
+    return -x;
+  }
+  return x;
+}
+
+inline func scale(const int factor, int x) int {
+  return x * factor;
+}
+
+inline func clamp(int x, int low, int high) int {
+  if x < low {
+    return low;
+  }
+  if x > high {
+    return high;
+  }
+  return x;
+}
+
+public func demo() {
+  fmt.printf("add(2, 3) = {}\n", add(2, 3));
+  fmt.printf("abs(-7) = {}, abs(4) = {}\n", abs(-7), abs(4));
+  fmt.printf("scale(10, 4) = {}\n", scale(10, 4));
+
+  int total = 0;
+  for i in 0..5 {
+    total += clamp(i * 3, 2, 9);
+  }
+  fmt.printf("sum of clamp(i * 3, 2, 9) = {}\n", total);
+}
