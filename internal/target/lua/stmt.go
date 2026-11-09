@@ -484,16 +484,32 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 	}
 	stepVar := t.newLabel("for_step")
 	fmt.Fprintf(b, "local %s = %s\n", stepVar, step)
-	if stmt.Step != nil {
-		fmt.Fprintf(b, "if %s <= 0 then __wisp_panic(\"range step must be positive\") end\n", stepVar)
+
+	known, up := false, true
+	if stmt.Step == nil {
+		known = true
+	} else if value, ok := t.info.Folded(stmt.Step); ok && value.Kind == analyser.ConstInt {
+		known, up = true, value.Int.Sign() > 0
 	}
 
-	upVar := t.newLabel("for_up")
-	fmt.Fprintf(b, "local %s = %s <= %s\n", upVar, luaIdent(stmt.Var), endVar)
+	variable := luaIdent(stmt.Var)
+	upVar := ""
+	if !known {
+		fmt.Fprintf(b, "if %s == 0 then __wisp_panic(\"range step cannot be zero\") end\n", stepVar)
+		upVar = t.newLabel("for_up")
+		fmt.Fprintf(b, "local %s = %s > 0\n", upVar, stepVar)
+	}
 
 	fmt.Fprintf(b, "::%s::\n", conditionLabel)
-	fmt.Fprintf(b, "if %s then\nif %s > %s then goto %s end\nelse\nif %s < %s then goto %s end\nend\n",
-		upVar, luaIdent(stmt.Var), endVar, ctx.BreakLabel, luaIdent(stmt.Var), endVar, ctx.BreakLabel)
+	switch {
+	case !known:
+		fmt.Fprintf(b, "if %s then\nif %s > %s then goto %s end\nelse\nif %s < %s then goto %s end\nend\n",
+			upVar, variable, endVar, ctx.BreakLabel, variable, endVar, ctx.BreakLabel)
+	case up:
+		fmt.Fprintf(b, "if %s > %s then goto %s end\n", variable, endVar, ctx.BreakLabel)
+	default:
+		fmt.Fprintf(b, "if %s < %s then goto %s end\n", variable, endVar, ctx.BreakLabel)
+	}
 
 	b.WriteString("do\n")
 
@@ -504,7 +520,7 @@ func (t *LuaTarget) compileForNumeric(b *strings.Builder, stmt *ast.ForStmt) err
 	b.WriteString("end\n")
 
 	fmt.Fprintf(b, "::%s::\n", ctx.ContinueLabel)
-	fmt.Fprintf(b, "if %s then %s = %s + %s else %s = %s - %s end\n", upVar, luaIdent(stmt.Var), luaIdent(stmt.Var), stepVar, luaIdent(stmt.Var), luaIdent(stmt.Var), stepVar)
+	fmt.Fprintf(b, "%s = %s + %s\n", variable, variable, stepVar)
 
 	fmt.Fprintf(b, "goto %s\n", conditionLabel)
 	fmt.Fprintf(b, "::%s::\n", ctx.BreakLabel)

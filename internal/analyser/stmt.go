@@ -193,11 +193,12 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 	if stmt.Step != nil {
 		a.coerceRangeValue(&stmt.Step, "for step")
 		if step, ok := a.evalConst(stmt.Step); ok {
-			if (step.Kind == ConstInt && step.Int.Sign() <= 0) || (step.Kind == ConstFloat && step.Float <= 0) {
-				a.error(stmt.Step, "range step must be positive: the direction comes from the bounds, as in 10..1:2")
+			if (step.Kind == ConstInt && step.Int.Sign() == 0) || (step.Kind == ConstFloat && step.Float == 0) {
+				a.error(stmt.Step, "range step cannot be zero")
 			}
 		}
 	}
+	a.warnEmptyRange(stmt)
 
 	a.pushLoop(stmt.Label)
 	a.enterScope()
@@ -541,4 +542,34 @@ func (a *Analyser) isStringElement(target ast.Expression) bool {
 	a.error(target, "a string is read-only").
 		WithHelp("write into the []char it was made from, or build a new string")
 	return true
+}
+
+func (a *Analyser) warnEmptyRange(stmt *ast.ForStmt) {
+	if a.currentInline != nil || stmt.Start == nil || stmt.End == nil {
+		return
+	}
+	a.quiet = true
+	defer func() { a.quiet = false }()
+	start, okStart := a.evalConst(stmt.Start)
+	end, okEnd := a.evalConst(stmt.End)
+	if !okStart || !okEnd || start.Kind != ConstInt || end.Kind != ConstInt {
+		return
+	}
+	down := false
+	if stmt.Step != nil {
+		step, ok := a.evalConst(stmt.Step)
+		if !ok || step.Kind != ConstInt {
+			return
+		}
+		down = step.Int.Sign() < 0
+	}
+	switch {
+	case !down && start.Int.Cmp(end.Int) > 0:
+		a.quiet = false
+		a.warnf(stmt.End, "this range is empty: it starts above its end").
+			WithHelp("to count down, give a negative step, as in %s..%s:-1", start.Int, end.Int)
+	case down && start.Int.Cmp(end.Int) < 0:
+		a.quiet = false
+		a.warnf(stmt.End, "this range is empty: with a negative step it must start above its end")
+	}
 }

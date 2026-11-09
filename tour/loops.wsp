@@ -19,6 +19,22 @@ public func demo() {
   }
   fmt.printf("the sum of 1..10:4 is {}\n", stepped);
 
+  // A range only counts up, so one that starts above its end is empty and
+  // `0..n-1` is safe when `n` is 0. To count down, give a negative step:
+  // this visits 3, 2, 1. The sign of the step is the direction.
+  int countdown;
+  for i in 3..1:-1 {
+    countdown = countdown * 10 + i;
+  }
+  fmt.printf("counting down from 3 to 1 gives {}\n", countdown);
+
+  int none = 0;
+  int count = 0;
+  for _ in 0..count-1 {
+    none++;
+  }
+  fmt.printf("0..count-1 with count = 0 ran {} times\n", none);
+
   // Without a variable, `for` just repeats.
   int repeats;
   for 2 {

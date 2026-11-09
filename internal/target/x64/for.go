@@ -29,17 +29,10 @@ func (t *X64Target) constantRange(stmt *ast.ForStmt) (end, step int64, up, ok bo
 		}
 		stepValue = s.Int
 	}
-	if stepValue.Sign() <= 0 {
-		return 0, 0, false, false
-	}
 
-	up = start.Int.Cmp(last.Int) <= 0
+	up = stepValue.Sign() > 0
 	after := new(big.Int)
-	if up {
-		after.Add(last.Int, stepValue)
-	} else {
-		after.Sub(last.Int, stepValue)
-	}
+	after.Add(last.Int, stepValue)
 	if !after.IsInt64() || !last.Int.IsInt64() || !stepValue.IsInt64() {
 		return 0, 0, false, false
 	}
@@ -48,7 +41,10 @@ func (t *X64Target) constantRange(stmt *ast.ForStmt) (end, step int64, up, ok bo
 	if int64(int32(end)) != end || int64(int32(step)) != step {
 		return 0, 0, false, false
 	}
-	return end, step, up, true
+	if (up && start.Bits() > last.Bits()) || (!up && start.Bits() < last.Bits()) {
+		return 0, 0, false, false
+	}
+	return end, int64(abs(int(step))), up, true
 }
 
 func (t *X64Target) compileForConstant(stmt *ast.ForStmt, end, step int64, up bool) error {
@@ -198,35 +194,39 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 	endSlot := slot(endOffset, size)
 	t.store(end, endSlot)
 
+	known, up := false, true
+	if stmt.Step == nil {
+		known = true
+	} else if s, ok := t.info.Folded(stmt.Step); ok {
+		known, up = true, s.Int.Sign() > 0
+	}
+
 	stepOffset := t.ctx.Reserve(8)
 	stepSlot := slot(stepOffset, size)
+	var step Operand = Imm(1)
 	if stmt.Step != nil {
-		step, err := t.compileExpr(stmt.Step)
+		step, err = t.compileExpr(stmt.Step)
 		if err != nil {
 			return err
 		}
-		t.store(step, stepSlot)
+	}
+	t.store(step, stepSlot)
+
+	if stmt.Step != nil && !known {
 		stepOk := t.newLabel("step_ok")
 		t.text.printft("cmp %s, 0\n", t.memText(stepSlot))
-		t.text.printft("jg %s\n", stepOk)
-		t.panic("range step must be positive")
+		t.text.printft("jne %s\n", stepOk)
+		t.panic("range step cannot be zero")
 		t.text.printf("%s:\n", stepOk)
-	} else {
-		t.store(Imm(1), stepSlot)
 	}
 
-	reg := t.ctx.AllocFreeRegister()
-	regStr := t.ctx.GetRegister(reg, size)
-
-	condLabel := t.newLabel("for_condition")
-	dirOffset := t.ctx.Reserve(8)
-	t.text.printft("mov qword [rbp-%d], 0\n", dirOffset)
-	t.text.printft("mov %s, %s\n", regStr, t.memText(startSlot))
-	t.text.printft("cmp %s, %s\n", regStr, t.memText(endSlot))
-	t.text.printft("setle byte [rbp-%d]\n", dirOffset)
-	t.text.printft("jle %s\n", condLabel)
-	t.text.printft("neg %s\n", t.memText(stepSlot))
-	t.ctx.FreeRegister(reg)
+	var dirOffset int
+	if !known {
+		dirOffset = t.ctx.Reserve(8)
+		t.text.printft("mov qword [rbp-%d], 0\n", dirOffset)
+		t.text.printft("cmp %s, 0\n", t.memText(stepSlot))
+		t.text.printft("setg byte [rbp-%d]\n", dirOffset)
+	}
 
 	ctx := x64context.LoopContext{
 		Label:            stmt.Label,
@@ -238,6 +238,7 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 	t.pushLoop(ctx)
 	defer t.ctx.PopLoop()
 
+	condLabel := t.newLabel("for_condition")
 	t.text.printf("%s:\n", condLabel)
 	left := t.materialize(startSlot, size)
 	leftStr := t.ctx.GetRegister(left, size)
@@ -245,15 +246,24 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 	down := t.newLabel("down")
 	body := t.newLabel("body")
 
-	t.text.printft("cmp qword [rbp-%d], 0\n", dirOffset)
-	t.text.printft("je %s\n", down)
-	t.text.printft("cmp %s, %s\n", leftStr, t.memText(endSlot))
-	t.text.printft("jg %s\n", ctx.BreakLabel)
-	t.text.printft("jmp %s\n", body)
+	if known {
+		jDir := "g"
+		if !up {
+			jDir = "l"
+		}
+		t.text.printft("cmp %s, %s\n", leftStr, t.memText(endSlot))
+		t.text.printft("j%s %s\n", jDir, ctx.BreakLabel)
+	} else {
+		t.text.printft("cmp qword [rbp-%d], 0\n", dirOffset)
+		t.text.printft("je %s\n", down)
+		t.text.printft("cmp %s, %s\n", leftStr, t.memText(endSlot))
+		t.text.printft("jg %s\n", ctx.BreakLabel)
+		t.text.printft("jmp %s\n", body)
 
-	t.text.printf("%s:\n", down)
-	t.text.printft("cmp %s, %s\n", leftStr, t.memText(endSlot))
-	t.text.printft("jl %s\n", ctx.BreakLabel)
+		t.text.printf("%s:\n", down)
+		t.text.printft("cmp %s, %s\n", leftStr, t.memText(endSlot))
+		t.text.printft("jl %s\n", ctx.BreakLabel)
+	}
 
 	t.ctx.FreeRegister(left)
 	t.text.printf("%s:\n", body)

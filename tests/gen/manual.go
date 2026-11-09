@@ -5547,38 +5547,38 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 10..0 {
+        for i in 10..0:-1 {
             count++;
             sum += i;
         }
         int a = 10;
         int b = 0;
-        int step = 1;
+        int step = -1;
         int count2 = 0;
         int sum2 = 0;
         for j in a..b:step {
             count2++;
             sum2 += j;
         }
-        check(count == 11 && sum == 55 && count2 == 11 && sum2 == 55, "range 10..0:1 agrees with its runtime form and the expected count");
+        check(count == 11 && sum == 55 && count2 == 11 && sum2 == 55, "range 10..0:-1 agrees with its runtime form and the expected count");
     }
     if true {
         int count = 0;
         int sum = 0;
-        for i in 10..0:3 {
+        for i in 10..0:-3 {
             count++;
             sum += i;
         }
         int a = 10;
         int b = 0;
-        int step = 3;
+        int step = -3;
         int count2 = 0;
         int sum2 = 0;
         for j in a..b:step {
             count2++;
             sum2 += j;
         }
-        check(count == 4 && sum == 22 && count2 == 4 && sum2 == 22, "range 10..0:3 agrees with its runtime form and the expected count");
+        check(count == 4 && sum == 22 && count2 == 4 && sum2 == 22, "range 10..0:-3 agrees with its runtime form and the expected count");
     }
     if true {
         int count = 0;
@@ -5601,20 +5601,20 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 5..-5:2 {
+        for i in 5..-5:-2 {
             count++;
             sum += i;
         }
         int a = 5;
         int b = -5;
-        int step = 2;
+        int step = -2;
         int count2 = 0;
         int sum2 = 0;
         for j in a..b:step {
             count2++;
             sum2 += j;
         }
-        check(count == 6 && sum == 0 && count2 == 6 && sum2 == 0, "range 5..-5:2 agrees with its runtime form and the expected count");
+        check(count == 6 && sum == 0 && count2 == 6 && sum2 == 0, "range 5..-5:-2 agrees with its runtime form and the expected count");
     }
     if true {
         int count = 0;
@@ -5637,20 +5637,20 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 100..1:7 {
+        for i in 100..1:-7 {
             count++;
             sum += i;
         }
         int a = 100;
         int b = 1;
-        int step = 7;
+        int step = -7;
         int count2 = 0;
         int sum2 = 0;
         for j in a..b:step {
             count2++;
             sum2 += j;
         }
-        check(count == 15 && sum == 765 && count2 == 15 && sum2 == 765, "range 100..1:7 agrees with its runtime form and the expected count");
+        check(count == 15 && sum == 765 && count2 == 15 && sum2 == 765, "range 100..1:-7 agrees with its runtime form and the expected count");
     }
     if true {
         int count = 0;
@@ -5691,20 +5691,20 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 1000..0:10 {
+        for i in 1000..0:-10 {
             count++;
             sum += i;
         }
         int a = 1000;
         int b = 0;
-        int step = 10;
+        int step = -10;
         int count2 = 0;
         int sum2 = 0;
         for j in a..b:step {
             count2++;
             sum2 += j;
         }
-        check(count == 101 && sum == 50500 && count2 == 101 && sum2 == 50500, "range 1000..0:10 agrees with its runtime form and the expected count");
+        check(count == 101 && sum == 50500 && count2 == 101 && sum2 == 50500, "range 1000..0:-10 agrees with its runtime form and the expected count");
     }
     if true {
         int count = 0;
@@ -5799,20 +5799,20 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 9..0 {
+        for i in 9..0:-1 {
             count++;
             sum += i;
         }
         int a = 9;
         int b = 0;
-        int step = 1;
+        int step = -1;
         int count2 = 0;
         int sum2 = 0;
         for j in a..b:step {
             count2++;
             sum2 += j;
         }
-        check(count == 10 && sum == 45 && count2 == 10 && sum2 == 45, "range 9..0:1 agrees with its runtime form and the expected count");
+        check(count == 10 && sum == 45 && count2 == 10 && sum2 == 45, "range 9..0:-1 agrees with its runtime form and the expected count");
     }
     if true {
         int count = 0;
@@ -5862,7 +5862,7 @@ func main() {
     }
     if true {
         int total = 0;
-        for i in 5..1 {
+        for i in 5..1:-1 {
             for j in 1..3 {
                 total += i * j;
             }
@@ -5883,7 +5883,7 @@ func main() {
         for i in 0..n-1 {
             count++;
         }
-        check(count == 2, "a runtime end below the start counts down, so 0..n-1 with n = 0 runs twice");
+        check(count == 0, "a runtime end below the start is empty, so 0..n-1 with n = 0 does not run");
     }
     if true {
         int visited = 0;
@@ -5894,7 +5894,7 @@ func main() {
         check(visited == 4, "the loop variable can be changed in the body");
     }
 }
-`, expected: []string{"range 0..9:1 agrees with its runtime form and the expected count", "range 0..9:2 agrees with its runtime form and the expected count", "range 0..9:3 agrees with its runtime form and the expected count", "range 3..3:1 agrees with its runtime form and the expected count", "range 10..0:1 agrees with its runtime form and the expected count", "range 10..0:3 agrees with its runtime form and the expected count", "range -5..5:1 agrees with its runtime form and the expected count", "range 5..-5:2 agrees with its runtime form and the expected count", "range 1..100:7 agrees with its runtime form and the expected count", "range 100..1:7 agrees with its runtime form and the expected count", "range -100..-90:1 agrees with its runtime form and the expected count", "range 0..1000:1 agrees with its runtime form and the expected count", "range 1000..0:10 agrees with its runtime form and the expected count", "range 1073741824..1073741830:1 agrees with its runtime form and the expected count", "range -1073741830..-1073741824:2 agrees with its runtime form and the expected count", "range 2147483640..2147483650:1 agrees with its runtime form and the expected count", "range -2147483650..-2147483640:3 agrees with its runtime form and the expected count", "range 5000000000..5000000009:1 agrees with its runtime form and the expected count", "range 9..0:1 agrees with its runtime form and the expected count", "range 0..0:5 agrees with its runtime form and the expected count", "continue and break in a constant range", "labeled loops over constant ranges", "nested constant ranges, one descending", "a defer inside a constant range runs on every pass", "a runtime end below the start counts down, so 0..n-1 with n = 0 runs twice", "the loop variable can be changed in the body"}},
+`, expected: []string{"range 0..9:1 agrees with its runtime form and the expected count", "range 0..9:2 agrees with its runtime form and the expected count", "range 0..9:3 agrees with its runtime form and the expected count", "range 3..3:1 agrees with its runtime form and the expected count", "range 10..0:-1 agrees with its runtime form and the expected count", "range 10..0:-3 agrees with its runtime form and the expected count", "range -5..5:1 agrees with its runtime form and the expected count", "range 5..-5:-2 agrees with its runtime form and the expected count", "range 1..100:7 agrees with its runtime form and the expected count", "range 100..1:-7 agrees with its runtime form and the expected count", "range -100..-90:1 agrees with its runtime form and the expected count", "range 0..1000:1 agrees with its runtime form and the expected count", "range 1000..0:-10 agrees with its runtime form and the expected count", "range 1073741824..1073741830:1 agrees with its runtime form and the expected count", "range -1073741830..-1073741824:2 agrees with its runtime form and the expected count", "range 2147483640..2147483650:1 agrees with its runtime form and the expected count", "range -2147483650..-2147483640:3 agrees with its runtime form and the expected count", "range 5000000000..5000000009:1 agrees with its runtime form and the expected count", "range 9..0:-1 agrees with its runtime form and the expected count", "range 0..0:5 agrees with its runtime form and the expected count", "continue and break in a constant range", "labeled loops over constant ranges", "nested constant ranges, one descending", "a defer inside a constant range runs on every pass", "a runtime end below the start is empty, so 0..n-1 with n = 0 does not run", "the loop variable can be changed in the body"}},
 
 	{dir: "rep_blocks", src: `struct Holder {
     int before;
@@ -6423,10 +6423,10 @@ func main() {
     }
     check(up == 1234, "range ascending visits every value");
     int down = 0;
-    for i in 4..1 {
+    for i in 4..1:-1 {
         down = down * 10 + i;
     }
-    check(down == 4321, "range descending counts down");
+    check(down == 4321, "a negative step counts down");
     int once = 0;
     for i in 5..5 {
         once += 1;
@@ -6438,17 +6438,53 @@ func main() {
     }
     check(stepUp == 10509, "range ascending with a step");
     int stepDown = 0;
-    for i in 10..1:3 {
+    for i in 10..1:-3 {
         stepDown = stepDown * 100 + i;
     }
-    check(stepDown == 10070401, "range descending with a step");
+    check(stepDown == 10070401, "descending with a negative step");
     int skip = 0;
-    for i in 10..1:20 {
+    for i in 10..1:-20 {
         skip += 1;
     }
     check(skip == 1, "range step larger than the distance visits only the start");
+    int skipUp = 0;
+    for i in 1..10:20 {
+        skipUp += 1;
+    }
+    check(skipUp == 1, "ascending step larger than the distance visits only the start");
+
+    int zero = 0;
+    int empty = 0;
+    for i in 0..zero-1 {
+        empty += 1;
+    }
+    check(empty == 0, "0..n-1 with n = 0 is empty");
+    int high = 5;
+    int low = 1;
+    int reversed = 0;
+    for i in high..low {
+        reversed += 1;
+    }
+    check(reversed == 0, "a range that starts above its end is empty");
+    int wrongWay = 0;
+    for i in low..high:-1 {
+        wrongWay += 1;
+    }
+    check(wrongWay == 0, "a negative step over an ascending range is empty");
+    int back = 0;
+    for i in high..low:-1 {
+        back = back * 10 + i;
+    }
+    check(back == 54321, "a runtime range counts down with a negative step");
+    int s = -2;
+    int dynamic = 0;
+    for i in 9..1:s {
+        dynamic = dynamic * 10 + i;
+    }
+    check(dynamic == 97531, "a runtime negative step counts down");
+    check(1 in 1..4 && !(1 in 4..1), "membership agrees with the loop: a reversed range holds nothing");
 }
-`},
+`, expected: []string{"range ascending visits every value", "a negative step counts down", "range with equal bounds runs once", "range ascending with a step", "descending with a negative step", "range step larger than the distance visits only the start", "ascending step larger than the distance visits only the start", "0..n-1 with n = 0 is empty", "a range that starts above its end is empty", "a negative step over an ascending range is empty", "a runtime range counts down with a negative step", "a runtime negative step counts down", "membership agrees with the loop: a reversed range holds nothing"}},
 
 	{dir: "flow_range_evaluation", src: `func bound(int v) int {
     return v;
@@ -6483,10 +6519,10 @@ func main() {
     int a = 3;
     int b = 1;
     int dir = 0;
-    for i in a..b {
+    for i in a..b:-1 {
         dir += 1;
     }
-    check(dir == 3, "range direction comes from variables");
+    check(dir == 3, "the step sign sets the direction when the bounds are variables");
 }
 `},
 
@@ -6497,7 +6533,7 @@ func main() {
         check(true, "abortstep never printed");
     }
 }
-`, expected: []string{"abortstep before the loop"}, abort: "panic: range step must be positive"},
+`, expected: []string{"abortstep before the loop"}, abort: "panic: range step cannot be zero"},
 
 	{dir: "abort_index_array", src: `func main() {
     [5]int nums = [1, 2, 3, 4, 5];

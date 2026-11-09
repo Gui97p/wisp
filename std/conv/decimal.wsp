@@ -53,14 +53,14 @@ internal func (*Decimal dec) setUint(uint m) {
 
 internal func (*Decimal dec) shiftLeft() {
 	uint carry;
-	for i in dec.n-1..0 {
+	for i in dec.n-1..0:-1 {
 		uint cur = dec.d[i]*2 + carry;
 		dec.d[i] = cur % 10;
 		carry = cur / 10;
 	}
 
 	if carry != 0 {
-		for i in dec.n-1..0 {
+		for i in dec.n-1..0:-1 {
 			dec.d[i+1] = dec.d[i];
 		}
 		dec.n++;
@@ -130,7 +130,7 @@ internal func (*Decimal dec) roundDown(int nd) {
 
 internal func (*Decimal dec) roundUp(int nd) {
 	if nd > 0 {
-		for i in nd-1..0 {
+		for i in nd-1..0:-1 {
 			if dec.d[i] < 9 {
 				dec.d[i]++;
 				dec.n = i + 1;
