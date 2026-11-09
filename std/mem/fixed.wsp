@@ -16,25 +16,21 @@ public func (*Fixed f) allocDirty(int n) !*void {
 	int base = int((*char)(f.buffer));
 	int start = (base + f.bUsed + 15) & ~15;
 	int off = start - base;
-	if n < 0 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(n >= 0, errors.Kind.Invalid)!;
 	n = (n + 15) & ~15;
-	if off + n > len(f.buffer) {
-		return Error(errors.Kind.NoSpace);
-	}
+	errors.ensure(off + n <= len(f.buffer), errors.Kind.NoSpace)!;
 	defer f.bUsed = off + n;
 	return (*char)(f.buffer) + off;
 }
 
-public func (*Fixed f) reset() {
+public inline func (*Fixed f) reset() {
 	f.bUsed = 0;
 }
 
-public func (*Fixed f) remaining() int {
+public inline func (*Fixed f) remaining() int {
 	return len(f.buffer) - f.bUsed;
 }
 
-public func (*Fixed f) used() int {
+public inline func (*Fixed f) used() int {
 	return f.bUsed;
 }

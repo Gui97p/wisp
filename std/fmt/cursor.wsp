@@ -3,22 +3,22 @@ internal struct Cursor {
 	int pos;
 }
 
-internal func (*Cursor c) peekAt(int k) char {
+internal inline func (*Cursor c) peekAt(int k) char {
 	if c.pos+k >= len(c.text) || k < 0 {
 		return '\0';
 	}
 	return c.text[c.pos+k];
 }
 
-internal func (*Cursor c) peek() char {
+internal inline func (*Cursor c) peek() char {
 	return c.peekAt(0);
 }
 
-internal func (*Cursor c) advance() {
+internal inline func (*Cursor c) advance() {
 	c.pos++;
 }
 
-internal func (*Cursor c) advanceN(int n) {
+internal inline func (*Cursor c) advanceN(int n) {
 	c.pos += n;
 }
 
@@ -40,11 +40,11 @@ internal func (*Cursor c) advanceUntil(char ...chs) bool {
 	return true;
 }
 
-internal func (*Cursor c) since(int mark) string {
+internal inline func (*Cursor c) since(int mark) string {
 	return c.text[mark:c.pos];
 }
 
-internal func (*Cursor c) done() bool {
+internal inline func (*Cursor c) done() bool {
 	return c.pos >= len(c.text);
 }
 

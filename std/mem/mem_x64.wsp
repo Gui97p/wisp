@@ -38,28 +38,28 @@ const {
 	uint DEAD = 0x5749535044454144;
 }
 
-func header(*void p) int {
+inline func header(*void p) int {
 	return (*int)((*char)(p) - 16)@;
 }
 
-func setHeader(*void p, int v) {
+inline func setHeader(*void p, int v) {
 	(*int)((*char)(p)-16)@ = v;
 }
 
-func state(*void p) uint {
+inline func state(*void p) uint {
 	return (*uint)((*char)(p) - 8)@;
 }
 
-func setState(*void p, uint v) {
+inline func setState(*void p, uint v) {
 	(*uint)((*char)(p)-8)@ = v;
 }
 
-func classOf(int total) int {
+inline func classOf(int total) int {
 	int bits = int(64 - leadingZeros(uint(total - 1)));
 	return (bits > 5 ? bits : 5) - 5;
 }
 
-func failed(*void r) bool {
+inline func failed(*void r) bool {
 	return int(r) in -4095..-1;
 }
 
@@ -195,7 +195,7 @@ func forget(*void p) {
 	}
 }
 
-func entryOf(*void p) *Entry {
+inline func entryOf(*void p) *Entry {
 	int i = find(p);
 	return i >= 0 ? &table[i] : null;
 }

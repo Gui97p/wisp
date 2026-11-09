@@ -5,16 +5,14 @@ import "std/os";
 import "std/path";
 import "std/errors";
 
-public func isDir(string p) bool {
+public inline func isDir(string p) bool {
 	let s = files.stat(p) ?? return false;
 	return s.kind == .Dir;
 }
 
 public func removeDir(string p) ! {
 	[4096]char buf;
-	if len(p) > 4095 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
 	global.copypath((*char)(buf), p);
 	int r = sys.remove((*char)(buf), sys.AT_REMOVEDIR);
 	if r < 0 {
@@ -23,9 +21,7 @@ public func removeDir(string p) ! {
 }
 
 public func mkdir(string p) ! {
-	if len(p) > 4095 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
 	[4096]char buf;
 	global.copypath((*char)(buf), p);
 	int r = sys.mkdir((*char)(buf), 0o755);

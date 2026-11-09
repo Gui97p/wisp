@@ -5,22 +5,14 @@ import "std/strings";
 import "std/conv/decimal";
 
 public func floatToInt(float x) !int {
-	if math.isNaN(x) {
-		return Error(errors.Kind.Invalid);
-	}
-	if x >= 9223372036854775808.0 || x < -9223372036854775808.0 {
-		return Error(errors.Kind.Overflow);
-	}
+	errors.ensure(!math.isNaN(x), errors.Kind.Invalid)!;
+	errors.ensure(x < 9223372036854775808.0 && x >= -9223372036854775808.0, errors.Kind.Overflow)!;
 	return int(x);
 }
 
 public func floatToUint(float x) !uint {
-	if math.isNaN(x) {
-		return Error(errors.Kind.Invalid);
-	}
-	if x <= -1.0 || x >= 18446744073709551616.0 {
-		return Error(errors.Kind.Overflow);
-	}
+	errors.ensure(!math.isNaN(x), errors.Kind.Invalid)!;
+	errors.ensure(x > -1.0 && x < 18446744073709551616.0, errors.Kind.Overflow)!;
 	return uint(x);
 }
 
@@ -39,9 +31,7 @@ func special([]char buf, float x) !(string, bool) {
 
 func layoutFixed([]char buf, bool neg, *decimal.Decimal dec, int decimals) !string {
 	int size = (neg ? 1 : 0) + math.max(1, dec.dp) + (decimals > 0 ? 1 + decimals : 0);
-	if len(buf) < size {
-		return Error(errors.Kind.NoSpace);
-	}
+	errors.ensure(len(buf) >= size, errors.Kind.NoSpace)!;
 	int i;
 	if neg {
 		buf[0] = '-';
@@ -78,9 +68,7 @@ func layoutExp([]char buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 	int mag = exp < 0 ? -exp : exp;
 	
 	int size = (neg ? 1 : 0) + 1 + (decimals > 0 ? 1 + decimals : 0) + 2 + (mag >= 100 ? 3 : 2);
-	if len(buf) < size {
-		return Error(errors.Kind.NoSpace);
-	}
+	errors.ensure(len(buf) >= size, errors.Kind.NoSpace)!;
 	int i;
 	if neg {
 		buf[0] = '-';
@@ -118,10 +106,7 @@ func layoutExp([]char buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 }
 
 func shortestText([]char buf, float x, bool single) !string {
-	let view, spec = special(buf, x) ?? |e| return switch e {
-		case strings.StringError.NoSpace => Error(errors.Kind.NoSpace);
-		default => e;
-	};
+	let view, spec = special(buf, x)!;
 	if spec {
 		return view;
 	}
@@ -150,10 +135,7 @@ public func ftoa32 ([]char buf, float32 x) !string {
 }
 
 public func formatFixed([]char buf, float x, int n) !string {
-	let view, spec = special(buf, x) ?? |e| return switch e {
-		case strings.StringError.NoSpace => Error(errors.Kind.NoSpace);
-		default => e;
-	};
+	let view, spec = special(buf, x)!;
 	if spec {
 		return view;
 	}
@@ -166,10 +148,7 @@ public func formatFixed([]char buf, float x, int n) !string {
 }
 
 public func formatExp([]char buf, float x, int n, bool upper) !string {
-	let view, spec = special(buf, x) ?? |e| return switch e {
-		case strings.StringError.NoSpace => Error(errors.Kind.NoSpace);
-		default => e;
-	};
+	let view, spec = special(buf, x)!;
 	if spec {
 		return view;
 	}

@@ -1,16 +1,10 @@
 import "std/strings";
 import "std/strings/character";
 import "std/mem";
-
-public enum StringError {
-	Ok,
-	NoSpace
-}
+import "std/errors";
 
 public func copy([]char buf, string s) !string {
-	if len(s) > len(buf) {
-		return Error(StringError.NoSpace);
-	}
+	errors.ensure(len(s) <= len(buf), errors.Kind.NoSpace)!;
 	for i, c in s {
 		buf[i] = c;
 	}
@@ -46,10 +40,7 @@ public func rep([]char buf, string s, int n) !string {
 	if n <= 0 {
 		return "";
 	}
-
-	if len(s) * n > len(buf) {
-		return Error(StringError.NoSpace);
-	}
+	errors.ensure(len(s) * n <= len(buf), errors.Kind.NoSpace)!;
 
 	int total;
 	for n {
@@ -89,9 +80,7 @@ public func replace([]char buf, string s, old, new, int n) !string {
 }
 
 public func upper([]char buf, string s) !string {
-	if len(s) > len(buf) {
-		return Error(StringError.NoSpace);
-	}
+	errors.ensure(len(s) <= len(buf), errors.Kind.NoSpace)!;
 	for i, c in s {
 		buf[i] = character.upperByte(c);
 	}
@@ -102,9 +91,7 @@ public func toUpper([]char buf) {
 }
 
 public func lower([]char buf, string s) !string {
-	if len(s) > len(buf) {
-		return Error(StringError.NoSpace);
-	}
+	errors.ensure(len(s) <= len(buf), errors.Kind.NoSpace)!;
 	for i, c in s {
 		buf[i] = character.lowerByte(c);
 	}

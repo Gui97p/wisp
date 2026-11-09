@@ -6,9 +6,7 @@ import "std/mem";
 
 public func open(string p, int flags) !int {
 	[4096]char buf;
-	if len(p) > 4095 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
 	global.copypath((*char)(buf), p);
 	int r = sys.open((*char)(buf), flags | sys.O_CLOEXEC, 0o644);
 	if r < 0 {
@@ -23,9 +21,7 @@ public func create(string p) !int {
 
 public func remove(string p) ! {
 	[4096]char buf;
-	if len(p) > 4095 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
 	global.copypath((*char)(buf), p);
 	int r = sys.remove((*char)(buf), 0);
 	if r < 0 {
@@ -52,12 +48,8 @@ public func readFile(string p) ![]char {
 }
 
 public func rename(string from, to) ! {
-	if len(from) > 4095 {
-		return Error(errors.Kind.Invalid);
-	}
-	if len(to) > 4095 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(len(from) <= 4095, errors.Kind.Invalid)!;
+	errors.ensure(len(to) <= 4095, errors.Kind.Invalid)!;
 	[4096]char fromBuf, toBuf;
 	global.copypath((*char)(fromBuf), from);
 	global.copypath((*char)(toBuf), to);
@@ -68,9 +60,7 @@ public func rename(string from, to) ! {
 }
 
 public func stat(string p) !global.Stat {
-	if len(p) > 4095 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
 	[4096]char buf;
 	global.copypath((*char)(buf), p);
 	
@@ -89,7 +79,7 @@ public func stat(string p) !global.Stat {
 	return global.Stat{mode: s.st_mode, kind: kind, modified: os.toNs(s.st_mtim.tv_sec, s.st_mtim.tv_nsec), size: s.st_size};
 }
 
-public func exists(string p) bool {
+public inline func exists(string p) bool {
 	stat(p) ?? return false;
 	return true;
 }

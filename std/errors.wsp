@@ -4,3 +4,9 @@ public enum Kind {
 	Overflow,
 	OutOfMemory
 }
+
+public inline func ensure(bool condition, const Kind kind) ! {
+	if !condition {
+		return Error(kind);
+	}
+}

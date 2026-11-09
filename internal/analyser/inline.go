@@ -283,6 +283,14 @@ func (a *Analyser) checkInlineVisibility(site *ast.CallExpr, decl *ast.FuncDecl,
 	}
 	reported := map[string]bool{}
 	ast.Inspect(body, func(node ast.Node) bool {
+		if call, isCall := node.(*ast.CallExpr); isCall {
+			mc := a.info.MethodCalls[call]
+			if mc != nil && mc.Func != nil && mc.Module == module && !mc.Func.Exported && !reported[mc.Owner+"."+mc.Func.Name] {
+				reported[mc.Owner+"."+mc.Func.Name] = true
+				a.errorf(site, "inline function %s uses the method %s of %s, which is private to module %s, so it cannot be expanded here", decl.Name, mc.Func.Name, mc.Owner, module)
+			}
+			return true
+		}
 		id, ok := node.(*ast.IdentLiteral)
 		if !ok {
 			return true

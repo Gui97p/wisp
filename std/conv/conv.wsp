@@ -14,18 +14,14 @@ func formatUnsigned([]char buf, uint n, int base, bool upper) !string {
 
     loop n != 0 {
         uint rem = n % uint(base);
-		if i >= len(buf) {
-			return Error(errors.Kind.NoSpace);
-		}
+		errors.ensure(i < len(buf), errors.Kind.NoSpace)!;
         buf[i] = digits[rem];
         i += 1;
         n /= uint(base);
     }
 
     if i == 0 {
-		if len(buf) == 0 {
-			return Error(errors.Kind.NoSpace);
-		}
+		errors.ensure(len(buf) > 0, errors.Kind.NoSpace)!;
         buf[i] = '0';
         i += 1;
     }
@@ -46,17 +42,11 @@ func formatUnsigned([]char buf, uint n, int base, bool upper) !string {
 }
 
 public func formatInt([]char buf, int n, base, bool upper) !string {
-	if !(base in 2..36) {
-		return Error(errors.Kind.Invalid);
-	}
-
+	errors.ensure(base in 2..36, errors.Kind.Invalid)!;
 	if n >= 0 {
 		return formatUnsigned(buf, uint(n), base, upper)!;
 	}
-
-	if len(buf) < 2 {
-		return Error(errors.Kind.NoSpace);
-	}
+	errors.ensure(len(buf) > 1, errors.Kind.NoSpace)!;
 
 	uint mag = uint(-(n+1)) + 1;
 	string digits = formatUnsigned(buf[1:], mag, base, upper)!;
@@ -65,9 +55,7 @@ public func formatInt([]char buf, int n, base, bool upper) !string {
 }
 
 public func formatUint([]char buf, uint n, int base, bool upper) !string {
-	if !(base in 2..36) {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(base in 2..36, errors.Kind.Invalid)!;
 	return formatUnsigned(buf, n, base, upper)!;
 }
 
@@ -96,25 +84,17 @@ func digitValue(char c) int {
 }
 
 public func parseUint(string s, int base) !uint {
-	if !(base in 2..36) || len(s) == 0 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(base in 2..36 && len(s) > 0, errors.Kind.Invalid)!;
 
 	uint n = 0;
 	uint b = uint(base);
 
 	for i in 0..len(s)-1 {
 		int d = digitValue(s[i]);
-
-		if d < 0 || d >= base {
-			return Error(errors.Kind.Invalid);
-		}
+		errors.ensure(d in 0..base-1, errors.Kind.Invalid)!;
 
 		uint digit = uint(d);
-
-		if n > (math.MAX_UINT - digit) / b {
-			return Error(errors.Kind.Overflow);
-		}
+		errors.ensure(n <= (math.MAX_UINT - digit) / b, errors.Kind.Overflow)!;
 
 		n = n * b + digit;
 	}
@@ -123,9 +103,7 @@ public func parseUint(string s, int base) !uint {
 }
 
 public func parseInt(string s, int base) !int {
-	if len(s) == 0 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(len(s) > 0, errors.Kind.Invalid)!;
 
 	bool neg = s[0] == '-';
 
@@ -137,22 +115,15 @@ public func parseInt(string s, int base) !int {
 
 	if neg {
 		uint limit = uint(-(math.MIN_INT + 1)) + 1;
-
-		if mag > limit {
-			return Error(errors.Kind.Overflow);
-		}
-
+		errors.ensure(mag <= limit, errors.Kind.Overflow)!;
+		
 		if mag == limit {
 			return math.MIN_INT;
 		}
-
 		return -int(mag);
 	}
-
-	if mag > uint(math.MAX_INT) {
-		return Error(errors.Kind.Overflow);
-	}
-
+	
+	errors.ensure(mag <= uint(math.MAX_INT), errors.Kind.Overflow)!;
 	return int(mag);
 }
 

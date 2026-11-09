@@ -13,7 +13,7 @@ struct Chunk {
 	int used;
 }
 
-func (*Chunk c) data() *char {
+inline func (*Chunk c) data() *char {
 	return (*char)(c) + HEADER;
 }
 
@@ -42,13 +42,9 @@ public func (*Arena a) alloc(int n) !*void {
 }
 
 public func (*Arena a) allocDirty(int n) !*void {
-	if n < 0 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(n >= 0, errors.Kind.Invalid)!;
 	n = (n + 15) & ~15;
-	if n < 0 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(n >= 0, errors.Kind.Invalid)!;
 	if a.head != null && a.head.used + n <= a.head.size {
 		defer a.head.used += n;
 		return a.head.data() + a.head.used;
@@ -94,7 +90,7 @@ public func (*Arena a) reset() {
 	}
 }
 
-public func (*Arena a) mark() Mark {
+public inline func (*Arena a) mark() Mark {
 	int used = a.head != null ? a.head.used : 0;
 	return Mark{chunk: a.head, used: used};
 }

@@ -1,9 +1,7 @@
 import "std/sys";
 import "std/os/global";
 
-internal func toNs(int s, ns) int {
-	return s * 1_000_000_000 + ns;
-}
+internal inline func toNs(int s, ns) int => s * 1_000_000_000 + ns;
 
 public func now() int {
 	int s, ns = sys.time(sys.CLOCK_REALTIME);
@@ -22,6 +20,6 @@ public func sleep(int ms) ! {
 	}
 }
 
-public func exit(int code) {
+public inline func exit(int code) {
 	sys.exit(code);
 }

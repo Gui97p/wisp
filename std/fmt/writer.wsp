@@ -34,9 +34,7 @@ func (*Writer w) put(*char c, int n) ! {
 	}
 
 	if w.fd < 0 {
-		if len(w.buf) - w.len < n {
-			return Error(errors.Kind.NoSpace);
-		}
+		errors.ensure(len(w.buf) - w.len >= n, errors.Kind.NoSpace)!;
 		mem.copy((*char)(w.buf) + w.len, c, n);
 		w.total += n;
 		w.len += n;

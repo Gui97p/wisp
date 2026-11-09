@@ -1,17 +1,13 @@
 import "std/errors";
 import "std/math/constants";
 
-public func checkedAdd(int a, b) !int {
-	if (b > 0 && a > constants.MAX_INT - b) || (b < 0 && a < constants.MIN_INT - b) {
-		return Error(errors.Kind.Overflow);
-	}
+public inline func checkedAdd(int a, b) !int {
+	errors.ensure((b <= 0 || a <= constants.MAX_INT - b) && (b >= 0 || a >= constants.MIN_INT - b), errors.Kind.Overflow)!;
 	return a + b;
 }
 
-public func checkedSub(int a, b) !int {
-	if (b > 0 && a < constants.MIN_INT + b) || (b < 0 && a > constants.MAX_INT + b) {
-		return Error(errors.Kind.Overflow);
-	}
+public inline func checkedSub(int a, b) !int {
+	errors.ensure((b <= 0 || a >= constants.MIN_INT + b) && (b >= 0 || a <= constants.MAX_INT + b), errors.Kind.Overflow)!;
 	return a - b;
 }
 
@@ -19,52 +15,34 @@ public func checkedMul(int a, b) !int {
     if a == 0 || b == 0 {
         return 0;
     }
-	Error err = Error(errors.Kind.Overflow);
+	const kind = errors.Kind.Overflow;
 
 	switch {
 		case a == -1:
-			if b == constants.MIN_INT {
-				return err;
-			}
+			errors.ensure(b != constants.MIN_INT, kind)!;
 		case b == -1:
-			if a == constants.MIN_INT {
-				return err;
-			}
+			errors.ensure(a != constants.MIN_INT, kind)!;
 	}
 
     if a > 0 {
         if b > 0 {
-            if a > constants.MAX_INT / b {
-                return err;
-            }
+			errors.ensure(a <= constants.MAX_INT / b, kind)!;
         } else {
-            if b <constants. MIN_INT / a {
-                return err;
-            }
+			errors.ensure(b <= constants.MAX_INT / a, kind)!;
         }
     } else {
-        if b > 0 {
-            if a < constants.MIN_INT / b {
-                return err;
-            }
-        } else {
-            if a < constants.MAX_INT / b {
-                return err;
-            }
-        }
+		errors.ensure(a >= (b > 0 ? constants.MIN_INT : constants.MAX_INT) / b, kind)!;
     }
 
     return a * b;
 }
 
-public func checkedAbs(int x) !int {
-	if x == constants.MIN_INT {
-		return Error(errors.Kind.Overflow);
-	}
+public inline func checkedAbs(int x) !int {
+	errors.ensure(x != constants.MIN_INT, errors.Kind.Overflow)!;
 	return x < 0 ? -x : x;
 }
 
-public func abs(int x) int {
+public inline func abs(int x) int {
     return x < 0 ? -x : x;
 }
 
@@ -98,7 +76,7 @@ public func max(int ...args) int {
 	return m;
 }
 
-public func clamp(int x, low, high) int {
+public inline func clamp(int x, low, high) int {
 	return x < low ? low : (x > high ? high : x);
 }
 
@@ -131,9 +109,7 @@ public func lcm(int a, b) !int {
 }
 
 public func pow(int base, exp) !int {
-	if exp < 0 {
-		return Error(errors.Kind.Invalid);
-	}
+	errors.ensure(exp >= 0, errors.Kind.Invalid)!;
 	if exp == 0 {
 		return 1;
 	}

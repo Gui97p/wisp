@@ -6060,6 +6060,108 @@ func main() {
 }
 `, expected: []string{"zeroed arrays of 127, 128 and 129 words", "a 1027 byte array is zeroed exactly, neighbours untouched", "copying 129 words", "copying 128 words", "a 1027 byte array is copied exactly", "a large struct is copied whole", "copying a large array through a pointer"}},
 
+	{dir: "inline_ensure", src: `enum Kind {
+    NoSpace = 1,
+    Invalid
+}
+
+inline func ensure(bool cond, const Kind kind) ! {
+    if !cond {
+        return Error(kind);
+    }
+}
+
+func limited(int n) !int {
+    ensure(n >= 0, Kind.Invalid)!;
+    ensure(n < 100, Kind.NoSpace)!;
+    return n * 2;
+}
+
+func main() {
+    check((limited(5) ?? -1) == 10, "ensure lets a valid value through");
+    check((limited(-3) ?? -1) == -1, "the first ensure fails");
+    check((limited(500) ?? -1) == -1, "the second ensure fails after the first passes");
+
+    int failures = 0;
+    int total = 0;
+    for i in 0..9 {
+        int v = i == 4 ? -1 : i;
+        int r = limited(v) ?? |e| {
+            failures++;
+            yield 0;
+        };
+        total += r;
+    }
+    check(failures == 1 && total == 2 * (0 + 1 + 2 + 3 + 5 + 6 + 7 + 8 + 9), "a failure in one pass does not leak into the next");
+
+    bool invalid = false;
+    int x = limited(-1) ?? |e| {
+        invalid = e == Kind.Invalid;
+        yield 0;
+    };
+    check(invalid && x == 0, "the error keeps its kind");
+}
+`, expected: []string{"ensure lets a valid value through", "the first ensure fails", "the second ensure fails after the first passes", "a failure in one pass does not leak into the next", "the error keeps its kind"}},
+
+	{dir: "inline_propagate", src: `enum Kind {
+    Bad = 1
+}
+
+int cleaned;
+
+func inner(int n) !int {
+    if n < 0 {
+        return Error(Kind.Bad);
+    }
+    return n + 1;
+}
+
+inline func outer(int n) !int {
+    int v = inner(n)!;
+    return v * 10;
+}
+
+inline func twice(int n) !int {
+    int a = outer(n)!;
+    int b = outer(a)!;
+    return a + b;
+}
+
+inline func guarded(int n) !int {
+    defer cleaned++;
+    int v = inner(n)!;
+    return v;
+}
+
+func run(int n) !int {
+    int r = outer(n)!;
+    return r + 1;
+}
+
+func chain(int n) !int {
+    return twice(n)!;
+}
+
+func main() {
+    check((run(2) ?? -1) == 31, "a propagated success passes through an inline body");
+    check((run(-1) ?? -1) == -1, "a propagated error leaves only the inline body and then the caller");
+    check((chain(1) ?? -1) == 20 + 210, "nested inline bodies propagate in turn");
+    check((chain(-4) ?? -1) == -1, "an error in a nested inline body reaches the top");
+
+    cleaned = 0;
+    int ok = guarded(3) ?? -1;
+    int bad = guarded(-3) ?? -1;
+    check(ok == 4 && bad == -1 && cleaned == 2, "defers run when an inline body propagates");
+
+    bool kept = false;
+    int x = run(-9) ?? |e| {
+        kept = e == Kind.Bad;
+        yield 0;
+    };
+    check(kept && x == 0, "the propagated error keeps its kind");
+}
+`, expected: []string{"a propagated success passes through an inline body", "a propagated error leaves only the inline body and then the caller", "nested inline bodies propagate in turn", "an error in a nested inline body reaches the top", "defers run when an inline body propagates", "the propagated error keeps its kind"}},
+
 	{dir: "inline_calls", src: `import "std/errors";
 
 type Step (int) => int;

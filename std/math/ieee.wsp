@@ -57,7 +57,7 @@ public func roundEven(float x) float {
 	float d = x - t;
 	return d < .5 ? t : (d == .5 && fmod(t, 2) == 0 ? t : t+1);
 }
-public func fclamp(float x, low, high) float {
+public inline func fclamp(float x, low, high) float {
     return fmin(fmax(x, low), high);
 }
 
@@ -65,7 +65,7 @@ const FLOAT64_SIGN_MASK = 0x80000000;
 const FLOAT64_EXP_MASK  = 0x7FF00000;
 const FLOAT64_FRAC_MASK = 0x000FFFFF;
 
-public func isNaN(float x) bool {
+public inline func isNaN(float x) bool {
 	uint high, low = words(x);
     return (high & FLOAT64_EXP_MASK) == FLOAT64_EXP_MASK &&
         ((high & FLOAT64_FRAC_MASK) != 0 || low != 0);
@@ -87,17 +87,17 @@ public func isInf(float x, int sign) bool {
     return true;
 }
 
-public func isFinite(float x) bool {
+public inline func isFinite(float x) bool {
     uint high, _ = words(x);
     return (high & FLOAT64_EXP_MASK) != FLOAT64_EXP_MASK;
 }
 
-public func signbit(float x) bool {
+public inline func signbit(float x) bool {
     uint high, _ = words(x);
     return (high & FLOAT64_SIGN_MASK) != 0;
 }
 
-public func isInteger(float x) bool {
+public inline func isInteger(float x) bool {
     return isFinite(x) && x == trunc(x);
 }
 
@@ -109,17 +109,17 @@ public func inf(int sign) float {
     return fromWords(high, 0);
 }
 
-public func nan() float {
+public inline func nan() float {
     return fromWords(0x7FF80000, 0);
 }
 
-public func fabs(float x) float {
+public inline func fabs(float x) float {
     uint high, low = words(x);
     high &= 0x7FFFFFFF;
     return fromWords(high, low);
 }
 
-public func copysign(float x, y) float {
+public inline func copysign(float x, y) float {
     uint xhigh, xlow = words(x);
     uint yhigh, _ = words(y);
 
@@ -225,34 +225,34 @@ public func decompose(float x) (uint, int) {
 	return fraction | (1 << 52), biased - 1075;
 }
 
-internal func highWord(float x) uint {
+internal inline func highWord(float x) uint {
 	uint h, _ = words(x);
 	return h;
 }
 
-internal func lowWord(float x) uint {
+internal inline func lowWord(float x) uint {
 	uint _, l = words(x);
 	return l;
 }
 
-internal func setHighWord(float x, uint h) float {
+internal inline func setHighWord(float x, uint h) float {
 	uint _, l = words(x);
 	return fromWords(h & 0xffffffff, l);
 }
 
-internal func setLowWord(float x, uint l) float {
+internal inline func setLowWord(float x, uint l) float {
 	uint h, _ = words(x);
 	return fromWords(h, l & 0xffffffff);
 }
 
-internal func signed32(uint w) int {
+internal inline func signed32(uint w) int {
 	if w >= 0x80000000 {
 		return int(w) - 0x100000000;
 	}
 	return int(w);
 }
 
-internal func addExponent(float x, int k) float {
+internal inline func addExponent(float x, int k) float {
 	uint h, l = words(x);
 	return fromWords(uint(int(h) + (k << 20)) & 0xffffffff, l);
 }

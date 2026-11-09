@@ -2,18 +2,14 @@ import "std/errors";
 
 public func alloc(int n) !*void {
 	*void p = rawAllocate(n, true);
-	if p == null {
-		return Error(errors.Kind.OutOfMemory);
-	}
+	errors.ensure(p != null, errors.Kind.OutOfMemory)!;
 	track(p);
 	return p;
 }
 
 public func allocDirty(int n) !*void {
 	*void p = rawAllocate(n, false);
-	if p == null {
-		return Error(errors.Kind.OutOfMemory);
-	}
+	errors.ensure(p != null, errors.Kind.OutOfMemory)!;
 	track(p);
 	return p;
 }
@@ -28,14 +24,12 @@ public func free(*void ...p) {
 public func realloc(*void p, int n) !*void {
 	trackFree(p);
 	*void new = rawRealloc(p, n);
-	if new == null {
-		return Error(errors.Kind.OutOfMemory);
-	}
+	errors.ensure(new != null, errors.Kind.OutOfMemory)!;
 	track(new);
 	return new;
 }
 
-public func copy(*void dst, src, int n) {
+public inline func copy(*void dst, src, int n) {
 	rawCopy(dst, src, n);
 }
 
@@ -47,6 +41,6 @@ public func move(*void dst, src, int n) {
 	}
 }
 
-public func fill(*void dst, char value, int n) {
+public inline func fill(*void dst, char value, int n) {
 	rawSet(dst, value, n);
 }

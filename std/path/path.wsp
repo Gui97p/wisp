@@ -42,14 +42,14 @@ public func ext(string p) string {
 	return idx <= 0 || idx == len(p)-1 ? "" : p[idx:];
 }
 
-public func stem(string p) string {
+public inline func stem(string p) string {
 	return strings.trimSuffix(base(p), ext(p));
 }
 
-public func isAbs(string p) bool {
+public inline func isAbs(string p) bool {
 	return strings.startsWith(p, sep);
 }
 
-public func elements(string p) strings.Splitter {
+public inline func elements(string p) strings.Splitter {
 	return strings.tokens(p, sep);
 }
