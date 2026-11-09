@@ -1,0 +1,18 @@
+import "std/fmt";
+import "std/math";
+
+const ROUNDS = 20000000;
+
+func main() {
+	int acc = 0;
+	int big = 0;
+	for i in 1..ROUNDS {
+		int v = i * 37 % 2001 - 1000;
+		acc += math.abs(v) + math.clamp(v, -100, 100);
+		float x = float(i) * 0.5 - 1000.0;
+		if !math.isNaN(x) && math.fabs(x) > 10.0 {
+			big++;
+		}
+	}
+	fmt.printf("{} {}\n", acc, big);
+}

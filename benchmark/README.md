@@ -16,6 +16,12 @@ The same six programs written in Wisp, C, Go, Zig and Rust, to follow how fast t
 | matmul | nested loops, float arithmetic, indexing |
 | collatz | integer division and modulo by constants |
 | bytes_hash | byte loads, 64 bit multiply, xorshift |
+| std_chars | `strings.isDigit`, `isAlpha`, `isSpace`, `isUpper`, `isHex` over a 4 MB buffer |
+| std_fmt | `conv.itoa`, `conv.atoi` and `fmt.sprintf` in a loop |
+| std_mem | `mem.alloc`, `fill`, `copy` and `free` of small blocks |
+| std_math | `math.abs`, `clamp`, `fabs` and `isNaN` in a hot loop |
+
+The four `std_*` programs exist only in Wisp: they follow what the standard library costs from one commit to the next, so the other languages are skipped. Run them with `--only std_chars,std_fmt,std_mem,std_math --variants wisp`.
 
 Every program prints one line, and `expected.txt` holds what it must print: a variant that prints something else is reported as `WRONG OUTPUT`.
 

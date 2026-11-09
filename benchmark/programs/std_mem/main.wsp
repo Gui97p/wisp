@@ -1,0 +1,18 @@
+import "std/fmt";
+import "std/mem";
+
+const ROUNDS = 1000000;
+
+func main() {
+	int total = 0;
+	for i in 1..ROUNDS {
+		int n = 16 + (i & 255);
+		*char a = mem.alloc(n)!!;
+		mem.fill(a, 7, n);
+		*char b = mem.alloc(n)!!;
+		mem.copy(b, a, n);
+		total += int(b[n - 1]) + n;
+		mem.free(a, b);
+	}
+	fmt.printf("{}\n", total);
+}
