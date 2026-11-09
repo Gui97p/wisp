@@ -9,6 +9,19 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 	return p.parseFunc(false)
 }
 
+func (p *Parser) parseInlineDeclaration() *ast.FuncDecl {
+	if !p.expect(lexer.TOKEN_FUNC) {
+		return nil
+	}
+
+	decl := p.parseFunc(false)
+	if decl == nil {
+		return nil
+	}
+	decl.Inline = true
+	return decl
+}
+
 func (p *Parser) parseExternDeclaration() *ast.FuncDecl {
 	if !p.expect(lexer.TOKEN_FUNC) {
 		return nil
@@ -190,6 +203,11 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 
 	p.advance()
 	for (p.peek.Type != lexer.TOKEN_RPAREN || p.current.Type == lexer.TOKEN_LPAREN) && p.peek.Type != lexer.TOKEN_EOF {
+		isConst := false
+		if p.current.Type == lexer.TOKEN_CONST {
+			isConst = true
+			p.advance()
+		}
 		if p.current.Type == lexer.TOKEN_VARIADIC {
 			return p.parseAnyVariadic(params)
 		}
@@ -231,16 +249,17 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 		}
 
 		params = append(params, ast.Param{
-			Name: name,
-			Type: currentType,
-			Line: line, Col: col, EndLine: endLine, EndCol: endCol,
+			Name:  name,
+			Type:  currentType,
+			Const: isConst,
+			Line:  line, Col: col, EndLine: endLine, EndCol: endCol,
 		})
 
 		for p.peek.Type == lexer.TOKEN_COMMA {
 			p.advance()
 			p.advance()
 
-			if p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_LBRACKET ||
+			if p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_LBRACKET || p.current.Type == lexer.TOKEN_CONST ||
 				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC || p.peek.Type == lexer.TOKEN_DOT)) {
 				break
 			}
@@ -265,9 +284,10 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			}
 
 			params = append(params, ast.Param{
-				Name: name,
-				Type: currentType,
-				Line: line, Col: col, EndLine: endLine, EndCol: endCol,
+				Name:  name,
+				Type:  currentType,
+				Const: isConst,
+				Line:  line, Col: col, EndLine: endLine, EndCol: endCol,
 			})
 		}
 	}

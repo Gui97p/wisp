@@ -84,6 +84,12 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = InvalidType{}
 	case *ast.CastExpr:
 		t = a.info.Types[e]
+	case *ast.ConstRef:
+		ref := a.info.ConstRefs[e]
+		t = ref.Type
+		if ref.Enum != nil {
+			a.info.EnumValues[e] = *ref.Enum
+		}
 	case *ast.ConvExpr:
 		t = a.checkConvExpr(e)
 	case *ast.TypeLabel:
@@ -137,11 +143,12 @@ func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
 	}
 
 	prevReturns, prevFallible, prevFrames := a.currentReturns, a.currentFallible, a.yieldFrames
-	a.currentReturns, a.currentFallible, a.yieldFrames = returns, expr.Fallible, nil
+	prevInline := a.currentInline
+	a.currentReturns, a.currentFallible, a.yieldFrames, a.currentInline = returns, expr.Fallible, nil, nil
 
 	a.checkBlock(expr.Block)
 
-	a.currentReturns, a.currentFallible, a.yieldFrames = prevReturns, prevFallible, prevFrames
+	a.currentReturns, a.currentFallible, a.yieldFrames, a.currentInline = prevReturns, prevFallible, prevFrames, prevInline
 	a.exitScope()
 
 	if len(returns) > 0 && !blockTerminates(expr.Block) {
@@ -406,6 +413,7 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 					Receiver:        a.receiverArgument(member.Object, objType, pointerRecv, objectPtr),
 				}
 				a.checkCallArgs(expr, ft)
+				a.expandInline(expr, ft)
 				return callResults(ft)
 			}
 		}
@@ -421,6 +429,7 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 	switch ct := nameType.(type) {
 	case *FuncType:
 		a.checkCallArgs(expr, ct)
+		a.expandInline(expr, ct)
 		return callResults(ct)
 	case InvalidType:
 		a.evalArgTypes(expr)
@@ -1037,7 +1046,7 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 		Domain:  enum.Module + "." + enum.Name,
 		Code:    code.Bits(),
 		Message: message,
-		File:    a.currentFile,
+		File:    a.errorFile(),
 		Line:    line,
 		Col:     col,
 		EndLine: endLine,

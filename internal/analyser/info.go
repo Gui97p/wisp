@@ -27,6 +27,9 @@ type Info struct {
 	SizeOf        map[*ast.CallExpr]Type
 	ConstValues   map[ast.Expression]ConstValue
 	Folds         map[ast.Expression]ConstValue
+	Inlines       map[*ast.CallExpr]*InlineCall
+	InlineReturns map[*ast.ReturnStmt]*InlineCall
+	ConstRefs     map[*ast.ConstRef]ConstRefInfo
 	Boxes         map[ast.Expression]Type
 	TypeCases     map[*ast.BinaryExpr]*TypeCase
 	Narrowed      map[*Symbol]*Symbol
@@ -43,6 +46,9 @@ func NewInfo() *Info {
 		VarTypes:      make(map[ast.Node][]Type),
 		ConstValues:   make(map[ast.Expression]ConstValue),
 		Folds:         make(map[ast.Expression]ConstValue),
+		Inlines:       make(map[*ast.CallExpr]*InlineCall),
+		InlineReturns: make(map[*ast.ReturnStmt]*InlineCall),
+		ConstRefs:     make(map[*ast.ConstRef]ConstRefInfo),
 		SizeOf:        make(map[*ast.CallExpr]Type),
 		VarSymbols:    make(map[ast.Node][]*Symbol),
 		Types:         make(map[ast.Expression]Type),

@@ -43,7 +43,8 @@ func (a *Analyser) registerFuncSignatures() {
 			returns = append(returns, t)
 		}
 
-		ft := &FuncType{Name: fd.Name, Params: params, ParamNames: names, Returns: returns, Variadic: variadic, Fallible: fd.Fallible}
+		ft := &FuncType{Name: fd.Name, Params: params, ParamNames: names, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Module: a.module, DeclFile: a.currentFile, Decl: fd, Scope: a.scope, Inline: fd.Inline}
+		a.checkInlineDecl(fd)
 		a.info.VarTypes[fd] = params
 		a.info.FuncReturns[fd] = returns
 		if fd.Receiver != nil {
@@ -82,6 +83,9 @@ func (a *Analyser) checkFuncBodies() {
 }
 
 func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
+	if fd.Inline && fd.HasConstParams() {
+		return
+	}
 	a.enterScope()
 	defer a.exitScope()
 

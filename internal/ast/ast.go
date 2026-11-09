@@ -149,6 +149,7 @@ type Param struct {
 	Type     TypeRef
 	Variadic bool
 	Any      bool
+	Const    bool
 	Doc      string
 	Reach    int
 

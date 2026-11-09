@@ -92,9 +92,19 @@ type FuncDecl struct {
 	CExport     string
 	CVariadic   bool
 	Generated   bool
+	Inline      bool
 	NameAt      Position
 
 	NodePos
+}
+
+func (f *FuncDecl) HasConstParams() bool {
+	for _, p := range f.Params {
+		if p.Const {
+			return true
+		}
+	}
+	return false
 }
 
 func (f *FuncDecl) SignatureEnd() (int, int) {

@@ -192,12 +192,14 @@ func (a *Analyser) registerMethods() {
 			returns = append(returns, t)
 		}
 
+		a.checkInlineDecl(fd)
+
 		receiverName := ""
 		if fd.Receiver != nil {
 			receiverName = fd.Receiver.Name
 		}
 		if !sameDecl {
-			methods[fd.Name] = &FuncType{DeclFile: a.currentFile, DeclLine: line, Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported, InternalDir: reachDir(fd.Reach, a.currentFile), Module: a.module}
+			methods[fd.Name] = &FuncType{Decl: fd, Scope: a.scope, Inline: fd.Inline, DeclFile: a.currentFile, DeclLine: line, Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported, InternalDir: reachDir(fd.Reach, a.currentFile), Module: a.module}
 		}
 		a.info.FuncReturns[fd] = returns
 		_, _, ownerExported := methodOwner(recvType)

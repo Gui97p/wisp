@@ -78,6 +78,9 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 }
 
 func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
+	if a.currentInline != nil {
+		a.info.InlineReturns[stmt] = a.currentInline
+	}
 	a.warnReturnedFree(stmt)
 	types := a.rejectFallible(stmt.Values, a.checkExprList(stmt.Values))
 

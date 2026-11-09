@@ -280,6 +280,9 @@ type FuncType struct {
 	Module       string
 	DeclFile     string
 	DeclLine     int
+	Decl         *ast.FuncDecl
+	Scope        *Scope
+	Inline       bool
 }
 
 func (f *FuncType) String() string {

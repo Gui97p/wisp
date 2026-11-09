@@ -76,6 +76,12 @@ func (i *Info) leaf(expr ast.Expression) (ConstValue, bool) {
 		value = constInt(big.NewInt(int64(e.Value)))
 	case *ast.BoolLiteral:
 		value = ConstValue{Kind: ConstBool, Bool: e.Value}
+	case *ast.ConstRef:
+		ref, ok := i.ConstRefs[e]
+		if !ok {
+			return ConstValue{}, false
+		}
+		value = ref.Value
 	case *ast.IdentLiteral:
 		sym, ok := i.Idents[e]
 		if !ok || sym.Kind != CONST || sym.Const == nil {

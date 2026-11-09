@@ -136,6 +136,7 @@ const (
 
 	TOKEN_DEFER
 	TOKEN_YIELD
+	TOKEN_INLINE
 )
 
 var keywords = map[string]TokenType{
@@ -166,6 +167,7 @@ var keywords = map[string]TokenType{
 	"native":   TOKEN_NATIVE,
 	"defer":    TOKEN_DEFER,
 	"yield":    TOKEN_YIELD,
+	"inline":   TOKEN_INLINE,
 
 	"int":    TOKEN_INT,
 	"uint":   TOKEN_UINT,

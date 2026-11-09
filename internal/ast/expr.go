@@ -85,6 +85,15 @@ func (t *TypeLabel) Tree(indent string) string {
 	return fmt.Sprintf("%sTypeLabel(%s)\n", indent, t.Type.String())
 }
 
+type ConstRef struct {
+	NodePos
+}
+
+func (*ConstRef) expr() {}
+func (c *ConstRef) Tree(indent string) string {
+	return fmt.Sprintf("%sConstRef\n", indent)
+}
+
 type CallExpr struct {
 	Name   Expression
 	Args   []Expression

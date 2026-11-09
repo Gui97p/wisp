@@ -47,6 +47,12 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 			return nil
 		}
 		decls = append(decls, decl)
+	case lexer.TOKEN_INLINE:
+		decl := p.parseInlineDeclaration()
+		if decl == nil {
+			return nil
+		}
+		decls = append(decls, decl)
 	case lexer.TOKEN_STRUCT:
 		decl := p.parseStructDeclaration()
 		if decl == nil {
@@ -190,6 +196,14 @@ func (p *Parser) parseExported() []ast.Declaration {
 
 	case lexer.TOKEN_EXTERN:
 		decl := p.parseExternDeclaration()
+		if decl == nil {
+			return nil
+		}
+		decl.Exported = true
+		decls = append(decls, decl)
+
+	case lexer.TOKEN_INLINE:
+		decl := p.parseInlineDeclaration()
 		if decl == nil {
 			return nil
 		}

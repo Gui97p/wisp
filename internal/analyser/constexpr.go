@@ -82,6 +82,10 @@ func (a *Analyser) evalConst(expr ast.Expression) (ConstValue, bool) {
 		}
 	case *ast.CastExpr:
 		return a.evalConversion(e)
+	case *ast.ConstRef:
+		if ref, ok := a.info.ConstRefs[e]; ok {
+			return ref.Value, true
+		}
 	case *ast.CallExpr:
 		if e.Cast != nil {
 			return a.evalConversion(e.Cast)

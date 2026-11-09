@@ -29,6 +29,10 @@ type Analyser struct {
 	pendingEmpty map[*ast.ArrayLiteral]bool
 	quiet        bool
 
+	inlineStack   []*ast.FuncDecl
+	currentInline *InlineCall
+	siteFile      string
+
 	modules map[string]*ModuleInfo
 	links   []*importLink
 	parts   []string
@@ -214,6 +218,9 @@ func (a *Analyser) exitScope() {
 }
 
 func (a *Analyser) warnUnused(scope *Scope) {
+	if len(a.inlineStack) > 0 {
+		return
+	}
 	var unused []*Symbol
 	for _, sym := range scope.symbols {
 		if (sym.Kind == VAR || sym.Kind == CONST) && !sym.Used && sym.Name != "" && !silencesUnused(sym.Name) && sym.Line > 0 {
