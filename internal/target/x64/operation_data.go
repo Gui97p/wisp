@@ -2,8 +2,10 @@ package x64
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
+	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 var setccOperators = map[string]string{
@@ -109,6 +111,26 @@ var directive = map[int]string{
 	2: "dw",
 	4: "dd",
 	8: "dq",
+}
+
+var repRegisters = []x64context.Register{x64context.AX, x64context.CX, x64context.SI, x64context.DI}
+
+const REP_THRESHOLD = 1024
+
+func (t *X64Target) pushRep(except ...x64context.Register) (regs []x64context.Register) {
+	for _, r := range repRegisters {
+		if t.ctx.IsAllocated(r) && !slices.Contains(except, r) {
+			t.push(r)
+			regs = append(regs, r)
+		}
+	}
+	return
+}
+
+func (t *X64Target) popRep(regs []x64context.Register) {
+	for _, r := range slices.Backward(regs) {
+		t.pop(r)
+	}
 }
 
 func alignUp(n, a int) int {

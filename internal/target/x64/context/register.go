@@ -108,6 +108,11 @@ func (c *Context) AllocRegister(reg Register) bool {
 	return true
 }
 
+func (c *Context) IsAllocated(reg Register) bool {
+	_, ok := c.registers[reg]
+	return ok
+}
+
 func (c *Context) AllocatedRegisters() []Register {
 	regs := []Register{}
 	for reg := range c.registers {

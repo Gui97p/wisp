@@ -5896,6 +5896,170 @@ func main() {
 }
 `, expected: []string{"range 0..9:1 agrees with its runtime form and the expected count", "range 0..9:2 agrees with its runtime form and the expected count", "range 0..9:3 agrees with its runtime form and the expected count", "range 3..3:1 agrees with its runtime form and the expected count", "range 10..0:1 agrees with its runtime form and the expected count", "range 10..0:3 agrees with its runtime form and the expected count", "range -5..5:1 agrees with its runtime form and the expected count", "range 5..-5:2 agrees with its runtime form and the expected count", "range 1..100:7 agrees with its runtime form and the expected count", "range 100..1:7 agrees with its runtime form and the expected count", "range -100..-90:1 agrees with its runtime form and the expected count", "range 0..1000:1 agrees with its runtime form and the expected count", "range 1000..0:10 agrees with its runtime form and the expected count", "range 1073741824..1073741830:1 agrees with its runtime form and the expected count", "range -1073741830..-1073741824:2 agrees with its runtime form and the expected count", "range 2147483640..2147483650:1 agrees with its runtime form and the expected count", "range -2147483650..-2147483640:3 agrees with its runtime form and the expected count", "range 5000000000..5000000009:1 agrees with its runtime form and the expected count", "range 9..0:1 agrees with its runtime form and the expected count", "range 0..0:5 agrees with its runtime form and the expected count", "continue and break in a constant range", "labeled loops over constant ranges", "nested constant ranges, one descending", "a defer inside a constant range runs on every pass", "a runtime end below the start counts down, so 0..n-1 with n = 0 runs twice", "the loop variable can be changed in the body"}},
 
+	{dir: "rep_blocks", src: `struct Holder {
+    int before;
+    [20]int data;
+    int after;
+}
+
+func total16([16]int a) int {
+    int s = 0;
+    for i in 0..15 {
+        s += a[i];
+    }
+    return s;
+}
+
+func main() {
+    int guardA = 111;
+    [15]int a15;
+    [16]int a16;
+    [17]int a17;
+    int guardB = 222;
+    check(a15[14] == 0 && a16[0] == 0 && a16[15] == 0 && a17[16] == 0, "zeroed arrays of 15, 16 and 17 words");
+    check(guardA == 111 && guardB == 222, "zeroing does not touch the neighbours");
+
+    [131]char bytes;
+    int guardC = 333;
+    bool clean = true;
+    for i in 0..130 {
+        if bytes[i] != 0 {
+            clean = false;
+        }
+    }
+    check(clean && guardC == 333, "a byte array with a tail is zeroed exactly");
+
+    for i in 0..16 {
+        a17[i] = i + 1;
+    }
+    [17]int c17 = a17;
+    c17[16] = 99;
+    check(c17[0] == 1 && c17[15] == 16 && c17[16] == 99 && a17[16] == 17, "copying 17 words copies the tail too");
+
+    for i in 0..15 {
+        a16[i] = i * 2;
+    }
+    [16]int c16 = a16;
+    int ok = 0;
+    for i in 0..15 {
+        if c16[i] == i * 2 {
+            ok++;
+        }
+    }
+    check(ok == 16 && guardA == 111 && guardB == 222, "copying 16 words");
+
+    for i in 0..130 {
+        bytes[i] = char(i);
+    }
+    [131]char bcopy = bytes;
+    bool same = true;
+    for i in 0..130 {
+        if bcopy[i] != bytes[i] {
+            same = false;
+        }
+    }
+    check(same, "a byte array with a tail is copied exactly");
+
+    Holder h;
+    h.before = 5;
+    h.after = 6;
+    for i in 0..19 {
+        h.data[i] = i + 10;
+    }
+    Holder g = h;
+    g.data[0] = 0;
+    check(g.before == 5 && g.after == 6 && g.data[19] == 29 && h.data[0] == 10, "a struct holding an array is copied whole");
+
+    Holder z;
+    check(z.before == 0 && z.after == 0 && z.data[0] == 0 && z.data[19] == 0, "a struct holding an array is zeroed");
+
+    [16]int dest;
+    *[16]int p = &dest;
+    p@ = a16;
+    check(dest[7] == 14 && dest[15] == 30, "copying through a pointer");
+    p@ = c16;
+    check(dest[1] == 2, "copying through a pointer again");
+
+    int live = 1000;
+    [16]int arg = a16;
+    int mixed = live + total16(arg) + live;
+    check(mixed == 2000 + 240, "live values survive a block copy in an argument");
+
+    [16]int again = arg;
+    check(live == 1000 && again[15] == 30, "locals keep their values after the copies");
+}
+`, expected: []string{"zeroed arrays of 15, 16 and 17 words", "zeroing does not touch the neighbours", "a byte array with a tail is zeroed exactly", "copying 17 words copies the tail too", "copying 16 words", "a byte array with a tail is copied exactly", "a struct holding an array is copied whole", "a struct holding an array is zeroed", "copying through a pointer", "copying through a pointer again", "live values survive a block copy in an argument", "locals keep their values after the copies"}},
+
+	{dir: "rep_blocks_large", src: `struct Big {
+    int before;
+    [130]int data;
+    int after;
+}
+
+func main() {
+    int guardA = 7;
+    [127]int w127;
+    [128]int w128;
+    [129]int w129;
+    [1027]char bytes;
+    int guardB = 9;
+    check(w127[126] == 0 && w128[0] == 0 && w128[127] == 0 && w129[128] == 0, "zeroed arrays of 127, 128 and 129 words");
+    bool clean = true;
+    for i in 0..1026 {
+        if bytes[i] != 0 {
+            clean = false;
+        }
+    }
+    check(clean && guardA == 7 && guardB == 9, "a 1027 byte array is zeroed exactly, neighbours untouched");
+
+    for i in 0..128 {
+        w129[i] = i + 1;
+    }
+    [129]int c129 = w129;
+    c129[128] = 0;
+    check(c129[0] == 1 && c129[127] == 128 && c129[128] == 0 && w129[128] == 129, "copying 129 words");
+
+    for i in 0..127 {
+        w128[i] = i * 3;
+    }
+    [128]int c128 = w128;
+    int ok = 0;
+    for i in 0..127 {
+        if c128[i] == i * 3 {
+            ok++;
+        }
+    }
+    check(ok == 128 && guardA == 7 && guardB == 9, "copying 128 words");
+
+    for i in 0..1026 {
+        bytes[i] = char(i);
+    }
+    [1027]char bcopy = bytes;
+    bool same = true;
+    for i in 0..1026 {
+        if bcopy[i] != bytes[i] {
+            same = false;
+        }
+    }
+    check(same, "a 1027 byte array is copied exactly");
+
+    Big h;
+    h.before = 1;
+    h.after = 2;
+    for i in 0..129 {
+        h.data[i] = i + 5;
+    }
+    Big g = h;
+    g.data[0] = 0;
+    check(g.before == 1 && g.after == 2 && g.data[129] == 134 && h.data[0] == 5, "a large struct is copied whole");
+
+    [128]int dest;
+    *[128]int p = &dest;
+    p@ = w128;
+    check(dest[100] == 300 && dest[127] == 381, "copying a large array through a pointer");
+}
+`, expected: []string{"zeroed arrays of 127, 128 and 129 words", "a 1027 byte array is zeroed exactly, neighbours untouched", "copying 129 words", "copying 128 words", "a 1027 byte array is copied exactly", "a large struct is copied whole", "copying a large array through a pointer"}},
+
 	{dir: "inline_calls", src: `import "std/errors";
 
 type Step (int) => int;

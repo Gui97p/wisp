@@ -61,6 +61,16 @@ func (t *X64Target) pieces(size int) []int {
 }
 
 func (t *X64Target) zero(dst Mem) {
+	size := dst.Size
+	if size >= REP_THRESHOLD {
+		regs := t.pushRep(x64context.SI)
+		t.text.printlnt("xor eax, eax")
+		t.text.printft("lea rdi, %s\n", t.memText(dst))
+		t.text.printft("mov ecx, %d\n", dst.Size/8)
+		t.text.printlnt("rep stosq")
+		t.popRep(regs)
+		dst = dst.at(size&^7, size&7)
+	}
 	off := 0
 	for _, p := range t.pieces(dst.Size) {
 		t.store(Imm(0), dst.at(off, p))
@@ -86,6 +96,30 @@ func (t *X64Target) words(op Operand) []Operand {
 }
 
 func (t *X64Target) store(op Operand, dst Mem) {
+	switch o := op.(type) {
+	case Mem:
+		size := o.Size
+		if size >= REP_THRESHOLD {
+			var regs []x64context.Register
+			dstText := t.memText(dst)
+			movInst := "lea"
+			if dst.Base == x64context.SI {
+				regs = t.pushRep()
+				t.loadWord(x64context.AX, Addr{dst})
+				dstText = t.ctx.GetRegister(x64context.AX, 8)
+				movInst = "mov"
+			} else {
+				regs = t.pushRep(x64context.AX)
+			}
+			t.text.printft("lea rsi, %s\n", t.memText(o))
+			t.text.printft("%s rdi, %s\n", movInst, dstText)
+			t.text.printft("mov ecx, %d\n", size/8)
+			t.text.printlnt("rep movsq")
+			t.popRep(regs)
+			op = o.at(size&^7, size&7)
+			dst = dst.at(size&^7, size&7)
+		}
+	}
 	off := 0
 	for _, w := range t.words(op) {
 		size := min(8, dst.Size-off)

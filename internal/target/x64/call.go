@@ -658,7 +658,12 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		fallible := t.fallible
 		t.funcReturns = call.Returns
 		t.fallible = call.Fallible
-		frame := inlineFrame{call: call, results: slots, label: t.newLabel("inline_end"), deferDepth: len(t.deferScopes)}
+		var lastReturn ast.Statement
+		l := len(call.Body.Statements)
+		if l > 0 && isReturn(call.Body.Statements[l-1]) {
+			lastReturn = call.Body.Statements[l-1]
+		}
+		frame := inlineFrame{call: call, results: slots, label: t.newLabel("inline_end"), deferDepth: len(t.deferScopes), lastReturn: lastReturn}
 		t.inlineFrames = append(t.inlineFrames, frame)
 		t.collectVariables(call.Body)
 		if err := t.compileStatement(call.Body); err != nil {

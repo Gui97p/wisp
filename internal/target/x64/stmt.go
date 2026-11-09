@@ -151,7 +151,9 @@ func (t *X64Target) compileInlineReturn(stmt *ast.ReturnStmt) error {
 	if err := t.emitDefers(frame.deferDepth, isError); err != nil {
 		return err
 	}
-	t.text.printft("jmp %s\n", frame.label)
+	if stmt != frame.lastReturn {
+		t.text.printft("jmp %s\n", frame.label)
+	}
 	return nil
 }
 

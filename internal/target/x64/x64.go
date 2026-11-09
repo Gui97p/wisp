@@ -26,6 +26,7 @@ type callSite struct {
 
 type inlineFrame struct {
 	call       *analyser.InlineCall
+	lastReturn ast.Statement
 	results    []Operand
 	label      string
 	deferDepth int
