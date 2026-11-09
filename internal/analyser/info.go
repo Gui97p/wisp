@@ -8,32 +8,33 @@ import (
 )
 
 type Info struct {
-	Module        *Scope
-	VarTypes      map[ast.Node][]Type
-	VarSymbols    map[ast.Node][]*Symbol
-	Types         map[ast.Expression]Type
-	CallReturns   map[*ast.CallExpr][]Type
-	FuncReturns   map[*ast.FuncDecl][]Type
-	ErrorReturns  map[*ast.ReturnStmt]bool
-	ErrorLiterals map[*ast.CallExpr]*ErrorLiteral
-	Idents        map[*ast.IdentLiteral]*Symbol
-	Members       map[*ast.MemberExpr]*MemberInfo
-	MethodCalls   map[*ast.CallExpr]*MethodCall
-	MethodVisible map[*ast.FuncDecl]bool
-	UntilSeesBody map[*ast.LoopStmt]bool
-	EnumValues    map[ast.Expression]EnumValue
-	Scopes        map[ast.Node]*Scope
-	PartExports   map[string][]string
-	SizeOf        map[*ast.CallExpr]Type
-	ConstValues   map[ast.Expression]ConstValue
-	Folds         map[ast.Expression]ConstValue
-	Inlines       map[*ast.CallExpr]*InlineCall
-	InlineReturns map[*ast.ReturnStmt]*InlineCall
-	ConstRefs     map[*ast.ConstRef]ConstRefInfo
-	Boxes         map[ast.Expression]Type
-	TypeCases     map[*ast.BinaryExpr]*TypeCase
-	Narrowed      map[*Symbol]*Symbol
-	SwitchValues  map[*ast.SwitchExpr][]Type
+	Module           *Scope
+	VarTypes         map[ast.Node][]Type
+	VarSymbols       map[ast.Node][]*Symbol
+	Types            map[ast.Expression]Type
+	CallReturns      map[*ast.CallExpr][]Type
+	FuncReturns      map[*ast.FuncDecl][]Type
+	ErrorReturns     map[*ast.ReturnStmt]bool
+	ErrorLiterals    map[*ast.CallExpr]*ErrorLiteral
+	Idents           map[*ast.IdentLiteral]*Symbol
+	Members          map[*ast.MemberExpr]*MemberInfo
+	MethodCalls      map[*ast.CallExpr]*MethodCall
+	MethodVisible    map[*ast.FuncDecl]bool
+	UntilSeesBody    map[*ast.LoopStmt]bool
+	EnumValues       map[ast.Expression]EnumValue
+	Scopes           map[ast.Node]*Scope
+	PartExports      map[string][]string
+	SizeOf           map[*ast.CallExpr]Type
+	ConstValues      map[ast.Expression]ConstValue
+	Folds            map[ast.Expression]ConstValue
+	Inlines          map[*ast.CallExpr]*InlineCall
+	InlineReturns    map[*ast.ReturnStmt]*InlineCall
+	InlinePropagates map[*ast.PropagateExpr]*InlineCall
+	ConstRefs        map[*ast.ConstRef]ConstRefInfo
+	Boxes            map[ast.Expression]Type
+	TypeCases        map[*ast.BinaryExpr]*TypeCase
+	Narrowed         map[*Symbol]*Symbol
+	SwitchValues     map[*ast.SwitchExpr][]Type
 }
 
 type TypeCase struct {
@@ -43,31 +44,32 @@ type TypeCase struct {
 
 func NewInfo() *Info {
 	return &Info{
-		VarTypes:      make(map[ast.Node][]Type),
-		ConstValues:   make(map[ast.Expression]ConstValue),
-		Folds:         make(map[ast.Expression]ConstValue),
-		Inlines:       make(map[*ast.CallExpr]*InlineCall),
-		InlineReturns: make(map[*ast.ReturnStmt]*InlineCall),
-		ConstRefs:     make(map[*ast.ConstRef]ConstRefInfo),
-		SizeOf:        make(map[*ast.CallExpr]Type),
-		VarSymbols:    make(map[ast.Node][]*Symbol),
-		Types:         make(map[ast.Expression]Type),
-		CallReturns:   make(map[*ast.CallExpr][]Type),
-		FuncReturns:   make(map[*ast.FuncDecl][]Type),
-		ErrorReturns:  make(map[*ast.ReturnStmt]bool),
-		ErrorLiterals: make(map[*ast.CallExpr]*ErrorLiteral),
-		Idents:        make(map[*ast.IdentLiteral]*Symbol),
-		Members:       make(map[*ast.MemberExpr]*MemberInfo),
-		MethodCalls:   make(map[*ast.CallExpr]*MethodCall),
-		MethodVisible: make(map[*ast.FuncDecl]bool),
-		UntilSeesBody: make(map[*ast.LoopStmt]bool),
-		EnumValues:    make(map[ast.Expression]EnumValue),
-		Scopes:        make(map[ast.Node]*Scope),
-		PartExports:   make(map[string][]string),
-		Boxes:         make(map[ast.Expression]Type),
-		TypeCases:     make(map[*ast.BinaryExpr]*TypeCase),
-		Narrowed:      make(map[*Symbol]*Symbol),
-		SwitchValues:  make(map[*ast.SwitchExpr][]Type),
+		VarTypes:         make(map[ast.Node][]Type),
+		ConstValues:      make(map[ast.Expression]ConstValue),
+		Folds:            make(map[ast.Expression]ConstValue),
+		Inlines:          make(map[*ast.CallExpr]*InlineCall),
+		InlineReturns:    make(map[*ast.ReturnStmt]*InlineCall),
+		InlinePropagates: make(map[*ast.PropagateExpr]*InlineCall),
+		ConstRefs:        make(map[*ast.ConstRef]ConstRefInfo),
+		SizeOf:           make(map[*ast.CallExpr]Type),
+		VarSymbols:       make(map[ast.Node][]*Symbol),
+		Types:            make(map[ast.Expression]Type),
+		CallReturns:      make(map[*ast.CallExpr][]Type),
+		FuncReturns:      make(map[*ast.FuncDecl][]Type),
+		ErrorReturns:     make(map[*ast.ReturnStmt]bool),
+		ErrorLiterals:    make(map[*ast.CallExpr]*ErrorLiteral),
+		Idents:           make(map[*ast.IdentLiteral]*Symbol),
+		Members:          make(map[*ast.MemberExpr]*MemberInfo),
+		MethodCalls:      make(map[*ast.CallExpr]*MethodCall),
+		MethodVisible:    make(map[*ast.FuncDecl]bool),
+		UntilSeesBody:    make(map[*ast.LoopStmt]bool),
+		EnumValues:       make(map[ast.Expression]EnumValue),
+		Scopes:           make(map[ast.Node]*Scope),
+		PartExports:      make(map[string][]string),
+		Boxes:            make(map[ast.Expression]Type),
+		TypeCases:        make(map[*ast.BinaryExpr]*TypeCase),
+		Narrowed:         make(map[*Symbol]*Symbol),
+		SwitchValues:     make(map[*ast.SwitchExpr][]Type),
 	}
 }
 

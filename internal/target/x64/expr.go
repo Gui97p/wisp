@@ -908,8 +908,21 @@ func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error)
 		t.text.printlnt("call __wisp_error_emit")
 		t.panic("unwrapped error")
 	} else {
-		if err := t.returnError(Reg{reg, 8}); err != nil {
-			return nil, err
+		if _, ok := t.info.InlinePropagates[expr]; ok {
+			frame := t.inlineFrames[len(t.inlineFrames)-1]
+			last := frame.results[len(frame.results)-1].(Mem)
+			for i := range frame.call.Returns {
+				t.zero(frame.results[i].(Mem))
+			}
+			t.store(errOp, last)
+			if err := t.emitDefers(frame.deferDepth, true); err != nil {
+				return nil, err
+			}
+			t.text.printft("jmp %s\n", frame.label)
+		} else {
+			if err := t.returnError(Reg{reg, 8}); err != nil {
+				return nil, err
+			}
 		}
 	}
 

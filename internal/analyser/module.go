@@ -276,7 +276,7 @@ func (a *Analyser) registerImports() {
 			continue
 		}
 		mt := &ModuleType{}
-		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: mt, Line: line, Col: col, File: a.currentFile}
+		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: mt, Line: line, Col: col, File: a.currentFile, ImportPath: imp.Path}
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(imp, MODULE, imp.Alias)
 		}

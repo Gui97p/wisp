@@ -3,6 +3,7 @@ package lua
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 
@@ -18,6 +19,10 @@ func (t *LuaTarget) foldedText(expr ast.Expression) (string, bool) {
 	if _, recorded := t.info.Folds[expr]; !recorded {
 		return "", false
 	}
+	return t.constantText(expr)
+}
+
+func (t *LuaTarget) constantText(expr ast.Expression) (string, bool) {
 	value, ok := t.info.Folded(expr)
 	if !ok {
 		return "", false
@@ -130,6 +135,21 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 	case *ast.StructLiteral:
 		return t.compileStructLiteral(b, e)
 	case *ast.IdentLiteral:
+		if sym := t.info.Idents[e]; sym != nil && sym.Kind == analyser.CONST && sym.Const != nil {
+			if text, ok := t.symbolConstantText(e, sym); ok {
+				b.WriteString(text)
+				return nil
+			}
+		}
+		if sym := t.info.Idents[e]; sym != nil && sym.Kind == analyser.MODULE && sym.ImportPath != "" {
+			if alias, imported := t.importAlias(sym.ImportPath); imported {
+				b.WriteString(luaIdent(alias))
+			} else {
+				b.WriteString(t.extraModule(sym.ImportPath))
+			}
+			return nil
+		}
+		b.WriteString(t.foreignPrefix(t.info.Idents[e]))
 		b.WriteString(luaIdent(e.Value))
 		if t.isBoxed(t.info.Idents[e]) {
 			b.WriteString("[0]")
@@ -501,4 +521,35 @@ func floatLiteralText(value float64) string {
 		return "(" + text + ")"
 	}
 	return text
+}
+
+func (t *LuaTarget) foreignPrefix(sym *analyser.Symbol) string {
+	if sym == nil || sym.Module == "" || ModuleID(sym.Module) == t.id {
+		return ""
+	}
+	if sym.Kind != analyser.FUNC && !(sym.Kind == analyser.VAR && sym.Global) {
+		return ""
+	}
+	if alias, imported := t.importAlias(sym.Module); imported {
+		return luaIdent(alias) + "."
+	}
+	return t.extraModule(sym.Module) + "."
+}
+
+func (t *LuaTarget) symbolConstantText(expr ast.Expression, sym *analyser.Symbol) (string, bool) {
+	value := *sym.Const
+	if isFloatType(sym.Type) {
+		switch value.Kind {
+		case analyser.ConstFloat:
+			return floatLiteralText(value.Float), true
+		case analyser.ConstInt:
+			f, _ := new(big.Float).SetInt(value.Int).Float64()
+			return floatLiteralText(f), true
+		}
+		return "", false
+	}
+	if value.Kind == analyser.ConstString {
+		return luaString(value.Str), true
+	}
+	return t.constantText(expr)
 }

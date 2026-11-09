@@ -93,7 +93,11 @@ func (t *LuaTarget) compilePropagate(b *strings.Builder, expr *ast.PropagateExpr
 		return err
 	}
 	zeros = append(zeros, errName)
-	if t.hasDefers(0, true) {
+	if _, inlined := t.info.InlinePropagates[expr]; inlined {
+		if err := t.propagateInline(errName, zeros); err != nil {
+			return err
+		}
+	} else if t.hasDefers(0, true) {
 		var exit strings.Builder
 		fmt.Fprintf(&exit, "if %s ~= nil then\n", errName)
 		if err := t.emitDefers(&exit, 0, true, errName); err != nil {
@@ -106,6 +110,20 @@ func (t *LuaTarget) compilePropagate(b *strings.Builder, expr *ast.PropagateExpr
 	}
 
 	b.WriteString(strings.Join(names, ", "))
+	return nil
+}
+
+func (t *LuaTarget) propagateInline(errName string, zeros []string) error {
+	frame := t.inlineFrames[len(t.inlineFrames)-1]
+	var exit strings.Builder
+	fmt.Fprintf(&exit, "if %s ~= nil then\n", errName)
+	if t.hasDefers(frame.deferDepth, true) {
+		if err := t.emitDefers(&exit, frame.deferDepth, true, errName); err != nil {
+			return err
+		}
+	}
+	fmt.Fprintf(&exit, "%s = %s\ngoto %s\nend\n", strings.Join(frame.results, ", "), strings.Join(zeros, ", "), frame.label)
+	t.emitPending(exit.String())
 	return nil
 }
 

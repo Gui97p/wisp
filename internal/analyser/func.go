@@ -83,9 +83,7 @@ func (a *Analyser) checkFuncBodies() {
 }
 
 func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
-	if fd.Inline && fd.HasConstParams() {
-		return
-	}
+	placeholders := fd.Inline && fd.HasConstParams()
 	a.enterScope()
 	defer a.exitScope()
 
@@ -126,6 +124,9 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 			break
 		}
 		paramType := ft.Params[i]
+		if placeholders && p.Const {
+			continue
+		}
 		if p.Variadic {
 			paramType = SpanType{Element: paramType}
 		}
@@ -142,7 +143,11 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 	a.currentReturns, a.currentFallible = ft.Returns, ft.Fallible
 	defer func() { a.currentReturns, a.currentFallible = prevReturns, prevFallible }()
 
-	a.checkBlock(fd.Body)
+	body := fd.Body
+	if placeholders {
+		body = a.placeholderBody(fd, ft, body)
+	}
+	a.checkBlock(body)
 	a.warnUnusedParams(fd, declared)
 	a.warnInfiniteRecursion(fd)
 

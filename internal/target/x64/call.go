@@ -651,7 +651,9 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 			slots = append(slots, slot(t.ctx.Reserve(size), size))
 		}
 		if call.Fallible {
-			slots = append(slots, slot(t.ctx.Reserve(8), 8))
+			s := slot(t.ctx.Reserve(8), 8)
+			t.zero(s)
+			slots = append(slots, s)
 		}
 
 		funcReturns := t.funcReturns

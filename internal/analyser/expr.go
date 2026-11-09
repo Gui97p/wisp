@@ -820,6 +820,10 @@ func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
 		return []Type{InvalidType{}}
 	}
 
+	if !expr.Assert && a.currentInline != nil {
+		a.info.InlinePropagates[expr] = a.currentInline
+	}
+
 	if !expr.Assert && !a.currentFallible {
 		a.error(expr, "cannot propagate outside a fallible function: mark it with !, or handle the error with ?? or let v, e = ...")
 		return []Type{InvalidType{}}

@@ -51,6 +51,8 @@ type Symbol struct {
 
 	ScopeDir string
 
+	ImportPath string
+
 	MustUse bool
 	Used    bool
 }

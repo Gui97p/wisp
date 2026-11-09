@@ -1,6 +1,7 @@
 package analyser
 
 import (
+	"math/big"
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -300,4 +301,62 @@ func (a *Analyser) checkInlineVisibility(site *ast.CallExpr, decl *ast.FuncDecl,
 		a.errorf(site, "inline function %s uses %s, which is private to module %s, so it cannot be expanded here", decl.Name, sym.Name, module)
 		return true
 	})
+}
+
+func (a *Analyser) placeholderBody(fd *ast.FuncDecl, ft *FuncType, body *ast.BlockStmt) *ast.BlockStmt {
+	values := map[string]ConstRefInfo{}
+	for i, p := range fd.Params {
+		if !p.Const || i >= len(ft.Params) {
+			continue
+		}
+		if info, ok := placeholderFor(ft.Params[i]); ok {
+			values[p.Name] = info
+		}
+	}
+	return ast.Clone(body, ast.CloneOptions{
+		Replace: func(node ast.Node) (ast.Node, bool) {
+			id, ok := node.(*ast.IdentLiteral)
+			if !ok {
+				return nil, false
+			}
+			info, found := values[id.Value]
+			if !found {
+				return nil, false
+			}
+			ref := &ast.ConstRef{}
+			line, col := id.Position()
+			endLine, endCol := id.EndPosition()
+			ref.SetPos(line, col)
+			ref.SetEndPos(endLine, endCol)
+			a.info.ConstRefs[ref] = info
+			return ref, true
+		},
+	})
+}
+
+func placeholderFor(tp Type) (ConstRefInfo, bool) {
+	if named, ok := tp.(NamedType); ok && named.Enum {
+		if len(named.MemberOrder) == 0 {
+			return ConstRefInfo{}, false
+		}
+		first := named.MemberOrder[0]
+		value := named.Members[first]
+		return ConstRefInfo{Value: constInt(big.NewInt(value)), Type: tp, Enum: &EnumValue{Type: named, Name: first, Value: value}}, true
+	}
+	base := underlying(tp)
+	switch {
+	case isInteger(base):
+		return ConstRefInfo{Value: constInt(big.NewInt(1)), Type: tp}, true
+	case isFloat(base):
+		return ConstRefInfo{Value: ConstValue{Kind: ConstFloat, Float: 1}, Type: tp}, true
+	}
+	if p, ok := base.(PrimitiveType); ok {
+		switch p.Name {
+		case "bool":
+			return ConstRefInfo{Value: ConstValue{Kind: ConstBool, Bool: true}, Type: tp}, true
+		case "string":
+			return ConstRefInfo{Value: ConstValue{Kind: ConstString}, Type: tp}, true
+		}
+	}
+	return ConstRefInfo{}, false
 }
