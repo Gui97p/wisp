@@ -6251,26 +6251,41 @@ func main() {
 }
 `, expected: []string{"a native replaces the plain function of its architecture", "a native function returns several named results", "a native function with no result", "native statements pick their architecture"}},
 
-	{dir: "target_directive", files: map[string]string{"platform/platform.wsp": `public func base() int {
+	{dir: "target_directive", files: map[string]string{"platform/platform.wsp": `import<x64> "platform/x64" as impl;
+import<lua> "platform/lua" as impl;
+
+const SIZE = 1;
+
+public func base() int {
     return 10;
 }
 
 public func described() int {
-    return kind() + 1;
+    return impl.kind() + 1;
 }
 
 public func bumped(int a) int {
-    return bump(a) + bumpTwice(a);
+    return impl.bump(a) + impl.bumpTwice(a);
+}
+
+public func sizes() int {
+    return SIZE + impl.size();
 }
 `, "platform/x64.wsp": `#target x64
 
-func kind() int {
+const SIZE = 2;
+
+internal func kind() int {
     return 3;
 }
 
-native bump(int a) int r => "mov rax, {a}; add rax, 1; mov {r}, rax";
+internal func size() int {
+    return SIZE;
+}
 
-func bumpTwice(int a) int {
+internal native bump(int a) int r => "mov rax, {a}; add rax, 1; mov {r}, rax";
+
+internal func bumpTwice(int a) int {
     int r;
     native(in a, out r) "mov rax, {a}; add rax, 2; mov {r}, rax";
     return r;
@@ -6279,16 +6294,22 @@ func bumpTwice(int a) int {
 public func twice(int n) int {
     return n * 2;
 }
-`, "platform/lua.wsp": `// the same name, for the other architecture
+`, "platform/lua.wsp": `// the same names, for the other architecture
 #target lua
 
-func kind() int {
+const SIZE = 2;
+
+internal func kind() int {
     return 3;
 }
 
-native bump(int a) int r => "r = a + 1";
+internal func size() int {
+    return SIZE;
+}
 
-func bumpTwice(int a) int {
+internal native bump(int a) int r => "r = a + 1";
+
+internal func bumpTwice(int a) int {
     int r;
     native(in a, out r) "r = a + 2";
     return r;
@@ -6316,12 +6337,96 @@ native<!x64> level() int r => "r = 2";
 func main() {
     check(platform.base() == 10, "the entry of a package is always there");
     check(platform.twice(4) == 8, "only the part whose #target matches is loaded");
-    check(platform.described() == 4, "a variant shares the private names of its package entry");
+    check(platform.described() == 4, "the entry reaches a variant through a conditional import");
     check(platform.bumped(10) == 11 + 12, "native needs no selector inside a file with a #target");
+    check(platform.sizes() == 3, "a variant has a scope of its own, so equal names do not clash");
     check(platform.always() == 5, "a #target can be an or");
     check(level() == 2, "the version that matches fewer targets wins");
 }
-`, expected: []string{"the entry of a package is always there", "only the part whose #target matches is loaded", "a variant shares the private names of its package entry", "native needs no selector inside a file with a #target", "a #target can be an or", "the version that matches fewer targets wins"}},
+`, expected: []string{"the entry of a package is always there", "only the part whose #target matches is loaded", "the entry reaches a variant through a conditional import", "native needs no selector inside a file with a #target", "a variant has a scope of its own, so equal names do not clash", "a #target can be an or", "the version that matches fewer targets wins"}},
+
+	{dir: "declaration_selectors", src: `func twice(int n) int {
+    return -1;
+}
+
+func<x64> twice(int n) int {
+    return n * 2;
+}
+
+func<lua> twice(int n) int {
+    return n + n;
+}
+
+func level() int {
+    return 0;
+}
+
+func<x64> level() int {
+    return 1;
+}
+
+func<x64 && linux> level() int {
+    return 2;
+}
+
+func<lua> level() int {
+    return 2;
+}
+
+struct<x64> Pair {
+    int a;
+    int b;
+}
+
+struct<lua> Pair {
+    int a;
+    int b;
+    int c;
+}
+
+enum<x64> Mode {
+    Fast = 1,
+    Slow
+}
+
+enum<lua> Mode {
+    Fast = 1,
+    Slow,
+    Extra
+}
+
+const<x64> LIMIT = 10;
+const<lua> LIMIT = 10;
+
+const<x64> {
+    LOW = 1;
+    HIGH = 9;
+}
+
+const<lua> {
+    LOW = 1;
+    HIGH = 9;
+}
+
+type<x64> Count int;
+type<lua> Count int;
+
+func main() {
+    check(twice(4) == 8, "a func with a selector replaces the plain one, in Wisp");
+    check(level() == 2, "the version that matches fewer targets wins");
+
+    Pair p = Pair{a: 3, b: 4};
+    check(p.a + p.b == 7, "a struct can differ per target");
+
+    Mode m = Mode.Slow;
+    check(m == Mode.Slow && Mode.Slow == 2, "an enum can differ per target");
+
+    check(LIMIT == 10 && HIGH - LOW == 8, "constants can differ per target, alone or in a group");
+
+    Count c = 5;
+    check(c == 5, "a type alias can differ per target");
+}
+`, expected: []string{"a func with a selector replaces the plain one, in Wisp", "the version that matches fewer targets wins", "a struct can differ per target", "an enum can differ per target", "constants can differ per target, alone or in a group", "a type alias can differ per target"}},
 
 	{dir: "inline_calls", src: `import "std/errors";
 
@@ -7818,52 +7923,53 @@ func main() {
 `, expected: []string{"Lua keywords work as names of variables, parameters and functions", "Lua keywords work as names of fields", "Lua keywords work as loop and handler names", "a module named math does not hide the Lua math library"}},
 
 	{dir: "target_files", files: map[string]string{"where/where.wsp": `import "std/math";
+import<x64> "where/x64" as arch;
+import<lua> "where/lua" as arch;
 
 public func name() int {
-    return which() + extra() + math.min(0, 1);
+    return arch.which() + arch.extra() + math.min(0, 1);
 }
 
 public func pieces() int {
-    return both();
+    return arch.both();
 }
-`, "where/x64.wsp": `#target x64
+`, "where/x64.wsp": `#target linux && x64
 
 import "std/math";
 
-func which() int {
+internal func which() int {
     return math.max(10, 3);
 }
 
-func both() int {
+internal func both() int {
     return 100;
 }
-`, "where/linux_x64.wsp": `#target linux && x64
 
-func extra() int {
+internal func extra() int {
     return 1;
 }
 `, "where/lua.wsp": `#target lua
 
 import "std/math";
 
-func which() int {
+internal func which() int {
     return math.max(10, 3);
 }
 
-func extra() int {
+internal func extra() int {
     return 1;
 }
 
-func both() int {
+internal func both() int {
     return 100;
 }
 `}, src: `import "where";
 
 func main() {
-    check(where.name() == 11, "a file with a #target for the architecture is part of the module on that architecture only");
-    check(where.pieces() == 100, "a file with a #target for a system and an architecture is part of the module on that platform only");
+    check(where.name() == 11, "an import with a selector picks the module of the target being built");
+    check(where.pieces() == 100, "a file with a #target for a system and an architecture is loaded on that platform only");
 }
-`, expected: []string{"a file with a #target for the architecture is part of the module on that architecture only", "a file with a #target for a system and an architecture is part of the module on that platform only"}},
+`, expected: []string{"an import with a selector picks the module of the target being built", "a file with a #target for a system and an architecture is loaded on that platform only"}},
 
 	{dir: "ptr_slice", src: `import "std/mem";
 func main() ! {

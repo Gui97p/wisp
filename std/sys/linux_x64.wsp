@@ -1,0 +1,130 @@
+#target linux && x64
+
+import "std/sys";
+
+const {
+	SYS_READ = 0;
+	SYS_WRITE = 1;
+	SYS_CLOSE = 3;
+	SYS_FSTAT = 5;
+	SYS_LSEEK = 8;
+	SYS_MMAP = 9;
+	SYS_MUNMAP = 11;
+	SYS_IOCTL = 16;
+	SYS_NANOSLEEP = 35;
+	SYS_GETDENTS64 = 217;
+	SYS_GETCWD = 79;
+	SYS_FSYNC = 74;
+	SYS_EXIT_GROUP = 231;
+	SYS_OPENAT = 257;
+	SYS_MKDIRAT = 258;
+	SYS_NEWFSTATAT = 262;
+	SYS_UNLINKAT = 263;
+	SYS_RENAMEAT = 264;
+	SYS_CLOCK_GETTIME = 228;
+	SYS_GETRANDOM = 318;
+
+	AT_FDCWD = -100;
+
+	PROT_READ = 1;
+	PROT_WRITE = 2;
+	PROT_RW = PROT_READ | PROT_WRITE;
+
+	MAP_PRIVATE = 2;
+	MAP_ANONYMOUS = 32;
+	MAP_PRIVATE_ANON = MAP_PRIVATE | MAP_ANONYMOUS;
+
+	TCGETS = 0x5401;
+
+	NO_FD = -1;
+}
+
+shared native read(int fd, *char buf, int n) int r =>
+		"mov eax, {SYS_READ}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+
+shared native write(int fd, *char buf, int n) int r =>
+		"mov eax, {SYS_WRITE}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+
+shared native open(*char path, int flags, int mode) int fd =>
+		"mov eax, {SYS_OPENAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; mov r10, {mode}; syscall; mov {fd}, rax";
+
+shared native close(int fd) int r =>
+		"mov eax, {SYS_CLOSE}; mov rdi, {fd}; syscall; mov {r}, rax";
+
+shared native seek(int fd, offset, whence) int off =>
+		"mov eax, {SYS_LSEEK}; mov rdi, {fd}; mov rsi, {offset}; mov rdx, {whence}; syscall; mov {off}, rax";
+
+shared native sync(int fd) int r =>
+		"mov eax, {SYS_FSYNC}; mov rdi, {fd}; syscall; mov {r}, rax";
+
+shared func size(int fd) int {
+	sys.Stat stat;
+	int r;
+	native(in fd, stat, out r) "mov eax, {SYS_FSTAT}; mov rdi, {fd}; lea rsi, {&stat}; syscall; mov {r}, rax";
+	return r < 0 ? r : stat.st_size;
+}
+
+shared native remove(*char path, int flags) int r =>
+		"mov eax, {SYS_UNLINKAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; syscall; mov {r}, rax";
+
+shared native mmap(int len) *void r =>
+		"mov eax, {SYS_MMAP}; xor edi, edi; mov rsi, {len}; mov rdx, {PROT_RW}; mov r10, {MAP_PRIVATE_ANON}; mov r8, {NO_FD}; xor r9d, r9d; syscall; mov {r}, rax";
+
+shared native munmap(*void addr, int len) int r =>
+		"mov eax, {SYS_MUNMAP}; mov rdi, {addr}; mov rsi, {len}; syscall; mov {r}, rax";
+
+shared func time(int clock) (int, int) {
+	sys.Timespec ts;
+	native(in clock, ts) "mov eax, {SYS_CLOCK_GETTIME}; mov rdi, {clock}; lea rsi, {&ts}; syscall";
+	return ts.tv_sec, ts.tv_nsec;
+}
+
+shared func sleep(int sec, nsec) int {
+	sys.Timespec req = sys.Timespec{tv_sec: sec, tv_nsec: nsec};
+	int r;
+	native(in req, out r) "mov eax, {SYS_NANOSLEEP}; lea rdi, {&req}; xor esi, esi; syscall; mov {r}, rax";
+	return r;
+}
+
+shared native random(*void buf, int n) int r =>
+		"mov eax, {SYS_GETRANDOM}; mov rdi, {buf}; mov rsi, {n}; xor edx, edx; syscall; mov {r}, rax";
+
+shared func isatty(int fd) bool {
+	[64]char termios;
+	int r;
+	native(in fd, termios, out r) "mov eax, {SYS_IOCTL}; mov rdi, {fd}; mov rsi, {TCGETS}; lea rdx, {&termios}; syscall; mov {r}, rax";
+	return r == 0;
+}
+
+shared native exit(int code) => "mov eax, {SYS_EXIT_GROUP}; mov rdi, {code}; syscall";
+
+shared native mkdir(*char path, int mode) int r =>
+		"mov eax, {SYS_MKDIRAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {mode}; syscall; mov {r}, rax";
+
+shared native rename(*char from, to) int r =>
+		"mov eax, {SYS_RENAMEAT}; mov rdi, {AT_FDCWD}; mov rsi, {from}; mov rdx, {AT_FDCWD}; mov r10, {to}; syscall; mov {r}, rax";
+
+shared native stat(*char path, *void buf) int r =>
+		"mov eax, {SYS_NEWFSTATAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {buf}; xor r10, r10; syscall; mov {r}, rax";
+
+shared native fstat(int fd, *void buf) int r =>
+		"mov eax, {SYS_FSTAT}; mov rdi, {fd}; mov rsi, {buf}; syscall; mov {r}, rax";
+
+shared native getdents(int fd, *char buf, int n) int r =>
+		"mov eax, {SYS_GETDENTS64}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+
+shared native getcwd(*char buf, int n) int r =>
+		"mov eax, {SYS_GETCWD}; mov rdi, {buf}; mov rsi, {n}; syscall; mov {r}, rax";
+
+shared native environ() **char r =>
+		"extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
+
+shared func parseDirent(*char buf, int pos) (string, int, int) {
+	int start = pos + 19;
+	int end = start;
+	loop buf[end] != '\0' {
+		end++;
+	}
+
+	return string(buf[start:end]), buf[pos + 18], pos + (int(buf[pos+16]) | int(buf[pos+17]) << 8);
+}

@@ -1,28 +1,44 @@
 // Tour - Code for one target.
 //
 // A line that starts with `#` is a directive. `#target` goes at the top of a
-// file and says which targets the file is for; anywhere else the file's
-// declarations simply do not exist. The words are architectures (`x64`,
-// `lua`), systems (`linux`) or target names (`linux_x64`, `cc`), joined with
+// file and says which targets the file is for. In any other target the file
+// simply does not exist: its declarations are not even looked at. The words
+// are architectures (`x64`, `lua`) or systems (`linux`, `cc`), joined with
 // `&&`, `||`, `!` and parentheses: `#target x64 && linux`, or
 // `#target (x64 || lua) && !windows`.
 //
-// This folder is a package. A file in it with a `#target` is a variant of this
-// entry: when its target is the one being built it shares this file's names,
-// private ones included, and when it is not it contributes nothing. x64.wsp and
-// lua.wsp both declare `width`, and only one of them exists in a build. A file
-// without a directive is a part of the package, as in the geometry folder.
+// `#target` only filters. The file is still a module of its own, with its own
+// names. Here x64.wsp and lua.wsp are two such modules, and this file picks
+// the one that exists with an import that has the same kind of condition in
+// angle brackets and a common name:
 //
-// `native<...>` takes the same expressions. When several versions of a
-// function match, the one that matches fewer targets wins: `native<x64 &&
-// linux>` beats `native<x64>`.
+//     import<x64> "platform/x64" as arch;
+//     import<lua> "platform/lua" as arch;
+//
+// Whatever `arch.` reaches is the module of the target being built, and what
+// they make public is also part of this package, as with any file in the folder.
+//
+// The same expressions work after `func`, `struct`, `enum`, `type`, `const`
+// and `native`, for one declaration instead of a whole file: a version with a
+// selector replaces the plain one of the same name when it matches, so the
+// plain one is the default and each target can override it. Every version has
+// to be the same kind of declaration, with the same signature and visibility.
+// A name that exists only for other targets gets an error that says so.
 
 import "std/fmt";
+import<x64> "platform/x64" as arch;
+import<lua> "platform/lua" as arch;
+
+func bits() int => 0;
+
+func<x64> bits() int => 64;
+
+func<lua> bits() int => 53;
 
 public func describe() string {
-  return name();
+  return arch.name();
 }
 
 public func demo() {
-  fmt.printf("this build is for the {} architecture, {} bits wide\n", name(), width());
+  fmt.printf("this build is for the {} architecture, {} bits wide, {} for numbers\n", arch.name(), arch.width(), bits());
 }

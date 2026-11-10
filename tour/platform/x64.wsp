@@ -1,5 +1,5 @@
 #target x64
 
-func name() string => "x64";
+internal func name() string => "x64";
 
-func width() int => 64;
+internal func width() int => 64;

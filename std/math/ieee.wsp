@@ -9,6 +9,34 @@ is preserved.
 
 */
 
+internal func words(float x) (uint, uint) {
+	uint64 bits = (*uint64)(&x)@;
+	uint high = bits >> 32;
+	uint low = bits & 0xFFFFFFFF;
+
+	return high, low;
+}
+internal native<lua> words(float x) (uint high, uint low) => "low, high = __lua_string.unpack('<I4I4', __lua_string.pack('<d', x))";
+
+internal func fromWords(uint high, low) float {
+	float f;
+	(*uint64)(&f)@ = (high << 32) | low;
+	return f;
+}
+internal native<lua> fromWords(uint high, low) float f => "f = __lua_string.unpack('<d', __lua_string.pack('<I4I4', low, high))";
+
+public native<x64> floor(float x) float r => "roundsd xmm0, {x}, 1; movsd {r}, xmm0";
+public native<lua> floor(float x) float r => "r = math.floor(x)";
+
+public native<x64> ceil(float x) float r => "roundsd xmm0, {x}, 2; movsd {r}, xmm0";
+public native<lua> ceil(float x) float r => "r = math.ceil(x)";
+
+public native<x64> trunc(float x) float r => "roundsd xmm0, {x}, 3; movsd {r}, xmm0";
+public native<lua> trunc(float x) float r => "r, _ = math.modf(x)";
+
+public native<x64> fsqrt(float x) float r => "sqrtsd xmm0, {x}; movsd {r}, xmm0";
+public native<lua> fsqrt(float x) float r => "r = math.sqrt(x)";
+
 public func fmin(float x, y) float {
     if (isNaN(x) || isNaN(y)) {
         return nan();

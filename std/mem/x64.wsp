@@ -1,3 +1,5 @@
+#target x64
+
 import "std/sys";
 import "std/os";
 import "std/strings";
@@ -214,16 +216,14 @@ func fail(*void p, string what) {
 	panic(what);
 }
 
-func setExitHook(() => () hook) {
-	native<x64>(in hook) "extern __wisp_exit_hook; mov rax, {hook}; mov [rel __wisp_exit_hook], rax";
-}
+native setExitHook(() => () hook) => "extern __wisp_exit_hook; mov rax, {hook}; mov [rel __wisp_exit_hook], rax";
 
-func track(*void p) {
+internal func track(*void p) {
 	if p == null || !debugOn() {
 		return;
 	}
 	*void f;
-	native<x64>(out f) "mov rax, [rbp]; mov {f}, rax";
+	native(out f) "mov rax, [rbp]; mov {f}, rax";
 	string site = callerSite(f);
 	if len(site) <= 0 {
 		site = "";
@@ -231,29 +231,20 @@ func track(*void p) {
 	remember(p, site);
 }
 
-func trackFree(*void p) {
+internal func trackFree(*void p) {
     if p == null || !debugOn() || state(p) != LIVE {
         return;
     }
     *void f;
-    native<x64>(out f) "mov rax, [rbp]; mov {f}, rax";
+    native(out f) "mov rax, [rbp]; mov {f}, rax";
     int i = find(p);
 	if i >= 0 {
 		table[i].freed = callerSite(f);
 	}
 }
 
-func siteOf(*void f) string {
-	string s;
-	native<x64>(in f, out s) "extern __wisp_site; mov rdi, {f}; call __wisp_site; mov {s.ptr}, rax; mov {s.len}, rdx";
-	return s;
-}
-
-func parent(*void f) *void {
-	*void g;
-	native<x64>(in f, out g) "mov rax, {f}; mov rax, [rax]; mov {g}, rax";
-	return g;
-}
+native siteOf(*void f) string s => "extern __wisp_site; mov rdi, {f}; call __wisp_site; mov {s.ptr}, rax; mov {s.len}, rdx";
+native parent(*void f) *void g => "mov rax, {f}; mov rax, [rax]; mov {g}, rax";
 
 func callerSite(*void f) string {
 	string first = siteOf(f);
@@ -368,14 +359,11 @@ internal func rawRealloc(*void p, int n) *void {
 	return np;
 }
 
-internal func rawCopy(*void dst, src, int n) {
-	native<x64>(in dst, src, n) "mov rdi, {dst}; mov rsi, {src}; mov rcx, {n}; rep movsb";
-}
+internal native rawCopy(*void dst, src, int n) =>
+		"mov rdi, {dst}; mov rsi, {src}; mov rcx, {n}; rep movsb";
 
-internal func rawCopyBackward(*void dst, src, int n) {
-	native<x64>(in dst, src, n) "mov rdi, {dst}; add rdi, {n}; dec rdi; mov rsi, {src}; add rsi, {n}; dec rsi; mov rcx, {n}; std; rep movsb; cld";
-}
+internal native rawCopyBackward(*void dst, src, int n) =>
+		"mov rdi, {dst}; add rdi, {n}; dec rdi; mov rsi, {src}; add rsi, {n}; dec rsi; mov rcx, {n}; std; rep movsb; cld";
 
-internal func rawSet(*void dst, char value, int n) {
-	native<x64>(in dst, value, n) "mov rdi, {dst}; mov al, {value}; mov rcx, {n}; rep stosb";
-}
+internal native rawSet(*void dst, char value, int n) =>
+		"mov rdi, {dst}; mov al, {value}; mov rcx, {n}; rep stosb";

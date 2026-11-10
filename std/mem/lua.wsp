@@ -1,0 +1,10 @@
+#target lua
+
+internal native rawAllocate(int n, bool zero) *void p => "p = (__wisp_alloc(n))";
+internal native rawFree(*void p) => "__wisp_free(p)";
+internal native rawRealloc(*void p, int n) *void new => "new = (__wisp_realloc(p, n))";
+internal native rawCopy(*void dst, src, int n) => "for i = 0, n - 1 do dst.t[dst.o + i] = src.t[src.o + i] end";
+internal native rawCopyBackward(*void dst, src, int n) => "for i = n - 1, 0, -1 do dst.t[dst.o + i] = src.t[src.o + i] end";
+internal native rawSet(*void dst, char value, int n) => "for i = 0, n - 1 do dst.t[dst.o + i] = value end";
+internal func track(*void _) {}
+internal func trackFree(*void _) {}

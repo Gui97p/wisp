@@ -1,10 +1,12 @@
+#target x64
+
 import "std/math";
 import "std/mem";
 import "std/errors";
 
 const {
 	HEADER = 32;
-	CHUNK_SIZE = 64 * 1024;
+	ARENA_CHUNK_SIZE = 64 * 1024;
 } 
 
 struct Chunk {
@@ -18,7 +20,7 @@ inline func (*Chunk c) data() *char {
 }
 
 func newChunk(int need) !*Chunk {
-	int size = math.max(CHUNK_SIZE - HEADER, need);
+	int size = math.max(ARENA_CHUNK_SIZE - HEADER, need);
 	*Chunk p = mem.allocDirty(HEADER + size)!;
 	p.size = size;
 	p.used = 0;
@@ -50,7 +52,7 @@ public func (*Arena a) allocDirty(int n) !*void {
 		return a.head.data() + a.head.used;
 	}
 	*Chunk p = newChunk(n)!;
-	if n <= CHUNK_SIZE - HEADER {
+	if n <= ARENA_CHUNK_SIZE - HEADER {
 		p.next = a.head;
 		a.head = p;
 	} else {

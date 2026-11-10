@@ -1,46 +1,48 @@
+import<x64> "std/mem/x64" as impl;
+import<lua> "std/mem/lua" as impl;
 import "std/errors";
 
 public func alloc(int n) !*void {
-	*void p = rawAllocate(n, true);
+	*void p = impl.rawAllocate(n, true);
 	errors.ensure(p != null, errors.Kind.OutOfMemory)!;
-	track(p);
+	impl.track(p);
 	return p;
 }
 
 public func allocDirty(int n) !*void {
-	*void p = rawAllocate(n, false);
+	*void p = impl.rawAllocate(n, false);
 	errors.ensure(p != null, errors.Kind.OutOfMemory)!;
-	track(p);
+	impl.track(p);
 	return p;
 }
 
 public func free(*void ...p) {
 	for _, v in p {
-		trackFree(v);
-		rawFree(v);
+		impl.trackFree(v);
+		impl.rawFree(v);
 	}
 }
 
 public func realloc(*void p, int n) !*void {
-	trackFree(p);
-	*void new = rawRealloc(p, n);
+	impl.trackFree(p);
+	*void new = impl.rawRealloc(p, n);
 	errors.ensure(new != null, errors.Kind.OutOfMemory)!;
-	track(new);
+	impl.track(new);
 	return new;
 }
 
 public inline func copy(*void dst, src, int n) {
-	rawCopy(dst, src, n);
+	impl.rawCopy(dst, src, n);
 }
 
 public func move(*void dst, src, int n) {
 	if dst > src && dst < (*char)(src) + n {
-		rawCopyBackward(dst, src, n);
+		impl.rawCopyBackward(dst, src, n);
 	} else {
-		rawCopy(dst, src, n);
+		impl.rawCopy(dst, src, n);
 	}
 }
 
 public inline func fill(*void dst, char value, int n) {
-	rawSet(dst, value, n);
+	impl.rawSet(dst, value, n);
 }

@@ -1,5 +1,5 @@
 #target lua
 
-func name() string => "lua";
+internal func name() string => "lua";
 
-func width() int => 53;
+internal func width() int => 53;
