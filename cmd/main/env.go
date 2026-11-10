@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/module"
@@ -149,9 +148,9 @@ func runTargets(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	current := runtime.GOOS
-	if cfg.OS != "" {
-		current = cfg.OS
+	current := ""
+	if resolved, err := resolveTarget(cfg); err == nil {
+		current = resolved.Name
 	}
 
 	rows := [][]string{{"", "os", "arch", "kind"}}

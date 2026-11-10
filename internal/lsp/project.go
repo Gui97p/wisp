@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/Gui97p/wisp/internal/module"
+	"github.com/Gui97p/wisp/internal/target"
 )
 
 type projectSettings struct {
@@ -55,7 +56,9 @@ func loadSettings(path string) *projectSettings {
 	}
 
 	if s.configErr == nil {
-		s.target = cfg.OS
+		if resolved, err := target.Resolve(cfg.OS, cfg.Arch); err == nil && cfg.OS != "" {
+			s.target = resolved.Name
+		}
 		if cfg.Entry != "" {
 			s.entry = filepath.Join(root, cfg.Entry)
 		}

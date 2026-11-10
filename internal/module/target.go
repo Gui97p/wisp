@@ -3,34 +3,19 @@ package module
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/Gui97p/wisp/internal/target"
 )
 
-var (
-	activeTargetMu sync.RWMutex
-	activeTarget   string
-)
-
 func ConfigureTarget(name string) {
-	activeTargetMu.Lock()
-	defer activeTargetMu.Unlock()
-	activeTarget = name
 	target.SetActive(name)
 }
 
 func currentTarget() string {
-	activeTargetMu.RLock()
-	defer activeTargetMu.RUnlock()
-	if activeTarget == "" {
-		return runtime.GOOS + "_x64"
-	}
-	return activeTarget
+	return target.Active()
 }
 
 func FileDirective(path string) string {

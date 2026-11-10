@@ -54,15 +54,28 @@ func (c *Config) RunEnv() []EnvVar {
 }
 
 type TargetConfig struct {
-	Arch    string       `toml:"arch" doc:"CPU architecture of the target. Only x64 is supported."`
+	Arch    string       `toml:"arch" doc:"CPU architecture of a system of your own that has just one. A system with several writes a [targets.<os>.<arch>] table for each instead."`
 	ABI     string       `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
 	Format  string       `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
 	Entry   string       `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
-	Runtime string       `toml:"runtime" doc:"Assembly file with the runtime routines (allocation, panic, I/O) for this target."`
-	Start   string       `toml:"start" doc:"Assembly file that calls main and leaves the program. Required for custom targets."`
-	Link    []string     `toml:"link" doc:"Extra linker arguments for this target, such as -T linker.ld. On a built-in target they are added to the built-in ones."`
-	Libc    *bool        `toml:"libc" doc:"Link against the C library for this target. Overrides the top-level libc."`
-	Output  OutputConfig `toml:"output" doc:"Where this target writes its artifacts. Overrides the top-level [output]."`
+	Runtime string       `toml:"runtime" doc:"Assembly file with the runtime routines (allocation, panic, I/O) for this system."`
+	Start   string       `toml:"start" doc:"Assembly file that calls main and leaves the program. Required for systems of your own."`
+	Link    []string     `toml:"link" doc:"Extra linker arguments, such as -T linker.ld. On a built-in system they are added to the built-in ones."`
+	Libc    *bool        `toml:"libc" doc:"Link against the C library for this system. Overrides the top-level libc."`
+	Output  OutputConfig `toml:"output" doc:"Where this system writes its artifacts. Overrides the top-level [output]."`
+
+	Archs map[string]ArchConfig `toml:"-"`
+}
+
+type ArchConfig struct {
+	ABI     string       `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
+	Format  string       `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
+	Entry   string       `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
+	Runtime string       `toml:"runtime" doc:"Assembly file with the runtime routines for this architecture of the system."`
+	Start   string       `toml:"start" doc:"Assembly file that calls main and leaves the program, for this architecture."`
+	Link    []string     `toml:"link" doc:"Extra linker arguments for this architecture, added to the ones of the system."`
+	Libc    *bool        `toml:"libc" doc:"Link against the C library for this architecture."`
+	Output  OutputConfig `toml:"output" doc:"Where this architecture writes its artifacts."`
 }
 
 type OutputConfig = target.Output
@@ -87,8 +100,10 @@ func ConfigFields(section string) []ConfigField {
 		t = reflect.TypeOf(RunConfig{})
 	case "targets":
 		t = reflect.TypeOf(TargetConfig{})
-	case "targets.output":
+	case "targets.output", "targets.arch.output":
 		t = reflect.TypeOf(OutputConfig{})
+	case "targets.arch":
+		t = reflect.TypeOf(ArchConfig{})
 	default:
 		return nil
 	}
@@ -169,6 +184,72 @@ func loadConfigText(root, path, text string) (*Config, error) {
 	return cfg, nil
 }
 
+func readSource(root, name, field, file string) (string, error) {
+	if file == "" {
+		return "", nil
+	}
+	data, err := os.ReadFile(filepath.Join(root, file))
+	if err != nil {
+		return "", &target.FieldError{Target: name, Field: field, Message: fmt.Sprintf("cannot read the %s file", field), Help: fmt.Sprintf("%s could not be opened, the system reports %s", file, diag.Reason(err))}
+	}
+	return string(data), nil
+}
+
+type layer struct {
+	abi, format, entry, start, runtime string
+	link                               []string
+	libc                               *bool
+	output                             OutputConfig
+}
+
+func (c *Config) layerOf(root, name string, abi, format, entry, start, runtimeFile string, link []string, libc *bool, output OutputConfig) (layer, error) {
+	startSource, err := readSource(root, name, "start", start)
+	if err != nil {
+		return layer{}, err
+	}
+	runtimeSource, err := readSource(root, name, "runtime", runtimeFile)
+	if err != nil {
+		return layer{}, err
+	}
+	return layer{abi: abi, format: format, entry: entry, start: startSource, runtime: runtimeSource, link: link, libc: libc, output: output}, nil
+}
+
+func merge(base, top layer) layer {
+	out := base
+	if top.abi != "" {
+		out.abi = top.abi
+	}
+	if top.format != "" {
+		out.format = top.format
+	}
+	if top.entry != "" {
+		out.entry = top.entry
+	}
+	if top.start != "" {
+		out.start = top.start
+	}
+	if top.runtime != "" {
+		out.runtime = top.runtime
+	}
+	out.link = append(append([]string{}, base.link...), top.link...)
+	if top.libc != nil {
+		out.libc = top.libc
+	}
+	if top.output.Bin != "" {
+		out.output.Bin = top.output.Bin
+	}
+	if top.output.Obj != "" {
+		out.output.Obj = top.output.Obj
+	}
+	if top.output.Asm != "" {
+		out.output.Asm = top.output.Asm
+	}
+	if top.output.Lua != "" {
+		out.output.Lua = top.output.Lua
+	}
+	return out
+}
+
 func (c *Config) registerTargets(root string) error {
 	target.ResetProject()
 
@@ -181,58 +262,78 @@ func (c *Config) registerTargets(root string) error {
 	for _, name := range names {
 		tc := c.Targets[name]
 
-		var start, runtimeSource string
-		if tc.Start != "" {
-			data, err := os.ReadFile(filepath.Join(root, tc.Start))
-			if err != nil {
-				return &target.FieldError{Target: name, Field: "start", Message: "cannot read the start file", Help: fmt.Sprintf("%s could not be opened, the system reports %s", tc.Start, diag.Reason(err))}
-			}
-			start = string(data)
-		}
-		if tc.Runtime != "" {
-			data, err := os.ReadFile(filepath.Join(root, tc.Runtime))
-			if err != nil {
-				return &target.FieldError{Target: name, Field: "runtime", Message: "cannot read the runtime file", Help: fmt.Sprintf("%s could not be opened, the system reports %s", tc.Runtime, diag.Reason(err))}
-			}
-			runtimeSource = string(data)
+		system, err := c.layerOf(root, name, tc.ABI, tc.Format, tc.Entry, tc.Start, tc.Runtime, tc.Link, tc.Libc, tc.Output)
+		if err != nil {
+			return err
 		}
 
-		if target.IsBuiltin(name) {
-			err := target.Override(name, target.Patch{
-				Arch:          tc.Arch,
-				ABI:           tc.ABI,
-				Format:        tc.Format,
-				Entry:         tc.Entry,
-				StartSource:   start,
-				RuntimeSource: runtimeSource,
-				LinkArgs:      tc.Link,
-				Libc:          tc.Libc,
-				Output:        tc.Output,
-			})
+		archLayers := map[string]layer{}
+		for arch, ac := range tc.Archs {
+			l, err := c.layerOf(root, name+"."+arch, ac.ABI, ac.Format, ac.Entry, ac.Start, ac.Runtime, ac.Link, ac.Libc, ac.Output)
 			if err != nil {
 				return err
+			}
+			archLayers[arch] = l
+		}
+
+		if target.IsBuiltinOS(name) {
+			if tc.Arch != "" {
+				return &target.FieldError{Target: name, Field: "arch", Message: "the architecture of a built-in system cannot be set here", Help: "use [targets." + name + ".<arch>] to adjust one of its architectures"}
+			}
+			known := target.BuiltinArchsOf(name)
+			for arch := range archLayers {
+				if !slices.Contains(known, arch) {
+					return archError(name, arch, known)
+				}
+			}
+			for _, arch := range known {
+				l := merge(system, archLayers[arch])
+				err := target.Override(name, arch, target.Patch{
+					ABI: l.abi, Format: l.format, Entry: l.entry,
+					StartSource: l.start, RuntimeSource: l.runtime,
+					LinkArgs: l.link, Libc: l.libc, Output: l.output,
+				})
+				if err != nil {
+					return err
+				}
 			}
 			continue
 		}
 
-		err := target.Register(target.Target{
-			Name:          name,
-			Arch:          tc.Arch,
-			ABI:           tc.ABI,
-			Format:        tc.Format,
-			Entry:         tc.Entry,
-			StartSource:   start,
-			RuntimeSource: runtimeSource,
-			LinkArgs:      tc.Link,
-			Libc:          tc.Libc,
-			Output:        tc.Output,
-		})
-		if err != nil {
-			return err
+		archs := make([]string, 0, len(archLayers)+1)
+		for arch := range archLayers {
+			archs = append(archs, arch)
+		}
+		if tc.Arch != "" && !slices.Contains(archs, tc.Arch) {
+			archs = append(archs, tc.Arch)
+		}
+		sort.Strings(archs)
+		if len(archs) == 0 {
+			return &target.FieldError{Target: name, Field: "arch", Message: "\"arch\" is required", Help: "write arch = \"x64\", or a [targets." + name + ".<arch>] table for each architecture"}
+		}
+
+		for _, arch := range archs {
+			l := merge(system, archLayers[arch])
+			err := target.Register(target.Target{
+				OS: name, Arch: arch,
+				ABI: l.abi, Format: l.format, Entry: l.entry,
+				StartSource: l.start, RuntimeSource: l.runtime,
+				LinkArgs: l.link, Libc: l.libc, Output: l.output,
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 
 	return nil
+}
+
+func archError(osName, arch string, known []string) error {
+	if !slices.Contains(target.Architectures(), arch) {
+		return &target.FieldError{Target: osName, Field: arch, Message: fmt.Sprintf("there is no backend for the architecture %q", arch), Help: fmt.Sprintf("the architectures that exist are %s", target.Enumerate(target.Architectures()))}
+	}
+	return &target.FieldError{Target: osName, Field: arch, Message: fmt.Sprintf("the %s system has no %s target", osName, arch), Help: fmt.Sprintf("it has %s", target.Enumerate(known))}
 }
 
 func (c *Config) StdlibSettings(root string) (string, bool, error) {
@@ -332,12 +433,7 @@ func decodeConfigSource(path, text string) (*Config, error) {
 		}
 		reported = append(reported, key)
 
-		if len(key) >= 3 && key[0] == "targets" && slices.Contains(target.Architectures(), key[2]) {
-			issues = append(issues, ConfigIssue{
-				Line:    locateKey(text, key),
-				Message: fmt.Sprintf("a table per architecture is not available yet: %q", key.String()),
-				Help:    fmt.Sprintf("write these keys in [targets.%s]: while %s has a single architecture, they apply to all of it", key[1], key[1]),
-			})
+		if isArchTable(md, key) {
 			continue
 		}
 
@@ -348,6 +444,10 @@ func decodeConfigSource(path, text string) (*Config, error) {
 			Help:    target.Suggestion(key[len(key)-1], known, "keys"),
 		})
 	}
+	if err := decodeArchTables(text, md, &cfg, &issues); err != nil {
+		return nil, err
+	}
+
 	for name, value := range cfg.Run.Env {
 		key := toml.Key{"run", "env", name}
 		switch {
@@ -434,4 +534,59 @@ func splitTable(header string) []string {
 		parts[i] = strings.Trim(strings.TrimSpace(part), `"`)
 	}
 	return parts
+}
+
+func isArchTable(md toml.MetaData, key toml.Key) bool {
+	if len(key) < 3 || key[0] != "targets" {
+		return false
+	}
+	if slices.Contains(tomlTags(reflect.TypeOf(TargetConfig{})), key[2]) {
+		return false
+	}
+	return md.Type(key[0], key[1], key[2]) == "Hash"
+}
+
+func decodeArchTables(text string, md toml.MetaData, cfg *Config, issues *[]ConfigIssue) error {
+	var raw struct {
+		Targets map[string]map[string]toml.Primitive
+	}
+	rawMeta, err := toml.Decode(text, &raw)
+	if err != nil {
+		return nil
+	}
+
+	tables := map[string]bool{}
+	for osName, entries := range raw.Targets {
+		for key, prim := range entries {
+			if !isArchTable(md, toml.Key{"targets", osName, key}) {
+				continue
+			}
+			var ac ArchConfig
+			if err := rawMeta.PrimitiveDecode(prim, &ac); err != nil {
+				*issues = append(*issues, ConfigIssue{Line: locateKey(text, toml.Key{"targets", osName, key}), Message: diag.Reason(err)})
+				continue
+			}
+			tc := cfg.Targets[osName]
+			if tc.Archs == nil {
+				tc.Archs = map[string]ArchConfig{}
+			}
+			tc.Archs[key] = ac
+			cfg.Targets[osName] = tc
+			tables[osName+"."+key] = true
+		}
+	}
+
+	var reported []toml.Key
+	for _, key := range rawMeta.Undecoded() {
+		if len(key) < 4 || key[0] != "targets" || !tables[key[1]+"."+key[2]] || coveredBy(key, reported) {
+			continue
+		}
+		reported = append(reported, key)
+		*issues = append(*issues, ConfigIssue{
+			Line:    locateKey(text, key),
+			Message: fmt.Sprintf("unknown key %q", key.String()),
+			Help:    target.Suggestion(key[len(key)-1], tomlTags(reflect.TypeOf(ArchConfig{})), "keys"),
+		})
+	}
+	return nil
 }

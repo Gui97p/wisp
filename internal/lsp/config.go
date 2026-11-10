@@ -31,6 +31,12 @@ func configSection(parts []string) string {
 		if len(parts) >= 3 && parts[2] == "output" {
 			return "targets.output"
 		}
+		if len(parts) >= 3 && slices.Contains(target.Architectures(), parts[2]) {
+			if len(parts) >= 4 && parts[3] == "output" {
+				return "targets.arch.output"
+			}
+			return "targets.arch"
+		}
 		return "targets"
 	}
 	return parts[0]
@@ -50,6 +56,7 @@ func headerParts(header string) []string {
 type configContext struct {
 	section  string
 	name     string
+	arch     string
 	present  map[string]bool
 	declared []string
 }
@@ -68,9 +75,12 @@ func configContextAt(lines []string, line int) configContext {
 			if i < line {
 				current = configSection(parts)
 				ctx.section = current
-				ctx.name = ""
+				ctx.name, ctx.arch = "", ""
 				if len(parts) >= 2 && parts[0] == "targets" {
 					ctx.name = parts[1]
+				}
+				if len(parts) >= 3 && parts[0] == "targets" && slices.Contains(target.Architectures(), parts[2]) {
+					ctx.arch = parts[2]
 				}
 				ctx.present = map[string]bool{}
 			}
@@ -98,7 +108,7 @@ func sectionOfLine(lines []string, line int) string {
 func valueChoices(section, key string, declared []string) []string {
 	switch {
 	case section == "" && key == "os":
-		names := append([]string{}, target.Names()...)
+		names := append([]string{}, target.OSNames()...)
 		for _, d := range declared {
 			names = append(names, d)
 		}
@@ -180,21 +190,29 @@ func headerItems(declared []string, pos protocol.Position, prefix string) []prot
 	add("output", "output", "table")
 	add("run", "run", "table")
 	add("run.env", "run.env", "environment variables for wisp run")
-	add("targets.<name>", "targets.${1:name}", "custom target")
+	add("targets.<os>", "targets.${1:os}", "custom system")
 
 	names := append([]string{}, declared...)
-	for _, n := range target.Names() {
-		if target.IsBuiltin(n) && !slices.Contains(names, n) {
+	for _, n := range target.OSNames() {
+		if target.IsBuiltinOS(n) && !slices.Contains(names, n) {
 			names = append(names, n)
 		}
 	}
 	for _, n := range names {
-		detail := "custom target"
-		if target.IsBuiltin(n) {
-			detail = "built-in target"
+		detail := "custom system"
+		if target.IsBuiltinOS(n) {
+			detail = "built-in system"
 		}
 		add("targets."+n, "targets."+n, detail)
 		add("targets."+n+".output", "targets."+n+".output", "output of "+n)
+		archs := target.ArchsOf(n)
+		if len(archs) == 0 {
+			archs = target.Architectures()
+		}
+		for _, arch := range archs {
+			add("targets."+n+"."+arch, "targets."+n+"."+arch, n+" on "+arch)
+			add("targets."+n+"."+arch+".output", "targets."+n+"."+arch+".output", "output of "+n+" on "+arch)
+		}
 	}
 	return items
 }
@@ -207,11 +225,13 @@ func keyItems(ctx configContext, pos protocol.Position, prefix string) []protoco
 	start := uint32(utf16Len(prefix[:len(prefix)-len(word)]))
 	rng := protocol.Range{Start: protocol.Position{Line: pos.Line, Character: start}, End: pos}
 
-	builtin := ctx.section == "targets" && target.IsBuiltin(ctx.name)
+	builtin := (ctx.section == "targets" || ctx.section == "targets.arch") && target.IsBuiltinOS(ctx.name)
 	builtinLua := false
 	if builtin {
-		if t, err := target.Lookup(ctx.name); err == nil {
-			builtinLua = t.Arch != "x64"
+		archs := target.BuiltinArchsOf(ctx.name)
+		builtinLua = len(archs) > 0 && !slices.Contains(archs, "x64")
+		if ctx.arch != "" {
+			builtinLua = ctx.arch == "lua"
 		}
 	}
 

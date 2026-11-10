@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -54,7 +55,6 @@ type Output struct {
 }
 
 type Patch struct {
-	Arch          string
 	ABI           string
 	Format        string
 	Entry         string
@@ -72,8 +72,8 @@ var linuxStart string
 var linuxRuntime string
 
 var builtin = []Target{
-	{Name: "linux", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
-	{Name: "cc", Arch: "lua", OS: "cc", Builtin: true},
+	{Name: "linux/x64", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
+	{Name: "cc/lua", Arch: "lua", OS: "cc", Builtin: true},
 }
 
 var project []Target
@@ -94,7 +94,7 @@ func all() []Target {
 		}
 	}
 	for _, p := range project {
-		if !isBuiltinName(p.Name) {
+		if !IsBuiltinPair(p.OS, p.Arch) {
 			out = append(out, p)
 		}
 	}
@@ -105,7 +105,8 @@ func List() []Target {
 	return all()
 }
 
-func isBuiltinName(name string) bool {
+func IsBuiltinPair(osName, arch string) bool {
+	name := pairName(osName, arch)
 	for _, b := range builtin {
 		if b.Name == name {
 			return true
@@ -114,15 +115,47 @@ func isBuiltinName(name string) bool {
 	return false
 }
 
-func IsBuiltin(name string) bool {
-	return isBuiltinName(name)
+func IsBuiltinOS(osName string) bool {
+	for _, b := range builtin {
+		if b.OS == osName {
+			return true
+		}
+	}
+	return false
+}
+
+func ArchsOf(osName string) []string {
+	var archs []string
+	for _, t := range all() {
+		if t.OS == osName {
+			archs = append(archs, t.Arch)
+		}
+	}
+	sort.Strings(archs)
+	return archs
+}
+
+func BuiltinArchsOf(osName string) []string {
+	var archs []string
+	for _, b := range builtin {
+		if b.OS == osName {
+			archs = append(archs, b.Arch)
+		}
+	}
+	sort.Strings(archs)
+	return archs
 }
 
 func ResetProject() {
 	project = nil
 }
 
-func Override(name string, patch Patch) error {
+func pairName(osName, arch string) string {
+	return osName + "/" + arch
+}
+
+func Override(osName, arch string, patch Patch) error {
+	name := pairName(osName, arch)
 	var base Target
 	found := false
 	for _, b := range builtin {
@@ -134,11 +167,7 @@ func Override(name string, patch Patch) error {
 		return &FieldError{Target: name, Message: "is not a built-in target"}
 	}
 
-	if patch.Arch != "" && patch.Arch != base.Arch {
-		return &FieldError{Target: name, Field: "arch", Message: "the arch of a built-in target cannot be changed"}
-	}
-
-	if base.Arch != "x64" {
+	if base.Arch == "lua" {
 		if patch.ABI != "" || patch.Format != "" || patch.Entry != "" || patch.StartSource != "" || patch.RuntimeSource != "" || len(patch.LinkArgs) > 0 || patch.Libc != nil {
 			return &FieldError{Target: name, Message: "only accepts \"output\""}
 		}
@@ -193,7 +222,7 @@ func CheckName(name string) error {
 	}
 
 	for _, b := range builtin {
-		if name == b.Name || name == b.Arch || name == b.OS {
+		if name == b.OS || name == b.Arch {
 			return &FieldError{Target: name, Message: "the name is already used by a built-in system or architecture", Help: "pick another name"}
 		}
 	}
@@ -202,12 +231,12 @@ func CheckName(name string) error {
 }
 
 func Register(t Target) error {
-	if err := CheckName(t.Name); err != nil {
+	if err := CheckName(t.OS); err != nil {
 		return err
 	}
-	t.OS = t.Name
-	if t.Arch != "x64" {
-		return &FieldError{Target: t.Name, Field: "arch", Message: fmt.Sprintf("unsupported arch %q", t.Arch), Help: "only x64 exists for now"}
+	t.Name = pairName(t.OS, t.Arch)
+	if !slices.Contains(assemblyArchs, t.Arch) {
+		return &FieldError{Target: t.Name, Field: "arch", Message: fmt.Sprintf("there is no backend for the architecture %q", t.Arch), Help: fmt.Sprintf("the architectures a system of your own can use are %s", Enumerate(assemblyArchs))}
 	}
 	if t.ABI == "" {
 		t.ABI = "sysv"
@@ -243,6 +272,16 @@ func Register(t Target) error {
 	return nil
 }
 
+var assemblyArchs = []string{"x64"}
+
+func hostArch() string {
+	switch runtime.GOARCH {
+	case "amd64":
+		return "x64"
+	}
+	return runtime.GOARCH
+}
+
 func (t Target) CompileKey() string {
 	return strings.Join([]string{t.Name, t.Arch, t.OS, t.ABI, t.Format}, "|")
 }
@@ -254,18 +293,38 @@ func Lookup(name string) (Target, error) {
 		}
 	}
 
-	return Target{}, &UnknownError{Name: name, Help: Suggestion(name, Names(), "systems")}
+	return Target{}, &UnknownError{Name: name, Help: Suggestion(name, Names(), "targets")}
 }
 
 func Resolve(osName, arch string) (Target, error) {
-	t, err := Lookup(osName)
-	if err != nil {
-		return Target{}, err
+	var candidates []Target
+	for _, t := range all() {
+		if t.OS == osName {
+			candidates = append(candidates, t)
+		}
 	}
-	if arch != "" && arch != t.Arch {
-		return Target{}, fmt.Errorf("the %s system is built for the %s architecture, not %s", t.OS, t.Arch, arch)
+	if len(candidates) == 0 {
+		return Target{}, &UnknownError{Name: osName, Help: Suggestion(osName, OSNames(), "systems")}
 	}
-	return t, nil
+
+	if arch != "" {
+		for _, t := range candidates {
+			if t.Arch == arch {
+				return t, nil
+			}
+		}
+		return Target{}, fmt.Errorf("the %s system has no %s target (it has %s)", osName, arch, Enumerate(ArchsOf(osName)))
+	}
+
+	if len(candidates) == 1 {
+		return candidates[0], nil
+	}
+	for _, t := range candidates {
+		if t.Arch == hostArch() {
+			return t, nil
+		}
+	}
+	return Target{}, fmt.Errorf("the %s system has more than one architecture (%s): choose one with arch or --arch", osName, Enumerate(ArchsOf(osName)))
 }
 
 func (t Target) Matches(selector string) bool {
@@ -334,7 +393,7 @@ func Active() string {
 	activeMu.RLock()
 	defer activeMu.RUnlock()
 	if activeName == "" {
-		return runtime.GOOS + "_x64"
+		return pairName(runtime.GOOS, hostArch())
 	}
 	return activeName
 }
@@ -343,6 +402,20 @@ func Names() []string {
 	names := make([]string, 0, len(all()))
 	for _, t := range all() {
 		names = append(names, t.Name)
+	}
+	sort.Strings(names)
+
+	return names
+}
+
+func OSNames() []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, t := range all() {
+		if !seen[t.OS] {
+			seen[t.OS] = true
+			names = append(names, t.OS)
+		}
 	}
 	sort.Strings(names)
 
