@@ -3,6 +3,7 @@ package lsp
 import (
 	"bytes"
 	"maps"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -10,8 +11,11 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/target"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
+
+var archTyping = regexp.MustCompile(`\bnative<[A-Za-z0-9_]*$`)
 
 var keywords = []string{
 	"let", "const", "func", "struct", "enum", "type", "if", "else", "switch", "case", "default",
@@ -103,7 +107,14 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 			return enumValueItems(enum)
 		}
 	}
-	if trigger == "{" || trigger == "," || trigger == " " || trigger == ":" {
+	if archTyping.MatchString(textBefore(path, int(pos.Line), int(pos.Character))) {
+		items := []protocol.CompletionItem{}
+		for _, arch := range target.Architectures() {
+			items = append(items, item(arch, protocol.CompletionItemKindEnumMember, "architecture"))
+		}
+		return items
+	}
+	if trigger == "{" || trigger == "," || trigger == " " || trigger == ":" || trigger == "<" {
 		return nil
 	}
 

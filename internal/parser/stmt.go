@@ -749,10 +749,15 @@ func (p *Parser) parseNativeStatement() ast.Statement {
 	stmt := &ast.NativeStmt{}
 
 	if p.peek.Type == lexer.TOKEN_IDENT {
-		p.advance()
-		stmt.Backend = p.current.Literal
-		endLine, endCol := p.currentEnd()
-		stmt.BackendAt = ast.Position{Line: p.current.Line, Col: p.current.Column, EndLine: endLine, EndCol: endCol}
+		p.errorf("write the architecture in angle brackets: native<%s>", p.peek.Literal)
+		return nil
+	}
+	if p.peek.Type == lexer.TOKEN_LT {
+		arch, at, ok := p.parseNativeArch()
+		if !ok {
+			return nil
+		}
+		stmt.Backend, stmt.BackendAt = arch, at
 	}
 
 	if p.peek.Type == lexer.TOKEN_LPAREN {

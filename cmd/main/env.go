@@ -119,8 +119,8 @@ func orDefault(value, fallback string) string {
 }
 
 func stdDescription() string {
-	if freestandingOpt {
-		return "(freestanding)"
+	if module.StdlibDisabled() {
+		return "(none)"
 	}
 	path, err := module.StdlibRoot()
 	if err != nil {

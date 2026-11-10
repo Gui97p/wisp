@@ -62,6 +62,10 @@ func ConfigureStdlib(path string, disabled bool) {
 	stdlibDisabled = disabled
 }
 
+func StdlibDisabled() bool {
+	return stdlibDisabled
+}
+
 func StdlibRoot() (string, error) {
 	if stdlibOverride != "" {
 		return stdlibOverride, nil
@@ -107,7 +111,7 @@ func canonicalModulePath(root, file string) (string, error) {
 func resolveImportPath(projectRoot, path string) (key, dir string, files []string, err error) {
 	isStd := strings.HasPrefix(path, "std/")
 	if isStd && stdlibDisabled {
-		return "", "", nil, fmt.Errorf("import %q: this build does not use the standard library (--freestanding); provide one with --std <path>", path)
+		return "", "", nil, fmt.Errorf("import %q: this build does not use the standard library (std = \"none\"); provide one with --std <path>", path)
 	}
 	base := filepath.Join(projectRoot, path)
 	if after, ok := strings.CutPrefix(path, "std/"); ok {

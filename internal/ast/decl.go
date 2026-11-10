@@ -93,6 +93,8 @@ type FuncDecl struct {
 	CVariadic   bool
 	Generated   bool
 	Inline      bool
+	NativeArch  string
+	NativeAt    Position
 	NameAt      Position
 
 	NodePos

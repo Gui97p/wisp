@@ -8,11 +8,11 @@
 # `wisp run` finds `main` by itself; set this when a project has several.
 # entry = "main.wsp"
 
-# The standard library. `std/` imports resolve to the bundled one unless you
-# point them at a folder of your own, or turn the library off altogether:
-# any `import "std/..."` is then an error.
+# The standard library. `std/` imports resolve to the one that ships with the
+# compiler unless you point them at a folder of your own, or turn the library
+# off altogether with "none": any `import "std/..."` is then an error.
 # std = "kernel/std"
-# freestanding = true
+# std = "none"
 
 # Extra arguments for the linker, in order: object files, archives, -L and -l.
 # Run from this folder. See the _c folder for a project that uses it.

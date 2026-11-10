@@ -37,134 +37,134 @@ const {
 
 shared func read(int fd, *char buf, int n) int {
 	int r;
-	native linux_x64(in fd, buf, n, out r) "mov eax, {SYS_READ}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+	native<x64>(in fd, buf, n, out r) "mov eax, {SYS_READ}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func write(int fd, *char buf, int n) int {
     int r;
-    native linux_x64(in fd, buf, n, out r) "mov eax, {SYS_WRITE}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+    native<x64>(in fd, buf, n, out r) "mov eax, {SYS_WRITE}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func open(*char path, int flags, int mode) int {
 	int fd;
-	native linux_x64(in path, flags, mode, out fd) "mov eax, {SYS_OPENAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; mov r10, {mode}; syscall; mov {fd}, rax";
+	native<x64>(in path, flags, mode, out fd) "mov eax, {SYS_OPENAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; mov r10, {mode}; syscall; mov {fd}, rax";
 	return fd;
 }
 
 shared func close(int fd) int {
 	int r;
-	native linux_x64(in fd, out r) "mov eax, {SYS_CLOSE}; mov rdi, {fd}; syscall; mov {r}, rax";
+	native<x64>(in fd, out r) "mov eax, {SYS_CLOSE}; mov rdi, {fd}; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func seek(int fd, offset, whence) int {
 	int off;
-	native linux_x64(in fd, offset, whence, out off) "mov eax, {SYS_LSEEK}; mov rdi, {fd}; mov rsi, {offset}; mov rdx, {whence}; syscall; mov {off}, rax";
+	native<x64>(in fd, offset, whence, out off) "mov eax, {SYS_LSEEK}; mov rdi, {fd}; mov rsi, {offset}; mov rdx, {whence}; syscall; mov {off}, rax";
 	return off;
 }
 
 shared func sync(int fd) int {
 	int r;
-	native linux_x64(in fd, out r) "mov eax, {SYS_FSYNC}; mov rdi, {fd}; syscall; mov {r}, rax";
+	native<x64>(in fd, out r) "mov eax, {SYS_FSYNC}; mov rdi, {fd}; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func size(int fd) int {
 	Stat stat;
 	int r;
-	native linux_x64(in fd, stat, out r) "mov eax, {SYS_FSTAT}; mov rdi, {fd}; lea rsi, {&stat}; syscall; mov {r}, rax";
+	native<x64>(in fd, stat, out r) "mov eax, {SYS_FSTAT}; mov rdi, {fd}; lea rsi, {&stat}; syscall; mov {r}, rax";
 	return r < 0 ? r : stat.st_size;
 }
 
 shared func remove(*char path, int flags) int {
 	int r;
-	native linux_x64(in path, flags, out r) "mov eax, {SYS_UNLINKAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; syscall; mov {r}, rax";
+	native<x64>(in path, flags, out r) "mov eax, {SYS_UNLINKAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func mmap(int len) *void {
 	*void r;
-	native linux_x64(in len, out r) "mov eax, {SYS_MMAP}; xor edi, edi; mov rsi, {len}; mov rdx, {PROT_RW}; mov r10, {MAP_PRIVATE_ANON}; mov r8, {NO_FD}; xor r9d, r9d; syscall; mov {r}, rax";
+	native<x64>(in len, out r) "mov eax, {SYS_MMAP}; xor edi, edi; mov rsi, {len}; mov rdx, {PROT_RW}; mov r10, {MAP_PRIVATE_ANON}; mov r8, {NO_FD}; xor r9d, r9d; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func munmap(*void addr, int len) int {
     int r;
-    native linux_x64(in addr, in len, out r) "mov eax, {SYS_MUNMAP}; mov rdi, {addr}; mov rsi, {len}; syscall; mov {r}, rax";
+    native<x64>(in addr, in len, out r) "mov eax, {SYS_MUNMAP}; mov rdi, {addr}; mov rsi, {len}; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func time(int clock) (int, int) {
 	Timespec ts;
-	native linux_x64(in clock, ts) "mov eax, {SYS_CLOCK_GETTIME}; mov rdi, {clock}; lea rsi, {&ts}; syscall";
+	native<x64>(in clock, ts) "mov eax, {SYS_CLOCK_GETTIME}; mov rdi, {clock}; lea rsi, {&ts}; syscall";
 	return ts.tv_sec, ts.tv_nsec;
 }
 
 shared func sleep(int sec, nsec) int {
 	Timespec req = Timespec{tv_sec: sec, tv_nsec: nsec};
 	int r;
-	native linux_x64(in req, out r) "mov eax, {SYS_NANOSLEEP}; lea rdi, {&req}; xor esi, esi; syscall; mov {r}, rax";
+	native<x64>(in req, out r) "mov eax, {SYS_NANOSLEEP}; lea rdi, {&req}; xor esi, esi; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func random(*void buf, int n) int {
 	int r;
-	native linux_x64(in buf, n, out r) "mov eax, {SYS_GETRANDOM}; mov rdi, {buf}; mov rsi, {n}; xor edx, edx; syscall; mov {r}, rax";
+	native<x64>(in buf, n, out r) "mov eax, {SYS_GETRANDOM}; mov rdi, {buf}; mov rsi, {n}; xor edx, edx; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func isatty(int fd) bool {
 	[64]char termios;
 	int r;
-	native linux_x64(in fd, termios, out r) "mov eax, {SYS_IOCTL}; mov rdi, {fd}; mov rsi, {TCGETS}; lea rdx, {&termios}; syscall; mov {r}, rax";
+	native<x64>(in fd, termios, out r) "mov eax, {SYS_IOCTL}; mov rdi, {fd}; mov rsi, {TCGETS}; lea rdx, {&termios}; syscall; mov {r}, rax";
 	return r == 0;
 }
 
 shared func exit(int code) {
-    native linux_x64(in code) "mov eax, {SYS_EXIT_GROUP}; mov rdi, {code}; syscall";
+    native<x64>(in code) "mov eax, {SYS_EXIT_GROUP}; mov rdi, {code}; syscall";
 }
 
 shared func mkdir(*char path, int mode) int {
 	int r;
-	native linux_x64(in path, mode, out r) "mov eax, {SYS_MKDIRAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {mode}; syscall; mov {r}, rax";
+	native<x64>(in path, mode, out r) "mov eax, {SYS_MKDIRAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {mode}; syscall; mov {r}, rax";
 	return r;
 }
 
 shared func rename(*char from, to) int {
 	int r;
-    native linux_x64(in from, in to, out r) "mov eax, {SYS_RENAMEAT}; mov rdi, {AT_FDCWD}; mov rsi, {from}; mov rdx, {AT_FDCWD}; mov r10, {to}; syscall; mov {r}, rax";
+    native<x64>(in from, in to, out r) "mov eax, {SYS_RENAMEAT}; mov rdi, {AT_FDCWD}; mov rsi, {from}; mov rdx, {AT_FDCWD}; mov r10, {to}; syscall; mov {r}, rax";
     return r;
 }
 
 shared func stat(*char path, *void buf) int {
     int r;
-    native linux_x64(in path, buf, out r) "mov eax, {SYS_NEWFSTATAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {buf}; xor r10, r10; syscall; mov {r}, rax";
+    native<x64>(in path, buf, out r) "mov eax, {SYS_NEWFSTATAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {buf}; xor r10, r10; syscall; mov {r}, rax";
     return r;
 }
 
 shared func fstat(int fd, *void buf) int {
     int r;
-    native linux_x64(in fd, in buf, out r) "mov eax, {SYS_FSTAT}; mov rdi, {fd}; mov rsi, {buf}; syscall; mov {r}, rax";
+    native<x64>(in fd, in buf, out r) "mov eax, {SYS_FSTAT}; mov rdi, {fd}; mov rsi, {buf}; syscall; mov {r}, rax";
     return r;
 }
 
 shared func getdents(int fd, *char buf, int n) int {
     int r;
-    native linux_x64(in fd, in buf, in n, out r) "mov eax, {SYS_GETDENTS64}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+    native<x64>(in fd, in buf, in n, out r) "mov eax, {SYS_GETDENTS64}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
     return r;
 }
 
 shared func getcwd(*char buf, int n) int {
     int r;
-    native linux_x64(in buf, in n, out r) "mov eax, {SYS_GETCWD}; mov rdi, {buf}; mov rsi, {n}; syscall; mov {r}, rax";
+    native<x64>(in buf, in n, out r) "mov eax, {SYS_GETCWD}; mov rdi, {buf}; mov rsi, {n}; syscall; mov {r}, rax";
     return r;
 }
 
 shared func environ() **char {
 	**char r;
-	native linux_x64(out r) "extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
+	native<x64>(out r) "extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
 	return r;
 }
 

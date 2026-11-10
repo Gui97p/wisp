@@ -24,7 +24,7 @@ func NewHandler() *protocol.Handler {
 		syncKind := protocol.TextDocumentSyncKindFull
 		capabilities.TextDocumentSync = syncKind
 
-		capabilities.CompletionProvider = &protocol.CompletionOptions{TriggerCharacters: []string{".", "{", ",", "[", "=", "\"", "/", " ", ":"}}
+		capabilities.CompletionProvider = &protocol.CompletionOptions{TriggerCharacters: []string{".", "{", ",", "[", "=", "\"", "/", " ", ":", "<"}}
 
 		capabilities.SignatureHelpProvider = &protocol.SignatureHelpOptions{TriggerCharacters: []string{"(", ","}}
 		capabilities.DocumentSymbolProvider = true

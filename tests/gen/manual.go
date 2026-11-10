@@ -2750,20 +2750,20 @@ func check(bool ok, string name) {
 
 func main() {
     int sum;
-    native linux_x64(out sum) "mov {sum}, {limits.Base}; add {sum}, {limits.Extra}";
+    native<x64>(out sum) "mov {sum}, {limits.Base}; add {sum}, {limits.Extra}";
     check(sum == 42, "a constant of another module is an immediate");
 
     int bias;
-    native linux_x64(out bias) "mov {bias}, {Bias}";
+    native<x64>(out bias) "mov {bias}, {Bias}";
     check(bias == -1, "a negative constant keeps its sign");
 
     int on;
-    native linux_x64(out on) "mov {on}, {Enabled}";
+    native<x64>(out on) "mov {on}, {Enabled}";
     check(on == 1, "a bool constant is 1 or 0");
 
     int n;
     *char p;
-    native linux_x64(out n, p) "mov {n}, {Greeting.len}; lea rax, [rel {Greeting.ptr}]; mov {p}, rax";
+    native<x64>(out n, p) "mov {n}, {Greeting.len}; lea rax, [rel {Greeting.ptr}]; mov {p}, rax";
     check(n == 3, "the length of a string constant");
     check(string(p[:n]) == "hey", "the address of a string constant");
 }
@@ -6221,6 +6221,36 @@ func main() {
 }
 `, expected: []string{"a variable times a small constant", "a variable times a negative constant", "a variable times zero and one", "the constant on the left", "a variable times the largest 32 bit constant", "a variable times the smallest 32 bit constant", "a constant just past 32 bits", "a constant well past 32 bits", "a 64 bit variable times a constant", "an int32 variable times a constant", "an int32 variable times a negative constant", "an int16 variable times a constant", "an int8 variable times a constant", "an unsigned variable times a constant", "an array element times a constant", "struct fields times a constant", "a dereferenced pointer times a constant", "several multiplications keep their values apart", "a multiplication inside a loop", "the operands are untouched", "a constant minus a variable", "a constant divided by a variable", "a constant modulo a variable", "a constant shifted by a variable", "a constant shifted right by a variable", "a constant with a variable in the commutative operators"}},
 
+	{dir: "native_declarations", src: `func add(int a, int b) int {
+    return -1;
+}
+
+native<x64> add(int a, int b) int r => "mov rax, {a}; add rax, {b}; mov {r}, rax";
+native<lua> add(int a, int b) int r => "r = a + b";
+
+native<x64> split(int a) (int lo, int hi) => "mov rax, {a}; mov {lo}, rax; add rax, 1; mov {hi}, rax";
+native<lua> split(int a) (int lo, int hi) => "lo = a; hi = a + 1";
+
+native<x64> reset() => "nop";
+native<lua> reset() => "local unused = 0";
+
+func mixed(int a) int {
+    int r;
+    native<x64>(in a, out r) "mov rax, {a}; add rax, 5; mov {r}, rax";
+    native<lua>(in a, out r) "r = a + 5";
+    return r;
+}
+
+func main() {
+    check(add(3, 4) == 7, "a native replaces the plain function of its architecture");
+    int lo, hi = split(9);
+    check(lo == 9 && hi == 10, "a native function returns several named results");
+    reset();
+    check(true, "a native function with no result");
+    check(mixed(10) == 15, "native statements pick their architecture");
+}
+`, expected: []string{"a native replaces the plain function of its architecture", "a native function returns several named results", "a native function with no result", "native statements pick their architecture"}},
+
 	{dir: "inline_calls", src: `import "std/errors";
 
 type Step (int) => int;
@@ -9102,46 +9132,46 @@ func main() {
     int a = 40;
     int b = 2;
     int r = 0;
-    native x64(in a, b, out r) "mov rax, {a}; add rax, {b}; mov {r}, rax";
+    native<x64>(in a, b, out r) "mov rax, {a}; add rax, {b}; mov {r}, rax";
     check(r == 42, "bindings in sequence share their mode");
 
     int c = 41;
-    native x64(inout c) "add {c}, 1";
+    native<x64>(inout c) "add {c}, 1";
     check(c == 42, "inout reads and writes");
 
     int out = 5;
     int d = 0;
-    native x64(in out, out d) "mov rax, {out}; mov {d}, rax";
+    native<x64>(in out, out d) "mov rax, {out}; mov {d}, rax";
     check(d == 5, "a variable can be named out");
 
     P p = P{x: 10, y: 20};
     int sum = 0;
-    native x64(in p, out sum) "mov rax, {p.y}; add rax, {p.x}; mov {sum}, rax; mov {p.x}, 99";
+    native<x64>(in p, out sum) "mov rax, {p.y}; add rax, {p.x}; mov {sum}, rax; mov {p.x}, 99";
     check(sum == 30 && p.x == 99 && p.y == 20, "struct fields are operands");
 
     [4]int values = [1, 2, 3, 4];
     int third = 0;
-    native x64(in values, out third) "lea rax, {&values}; mov rax, [rax+16]; mov {third}, rax";
+    native<x64>(in values, out third) "lea rax, {&values}; mov rax, [rax+16]; mov {third}, rax";
     check(third == 3, "{&name} is the address of any variable");
 
     string s = "hey";
     int n = 0;
-    native x64(in s, out n) "mov rax, {s.len}; mov {n}, rax";
+    native<x64>(in s, out n) "mov rax, {s.len}; mov {n}, rax";
     check(n == 3, "string parts are operands");
 
     int before = 0;
-    native x64(in counter, out before) "mov rax, {counter}; mov {before}, rax; add {counter}, 1";
+    native<x64>(in counter, out before) "mov rax, {counter}; mov {before}, rax; add {counter}, 1";
     check(before == 5 && counter == 6, "a global is an operand");
 
     int gy = 0;
-    native x64(in origin, out gy) "mov rax, {origin.y}; mov {gy}, rax; mov {origin.x}, 30";
+    native<x64>(in origin, out gy) "mov rax, {origin.y}; mov {gy}, rax; mov {origin.x}, 30";
     check(gy == 4 && origin.x == 30, "a global struct has fields");
 }
 `, expected: []string{"bindings in sequence share their mode", "inout reads and writes", "a variable can be named out", "struct fields are operands", "{&name} is the address of any variable", "string parts are operands", "a global is an operand", "a global struct has fields"}},
 
 	{dir: "native_raw_block", x64Only: true, src: "func main() {\n" +
 		"    int r = 0;\n" +
-		"    native x64(out r) `\n" +
+		"    native<x64>(out r) `\n" +
 		"        ; the answer\n" +
 		"        mov rcx, 3\n" +
 		"        xor rax, rax\n" +

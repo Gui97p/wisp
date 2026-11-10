@@ -4,8 +4,10 @@ import (
 	_ "embed"
 	"fmt"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 )
 
 type Target struct {
@@ -285,6 +287,59 @@ func ValidateSelector(selector string) error {
 	}
 
 	return &UnknownError{Name: selector, Help: Suggestion(selector, Selectors(), "targets")}
+}
+
+func Architectures() []string {
+	seen := map[string]bool{}
+	var archs []string
+	for _, t := range all() {
+		if t.Arch != "" && !seen[t.Arch] {
+			seen[t.Arch] = true
+			archs = append(archs, t.Arch)
+		}
+	}
+	sort.Strings(archs)
+
+	return archs
+}
+
+func ValidateArch(arch string) error {
+	archs := Architectures()
+	for _, a := range archs {
+		if a == arch {
+			return nil
+		}
+	}
+
+	return &UnknownError{Name: arch, Help: Suggestion(arch, archs, "architectures")}
+}
+
+func ActiveArch() string {
+	t, err := Lookup(Active())
+	if err != nil {
+		return ""
+	}
+	return t.Arch
+}
+
+var (
+	activeMu   sync.RWMutex
+	activeName string
+)
+
+func SetActive(name string) {
+	activeMu.Lock()
+	defer activeMu.Unlock()
+	activeName = name
+}
+
+func Active() string {
+	activeMu.RLock()
+	defer activeMu.RUnlock()
+	if activeName == "" {
+		return runtime.GOOS + "_x64"
+	}
+	return activeName
 }
 
 func Names() []string {

@@ -16,14 +16,13 @@ import (
 )
 
 type Config struct {
-	Entry        string                  `toml:"entry" doc:"Entry file of the project, relative to the project root. Defaults to main.wsp."`
-	Target       string                  `toml:"target" doc:"Default compilation target. Built-in: linux_x64, cc, or a name declared in [targets.<name>]."`
-	Std          string                  `toml:"std" doc:"Path to a standard library folder that replaces the bundled one. Cannot be combined with freestanding."`
-	Freestanding bool                    `toml:"freestanding" doc:"Compile without any standard library. Cannot be combined with std."`
-	Link         []string                `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`
-	Libc         bool                    `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
-	Output       OutputConfig            `toml:"output" doc:"Where build artifacts are written."`
-	Targets      map[string]TargetConfig `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
+	Entry   string                  `toml:"entry" doc:"Entry file of the project, relative to the project root. Defaults to main.wsp."`
+	Target  string                  `toml:"target" doc:"Default compilation target. Built-in: linux_x64, cc, or a name declared in [targets.<name>]."`
+	Std     string                  `toml:"std" doc:"The standard library. Leave it out for the one that ships with the compiler, write a folder to replace it, or \"none\" to build without any (a folder called none is written ./none)."`
+	Link    []string                `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`
+	Libc    bool                    `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
+	Output  OutputConfig            `toml:"output" doc:"Where build artifacts are written."`
+	Targets map[string]TargetConfig `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
 }
 
 type TargetConfig struct {
@@ -40,6 +39,8 @@ type TargetConfig struct {
 }
 
 type OutputConfig = target.Output
+
+const StdNone = "none"
 
 type ConfigField struct {
 	Key   string
@@ -208,15 +209,15 @@ func (c *Config) registerTargets(root string) error {
 }
 
 func (c *Config) StdlibSettings(root string) (string, bool, error) {
-	if c.Std != "" && c.Freestanding {
-		return "", false, fmt.Errorf("wisp.toml: std and freestanding cannot be used together")
+	if c.Std == StdNone {
+		return "", true, nil
 	}
 
 	path := c.Std
 	if path != "" && !filepath.IsAbs(path) {
 		path = filepath.Join(root, path)
 	}
-	return path, c.Freestanding, nil
+	return path, false, nil
 }
 
 func LoadStdlibSettings(root string) (string, bool, error) {

@@ -18,15 +18,14 @@ import (
 )
 
 var (
-	asmOut          string
-	objOut          string
-	binOut          string
-	luaOut          string
-	targetOpt       string
-	stdOpt          string
-	linkOpt         []string
-	libcOpt         bool
-	freestandingOpt bool
+	asmOut    string
+	objOut    string
+	binOut    string
+	luaOut    string
+	targetOpt string
+	stdOpt    string
+	linkOpt   []string
+	libcOpt   bool
 )
 
 var buildCmd = &cobra.Command{
@@ -66,8 +65,7 @@ func addBuildFlags(cmd *cobra.Command) {
 
 func addProjectFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
-	f.StringVar(&stdOpt, "std", "", "folder to use as the standard library (the std/ import prefix)")
-	f.BoolVar(&freestandingOpt, "freestanding", false, "build without a standard library: importing std/... is an error")
+	f.StringVar(&stdOpt, "std", "", "standard library for this build: a folder to replace the bundled one, or none to build without one")
 }
 
 func openProject(cmd *cobra.Command) (string, *module.Config, error) {

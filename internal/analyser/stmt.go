@@ -365,8 +365,8 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 
 func (a *Analyser) checkNativeStmt(s *ast.NativeStmt) {
 	if s.Backend != "" {
-		if err := target.ValidateSelector(s.Backend); err != nil {
-			d := a.errorRange(s.BackendAt, "unknown target %q in a native block", s.Backend)
+		if err := target.ValidateArch(s.Backend); err != nil {
+			d := a.errorRange(s.BackendAt, "unknown architecture %q in a native block", s.Backend)
 			if unknown, ok := errors.AsType[*target.UnknownError](err); ok {
 				d.WithHelp("%s", unknown.Help)
 			}

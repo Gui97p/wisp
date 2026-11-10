@@ -100,6 +100,10 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 		return nil
 	}
 
+	if p.native != nil {
+		return p.finishNative(decl)
+	}
+
 	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW || p.peek.Type == lexer.TOKEN_SEMICOLON || p.peek.Type == lexer.TOKEN_AS {
 		decl.ReturnTypes = []ast.TypeRef{}
 	} else {

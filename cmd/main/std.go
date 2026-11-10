@@ -15,22 +15,16 @@ func configureStdlib(cmd *cobra.Command, root string, cfg *module.Config) error 
 		return err
 	}
 
-	stdFlag := cmd.Flags().Changed("std")
-	freestandingFlag := cmd.Flags().Changed("freestanding") && freestandingOpt
-
-	if stdFlag && freestandingFlag {
-		return fmt.Errorf("--std and --freestanding cannot be used together")
-	}
-
-	switch {
-	case freestandingFlag:
-		path, disabled = "", true
-	case stdFlag:
-		abs, err := filepath.Abs(stdOpt)
-		if err != nil {
-			return err
+	if cmd.Flags().Changed("std") {
+		if stdOpt == module.StdNone {
+			path, disabled = "", true
+		} else {
+			abs, err := filepath.Abs(stdOpt)
+			if err != nil {
+				return err
+			}
+			path, disabled = abs, false
 		}
-		path, disabled = abs, false
 	}
 
 	if path != "" {

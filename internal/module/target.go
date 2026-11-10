@@ -21,6 +21,7 @@ func ConfigureTarget(name string) {
 	activeTargetMu.Lock()
 	defer activeTargetMu.Unlock()
 	activeTarget = name
+	target.SetActive(name)
 }
 
 func currentTarget() string {

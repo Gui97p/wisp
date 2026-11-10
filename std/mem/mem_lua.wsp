@@ -1,29 +1,29 @@
 internal func rawAllocate(int n, bool zero) *void {
 	*void p;
-	native lua(in n, zero, out p) "p = (__wisp_alloc(n))";
+	native<lua>(in n, zero, out p) "p = (__wisp_alloc(n))";
 	return p;
 }
 
 internal func rawFree(*void p) {
-	native lua(in p) "__wisp_free(p)";
+	native<lua>(in p) "__wisp_free(p)";
 }
 
 internal func rawRealloc(*void p, int n) *void {
 	*void new;
-	native lua(in p, n, out new) "new = (__wisp_realloc(p, n))";
+	native<lua>(in p, n, out new) "new = (__wisp_realloc(p, n))";
 	return new;
 }
 
 internal func rawCopy(*void dst, src, int n) {
-	native lua(in dst, src, n) "for i = 0, n - 1 do dst.t[dst.o + i] = src.t[src.o + i] end";
+	native<lua>(in dst, src, n) "for i = 0, n - 1 do dst.t[dst.o + i] = src.t[src.o + i] end";
 }
 
 internal func rawCopyBackward(*void dst, src, int n) {
-	native lua(in dst, src, n) "for i = n - 1, 0, -1 do dst.t[dst.o + i] = src.t[src.o + i] end";
+	native<lua>(in dst, src, n) "for i = n - 1, 0, -1 do dst.t[dst.o + i] = src.t[src.o + i] end";
 }
 
 internal func rawSet(*void dst, char value, int n) {
-	native lua(in dst, value, n) "for i = 0, n - 1 do dst.t[dst.o + i] = value end";
+	native<lua>(in dst, value, n) "for i = 0, n - 1 do dst.t[dst.o + i] = value end";
 }
 
 func track(*void _) {}

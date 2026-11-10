@@ -33,6 +33,7 @@ type Analyser struct {
 	currentInline *InlineCall
 	siteFile      string
 	callee        ast.Expression
+	unavailable   map[string][]string
 
 	modules map[string]*ModuleInfo
 	links   []*importLink
@@ -84,6 +85,7 @@ func (a *Analyser) Analyze() *Info {
 
 func AnalyzeGroup(group []*Analyser) {
 	for _, a := range group {
+		a.selectNativeVariants()
 		a.info.Module = a.scope
 		a.registerBuiltins()
 		a.registerImports()

@@ -20,6 +20,7 @@ type Parser struct {
 	allowStructLiteral bool
 	switchNameCount    int
 	cVariadic          bool
+	native             *nativeHeader
 	spread             bool
 }
 

@@ -1,11 +1,18 @@
 // Tour - Native code.
 //
-// `native` embeds code written for one backend. The name after `native`
-// picks the backend: `lua`, or a machine target such as `linux_x64`. Blocks
-// for other backends are skipped, so one function can carry an
-// implementation for each target. A function with no block for the target
-// being built just runs its plain code, so a port you did not write does
-// nothing.
+// `native` embeds code written for one architecture. The name in angle
+// brackets picks it: `native<lua>` or `native<x64>`. Blocks for other
+// architectures are skipped, so one function can carry an implementation for
+// each one. A function with no block for the architecture being built just
+// runs its plain code, so a port you did not write does nothing.
+//
+// A whole function can be native. `native<x64>` takes the place of `func`, the
+// parameters are inputs, the results are named, and the text after `=>` is the
+// body. There is no ABI to think about: the compiler builds the function
+// around the text, so the results come back as in any other function. When a
+// plain function and a native one share a name and signature, the native one
+// of the architecture being built replaces the plain one; every version has to
+// have the same signature.
 //
 // The bindings in parentheses say which Wisp variables the block reads
 // (`in`), writes (`out`) or both (`inout`). A mode covers the names after it
@@ -27,11 +34,20 @@ import "std/fmt";
 
 public func abs(int x) int {
   int r;
-  native lua(out r, in x) "r = x < 0 and -x or x";
-  native linux_x64(in x, out r) "mov rax, {x}; mov rcx, rax; sar rcx, 63; xor rax, rcx; sub rax, rcx; mov {r}, rax";
+  native<lua>(out r, in x) "r = x < 0 and -x or x";
+  native<x64>(in x, out r) "mov rax, {x}; mov rcx, rax; sar rcx, 63; xor rax, rcx; sub rax, rcx; mov {r}, rax";
   return r;
 }
 
+native<x64> sum(int a, int b) int total => "mov rax, {a}; add rax, {b}; mov {total}, rax";
+native<lua> sum(int a, int b) int total => "total = a + b";
+
+native<x64> halves(int n) (int low, int high) => "mov rax, {n}; sar rax, 1; mov {low}, rax; mov rcx, {n}; sub rcx, rax; mov {high}, rcx";
+native<lua> halves(int n) (int low, int high) => "low = n // 2; high = n - low";
+
 public func demo() {
   fmt.printf("abs(-5) = {}, abs(5) = {}\n", abs(-5), abs(5));
+  fmt.printf("sum(2, 3) = {}\n", sum(2, 3));
+  int low, high = halves(7);
+  fmt.printf("halves(7) = {} and {}\n", low, high);
 }
