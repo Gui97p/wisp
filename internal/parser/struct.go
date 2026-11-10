@@ -8,6 +8,12 @@ import (
 func (p *Parser) parseStructDeclaration() *ast.StructDecl {
 	decl := &ast.StructDecl{}
 
+	selector, at, ok := p.optionalSelector()
+	if !ok {
+		return nil
+	}
+	decl.Selector, decl.SelectorAt = selector, at
+
 	if !p.expect(lexer.TOKEN_IDENT) {
 		p.error("expected struct name in declaration")
 		return nil

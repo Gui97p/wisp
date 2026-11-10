@@ -70,7 +70,10 @@ func (a *Analyser) registerStructFields() {
 func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 	symbol, ok := a.lookupType(a.scope, expr.Module, expr.Name)
 	if !ok {
-		a.errorf(expr, "unknown type %s", qualified(expr.Module, expr.Name))
+		d := a.errorf(expr, "unknown type %s", qualified(expr.Module, expr.Name))
+		if expr.Module == "" {
+			a.unavailableHint(d, expr.Name)
+		}
 		return InvalidType{}
 	}
 

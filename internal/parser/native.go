@@ -78,7 +78,7 @@ func (p *Parser) currentAt() ast.Position {
 	return ast.Position{Line: p.current.Line, Col: p.current.Column, EndLine: endLine, EndCol: endCol}
 }
 
-func (p *Parser) parseNativeSelector() (string, ast.Position, bool) {
+func (p *Parser) parseSelector() (string, ast.Position, bool) {
 	if !p.expect(lexer.TOKEN_LT) {
 		return "", ast.Position{}, false
 	}
@@ -108,6 +108,37 @@ func (p *Parser) parseNativeSelector() (string, ast.Position, bool) {
 
 	text, ok := p.finishSelector(parts, at)
 	return text, at, ok
+}
+
+func (p *Parser) optionalSelector() (string, ast.Position, bool) {
+	if p.peek.Type != lexer.TOKEN_LT {
+		return "", ast.Position{}, true
+	}
+	selector, at, ok := p.parseSelector()
+	if !ok {
+		p.skipDeclaration()
+	}
+	return selector, at, ok
+}
+
+func (p *Parser) skipDeclaration() {
+	depth := 0
+	for p.current.Type != lexer.TOKEN_EOF {
+		switch p.current.Type {
+		case lexer.TOKEN_LBRACE:
+			depth++
+		case lexer.TOKEN_RBRACE:
+			depth--
+			if depth <= 0 {
+				return
+			}
+		case lexer.TOKEN_SEMICOLON:
+			if depth == 0 {
+				return
+			}
+		}
+		p.advance()
+	}
 }
 
 func (p *Parser) parseDirectives(program *ast.Program) {
@@ -181,9 +212,9 @@ func (p *Parser) parseNativeDeclaration() *ast.FuncDecl {
 	var at ast.Position
 	if p.peek.Type == lexer.TOKEN_LT {
 		var ok bool
-		arch, at, ok = p.parseNativeSelector()
+		arch, at, ok = p.parseSelector()
 		if !ok {
-			p.synchronize()
+			p.skipDeclaration()
 			return nil
 		}
 	}
@@ -195,7 +226,7 @@ func (p *Parser) parseNativeDeclaration() *ast.FuncDecl {
 	if decl == nil {
 		return nil
 	}
-	decl.NativeTarget, decl.NativeTargetAt = arch, at
+	decl.Selector, decl.SelectorAt = arch, at
 	return decl
 }
 

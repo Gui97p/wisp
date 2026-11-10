@@ -85,7 +85,7 @@ func (a *Analyser) Analyze() *Info {
 
 func AnalyzeGroup(group []*Analyser) {
 	for _, a := range group {
-		a.selectNativeVariants()
+		a.selectVariants()
 		a.info.Module = a.scope
 		a.registerBuiltins()
 		a.registerImports()
@@ -176,7 +176,11 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 	} else {
 		symbol, ok := a.lookupType(scope, ref.Module, ref.Name)
 		if !ok {
-			a.suggest(a.errorAtRef(node, ref, "unknown type %s", qualified(ref.Module, ref.Name)), ref.Name, append(scope.names(func(sym *Symbol) bool {
+			d := a.errorAtRef(node, ref, "unknown type %s", qualified(ref.Module, ref.Name))
+			if ref.Module == "" && a.unavailableHint(d, ref.Name) {
+				return nil
+			}
+			a.suggest(d, ref.Name, append(scope.names(func(sym *Symbol) bool {
 				return sym.Kind == STRUCT || sym.Kind == TYPE
 			}), "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float", "float32", "float64", "char", "string", "bool"))
 			return nil

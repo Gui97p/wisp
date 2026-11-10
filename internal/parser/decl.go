@@ -330,6 +330,12 @@ func lastPathSegment(path string) string {
 func (p *Parser) parseTypeDeclaration() *ast.TypeDecl {
 	decl := &ast.TypeDecl{}
 
+	selector, at, ok := p.optionalSelector()
+	if !ok {
+		return nil
+	}
+	decl.Selector, decl.SelectorAt = selector, at
+
 	if !p.expect(lexer.TOKEN_IDENT) {
 		return nil
 	}
@@ -356,6 +362,11 @@ func (p *Parser) parseTypeDeclaration() *ast.TypeDecl {
 func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 	decls := []ast.Declaration{}
 
+	selector, selectorAt, ok := p.optionalSelector()
+	if !ok {
+		return nil
+	}
+
 	if !p.expect(lexer.TOKEN_IDENT) {
 		return nil
 	}
@@ -365,7 +376,7 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 		return nil
 	}
 
-	enum := &ast.TypeDecl{Name: name, Underlying: ast.TypeRef{Name: "int"}, IsEnum: true}
+	enum := &ast.TypeDecl{Name: name, Underlying: ast.TypeRef{Name: "int"}, IsEnum: true, Selector: selector, SelectorAt: selectorAt}
 	decls = append(decls, enum)
 
 	if !p.expect(lexer.TOKEN_LBRACE) {

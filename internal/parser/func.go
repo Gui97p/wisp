@@ -43,6 +43,14 @@ func (p *Parser) parseExternDeclaration() *ast.FuncDecl {
 func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 	decl := &ast.FuncDecl{}
 
+	if p.native == nil {
+		selector, at, ok := p.optionalSelector()
+		if !ok {
+			return nil
+		}
+		decl.Selector, decl.SelectorAt = selector, at
+	}
+
 	if p.peek.Type == lexer.TOKEN_LPAREN {
 		p.advance()
 		p.advance()

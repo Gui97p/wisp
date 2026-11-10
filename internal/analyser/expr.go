@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
-	"github.com/Gui97p/wisp/internal/target"
 )
 
 func isDerefTarget(expr ast.Expression) bool {
@@ -33,9 +32,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		symbol, ok := a.scope.Resolve(e.Value)
 		if !ok {
 			d := a.errorf(expr, "identifier %s not declared in this scope", e.Value)
-			if archs, missing := a.unavailable[e.Value]; missing {
-				d.WithHelp("%s only has a native version for %s, and this build is for %s", e.Value, target.Enumerate(archs), target.Active())
-			} else {
+			if !a.unavailableHint(d, e.Value) {
 				a.suggest(d, e.Value, a.scope.names(func(sym *Symbol) bool {
 					return sym.Kind == VAR || sym.Kind == CONST || sym.Kind == PARAM || sym.Kind == FUNC || sym.Kind == MODULE
 				}))

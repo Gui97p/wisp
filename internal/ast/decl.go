@@ -6,11 +6,13 @@ import (
 )
 
 type ConstDecl struct {
-	Doc      string
-	Vars     []Param
-	Values   []Expression
-	Exported bool
-	Reach    int
+	Doc        string
+	Vars       []Param
+	Values     []Expression
+	Exported   bool
+	Reach      int
+	Selector   string
+	SelectorAt Position
 
 	NodePos
 }
@@ -78,24 +80,24 @@ func (c *VarDecl) Tree(indent string) string {
 }
 
 type FuncDecl struct {
-	Doc            string
-	Name           string
-	Receiver       *Param
-	Params         []Param
-	Body           *BlockStmt
-	ReturnTypes    []TypeRef
-	Fallible       bool
-	Exported       bool
-	Reach          int
-	Extern         bool
-	ExternName     string
-	CExport        string
-	CVariadic      bool
-	Generated      bool
-	Inline         bool
-	NativeTarget   string
-	NativeTargetAt Position
-	NameAt         Position
+	Doc         string
+	Name        string
+	Receiver    *Param
+	Params      []Param
+	Body        *BlockStmt
+	ReturnTypes []TypeRef
+	Fallible    bool
+	Exported    bool
+	Reach       int
+	Extern      bool
+	ExternName  string
+	CExport     string
+	CVariadic   bool
+	Generated   bool
+	Inline      bool
+	Selector    string
+	SelectorAt  Position
+	NameAt      Position
 
 	NodePos
 }
@@ -159,11 +161,13 @@ func (f *FuncDecl) Tree(indent string) string {
 }
 
 type StructDecl struct {
-	Doc      string
-	Name     string
-	Members  []Param
-	Exported bool
-	Reach    int
+	Doc        string
+	Name       string
+	Members    []Param
+	Exported   bool
+	Reach      int
+	Selector   string
+	SelectorAt Position
 
 	NodePos
 }
@@ -203,6 +207,8 @@ type TypeDecl struct {
 	Reach      int
 	IsEnum     bool
 	Members    []EnumMember
+	Selector   string
+	SelectorAt Position
 
 	NodePos
 }

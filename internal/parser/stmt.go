@@ -753,7 +753,7 @@ func (p *Parser) parseNativeStatement() ast.Statement {
 		return nil
 	}
 	if p.peek.Type == lexer.TOKEN_LT {
-		selector, at, ok := p.parseNativeSelector()
+		selector, at, ok := p.parseSelector()
 		if !ok {
 			p.synchronize()
 			return nil

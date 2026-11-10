@@ -87,14 +87,23 @@ func (p *Parser) parseConstValues() []ast.Expression {
 }
 
 func (p *Parser) parseConstDeclarations() []ast.Declaration {
-	if p.constGroupAhead() {
-		return p.parseConstGroup()
-	}
-	decl := p.parseConstDeclaration()
-	if decl == nil {
+	selector, at, ok := p.optionalSelector()
+	if !ok {
 		return nil
 	}
-	return []ast.Declaration{decl}
+
+	var decls []ast.Declaration
+	if p.constGroupAhead() {
+		decls = p.parseConstGroup()
+	} else if decl := p.parseConstDeclaration(); decl != nil {
+		decls = []ast.Declaration{decl}
+	}
+	for _, d := range decls {
+		if c, isConst := d.(*ast.ConstDecl); isConst {
+			c.Selector, c.SelectorAt = selector, at
+		}
+	}
+	return decls
 }
 
 func (p *Parser) constGroupAhead() bool {
