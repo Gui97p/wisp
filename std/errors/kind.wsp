@@ -1,0 +1,17 @@
+public enum Kind {
+	NoSpace = 1,
+	OutOfMemory,
+	Busy,
+
+	Invalid,
+	Range,
+	Overflow,
+	Unsupported,
+
+	NotFound,
+	Exists,
+	Permission,
+	Interrupted,
+	WouldBlock,
+	BrokenPipe
+}

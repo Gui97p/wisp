@@ -6435,6 +6435,35 @@ func main() {
 }
 `, expected: []string{"a func with a selector replaces the plain one, in Wisp", "the version that matches fewer targets wins", "a struct can differ per target", "an enum can differ per target", "constants can differ per target, alone or in a group", "a type alias can differ per target"}},
 
+	{dir: "inline_coercion", src: `enum Color {
+    Red = 1,
+    Green,
+    Blue
+}
+
+struct Pixel {
+    int shade;
+}
+
+inline func isGreen(int c) bool {
+    return c == Color.Green;
+}
+
+inline func warm(Pixel p) bool {
+    return switch p.shade {
+        case Color.Red, Color.Blue => true;
+        default => false;
+    };
+}
+
+func main() {
+    check(isGreen(2), "an inline body compares an int with an enum member");
+    check(!isGreen(3), "the comparison is false for another value");
+    check(warm(Pixel{shade: 3}), "a switch on an int takes enum cases");
+    check(!warm(Pixel{shade: 2}), "and the default catches the rest");
+}
+`, expected: []string{"an inline body compares an int with an enum member", "the comparison is false for another value", "a switch on an int takes enum cases", "and the default catches the rest"}},
+
 	{dir: "inline_calls", src: `import "std/errors";
 
 type Step (int) => int;
@@ -6997,13 +7026,84 @@ func main() ! {
 }
 `, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc of null allocates", "realloc to a large block keeps the contents"}},
 
-	{dir: "abort_malloc_oom", exit: 4, src: `import "std/mem";
+	{dir: "errors_helpers", src: `import "std/errors";
+
+func room(int n) ! {
+    errors.ensure(n <= 3, errors.Kind.NoSpace)!;
+}
+
+func roomWith(int n) ! {
+    errors.ensureMessage(n <= 3, errors.Kind.NoSpace, "the buffer is full")!;
+}
+
+inline func fail(const errors.Kind k) ! {
+    errors.ensure(false, k)!;
+}
+
+func main() {
+    let ok = room(2);
+    let tight = room(5);
+    let full = roomWith(9);
+    check(ok == null, "a passing ensure does not fail");
+    check(tight == errors.Kind.NoSpace, "ensure fails with the kind");
+    check(full == errors.Kind.NoSpace, "ensureMessage fails with the kind");
+    check(full.message == "the buffer is full", "ensureMessage keeps its message");
+    check(tight.message == "Kind.NoSpace", "ensure uses the name of the kind as its message");
+
+    let busy = fail(errors.Kind.Busy);
+    let interrupted = fail(errors.Kind.Interrupted);
+    let wouldBlock = fail(errors.Kind.WouldBlock);
+    let missing = fail(errors.Kind.NotFound);
+    let invalid = fail(errors.Kind.Invalid);
+    let none = room(1);
+
+    check(errors.temporary(busy), "Busy is temporary");
+    check(errors.temporary(interrupted), "Interrupted is temporary");
+    check(errors.temporary(wouldBlock), "WouldBlock is temporary");
+    check(!errors.temporary(missing), "NotFound is not temporary");
+    check(!errors.temporary(invalid), "Invalid is not temporary");
+    check(errors.missing(missing), "NotFound is missing");
+    check(!errors.missing(busy), "Busy is not missing");
+    check(!errors.temporary(none), "no error is not temporary");
+    check(!errors.missing(none), "no error is not missing");
+}
+`, expected: []string{"a passing ensure does not fail", "ensure fails with the kind", "ensureMessage fails with the kind", "ensureMessage keeps its message", "ensure uses the name of the kind as its message", "Busy is temporary", "Interrupted is temporary", "WouldBlock is temporary", "NotFound is not temporary", "Invalid is not temporary", "NotFound is missing", "Busy is not missing", "no error is not temporary", "no error is not missing"}},
+
+	{dir: "abort_unreachable", src: `import "std/errors";
+
+func main() {
+    check(true, "unreachable before the panic");
+    errors.unreachable("this cannot happen");
+    check(true, "unreachable never printed");
+}
+`, expected: []string{"unreachable before the panic"}, abort: "panic: this cannot happen"},
+
+	{dir: "abort_todo", src: `import "std/errors";
+
+func main() {
+    check(true, "todo before the panic");
+    errors.todo("not written yet");
+    check(true, "todo never printed");
+}
+`, expected: []string{"todo before the panic"}, abort: "panic: not written yet"},
+
+	{dir: "abort_assert", src: `import "std/errors";
+
+func main() {
+    errors.assert(1 < 2, "one is less than two");
+    check(true, "assert passes");
+    errors.assert(2 < 1, "two is not less than one");
+    check(true, "assert never printed");
+}
+`, expected: []string{"assert passes"}, abort: "panic: two is not less than one"},
+
+	{dir: "abort_malloc_oom", exit: 2, src: `import "std/mem";
 func main() ! {
     check(true, "oom before the failure");
     *int p = mem.alloc(-1)!;
     mem.free(p);
 }
-`, expected: []string{"oom before the failure"}, abort: "error[std/errors.Kind]: Kind.OutOfMemory"},
+`, expected: []string{"oom before the failure"}, abort: "error[std/errors/kind.Kind]: Kind.OutOfMemory"},
 
 	{dir: "ptr_index", src: `import "std/mem";
 struct P {

@@ -1,5 +1,6 @@
 // Tour - Error handling.
 
+import "std/errors";
 import "std/fmt";
 
 // An enum is the family of an error: each member is one kind of failure. The
@@ -80,6 +81,21 @@ func codeOf(int a, int b) int {
   return n;
 }
 
+// std/errors has the failures that every program shares, as the enum
+// errors.Kind (NoSpace, OutOfMemory, Busy, Invalid, Range, Overflow,
+// Unsupported, NotFound, Exists, Permission, Interrupted, WouldBlock and
+// BrokenPipe), and helpers that save writing `if !ok { return Error(...) }`.
+// `ensure` returns the error when its condition is false. `ensureMessage` adds
+// a message. The kind has to be written out, because an Error is a constant
+// record made at the place it is raised.
+func store(int used, int size) ! {
+  errors.ensure(used <= size, errors.Kind.NoSpace)!;
+}
+
+func storeNamed(int used, int size) ! {
+  errors.ensureMessage(used <= size, errors.Kind.NoSpace, "the buffer is full")!;
+}
+
 public func demo() {
   // `??` unwraps the result, falling back to a default value on failure.
   int ok = divide(10, 2) ?? -1;
@@ -122,6 +138,20 @@ public func demo() {
   // An error prints with `{}` as its message, and `{v}` adds the enum and
   // where it was raised. An error that is null prints as <null error>.
   fmt.printf("{} | {v}\n", err, err);
+
+  // A function with no result hands its error to `let`, which holds null when
+  // it worked. `temporary` and `missing` tell families of kinds apart: a
+  // temporary failure (Busy, Interrupted, WouldBlock) is worth trying again,
+  // and a missing one is NotFound. Both answer false for null.
+  let fits = store(2, 4);
+  let tight = store(9, 4);
+  let named = storeNamed(9, 4);
+  fmt.printf("fits: {}, tight: {}, named: {}\n", fits == null, tight == errors.Kind.NoSpace, named.message);
+  fmt.printf("temporary: {}, missing: {}\n", errors.temporary(tight), errors.missing(fits));
+  // errors.assert(condition, message) is for a mistake in the program itself:
+  // it does not return an error, it stops the program with the message, and so
+  // do errors.unreachable(message) for a place that must never run and
+  // errors.todo(message) for code that is not written yet.
 
   // A call that returns no value has nothing to fall back to, so its handler
   // may simply end. This is how a failure that nobody can act on is dropped on

@@ -1,0 +1,38 @@
+import "std/errors/kind";
+
+public inline func ensure(bool condition, const kind.Kind k) ! {
+	if !condition {
+		return Error(k);
+	}
+}
+
+public inline func ensureMessage(bool condition, const kind.Kind k, const string message) ! {
+	if !condition {
+		return Error(k, message);
+	}
+}
+
+public inline func assert(bool condition, const string message) {
+	if !condition {
+		panic(message);
+	}
+}
+
+public inline func unreachable(const string message) {
+	panic(message);
+}
+
+public inline func todo(const string message) {
+	panic(message);
+}
+
+public inline func temporary(Error e) bool {
+	return e == null ? false : switch e.code {
+		case kind.Kind.Interrupted, kind.Kind.WouldBlock, kind.Kind.Busy => true;
+		default => false;
+	};
+}
+
+public inline func missing(Error e) bool {
+	return e == null ? false : e.code == kind.Kind.NotFound;
+}

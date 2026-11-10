@@ -106,17 +106,24 @@ func (a *Analyser) expandInline(expr *ast.CallExpr, ft *FuncType) {
 		substitutions[p.Name] = produce
 	}
 
-	body := ast.Clone(decl.Body, ast.CloneOptions{
+	var options ast.CloneOptions
+	options = ast.CloneOptions{
 		At: &at,
 		Replace: func(node ast.Node) (ast.Node, bool) {
-			if id, ok := node.(*ast.IdentLiteral); ok {
-				if produce, found := substitutions[id.Value]; found {
+			switch n := node.(type) {
+			case *ast.IdentLiteral:
+				if produce, found := substitutions[n.Value]; found {
 					return produce(), true
+				}
+			case *ast.CastExpr:
+				if n.Implicit {
+					return ast.Clone(n.Value, options), true
 				}
 			}
 			return nil, false
 		},
-	})
+	}
+	body := ast.Clone(decl.Body, options)
 
 	savedScope, savedModuleScope := a.scope, a.moduleScope
 	savedModule, savedFile, savedSite := a.module, a.currentFile, a.siteFile
