@@ -178,6 +178,8 @@ func headerItems(declared []string, pos protocol.Position, prefix string) []prot
 	}
 
 	add("output", "output", "table")
+	add("run", "run", "table")
+	add("run.env", "run.env", "environment variables for wisp run")
 	add("targets.<name>", "targets.${1:name}", "custom target")
 
 	names := append([]string{}, declared...)

@@ -52,3 +52,9 @@ bin = "bin/tour"
 #
 # [targets.linux_x64]
 # link = ["-lm"]
+
+# Environment variables for the program when it is started by `wisp run`. A
+# variable already set in the shell wins, so `NAME=other wisp run` overrides
+# what is written here. A program started by hand does not get them.
+# [run.env]
+# WISP_DEBUG_ALLOC = "1"

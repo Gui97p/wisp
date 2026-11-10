@@ -123,6 +123,7 @@ type buildResult struct {
 	binPath  string
 	luaDir   string
 	luaEntry string
+	env      []module.EnvVar
 }
 
 func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
@@ -161,6 +162,7 @@ func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
 		return nil, err
 	}
 	res.target = tgt.Name
+	res.env = cfg.RunEnv()
 	return res, nil
 }
 
@@ -198,6 +200,14 @@ func runRun(cmd *cobra.Command, args []string) error {
 		detail("Running %s", relPath(res.luaEntry))
 		run = exec.Command("lua", append([]string{rel}, programArgs...)...)
 		run.Dir = res.luaDir
+	}
+
+	run.Env = os.Environ()
+	for _, v := range res.env {
+		if _, set := os.LookupEnv(v.Name); !set {
+			run.Env = append(run.Env, v.Name+"="+v.Value)
+			detail("Setting %s from wisp.toml", v.Name)
+		}
 	}
 
 	run.Stdin, run.Stdout, run.Stderr = os.Stdin, os.Stdout, os.Stderr

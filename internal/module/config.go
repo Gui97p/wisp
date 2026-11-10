@@ -22,7 +22,33 @@ type Config struct {
 	Link    []string                `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`
 	Libc    bool                    `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
 	Output  OutputConfig            `toml:"output" doc:"Where build artifacts are written."`
+	Run     RunConfig               `toml:"run" doc:"How wisp run starts the program."`
 	Targets map[string]TargetConfig `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
+}
+
+type RunConfig struct {
+	Env map[string]any `toml:"env" doc:"Environment variables for the program under wisp run, written NAME = \"value\". A variable already set in the shell wins."`
+}
+
+type EnvVar struct {
+	Name  string
+	Value string
+}
+
+func (c *Config) RunEnv() []EnvVar {
+	names := make([]string, 0, len(c.Run.Env))
+	for name := range c.Run.Env {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	vars := make([]EnvVar, 0, len(names))
+	for _, name := range names {
+		if value, ok := c.Run.Env[name].(string); ok {
+			vars = append(vars, EnvVar{Name: name, Value: value})
+		}
+	}
+	return vars
 }
 
 type TargetConfig struct {
@@ -56,6 +82,8 @@ func ConfigFields(section string) []ConfigField {
 		t = reflect.TypeOf(Config{})
 	case "output":
 		t = reflect.TypeOf(OutputConfig{})
+	case "run":
+		t = reflect.TypeOf(RunConfig{})
 	case "targets":
 		t = reflect.TypeOf(TargetConfig{})
 	case "targets.output":
@@ -312,6 +340,18 @@ func decodeConfigSource(path, text string) (*Config, error) {
 			Help:    target.Suggestion(key[len(key)-1], known, "keys"),
 		})
 	}
+	for name, value := range cfg.Run.Env {
+		key := toml.Key{"run", "env", name}
+		switch {
+		case name == "" || strings.ContainsAny(name, "=\x00"):
+			issues = append(issues, ConfigIssue{Line: locateKey(text, key), Message: fmt.Sprintf("%q is not a valid environment variable name", name)})
+		default:
+			if _, isString := value.(string); !isString {
+				issues = append(issues, ConfigIssue{Line: locateKey(text, key), Message: fmt.Sprintf("run.env.%s must be a string", name), Help: fmt.Sprintf("write it as %s = \"...\"", name)})
+			}
+		}
+	}
+	sort.Slice(issues, func(i, j int) bool { return issues[i].Line < issues[j].Line })
 	if len(issues) > 0 {
 		return nil, &ConfigError{File: path, Source: text, Issues: issues}
 	}
@@ -336,6 +376,8 @@ func knownKeys(key toml.Key) []string {
 		return tomlTags(reflect.TypeOf(TargetConfig{}))
 	case len(key) >= 2 && key[0] == "output":
 		return tomlTags(reflect.TypeOf(OutputConfig{}))
+	case len(key) >= 2 && key[0] == "run":
+		return tomlTags(reflect.TypeOf(RunConfig{}))
 	}
 	return tomlTags(reflect.TypeOf(Config{}))
 }
