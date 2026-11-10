@@ -34,6 +34,19 @@ func configSection(parts []string) string {
 		return "library"
 	}
 	if parts[0] == "program" {
+		if len(parts) >= 3 && slices.Contains(target.OSNames(), parts[2]) {
+			rest := parts[3:]
+			if len(rest) > 0 && slices.Contains(target.Architectures(), rest[0]) {
+				rest = rest[1:]
+			}
+			if len(rest) > 0 && rest[0] == "output" {
+				return "program.system.output"
+			}
+			if len(rest) > 0 && rest[0] == "run" {
+				return "program.system.run"
+			}
+			return "program.system"
+		}
 		if len(parts) >= 3 && parts[2] == "output" {
 			return "program.output"
 		}
@@ -227,6 +240,9 @@ func headerItems(declared, declaredBins, declaredLibs []string, headers map[stri
 	for _, n := range declaredBins {
 		addNew("program."+n+".output", "output of "+n)
 		addNew("program."+n+".run.env", "environment variables for "+n)
+		for _, osName := range target.OSNames() {
+			addNew("program."+n+"."+osName, n+" on "+osName)
+		}
 	}
 
 	for _, n := range declared {

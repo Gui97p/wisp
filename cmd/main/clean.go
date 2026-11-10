@@ -50,8 +50,8 @@ func runClean(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, name := range cfg.ProgramNames(projectName(root)) {
-		eff := cfg.ForProgram(name)
 		for _, t := range target.List() {
+			eff := cfg.ForProgram(name).ForSystem(t.OS, t.Arch)
 			switch t.Arch {
 			case "x64":
 				out := resolveBuildTargets(root, eff, t, false)
@@ -67,8 +67,8 @@ func runClean(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, name := range cfg.LibraryNames() {
-		eff := cfg.ForLibrary(name)
 		for _, t := range target.List() {
+			eff := cfg.ForLibrary(name).ForSystem(t.OS, t.Arch)
 			switch t.Arch {
 			case "x64":
 				out := resolveBuildTargets(root, eff, t, false)

@@ -64,6 +64,16 @@ bin = "bin"
 #
 # [program.tools.run.env]
 # VERBOSE = "1"
+#
+# A program can adjust itself for one system, with [program.<name>.<os>] (and
+# [program.<name>.<os>.<arch>] for one architecture of it). Only name, link,
+# libc, output and run.env can change there: link adds to the program's, the
+# folders of output replace only the ones written, and run.env adds to the
+# program's.
+#
+# [program.tools.linux]
+# link = ["-lpthread"]
+# name = "mytools-linux"
 
 # Libraries. A library has no entry, so what it is made of is written down: the
 # modules it lists, by import path, and everything they import. Whatever nobody

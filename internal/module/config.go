@@ -3,6 +3,7 @@ package module
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -53,6 +54,21 @@ type ProgramConfig struct {
 	Libc   *bool        `toml:"libc" doc:"Link against the C library for this program."`
 	Output OutputConfig `toml:"output" doc:"Where this program writes its artifacts. {os}, {arch} and {name} are replaced."`
 	Run    RunConfig    `toml:"run" doc:"How wisp run starts this program. Its env adds to the top-level one."`
+
+	Systems map[string]SystemConfig `toml:"-"`
+}
+
+type Overrides struct {
+	Name   string       `toml:"name" doc:"Name of the binary on this system, instead of the one of the program."`
+	Link   []string     `toml:"link" doc:"Extra linker arguments on this system, added after the ones of the program."`
+	Libc   *bool        `toml:"libc" doc:"Link against the C library on this system."`
+	Output OutputConfig `toml:"output" doc:"Where the program writes on this system. Only the folders written here change."`
+	Run    RunConfig    `toml:"run" doc:"Environment of wisp run on this system. It adds to the one of the program."`
+}
+
+type SystemConfig struct {
+	Overrides
+	Archs map[string]Overrides `toml:"-"`
 }
 
 type RunConfig struct {
@@ -118,30 +134,32 @@ func ConfigFields(section string) []ConfigField {
 	var t reflect.Type
 	switch section {
 	case "":
-		t = reflect.TypeOf(Config{})
+		t = reflect.TypeFor[Config]()
 	case "output":
-		t = reflect.TypeOf(OutputConfig{})
-	case "run", "program.run":
-		t = reflect.TypeOf(RunConfig{})
+		t = reflect.TypeFor[OutputConfig]()
+	case "run", "program.run", "program.system.run":
+		t = reflect.TypeFor[RunConfig]()
 	case "library":
-		t = reflect.TypeOf(LibraryConfig{})
+		t = reflect.TypeFor[LibraryConfig]()
 	case "library.output":
-		t = reflect.TypeOf(OutputConfig{})
+		t = reflect.TypeFor[OutputConfig]()
 	case "program":
-		t = reflect.TypeOf(ProgramConfig{})
-	case "program.output":
-		t = reflect.TypeOf(OutputConfig{})
+		t = reflect.TypeFor[ProgramConfig]()
+	case "program.output", "program.system.output":
+		t = reflect.TypeFor[OutputConfig]()
+	case "program.system":
+		t = reflect.TypeFor[Overrides]()
 	case "targets":
-		t = reflect.TypeOf(TargetConfig{})
+		t = reflect.TypeFor[TargetConfig]()
 	case "targets.arch":
-		t = reflect.TypeOf(ArchConfig{})
+		t = reflect.TypeFor[ArchConfig]()
 	default:
 		return nil
 	}
 
 	fields := make([]ConfigField, 0, t.NumField())
-	for i := 0; i < t.NumField(); i++ {
-		f := t.Field(i)
+	for f := range t.Fields() {
+		f := f
 		key := f.Tag.Get("toml")
 		if key == "" || key == "-" {
 			continue
@@ -211,6 +229,9 @@ func loadConfigText(root, path, text string) (*Config, error) {
 			line = locateKey(text, toml.Key{"targets", fieldErr.Target})
 		}
 		return nil, &ConfigError{File: path, Source: text, Issues: []ConfigIssue{{Line: line, Message: fieldErr.Summary(), Help: fieldErr.Help}}}
+	}
+	if err := cfg.checkSystems(text, path); err != nil {
+		return nil, err
 	}
 	return cfg, nil
 }
@@ -444,7 +465,7 @@ func decodeConfigSource(path, text string) (*Config, error) {
 			})
 			continue
 		}
-		if isArchTable(md, key) {
+		if isArchTable(md, key) || isSystemTable(md, key) {
 			continue
 		}
 
@@ -458,6 +479,7 @@ func decodeConfigSource(path, text string) (*Config, error) {
 	if err := decodeArchTables(text, md, &cfg, &issues); err != nil {
 		return nil, err
 	}
+	decodeSystemTables(text, md, &cfg, &issues)
 
 	if cfg.Default != "" {
 		if _, declared := cfg.Programs[cfg.Default]; !declared {
@@ -671,6 +693,121 @@ func decodeArchTables(text string, md toml.MetaData, cfg *Config, issues *[]Conf
 	return nil
 }
 
+func isProgramField(name string) bool {
+	return slices.Contains(tomlTags(reflect.TypeOf(ProgramConfig{})), name)
+}
+
+func isSystemTable(md toml.MetaData, key toml.Key) bool {
+	if len(key) < 3 || key[0] != "program" || isProgramField(key[2]) {
+		return false
+	}
+	if len(key) >= 4 {
+		return true
+	}
+	return md.Type(key[0], key[1], key[2]) == "Hash"
+}
+
+func decodeSystemTables(text string, md toml.MetaData, cfg *Config, issues *[]ConfigIssue) {
+	var raw struct {
+		Program map[string]map[string]toml.Primitive
+	}
+	rawMeta, err := toml.Decode(text, &raw)
+	if err != nil {
+		return
+	}
+
+	candidates := map[string]bool{}
+	for _, key := range md.Undecoded() {
+		if isSystemTable(md, key) {
+			candidates[key[1]+"."+key[2]] = true
+		}
+	}
+
+	known := tomlTags(reflect.TypeOf(Overrides{}))
+	tables := map[string]bool{}
+	for name, entries := range raw.Program {
+		for osName, prim := range entries {
+			if !candidates[name+"."+osName] {
+				continue
+			}
+			var sc SystemConfig
+			if err := rawMeta.PrimitiveDecode(prim, &sc); err != nil {
+				*issues = append(*issues, ConfigIssue{Line: locateKey(text, toml.Key{"program", name, osName}), Message: diag.Reason(err)})
+				continue
+			}
+			tables[name+"."+osName] = true
+
+			var inner map[string]toml.Primitive
+			if err := rawMeta.PrimitiveDecode(prim, &inner); err != nil {
+				continue
+			}
+			for key, sub := range inner {
+				if slices.Contains(known, key) {
+					continue
+				}
+				path := toml.Key{"program", name, osName, key}
+				if rawMeta.Type(path...) != "Hash" {
+					*issues = append(*issues, ConfigIssue{Line: locateKey(text, path), Message: fmt.Sprintf("unknown key %q", path.String()), Help: target.Suggestion(key, known, "keys")})
+					continue
+				}
+				var o Overrides
+				if err := rawMeta.PrimitiveDecode(sub, &o); err != nil {
+					*issues = append(*issues, ConfigIssue{Line: locateKey(text, path), Message: diag.Reason(err)})
+					continue
+				}
+				if sc.Archs == nil {
+					sc.Archs = map[string]Overrides{}
+				}
+				sc.Archs[key] = o
+				tables[name+"."+osName+"."+key] = true
+			}
+
+			program := cfg.Programs[name]
+			if program.Systems == nil {
+				program.Systems = map[string]SystemConfig{}
+			}
+			program.Systems[osName] = sc
+			cfg.Programs[name] = program
+		}
+	}
+
+	var reported []toml.Key
+	for _, key := range rawMeta.Undecoded() {
+		if len(key) < 4 || key[0] != "program" || coveredBy(key, reported) {
+			continue
+		}
+		if !tables[key[1]+"."+key[2]] && !tables[key[1]+"."+key[2]+"."+key[3]] {
+			continue
+		}
+		reported = append(reported, key)
+		*issues = append(*issues, ConfigIssue{Line: locateKey(text, key), Message: fmt.Sprintf("unknown key %q", key.String()), Help: target.Suggestion(key[len(key)-1], known, "keys")})
+	}
+}
+
+func (c *Config) checkSystems(text, path string) error {
+	var issues []ConfigIssue
+	known := target.OSNames()
+	for name, program := range c.Programs {
+		for osName, sc := range program.Systems {
+			if !slices.Contains(known, osName) {
+				issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"program", name, osName}), Message: fmt.Sprintf("%q is not a system", osName), Help: target.Suggestion(osName, append(known, tomlTags(reflect.TypeOf(ProgramConfig{}))...), "systems and keys")})
+				continue
+			}
+			archs := target.ArchsOf(osName)
+			for arch := range sc.Archs {
+				if !slices.Contains(archs, arch) {
+					issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"program", name, osName, arch}), Message: fmt.Sprintf("the system %s has no architecture %q", osName, arch), Help: target.Suggestion(arch, archs, "architectures")})
+				}
+			}
+		}
+	}
+	if len(issues) == 0 {
+		return nil
+	}
+	sort.Slice(issues, func(i, j int) bool { return issues[i].Line < issues[j].Line })
+	return &ConfigError{File: path, Source: text, Issues: issues}
+}
+
 var programNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 var binaryNamePattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`)
@@ -746,6 +883,46 @@ func (c *Config) ForProgram(name string) *Config {
 	eff.Run = RunConfig{Env: env}
 
 	return &eff
+}
+
+func (c *Config) ForSystem(osName, arch string) *Config {
+	program, declared := c.Programs[c.ProgramName]
+	if !declared {
+		return c
+	}
+	sc, ok := program.Systems[osName]
+	if !ok {
+		return c
+	}
+	eff := *c
+	eff.apply(sc.Overrides)
+	if o, ok := sc.Archs[arch]; ok {
+		eff.apply(o)
+	}
+	return &eff
+}
+
+func (c *Config) apply(o Overrides) {
+	if o.Name != "" {
+		c.BinaryName = o.Name
+	}
+	c.ProgramLink = append(append([]string{}, c.ProgramLink...), o.Link...)
+	if o.Libc != nil {
+		c.ProgramLibc = o.Libc
+	}
+	if o.Output.Bin != "" {
+		c.ProgramOutput.Bin = o.Output.Bin
+	}
+	if o.Output.Obj != "" {
+		c.ProgramOutput.Obj = o.Output.Obj
+	}
+	if o.Output.Asm != "" {
+		c.ProgramOutput.Asm = o.Output.Asm
+	}
+	env := map[string]any{}
+	maps.Copy(env, c.Run.Env)
+	maps.Copy(env, o.Run.Env)
+	c.Run = RunConfig{Env: env}
 }
 
 func isTargetOutput(key toml.Key) bool {

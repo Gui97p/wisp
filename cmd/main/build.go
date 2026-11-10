@@ -104,6 +104,14 @@ func resolveTarget(cfg *module.Config) (target.Target, error) {
 	return target.Resolve(osName, arch)
 }
 
+func settle(cfg *module.Config) (*module.Config, target.Target, error) {
+	tgt, err := resolveTarget(cfg)
+	if err != nil {
+		return nil, tgt, err
+	}
+	return cfg.ForSystem(tgt.OS, tgt.Arch), tgt, nil
+}
+
 func resolveExecutable(name string) string {
 	if !strings.ContainsRune(name, os.PathSeparator) {
 		return "." + string(os.PathSeparator) + name
@@ -243,8 +251,7 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 		products := map[string]string{}
 		for _, job := range jobs {
 			name := job.name
-			eff := jobConfig(base, job)
-			tgt, err := resolveTarget(eff)
+			eff, tgt, err := settle(jobConfig(base, job))
 			if err != nil {
 				return nil, err
 			}
@@ -298,10 +305,9 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 	var results []*buildResult
 	for _, job := range jobs {
 		name := job.name
-		cfg := jobConfig(base, job)
 		jobStart := time.Now()
 
-		tgt, err := resolveTarget(cfg)
+		cfg, tgt, err := settle(jobConfig(base, job))
 		if err != nil {
 			return nil, err
 		}

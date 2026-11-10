@@ -76,7 +76,7 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	tgt, err := resolveTarget(cfg)
+	cfg, tgt, err := settle(cfg)
 	if err != nil {
 		return err
 	}
