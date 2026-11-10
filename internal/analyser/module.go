@@ -203,11 +203,10 @@ func reachDir(reach int, file string) string {
 	if reach == ast.ReachNone || file == "" {
 		return ""
 	}
-	dir := filepath.Dir(file)
 	if reach == ast.ReachShared {
-		dir = filepath.Dir(dir)
+		return folders.UnitRoot(file)
 	}
-	return dir
+	return filepath.Dir(file)
 }
 
 func insideDir(file, dir string) bool {

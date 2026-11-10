@@ -12,6 +12,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/folders"
 	"github.com/Gui97p/wisp/internal/lexer"
 	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/parser"
@@ -369,11 +370,10 @@ func reachFolder(reach int, file string) string {
 	if reach == ast.ReachNone {
 		return ""
 	}
-	dir := filepath.Dir(file)
 	if reach == ast.ReachShared {
-		dir = filepath.Dir(dir)
+		return folders.UnitRoot(file)
 	}
-	return dir
+	return filepath.Dir(file)
 }
 
 func pathIndex(candidates []module.ImportCandidate) map[string]string {

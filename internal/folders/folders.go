@@ -1,6 +1,7 @@
 package folders
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -35,4 +36,28 @@ func stdTail(path string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func UnitRoot(file string) string {
+	if file == "" {
+		return ""
+	}
+	dir := filepath.Dir(file)
+	if parts := strings.Split(filepath.ToSlash(dir), "/"); slices.Contains(parts, "std") {
+		for i, part := range slices.Backward(parts) {
+			if part == "std" {
+				return filepath.FromSlash(strings.Join(parts[:i+1], "/"))
+			}
+		}
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "wisp.toml")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }

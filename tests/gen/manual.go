@@ -1040,6 +1040,11 @@ public func boxArea(int w) int {
 public func corners(int n) int {
     return deep.twice(sides.count(n)) + sides.hidden() - 1;
 }
+`, "far/far.wsp": `import "shapes/deep";
+
+public func quadruple(int n) int {
+    return deep.twice(deep.twice(n));
+}
 `, "shapes/deep/deep.wsp": `shared func twice(int n) int {
     return n * 2;
 }
@@ -1065,14 +1070,16 @@ public func grown(int w) int {
     return b.area() + 1;
 }
 `}, src: `import "shapes";
+import "far";
 
 func main() {
+    check(far.quadruple(3) == 12, "a shared declaration reaches the whole project");
     check(shapes.corners(3) == 8, "a package entry reaches its internal files");
     check(shapes.count(3) == 4, "a package exposes what its files make public");
     check(shapes.grown(3) == 10, "an internal method works inside its package");
     check(shapes.boxArea(3) == 6, "an internal field is used by the files of its package");
 }
-`, expected: []string{"a package entry reaches its internal files", "a package exposes what its files make public", "an internal method works inside its package", "an internal field is used by the files of its package"}},
+`, expected: []string{"a shared declaration reaches the whole project", "a package entry reaches its internal files", "a package exposes what its files make public", "an internal method works inside its package", "an internal field is used by the files of its package"}},
 	{dir: "array_to_slice", src: `struct Box {
     [3]int items;
 }
