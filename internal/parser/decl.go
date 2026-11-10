@@ -140,6 +140,12 @@ func (p *Parser) parseVarDeclaration() *ast.VarDecl {
 func (p *Parser) parseImportDeclaration() *ast.ImportDecl {
 	decl := &ast.ImportDecl{}
 
+	selector, at, ok := p.optionalSelector()
+	if !ok {
+		return nil
+	}
+	decl.Selector, decl.SelectorAt = selector, at
+
 	if !p.expect(lexer.TOKEN_STRING_LITERAL) {
 		return nil
 	}

@@ -18,7 +18,7 @@ import (
 
 var directiveTyping = regexp.MustCompile(`^\s*#[A-Za-z_]*$`)
 
-var selectorTyping = regexp.MustCompile(`(\b(native|func|struct|type|enum|const)<[^<>;]*|^\s*#target\b.*)$`)
+var selectorTyping = regexp.MustCompile(`(\b(native|func|struct|type|enum|const|import)<[^<>;]*|^\s*#target\b.*)$`)
 
 var keywords = []string{
 	"let", "const", "func", "struct", "enum", "type", "if", "else", "switch", "case", "default",

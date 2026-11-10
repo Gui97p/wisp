@@ -65,6 +65,8 @@ func describeVariant(d ast.Declaration) (variant, bool) {
 			kind = "enum"
 		}
 		return variant{decl: d, key: "type:" + decl.Name, names: []string{decl.Name}, kind: kind, selector: decl.Selector, at: declPosition(d), exported: decl.Exported, reach: decl.Reach}, true
+	case *ast.ImportDecl:
+		return variant{decl: d, key: "import:" + decl.Alias, names: []string{decl.Alias}, kind: "import", selector: decl.Selector, at: declPosition(d)}, true
 	case *ast.ConstDecl:
 		names := make([]string, len(decl.Vars))
 		for i, v := range decl.Vars {
