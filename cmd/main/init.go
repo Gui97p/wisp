@@ -71,7 +71,7 @@ const luaTomlContent = `os = "cc"
 # entry = "main.wsp"
 
 [output]
-lua = "dist"
+bin = "dist/main.lua"
 `
 
 const libTomlContent = `[output]

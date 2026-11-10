@@ -72,7 +72,7 @@ os = "linux"                  # the system to build for (and arch = "x64", if th
 bin = "bin/app"
 ```
 
-Without `[output]`, files go under folders named after the system and the architecture: `bin/<os>/<arch>/`, `build/<os>/<arch>/` and `dist/<os>/<arch>/`.
+Without `[output]`, files go under folders named after the system and the architecture: `bin/<os>/<arch>/` and `build/<os>/<arch>/`. For Lua the entry script goes to `bin/<os>/<arch>/<project>.lua` with the other modules beside it.
 
 ## Backends and targets
 

@@ -57,7 +57,9 @@ func runClean(cmd *cobra.Command, args []string) error {
 			add(out.objDir)
 			add(out.asmDir)
 		case "lua":
-			add(resolveLuaOutDir(root, cfg, t))
+			entry, objDir := resolveLuaPaths(root, cfg, t)
+			add(entry)
+			add(objDir)
 		}
 	}
 

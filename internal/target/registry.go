@@ -48,10 +48,9 @@ func (e *FieldError) Error() string {
 }
 
 type Output struct {
-	Bin string `toml:"bin" doc:"Path of the linked executable."`
-	Obj string `toml:"obj" doc:"Path of the object file."`
-	Asm string `toml:"asm" doc:"Path of the generated assembly."`
-	Lua string `toml:"lua" doc:"Path of the generated Lua file."`
+	Bin string `toml:"bin" doc:"The final product: the executable, or for a Lua system the entry script."`
+	Obj string `toml:"obj" doc:"Folder of the object files, or for a Lua system of the modules other than the entry. It defaults to the folder of the entry, which is where require looks."`
+	Asm string `toml:"asm" doc:"Folder of the generated assembly."`
 }
 
 type Patch struct {

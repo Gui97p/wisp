@@ -21,7 +21,6 @@ var (
 	asmOut  string
 	objOut  string
 	binOut  string
-	luaOut  string
 	osOpt   string
 	archOpt string
 	stdOpt  string
@@ -53,10 +52,9 @@ func init() {
 
 func addBuildFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
-	f.StringVar(&asmOut, "asm", "", "output directory for generated .asm files (x86-64 targets)")
-	f.StringVar(&objOut, "obj", "", "output directory for generated .o files (x86-64 targets)")
-	f.StringVar(&binOut, "bin", "", "output path for the final binary (x86-64 targets)")
-	f.StringVar(&luaOut, "lua", "", "output directory for generated .lua files (cc target)")
+	f.StringVar(&asmOut, "asm", "", "output directory for generated .asm files (x64)")
+	f.StringVar(&objOut, "obj", "", "output directory for the object files (x64), or for the modules other than the entry (lua)")
+	f.StringVar(&binOut, "bin", "", "output path of the final product: the binary (x64), or the entry script (lua)")
 	f.StringVar(&osOpt, "os", "", "system to build for (linux, cc, or one declared in wisp.toml)")
 	f.StringVar(&archOpt, "arch", "", "architecture to build for (x64, lua)")
 	f.StringArrayVar(&linkOpt, "link", nil, "extra argument for the linker, repeatable (object files, archives, -L, -l); x86-64 targets")
@@ -152,12 +150,9 @@ func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
 	var res *buildResult
 	switch tgt.Arch {
 	case "x64":
-		if err := rejectFlags(cmd, tgt, "lua"); err != nil {
-			return nil, err
-		}
 		res, err = buildX64(root, cfg, tgt, forRun)
 	case "lua":
-		if err := rejectFlags(cmd, tgt, "asm", "obj", "bin", "link", "libc"); err != nil {
+		if err := rejectFlags(cmd, tgt, "asm", "link", "libc"); err != nil {
 			return nil, err
 		}
 		res, err = buildLua(root, cfg, tgt, forRun)

@@ -73,7 +73,8 @@ func runEnv(cmd *cobra.Command, args []string) error {
 			envEntry{"link", strings.Join(append(append([]string{}, tgt.LinkArgs...), cfg.Link...), " ")},
 		)
 	case "lua":
-		entries = append(entries, envEntry{"lua", resolveLuaOutDir(root, cfg, tgt)})
+		entry, objDir := resolveLuaPaths(root, cfg, tgt)
+		entries = append(entries, envEntry{"bin", entry}, envEntry{"obj", objDir})
 	}
 
 	if len(args) > 0 {

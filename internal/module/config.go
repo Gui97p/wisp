@@ -244,9 +244,6 @@ func merge(base, top layer) layer {
 	if top.output.Asm != "" {
 		out.output.Asm = top.output.Asm
 	}
-	if top.output.Lua != "" {
-		out.output.Lua = top.output.Lua
-	}
 	return out
 }
 

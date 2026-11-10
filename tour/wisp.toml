@@ -26,22 +26,25 @@
 # so C functions such as printf work. Needs the `cc` driver.
 # libc = true
 
-# Where a build writes its files. Without this table, everything goes under a
-# folders named after the system and the architecture: bin/<os>/<arch>/,
-# build/<os>/<arch>/, dist/<os>/<arch>/. A system can have its own, with the
-# same keys: [targets.linux.output].
+# Where a build writes its files. `bin` is the final product: the executable,
+# or for the Lua system the entry script. `obj` and `asm` are folders: the
+# object files and the generated assembly, or for Lua the modules other than
+# the entry, which by default sit beside it because that is where `require`
+# looks. If you move them somewhere else, the entry script gets a line that
+# tells `require` where they are. Without this table the files go to
+# bin/<os>/<arch>/ and build/<os>/<arch>/. A system can have its own, with the
+# same keys: [targets.linux.output], and one architecture of it:
+# [targets.linux.x64.output].
 [output]
 bin = "bin/tour"
 # obj = "build/obj"
 # asm = "build/asm"
-# lua = "dist"
 
 # A target of your own, for instance a userspace for a kernel.
 # `wisp init target mykernel` creates this block and its files.
 #
 # [targets.mykernel]
 # arch = "x64"                  # required, only x64 exists for now
-# os = "mykernel"               # a second name that native blocks can select
 # entry = "_start"              # the symbol the linker starts at
 # start = "targets/mykernel/start.asm"       # required: calls main and leaves
 # runtime = "targets/mykernel/runtime.asm"   # emit, panic, malloc and friends

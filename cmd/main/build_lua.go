@@ -12,19 +12,20 @@ import (
 	"github.com/Gui97p/wisp/internal/target/lua"
 )
 
-func resolveLuaOutDir(root string, cfg *module.Config, tgt target.Target) string {
-	dir := pick(luaOut, tgt.Output.Lua, cfg.Output.Lua)
-	if dir == "" {
-		return filepath.Join(root, "dist", tgt.OS, tgt.Arch)
+func resolveLuaPaths(root string, cfg *module.Config, tgt target.Target) (entry, objDir string) {
+	entry = pick(binOut, rooted(root, pick(tgt.Output.Bin, cfg.Output.Bin)))
+	if entry == "" {
+		entry = filepath.Join(root, "bin", tgt.OS, tgt.Arch, filepath.Base(root)+".lua")
 	}
-	if filepath.IsAbs(dir) {
-		return dir
+	objDir = pick(objOut, rooted(root, pick(tgt.Output.Obj, cfg.Output.Obj)))
+	if objDir == "" {
+		objDir = filepath.Dir(entry)
 	}
-	return filepath.Join(root, dir)
+	return entry, objDir
 }
 
 func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (*buildResult, error) {
-	outDir := resolveLuaOutDir(root, cfg, tgt)
+	entryPath, objDir := resolveLuaPaths(root, cfg, tgt)
 
 	analyseStart := time.Now()
 	proj, err := loadProject(root, cfg)
@@ -42,8 +43,6 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 		return nil, err
 	}
 
-	var entryOutputPath string
-
 	for _, c := range proj.compiled {
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
@@ -60,8 +59,20 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 			return nil, c.reportFailure(err)
 		}
 
-		id := lua.ModuleID(c.mod.Path)
-		outPath := filepath.Join(outDir, strings.ReplaceAll(id, ".", string(filepath.Separator))+".lua")
+		outPath := entryPath
+		if !isEntry {
+			id := lua.ModuleID(c.mod.Path)
+			outPath = filepath.Join(objDir, strings.ReplaceAll(id, ".", string(filepath.Separator))+".lua")
+			if filepath.Clean(outPath) == filepath.Clean(entryPath) {
+				return nil, fmt.Errorf("the module %q would be written over the entry script %s: give the entry another name with bin", c.mod.Path, relPath(entryPath))
+			}
+		} else if filepath.Clean(objDir) != filepath.Clean(filepath.Dir(entryPath)) {
+			rel, err := filepath.Rel(filepath.Dir(entryPath), objDir)
+			if err != nil {
+				return nil, err
+			}
+			source = fmt.Sprintf("package.path = %q .. package.path\n", filepath.ToSlash(rel)+"/?.lua;") + source
+		}
 
 		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
 			return nil, err
@@ -69,13 +80,9 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 		if err := lua.Build(source, outPath); err != nil {
 			return nil, err
 		}
-
-		if isEntry {
-			entryOutputPath = outPath
-		}
 	}
 
-	detail("lua: %s", relPath(outDir))
+	detail("lua: %s, modules in %s", relPath(entryPath), relPath(objDir))
 
-	return &buildResult{product: outDir, luaDir: outDir, luaEntry: entryOutputPath}, nil
+	return &buildResult{product: entryPath, luaDir: filepath.Dir(entryPath), luaEntry: entryPath}, nil
 }
