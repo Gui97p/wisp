@@ -49,17 +49,36 @@ func runClean(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	for _, t := range target.List() {
-		switch t.Arch {
-		case "x64":
-			out := resolveBuildTargets(root, cfg, t, false)
-			add(out.binPath)
-			add(out.objDir)
-			add(out.asmDir)
-		case "lua":
-			entry, objDir := resolveLuaPaths(root, cfg, t)
-			add(entry)
-			add(objDir)
+	for _, name := range cfg.ProgramNames(projectName(root)) {
+		eff := cfg.ForProgram(name)
+		for _, t := range target.List() {
+			switch t.Arch {
+			case "x64":
+				out := resolveBuildTargets(root, eff, t, false)
+				add(out.binPath)
+				add(out.objDir)
+				add(out.asmDir)
+			case "lua":
+				entry, objDir := resolveLuaPaths(root, eff, t)
+				add(entry)
+				add(objDir)
+			}
+		}
+	}
+
+	for _, name := range cfg.LibraryNames() {
+		eff := cfg.ForLibrary(name)
+		for _, t := range target.List() {
+			switch t.Arch {
+			case "x64":
+				out := resolveBuildTargets(root, eff, t, false)
+				add(archivePath(out.binPath))
+				add(out.objDir)
+				add(out.asmDir)
+			case "lua":
+				_, objDir := resolveLuaPaths(root, eff, t)
+				add(objDir)
+			}
 		}
 	}
 

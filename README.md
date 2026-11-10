@@ -69,10 +69,12 @@ The compiler reads every `.wsp` file under the project root, the folder with `wi
 os = "linux"                  # the system to build for (and arch = "x64", if the system has several)
 
 [output]
-bin = "bin/app"
+bin = "bin"
 ```
 
-Without `[output]`, files go under folders named after the system and the architecture: `bin/<os>/<arch>/` and `build/<os>/<arch>/`. For Lua the entry script goes to `bin/<os>/<arch>/<project>.lua` with the other modules beside it.
+A project can declare libraries too, `[library.<name>]` with the `modules` they are made of: `wisp build` writes `<name>.a` for them, and a program or library only contains what its entry or modules import. A project can declare several programs, `[program.<name>]`, each with its own `entry`, `name` (of the binary), `link`, `libc`, `os`, `arch`, `output` and `run.env`. `wisp build` builds all of them, `wisp build <name>` one, and `wisp run <name>` runs one; `default` in `wisp.toml` names the one `wisp run` starts without a name. Output paths accept `{os}`, `{arch}` and `{name}`.
+
+`bin`, `obj` and `asm` are folders: the binary of each program is written to `bin` under its name (the `name` of the program, which defaults to the program's own name). Without `[output]`, files go under folders named after the system and the architecture: `bin/<os>/<arch>/` and `build/<os>/<arch>/<name>/`. For Lua the entry script is `<name>.lua` in the same place, with the other modules beside it.
 
 ## Backends and targets
 
@@ -81,7 +83,7 @@ Without `[output]`, files go under folders named after the system and the archit
 | `linux` (x64) | The main backend: NASM assembly, linked with `ld`, System V calling convention. |
 | `cc` (lua) | Secondary: Lua for CC: Tweaked computers, the stdlib uses its `fs` API. It has floating point and function values, but no `extern`. Numbers are doubles there: integers are exact up to 2^53 and `int64` and `uint64` do not wrap around. |
 
-A system of your own is a `[targets.<name>]` block with an architecture, a start file and a runtime file; the name is the system's name, the one `#target` and `--os` use. `wisp init target <name>` writes both, with comments that say what each routine must do. A block named after a built-in system adjusts it.
+A system of your own is a `[targets.<name>]` block with an architecture, a start file and a runtime file; the name is the system's name, the one `#target` and `--os` use. A system says how to build for it; where the result goes belongs to the program (`[output]` and `[bin.<name>.output]`). `wisp init target <name>` writes both, with comments that say what each routine must do.
 
 ## Editor support
 

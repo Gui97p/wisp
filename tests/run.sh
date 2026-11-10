@@ -34,7 +34,7 @@ for dir in "$ROOT"/*/; do
     out="$OUT/$name.out"
     err="$OUT/$name.err"
     if [[ "$TARGET" == "cc" ]]; then
-        flags=(--bin "$OUT/lua/$name/main.lua")
+        flags=(--bin "$OUT/lua/$name")
     else
         flags=(--bin "$OUT/bin/$name" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name")
     fi

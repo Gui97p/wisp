@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,18 +12,20 @@ import (
 )
 
 func resolveLuaPaths(root string, cfg *module.Config, tgt target.Target) (entry, objDir string) {
-	entry = pick(binOut, rooted(root, pick(tgt.Output.Bin, cfg.Output.Bin)))
-	if entry == "" {
-		entry = filepath.Join(root, "bin", tgt.OS, tgt.Arch, filepath.Base(root)+".lua")
+	name := binaryNameOf(root, cfg)
+	binDir := pickPath(root, tgt, name, binOut, cfg.ProgramOutput.Bin, cfg.Output.Bin)
+	if binDir == "" {
+		binDir = filepath.Join(root, "bin", tgt.OS, tgt.Arch)
 	}
-	objDir = pick(objOut, rooted(root, pick(tgt.Output.Obj, cfg.Output.Obj)))
+	entry = filepath.Join(binDir, name+".lua")
+	objDir = pickPath(root, tgt, name, objOut, cfg.ProgramOutput.Obj, cfg.Output.Obj)
 	if objDir == "" {
-		objDir = filepath.Dir(entry)
+		objDir = binDir
 	}
 	return entry, objDir
 }
 
-func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (*buildResult, error) {
+func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool, job buildJob) (*buildResult, error) {
 	entryPath, objDir := resolveLuaPaths(root, cfg, tgt)
 
 	analyseStart := time.Now()
@@ -34,13 +35,28 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 	}
 	detail("Analysed %s in %s", count(len(proj.compiled), "module"), elapsed(analyseStart))
 
-	if forRun {
-		if err := proj.requireMain(); err != nil {
-			return nil, fmt.Errorf("cannot run, %w", err)
+	if job.library {
+		roots, err := libraryRoots(root, job.name, cfg.Libraries[job.name].Modules)
+		if err != nil {
+			return nil, err
 		}
-	}
-	if err := proj.rejectManyMains(); err != nil {
-		return nil, err
+		if err := proj.restrict(roots); err != nil {
+			return nil, fmt.Errorf("the library %s: %w", job.name, err)
+		}
+	} else {
+		if forRun {
+			if err := proj.requireMain(); err != nil {
+				return nil, fmt.Errorf("cannot run, %w", err)
+			}
+		}
+		if err := proj.rejectManyMains(); err != nil {
+			return nil, err
+		}
+		if proj.mainMod != nil {
+			if err := proj.restrict([]string{proj.mainMod.mod.Path}); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	for _, c := range proj.compiled {
@@ -64,7 +80,7 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 			id := lua.ModuleID(c.mod.Path)
 			outPath = filepath.Join(objDir, strings.ReplaceAll(id, ".", string(filepath.Separator))+".lua")
 			if filepath.Clean(outPath) == filepath.Clean(entryPath) {
-				return nil, fmt.Errorf("the module %q would be written over the entry script %s: give the entry another name with bin", c.mod.Path, relPath(entryPath))
+				return nil, fmt.Errorf("the module %q would be written over the entry script %s: give the program another name", c.mod.Path, relPath(entryPath))
 			}
 		} else if filepath.Clean(objDir) != filepath.Clean(filepath.Dir(entryPath)) {
 			rel, err := filepath.Rel(filepath.Dir(entryPath), objDir)
@@ -74,7 +90,7 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 			source = fmt.Sprintf("package.path = %q .. package.path\n", filepath.ToSlash(rel)+"/?.lua;") + source
 		}
 
-		if err := os.MkdirAll(filepath.Dir(outPath), 0755); err != nil {
+		if err := makeOutputDir(filepath.Dir(outPath)); err != nil {
 			return nil, err
 		}
 		if err := lua.Build(source, outPath); err != nil {
@@ -84,5 +100,8 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 
 	detail("lua: %s, modules in %s", relPath(entryPath), relPath(objDir))
 
+	if job.library {
+		return &buildResult{product: objDir}, nil
+	}
 	return &buildResult{product: entryPath, luaDir: filepath.Dir(entryPath), luaEntry: entryPath}, nil
 }

@@ -59,8 +59,17 @@ func loadSettings(path string) *projectSettings {
 		if resolved, err := target.Resolve(cfg.OS, cfg.Arch); err == nil && cfg.OS != "" {
 			s.target = resolved.Name
 		}
-		if cfg.Entry != "" {
-			s.entry = filepath.Join(root, cfg.Entry)
+		eff := cfg.ForProgram(cfg.DefaultProgram(""))
+		if eff.Entry == "" {
+			for _, name := range cfg.ProgramNames("") {
+				if entry := cfg.Programs[name].Entry; entry != "" {
+					eff = cfg.ForProgram(name)
+					break
+				}
+			}
+		}
+		if eff.Entry != "" {
+			s.entry = filepath.Join(root, eff.Entry)
 		}
 		s.stdPath, s.stdDisabled, s.configErr = cfg.StdlibSettings(root)
 	}

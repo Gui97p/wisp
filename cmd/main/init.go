@@ -58,25 +58,20 @@ func init() {
 
 const nativeTomlContent = `os = "%s"
 
-# entry = "main.wsp"
-
 [output]
-bin = "bin/main"
+bin = "bin"
 # obj = "build/obj"
 # asm = "build/asm"
 `
 
 const luaTomlContent = `os = "cc"
 
-# entry = "main.wsp"
-
 [output]
-bin = "dist/main.lua"
+bin = "dist"
 `
 
-const libTomlContent = `[output]
-obj = "build/obj"
-asm = "build/asm"
+const libTomlContent = `[library.lib]
+modules = ["lib"]
 `
 
 const nativeMainContent = `func main() int {

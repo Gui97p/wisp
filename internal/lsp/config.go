@@ -27,14 +27,23 @@ func configSection(parts []string) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	if parts[0] == "targets" {
+	if parts[0] == "library" {
 		if len(parts) >= 3 && parts[2] == "output" {
-			return "targets.output"
+			return "library.output"
 		}
+		return "library"
+	}
+	if parts[0] == "program" {
+		if len(parts) >= 3 && parts[2] == "output" {
+			return "program.output"
+		}
+		if len(parts) >= 3 && parts[2] == "run" {
+			return "program.run"
+		}
+		return "program"
+	}
+	if parts[0] == "targets" {
 		if len(parts) >= 3 && slices.Contains(target.Architectures(), parts[2]) {
-			if len(parts) >= 4 && parts[3] == "output" {
-				return "targets.arch.output"
-			}
 			return "targets.arch"
 		}
 		return "targets"
@@ -57,18 +66,32 @@ type configContext struct {
 	section  string
 	name     string
 	arch     string
+	bins     []string
+	libs     []string
+	headers  map[string]bool
 	present  map[string]bool
 	declared []string
 }
 
 func configContextAt(lines []string, line int) configContext {
-	ctx := configContext{present: map[string]bool{}}
+	ctx := configContext{present: map[string]bool{}, headers: map[string]bool{}}
 	seen := map[string]bool{}
 	current := ""
 	for i, l := range lines {
 		if m := configHeader.FindStringSubmatch(l); m != nil {
 			parts := headerParts(m[1])
-			if len(parts) == 2 && parts[0] == "targets" && !seen[parts[1]] {
+			if i != line {
+				ctx.headers[strings.Join(parts, ".")] = true
+			}
+			if i != line && len(parts) >= 2 && parts[0] == "library" && !seen["library."+parts[1]] {
+				seen["library."+parts[1]] = true
+				ctx.libs = append(ctx.libs, parts[1])
+			}
+			if i != line && len(parts) >= 2 && parts[0] == "program" && !seen["program."+parts[1]] {
+				seen["program."+parts[1]] = true
+				ctx.bins = append(ctx.bins, parts[1])
+			}
+			if i != line && len(parts) == 2 && parts[0] == "targets" && !seen[parts[1]] {
 				seen[parts[1]] = true
 				ctx.declared = append(ctx.declared, parts[1])
 			}
@@ -147,7 +170,7 @@ func configCompletion(uri protocol.DocumentUri, pos protocol.Position) []protoco
 
 	trimmed := strings.TrimLeft(prefix, " \t")
 	if strings.HasPrefix(trimmed, "[") && !strings.Contains(trimmed, "]") {
-		return headerItems(ctx.declared, pos, prefix)
+		return headerItems(ctx.declared, ctx.bins, ctx.libs, ctx.headers, pos, prefix)
 	}
 
 	if m := configKey.FindStringSubmatch(prefix); m != nil {
@@ -161,7 +184,7 @@ func configCompletion(uri protocol.DocumentUri, pos protocol.Position) []protoco
 	return nil
 }
 
-func headerItems(declared []string, pos protocol.Position, prefix string) []protocol.CompletionItem {
+func headerItems(declared, declaredBins, declaredLibs []string, headers map[string]bool, pos protocol.Position, prefix string) []protocol.CompletionItem {
 	start := strings.Index(prefix, "[")
 	for start < len(prefix) && (prefix[start] == '[' || prefix[start] == ' ') {
 		start++
@@ -186,32 +209,35 @@ func headerItems(declared []string, pos protocol.Position, prefix string) []prot
 		}
 		items = append(items, item)
 	}
-
-	add("output", "output", "table")
-	add("run", "run", "table")
-	add("run.env", "run.env", "environment variables for wisp run")
-	add("targets.<os>", "targets.${1:os}", "custom system")
-
-	names := append([]string{}, declared...)
-	for _, n := range target.OSNames() {
-		if target.IsBuiltinOS(n) && !slices.Contains(names, n) {
-			names = append(names, n)
+	addNew := func(label, detail string) {
+		if !headers[label] {
+			add(label, label, detail)
 		}
 	}
-	for _, n := range names {
-		detail := "custom system"
+
+	addNew("output", "where the programs write")
+	addNew("run.env", "environment variables for wisp run")
+	add("program.<name>", "program.${1:name}", "a new program")
+	add("library.<name>", "library.${1:name}", "a new library")
+	for _, n := range declaredLibs {
+		addNew("library."+n+".output", "output of "+n)
+	}
+	add("targets.<os>", "targets.${1:os}", "a new system")
+
+	for _, n := range declaredBins {
+		addNew("program."+n+".output", "output of "+n)
+		addNew("program."+n+".run.env", "environment variables for "+n)
+	}
+
+	for _, n := range declared {
 		if target.IsBuiltinOS(n) {
-			detail = "built-in system"
+			continue
 		}
-		add("targets."+n, "targets."+n, detail)
-		add("targets."+n+".output", "targets."+n+".output", "output of "+n)
-		archs := target.ArchsOf(n)
-		if len(archs) == 0 {
-			archs = target.Architectures()
-		}
+		archs := target.Architectures()
 		for _, arch := range archs {
-			add("targets."+n+"."+arch, "targets."+n+"."+arch, n+" on "+arch)
-			add("targets."+n+"."+arch+".output", "targets."+n+"."+arch+".output", "output of "+n+" on "+arch)
+			if arch != "lua" {
+				addNew("targets."+n+"."+arch, n+" on "+arch)
+			}
 		}
 	}
 	return items
@@ -225,21 +251,8 @@ func keyItems(ctx configContext, pos protocol.Position, prefix string) []protoco
 	start := uint32(utf16Len(prefix[:len(prefix)-len(word)]))
 	rng := protocol.Range{Start: protocol.Position{Line: pos.Line, Character: start}, End: pos}
 
-	builtin := (ctx.section == "targets" || ctx.section == "targets.arch") && target.IsBuiltinOS(ctx.name)
-	builtinLua := false
-	if builtin {
-		archs := target.BuiltinArchsOf(ctx.name)
-		builtinLua = len(archs) > 0 && !slices.Contains(archs, "x64")
-		if ctx.arch != "" {
-			builtinLua = ctx.arch == "lua"
-		}
-	}
-
 	for _, f := range module.ConfigFields(ctx.section) {
 		if f.Table || ctx.present[f.Key] {
-			continue
-		}
-		if builtin && (f.Key == "arch" || builtinLua) {
 			continue
 		}
 		var text string

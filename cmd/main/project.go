@@ -31,6 +31,8 @@ func (c compiledModule) reportFailure(err error) error {
 }
 
 type project struct {
+	program   string
+	entry     string
 	compiled  []compiledModule
 	mainMod   *compiledModule
 	mainCount int
@@ -149,10 +151,23 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 		mainDecl.Exported = true
 	}
 
-	return &project{compiled: compiled, mainMod: mainMod, mainCount: mainCount, cycles: cycles}, nil
+	return &project{program: cfg.ProgramName, entry: cfg.Entry, compiled: compiled, mainMod: mainMod, mainCount: mainCount, cycles: cycles}, nil
+}
+
+func (p *project) of() string {
+	if p.program == "" {
+		return ""
+	}
+	return fmt.Sprintf(" of the program %s", p.program)
 }
 
 func (p *project) requireMain() error {
+	if p.entry != "" {
+		if p.mainMod == nil {
+			return fmt.Errorf("the entry file %s%s does not define a main function", p.entry, p.of())
+		}
+		return nil
+	}
 	if p.mainCount == 0 {
 		return fmt.Errorf("no main function was found in the project")
 	}
@@ -160,8 +175,24 @@ func (p *project) requireMain() error {
 }
 
 func (p *project) rejectManyMains() error {
-	if p.mainCount > 1 {
-		return fmt.Errorf("multiple main functions found across the project; set 'entry' in wisp.toml to disambiguate")
+	if p.entry == "" && p.mainCount > 1 {
+		return fmt.Errorf("multiple main functions found across the project: declare each program as [program.<name>] with its entry in wisp.toml")
+	}
+	return nil
+}
+
+// validateEntry checks that a configured entry file exists before anything is compiled.
+func validateEntry(root string, cfg *module.Config) error {
+	if cfg.Entry == "" {
+		return nil
+	}
+	info, err := os.Stat(filepath.Join(root, cfg.Entry))
+	if err != nil || info.IsDir() {
+		who := "the entry"
+		if cfg.ProgramName != "" && len(cfg.Programs) > 0 {
+			who = fmt.Sprintf("the entry of the program %s", cfg.ProgramName)
+		}
+		return fmt.Errorf("%s, %s, is not a file of the project", who, cfg.Entry)
 	}
 	return nil
 }
@@ -201,4 +232,45 @@ func findMain(compiled []compiledModule, root string, entry string) (*ast.FuncDe
 	}
 
 	return nil, nil, len(all)
+}
+
+func (p *project) restrict(roots []string) error {
+	mods := make([]*module.Module, len(p.compiled))
+	for i, c := range p.compiled {
+		mods[i] = c.mod
+	}
+	for _, root := range roots {
+		found := false
+		for _, m := range mods {
+			if m.Path == root {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("the module %q is not in the project", root)
+		}
+	}
+
+	keep := module.Closure(mods, roots)
+	kept := p.compiled[:0:0]
+	for _, c := range p.compiled {
+		if keep[c.mod.Path] {
+			kept = append(kept, c)
+		}
+	}
+	p.compiled = kept
+	return nil
+}
+
+func libraryRoots(root, name string, modules []string) ([]string, error) {
+	keys := make([]string, 0, len(modules))
+	for _, path := range modules {
+		key, err := module.ImportKey(root, path)
+		if err != nil {
+			return nil, fmt.Errorf("the library %s lists the module %q, which cannot be imported: %w", name, path, err)
+		}
+		keys = append(keys, key)
+	}
+	return keys, nil
 }

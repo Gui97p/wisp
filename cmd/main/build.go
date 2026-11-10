@@ -29,17 +29,18 @@ var (
 )
 
 var buildCmd = &cobra.Command{
-	Use:          "build",
-	Short:        "Compile the project for a target (x86-64 by default)",
-	Args:         cobra.NoArgs,
+	Use:          "build [program...]",
+	Short:        "Compile the programs of the project for a system (the machine's by default)",
+	Long:         "Compile the programs of the project. Without names it builds every [program.<name>] of wisp.toml, or the one program of a project that declares none.",
+	Args:         cobra.ArbitraryArgs,
 	RunE:         runBuild,
 	SilenceUsage: true,
 }
 
 var runCmd = &cobra.Command{
-	Use:          "run [flags] [-- program arguments]",
-	Short:        "Compile the project for a target and run the result",
-	Long:         "Compile the project for a target and run the result. Whatever follows -- is passed to the program as its arguments: wisp run -- input.txt",
+	Use:          "run [program] [flags] [-- program arguments]",
+	Short:        "Compile a program of the project and run it",
+	Long:         "Compile a program of the project and run it. The name is only needed when wisp.toml declares several [program.<name>]. Whatever follows -- is passed to the program as its arguments: wisp run tools -- input.txt",
 	Args:         cobra.ArbitraryArgs,
 	RunE:         runRun,
 	SilenceUsage: true,
@@ -54,7 +55,7 @@ func addBuildFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
 	f.StringVar(&asmOut, "asm", "", "output directory for generated .asm files (x64)")
 	f.StringVar(&objOut, "obj", "", "output directory for the object files (x64), or for the modules other than the entry (lua)")
-	f.StringVar(&binOut, "bin", "", "output path of the final product: the binary (x64), or the entry script (lua)")
+	f.StringVar(&binOut, "bin", "", "folder of the final product: the binary named after the program (x64), or its entry script (lua)")
 	f.StringVar(&osOpt, "os", "", "system to build for (linux, cc, or one declared in wisp.toml)")
 	f.StringVar(&archOpt, "arch", "", "architecture to build for (x64, lua)")
 	f.StringArrayVar(&linkOpt, "link", nil, "extra argument for the linker, repeatable (object files, archives, -L, -l); x86-64 targets")
@@ -122,6 +123,7 @@ func rejectFlags(cmd *cobra.Command, tgt target.Target, names ...string) error {
 }
 
 type buildResult struct {
+	name     string
 	target   string
 	product  string
 	binPath  string
@@ -130,15 +132,152 @@ type buildResult struct {
 	env      []module.EnvVar
 }
 
-func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
-	root, cfg, err := openProject(cmd)
+func projectName(root string) string {
+	return filepath.Base(root)
+}
+
+func programNameOf(root string, cfg *module.Config) string {
+	if cfg.ProgramName != "" {
+		return cfg.ProgramName
+	}
+	return projectName(root)
+}
+
+func binaryNameOf(root string, cfg *module.Config) string {
+	if cfg.BinaryName != "" {
+		return cfg.BinaryName
+	}
+	return programNameOf(root, cfg)
+}
+
+func expandPath(path string, tgt target.Target, name string) string {
+	return strings.NewReplacer("{os}", tgt.OS, "{arch}", tgt.Arch, "{name}", name).Replace(path)
+}
+
+func pickPath(root string, tgt target.Target, name, flag string, layers ...string) string {
+	value := flag
+	if value == "" {
+		for _, l := range layers {
+			if l != "" {
+				value = rooted(root, l)
+				break
+			}
+		}
+	}
+	return expandPath(value, tgt, name)
+}
+
+type buildJob struct {
+	name    string
+	library bool
+}
+
+func jobConfig(base *module.Config, job buildJob) *module.Config {
+	if job.library {
+		return base.ForLibrary(job.name)
+	}
+	return base.ForProgram(job.name)
+}
+
+func selectJobs(root string, cfg *module.Config, names []string) ([]buildJob, error) {
+	project := projectName(root)
+	var jobs []buildJob
+	if len(names) == 0 {
+		for _, name := range cfg.ProgramNames(project) {
+			jobs = append(jobs, buildJob{name: name})
+		}
+		for _, name := range cfg.LibraryNames() {
+			jobs = append(jobs, buildJob{name: name, library: true})
+		}
+		return jobs, nil
+	}
+
+	seen := map[string]bool{}
+	for _, name := range names {
+		var job buildJob
+		switch {
+		case cfg.HasProgram(name, project):
+			job = buildJob{name: name}
+		case cfg.HasLibrary(name):
+			job = buildJob{name: name, library: true}
+		default:
+			known := append(cfg.ProgramNames(project), cfg.LibraryNames()...)
+			return nil, fmt.Errorf("unknown program or library %q (there are %s)", name, strings.Join(known, ", "))
+		}
+		if !seen[name] {
+			seen[name] = true
+			jobs = append(jobs, job)
+		}
+	}
+	return jobs, nil
+}
+
+func archivePath(binPath string) string {
+	return binPath + ".a"
+}
+
+func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, error) {
+	root, base, err := openProject(cmd)
 	if err != nil {
 		return nil, err
 	}
 
-	tgt, err := resolveTarget(cfg)
+	jobs, err := selectJobs(root, base, names)
 	if err != nil {
 		return nil, err
+	}
+	if len(jobs) == 0 {
+		return nil, fmt.Errorf("the project declares nothing to build")
+	}
+	if len(jobs) > 1 {
+		for _, flag := range []string{"bin", "obj", "asm"} {
+			if cmd.Flags().Changed(flag) {
+				return nil, fmt.Errorf("--%s names one place, and %d programs and libraries are being built: name one", flag, len(jobs))
+			}
+		}
+	}
+
+	if len(jobs) > 1 {
+		type owner struct{ program, target string }
+		folders := map[string]owner{}
+		products := map[string]string{}
+		for _, job := range jobs {
+			name := job.name
+			eff := jobConfig(base, job)
+			tgt, err := resolveTarget(eff)
+			if err != nil {
+				return nil, err
+			}
+			var dirs []string
+			product := ""
+			switch tgt.Arch {
+			case "x64":
+				t := resolveBuildTargets(root, eff, tgt, forRun)
+				dirs = []string{t.objDir, t.asmDir}
+				product = t.binPath
+				if job.library {
+					product = archivePath(product)
+				}
+			case "lua":
+				entry, objDir := resolveLuaPaths(root, eff, tgt)
+				dirs = []string{objDir}
+				product = entry
+				if job.library {
+					product = objDir + "|" + name
+				}
+			}
+			if other, taken := products[product]; taken {
+				return nil, fmt.Errorf("the programs %s and %s would both write %s: give one of them another name", other, name, relPath(product))
+			}
+			products[product] = name
+			for _, dir := range dirs {
+				key := tgt.Arch + "|" + filepath.Clean(dir)
+				if other, taken := folders[key]; taken && other.target != tgt.Name {
+					return nil, fmt.Errorf("the programs %s (%s) and %s (%s) would write their modules into the same folder %s: put {os} and {arch} in the path", other.program, other.target, name, tgt.Name, relPath(dir))
+				}
+				folders[key] = owner{program: name, target: tgt.Name}
+			}
+		}
 	}
 
 	if verboseOpt {
@@ -147,48 +286,97 @@ func build(cmd *cobra.Command, forRun bool) (*buildResult, error) {
 		}
 	}
 
-	var res *buildResult
-	switch tgt.Arch {
-	case "x64":
-		res, err = buildX64(root, cfg, tgt, forRun)
-	case "lua":
-		if err := rejectFlags(cmd, tgt, "asm", "link", "libc"); err != nil {
+	for _, job := range jobs {
+		if job.library {
+			continue
+		}
+		if err := validateEntry(root, base.ForProgram(job.name)); err != nil {
 			return nil, err
 		}
-		res, err = buildLua(root, cfg, tgt, forRun)
-	default:
-		return nil, fmt.Errorf("target %q has no build pipeline", tgt.Name)
 	}
-	if err != nil {
-		return nil, err
+
+	var results []*buildResult
+	for _, job := range jobs {
+		name := job.name
+		cfg := jobConfig(base, job)
+		jobStart := time.Now()
+
+		tgt, err := resolveTarget(cfg)
+		if err != nil {
+			return nil, err
+		}
+
+		var res *buildResult
+		switch tgt.Arch {
+		case "x64":
+			res, err = buildX64(root, cfg, tgt, forRun, job)
+		case "lua":
+			if err := rejectFlags(cmd, tgt, "asm", "link", "libc"); err != nil {
+				return nil, err
+			}
+			res, err = buildLua(root, cfg, tgt, forRun, job)
+		default:
+			return nil, fmt.Errorf("target %q has no build pipeline", tgt.Name)
+		}
+		if err != nil {
+			return nil, err
+		}
+		res.name = name
+		res.target = tgt.Name
+		res.env = cfg.RunEnv()
+		if !forRun {
+			status("Finished %s %s -> %s in %s", res.name, res.target, relPath(res.product), elapsed(jobStart))
+		}
+		results = append(results, res)
 	}
-	res.target = tgt.Name
-	res.env = cfg.RunEnv()
-	return res, nil
+	return results, nil
 }
 
 func runBuild(cmd *cobra.Command, args []string) error {
-	start := time.Now()
-	res, err := build(cmd, false)
-	if err != nil {
-		return err
-	}
-	status("Finished %s -> %s in %s", res.target, relPath(res.product), elapsed(start))
-	return nil
+	_, err := build(cmd, args, false)
+	return err
 }
 
 func runRun(cmd *cobra.Command, args []string) error {
 	start := time.Now()
-	res, err := build(cmd, true)
+	names, programArgs, err := splitRunArguments(cmd, args)
 	if err != nil {
 		return err
 	}
-	detail("Finished %s -> %s in %s", res.target, relPath(res.product), elapsed(start))
 
-	programArgs, err := programArguments(cmd, args)
+	root, cfg, err := openProject(cmd)
 	if err != nil {
 		return err
 	}
+	if len(names) == 0 {
+		if def := cfg.DefaultProgram(projectName(root)); def != "" {
+			names = []string{def}
+		}
+	}
+	jobs, err := selectJobs(root, cfg, names)
+	if err != nil {
+		return err
+	}
+	var bins []string
+	for _, job := range jobs {
+		if job.library {
+			return fmt.Errorf("%s is a library, and a library is not run", job.name)
+		}
+		bins = append(bins, job.name)
+	}
+	if len(bins) == 0 {
+		return fmt.Errorf("the project has no program to run")
+	}
+	if len(bins) > 1 {
+		return fmt.Errorf("the project has several programs (%s): say which one to run, as in wisp run %s, or choose one with default in wisp.toml", strings.Join(bins, ", "), bins[0])
+	}
+
+	results, err := build(cmd, bins, true)
+	if err != nil {
+		return err
+	}
+	res := results[0]
+	detail("Finished %s -> %s in %s", res.target, relPath(res.product), elapsed(start))
 
 	var run *exec.Cmd
 	if res.binPath != "" {
@@ -256,40 +444,49 @@ func useLibc(cfg *module.Config, tgt target.Target) bool {
 	if tgt.Libc != nil {
 		libc = *tgt.Libc
 	}
+	if cfg.ProgramLibc != nil {
+		libc = *cfg.ProgramLibc
+	}
 	return libc || libcOpt
 }
 
 func resolveBuildTargets(root string, cfg *module.Config, tgt target.Target, forceBin bool) buildTargets {
 	var t buildTargets
+	program := programNameOf(root, cfg)
+	name := binaryNameOf(root, cfg)
 
-	t.asmDir = pick(asmOut, rooted(root, pick(tgt.Output.Asm, cfg.Output.Asm)))
+	t.asmDir = pickPath(root, tgt, name, asmOut, cfg.ProgramOutput.Asm, cfg.Output.Asm)
 	t.wantAsm = t.asmDir != ""
 
-	t.objDir = pick(objOut, rooted(root, pick(tgt.Output.Obj, cfg.Output.Obj)))
+	t.objDir = pickPath(root, tgt, name, objOut, cfg.ProgramOutput.Obj, cfg.Output.Obj)
 	t.wantObj = t.objDir != ""
 
-	t.binPath = pick(binOut, rooted(root, pick(tgt.Output.Bin, cfg.Output.Bin)))
-	t.wantBin = t.binPath != "" || forceBin
+	binDir := pickPath(root, tgt, name, binOut, cfg.ProgramOutput.Bin, cfg.Output.Bin)
+	t.wantBin = binDir != "" || forceBin
 
 	if !t.wantAsm && !t.wantObj && !t.wantBin {
 		t.wantBin = true
 	}
 
 	if t.asmDir == "" {
-		t.asmDir = filepath.Join(root, "build", tgt.OS, tgt.Arch, "asm")
+		t.asmDir = filepath.Join(root, "build", tgt.OS, tgt.Arch, program, "asm")
 	}
 	if t.objDir == "" {
-		t.objDir = filepath.Join(root, "build", tgt.OS, tgt.Arch, "obj")
+		t.objDir = filepath.Join(root, "build", tgt.OS, tgt.Arch, program, "obj")
 	}
-	if t.binPath == "" {
-		t.binPath = filepath.Join(root, "bin", tgt.OS, tgt.Arch, filepath.Base(root))
+	if binDir == "" {
+		binDir = filepath.Join(root, "bin", tgt.OS, tgt.Arch)
 	}
+	t.binPath = filepath.Join(binDir, name)
 
 	return t
 }
 
-func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (*buildResult, error) {
+func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, job buildJob) (*buildResult, error) {
 	targets := resolveBuildTargets(root, cfg, tgt, forRun)
+	if job.library {
+		targets.binPath = archivePath(targets.binPath)
+	}
 
 	analyseStart := time.Now()
 	proj, err := loadProject(root, cfg)
@@ -299,9 +496,24 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 	detail("Analysed %s in %s", count(len(proj.compiled), "module"), elapsed(analyseStart))
 	codegenStart := time.Now()
 
-	if targets.wantBin {
-		if err := proj.requireMain(); err != nil {
-			return nil, fmt.Errorf("a binary was requested but %w", err)
+	if job.library {
+		roots, err := libraryRoots(root, job.name, cfg.Libraries[job.name].Modules)
+		if err != nil {
+			return nil, err
+		}
+		if err := proj.restrict(roots); err != nil {
+			return nil, fmt.Errorf("the library %s: %w", job.name, err)
+		}
+	} else {
+		if targets.wantBin {
+			if err := proj.requireMain(); err != nil {
+				return nil, err
+			}
+		}
+		if proj.mainMod != nil {
+			if err := proj.restrict([]string{proj.mainMod.mod.Path}); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -422,11 +634,21 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool) (
 	}
 
 	if targets.wantBin {
-		if err := os.MkdirAll(filepath.Dir(targets.binPath), 0755); err != nil {
+		if err := makeOutputDir(filepath.Dir(targets.binPath)); err != nil {
 			return nil, err
 		}
+		if job.library {
+			archiveStart := time.Now()
+			if err := x64.Archive(tgt, append(append([]string{}, objPaths...), libPaths...), targets.binPath); err != nil {
+				return nil, err
+			}
+			detail("Archived in %s", elapsed(archiveStart))
+			detail("lib: %s", relPath(targets.binPath))
+			res.product = targets.binPath
+			return res, nil
+		}
 		linkStart := time.Now()
-		opts := x64.LinkOptions{Extra: append(append([]string{}, cfg.Link...), linkOpt...), Libc: useLibc(cfg, tgt)}
+		opts := x64.LinkOptions{Extra: append(append(append([]string{}, cfg.Link...), cfg.ProgramLink...), linkOpt...), Libc: useLibc(cfg, tgt)}
 		if err := x64.Link(tgt, root, objPaths, libPaths, targets.binPath, targets.wantObj, opts); err != nil {
 			return nil, err
 		}
@@ -445,16 +667,32 @@ func appendUnique(list []string, item string) []string {
 	return append(list, item)
 }
 
-func programArguments(cmd *cobra.Command, args []string) ([]string, error) {
+func splitRunArguments(cmd *cobra.Command, args []string) ([]string, []string, error) {
 	dash := cmd.ArgsLenAtDash()
 	if dash < 0 {
-		if len(args) > 0 {
-			return nil, fmt.Errorf("unexpected argument %q: pass the program's arguments after --, as in wisp run -- %s", args[0], strings.Join(args, " "))
+		if len(args) > 1 {
+			return nil, nil, fmt.Errorf("unexpected argument %q: pass the program's arguments after --, as in wisp run -- %s", args[1], strings.Join(args[1:], " "))
 		}
-		return nil, nil
+		return args, nil, nil
 	}
-	if dash > 0 {
-		return nil, fmt.Errorf("unexpected argument %q before --", args[0])
+	if dash > 1 {
+		return nil, nil, fmt.Errorf("unexpected argument %q before --: wisp run takes at most the name of a program", args[1])
 	}
-	return args[dash:], nil
+	return args[:dash], args[dash:], nil
+}
+
+func makeOutputDir(dir string) error {
+	err := os.MkdirAll(dir, 0755)
+	if err == nil {
+		return nil
+	}
+	for p := dir; p != filepath.Dir(p); p = filepath.Dir(p) {
+		if info, statErr := os.Stat(p); statErr == nil {
+			if !info.IsDir() {
+				return fmt.Errorf("cannot create the output folder %s: %s is a file (maybe a binary from an older build); remove it or change the bin folder", relPath(dir), relPath(p))
+			}
+			break
+		}
+	}
+	return err
 }

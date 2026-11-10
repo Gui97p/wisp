@@ -32,7 +32,10 @@ func init() {
 	addProjectFlags(envCmd)
 	envCmd.Flags().StringVar(&osOpt, "os", "", "resolve for this system instead of the default")
 	envCmd.Flags().StringVar(&archOpt, "arch", "", "resolve for this architecture instead of the default")
+	envCmd.Flags().StringVar(&envProgram, "name", "", "resolve for this program of the project (the first one by default)")
 }
+
+var envProgram string
 
 type envEntry struct {
 	key   string
@@ -40,9 +43,37 @@ type envEntry struct {
 }
 
 func runEnv(cmd *cobra.Command, args []string) error {
-	root, cfg, err := openProject(cmd)
+	root, base, err := openProject(cmd)
 	if err != nil {
 		return err
+	}
+
+	programs := base.ProgramNames(projectName(root))
+	libraries := base.LibraryNames()
+	var cfg *module.Config
+	program := ""
+	if len(programs) == 0 {
+		cfg = base.ForLibrary(libraries[0])
+		program = libraries[0]
+	} else {
+		program = programs[0]
+		if def := base.DefaultProgram(projectName(root)); def != "" {
+			program = def
+		}
+		if envProgram != "" {
+			switch {
+			case base.HasProgram(envProgram, projectName(root)):
+				program = envProgram
+			case base.HasLibrary(envProgram):
+				program = ""
+				cfg = base.ForLibrary(envProgram)
+			default:
+				return fmt.Errorf("unknown program or library %q (there are %s)", envProgram, strings.Join(append(append([]string{}, programs...), libraries...), ", "))
+			}
+		}
+		if cfg == nil {
+			cfg = base.ForProgram(program)
+		}
 	}
 
 	tgt, err := resolveTarget(cfg)
@@ -55,6 +86,9 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		{"codename", version.Codename()},
 		{"root", root},
 		{"config", configPath(root)},
+		{"programs", strings.Join(programs, ", ")},
+		{"libraries", strings.Join(libraries, ", ")},
+		{"program", program},
 		{"entry", orDefault(cfg.Entry, "(the only main)")},
 		{"os", tgt.OS},
 		{"arch", tgt.Arch},
@@ -70,7 +104,7 @@ func runEnv(cmd *cobra.Command, args []string) error {
 			envEntry{"obj", out.objDir},
 			envEntry{"asm", out.asmDir},
 			envEntry{"libc", fmt.Sprint(useLibc(cfg, tgt))},
-			envEntry{"link", strings.Join(append(append([]string{}, tgt.LinkArgs...), cfg.Link...), " ")},
+			envEntry{"link", strings.Join(append(append(append([]string{}, tgt.LinkArgs...), cfg.Link...), cfg.ProgramLink...), " ")},
 		)
 	case "lua":
 		entry, objDir := resolveLuaPaths(root, cfg, tgt)
@@ -157,10 +191,7 @@ func runTargets(cmd *cobra.Command, args []string) error {
 	rows := [][]string{{"", "os", "arch", "kind"}}
 	for _, t := range target.List() {
 		kind := "custom"
-		switch {
-		case t.Builtin && t.Modified:
-			kind = "built-in, adjusted by wisp.toml"
-		case t.Builtin:
+		if t.Builtin {
 			kind = "built-in"
 		}
 		mark := ""

@@ -23,10 +23,8 @@ type Target struct {
 	RuntimeSource string
 	LinkArgs      []string
 	Libc          *bool
-	Output        Output
 
-	Builtin  bool
-	Modified bool
+	Builtin bool
 }
 
 type FieldError struct {
@@ -48,20 +46,9 @@ func (e *FieldError) Error() string {
 }
 
 type Output struct {
-	Bin string `toml:"bin" doc:"The final product: the executable, or for a Lua system the entry script."`
-	Obj string `toml:"obj" doc:"Folder of the object files, or for a Lua system of the modules other than the entry. It defaults to the folder of the entry, which is where require looks."`
+	Bin string `toml:"bin" doc:"Folder of the final products. Each program is written there under its own name, or as <name>.lua for a Lua system."`
+	Obj string `toml:"obj" doc:"Folder of the object files, or for a Lua system of the modules other than the entry. For Lua it defaults to the folder of the entry, which is where require looks."`
 	Asm string `toml:"asm" doc:"Folder of the generated assembly."`
-}
-
-type Patch struct {
-	ABI           string
-	Format        string
-	Entry         string
-	StartSource   string
-	RuntimeSource string
-	LinkArgs      []string
-	Libc          *bool
-	Output        Output
 }
 
 //go:embed asm/linux_x64_start.asm
@@ -84,34 +71,13 @@ var (
 
 func all() []Target {
 	out := make([]Target, 0, len(builtin)+len(project))
-	for _, b := range builtin {
-		out = append(out, b)
-		for _, p := range project {
-			if p.Name == b.Name {
-				out[len(out)-1] = p
-			}
-		}
-	}
-	for _, p := range project {
-		if !IsBuiltinPair(p.OS, p.Arch) {
-			out = append(out, p)
-		}
-	}
+	out = append(out, builtin...)
+	out = append(out, project...)
 	return out
 }
 
 func List() []Target {
 	return all()
-}
-
-func IsBuiltinPair(osName, arch string) bool {
-	name := pairName(osName, arch)
-	for _, b := range builtin {
-		if b.Name == name {
-			return true
-		}
-	}
-	return false
 }
 
 func IsBuiltinOS(osName string) bool {
@@ -134,85 +100,12 @@ func ArchsOf(osName string) []string {
 	return archs
 }
 
-func BuiltinArchsOf(osName string) []string {
-	var archs []string
-	for _, b := range builtin {
-		if b.OS == osName {
-			archs = append(archs, b.Arch)
-		}
-	}
-	sort.Strings(archs)
-	return archs
-}
-
 func ResetProject() {
 	project = nil
 }
 
 func pairName(osName, arch string) string {
 	return osName + "/" + arch
-}
-
-func Override(osName, arch string, patch Patch) error {
-	name := pairName(osName, arch)
-	var base Target
-	found := false
-	for _, b := range builtin {
-		if b.Name == name {
-			base, found = b, true
-		}
-	}
-	if !found {
-		return &FieldError{Target: name, Message: "is not a built-in target"}
-	}
-
-	if base.Arch == "lua" {
-		if patch.ABI != "" || patch.Format != "" || patch.Entry != "" || patch.StartSource != "" || patch.RuntimeSource != "" || len(patch.LinkArgs) > 0 || patch.Libc != nil {
-			return &FieldError{Target: name, Message: "only accepts \"output\""}
-		}
-	}
-
-	t := base
-	if patch.ABI != "" {
-		if patch.ABI != "sysv" {
-			return &FieldError{Target: name, Field: "abi", Message: fmt.Sprintf("unsupported abi %q", patch.ABI), Help: "only sysv exists"}
-		}
-		t.ABI = patch.ABI
-	}
-	if patch.Format != "" {
-		if patch.Format != "elf64" {
-			return &FieldError{Target: name, Field: "format", Message: fmt.Sprintf("unsupported format %q", patch.Format), Help: "only elf64 exists"}
-		}
-		t.Format = patch.Format
-	}
-	if patch.Entry != "" {
-		if !entryPattern.MatchString(patch.Entry) {
-			return &FieldError{Target: name, Field: "entry", Message: fmt.Sprintf("invalid entry symbol %q", patch.Entry), Help: "use letters, digits and the characters _ . and $, not starting with a digit"}
-		}
-		t.Entry = patch.Entry
-	}
-	if patch.StartSource != "" {
-		t.StartSource = patch.StartSource
-	}
-	if patch.RuntimeSource != "" {
-		t.RuntimeSource = patch.RuntimeSource
-	}
-	t.LinkArgs = append(append([]string{}, base.LinkArgs...), patch.LinkArgs...)
-	if patch.Libc != nil {
-		t.Libc = patch.Libc
-	}
-	t.Output = patch.Output
-	t.Modified = true
-
-	for i, p := range project {
-		if p.Name == name {
-			project[i] = t
-			return nil
-		}
-	}
-	project = append(project, t)
-
-	return nil
 }
 
 func CheckName(name string) error {
@@ -235,28 +128,28 @@ func Register(t Target) error {
 	}
 	t.Name = pairName(t.OS, t.Arch)
 	if !slices.Contains(assemblyArchs, t.Arch) {
-		return &FieldError{Target: t.Name, Field: "arch", Message: fmt.Sprintf("there is no backend for the architecture %q", t.Arch), Help: fmt.Sprintf("the architectures a system of your own can use are %s", Enumerate(assemblyArchs))}
+		return &FieldError{Target: t.OS, Field: "arch", Message: fmt.Sprintf("there is no backend for the architecture %q", t.Arch), Help: fmt.Sprintf("the architectures a system of your own can use are %s", Enumerate(assemblyArchs))}
 	}
 	if t.ABI == "" {
 		t.ABI = "sysv"
 	}
 	if t.ABI != "sysv" {
-		return &FieldError{Target: t.Name, Field: "abi", Message: fmt.Sprintf("unsupported abi %q", t.ABI), Help: "only sysv exists"}
+		return &FieldError{Target: t.OS, Field: "abi", Message: fmt.Sprintf("unsupported abi %q", t.ABI), Help: "only sysv exists"}
 	}
 	if t.Format == "" {
 		t.Format = "elf64"
 	}
 	if t.Format != "elf64" {
-		return &FieldError{Target: t.Name, Field: "format", Message: fmt.Sprintf("unsupported format %q", t.Format), Help: "only elf64 exists"}
+		return &FieldError{Target: t.OS, Field: "format", Message: fmt.Sprintf("unsupported format %q", t.Format), Help: "only elf64 exists"}
 	}
 	if t.Entry == "" {
 		t.Entry = "_start"
 	}
 	if !entryPattern.MatchString(t.Entry) {
-		return &FieldError{Target: t.Name, Field: "entry", Message: fmt.Sprintf("invalid entry symbol %q", t.Entry), Help: "use letters, digits and the characters _ . and $, not starting with a digit"}
+		return &FieldError{Target: t.OS, Field: "entry", Message: fmt.Sprintf("invalid entry symbol %q", t.Entry), Help: "use letters, digits and the characters _ . and $, not starting with a digit"}
 	}
 	if strings.TrimSpace(t.StartSource) == "" {
-		return &FieldError{Target: t.Name, Field: "start", Message: "\"start\" is required", Help: "it is the assembly file that calls main and leaves the program the way this kernel requires"}
+		return &FieldError{Target: t.OS, Field: "start", Message: "\"start\" is required", Help: "it is the assembly file that calls main and leaves the program the way this kernel requires"}
 	}
 
 	t.Builtin = false

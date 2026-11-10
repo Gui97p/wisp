@@ -17,15 +17,42 @@ import (
 )
 
 type Config struct {
-	Entry   string                  `toml:"entry" doc:"Entry file of the project, relative to the project root. Defaults to main.wsp."`
-	OS      string                  `toml:"os" doc:"The system to build for: linux, cc, or a name declared in [targets.<name>]. Defaults to the system of the machine."`
-	Arch    string                  `toml:"arch" doc:"The architecture to build for. Only needed when the system has more than one; otherwise it is a check."`
-	Std     string                  `toml:"std" doc:"The standard library. Leave it out for the one that ships with the compiler, write a folder to replace it, or \"none\" to build without any (a folder called none is written ./none)."`
-	Link    []string                `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`
-	Libc    bool                    `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
-	Output  OutputConfig            `toml:"output" doc:"Where build artifacts are written."`
-	Run     RunConfig               `toml:"run" doc:"How wisp run starts the program."`
-	Targets map[string]TargetConfig `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
+	Default   string                   `toml:"default" doc:"The program that wisp run and wisp env use when no name is given. Without it a project with several programs asks for the name."`
+	OS        string                   `toml:"os" doc:"The system to build for: linux, cc, or a name declared in [targets.<name>]. Defaults to the system of the machine."`
+	Arch      string                   `toml:"arch" doc:"The architecture to build for. Only needed when the system has more than one; otherwise it is a check."`
+	Std       string                   `toml:"std" doc:"The standard library. Leave it out for the one that ships with the compiler, write a folder to replace it, or \"none\" to build without any (a folder called none is written ./none)."`
+	Link      []string                 `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`
+	Libc      bool                     `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
+	Output    OutputConfig             `toml:"output" doc:"Where build artifacts are written."`
+	Run       RunConfig                `toml:"run" doc:"How wisp run starts the program."`
+	Programs  map[string]ProgramConfig `toml:"program" doc:"The programs of the project, declared as [program.<name>]. Without any, the project is one program named after its folder."`
+	Libraries map[string]LibraryConfig `toml:"library" doc:"The libraries of the project, declared as [library.<name>]. A library has no entry: it is the modules it lists and everything they import."`
+	Targets   map[string]TargetConfig  `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
+
+	Entry         string       `toml:"-"`
+	ProgramName   string       `toml:"-"`
+	BinaryName    string       `toml:"-"`
+	ProgramLink   []string     `toml:"-"`
+	ProgramLibc   *bool        `toml:"-"`
+	ProgramOutput OutputConfig `toml:"-"`
+}
+
+type LibraryConfig struct {
+	Modules []string     `toml:"modules" doc:"The modules the library is made of, by import path, such as \"geometry\". Whatever they import goes along."`
+	OS      string       `toml:"os" doc:"The system to build this library for. Defaults to the top-level os."`
+	Arch    string       `toml:"arch" doc:"The architecture to build this library for."`
+	Output  OutputConfig `toml:"output" doc:"Where this library writes its artifacts. {os}, {arch} and {name} are replaced."`
+}
+
+type ProgramConfig struct {
+	Name   string       `toml:"name" doc:"Name of the binary this program produces. Defaults to the name of the program."`
+	Entry  string       `toml:"entry" doc:"Entry file of this program, relative to the project root."`
+	OS     string       `toml:"os" doc:"The system to build this program for. Defaults to the top-level os."`
+	Arch   string       `toml:"arch" doc:"The architecture to build this program for."`
+	Link   []string     `toml:"link" doc:"Extra linker arguments for this program, added after the ones of the system."`
+	Libc   *bool        `toml:"libc" doc:"Link against the C library for this program."`
+	Output OutputConfig `toml:"output" doc:"Where this program writes its artifacts. {os}, {arch} and {name} are replaced."`
+	Run    RunConfig    `toml:"run" doc:"How wisp run starts this program. Its env adds to the top-level one."`
 }
 
 type RunConfig struct {
@@ -54,28 +81,26 @@ func (c *Config) RunEnv() []EnvVar {
 }
 
 type TargetConfig struct {
-	Arch    string       `toml:"arch" doc:"CPU architecture of a system of your own that has just one. A system with several writes a [targets.<os>.<arch>] table for each instead."`
-	ABI     string       `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
-	Format  string       `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
-	Entry   string       `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
-	Runtime string       `toml:"runtime" doc:"Assembly file with the runtime routines (allocation, panic, I/O) for this system."`
-	Start   string       `toml:"start" doc:"Assembly file that calls main and leaves the program. Required for systems of your own."`
-	Link    []string     `toml:"link" doc:"Extra linker arguments, such as -T linker.ld. On a built-in system they are added to the built-in ones."`
-	Libc    *bool        `toml:"libc" doc:"Link against the C library for this system. Overrides the top-level libc."`
-	Output  OutputConfig `toml:"output" doc:"Where this system writes its artifacts. Overrides the top-level [output]."`
+	Arch    string   `toml:"arch" doc:"CPU architecture of a system of your own that has just one. A system with several writes a [targets.<os>.<arch>] table for each instead."`
+	ABI     string   `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
+	Format  string   `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
+	Entry   string   `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
+	Runtime string   `toml:"runtime" doc:"Assembly file with the runtime routines (allocation, panic, I/O) for this system."`
+	Start   string   `toml:"start" doc:"Assembly file that calls main and leaves the program. Required for systems of your own."`
+	Link    []string `toml:"link" doc:"Extra linker arguments, such as -T linker.ld. On a built-in system they are added to the built-in ones."`
+	Libc    *bool    `toml:"libc" doc:"Link against the C library for this system. Overrides the top-level libc."`
 
 	Archs map[string]ArchConfig `toml:"-"`
 }
 
 type ArchConfig struct {
-	ABI     string       `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
-	Format  string       `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
-	Entry   string       `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
-	Runtime string       `toml:"runtime" doc:"Assembly file with the runtime routines for this architecture of the system."`
-	Start   string       `toml:"start" doc:"Assembly file that calls main and leaves the program, for this architecture."`
-	Link    []string     `toml:"link" doc:"Extra linker arguments for this architecture, added to the ones of the system."`
-	Libc    *bool        `toml:"libc" doc:"Link against the C library for this architecture."`
-	Output  OutputConfig `toml:"output" doc:"Where this architecture writes its artifacts."`
+	ABI     string   `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
+	Format  string   `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
+	Entry   string   `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
+	Runtime string   `toml:"runtime" doc:"Assembly file with the runtime routines for this architecture of the system."`
+	Start   string   `toml:"start" doc:"Assembly file that calls main and leaves the program, for this architecture."`
+	Link    []string `toml:"link" doc:"Extra linker arguments for this architecture, added to the ones of the system."`
+	Libc    *bool    `toml:"libc" doc:"Link against the C library for this architecture."`
 }
 
 type OutputConfig = target.Output
@@ -96,12 +121,18 @@ func ConfigFields(section string) []ConfigField {
 		t = reflect.TypeOf(Config{})
 	case "output":
 		t = reflect.TypeOf(OutputConfig{})
-	case "run":
+	case "run", "program.run":
 		t = reflect.TypeOf(RunConfig{})
+	case "library":
+		t = reflect.TypeOf(LibraryConfig{})
+	case "library.output":
+		t = reflect.TypeOf(OutputConfig{})
+	case "program":
+		t = reflect.TypeOf(ProgramConfig{})
+	case "program.output":
+		t = reflect.TypeOf(OutputConfig{})
 	case "targets":
 		t = reflect.TypeOf(TargetConfig{})
-	case "targets.output", "targets.arch.output":
-		t = reflect.TypeOf(OutputConfig{})
 	case "targets.arch":
 		t = reflect.TypeOf(ArchConfig{})
 	default:
@@ -112,7 +143,7 @@ func ConfigFields(section string) []ConfigField {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
 		key := f.Tag.Get("toml")
-		if key == "" {
+		if key == "" || key == "-" {
 			continue
 		}
 
@@ -188,7 +219,11 @@ func readSource(root, name, field, file string) (string, error) {
 	if file == "" {
 		return "", nil
 	}
-	data, err := os.ReadFile(filepath.Join(root, file))
+	path := file
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(root, file)
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", &target.FieldError{Target: name, Field: field, Message: fmt.Sprintf("cannot read the %s file", field), Help: fmt.Sprintf("%s could not be opened, the system reports %s", file, diag.Reason(err))}
 	}
@@ -199,10 +234,9 @@ type layer struct {
 	abi, format, entry, start, runtime string
 	link                               []string
 	libc                               *bool
-	output                             OutputConfig
 }
 
-func (c *Config) layerOf(root, name string, abi, format, entry, start, runtimeFile string, link []string, libc *bool, output OutputConfig) (layer, error) {
+func (c *Config) layerOf(root, name string, abi, format, entry, start, runtimeFile string, link []string, libc *bool) (layer, error) {
 	startSource, err := readSource(root, name, "start", start)
 	if err != nil {
 		return layer{}, err
@@ -211,7 +245,7 @@ func (c *Config) layerOf(root, name string, abi, format, entry, start, runtimeFi
 	if err != nil {
 		return layer{}, err
 	}
-	return layer{abi: abi, format: format, entry: entry, start: startSource, runtime: runtimeSource, link: link, libc: libc, output: output}, nil
+	return layer{abi: abi, format: format, entry: entry, start: startSource, runtime: runtimeSource, link: link, libc: libc}, nil
 }
 
 func merge(base, top layer) layer {
@@ -235,15 +269,6 @@ func merge(base, top layer) layer {
 	if top.libc != nil {
 		out.libc = top.libc
 	}
-	if top.output.Bin != "" {
-		out.output.Bin = top.output.Bin
-	}
-	if top.output.Obj != "" {
-		out.output.Obj = top.output.Obj
-	}
-	if top.output.Asm != "" {
-		out.output.Asm = top.output.Asm
-	}
 	return out
 }
 
@@ -259,14 +284,14 @@ func (c *Config) registerTargets(root string) error {
 	for _, name := range names {
 		tc := c.Targets[name]
 
-		system, err := c.layerOf(root, name, tc.ABI, tc.Format, tc.Entry, tc.Start, tc.Runtime, tc.Link, tc.Libc, tc.Output)
+		system, err := c.layerOf(root, name, tc.ABI, tc.Format, tc.Entry, tc.Start, tc.Runtime, tc.Link, tc.Libc)
 		if err != nil {
 			return err
 		}
 
 		archLayers := map[string]layer{}
 		for arch, ac := range tc.Archs {
-			l, err := c.layerOf(root, name+"."+arch, ac.ABI, ac.Format, ac.Entry, ac.Start, ac.Runtime, ac.Link, ac.Libc, ac.Output)
+			l, err := c.layerOf(root, name+"."+arch, ac.ABI, ac.Format, ac.Entry, ac.Start, ac.Runtime, ac.Link, ac.Libc)
 			if err != nil {
 				return err
 			}
@@ -274,27 +299,7 @@ func (c *Config) registerTargets(root string) error {
 		}
 
 		if target.IsBuiltinOS(name) {
-			if tc.Arch != "" {
-				return &target.FieldError{Target: name, Field: "arch", Message: "the architecture of a built-in system cannot be set here", Help: "use [targets." + name + ".<arch>] to adjust one of its architectures"}
-			}
-			known := target.BuiltinArchsOf(name)
-			for arch := range archLayers {
-				if !slices.Contains(known, arch) {
-					return archError(name, arch, known)
-				}
-			}
-			for _, arch := range known {
-				l := merge(system, archLayers[arch])
-				err := target.Override(name, arch, target.Patch{
-					ABI: l.abi, Format: l.format, Entry: l.entry,
-					StartSource: l.start, RuntimeSource: l.runtime,
-					LinkArgs: l.link, Libc: l.libc, Output: l.output,
-				})
-				if err != nil {
-					return err
-				}
-			}
-			continue
+			return &target.FieldError{Target: name, Message: "is a built-in system and is not adjusted here", Help: "link and libc can be set at the top level or in [program.<name>]; to change how it starts, define a system of your own under another name"}
 		}
 
 		archs := make([]string, 0, len(archLayers)+1)
@@ -315,7 +320,7 @@ func (c *Config) registerTargets(root string) error {
 				OS: name, Arch: arch,
 				ABI: l.abi, Format: l.format, Entry: l.entry,
 				StartSource: l.start, RuntimeSource: l.runtime,
-				LinkArgs: l.link, Libc: l.libc, Output: l.output,
+				LinkArgs: l.link, Libc: l.libc,
 			})
 			if err != nil {
 				return err
@@ -324,13 +329,6 @@ func (c *Config) registerTargets(root string) error {
 	}
 
 	return nil
-}
-
-func archError(osName, arch string, known []string) error {
-	if !slices.Contains(target.Architectures(), arch) {
-		return &target.FieldError{Target: osName, Field: arch, Message: fmt.Sprintf("there is no backend for the architecture %q", arch), Help: fmt.Sprintf("the architectures that exist are %s", target.Enumerate(target.Architectures()))}
-	}
-	return &target.FieldError{Target: osName, Field: arch, Message: fmt.Sprintf("the %s system has no %s target", osName, arch), Help: fmt.Sprintf("it has %s", target.Enumerate(known))}
 }
 
 func (c *Config) StdlibSettings(root string) (string, bool, error) {
@@ -430,6 +428,22 @@ func decodeConfigSource(path, text string) (*Config, error) {
 		}
 		reported = append(reported, key)
 
+		if len(key) == 1 && key[0] == "entry" {
+			issues = append(issues, ConfigIssue{
+				Line:    locateKey(text, key),
+				Message: "entry belongs to a program now",
+				Help:    "write [program.<name>] with entry = \"...\", and default = \"<name>\" to choose the one wisp run starts; a project with a single main needs neither",
+			})
+			continue
+		}
+		if isTargetOutput(key) {
+			issues = append(issues, ConfigIssue{
+				Line:    locateKey(text, key),
+				Message: "output is not set per system",
+				Help:    "where a program writes is up to the program: use [output] with {os} and {arch} in the paths, as in bin = \"dist/{os}/{arch}/{name}\", or [program.<name>.output]",
+			})
+			continue
+		}
 		if isArchTable(md, key) {
 			continue
 		}
@@ -443,6 +457,47 @@ func decodeConfigSource(path, text string) (*Config, error) {
 	}
 	if err := decodeArchTables(text, md, &cfg, &issues); err != nil {
 		return nil, err
+	}
+
+	if cfg.Default != "" {
+		if _, declared := cfg.Programs[cfg.Default]; !declared {
+			names := make([]string, 0, len(cfg.Programs))
+			for n := range cfg.Programs {
+				names = append(names, n)
+			}
+			sort.Strings(names)
+			help := "declare it as [program." + cfg.Default + "]"
+			if len(names) > 0 {
+				help = "the programs are " + strings.Join(names, ", ")
+			}
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"default"}), Message: fmt.Sprintf("default names the program %q, which is not declared", cfg.Default), Help: help})
+		}
+	}
+
+	for name, lib := range cfg.Libraries {
+		if !programNamePattern.MatchString(name) {
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"library", name}), Message: fmt.Sprintf("%q is not a valid library name", name), Help: "use lowercase letters, digits and underscores, starting with a letter"})
+		}
+		if _, clash := cfg.Programs[name]; clash {
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"library", name}), Message: fmt.Sprintf("%q is both a program and a library", name), Help: "programs and libraries share their names, pick another one"})
+		}
+		if len(lib.Modules) == 0 {
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"library", name}), Message: fmt.Sprintf("the library %s lists no modules", name), Help: "write modules = [\"geometry\"], with the import paths of the modules it is made of"})
+		}
+	}
+
+	for name, bin := range cfg.Programs {
+		if bin.Name != "" && !binaryNamePattern.MatchString(bin.Name) {
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"program", name, "name"}), Message: fmt.Sprintf("%q is not a valid name for a binary", bin.Name), Help: "use letters, digits, underscores, dots and dashes, not starting with a dot or a dash"})
+		}
+		if !programNamePattern.MatchString(name) {
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"program", name}), Message: fmt.Sprintf("%q is not a valid program name", name), Help: "use lowercase letters, digits and underscores, starting with a letter"})
+		}
+		for envName, value := range bin.Run.Env {
+			if _, isString := value.(string); !isString || envName == "" || strings.ContainsAny(envName, "=\x00") {
+				issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"program", name, "run", "env", envName}), Message: fmt.Sprintf("program.%s.run.env.%s must be a string", name, envName), Help: fmt.Sprintf("write it as %s = \"...\"", envName)})
+			}
+		}
 	}
 
 	for name, value := range cfg.Run.Env {
@@ -475,14 +530,22 @@ func coveredBy(key toml.Key, reported []toml.Key) bool {
 
 func knownKeys(key toml.Key) []string {
 	switch {
-	case len(key) >= 4 && key[0] == "targets" && key[2] == "output":
-		return tomlTags(reflect.TypeOf(OutputConfig{}))
 	case len(key) >= 3 && key[0] == "targets":
 		return tomlTags(reflect.TypeOf(TargetConfig{}))
 	case len(key) >= 2 && key[0] == "output":
 		return tomlTags(reflect.TypeOf(OutputConfig{}))
 	case len(key) >= 2 && key[0] == "run":
 		return tomlTags(reflect.TypeOf(RunConfig{}))
+	case len(key) >= 4 && key[0] == "library" && key[2] == "output":
+		return tomlTags(reflect.TypeOf(OutputConfig{}))
+	case len(key) >= 3 && key[0] == "library":
+		return tomlTags(reflect.TypeOf(LibraryConfig{}))
+	case len(key) >= 4 && key[0] == "program" && key[2] == "output":
+		return tomlTags(reflect.TypeOf(OutputConfig{}))
+	case len(key) >= 4 && key[0] == "program" && key[2] == "run":
+		return tomlTags(reflect.TypeOf(RunConfig{}))
+	case len(key) >= 3 && key[0] == "program":
+		return tomlTags(reflect.TypeOf(ProgramConfig{}))
 	}
 	return tomlTags(reflect.TypeOf(Config{}))
 }
@@ -490,7 +553,7 @@ func knownKeys(key toml.Key) []string {
 func tomlTags(t reflect.Type) []string {
 	tags := make([]string, 0, t.NumField())
 	for i := 0; i < t.NumField(); i++ {
-		if tag := t.Field(i).Tag.Get("toml"); tag != "" {
+		if tag := t.Field(i).Tag.Get("toml"); tag != "" && tag != "-" {
 			tags = append(tags, tag)
 		}
 	}
@@ -533,12 +596,16 @@ func splitTable(header string) []string {
 	return parts
 }
 
+func isTargetField(name string) bool {
+	return slices.Contains(tomlTags(reflect.TypeOf(TargetConfig{})), name)
+}
+
 func isArchTable(md toml.MetaData, key toml.Key) bool {
-	if len(key) < 3 || key[0] != "targets" {
+	if len(key) < 3 || key[0] != "targets" || key[2] == "output" || isTargetField(key[2]) {
 		return false
 	}
-	if slices.Contains(tomlTags(reflect.TypeOf(TargetConfig{})), key[2]) {
-		return false
+	if len(key) >= 4 {
+		return true
 	}
 	return md.Type(key[0], key[1], key[2]) == "Hash"
 }
@@ -552,10 +619,17 @@ func decodeArchTables(text string, md toml.MetaData, cfg *Config, issues *[]Conf
 		return nil
 	}
 
+	candidates := map[string]bool{}
+	for _, key := range md.Undecoded() {
+		if isArchTable(md, key) {
+			candidates[key[1]+"."+key[2]] = true
+		}
+	}
+
 	tables := map[string]bool{}
 	for osName, entries := range raw.Targets {
 		for key, prim := range entries {
-			if !isArchTable(md, toml.Key{"targets", osName, key}) {
+			if !candidates[osName+"."+key] {
 				continue
 			}
 			var ac ArchConfig
@@ -579,11 +653,130 @@ func decodeArchTables(text string, md toml.MetaData, cfg *Config, issues *[]Conf
 			continue
 		}
 		reported = append(reported, key)
+		if isTargetOutput(key) {
+			*issues = append(*issues, ConfigIssue{
+				Line:    locateKey(text, key),
+				Message: "output is not set per system",
+				Help:    "where a program writes is up to the program: use [output] with {os} and {arch} in the paths, as in bin = \"dist/{os}/{arch}/{name}\", or [program.<name>.output]",
+			})
+			continue
+		}
+		known := tomlTags(reflect.TypeOf(ArchConfig{}))
 		*issues = append(*issues, ConfigIssue{
 			Line:    locateKey(text, key),
 			Message: fmt.Sprintf("unknown key %q", key.String()),
-			Help:    target.Suggestion(key[len(key)-1], tomlTags(reflect.TypeOf(ArchConfig{})), "keys"),
+			Help:    target.Suggestion(key[len(key)-1], known, "keys"),
 		})
 	}
 	return nil
+}
+
+var programNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+var binaryNamePattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`)
+
+func (c *Config) ProgramNames(project string) []string {
+	if len(c.Programs) == 0 {
+		if len(c.Libraries) > 0 {
+			return nil
+		}
+		return []string{project}
+	}
+	names := make([]string, 0, len(c.Programs))
+	for name := range c.Programs {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func (c *Config) DefaultProgram(project string) string {
+	if c.Default != "" {
+		return c.Default
+	}
+	if names := c.ProgramNames(project); len(names) == 1 {
+		return names[0]
+	}
+	return ""
+}
+
+func (c *Config) HasProgram(name, project string) bool {
+	return slices.Contains(c.ProgramNames(project), name)
+}
+
+func (c *Config) HasLibrary(name string) bool {
+	_, ok := c.Libraries[name]
+	return ok
+}
+
+func (c *Config) ForProgram(name string) *Config {
+	eff := *c
+	eff.ProgramName = name
+	eff.BinaryName = name
+
+	bin, declared := c.Programs[name]
+	if !declared {
+		return &eff
+	}
+
+	if bin.Name != "" {
+		eff.BinaryName = bin.Name
+	}
+	if bin.Entry != "" {
+		eff.Entry = bin.Entry
+	}
+	if bin.OS != "" {
+		eff.OS = bin.OS
+		eff.Arch = ""
+	}
+	if bin.Arch != "" {
+		eff.Arch = bin.Arch
+	}
+	eff.ProgramLink = bin.Link
+	eff.ProgramLibc = bin.Libc
+	eff.ProgramOutput = bin.Output
+
+	env := map[string]any{}
+	for k, v := range c.Run.Env {
+		env[k] = v
+	}
+	for k, v := range bin.Run.Env {
+		env[k] = v
+	}
+	eff.Run = RunConfig{Env: env}
+
+	return &eff
+}
+
+func isTargetOutput(key toml.Key) bool {
+	return len(key) >= 3 && key[0] == "targets" && (key[2] == "output" || (len(key) >= 4 && key[3] == "output"))
+}
+
+func (c *Config) LibraryNames() []string {
+	names := make([]string, 0, len(c.Libraries))
+	for name := range c.Libraries {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func (c *Config) ForLibrary(name string) *Config {
+	eff := *c
+	eff.ProgramName = name
+	eff.BinaryName = name
+	eff.Entry = ""
+	eff.ProgramLink = nil
+	eff.ProgramLibc = nil
+
+	lib := c.Libraries[name]
+	if lib.OS != "" {
+		eff.OS = lib.OS
+		eff.Arch = ""
+	}
+	if lib.Arch != "" {
+		eff.Arch = lib.Arch
+	}
+	eff.ProgramOutput = lib.Output
+	return &eff
 }

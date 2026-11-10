@@ -9,8 +9,10 @@
 # os = "linux"
 # arch = "x64"
 
-# `wisp run` finds `main` by itself; set this when a project has several.
-# entry = "main.wsp"
+# `wisp run` finds `main` by itself when a project has just one. With several, declare
+# the programs below, and `default` names the one `wisp run` starts when no name
+# is given.
+# default = "app"
 
 # The standard library. `std/` imports resolve to the one that ships with the
 # compiler unless you point them at a folder of your own, or turn the library
@@ -26,21 +28,61 @@
 # so C functions such as printf work. Needs the `cc` driver.
 # libc = true
 
-# Where a build writes its files. `bin` is the final product: the executable,
-# or for the Lua system the entry script. `obj` and `asm` are folders: the
-# object files and the generated assembly, or for Lua the modules other than
-# the entry, which by default sit beside it because that is where `require`
-# looks. If you move them somewhere else, the entry script gets a line that
-# tells `require` where they are. Without this table the files go to
-# bin/<os>/<arch>/ and build/<os>/<arch>/. A system can have its own, with the
-# same keys: [targets.linux.output], and one architecture of it:
-# [targets.linux.x64.output].
+# Where a build writes its files, for every program. All three are folders.
+# `bin` receives the final products, each under the name of its program (an
+# executable, or for the Lua system the entry script <name>.lua). `obj` and
+# `asm` receive the object files and the generated assembly, or for Lua the
+# modules other than the entry, which by default sit beside it because that is
+# where `require` looks. If you move them somewhere else, the entry script gets
+# a line that tells `require` where they are. {os}, {arch} and {name} (the
+# program) are replaced, so one pattern serves every program and system. A
+# program with its own place goes in [bin.<name>.output]. Without this table the
+# files go to bin/<os>/<arch>/ and build/<os>/<arch>/<name>/.
 [output]
-bin = "bin/tour"
+bin = "bin"
 # obj = "build/obj"
 # asm = "build/asm"
 
-# A target of your own, for instance a userspace for a kernel.
+# Programs. Without any [program.<name>] the project is one program named after
+# its folder, built from the keys above and starting at its only `main`. Declare
+# programs to build more than one from the same files: `wisp build` builds all of
+# them, `wisp build tools` one, and `wisp run tools -- arguments` runs one (the
+# name can be left out for the program named by `default`, or when there is
+# just one). The keys on top are the defaults of every program, and a program
+# overrides them. Precedence: flag, program, system, top level; `link` adds up
+# instead of replacing. {os}, {arch} and {name} (the name of the binary) are
+# replaced in every output path.
+#
+# [program.tools]
+# entry = "tools/main.wsp"      # the file whose main starts it
+# name = "mytools"              # the binary, which defaults to "tools"
+# link = ["-lm"]
+# os = "cc"                     # a program can be built for another system
+#
+# [program.tools.output]
+# bin = "out/{arch}"
+#
+# [program.tools.run.env]
+# VERBOSE = "1"
+
+# Libraries. A library has no entry, so what it is made of is written down: the
+# modules it lists, by import path, and everything they import. Whatever nobody
+# reaches stays out, for libraries and for programs alike. `wisp build` builds
+# the libraries along with the programs. An x86-64 library is an archive,
+# <name>.a in the `bin` folder, that holds those modules, the standard library
+# modules they use and the runtime of the system, so it links on its own; name it
+# libgeo if you want to link it with -lgeo. Ask for `obj` alone and only the
+# object files are written. A Lua library is the .lua files of its modules.
+#
+# [library.geo]
+# modules = ["geometry", "shapes"]
+#
+# [library.geo.output]
+# bin = "dist"
+
+# A system of your own, for instance a userspace for a kernel. A system says how
+# to build for it: where the program starts, what the runtime is, how to link.
+# Where the result goes is up to the program, not the system.
 # `wisp init target mykernel` creates this block and its files.
 #
 # [targets.mykernel]
@@ -49,17 +91,12 @@ bin = "bin/tour"
 # start = "targets/mykernel/start.asm"       # required: calls main and leaves
 # runtime = "targets/mykernel/runtime.asm"   # emit, panic, malloc and friends
 # link = ["-z", "noexecstack"]  # extra linker arguments
-# libc = false                  # link the C library for this target
+# libc = false                  # link the C library for this system
 #
-# [targets.mykernel.output]     # where this target writes, instead of [output]
-# bin = "dist/mykernel/app.elf"
-#
-# A block named after a built-in target adjusts it instead of creating one:
-# its link arguments are added to the built-in ones, and the other keys replace
-# the built-in values (arch cannot change, and lua only takes output).
-#
-# [targets.linux]
-# link = ["-lm"]
+# Built-in systems (linux, cc) are not adjusted here: link and libc go at the top
+# level or in a [bin.<name>] block, and a different start or runtime is a system
+# of your own under another name. A system with more than one architecture
+# describes each one in [targets.<os>.<arch>].
 
 # Environment variables for the program when it is started by `wisp run`. A
 # variable already set in the shell wins, so `NAME=other wisp run` overrides

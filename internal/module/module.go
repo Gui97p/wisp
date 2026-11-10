@@ -616,3 +616,42 @@ func Groups(modules []*Module) [][]*Module {
 	}
 	return groups
 }
+
+func Closure(modules []*Module, roots []string) map[string]bool {
+	byPath := make(map[string]*Module, len(modules))
+	contributors := map[string][]string{}
+	for _, m := range modules {
+		byPath[m.Path] = m
+		for _, target := range m.methodTargets() {
+			contributors[target] = append(contributors[target], m.Path)
+		}
+	}
+
+	seen := map[string]bool{}
+	var visit func(path string)
+	visit = func(path string) {
+		m, ok := byPath[path]
+		if !ok || seen[path] {
+			return
+		}
+		seen[path] = true
+		for _, imp := range m.Imports {
+			visit(imp.Path)
+		}
+		for _, part := range m.Parts {
+			visit(part)
+		}
+		for _, contributor := range contributors[path] {
+			visit(contributor)
+		}
+	}
+	for _, root := range roots {
+		visit(root)
+	}
+	return seen
+}
+
+func ImportKey(projectRoot, path string) (string, error) {
+	key, _, _, err := resolveImportPath(projectRoot, path)
+	return key, err
+}
