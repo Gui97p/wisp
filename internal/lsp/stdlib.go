@@ -7,13 +7,12 @@ import (
 
 func analysisTarget(path string) string {
 	s := loadSettings(path)
-	selector, variant := module.VariantSelector(path)
-	if !variant || module.FileAppliesTo(path, s.target) {
-		return s.target
-	}
-	for _, t := range target.List() {
-		if t.Matches(selector) {
-			return t.Name
+	if expr := module.FileDirective(path); expr != "" {
+		if target.MatchesText(s.target, expr) {
+			return s.target
+		}
+		if name, ok := target.FirstMatching(expr); ok {
+			return name
 		}
 	}
 	return s.target

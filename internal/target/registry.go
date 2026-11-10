@@ -271,12 +271,7 @@ func (t Target) Matches(selector string) bool {
 }
 
 func MatchesName(targetName, selector string) bool {
-	t, err := Lookup(targetName)
-	if err != nil {
-		return false
-	}
-
-	return t.Matches(selector)
+	return MatchesText(targetName, selector)
 }
 
 func ValidateSelector(selector string) error {

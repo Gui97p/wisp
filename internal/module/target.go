@@ -33,64 +33,42 @@ func currentTarget() string {
 	return activeTarget
 }
 
-func FileApplies(path string) bool {
-	return FileAppliesTo(path, currentTarget())
-}
-
-func VariantSelector(path string) (string, bool) {
-	if !isVariantFile(path) {
-		return "", false
+func FileDirective(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
 	}
-	_, selector, _ := targetSuffix(path)
-	return selector, true
-}
-
-func FileAppliesTo(path, targetName string) bool {
-	if targetName == "" {
-		targetName = runtime.GOOS + "_x64"
-	}
-	base := strings.TrimSuffix(filepath.Base(path), ".wsp")
-
-	selectors := target.Selectors()
-	slices.SortFunc(selectors, func(a, b string) int { return len(b) - len(a) })
-
-	for _, selector := range selectors {
-		suffix := "_" + selector
-		if len(base) > len(suffix) && strings.HasSuffix(base, suffix) {
-			return target.MatchesName(targetName, selector)
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		switch {
+		case line == "" || strings.HasPrefix(line, "//"):
+			continue
+		case strings.HasPrefix(line, "#target"):
+			return strings.TrimSpace(strings.TrimPrefix(line, "#target"))
 		}
+		break
 	}
-	return true
+	return ""
 }
 
-func targetSuffix(file string) (stem, selector string, ok bool) {
-	base := strings.TrimSuffix(filepath.Base(file), ".wsp")
-
-	selectors := target.Selectors()
-	slices.SortFunc(selectors, func(a, b string) int { return len(b) - len(a) })
-
-	for _, s := range selectors {
-		suffix := "_" + s
-		if len(base) > len(suffix) && strings.HasSuffix(base, suffix) {
-			return strings.TrimSuffix(base, suffix), s, true
-		}
+func packageEntry(dir string) string {
+	entry := filepath.Join(dir, filepath.Base(dir)+".wsp")
+	if info, err := os.Stat(entry); err == nil && !info.IsDir() {
+		return entry
 	}
-	return "", "", false
+	return ""
 }
 
 func isVariantFile(file string) bool {
-	stem, _, ok := targetSuffix(file)
-	if !ok {
-		return false
-	}
-	info, err := os.Stat(filepath.Join(filepath.Dir(file), stem+".wsp"))
-	return err == nil && !info.IsDir()
+	entry := packageEntry(filepath.Dir(file))
+	return entry != "" && entry != file && FileDirective(file) != ""
 }
 
-func variantFiles(file string) []string {
+func directiveVariants(file string) []string {
 	dir := filepath.Dir(file)
-	stem := strings.TrimSuffix(filepath.Base(file), ".wsp")
-
+	if packageEntry(dir) != file {
+		return nil
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
@@ -99,10 +77,11 @@ func variantFiles(file string) []string {
 	var variants []string
 	for _, entry := range entries {
 		candidate := filepath.Join(dir, entry.Name())
-		if entry.IsDir() || !strings.HasSuffix(candidate, ".wsp") || !isVariantFile(candidate) {
+		if entry.IsDir() || !strings.HasSuffix(candidate, ".wsp") || candidate == file {
 			continue
 		}
-		if s, _, _ := targetSuffix(candidate); s == stem && FileApplies(candidate) {
+		expr := FileDirective(candidate)
+		if expr != "" && target.MatchesText(currentTarget(), expr) {
 			variants = append(variants, candidate)
 		}
 	}
@@ -114,5 +93,5 @@ func withVariants(files []string) []string {
 	if len(files) == 0 {
 		return files
 	}
-	return append(slices.Clone(files), variantFiles(files[0])...)
+	return append(slices.Clone(files), directiveVariants(files[0])...)
 }

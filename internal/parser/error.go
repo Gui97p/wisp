@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/lexer"
 )
@@ -21,6 +22,10 @@ func (p *Parser) errorfNoSync(format string, args ...any) {
 func (p *Parser) errorf(format string, args ...any) {
 	p.errorfNoSync(format, args...)
 	p.synchronize()
+}
+
+func (p *Parser) errorAt(at ast.Position, format string, args ...any) *diag.Diagnostic {
+	return p.errors.Add("", at.Line, at.Col, at.EndLine, at.EndCol, format, args...)
 }
 
 func (p *Parser) error(msg string) {

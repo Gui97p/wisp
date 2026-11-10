@@ -1,0 +1,28 @@
+// Tour - Code for one target.
+//
+// A line that starts with `#` is a directive. `#target` goes at the top of a
+// file and says which targets the file is for; anywhere else the file's
+// declarations simply do not exist. The words are architectures (`x64`,
+// `lua`), systems (`linux`) or target names (`linux_x64`, `cc`), joined with
+// `&&`, `||`, `!` and parentheses: `#target x64 && linux`, or
+// `#target (x64 || lua) && !windows`.
+//
+// This folder is a package. A file in it with a `#target` is a variant of this
+// entry: when its target is the one being built it shares this file's names,
+// private ones included, and when it is not it contributes nothing. x64.wsp and
+// lua.wsp both declare `width`, and only one of them exists in a build. A file
+// without a directive is a part of the package, as in the geometry folder.
+//
+// `native<...>` takes the same expressions. When several versions of a
+// function match, the one that matches fewer targets wins: `native<x64 &&
+// linux>` beats `native<x64>`.
+
+import "std/fmt";
+
+public func describe() string {
+  return name();
+}
+
+public func demo() {
+  fmt.printf("this build is for the {} architecture, {} bits wide\n", name(), width());
+}

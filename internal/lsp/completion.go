@@ -15,7 +15,7 @@ import (
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
-var archTyping = regexp.MustCompile(`\bnative<[A-Za-z0-9_]*$`)
+var selectorTyping = regexp.MustCompile(`(\bnative<[^<>;]*|^\s*#target\b.*)$`)
 
 var keywords = []string{
 	"let", "const", "func", "struct", "enum", "type", "if", "else", "switch", "case", "default",
@@ -107,10 +107,10 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 			return enumValueItems(enum)
 		}
 	}
-	if archTyping.MatchString(textBefore(path, int(pos.Line), int(pos.Character))) {
+	if selectorTyping.MatchString(lastLine(textBefore(path, int(pos.Line), int(pos.Character)))) {
 		items := []protocol.CompletionItem{}
-		for _, arch := range target.Architectures() {
-			items = append(items, item(arch, protocol.CompletionItemKindEnumMember, "architecture"))
+		for _, name := range target.Selectors() {
+			items = append(items, item(name, protocol.CompletionItemKindEnumMember, "target"))
 		}
 		return items
 	}
@@ -717,4 +717,11 @@ func structValueEnum(text string, scope *analyser.Scope) (analyser.NamedType, bo
 	}
 	enum, ok := ctx.st.Fields[ctx.key].(analyser.NamedType)
 	return enum, ok && enum.Enum
+}
+
+func lastLine(text string) string {
+	if i := strings.LastIndex(text, "\n"); i >= 0 {
+		return text[i+1:]
+	}
+	return text
 }

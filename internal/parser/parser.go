@@ -66,6 +66,8 @@ func (p *Parser) currentEnd() (int, int) {
 func (p *Parser) ParseProgram() *ast.Program {
 	program := &ast.Program{}
 
+	p.parseDirectives(program)
+
 	for p.current.Type != lexer.TOKEN_EOF {
 		decls := p.parseDeclaration()
 		program.Declarations = append(program.Declarations, decls...)

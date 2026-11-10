@@ -28,6 +28,7 @@ import "pointers";
 import "memory";
 import "globals";
 import "interop";
+import "platform";
 import "std/fmt";
 import "geometry" as geo;
 
@@ -94,6 +95,9 @@ func main() !int {
 
   fmt.printf("\n== interop ==\n");
   interop.demo();
+
+  fmt.printf("\n== target ==\n");
+  platform.demo();
 
   fmt.printf("\n== modules ==\n");
   fmt.printf("geo.area(3, 4) = {}\n", geo.area(3, 4));

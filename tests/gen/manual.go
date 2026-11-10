@@ -6251,6 +6251,57 @@ func main() {
 }
 `, expected: []string{"a native replaces the plain function of its architecture", "a native function returns several named results", "a native function with no result", "native statements pick their architecture"}},
 
+	{dir: "target_directive", files: map[string]string{"platform/platform.wsp": `public func base() int {
+    return 10;
+}
+
+public func described() int {
+    return kind() + 1;
+}
+`, "platform/x64.wsp": `#target x64
+
+func kind() int {
+    return 3;
+}
+
+public func twice(int n) int {
+    return n * 2;
+}
+`, "platform/lua.wsp": `// the same name, for the other architecture
+#target lua
+
+func kind() int {
+    return 3;
+}
+
+public func twice(int n) int {
+    return n + n;
+}
+`, "platform/everything.wsp": `#target x64 || lua
+
+public func always() int {
+    return 5;
+}
+`, "platform/neither.wsp": `#target !x64 && !lua
+
+public func twice(int n) int {
+    return -1;
+}
+`}, src: `import "platform";
+
+native<x64> level() int r => "mov {r}, 1";
+native<x64 && linux> level() int r => "mov {r}, 2";
+native<!x64> level() int r => "r = 2";
+
+func main() {
+    check(platform.base() == 10, "the entry of a package is always there");
+    check(platform.twice(4) == 8, "only the part whose #target matches is loaded");
+    check(platform.described() == 4, "a variant shares the private names of its package entry");
+    check(platform.always() == 5, "a #target can be an or");
+    check(level() == 2, "the version that matches fewer targets wins");
+}
+`, expected: []string{"the entry of a package is always there", "only the part whose #target matches is loaded", "a variant shares the private names of its package entry", "a #target can be an or", "the version that matches fewer targets wins"}},
+
 	{dir: "inline_calls", src: `import "std/errors";
 
 type Step (int) => int;

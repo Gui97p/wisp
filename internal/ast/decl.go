@@ -78,24 +78,24 @@ func (c *VarDecl) Tree(indent string) string {
 }
 
 type FuncDecl struct {
-	Doc         string
-	Name        string
-	Receiver    *Param
-	Params      []Param
-	Body        *BlockStmt
-	ReturnTypes []TypeRef
-	Fallible    bool
-	Exported    bool
-	Reach       int
-	Extern      bool
-	ExternName  string
-	CExport     string
-	CVariadic   bool
-	Generated   bool
-	Inline      bool
-	NativeArch  string
-	NativeAt    Position
-	NameAt      Position
+	Doc            string
+	Name           string
+	Receiver       *Param
+	Params         []Param
+	Body           *BlockStmt
+	ReturnTypes    []TypeRef
+	Fallible       bool
+	Exported       bool
+	Reach          int
+	Extern         bool
+	ExternName     string
+	CExport        string
+	CVariadic      bool
+	Generated      bool
+	Inline         bool
+	NativeTarget   string
+	NativeTargetAt Position
+	NameAt         Position
 
 	NodePos
 }

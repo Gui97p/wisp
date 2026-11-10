@@ -1,8 +1,13 @@
 package parser
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/lexer"
+	"github.com/Gui97p/wisp/internal/target"
 )
 
 type nativeHeader struct {
@@ -10,25 +15,145 @@ type nativeHeader struct {
 	at   ast.Position
 }
 
-func (p *Parser) parseNativeArch() (string, ast.Position, bool) {
+func (p *Parser) selectorWord() (string, bool) {
+	switch p.current.Type {
+	case lexer.TOKEN_IDENT:
+		return p.current.Literal, true
+	case lexer.TOKEN_AND:
+		return "&&", true
+	case lexer.TOKEN_OR:
+		return "||", true
+	case lexer.TOKEN_NOT:
+		return "!", true
+	case lexer.TOKEN_LPAREN:
+		return "(", true
+	case lexer.TOKEN_RPAREN:
+		return ")", true
+	}
+	return "", false
+}
+
+func (p *Parser) finishSelector(parts []string, at ast.Position) (string, bool) {
+	if len(parts) == 0 {
+		p.errorAt(at, "expected an architecture, a system or a target name here")
+		return "", false
+	}
+	text := strings.Join(parts, " ")
+	if err := target.ValidateSelectorText(text); err != nil {
+		d := p.errorAt(at, "%s", selectorMessage(err))
+		if unknown, ok := errors.AsType[*target.UnknownError](err); ok && d != nil {
+			d.WithHelp("%s", unknown.Help)
+		}
+		return "", false
+	}
+	return text, true
+}
+
+func selectorMessage(err error) string {
+	if unknown, ok := errors.AsType[*target.UnknownError](err); ok {
+		return fmt.Sprintf("unknown name %q in the target expression", unknown.Name)
+	}
+	return err.Error()
+}
+
+func (p *Parser) currentAt() ast.Position {
+	endLine, endCol := p.currentEnd()
+	return ast.Position{Line: p.current.Line, Col: p.current.Column, EndLine: endLine, EndCol: endCol}
+}
+
+func (p *Parser) parseNativeSelector() (string, ast.Position, bool) {
 	if !p.expect(lexer.TOKEN_LT) {
 		return "", ast.Position{}, false
 	}
-	if !p.expect(lexer.TOKEN_IDENT) {
-		return "", ast.Position{}, false
+	open := p.currentAt()
+
+	var parts []string
+	at := ast.Position{Line: open.EndLine, Col: open.EndCol, EndLine: open.EndLine, EndCol: open.EndCol}
+	for p.peek.Type != lexer.TOKEN_GT {
+		if p.peek.Type == lexer.TOKEN_EOF || p.peek.Type == lexer.TOKEN_SEMICOLON {
+			p.error("a native selector is never closed: expected >")
+			return "", ast.Position{}, false
+		}
+		p.advance()
+		word, ok := p.selectorWord()
+		if !ok {
+			p.errorf("unexpected %s in the target expression", p.current.Type.DisplayName())
+			return "", ast.Position{}, false
+		}
+		here := p.currentAt()
+		if len(parts) == 0 {
+			at = here
+		}
+		at.EndLine, at.EndCol = here.EndLine, here.EndCol
+		parts = append(parts, word)
 	}
-	arch := p.current.Literal
-	endLine, endCol := p.currentEnd()
-	at := ast.Position{Line: p.current.Line, Col: p.current.Column, EndLine: endLine, EndCol: endCol}
-	if !p.expect(lexer.TOKEN_GT) {
-		return "", ast.Position{}, false
+	p.advance()
+
+	text, ok := p.finishSelector(parts, at)
+	return text, at, ok
+}
+
+func (p *Parser) parseDirectives(program *ast.Program) {
+	for p.current.Type == lexer.TOKEN_HASH {
+		line := p.current.Line
+		if p.peek.Type != lexer.TOKEN_IDENT || p.peek.Line != line {
+			p.errorAt(p.currentAt(), "expected a directive name after #, such as #target")
+			p.skipLine(line)
+			p.advance()
+			continue
+		}
+		p.advance()
+		name := p.current.Literal
+		if name != "target" {
+			p.errorAt(p.currentAt(), "unknown directive #%s", name).WithHelp("the known directives are #target")
+			p.skipLine(line)
+			p.advance()
+			continue
+		}
+
+		if program.Target != "" {
+			p.errorAt(p.currentAt(), "a file has at most one #target")
+		}
+		var parts []string
+		var at ast.Position
+		for p.peek.Line == line && p.peek.Type != lexer.TOKEN_EOF {
+			p.advance()
+			word, ok := p.selectorWord()
+			if !ok {
+				p.errorAt(p.currentAt(), "unexpected %s in the target expression", p.current.Type.DisplayName())
+				p.skipLine(line)
+				parts = nil
+				break
+			}
+			here := p.currentAt()
+			if len(parts) == 0 {
+				at = here
+			}
+			at.EndLine, at.EndCol = here.EndLine, here.EndCol
+			parts = append(parts, word)
+		}
+		if len(parts) == 0 && at.Line == 0 {
+			at = p.currentAt()
+		}
+		if len(parts) > 0 {
+			if text, ok := p.finishSelector(parts, at); ok {
+				program.Target, program.TargetAt = text, at
+			}
+		}
+		p.advance()
 	}
-	return arch, at, true
+}
+
+func (p *Parser) skipLine(line int) {
+	for p.peek.Line == line && p.peek.Type != lexer.TOKEN_EOF {
+		p.advance()
+	}
 }
 
 func (p *Parser) parseNativeDeclaration() *ast.FuncDecl {
-	arch, at, ok := p.parseNativeArch()
+	arch, at, ok := p.parseNativeSelector()
 	if !ok {
+		p.synchronize()
 		return nil
 	}
 
@@ -39,7 +164,7 @@ func (p *Parser) parseNativeDeclaration() *ast.FuncDecl {
 	if decl == nil {
 		return nil
 	}
-	decl.NativeArch, decl.NativeAt = arch, at
+	decl.NativeTarget, decl.NativeTargetAt = arch, at
 	return decl
 }
 

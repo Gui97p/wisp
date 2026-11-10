@@ -1,0 +1,5 @@
+#target x64
+
+func name() string => "x64";
+
+func width() int => 64;

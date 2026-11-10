@@ -753,11 +753,12 @@ func (p *Parser) parseNativeStatement() ast.Statement {
 		return nil
 	}
 	if p.peek.Type == lexer.TOKEN_LT {
-		arch, at, ok := p.parseNativeArch()
+		selector, at, ok := p.parseNativeSelector()
 		if !ok {
+			p.synchronize()
 			return nil
 		}
-		stmt.Backend, stmt.BackendAt = arch, at
+		stmt.Backend, stmt.BackendAt = selector, at
 	}
 
 	if p.peek.Type == lexer.TOKEN_LPAREN {

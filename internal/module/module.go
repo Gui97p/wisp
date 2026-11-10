@@ -13,6 +13,7 @@ import (
 	"github.com/Gui97p/wisp/internal/folders"
 	"github.com/Gui97p/wisp/internal/lexer"
 	"github.com/Gui97p/wisp/internal/parser"
+	"github.com/Gui97p/wisp/internal/target"
 )
 
 type Module struct {
@@ -311,7 +312,7 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(p, ".wsp") || !FileApplies(p) || isVariantFile(p) {
+		if !strings.HasSuffix(p, ".wsp") || isVariantFile(p) {
 			return nil
 		}
 		path, err := canonicalModulePath(root, p)
@@ -363,6 +364,9 @@ func loadModule(path, dir string, files []string, overrides map[string][]byte) *
 		l := lexer.NewLexer(buffer)
 		p := parser.NewParser(l)
 		program := p.ParseProgram()
+		if program.Target != "" && !target.MatchesText(currentTarget(), program.Target) {
+			program.Declarations = nil
+		}
 
 		mod.Files = append(mod.Files, program)
 		mod.Buffers = append(mod.Buffers, buffer)
@@ -417,7 +421,7 @@ func importableUnder(root, prefix string, skipNested bool) []ImportCandidate {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(p, ".wsp") || !FileApplies(p) || isVariantFile(p) {
+		if !strings.HasSuffix(p, ".wsp") || isVariantFile(p) {
 			return nil
 		}
 
@@ -477,7 +481,7 @@ func packageParts(root string, mod *Module) []moduleRoot {
 	var parts []moduleRoot
 	for _, entry := range entries {
 		file := filepath.Join(mod.Dir, entry.Name())
-		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || file == entryFile || !FileApplies(file) || isVariantFile(file) {
+		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || file == entryFile || isVariantFile(file) {
 			continue
 		}
 		key := importKey(root, strings.TrimSuffix(file, ".wsp"))
@@ -498,7 +502,7 @@ func methodSiblings(root string, mod *Module, overrides map[string][]byte) []mod
 	var found []moduleRoot
 	for _, entry := range entries {
 		file := filepath.Join(mod.Dir, entry.Name())
-		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || slices.Contains(mod.FilePaths, file) || !FileApplies(file) || isVariantFile(file) {
+		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || slices.Contains(mod.FilePaths, file) || isVariantFile(file) {
 			continue
 		}
 

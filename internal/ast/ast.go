@@ -51,6 +51,8 @@ func (p *NodePos) SetEndPos(line, col int) {
 
 type Program struct {
 	Declarations []Declaration
+	Target       string
+	TargetAt     Position
 }
 
 func (p *Program) Tree(indent string) string {

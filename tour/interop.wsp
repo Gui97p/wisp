@@ -1,7 +1,8 @@
 // Tour - Native code.
 //
-// `native` embeds code written for one architecture. The name in angle
-// brackets picks it: `native<lua>` or `native<x64>`. Blocks for other
+// `native` embeds code written for one architecture. What is in angle brackets
+// picks it: `native<lua>`, `native<x64>`, or an expression such as
+// `native<x64 && linux>` (see the platform folder). Blocks for other
 // architectures are skipped, so one function can carry an implementation for
 // each one. A function with no block for the architecture being built just
 // runs its plain code, so a port you did not write does nothing.

@@ -1,7 +1,6 @@
 package analyser
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -48,7 +47,7 @@ func (a *Analyser) selectNativeVariants() {
 			order = append(order, key)
 		}
 		groups[key] = append(groups[key], fd)
-		if fd.NativeArch != "" {
+		if fd.NativeTarget != "" {
 			hasNative = true
 		}
 	}
@@ -56,23 +55,15 @@ func (a *Analyser) selectNativeVariants() {
 		return
 	}
 
-	arch := target.ActiveArch()
+	active := target.Active()
 	drop := map[ast.Declaration]bool{}
 
 	for _, key := range order {
 		variants := groups[key]
 		natives := 0
 		for _, fd := range variants {
-			if fd.NativeArch == "" {
-				continue
-			}
-			natives++
-			a.currentFile = a.declFiles[fd]
-			if err := target.ValidateArch(fd.NativeArch); err != nil {
-				d := a.errorRange(fd.NativeAt, "unknown architecture %q in a native function", fd.NativeArch)
-				if unknown, ok := errors.AsType[*target.UnknownError](err); ok {
-					d.WithHelp("%s", unknown.Help)
-				}
+			if fd.NativeTarget != "" {
+				natives++
 			}
 		}
 		if natives == 0 {
@@ -92,29 +83,41 @@ func (a *Analyser) selectNativeVariants() {
 			}
 		}
 
-		matches, plain := false, false
-		var archs []string
+		plain := false
+		var matching, versions []string
 		for _, fd := range variants {
-			if fd.NativeArch != "" && fd.NativeArch == arch {
-				matches = true
-			}
-			if fd.NativeArch == "" {
+			if fd.NativeTarget == "" {
 				plain = true
-			} else {
-				archs = append(archs, fd.NativeArch)
+				continue
+			}
+			versions = append(versions, fd.NativeTarget)
+			if target.MatchesText(active, fd.NativeTarget) {
+				matching = append(matching, fd.NativeTarget)
 			}
 		}
-		if !matches && !plain {
+		if len(matching) == 0 && !plain {
 			if a.unavailable == nil {
 				a.unavailable = map[string][]string{}
 			}
-			a.unavailable[first.Name] = archs
+			a.unavailable[first.Name] = versions
 		}
+
+		dominated := func(text string) bool {
+			for _, other := range matching {
+				if other != text && target.StrictlyNarrower(other, text) {
+					return true
+				}
+			}
+			return false
+		}
+
 		for _, fd := range variants {
 			switch {
-			case fd.NativeArch != "" && fd.NativeArch != arch:
-				drop[fd] = true
-			case fd.NativeArch == "" && matches:
+			case fd.NativeTarget == "":
+				if len(matching) > 0 {
+					drop[fd] = true
+				}
+			case !target.MatchesText(active, fd.NativeTarget), dominated(fd.NativeTarget):
 				drop[fd] = true
 			}
 		}

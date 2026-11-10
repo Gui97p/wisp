@@ -249,6 +249,8 @@ func (l *Lexer) NextToken() Token {
 		t = l.token(TOKEN_RBRACE, "}")
 	case '@':
 		t = l.token(TOKEN_AT, "@")
+	case '#':
+		t = l.token(TOKEN_HASH, "#")
 	case '[':
 		t = l.token(TOKEN_LBRACKET, "[")
 	case ']':

@@ -99,6 +99,11 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 			p.advance()
 			return nil
 		}
+		if p.current.Type == lexer.TOKEN_HASH {
+			p.error("a directive goes at the top of the file, before any declaration")
+			p.advance()
+			return nil
+		}
 		p.errorf("expected declaration, got %s", p.current.Type.DisplayName())
 		p.advance()
 		return nil

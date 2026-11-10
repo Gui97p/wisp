@@ -137,6 +137,7 @@ const (
 	TOKEN_DEFER
 	TOKEN_YIELD
 	TOKEN_INLINE
+	TOKEN_HASH // #
 )
 
 var keywords = map[string]TokenType{
