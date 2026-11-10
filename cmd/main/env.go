@@ -31,7 +31,8 @@ var targetsCmd = &cobra.Command{
 
 func init() {
 	addProjectFlags(envCmd)
-	envCmd.Flags().StringVar(&targetOpt, "target", "", "resolve for this target instead of the default")
+	envCmd.Flags().StringVar(&osOpt, "os", "", "resolve for this system instead of the default")
+	envCmd.Flags().StringVar(&archOpt, "arch", "", "resolve for this architecture instead of the default")
 }
 
 type envEntry struct {
@@ -56,9 +57,8 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		{"root", root},
 		{"config", configPath(root)},
 		{"entry", orDefault(cfg.Entry, "(the only main)")},
-		{"target", tgt.Name},
+		{"os", tgt.OS},
 		{"arch", tgt.Arch},
-		{"os", orDefault(tgt.OS, "(none)")},
 		{"std", stdDescription()},
 		{"cache", cacheDescription()},
 	}
@@ -149,12 +149,12 @@ func runTargets(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	current := runtime.GOOS + "_x64"
-	if cfg.Target != "" {
-		current = cfg.Target
+	current := runtime.GOOS
+	if cfg.OS != "" {
+		current = cfg.OS
 	}
 
-	rows := [][]string{{"", "name", "arch", "os", "kind"}}
+	rows := [][]string{{"", "os", "arch", "kind"}}
 	for _, t := range target.List() {
 		kind := "custom"
 		switch {
@@ -167,17 +167,17 @@ func runTargets(cmd *cobra.Command, args []string) error {
 		if t.Name == current {
 			mark = "*"
 		}
-		rows = append(rows, []string{mark, t.Name, t.Arch, orDefault(t.OS, "-"), kind})
+		rows = append(rows, []string{mark, t.OS, t.Arch, kind})
 	}
 
-	widths := make([]int, 5)
+	widths := make([]int, 4)
 	for _, r := range rows {
 		for i, c := range r {
 			widths[i] = max(widths[i], len(c))
 		}
 	}
 	for _, r := range rows {
-		fmt.Printf("%-*s  %-*s  %-*s  %-*s  %s\n", widths[0], r[0], widths[1], r[1], widths[2], r[2], widths[3], r[3], r[4])
+		fmt.Printf("%-*s  %-*s  %-*s  %s\n", widths[0], r[0], widths[1], r[1], widths[2], r[2], r[3])
 	}
 	fmt.Println("\n* default for this project")
 	return nil

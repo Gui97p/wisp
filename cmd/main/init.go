@@ -56,7 +56,7 @@ func init() {
 	initCmd.AddCommand(initLuaCmd, initLibCmd, initTargetCmd)
 }
 
-const nativeTomlContent = `target = "%s"
+const nativeTomlContent = `os = "%s"
 
 # entry = "main.wsp"
 
@@ -66,7 +66,7 @@ bin = "bin/main"
 # asm = "build/asm"
 `
 
-const luaTomlContent = `target = "cc"
+const luaTomlContent = `os = "cc"
 
 # entry = "main.wsp"
 
@@ -95,7 +95,6 @@ const libContent = `public func add(int a, b) int => a + b;
 const targetTomlContent = `
 [targets.%[1]s]
 arch = "x64"
-os = "%[2]s"
 entry = "_start"
 runtime = "targets/%[1]s/runtime.asm"
 start = "targets/%[1]s/start.asm"
@@ -193,7 +192,7 @@ section .note.GNU-stack noalloc noexec nowrite progbits
 `
 
 func runInit(cmd *cobra.Command, args []string) error {
-	return scaffold(fmt.Sprintf(nativeTomlContent, runtime.GOOS+"_x64"), map[string]string{"main.wsp": nativeMainContent})
+	return scaffold(fmt.Sprintf(nativeTomlContent, runtime.GOOS), map[string]string{"main.wsp": nativeMainContent})
 }
 
 func runInitLua(cmd *cobra.Command, args []string) error {
@@ -287,7 +286,7 @@ func runInitTarget(cmd *cobra.Command, args []string) error {
 	if makeDefault && !fresh {
 		toml = setDefaultTarget(toml, name)
 	}
-	toml += fmt.Sprintf(targetTomlContent, name, strings.TrimSuffix(name, "_x64"))
+	toml += fmt.Sprintf(targetTomlContent, name)
 	if err := os.WriteFile(tomlPath, []byte(toml), 0644); err != nil {
 		return err
 	}
@@ -310,14 +309,14 @@ func runInitTarget(cmd *cobra.Command, args []string) error {
 }
 
 func setDefaultTarget(toml, name string) string {
-	line := fmt.Sprintf("target = %q", name)
+	line := fmt.Sprintf("os = %q", name)
 	lines := strings.Split(toml, "\n")
 	for i, l := range lines {
 		trimmed := strings.TrimSpace(l)
 		if strings.HasPrefix(trimmed, "[") {
 			break
 		}
-		if strings.HasPrefix(trimmed, "target") && strings.Contains(trimmed, "=") && !strings.HasPrefix(trimmed, "#") {
+		if strings.HasPrefix(trimmed, "os") && strings.Contains(trimmed, "=") && !strings.HasPrefix(trimmed, "#") {
 			lines[i] = line
 			return strings.Join(lines, "\n")
 		}

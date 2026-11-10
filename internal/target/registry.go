@@ -55,7 +55,6 @@ type Output struct {
 
 type Patch struct {
 	Arch          string
-	OS            string
 	ABI           string
 	Format        string
 	Entry         string
@@ -73,8 +72,8 @@ var linuxStart string
 var linuxRuntime string
 
 var builtin = []Target{
-	{Name: "linux_x64", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
-	{Name: "cc", Arch: "lua", Builtin: true},
+	{Name: "linux", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
+	{Name: "cc", Arch: "lua", OS: "cc", Builtin: true},
 }
 
 var project []Target
@@ -140,18 +139,12 @@ func Override(name string, patch Patch) error {
 	}
 
 	if base.Arch != "x64" {
-		if patch.OS != "" || patch.ABI != "" || patch.Format != "" || patch.Entry != "" || patch.StartSource != "" || patch.RuntimeSource != "" || len(patch.LinkArgs) > 0 || patch.Libc != nil {
+		if patch.ABI != "" || patch.Format != "" || patch.Entry != "" || patch.StartSource != "" || patch.RuntimeSource != "" || len(patch.LinkArgs) > 0 || patch.Libc != nil {
 			return &FieldError{Target: name, Message: "only accepts \"output\""}
 		}
 	}
 
 	t := base
-	if patch.OS != "" {
-		if !namePattern.MatchString(patch.OS) {
-			return &FieldError{Target: name, Field: "os", Message: fmt.Sprintf("invalid os %q", patch.OS), Help: "use lowercase letters, digits and underscores"}
-		}
-		t.OS = patch.OS
-	}
 	if patch.ABI != "" {
 		if patch.ABI != "sysv" {
 			return &FieldError{Target: name, Field: "abi", Message: fmt.Sprintf("unsupported abi %q", patch.ABI), Help: "only sysv exists"}
@@ -200,8 +193,8 @@ func CheckName(name string) error {
 	}
 
 	for _, b := range builtin {
-		if name == b.Name || name == b.Arch || (b.OS != "" && name == b.OS) {
-			return &FieldError{Target: name, Message: "the name is already used by a built-in target or selector", Help: "pick another name"}
+		if name == b.Name || name == b.Arch || name == b.OS {
+			return &FieldError{Target: name, Message: "the name is already used by a built-in system or architecture", Help: "pick another name"}
 		}
 	}
 
@@ -212,9 +205,7 @@ func Register(t Target) error {
 	if err := CheckName(t.Name); err != nil {
 		return err
 	}
-	if t.OS != "" && !namePattern.MatchString(t.OS) {
-		return &FieldError{Target: t.Name, Field: "os", Message: fmt.Sprintf("invalid os %q", t.OS), Help: "use lowercase letters, digits and underscores"}
-	}
+	t.OS = t.Name
 	if t.Arch != "x64" {
 		return &FieldError{Target: t.Name, Field: "arch", Message: fmt.Sprintf("unsupported arch %q", t.Arch), Help: "only x64 exists for now"}
 	}
@@ -263,11 +254,22 @@ func Lookup(name string) (Target, error) {
 		}
 	}
 
-	return Target{}, &UnknownError{Name: name, Help: Suggestion(name, Names(), "targets")}
+	return Target{}, &UnknownError{Name: name, Help: Suggestion(name, Names(), "systems")}
+}
+
+func Resolve(osName, arch string) (Target, error) {
+	t, err := Lookup(osName)
+	if err != nil {
+		return Target{}, err
+	}
+	if arch != "" && arch != t.Arch {
+		return Target{}, fmt.Errorf("the %s system is built for the %s architecture, not %s", t.OS, t.Arch, arch)
+	}
+	return t, nil
 }
 
 func (t Target) Matches(selector string) bool {
-	return selector == t.Name || selector == t.Arch || (t.OS != "" && selector == t.OS)
+	return selector == t.Arch || selector == t.OS
 }
 
 func MatchesName(targetName, selector string) bool {
@@ -281,7 +283,7 @@ func ValidateSelector(selector string) error {
 		}
 	}
 
-	return &UnknownError{Name: selector, Help: Suggestion(selector, Selectors(), "targets")}
+	return &UnknownError{Name: selector, Help: Suggestion(selector, Selectors(), "architectures and systems")}
 }
 
 func Architectures() []string {
@@ -351,7 +353,7 @@ func Selectors() []string {
 	seen := map[string]bool{}
 	var selectors []string
 	for _, t := range all() {
-		for _, s := range []string{t.Name, t.Arch, t.OS} {
+		for _, s := range []string{t.Arch, t.OS} {
 			if s != "" && !seen[s] {
 				seen[s] = true
 				selectors = append(selectors, s)
@@ -394,7 +396,7 @@ type UnknownError struct {
 }
 
 func (e *UnknownError) Error() string {
-	return fmt.Sprintf("unknown target %q (%s)", e.Name, e.Help)
+	return fmt.Sprintf("unknown system %q (%s)", e.Name, e.Help)
 }
 
 func distance(a, b string) int {

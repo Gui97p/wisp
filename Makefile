@@ -43,7 +43,7 @@ test-cc: build testgen
 	WISP=bin/$(APP) tests/run.sh cc $(FILTER)
 
 test-x64: build testgen
-	WISP=bin/$(APP) tests/run.sh linux_x64 $(FILTER)
+	WISP=bin/$(APP) tests/run.sh linux $(FILTER)
 
 test: test-cc test-x64
 

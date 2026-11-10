@@ -6,10 +6,13 @@ import (
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
+	"github.com/Gui97p/wisp/internal/module"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
-var nativeHeader = regexp.MustCompile(`\bnative\s*(\w*)\s*\(([^)]*)\)\s*$`)
+var nativeHeader = regexp.MustCompile(`\bnative\s*(?:<([^<>]*)>)?\s*\(([^)]*)\)\s*$`)
+
+var nativeDecl = regexp.MustCompile(`\bnative\s*(?:<([^<>]*)>)?\s*\w+\s*\(([^)]*)\)\s*([^=;"]*?)=>\s*$`)
 
 func nativeItems(path string, pos protocol.Position, info *analyser.Info) ([]protocol.CompletionItem, bool) {
 	text := textBefore(path, int(pos.Line), int(pos.Character))
@@ -18,11 +21,21 @@ func nativeItems(path string, pos protocol.Position, info *analyser.Info) ([]pro
 		return nil, false
 	}
 
-	header := nativeHeader.FindStringSubmatch(text[:start])
-	if header == nil {
+	var selector string
+	var bound []string
+	if header := nativeHeader.FindStringSubmatch(text[:start]); header != nil {
+		selector, bound = header[1], nativeBoundNames(header[2])
+	} else if decl := nativeDecl.FindStringSubmatch(text[:start]); decl != nil {
+		results := strings.Trim(strings.TrimSpace(decl[3]), "()")
+		selector = decl[1]
+		bound = append(nativeBoundNames(decl[2]), nativeBoundNames(results)...)
+	} else {
 		return nil, false
 	}
-	if header[1] == "lua" {
+	if strings.TrimSpace(selector) == "" {
+		selector = module.FileDirective(path)
+	}
+	if strings.TrimSpace(selector) == "lua" {
 		return nil, false
 	}
 
@@ -34,7 +47,6 @@ func nativeItems(path string, pos protocol.Position, info *analyser.Info) ([]pro
 	}
 
 	scope := scopeAt(info, int(pos.Line)+1, int(pos.Character)+1)
-	bound := nativeBoundNames(header[2])
 	parts := strings.Split(strings.TrimPrefix(content[brace+1:], "&"), ".")
 
 	if len(parts) == 1 {

@@ -5,7 +5,7 @@ WISP="${WISP:-wisp}"
 case "$WISP" in
 */*) WISP="$(realpath "$WISP")" ;;
 esac
-TARGET="${1:-linux_x64}"
+TARGET="${1:-linux}"
 FILTER="${2:-}"
 ROOT="$(cd "$(dirname "$0")/numeric" && pwd)"
 OUT="$(mktemp -d)"
@@ -61,12 +61,12 @@ for dir in "$ROOT"/*/; do
         mkdir -p "$OUT/bin"
         (
             cd "$dir" &&
-                timeout 120 "$WISP" build --target "$TARGET" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name" >"$out.raw" &&
+                timeout 120 "$WISP" build --os "$TARGET" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name" >"$out.raw" &&
                 cc -no-pie main.c "$OUT/obj/$name"/*.o -o "$OUT/bin/$name" &&
                 "$OUT/bin/$name" >>"$out.raw"
         ) 2>"$err"
     else
-        (cd "$dir" && env "${envs[@]}" timeout 120 "$WISP" run --target "$TARGET" "${flags[@]}") >"$out.raw" 2>"$err"
+        (cd "$dir" && env "${envs[@]}" timeout 120 "$WISP" run --os "$TARGET" "${flags[@]}") >"$out.raw" 2>"$err"
     fi
     code=$?
 

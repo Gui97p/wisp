@@ -1,1 +1,1 @@
-target = "linux_x64"
+os = "linux"

@@ -2,8 +2,12 @@
 # takes priority. Paths are relative to this file. The keys on top come before
 # any [table], because a key written after a [table] line belongs to it.
 
-# Without a target the project builds for the host: x86-64 on Linux.
-# target = "linux_x64"
+# The system to build for, and its architecture. Without them the project
+# builds for the host: `linux`, which is x64. `cc` is the Lua one. The
+# architecture is only needed when a system has more than one; otherwise it is
+# a check. `--os` and `--arch` take priority.
+# os = "linux"
+# arch = "x64"
 
 # `wisp run` finds `main` by itself; set this when a project has several.
 # entry = "main.wsp"
@@ -23,8 +27,9 @@
 # libc = true
 
 # Where a build writes its files. Without this table, everything goes under a
-# folder named after the target: bin/<target>/, build/<target>/, dist/<target>/.
-# A target can have its own, with the same keys: [targets.linux_x64.output].
+# folders named after the system and the architecture: bin/<os>/<arch>/,
+# build/<os>/<arch>/, dist/<os>/<arch>/. A system can have its own, with the
+# same keys: [targets.linux.output].
 [output]
 bin = "bin/tour"
 # obj = "build/obj"
@@ -50,7 +55,7 @@ bin = "bin/tour"
 # its link arguments are added to the built-in ones, and the other keys replace
 # the built-in values (arch cannot change, and lua only takes output).
 #
-# [targets.linux_x64]
+# [targets.linux]
 # link = ["-lm"]
 
 # Environment variables for the program when it is started by `wisp run`. A

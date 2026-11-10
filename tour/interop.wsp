@@ -2,7 +2,9 @@
 //
 // `native` embeds code written for one architecture. What is in angle brackets
 // picks it: `native<lua>`, `native<x64>`, or an expression such as
-// `native<x64 && linux>` (see the platform folder). Blocks for other
+// `native<x64 && linux>` (see the platform folder). Inside a file that already
+// has a `#target`, the brackets are redundant and can be left out: a plain
+// `native` there is for whatever that file is for. Blocks for other
 // architectures are skipped, so one function can carry an implementation for
 // each one. A function with no block for the architecture being built just
 // runs its plain code, so a port you did not write does nothing.

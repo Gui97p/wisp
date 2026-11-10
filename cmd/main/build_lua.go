@@ -15,7 +15,7 @@ import (
 func resolveLuaOutDir(root string, cfg *module.Config, tgt target.Target) string {
 	dir := pick(luaOut, tgt.Output.Lua, cfg.Output.Lua)
 	if dir == "" {
-		return filepath.Join(root, "dist", tgt.Name)
+		return filepath.Join(root, "dist", tgt.OS, tgt.Arch)
 	}
 	if filepath.IsAbs(dir) {
 		return dir

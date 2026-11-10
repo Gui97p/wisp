@@ -10,6 +10,23 @@ import (
 	"github.com/Gui97p/wisp/internal/target"
 )
 
+type Directive struct {
+	Name string
+	Doc  string
+}
+
+var Directives = []Directive{
+	{Name: "target", Doc: "Restricts the file to the targets that match the expression that follows, such as #target x64 && linux."},
+}
+
+func directiveNames() string {
+	names := make([]string, len(Directives))
+	for i, d := range Directives {
+		names[i] = "#" + d.Name
+	}
+	return strings.Join(names, ", ")
+}
+
 type nativeHeader struct {
 	arch string
 	at   ast.Position
@@ -104,8 +121,8 @@ func (p *Parser) parseDirectives(program *ast.Program) {
 		}
 		p.advance()
 		name := p.current.Literal
-		if name != "target" {
-			p.errorAt(p.currentAt(), "unknown directive #%s", name).WithHelp("the known directives are #target")
+		if !isDirective(name) {
+			p.errorAt(p.currentAt(), "unknown directive #%s", name).WithHelp("the known directives are %s", directiveNames())
 			p.skipLine(line)
 			p.advance()
 			continue
@@ -144,6 +161,15 @@ func (p *Parser) parseDirectives(program *ast.Program) {
 	}
 }
 
+func isDirective(name string) bool {
+	for _, d := range Directives {
+		if d.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (p *Parser) skipLine(line int) {
 	for p.peek.Line == line && p.peek.Type != lexer.TOKEN_EOF {
 		p.advance()
@@ -151,10 +177,15 @@ func (p *Parser) skipLine(line int) {
 }
 
 func (p *Parser) parseNativeDeclaration() *ast.FuncDecl {
-	arch, at, ok := p.parseNativeSelector()
-	if !ok {
-		p.synchronize()
-		return nil
+	var arch string
+	var at ast.Position
+	if p.peek.Type == lexer.TOKEN_LT {
+		var ok bool
+		arch, at, ok = p.parseNativeSelector()
+		if !ok {
+			p.synchronize()
+			return nil
+		}
 	}
 
 	p.native = &nativeHeader{arch: arch, at: at}

@@ -97,7 +97,7 @@ func sectionOfLine(lines []string, line int) string {
 
 func valueChoices(section, key string, declared []string) []string {
 	switch {
-	case section == "" && key == "target":
+	case section == "" && key == "os":
 		names := append([]string{}, target.Names()...)
 		for _, d := range declared {
 			names = append(names, d)

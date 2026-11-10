@@ -55,7 +55,7 @@ func loadSettings(path string) *projectSettings {
 	}
 
 	if s.configErr == nil {
-		s.target = cfg.Target
+		s.target = cfg.OS
 		if cfg.Entry != "" {
 			s.entry = filepath.Join(root, cfg.Entry)
 		}

@@ -115,7 +115,7 @@ func (p *selectorParser) not() (*Selector, error) {
 		break
 	}
 	if start == p.pos {
-		return nil, fmt.Errorf("expected an architecture, a system or a target name in the target expression")
+		return nil, fmt.Errorf("expected an architecture or a system in the target expression")
 	}
 	return &Selector{kind: selAtom, word: p.text[start:p.pos]}, nil
 }
@@ -180,7 +180,7 @@ func ValidateSelectorText(text string) error {
 			}
 		}
 		if !found {
-			return &UnknownError{Name: w, Help: Suggestion(w, known, "architectures, systems and targets")}
+			return &UnknownError{Name: w, Help: Suggestion(w, known, "architectures and systems")}
 		}
 	}
 	return nil

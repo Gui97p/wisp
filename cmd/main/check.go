@@ -17,7 +17,8 @@ var checkCmd = &cobra.Command{
 func init() {
 	addProjectFlags(checkCmd)
 	addOutputFlags(checkCmd)
-	checkCmd.Flags().StringVar(&targetOpt, "target", "", "analyse for this target instead of the default")
+	checkCmd.Flags().StringVar(&osOpt, "os", "", "analyse for this system instead of the default")
+	checkCmd.Flags().StringVar(&archOpt, "arch", "", "analyse for this architecture instead of the default")
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {

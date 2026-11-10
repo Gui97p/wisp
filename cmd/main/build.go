@@ -18,14 +18,15 @@ import (
 )
 
 var (
-	asmOut    string
-	objOut    string
-	binOut    string
-	luaOut    string
-	targetOpt string
-	stdOpt    string
-	linkOpt   []string
-	libcOpt   bool
+	asmOut  string
+	objOut  string
+	binOut  string
+	luaOut  string
+	osOpt   string
+	archOpt string
+	stdOpt  string
+	linkOpt []string
+	libcOpt bool
 )
 
 var buildCmd = &cobra.Command{
@@ -56,7 +57,8 @@ func addBuildFlags(cmd *cobra.Command) {
 	f.StringVar(&objOut, "obj", "", "output directory for generated .o files (x86-64 targets)")
 	f.StringVar(&binOut, "bin", "", "output path for the final binary (x86-64 targets)")
 	f.StringVar(&luaOut, "lua", "", "output directory for generated .lua files (cc target)")
-	f.StringVar(&targetOpt, "target", "", "target name (e.g. linux_x64, cc)")
+	f.StringVar(&osOpt, "os", "", "system to build for (linux, cc, or one declared in wisp.toml)")
+	f.StringVar(&archOpt, "arch", "", "architecture to build for (x64, lua)")
 	f.StringArrayVar(&linkOpt, "link", nil, "extra argument for the linker, repeatable (object files, archives, -L, -l); x86-64 targets")
 	f.BoolVar(&libcOpt, "libc", false, "link the system C library and use its startup code instead of the Wisp start stub (x86-64 targets)")
 	addProjectFlags(cmd)
@@ -88,15 +90,19 @@ func openProject(cmd *cobra.Command) (string, *module.Config, error) {
 }
 
 func resolveTarget(cfg *module.Config) (target.Target, error) {
-	name := runtime.GOOS + "_x64"
-	if cfg.Target != "" {
-		name = cfg.Target
+	osName, arch := runtime.GOOS, cfg.Arch
+	if cfg.OS != "" {
+		osName = cfg.OS
 	}
-	if targetOpt != "" {
-		name = targetOpt
+	if osOpt != "" {
+		osName = osOpt
+		arch = ""
+	}
+	if archOpt != "" {
+		arch = archOpt
 	}
 
-	return target.Lookup(name)
+	return target.Resolve(osName, arch)
 }
 
 func resolveExecutable(name string) string {
@@ -275,13 +281,13 @@ func resolveBuildTargets(root string, cfg *module.Config, tgt target.Target, for
 	}
 
 	if t.asmDir == "" {
-		t.asmDir = filepath.Join(root, "build", tgt.Name, "asm")
+		t.asmDir = filepath.Join(root, "build", tgt.OS, tgt.Arch, "asm")
 	}
 	if t.objDir == "" {
-		t.objDir = filepath.Join(root, "build", tgt.Name, "obj")
+		t.objDir = filepath.Join(root, "build", tgt.OS, tgt.Arch, "obj")
 	}
 	if t.binPath == "" {
-		t.binPath = filepath.Join(root, "bin", tgt.Name, filepath.Base(root))
+		t.binPath = filepath.Join(root, "bin", tgt.OS, tgt.Arch, filepath.Base(root))
 	}
 
 	return t

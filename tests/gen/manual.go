@@ -6258,10 +6258,22 @@ func main() {
 public func described() int {
     return kind() + 1;
 }
+
+public func bumped(int a) int {
+    return bump(a) + bumpTwice(a);
+}
 `, "platform/x64.wsp": `#target x64
 
 func kind() int {
     return 3;
+}
+
+native bump(int a) int r => "mov rax, {a}; add rax, 1; mov {r}, rax";
+
+func bumpTwice(int a) int {
+    int r;
+    native(in a, out r) "mov rax, {a}; add rax, 2; mov {r}, rax";
+    return r;
 }
 
 public func twice(int n) int {
@@ -6272,6 +6284,14 @@ public func twice(int n) int {
 
 func kind() int {
     return 3;
+}
+
+native bump(int a) int r => "r = a + 1";
+
+func bumpTwice(int a) int {
+    int r;
+    native(in a, out r) "r = a + 2";
+    return r;
 }
 
 public func twice(int n) int {
@@ -6297,10 +6317,11 @@ func main() {
     check(platform.base() == 10, "the entry of a package is always there");
     check(platform.twice(4) == 8, "only the part whose #target matches is loaded");
     check(platform.described() == 4, "a variant shares the private names of its package entry");
+    check(platform.bumped(10) == 11 + 12, "native needs no selector inside a file with a #target");
     check(platform.always() == 5, "a #target can be an or");
     check(level() == 2, "the version that matches fewer targets wins");
 }
-`, expected: []string{"the entry of a package is always there", "only the part whose #target matches is loaded", "a variant shares the private names of its package entry", "a #target can be an or", "the version that matches fewer targets wins"}},
+`, expected: []string{"the entry of a package is always there", "only the part whose #target matches is loaded", "a variant shares the private names of its package entry", "native needs no selector inside a file with a #target", "a #target can be an or", "the version that matches fewer targets wins"}},
 
 	{dir: "inline_calls", src: `import "std/errors";
 
@@ -7805,7 +7826,9 @@ public func name() int {
 public func pieces() int {
     return both();
 }
-`, "where/where_x64.wsp": `import "std/math";
+`, "where/x64.wsp": `#target x64
+
+import "std/math";
 
 func which() int {
     return math.max(10, 3);
@@ -7814,10 +7837,14 @@ func which() int {
 func both() int {
     return 100;
 }
-`, "where/where_linux_x64.wsp": `func extra() int {
+`, "where/linux_x64.wsp": `#target linux && x64
+
+func extra() int {
     return 1;
 }
-`, "where/where_lua.wsp": `import "std/math";
+`, "where/lua.wsp": `#target lua
+
+import "std/math";
 
 func which() int {
     return math.max(10, 3);
@@ -7833,10 +7860,10 @@ func both() int {
 `}, src: `import "where";
 
 func main() {
-    check(where.name() == 11, "a file named after a target is part of the module on that target only");
-    check(where.pieces() == 100, "a file named after an OS and arch is part of the module on that platform only");
+    check(where.name() == 11, "a file with a #target for the architecture is part of the module on that architecture only");
+    check(where.pieces() == 100, "a file with a #target for a system and an architecture is part of the module on that platform only");
 }
-`, expected: []string{"a file named after a target is part of the module on that target only", "a file named after an OS and arch is part of the module on that platform only"}},
+`, expected: []string{"a file with a #target for the architecture is part of the module on that architecture only", "a file with a #target for a system and an architecture is part of the module on that platform only"}},
 
 	{dir: "ptr_slice", src: `import "std/mem";
 func main() ! {

@@ -66,22 +66,22 @@ The compiler reads every `.wsp` file under the project root, the folder with `wi
 `wisp.toml` is optional, and every key has a flag. [`tour/wisp.toml`](tour/wisp.toml) lists them all with comments.
 
 ```toml
-target = "linux_x64"          # the default target
+os = "linux"                  # the system to build for (and arch = "x64", if the system has several)
 
 [output]
 bin = "bin/app"
 ```
 
-Without `[output]`, files go under a folder named after the target: `bin/<target>/`, `build/<target>/` and `dist/<target>/`.
+Without `[output]`, files go under folders named after the system and the architecture: `bin/<os>/<arch>/`, `build/<os>/<arch>/` and `dist/<os>/<arch>/`.
 
 ## Backends and targets
 
-| Target | Status |
+| System | Status |
 | --- | --- |
-| `linux_x64` | The main backend: NASM assembly, linked with `ld`, System V calling convention. |
-| `cc` | Secondary: Lua for CC: Tweaked computers, the stdlib uses its `fs` API. It has floating point and function values, but no `extern`. Numbers are doubles there: integers are exact up to 2^53 and `int64` and `uint64` do not wrap around. |
+| `linux` (x64) | The main backend: NASM assembly, linked with `ld`, System V calling convention. |
+| `cc` (lua) | Secondary: Lua for CC: Tweaked computers, the stdlib uses its `fs` API. It has floating point and function values, but no `extern`. Numbers are doubles there: integers are exact up to 2^53 and `int64` and `uint64` do not wrap around. |
 
-A target of your own is a `[targets.<name>]` block with a start file and a runtime file. `wisp init target <name>` writes both, with comments that say what each routine must do. A block named after a built-in target adjusts it.
+A system of your own is a `[targets.<name>]` block with an architecture, a start file and a runtime file; the name is the system's name, the one `#target` and `--os` use. `wisp init target <name>` writes both, with comments that say what each routine must do. A block named after a built-in system adjusts it.
 
 ## Editor support
 

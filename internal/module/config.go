@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -17,7 +18,8 @@ import (
 
 type Config struct {
 	Entry   string                  `toml:"entry" doc:"Entry file of the project, relative to the project root. Defaults to main.wsp."`
-	Target  string                  `toml:"target" doc:"Default compilation target. Built-in: linux_x64, cc, or a name declared in [targets.<name>]."`
+	OS      string                  `toml:"os" doc:"The system to build for: linux, cc, or a name declared in [targets.<name>]. Defaults to the system of the machine."`
+	Arch    string                  `toml:"arch" doc:"The architecture to build for. Only needed when the system has more than one; otherwise it is a check."`
 	Std     string                  `toml:"std" doc:"The standard library. Leave it out for the one that ships with the compiler, write a folder to replace it, or \"none\" to build without any (a folder called none is written ./none)."`
 	Link    []string                `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`
 	Libc    bool                    `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
@@ -53,7 +55,6 @@ func (c *Config) RunEnv() []EnvVar {
 
 type TargetConfig struct {
 	Arch    string       `toml:"arch" doc:"CPU architecture of the target. Only x64 is supported."`
-	OS      string       `toml:"os" doc:"Operating system name. It is also a selector for native blocks."`
 	ABI     string       `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
 	Format  string       `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
 	Entry   string       `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
@@ -199,7 +200,6 @@ func (c *Config) registerTargets(root string) error {
 		if target.IsBuiltin(name) {
 			err := target.Override(name, target.Patch{
 				Arch:          tc.Arch,
-				OS:            tc.OS,
 				ABI:           tc.ABI,
 				Format:        tc.Format,
 				Entry:         tc.Entry,
@@ -218,7 +218,6 @@ func (c *Config) registerTargets(root string) error {
 		err := target.Register(target.Target{
 			Name:          name,
 			Arch:          tc.Arch,
-			OS:            tc.OS,
 			ABI:           tc.ABI,
 			Format:        tc.Format,
 			Entry:         tc.Entry,
@@ -332,6 +331,15 @@ func decodeConfigSource(path, text string) (*Config, error) {
 			continue
 		}
 		reported = append(reported, key)
+
+		if len(key) >= 3 && key[0] == "targets" && slices.Contains(target.Architectures(), key[2]) {
+			issues = append(issues, ConfigIssue{
+				Line:    locateKey(text, key),
+				Message: fmt.Sprintf("a table per architecture is not available yet: %q", key.String()),
+				Help:    fmt.Sprintf("write these keys in [targets.%s]: while %s has a single architecture, they apply to all of it", key[1], key[1]),
+			})
+			continue
+		}
 
 		known := knownKeys(key)
 		issues = append(issues, ConfigIssue{

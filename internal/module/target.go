@@ -81,7 +81,10 @@ func directiveVariants(file string) []string {
 			continue
 		}
 		expr := FileDirective(candidate)
-		if expr != "" && target.MatchesText(currentTarget(), expr) {
+		if expr == "" {
+			continue
+		}
+		if target.ValidateSelectorText(expr) != nil || target.MatchesText(currentTarget(), expr) {
 			variants = append(variants, candidate)
 		}
 	}
