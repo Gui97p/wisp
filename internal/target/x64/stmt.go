@@ -97,23 +97,19 @@ func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 	if len(stmt.Values) == 0 {
 		for i := range stmt.Vars {
 			sym := t.info.VarSymbols[stmt][i]
-			offset, ok := t.ctx.Get(sym)
-			if !ok {
+			if _, ok := t.ctx.Get(sym); !ok {
 				return fmt.Errorf("x86-64: undeclared variable %s", sym.Name)
 			}
-			size := sizeOf(t.info.VarTypes[stmt][i])
-			t.zero(slot(offset, size))
+			t.zero(t.local(sym))
 		}
 		return nil
 	}
 	return t.eachValue(stmt.Values, func(i int, op Operand) error {
 		sym := t.info.VarSymbols[stmt][i]
-		offset, ok := t.ctx.Get(sym)
-		if !ok {
+		if _, ok := t.ctx.Get(sym); !ok {
 			return fmt.Errorf("x86-64: undeclared variable %s", sym.Name)
 		}
-		size := sizeOf(t.info.VarTypes[stmt][i])
-		t.store(op, slot(offset, size))
+		t.store(op, t.local(sym))
 		return nil
 	})
 }
@@ -214,7 +210,7 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 
 func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 	if len(stmt.Targets) == 1 {
-		memSlot, err := t.compileLValue(stmt.Targets[0])
+		memSlot, err := t.compileAssignable(stmt.Targets[0])
 		if err != nil {
 			return err
 		}
@@ -249,7 +245,7 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 	}
 
 	for _, target := range slices.Backward(stmt.Targets) {
-		memSlot, err := t.compileLValue(target)
+		dst, err := t.compileAssignable(target)
 		if err != nil {
 			return err
 		}
@@ -261,17 +257,21 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 				return fmt.Errorf("x86-64: no available registers")
 			}
 			t.pop(reg)
-			t.storeWord(memSlot.at(8*w, min(8, size-8*w)), Reg{reg, 8})
+			if home, ok := dst.(Reg); ok {
+				t.loadWord(home.Reg, Reg{reg, 8})
+			} else {
+				t.storeWord(dst.(Mem).at(8*w, min(8, size-8*w)), Reg{reg, 8})
+			}
 			t.ctx.FreeRegister(reg)
 		}
-		t.freeOp(memSlot)
+		t.freeOp(dst)
 	}
 
 	return nil
 }
 
 func (t *X64Target) compileIncDecStmt(stmt *ast.IncDecStmt) error {
-	memSlot, err := t.compileLValue(stmt.Target)
+	memSlot, err := t.compileAssignable(stmt.Target)
 	if err != nil {
 		return err
 	}
@@ -283,10 +283,10 @@ func (t *X64Target) compileIncDecStmt(stmt *ast.IncDecStmt) error {
 		if stmt.Op == "--" {
 			inst = "sub"
 		}
-		op = fmt.Sprintf("%s, %d", t.memText(memSlot), sizeOf(tp.Element))
+		op = fmt.Sprintf("%s, %d", t.opText(memSlot, 8), sizeOf(tp.Element))
 	default:
 		inst = incDecOperators[stmt.Op]
-		op = t.memText(memSlot)
+		op = t.opText(memSlot, sizeOf(t.info.Types[stmt.Target]))
 	}
 	t.text.printft("%s %s\n", inst, op)
 	t.freeOp(memSlot)

@@ -25,6 +25,7 @@ var<debug> int ringStart, ringCount;
 
 struct<debug> Entry { *void block; string site, freed; }
 var<debug> *Entry table;
+const<debug> SLOTS = 65536;
 
 const {
 	HEAD_SIZE = 16;
@@ -33,7 +34,6 @@ const {
 	CHUNK_SIZE = 1048576;
 	PAGE_SIZE = 4096;
 	MAX_ALLOC = 1 << 47;
-	SLOTS = 65536;
 	uint LIVE = 0x57495350414C4956;
 	uint DEAD = 0x5749535044454144;
 }

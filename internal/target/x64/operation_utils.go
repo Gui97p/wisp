@@ -60,22 +60,59 @@ func (t *X64Target) pieces(size int) []int {
 	return pieces
 }
 
-func (t *X64Target) zero(dst Mem) {
-	size := dst.Size
-	if size >= REP_THRESHOLD {
-		regs := t.pushRep(x64context.SI)
-		t.text.printlnt("xor eax, eax")
-		t.text.printft("lea rdi, %s\n", t.memText(dst))
-		t.text.printft("mov ecx, %d\n", dst.Size/8)
-		t.text.printlnt("rep stosq")
-		t.popRep(regs)
-		dst = dst.at(size&^7, size&7)
+func (t *X64Target) zero(dst Operand) {
+	switch d := dst.(type) {
+	case Reg:
+		xor := "xor"
+		if d.Reg.Class() == x64context.SSE {
+			xor = "xorps"
+		}
+		r := t.ctx.GetRegister(d.Reg, d.Size)
+		t.text.printft("%s %s, %s\n", xor, r, r)
+	case Mem:
+		size := d.Size
+		if size >= REP_THRESHOLD {
+			regs := t.pushRep(x64context.SI)
+			t.text.printlnt("xor eax, eax")
+			t.text.printft("lea rdi, %s\n", t.memText(d))
+			t.text.printft("mov ecx, %d\n", d.Size/8)
+			t.text.printlnt("rep stosq")
+			t.popRep(regs)
+			d = d.at(size&^7, size&7)
+		}
+		off := 0
+		for _, p := range t.pieces(d.Size) {
+			t.store(Imm(0), d.at(off, p))
+			off += p
+		}
 	}
-	off := 0
-	for _, p := range t.pieces(dst.Size) {
-		t.store(Imm(0), dst.at(off, p))
-		off += p
+}
+
+func (t *X64Target) local(sym *analyser.Symbol) Operand {
+	size := sizeOf(sym.Type)
+	if reg, ok := t.ctx.Register(sym); ok {
+		return Reg{reg, size}
 	}
+	off, _ := t.ctx.Get(sym)
+	return slot(off, size)
+}
+
+func (t *X64Target) inlineLocal(sym *analyser.Symbol) Operand {
+	size := sizeOf(sym.Type)
+	reg, bound := t.ctx.Register(sym)
+	if bound && reg.Class() != x64context.SSE {
+		return t.local(sym)
+	}
+	if _, ok := t.ctx.Get(sym); !ok {
+		t.ctx.Set(sym, size)
+	}
+	return t.local(sym)
+}
+
+func (t *X64Target) localMem(sym *analyser.Symbol) Mem {
+	size := sizeOf(sym.Type)
+	off, _ := t.ctx.Get(sym)
+	return slot(off, size)
 }
 
 func (t *X64Target) words(op Operand) []Operand {
@@ -95,17 +132,23 @@ func (t *X64Target) words(op Operand) []Operand {
 	}
 }
 
-func (t *X64Target) store(op Operand, dst Mem) {
+func (t *X64Target) store(op Operand, dst Operand) {
+	if r, ok := dst.(Reg); ok {
+		t.loadWord(r.Reg, op)
+		t.freeOp(op)
+		return
+	}
+	d := dst.(Mem)
 	switch o := op.(type) {
 	case Mem:
 		size := o.Size
 		if size >= REP_THRESHOLD {
 			var regs []x64context.Register
-			dstText := t.memText(dst)
+			dstText := t.memText(d)
 			movInst := "lea"
-			if dst.Base == x64context.SI {
+			if d.Base == x64context.SI {
 				regs = t.pushRep()
-				t.loadWord(x64context.AX, Addr{dst})
+				t.loadWord(x64context.AX, Addr{d})
 				dstText = t.ctx.GetRegister(x64context.AX, 8)
 				movInst = "mov"
 			} else {
@@ -117,20 +160,20 @@ func (t *X64Target) store(op Operand, dst Mem) {
 			t.text.printlnt("rep movsq")
 			t.popRep(regs)
 			op = o.at(size&^7, size&7)
-			dst = dst.at(size&^7, size&7)
+			d = d.at(size&^7, size&7)
 		}
 	}
 	off := 0
 	for _, w := range t.words(op) {
-		size := min(8, dst.Size-off)
+		size := min(8, d.Size-off)
 		switch wo := w.(type) {
 		case Reg:
 			size = wo.Size
 		case Mem:
 			size = wo.Size
 		}
-		size = min(size, dst.Size-off)
-		t.storeWord(dst.at(off, size), w)
+		size = min(size, d.Size-off)
+		t.storeWord(d.at(off, size), w)
 		off += size
 	}
 	t.freeOp(op)
@@ -185,6 +228,15 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, size), o)
 		return reg
 	case Reg:
+		if t.ctx.IsHome(o.Reg) {
+			reg := t.ctx.AllocFreeRegister()
+			if reg == x64context.NoReg {
+				t.fail("x86-64: no available registers")
+				return reg
+			}
+			t.loadWord(reg, Reg{o.Reg, 8})
+			return reg
+		}
 		return o.Reg
 	case Mem:
 		reg := t.ctx.AllocFreeRegister()
@@ -213,6 +265,15 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 func (t *X64Target) materializeXmm(op Operand) x64context.Register {
 	switch o := op.(type) {
 	case Reg:
+		if t.ctx.IsHome(o.Reg) {
+			reg := t.ctx.AllocFreeXmm()
+			if reg == x64context.NoReg {
+				t.fail("x86-64: no available registers")
+				return reg
+			}
+			t.loadWord(reg, o)
+			return reg
+		}
 		return o.Reg
 	case Mem:
 		reg := t.ctx.AllocFreeXmm()

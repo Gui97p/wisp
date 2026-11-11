@@ -1,25 +1,84 @@
 package x64context
 
-import "github.com/Gui97p/wisp/internal/analyser"
+import (
+	"slices"
+
+	"github.com/Gui97p/wisp/internal/analyser"
+)
 
 type Context struct {
-	stackOffset map[*analyser.Symbol]int
-	stackSize   int
+	symbolRegisters map[*analyser.Symbol]Register
+	homes           map[Register]bool
+	savedRegisters  map[Register]bool
+	stackOffset     map[*analyser.Symbol]int
+	stackSize       int
 
 	registers map[Register]bool
 
-	pushed int
+	pushed    int
+	optimized bool
 
 	loopStack []LoopContext
 }
 
 func NewContext() *Context {
-	return &Context{stackOffset: map[*analyser.Symbol]int{}, registers: map[Register]bool{}, loopStack: []LoopContext{}}
+	return &Context{
+		symbolRegisters: map[*analyser.Symbol]Register{},
+		homes:           map[Register]bool{},
+		savedRegisters:  map[Register]bool{},
+		stackOffset:     map[*analyser.Symbol]int{},
+		registers:       map[Register]bool{},
+		loopStack:       []LoopContext{},
+	}
 }
 
 func (c *Context) Get(ident *analyser.Symbol) (int, bool) {
 	value, ok := c.stackOffset[ident]
 	return value, ok
+}
+
+func (c *Context) Register(ident *analyser.Symbol) (Register, bool) {
+	value, ok := c.symbolRegisters[ident]
+	return value, ok
+}
+
+func (c *Context) SavedRegisters() []Register {
+	regs := make([]Register, 0, len(c.savedRegisters))
+	for r, b := range c.savedRegisters {
+		if b {
+			regs = append(regs, r)
+		}
+	}
+	slices.Sort(regs)
+	return regs
+}
+
+type Binding struct {
+	Symbol   *analyser.Symbol
+	Register Register
+}
+
+func (c *Context) IsHome(reg Register) bool {
+	return c.homes[reg]
+}
+
+func (c *Context) XmmBindings() []Binding {
+	var out []Binding
+	for sym, reg := range c.symbolRegisters {
+		if reg.Class() == SSE {
+			out = append(out, Binding{sym, reg})
+		}
+	}
+	slices.SortFunc(out, func(a, b Binding) int { return int(a.Register) - int(b.Register) })
+	return out
+}
+
+func (c *Context) Bind(ident *analyser.Symbol, reg Register) {
+	c.symbolRegisters[ident] = reg
+	c.homes[reg] = true
+	if slices.Contains(SavedOrder, reg) {
+		c.savedRegisters[reg] = true
+	}
 }
 
 func (c *Context) Size() int {

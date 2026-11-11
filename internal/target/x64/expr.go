@@ -75,12 +75,7 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 			return Addr{Of: label(t.funcLabel(sym), size)}, nil
 		}
 
-		offset, ok := t.ctx.Get(sym)
-		if !ok {
-			return nil, fmt.Errorf("x86-64: undefined literal")
-		}
-
-		return slot(offset, size), nil
+		return t.local(sym), nil
 
 	case *ast.BinaryExpr:
 		return t.compileBinaryExpr(e)
@@ -224,6 +219,17 @@ func (t *X64Target) checkNotNull(reg x64context.Register) {
 	t.text.printf("%s:\n", ok)
 }
 
+func (t *X64Target) compileAssignable(expr ast.Expression) (Operand, error) {
+	if id, ok := expr.(*ast.IdentLiteral); ok {
+		if sym, found := t.info.Idents[id]; found && !sym.Global {
+			if _, bound := t.ctx.Register(sym); bound {
+				return t.local(sym), nil
+			}
+		}
+	}
+	return t.compileLValue(expr)
+}
+
 func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 	switch e := expr.(type) {
 	case *ast.IdentLiteral:
@@ -232,12 +238,7 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 		if sym.Global {
 			return t.globalMem(sym, size), nil
 		}
-		offset, ok := t.ctx.Get(sym)
-		if !ok {
-			return Mem{}, fmt.Errorf("x86-64: undeclared variable %s", e.Value)
-		}
-
-		return slot(offset, size), nil
+		return t.localMem(sym), nil
 	case *ast.MemberExpr:
 		if t.info.Members[e].Kind == analyser.MemberModule {
 			sym, err := t.resolveCallee(e)

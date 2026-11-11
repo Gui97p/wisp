@@ -25,6 +25,17 @@ type callSite struct {
 	text  string
 }
 
+type savedReg struct {
+	reg    x64context.Register
+	offset int
+}
+
+type candidate struct {
+	sym    *analyser.Symbol
+	weight int
+	class  x64context.Class
+}
+
 type inlineFrame struct {
 	call       *analyser.InlineCall
 	lastReturn ast.Statement
@@ -67,6 +78,8 @@ type X64Target struct {
 	lastReturn   ast.Statement
 	hidden       Mem
 	inlineFrames []inlineFrame
+	candidates   []candidate
+	savedRegs    []savedReg
 
 	deferScopes []*deferScope
 	lambdas     []pendingLambda

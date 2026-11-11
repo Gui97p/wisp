@@ -579,7 +579,18 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 			t.text.printft("mov eax, %d\n", xi)
 		}
 	}
+	xmms := t.ctx.XmmBindings()
+	for _, b := range xmms {
+		if _, ok := t.ctx.Get(b.Symbol); ok {
+			t.storeWord(t.localMem(b.Symbol), Reg{b.Register, sizeOf(b.Symbol.Type)})
+		}
+	}
 	t.text.printft("call %s\n", sym)
+	for _, b := range xmms {
+		if _, ok := t.ctx.Get(b.Symbol); ok {
+			t.loadWord(b.Register, t.localMem(b.Symbol))
+		}
+	}
 	if t.trace {
 		label := fmt.Sprintf(".site_%d", len(t.sites))
 		t.text.printf("%s:\n", label)
@@ -634,18 +645,14 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 			if err != nil {
 				return nil, err
 			}
-			size := sizeOf(call.Receiver.Type)
-			off := t.ctx.Set(call.Receiver, size)
-			t.store(op, slot(off, size))
+			t.store(op, t.inlineLocal(call.Receiver))
 		}
 		for i, ai := range call.ArgIndex {
 			op, err := t.compileExpr(expr.Args[ai])
 			if err != nil {
 				return nil, err
 			}
-			size := sizeOf(call.Params[i].Type)
-			off := t.ctx.Set(call.Params[i], size)
-			t.store(op, slot(off, size))
+			t.store(op, t.inlineLocal(call.Params[i]))
 		}
 		slots := make([]Operand, 0, len(call.Returns))
 		for _, r := range call.Returns {

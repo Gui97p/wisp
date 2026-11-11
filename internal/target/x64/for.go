@@ -1,7 +1,6 @@
 package x64
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -54,8 +53,7 @@ func (t *X64Target) compileForConstant(stmt *ast.ForStmt, end, step int64, up bo
 	if err != nil {
 		return err
 	}
-	startOffset, _ := t.ctx.Get(t.info.VarSymbols[stmt][0])
-	i := slot(startOffset, size)
+	i := t.local(t.info.VarSymbols[stmt][0])
 	t.store(start, i)
 
 	ctx := x64context.LoopContext{
@@ -78,8 +76,8 @@ func (t *X64Target) compileForConstant(stmt *ast.ForStmt, end, step int64, up bo
 	if !up {
 		instruction, jump = "sub", "jge"
 	}
-	t.text.printft("%s %s, %d\n", instruction, t.memText(i), step)
-	t.text.printft("cmp %s, %d\n", t.memText(i), end)
+	t.text.printft("%s %s, %d\n", instruction, t.opText(i, size), step)
+	t.text.printft("cmp %s, %d\n", t.opText(i, size), end)
 	t.text.printft("%s %s\n", jump, body)
 	t.text.printf("%s:\n", ctx.BreakLabel)
 
@@ -122,12 +120,7 @@ func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 
 	syms := t.info.VarSymbols[stmt]
 	if stmt.Var != "" {
-		offset, ok := t.ctx.Get(syms[0])
-		if !ok {
-			return fmt.Errorf("x86-64: undeclared variable")
-		}
-		s := slot(offset, 8)
-		t.store(i, s)
+		t.store(i, t.local(syms[0]))
 	}
 
 	if stmt.Var2 != "" {
@@ -146,12 +139,7 @@ func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 			return err
 		}
 
-		offset, ok := t.ctx.Get(syms[1])
-		if !ok {
-			return fmt.Errorf("x86-64: undeclared variable")
-		}
-		s := slot(offset, elemSize)
-		t.store(mem, s)
+		t.store(mem, t.local(syms[1]))
 		t.freeWord(mem)
 	}
 
@@ -181,8 +169,7 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 		return err
 	}
 
-	startOffset, _ := t.ctx.Get(t.info.VarSymbols[stmt][0])
-	startSlot := slot(startOffset, size)
+	startSlot := t.local(t.info.VarSymbols[stmt][0])
 	t.store(start, startSlot)
 
 	end, err := t.compileExpr(stmt.End)
@@ -240,8 +227,16 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 
 	condLabel := t.newLabel("for_condition")
 	t.text.printf("%s:\n", condLabel)
-	left := t.materialize(startSlot, size)
-	leftStr := t.ctx.GetRegister(left, size)
+	var left x64context.Register
+	var leftStr string
+	ownsLeft := false
+	if home, ok := startSlot.(Reg); ok {
+		leftStr = t.ctx.GetRegister(home.Reg, size)
+	} else {
+		left = t.materialize(startSlot, size)
+		leftStr = t.ctx.GetRegister(left, size)
+		ownsLeft = true
+	}
 
 	down := t.newLabel("down")
 	body := t.newLabel("body")
@@ -265,7 +260,9 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 		t.text.printft("jl %s\n", ctx.BreakLabel)
 	}
 
-	t.ctx.FreeRegister(left)
+	if ownsLeft {
+		t.ctx.FreeRegister(left)
+	}
 	t.text.printf("%s:\n", body)
 	if err := t.compileStatement(stmt.Body); err != nil {
 		return err
@@ -273,7 +270,7 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 
 	t.text.printf("%s:\n", ctx.ContinueLabel)
 	stepReg := t.materialize(stepSlot, size)
-	t.text.printft("add %s, %s\n", t.memText(startSlot), t.ctx.GetRegister(stepReg, size))
+	t.text.printft("add %s, %s\n", t.opText(startSlot, size), t.ctx.GetRegister(stepReg, size))
 	t.ctx.FreeRegister(stepReg)
 	t.text.printft("jmp %s\n", condLabel)
 	t.text.printf("%s:\n", ctx.BreakLabel)

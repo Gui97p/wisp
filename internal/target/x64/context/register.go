@@ -17,6 +17,9 @@ const (
 	R10
 	R11
 	R12
+	R13
+	R14
+	R15
 
 	BP
 	SP
@@ -57,9 +60,11 @@ func (r Register) Class() Class {
 
 var ParamOrder = []Register{DI, SI, DX, CX, R8, R9}
 var ReturnOrder = []Register{AX, DX}
+var SavedOrder = []Register{BX, R12, R13, R14, R15}
 var RegisterOrder = []Register{AX, CX, DX, DI, SI, R8, R9, R10, R11}
 var XMMOrder = []Register{X0, X1, X2, X3, X4, X5, X6, X7, X8, X9, X10, X11, X12, X13, X14, X15}
 var XMMParamOrder = []Register{X0, X1, X2, X3, X4, X5, X6, X7}
+var XMMSavedOrder = []Register{X8, X9, X10, X11, X12, X13, X14, X15}
 var XMMReturnOrder = []Register{X0, X1}
 
 var registers = map[Register]map[int]string{
@@ -74,6 +79,9 @@ var registers = map[Register]map[int]string{
 	R10: {1: "r10b", 2: "r10w", 4: "r10d", 8: "r10"},
 	R11: {1: "r11b", 2: "r11w", 4: "r11d", 8: "r11"},
 	R12: {1: "r12b", 2: "r12w", 4: "r12d", 8: "r12"},
+	R13: {1: "r13b", 2: "r13w", 4: "r13d", 8: "r13"},
+	R14: {1: "r14b", 2: "r14w", 4: "r14d", 8: "r14"},
+	R15: {1: "r15b", 2: "r15w", 4: "r15d", 8: "r15"},
 
 	BP: {1: "bpl", 2: "bp", 4: "ebp", 8: "rbp"},
 	SP: {1: "spl", 2: "sp", 4: "esp", 8: "rsp"},
@@ -146,7 +154,12 @@ func (c *Context) AllocFreeRegister() Register {
 }
 
 func (c *Context) AllocFreeXmm() Register {
-	for _, reg := range XMMOrder {
+	xmms := XMMOrder
+	if c.optimized {
+		xmms = XMMParamOrder
+	}
+
+	for _, reg := range xmms {
 		if _, ok := c.registers[reg]; !ok {
 			c.AllocRegister(reg)
 			return reg

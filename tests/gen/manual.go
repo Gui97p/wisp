@@ -7165,6 +7165,141 @@ func main() {
 }
 `, expected: []string{"let takes a selector, and the version of the profile is the one kept", "let without a selector is the same as before", "a global pointer starts as a converted null", "the pointer can be set later", "null converts to a pointer type in a local too"}},
 
+	{dir: "regs_locals", x64Only: true, src: `func mix(int n) int {
+    int a = 1;
+    int b = 2;
+    int c = 3;
+    int d = 4;
+    int e = 5;
+    int f = 6;
+    int g = 7;
+    for i in 1..n {
+        a += i;
+        b += a;
+        c += b;
+        d += c;
+        e += d;
+        f += e;
+        g += f;
+    }
+    return a + b + c + d + e + f + g;
+}
+
+func small() (int, int, int, int, int) {
+    int8 a = 100;
+    uint8 b = 200;
+    int16 c = 30000;
+    uint16 d = 65000;
+    int32 e = 2000000000;
+    for i in 1..3 {
+        a += 50;
+        b += 100;
+        c += 5000;
+        d += 1000;
+        e += 1000000000;
+    }
+    return int(a), int(b), int(c), int(d), int(e);
+}
+
+func heavy(int x) int {
+    int p = x;
+    int q = x + 1;
+    int r = x + 2;
+    int s = x + 3;
+    int t = x + 4;
+    int u = x + 5;
+    for k in 1..3 {
+        p += q;
+        q += r;
+        r += s;
+        s += t;
+        t += u;
+        u += p;
+    }
+    return p + q + r + s + t + u;
+}
+
+func outer(int n) int {
+    int s = 0;
+    int t = 1;
+    for i in 0..n {
+        s += heavy(i);
+        t += s;
+    }
+    return s + t;
+}
+
+func scale(float x) float {
+    float a = x * 2.0;
+    float b = a + 1.0;
+    for k in 1..3 {
+        b += a;
+    }
+    return b;
+}
+
+func floats(int n) float {
+    float acc = 0.5;
+    float step = 0.25;
+    for i in 1..n {
+        acc += scale(step);
+        step += 0.25;
+    }
+    return acc + step;
+}
+
+func many(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int n) int {
+    int t = 0;
+    for i in 0..n {
+        t += a1 + a2 * 2 + a3 * 3 + a4 * 4 + a5 * 5 + a6 * 6 + a7 * 7 + a8 * 8 + i;
+    }
+    return t;
+}
+
+func bump(*int p) {
+    p@ = p@ + 1;
+}
+
+func addr() int {
+    int x = 0;
+    for i in 0..4 {
+        bump(&x);
+        x += 2;
+    }
+    return x;
+}
+
+func swap(int n) int {
+    int a = 1;
+    int b = 2;
+    for i in 1..n {
+        a, b = b, a + b;
+    }
+    return a * 1000 + b;
+}
+
+func fib(int n) int {
+    if n < 2 {
+        return n;
+    }
+    int x = fib(n - 1);
+    int y = fib(n - 2);
+    return x + y;
+}
+
+func main() {
+    check(mix(10) == 62311, "more hot locals than registers");
+    let a, b, c, d, e = small();
+    check(a == -6 && b == 244 && c == -20536 && d == 2464 && e == 705032704, "small integers wrap at their own width");
+    check(outer(4) == 4561, "locals survive calls to functions that use the same registers");
+    check(floats(5) == 37.0, "float locals survive calls");
+    check(many(1, 2, 3, 4, 5, 6, 7, 8, 9) == 2085, "parameters passed on the stack");
+    check(addr() == 15, "a local whose address is taken stays in memory");
+    check(swap(10) == 144233, "multiple assignment between register locals");
+    check(fib(20) == 6765, "recursion saves and restores its registers");
+}
+`},
+
 	{dir: "byte_alias", src: `func total([]uint8 data) int {
     int sum = 0;
     for _, b in data {

@@ -1,6 +1,7 @@
 package x64
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 
@@ -182,10 +183,29 @@ func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
 	return fmt.Errorf("x86-64: unsupported global initializer")
 }
 
+const minRegisterWeight = 8
+
+func classOf(tp analyser.Type) x64context.Class {
+	switch t := underlying(tp).(type) {
+	case analyser.PrimitiveType:
+		switch t.Name {
+		case "float", "float32", "float64":
+			return x64context.SSE
+		case "string":
+		default:
+			return x64context.Int
+		}
+	case *analyser.FuncType, analyser.ImplicitEnumType, analyser.PointerType:
+		return x64context.Int
+	}
+	return x64context.Memory
+}
+
 func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*analyser.Symbol, returns []analyser.Type, fallible bool, body *ast.BlockStmt) error {
 	t.funcName = display
 	t.sites = nil
-	t.text.printf("\nsection .text.%s progbits alloc exec nowrite align=16\n", name)
+	t.candidates = nil
+	t.text.printf("\nsection .text.%s progbits alloc exec nowrite align=32\n", name)
 	t.text.printf("%s:\n", name)
 	t.text.printlnt("push rbp")
 	t.text.printlnt("mov rbp, rsp")
@@ -199,6 +219,41 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 		types = append(types, sym.Type)
 	}
 	t.collectVariables(body)
+	if t.optimize {
+		weight := map[*analyser.Symbol]int{}
+		barred := map[*analyser.Symbol]bool{}
+		t.weigh(body, 0, weight, barred)
+
+		for sym, w := range weight {
+			if barred[sym] || w < minRegisterWeight {
+				continue
+			}
+			class := classOf(sym.Type)
+			if class == x64context.Memory {
+				continue
+			}
+			t.candidates = append(t.candidates, candidate{sym: sym, weight: w, class: class})
+		}
+		slices.SortFunc(t.candidates, func(a, b candidate) int {
+			return cmp.Or(b.weight-a.weight, a.sym.Line-b.sym.Line, a.sym.Col-b.sym.Col)
+		})
+
+		ni, nx := 0, 0
+		for _, cand := range t.candidates {
+			switch cand.class {
+			case x64context.Int:
+				if ni < len(x64context.SavedOrder) {
+					t.ctx.Bind(cand.sym, x64context.SavedOrder[ni])
+					ni++
+				}
+			case x64context.SSE:
+				if nx < len(x64context.XMMSavedOrder) {
+					t.ctx.Bind(cand.sym, x64context.XMMSavedOrder[nx])
+					nx++
+				}
+			}
+		}
+	}
 	t.text.printlnt("sub rsp, .frame\n")
 	if t.trace {
 		t.text.printft("lea r11, [rel desc_%s]\n", name)
@@ -210,6 +265,13 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	if fallible {
 		t.funcReturns = append(t.funcReturns, analyser.ErrorType{})
 	}
+	t.savedRegs = nil
+	for _, reg := range t.ctx.SavedRegisters() {
+		off := t.ctx.Reserve(8)
+		t.text.printft("mov %s, %s\n", t.memText(slot(off, 8)), t.ctx.GetRegister(reg, 8))
+		t.savedRegs = append(t.savedRegs, savedReg{reg, off})
+	}
+
 	sret := usesSret(t.funcReturns)
 	if sret {
 		t.hidden = slot(t.ctx.Reserve(8), 8)
@@ -219,11 +281,15 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	args := assignArgs(types, sret)
 	for i, arg := range args {
 		sym := params[i]
-		offset, _ := t.ctx.Get(sym)
+		loc := t.local(sym)
 		size := sizeOf(sym.Type)
 		for j, reg := range arg.Regs {
-			wordSize := min(8, size-8*j)
-			t.storeWord(slot(offset, size).at(8*j, wordSize), Reg{reg, wordSize})
+			if home, ok := loc.(Reg); ok {
+				t.loadWord(home.Reg, Reg{reg, home.Size})
+			} else {
+				wordSize := min(8, size-8*j)
+				t.storeWord(loc.(Mem).at(8*j, wordSize), Reg{reg, wordSize})
+			}
 		}
 	}
 
@@ -231,6 +297,10 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 		sym := params[i]
 		offset, _ := t.ctx.Get(sym)
 		size := sizeOf(sym.Type)
+		if home, ok := t.local(sym).(Reg); ok && len(arg.Regs) == 0 && size > 0 {
+			t.loadWord(home.Reg, deref(x64context.BP, 16+arg.Stack, size))
+			continue
+		}
 		if len(arg.Regs) == 0 && size > 0 {
 			for k := range (size + 7) / 8 {
 				reg := t.ctx.AllocFreeRegister()
@@ -281,6 +351,10 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 		} else if len(returns) == 0 {
 			t.text.printlnt("xor eax, eax")
 		}
+	}
+
+	for _, saved := range t.savedRegs {
+		t.text.printft("mov %s, %s\n", t.ctx.GetRegister(saved.reg, 8), t.memText(slot(saved.offset, 8)))
 	}
 
 	t.text.printlnt("mov rsp, rbp")
@@ -352,6 +426,67 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	}
 
 	return t.compileFuncBody(name, display+fd.Name, t.isEntry && fd.Name == "main", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
+}
+
+func (t *X64Target) weigh(root ast.Node, depth int, weight map[*analyser.Symbol]int, barred map[*analyser.Symbol]bool) {
+	ast.Inspect(root, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.ForStmt:
+			t.weigh(n.Body, depth+1, weight, barred)
+			t.weigh(n.Start, depth, weight, barred)
+			t.weigh(n.End, depth+1, weight, barred)
+			t.weigh(n.Step, depth+1, weight, barred)
+			t.weigh(n.Range, depth, weight, barred)
+			vs := t.info.VarSymbols[n]
+			if n.Var != "" {
+				weight[vs[0]] += 2 << (3 * min(depth+1, 8))
+			}
+			if n.Var2 != "" {
+				weight[vs[1]] += 2 << (3 * min(depth+1, 8))
+			}
+			return false
+		case *ast.LoopStmt:
+			t.weigh(n.Body, depth+1, weight, barred)
+			if n.Condition != nil {
+				t.weigh(n.Condition, depth+1, weight, barred)
+			}
+			if n.UntilCondition != nil {
+				t.weigh(n.UntilCondition, depth+1, weight, barred)
+			}
+			return false
+		case *ast.IdentLiteral:
+			sym := t.info.Idents[n]
+			if sym != nil && !sym.Global && (sym.Kind == analyser.VAR || sym.Kind == analyser.PARAM) {
+				weight[sym] += 1 << (3 * min(depth, 8))
+			}
+			return false
+		case *ast.UnaryExpr:
+			if ident, ok := n.Value.(*ast.IdentLiteral); ok && n.Operator == "&" {
+				barred[t.info.Idents[ident]] = true
+			}
+			return true
+		case *ast.CallExpr:
+			if call, ok := t.info.Inlines[n]; ok {
+				t.weigh(call.Body, depth, weight, barred)
+			}
+			if mc, ok := t.info.MethodCalls[n]; ok && mc.PointerReceiver && !mc.ObjectIsPointer {
+				if ident, ok := mc.Receiver.(*ast.IdentLiteral); ok {
+					barred[t.info.Idents[ident]] = true
+				}
+			}
+			return true
+		case *ast.NativeStmt:
+			for _, bind := range n.Bindings {
+				if bind.Var != nil {
+					barred[t.info.Idents[bind.Var]] = true
+				}
+			}
+			return false
+		case *ast.FuncLiteral:
+			return false
+		}
+		return true
+	})
 }
 
 func (t *X64Target) collectVariables(stmt ast.Statement) {
