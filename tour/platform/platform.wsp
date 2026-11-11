@@ -19,8 +19,9 @@
 // Whatever `arch.` reaches is the module of the target being built, and what
 // they make public is also part of this package, as with any file in the folder.
 //
-// The same expressions work after `func`, `struct`, `enum`, `type`, `const`
-// and `native`, for one declaration instead of a whole file: a version with a
+// The same expressions work after `func`, `struct`, `enum`, `type`, `const`,
+// `native` and `let` or `var` (for a global), for one declaration instead of a
+// whole file: a version with a
 // selector replaces the plain one of the same name when it matches, so the
 // plain one is the default and each target can override it. Every version has
 // to be the same kind of declaration, with the same signature and visibility.

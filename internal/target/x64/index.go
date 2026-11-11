@@ -101,6 +101,9 @@ func (t *X64Target) baseIndex(expr ast.Expression) (Reg, error) {
 }
 
 func (t *X64Target) checkIndexOk(reg Reg, limit Operand, inst, message string) {
+	if !t.checks {
+		return
+	}
 	okLabel := t.newLabel("index_ok")
 	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(reg.Reg, reg.Size), t.opText(limit, reg.Size))
 	t.text.printft("%s %s\n", inst, okLabel)

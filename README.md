@@ -83,7 +83,7 @@ A project can declare libraries too, `[library.<name>]` with the `modules` they 
 | `linux` (x64) | The main backend: NASM assembly, linked with `ld`, System V calling convention. |
 | `cc` (lua) | Secondary: Lua for CC: Tweaked computers, the stdlib uses its `fs` API. It has floating point and function values, but no `extern`. Numbers are doubles there: integers are exact up to 2^53 and `int64` and `uint64` do not wrap around. |
 
-A system of your own is a `[targets.<name>]` block with an architecture, a start file and a runtime file; the name is the system's name, the one `#target` and `--os` use. A system says how to build for it; where the result goes belongs to the program (`[output]` and `[bin.<name>.output]`). `wisp init target <name>` writes both, with comments that say what each routine must do.
+A system of your own is a `[targets.<name>]` block with an architecture, a start file and a runtime file; the name is the system's name, the one `#target` and `--os` use. A system says how to build for it; where the result goes belongs to the program (`[output]` and `[program.<name>.output]`). `wisp init target <name>` writes both, with comments that say what each routine must do.
 
 ## Editor support
 

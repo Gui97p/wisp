@@ -252,7 +252,7 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 		notzeroLabel := t.newLabel("ok")
 		doneLabel := t.newLabel("done")
 
-		if imm, ok := right.(Imm); !ok || (imm != 0 && imm != -1) {
+		if imm, ok := right.(Imm); (!ok || (imm != 0 && imm != -1)) && t.checks {
 			t.text.printft("test %s, %s\n", divisor, divisor)
 			t.text.printft("jnz %s\n", notzeroLabel)
 			t.panic("integer divide by zero")

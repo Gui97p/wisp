@@ -213,6 +213,9 @@ func (t *X64Target) constOperand(sym *analyser.Symbol, tp analyser.Type) (Operan
 }
 
 func (t *X64Target) checkNotNull(reg x64context.Register) {
+	if !t.checks {
+		return
+	}
 	ok := t.newLabel("not_null")
 	regStr := t.ctx.GetRegister(reg, 8)
 	t.text.printft("test %s, %s\n", regStr, regStr)

@@ -11,6 +11,8 @@ type manualCase struct {
 	libc     bool
 	cmain    bool
 	profile  string
+	maxSize  int
+	library  string
 	env      string
 	stderr   string
 	files    map[string]string
@@ -3373,7 +3375,7 @@ func main() {
 }
 `},
 
-	{dir: "trace_nested", src: `func div(int a, int b) int {
+	{dir: "trace_nested", profile: "debug", src: `func div(int a, int b) int {
     return a / b;
 }
 
@@ -3393,7 +3395,7 @@ func main() {
 }
 `, expected: []string{"trace before the failing call"}, abort: ": in main.compute", x64Only: true},
 
-	{dir: "trace_outer", src: `func div(int a, int b) int {
+	{dir: "trace_outer", profile: "debug", src: `func div(int a, int b) int {
     return a / b;
 }
 
@@ -3413,7 +3415,7 @@ func main() {
 }
 `, expected: []string{"trace outer before the failing call"}, abort: ": in main.outer", x64Only: true},
 
-	{dir: "trace_main", src: `func div(int a, int b) int {
+	{dir: "trace_main", profile: "debug", src: `func div(int a, int b) int {
     return a / b;
 }
 
@@ -3424,7 +3426,7 @@ func main() {
 }
 `, expected: []string{"trace main before the failing call"}, abort: ": in main.main", x64Only: true},
 
-	{dir: "trace_method", src: `struct Counter {
+	{dir: "trace_method", profile: "debug", src: `struct Counter {
     int n;
 }
 
@@ -3444,7 +3446,7 @@ func main() {
 }
 `, expected: []string{"trace method before the failing call"}, abort: ": in main.Counter.split", x64Only: true},
 
-	{dir: "trace_unwrap", src: `enum Fail {
+	{dir: "trace_unwrap", profile: "debug", src: `enum Fail {
     Bad = 1
 }
 
@@ -3466,7 +3468,7 @@ func main() {
 }
 `, expected: []string{"trace unwrap before the failing call"}, abort: ": in main.main", x64Only: true},
 
-	{dir: "trace_lambda", src: `func apply(Step f, int v) int {
+	{dir: "trace_lambda", profile: "debug", src: `func apply(Step f, int v) int {
     return f(v);
 }
 
@@ -3480,7 +3482,7 @@ func main() {
 }
 `, expected: []string{"trace lambda before the failing call"}, abort: ": in main.apply", x64Only: true},
 
-	{dir: "trace_deep", src: `func down(int n) int {
+	{dir: "trace_deep", profile: "debug", src: `func down(int n) int {
     if n == 0 {
         return 1 / n;
     }
@@ -3545,7 +3547,7 @@ func main() {
     check(again != null && again[10] == 0, "debug mode recycles quarantined blocks");
     mem.free(again);
 }
-`, expected: []string{"debug mode still hands out zeroed blocks after reuse", "debug mode serves a large block", "debug mode recycles quarantined blocks"}, env: "WISP_DEBUG_ALLOC=1", x64Only: true},
+`, expected: []string{"debug mode still hands out zeroed blocks after reuse", "debug mode serves a large block", "debug mode recycles quarantined blocks"}, profile: "debug", x64Only: true},
 
 	{dir: "abort_use_after_free", src: `import "std/mem";
 
@@ -3560,7 +3562,7 @@ func main() {
     }
     check(true, "use after free never printed");
 }
-`, expected: []string{"use after free before the stale write"}, abort: "the block was freed at", env: "WISP_DEBUG_ALLOC=1", x64Only: true},
+`, expected: []string{"use after free before the stale write"}, abort: "the block was freed at", profile: "debug", x64Only: true},
 
 	{dir: "abort_double_free_reused", src: `import "std/mem";
 
@@ -3572,7 +3574,7 @@ func main() {
     mem.free(p);
     check(true, "double free after reuse never printed");
 }
-`, expected: []string{"a freed block is not reused right away in debug mode"}, abort: "the block was freed at", env: "WISP_DEBUG_ALLOC=1", x64Only: true},
+`, expected: []string{"a freed block is not reused right away in debug mode"}, abort: "the block was freed at", profile: "debug", x64Only: true},
 
 	{dir: "mem_leak_report", src: `import "std/mem";
 
@@ -3594,7 +3596,7 @@ func main() {
     big[0] = 1;
     check(true, "the program runs to the end with leaks");
 }
-`, expected: []string{"the program runs to the end with leaks"}, env: "WISP_DEBUG_ALLOC=1", stderr: "leak: 2 blocks, 96 bytes, allocated at\nin main.leaky\nleak: 1 blocks\nin main.main", x64Only: true},
+`, expected: []string{"the program runs to the end with leaks"}, profile: "debug", stderr: "leak: 2 blocks, 96 bytes, allocated at\nin main.leaky\nleak: 1 blocks\nin main.main", x64Only: true},
 
 	{dir: "mem_leak_none", src: `import "std/mem";
 
@@ -3605,16 +3607,16 @@ func main() {
     mem.free(q);
     check(true, "everything was freed");
 }
-`, expected: []string{"everything was freed"}, env: "WISP_DEBUG_ALLOC=1", stderr: "!leak:", x64Only: true},
+`, expected: []string{"everything was freed"}, profile: "debug", stderr: "!leak:", x64Only: true},
 
 	{dir: "mem_leak_off", src: `import "std/mem";
 
 func main() {
     *byte p = mem.alloc(48) ?? null;
     p[0] = 1;
-    check(true, "no report without the debug variable");
+    check(true, "no report in release");
 }
-`, expected: []string{"no report without the debug variable"}, stderr: "!leak:", x64Only: true},
+`, expected: []string{"no report in release"}, stderr: "!leak:", profile: "release", x64Only: true},
 
 	{dir: "mem_leak_arena", src: `import "std/mem";
 
@@ -3624,7 +3626,7 @@ func main() {
     a[0] = 1;
     check(true, "an arena leak runs to the end");
 }
-`, expected: []string{"an arena leak runs to the end"}, env: "WISP_DEBUG_ALLOC=1", stderr: "leak: 1 blocks\nmain.wsp:\n!arena_x64.wsp", x64Only: true},
+`, expected: []string{"an arena leak runs to the end"}, profile: "debug", stderr: "leak: 1 blocks\nmain.wsp:\n!arena_x64.wsp", x64Only: true},
 
 	{dir: "const_fold", src: `const K = 10;
 const DEBUG = false;
@@ -6998,7 +7000,7 @@ func main() ! {
 }
 `, expected: []string{"malloc write and read", "sizeof int", "sizeof int8", "sizeof int32"}},
 
-	{dir: "alloc_reuse", src: `import "std/mem";
+	{dir: "alloc_reuse", profile: "release", src: `import "std/mem";
 func main() ! {
     *int a = mem.alloc(24)!;
     mem.free(a);
@@ -7026,6 +7028,67 @@ func main() ! {
     mem.free(fresh);
 }
 `, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc of null allocates", "realloc to a large block keeps the contents"}},
+
+	{dir: "assert_release", profile: "release", src: `import "std/errors";
+
+func main() {
+    errors.assert(2 < 1, "never raised in release");
+    check(true, "assert does nothing in release");
+}
+`, expected: []string{"assert does nothing in release"}},
+
+	{dir: "size_empty_release", profile: "release", x64Only: true, maxSize: 8192, src: `func main() {
+    check(true, "an empty program stays small");
+}
+`, expected: []string{"an empty program stays small"}},
+
+	{dir: "size_mem_release", profile: "release", x64Only: true, maxSize: 20000, src: `import "std/mem";
+
+func main() {
+    *void p = mem.alloc(16) ?? null;
+    mem.free(p);
+    check(p != null, "allocating does not pull in the debug allocator or fmt");
+}
+`, expected: []string{"allocating does not pull in the debug allocator or fmt"}},
+
+	{dir: "trace_off_release", profile: "release", x64Only: true, src: `func div(int a, int b) int {
+    return a / b;
+}
+
+func compute(int x) int {
+    int c = div(10, x);
+    return c;
+}
+
+func main() {
+    check(compute(5) == 2, "release runs before the failing call");
+    int r = compute(0);
+    check(r == 0, "release never printed");
+}
+`, expected: []string{"release runs before the failing call"}, abort: "panic: integer divide by zero", stderr: "!: in main.\n!the divisor is zero"},
+
+	{dir: "snippets_off_release", profile: "release", x64Only: true, src: `enum Fail {
+    Bad = 1
+}
+
+func broken() !int {
+    return Error(Fail.Bad);
+}
+
+func main() {
+    check(true, "release before the unwrap");
+    int n = broken()!!;
+    check(n == 0, "release unwrap never printed");
+}
+`, expected: []string{"release before the unwrap"}, abort: "error[main.Fail]: Fail.Bad", stderr: "!raised here\n!was unwrapped here"},
+
+	{dir: "checks_off_release", profile: "release", x64Only: true, exit: 136, files: map[string]string{"wisp.toml": "[profiles.release]\nchecks = false\n"}, src: `func main() {
+    int zero = 0;
+    check(true, "before the unchecked division");
+    int r = 10 / zero;
+    check(r == 0, "never printed");
+}
+`, expected: []string{"before the unchecked division"}, abort: "Floating point exception"},
 
 	{dir: "profile_debug", profile: "debug", src: `var<debug> int level = 10;
 var<release> int level = 20;
@@ -7200,7 +7263,7 @@ func main() {
     errors.assert(2 < 1, "two is not less than one");
     check(true, "assert never printed");
 }
-`, expected: []string{"assert passes"}, abort: "panic: two is not less than one"},
+`, expected: []string{"assert passes"}, abort: "panic: two is not less than one", profile: "debug"},
 
 	{dir: "abort_malloc_oom", exit: 2, src: `import "std/mem";
 func main() ! {
@@ -8322,7 +8385,7 @@ func main() ! {
 }
 `, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string from byte slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
 
-	{dir: "free_slice", src: `import "std/mem";
+	{dir: "free_slice", profile: "release", src: `import "std/mem";
 func main() ! {
     *int8 b = mem.alloc(24)!;
     b[0] = 120;
@@ -8336,7 +8399,7 @@ func main() ! {
 }
 `, expected: []string{"free of a slice releases its block", "free of null still works"}},
 
-	{dir: "free_many", x64Only: true, src: `import "std/mem";
+	{dir: "free_many", profile: "release", x64Only: true, src: `import "std/mem";
 func main() ! {
     *int a = mem.alloc(24)!;
     *int b = mem.alloc(24)!;
@@ -8360,7 +8423,7 @@ func main() ! {
 }
 `, expected: []string{"free of many releases every small block", "free of many releases the last block", "free of mixed slice and pointer", "free of many accepts null"}},
 
-	{dir: "free_node_next", src: `import "std/mem";
+	{dir: "free_node_next", profile: "release", src: `import "std/mem";
 struct Node {
     *Node next;
     int v;
@@ -9620,6 +9683,24 @@ func main() ! {
     check(sum_bytes((*int8)("abc"), 3) == 294, "pointer to the bytes of a string");
 }
 `},
+
+	{dir: "library_archive", x64Only: true, library: "geo", files: map[string]string{"wisp.toml": "[library.geo]\nmodules = [\"lib\"]\n", "lib.wsp": `public func twice(int32 n) int32 as wisp_twice {
+    return n * 2;
+}
+
+public func total(int64 a, int64 b) int64 as wisp_total {
+    return a + b;
+}
+`, "main.c": `#include <stdio.h>
+
+extern int wisp_twice(int);
+extern long wisp_total(long, long);
+
+int main(void) {
+    printf("%d %ld\n", wisp_twice(21), wisp_total(40, 2));
+    return 0;
+}
+`}, expected: []string{"42 42"}},
 
 	{dir: "interop_export", x64Only: true, cmain: true, files: map[string]string{"lib.wsp": `public func add(int32 a, int32 b) int32 as wisp_add {
     return a + b;
@@ -10930,7 +11011,7 @@ func main() !int {
 }
 `, expected: []string{"a new block is zeroed", "fill sets every byte", "a reused block is zeroed", "realloc keeps the old contents", "fill takes an array"}},
 
-	{dir: "mem_limits", x64Only: true, src: `import "std/mem";
+	{dir: "mem_limits", profile: "release", x64Only: true, src: `import "std/mem";
 import "std/errors";
 
 func main() {

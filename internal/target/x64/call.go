@@ -580,10 +580,12 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 		}
 	}
 	t.text.printft("call %s\n", sym)
-	label := fmt.Sprintf(".site_%d", len(t.sites))
-	t.text.printf("%s:\n", label)
-	text := diag.FrameBlock(t.file, t.sources[t.file], t.line, t.col, t.endLine, t.endCol, t.funcName)
-	t.sites = append(t.sites, callSite{label, text})
+	if t.trace {
+		label := fmt.Sprintf(".site_%d", len(t.sites))
+		t.text.printf("%s:\n", label)
+		text := diag.FrameBlock(t.file, t.sources[t.file], t.line, t.col, t.endLine, t.endCol, t.funcName, t.snippets)
+		t.sites = append(t.sites, callSite{label, text})
+	}
 
 	ops := t.captureReturn(rets, memSlot)
 	t.alignStack(stackBytes + 8*pad)

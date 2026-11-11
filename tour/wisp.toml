@@ -126,7 +126,7 @@ bin = "bin"
 # libc = false                  # link the C library for this system
 #
 # Built-in systems (linux, cc) are not adjusted here: link and libc go at the top
-# level or in a [bin.<name>] block, and a different start or runtime is a system
+# level or in a [program.<name>] block, and a different start or runtime is a system
 # of your own under another name. A system with more than one architecture
 # describes each one in [targets.<os>.<arch>].
 
@@ -134,4 +134,4 @@ bin = "bin"
 # variable already set in the shell wins, so `NAME=other wisp run` overrides
 # what is written here. A program started by hand does not get them.
 # [run.env]
-# WISP_DEBUG_ALLOC = "1"
+# LOG_LEVEL = "debug"

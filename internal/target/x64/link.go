@@ -2,11 +2,12 @@ package x64
 
 import (
 	"fmt"
-	"github.com/Gui97p/wisp/internal/diag"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/Gui97p/wisp/internal/diag"
 
 	"github.com/Gui97p/wisp/internal/target"
 )
@@ -22,6 +23,7 @@ func trace(name string, args []string) {
 type LinkOptions struct {
 	Extra []string
 	Libc  bool
+	Trace bool
 	Strip bool
 }
 
@@ -60,9 +62,16 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 	}
 	args = append(args, "-o", outputPath)
 
+	wisp_trace := "WISP_TRACE="
+	if opts.Trace {
+		wisp_trace += "1"
+	} else {
+		wisp_trace += "0"
+	}
+
 	if t.StartSource != "" && !opts.Libc {
 		startObj := filepath.Join(tmp, "start.o")
-		if err := Assemble(t.StartSource, startObj, filepath.Join(tmp, "start.asm"), false, t.Format); err != nil {
+		if err := Assemble(t.StartSource, startObj, filepath.Join(tmp, "start.asm"), false, t.Format, wisp_trace); err != nil {
 			return err
 		}
 		args = append(args, startObj)
@@ -70,7 +79,7 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 
 	if t.RuntimeSource != "" {
 		runtimeObj := filepath.Join(tmp, "runtime.o")
-		if err := Assemble(t.RuntimeSource, runtimeObj, filepath.Join(tmp, "runtime.asm"), false, t.Format); err != nil {
+		if err := Assemble(t.RuntimeSource, runtimeObj, filepath.Join(tmp, "runtime.asm"), false, t.Format, wisp_trace); err != nil {
 			return err
 		}
 		args = append(args, runtimeObj)
@@ -107,7 +116,7 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 	return nil
 }
 
-func Archive(t target.Target, objPaths []string, outputPath string) error {
+func Archive(t target.Target, objPaths []string, outputPath string, traceOpt bool) error {
 	ar, err := exec.LookPath("ar")
 	if err != nil {
 		return fmt.Errorf("building a library needs ar, which was not found in PATH")
@@ -138,9 +147,16 @@ func Archive(t target.Target, objPaths []string, outputPath string) error {
 		return nil
 	}
 
+	wisp_trace := "WISP_TRACE="
+	if traceOpt {
+		wisp_trace += "1"
+	} else {
+		wisp_trace += "0"
+	}
+
 	if t.RuntimeSource != "" {
 		runtimeObj := filepath.Join(tmp, "runtime-build.o")
-		if err := Assemble(t.RuntimeSource, runtimeObj, filepath.Join(tmp, "runtime.asm"), false, t.Format); err != nil {
+		if err := Assemble(t.RuntimeSource, runtimeObj, filepath.Join(tmp, "runtime.asm"), false, t.Format, wisp_trace); err != nil {
 			return err
 		}
 		if err := stage("wisp_runtime.o", runtimeObj); err != nil {

@@ -1,9 +1,8 @@
 #target x64
 
 import "std/sys";
-import "std/os";
-import "std/strings";
-import "std/fmt";
+import<debug> "std/strings";
+import<debug> "std/fmt";
 
 func leadingZeros(uint x) uint {
 	if x == 0 {
@@ -21,12 +20,11 @@ func leadingZeros(uint x) uint {
 [11]*void classes;
 *byte cur, end;
 
-int mode;
-[1024]*void ring;
-int ringStart, ringCount;
+var<debug> [1024]*void ring;
+var<debug> int ringStart, ringCount;
 
-struct Entry { *void block; string site, freed; }
-*Entry table;
+struct<debug> Entry { *void block; string site, freed; }
+var<debug> *Entry table;
 
 const {
 	HEAD_SIZE = 16;
@@ -65,7 +63,7 @@ inline func failed(*void r) bool {
 	return int(r) in -4095..-1;
 }
 
-func report() {
+func<debug> report() {
 	if table == null {
 		return;
 	}
@@ -115,19 +113,7 @@ func report() {
 	}
 }
 
-func debugOn() bool {
-	if mode == 0 {
-		let value, found = os.getenv("WISP_DEBUG_ALLOC");
-		mode = found && len(value) > 0 && value != "0" ? 2 : 1;
-	}
-	bool on = mode == 2;
-	if on {
-		setExitHook(report);
-	}
-	return on;
-}
-
-func checkPoison(*void p, int cap) {
+func<debug> checkPoison(*void p, int cap) {
 	for i in 0..cap-1 {
 		if (*uint8)(p)[i] != 0xDD {
 			fail(p, "use after free");
@@ -135,7 +121,7 @@ func checkPoison(*void p, int cap) {
 	}
 }
 
-func quarantine(*void p, int h) {
+func<debug> quarantine(*void p, int h) {
 	int cap = (MIN_BLOCK << h) - 16;
 	rawSet(p, 0xDD, cap);
 	if ringCount == len(ring) {
@@ -153,7 +139,7 @@ func quarantine(*void p, int h) {
 	ringCount++;
 }
 
-func find(*void p) int {
+func<debug> find(*void p) int {
 	if table == null {
 		return -1;
 	}
@@ -172,7 +158,7 @@ func find(*void p) int {
 	return -1;
 }
 
-func remember(*void p, string site) {
+func<debug> remember(*void p, string site) {
 	if table == null {
 		table = sys.mmap(SLOTS * sizeof(Entry));
 	}
@@ -190,19 +176,23 @@ func remember(*void p, string site) {
 	}
 }
 
-func forget(*void p) {
+inline func forget(*void _p) {}
+func<debug> forget(*void p) {
 	int i = find(p);
 	if i >= 0 {
 		table[i].block = (*void)(1);
 	}
 }
 
-inline func entryOf(*void p) *Entry {
+inline func<debug> entryOf(*void p) *Entry {
 	int i = find(p);
 	return i >= 0 ? &table[i] : null;
 }
 
-func fail(*void p, string what) {
+inline func fail(*void _p, string what) {
+	panic(what);
+}
+func<debug> fail(*void p, string what) {
 	[2048]byte buf;
 	*Entry entry = entryOf(p);
 	if entry != null && len(entry.site) > 0 {
@@ -216,10 +206,16 @@ func fail(*void p, string what) {
 	panic(what);
 }
 
-native setExitHook(() => () hook) => "extern __wisp_exit_hook; mov rax, {hook}; mov [rel __wisp_exit_hook], rax";
+native<debug> setExitHook(() => () hook) => "extern __wisp_exit_hook; mov rax, {hook}; mov [rel __wisp_exit_hook], rax";
 
-internal func track(*void p) {
-	if p == null || !debugOn() {
+let<debug> hookPending = true;
+internal inline func track(*void _p) {}
+internal func<debug> track(*void p) {
+	if hookPending {
+		setExitHook(report);
+		hookPending = false;
+	}
+	if p == null {
 		return;
 	}
 	*void f;
@@ -231,8 +227,9 @@ internal func track(*void p) {
 	remember(p, site);
 }
 
-internal func trackFree(*void p) {
-    if p == null || !debugOn() || state(p) != LIVE {
+internal inline func trackFree(*void _p) {}
+internal func<debug> trackFree(*void p) {
+    if p == null || state(p) != LIVE {
         return;
     }
     *void f;
@@ -243,10 +240,10 @@ internal func trackFree(*void p) {
 	}
 }
 
-native siteOf(*void f) string s => "extern __wisp_site; mov rdi, {f}; call __wisp_site; mov {s.ptr}, rax; mov {s.len}, rdx";
-native parent(*void f) *void g => "mov rax, {f}; mov rax, [rax]; mov {g}, rax";
+native<debug> siteOf(*void f) string s => "extern __wisp_site; mov rdi, {f}; call __wisp_site; mov {s.ptr}, rax; mov {s.len}, rdx";
+native<debug> parent(*void f) *void g => "mov rax, {f}; mov rax, [rax]; mov {g}, rax";
 
-func callerSite(*void f) string {
+func<debug> callerSite(*void f) string {
 	string first = siteOf(f);
 	*void at = f;
 	loop true {
@@ -260,6 +257,11 @@ func callerSite(*void f) string {
 		at = parent(at);
 	}
 	return first;
+}
+
+internal inline func scrub(*void _p, int _size) {}
+internal inline func<debug> scrub(*void p, int size) {
+	rawSet(p, 0xCD, size - HEAD_SIZE);
 }
 
 internal func rawAllocate(int n, bool zero) *void {
@@ -276,8 +278,8 @@ internal func rawAllocate(int n, bool zero) *void {
 			classes[class] = ((**void)(p))@;
 			if zero {
 				rawSet(p, 0, size - HEAD_SIZE);
-			} else if debugOn() {
-				rawSet(p, 0xCD, size - HEAD_SIZE);
+			} else {
+				scrub(p, size - HEAD_SIZE);
 			}
 			setState(p, LIVE);
 			return p;
@@ -309,6 +311,14 @@ internal func rawAllocate(int n, bool zero) *void {
 	return head;
 }
 
+internal inline func recycle(*void p, int h) {
+	((**void)(p))@ = classes[h];
+	classes[h] = p;
+}
+internal inline func<debug> recycle(*void p, int h) {
+	quarantine(p, h);
+}
+
 internal func rawFree(*void p) {
 	if p == null {
 		return;
@@ -325,16 +335,9 @@ internal func rawFree(*void p) {
 
 	int h = header(p);
 	if h < 11 {
-		if debugOn() {
-			quarantine(p, h);
-		} else {
-			((**void)(p))@ = classes[h];
-			classes[h] = p;
-		}
+		recycle(p, h);
 	} else {
-		if debugOn() {
-			forget(p);
-		}
+		forget(p);
 		sys.munmap((*byte)(p)-16, h);
 	}
 }

@@ -4,8 +4,12 @@ global __wisp_panic_at
 global __wisp_panic
 extern __wisp_main
 global __wisp_envp
+
+%if WISP_TRACE
 global __wisp_site
 global __wisp_trace
+%endif
+
 global __wisp_after_main
 global __wisp_exit_hook
 
@@ -115,7 +119,9 @@ __wisp_panic_at:
 	pop rsi
 	call __wisp_write_error
 
+%if WISP_TRACE
 	call __wisp_trace
+%endif
 
 	mov edi, 1
 	mov eax, 60
@@ -135,7 +141,9 @@ __wisp_panic:
 	mov edx, 1
 	call __wisp_write_error
 
+%if WISP_TRACE
 	call __wisp_trace
+%endif
 
 	mov edi, 1
 	mov eax, 60
@@ -162,6 +170,7 @@ __wisp_utoa:
 
 	ret
 
+%if WISP_TRACE
 __wisp_site:
         mov rax, [rdi+8]
         lea rcx, [rel __wisp_after_main]
@@ -226,6 +235,7 @@ __wisp_trace:
         pop r13
         pop r12
         ret
+%endif
 
 main:
 	push rbp

@@ -699,8 +699,9 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			return nil, err
 		}
 		if job.library {
+			prof := cfg.ProfileFacts(tgt.Profile)
 			archiveStart := time.Now()
-			if err := x64.Archive(tgt, append(append([]string{}, objPaths...), libPaths...), targets.binPath); err != nil {
+			if err := x64.Archive(tgt, append(append([]string{}, objPaths...), libPaths...), targets.binPath, prof.Trace); err != nil {
 				return nil, err
 			}
 			detail("Archived in %s", elapsed(archiveStart))
@@ -709,7 +710,8 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			return res, nil
 		}
 		linkStart := time.Now()
-		opts := x64.LinkOptions{Extra: append(append(append([]string{}, cfg.Link...), cfg.ProgramLink...), linkOpt...), Libc: useLibc(cfg, tgt), Strip: cfg.ProfileFacts(tgt.Profile).Strip}
+		prof := cfg.ProfileFacts(tgt.Profile)
+		opts := x64.LinkOptions{Extra: append(append(append([]string{}, cfg.Link...), cfg.ProgramLink...), linkOpt...), Libc: useLibc(cfg, tgt), Strip: prof.Strip, Trace: prof.Trace}
 		if err := x64.Link(tgt, root, objPaths, libPaths, targets.binPath, targets.wantObj, opts); err != nil {
 			return nil, err
 		}

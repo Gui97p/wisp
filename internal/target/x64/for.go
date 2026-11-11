@@ -212,7 +212,7 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 	}
 	t.store(step, stepSlot)
 
-	if stmt.Step != nil && !known {
+	if stmt.Step != nil && !known && t.checks {
 		stepOk := t.newLabel("step_ok")
 		t.text.printft("cmp %s, 0\n", t.memText(stepSlot))
 		t.text.printft("jne %s\n", stepOk)

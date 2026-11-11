@@ -10,6 +10,7 @@ import (
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
+	"github.com/Gui97p/wisp/internal/target"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
@@ -75,16 +76,17 @@ type X64Target struct {
 	sites    []callSite
 	funcName string
 
-	libc bool
+	libc, trace, snippets, optimize, checks bool
 }
 
-func New(program *ast.Program, info *analyser.Info, isEntry bool, target string, module string) *X64Target {
+func New(program *ast.Program, info *analyser.Info, isEntry bool, t string, module string) *X64Target {
+	prof := target.ActiveProfile()
 	return &X64Target{
 		program: program,
 		info:    info,
 		isEntry: isEntry,
 		module:  module,
-		target:  target,
+		target:  t,
 
 		prelude:  NewPrelude(),
 		data:     NewData(),
@@ -95,6 +97,11 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, target string,
 		dataLabel: map[any]string{},
 
 		labels: map[string]int{},
+
+		trace:    prof.Trace,
+		snippets: prof.Snippets,
+		optimize: prof.Optimize,
+		checks:   prof.Checks,
 	}
 }
 
@@ -130,7 +137,7 @@ func (t *X64Target) where(label string) string {
 	if t.line == 0 {
 		return ""
 	}
-	if src, ok := t.sources[t.file]; ok {
+	if src, ok := t.sources[t.file]; ok && t.snippets {
 		block := diag.RuntimeBlock("", t.file, src, t.line, t.col, t.endLine, t.endCol, label)
 		if block != "" {
 			return strings.TrimSuffix(block, "\n")
@@ -170,7 +177,7 @@ func (t *X64Target) Compile() (string, error) {
 	return code, nil
 }
 
-func Assemble(asmSource, objPath, asmPath string, keepAsm bool, format string) error {
+func Assemble(asmSource, objPath, asmPath string, keepAsm bool, format string, defines ...string) error {
 	if format == "" {
 		format = "elf64"
 	}
@@ -179,8 +186,12 @@ func Assemble(asmSource, objPath, asmPath string, keepAsm bool, format string) e
 		return fmt.Errorf("failed to write the assembly file (%s)", diag.Reason(err))
 	}
 
-	trace("nasm", []string{"-f", format, "-w+error=number-overflow", asmPath, "-o", objPath})
-	nasmCmd := exec.Command("nasm", "-f", format, "-w+error=number-overflow", asmPath, "-o", objPath)
+	args := []string{"-f", format, "-w+error=number-overflow", asmPath, "-o", objPath}
+	for _, def := range defines {
+		args = append(args, "-d"+def)
+	}
+	trace("nasm", args)
+	nasmCmd := exec.Command("nasm", args...)
 	nasmCmd.Stderr = os.Stderr
 	if err := nasmCmd.Run(); err != nil {
 		return fmt.Errorf("nasm failed (%s)", diag.Reason(err))

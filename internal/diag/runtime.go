@@ -47,8 +47,11 @@ func RuntimeBlock(header, file string, source []byte, line, col, endLine, endCol
 	return b.String()
 }
 
-func FrameBlock(file string, source []byte, line, col, endLine, endCol int, function string) string {
+func FrameBlock(file string, source []byte, line, col, endLine, endCol int, function string, snippets bool) string {
 	head := fmt.Sprintf("%s:%d:%d: in %s\n", DisplayPath(file), line, col, function)
+	if !snippets {
+		return head
+	}
 	if source == nil {
 		return head
 	}

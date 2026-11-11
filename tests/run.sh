@@ -62,7 +62,16 @@ for dir in "$ROOT"/*/; do
         fi
     fi
 
-    if [[ -f "$dir/main.c" ]]; then
+    if [[ -f "$dir/library" ]]; then
+        lib="$(cat "$dir/library")"
+        mkdir -p "$OUT/bin"
+        (
+            cd "$dir" &&
+                timeout 120 "$WISP" build --os "$TARGET" --profile "$PROFILE" --bin "$OUT/bin/$name" >"$out.raw" &&
+                cc -no-pie main.c "$OUT/bin/$name/$lib.a" -o "$OUT/bin/$name/prog" &&
+                "$OUT/bin/$name/prog" >>"$out.raw"
+        ) 2>"$err"
+    elif [[ -f "$dir/main.c" ]]; then
         mkdir -p "$OUT/bin"
         (
             cd "$dir" &&
@@ -88,7 +97,13 @@ for dir in "$ROOT"/*/; do
         want="$(cat "$dir/abort.txt")"
         want_code=1
         [[ -f "$dir/exit.txt" ]] && want_code="$(cat "$dir/exit.txt")"
-        if diff -q "$out" "$dir/expected.txt" >/dev/null && [[ "$code" -eq "$want_code" ]] && grep -qF -- "$want" "$err.clean"; then
+        unwanted=""
+        if [[ -f "$dir/stderr.txt" ]]; then
+            while IFS= read -r line; do
+                [[ "$line" == '!'* ]] && grep -qF -- "${line:1}" "$err.clean" && unwanted="$line"
+            done <"$dir/stderr.txt"
+        fi
+        if diff -q "$out" "$dir/expected.txt" >/dev/null && [[ "$code" -eq "$want_code" ]] && grep -qF -- "$want" "$err.clean" && [[ -z "$unwanted" ]]; then
             printf 'PASS  %s\n' "$name" >>"$RESULTS"
         else
             printf 'WRONG %s  abort expected (exit %s, "%s"), got exit %s\n' "$name" "$want_code" "$want" "$code" >>"$RESULTS"
@@ -109,6 +124,14 @@ for dir in "$ROOT"/*/; do
             done <"$dir/stderr.txt"
             if [[ -n "$missing" ]]; then
                 printf 'WRONG %s  stderr %s\n' "$name" "$missing" >>"$RESULTS"
+                continue
+            fi
+        fi
+        if [[ -f "$dir/max-size" ]]; then
+            limit="$(cat "$dir/max-size")"
+            actual="$(stat -c %s "$OUT/bin/$name/$name" 2>/dev/null || echo 0)"
+            if [[ "$actual" -eq 0 || "$actual" -gt "$limit" ]]; then
+                printf 'WRONG %s  binary is %s bytes, the limit is %s\n' "$name" "$actual" "$limit" >>"$RESULTS"
                 continue
             fi
         fi

@@ -190,6 +190,8 @@ type testcase struct {
 	stderr   string
 	cmain    bool
 	profile  string
+	maxSize  int
+	library  string
 	files    map[string]string
 }
 
@@ -522,17 +524,17 @@ func main() {
 
 	for _, m := range manual {
 		exp := m.expected
-		if exp == nil && !m.cmain {
+		if exp == nil && !m.cmain && m.library == "" {
 			body := m.src[strings.Index(m.src, "func main()"):]
 			for _, match := range checkName.FindAllStringSubmatch(body, -1) {
 				exp = append(exp, match[1])
 			}
 		}
 		src := header + m.src
-		if m.cmain {
+		if m.cmain || m.library != "" {
 			src = ""
 		}
-		cases = append(cases, testcase{dir: m.dir, src: src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, luaOnly: m.luaOnly, libc: m.libc, cmain: m.cmain, profile: m.profile, env: m.env, stderr: m.stderr, files: m.files})
+		cases = append(cases, testcase{dir: m.dir, src: src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, luaOnly: m.luaOnly, libc: m.libc, cmain: m.cmain, profile: m.profile, maxSize: m.maxSize, library: m.library, env: m.env, stderr: m.stderr, files: m.files})
 	}
 
 	os.RemoveAll(root)
@@ -542,7 +544,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
-		if !c.cmain {
+		if !c.cmain && c.library == "" {
 			if err := os.WriteFile(filepath.Join(dir, "main.wsp"), []byte(c.src), 0644); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
@@ -574,6 +576,18 @@ func main() {
 		}
 		if c.luaOnly {
 			if err := os.WriteFile(filepath.Join(dir, "lua-only"), nil, 0644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+		if c.library != "" {
+			if err := os.WriteFile(filepath.Join(dir, "library"), []byte(c.library), 0644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+		if c.maxSize > 0 {
+			if err := os.WriteFile(filepath.Join(dir, "max-size"), []byte(fmt.Sprint(c.maxSize)), 0644); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

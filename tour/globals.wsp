@@ -23,6 +23,12 @@ int untouched;
 // write it.
 public int total = 100;
 
+// A global that only some targets or profiles have takes a selector, like
+// any other declaration. `let` infers the type from its value, and `var`
+// names the type, so it can start zeroed: `let<debug> level = 3;` and
+// `var<debug> [64]int history;`. A pointer starts as a converted null,
+// `(*Settings)(null)`, or just zeroed with `var`.
+
 func bump() int {
   counter++;
   return counter;

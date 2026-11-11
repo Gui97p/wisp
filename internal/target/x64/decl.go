@@ -189,7 +189,9 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	t.text.printf("%s:\n", name)
 	t.text.printlnt("push rbp")
 	t.text.printlnt("mov rbp, rsp")
-	t.ctx.Reserve(8)
+	if t.trace {
+		t.ctx.Reserve(8)
+	}
 
 	types := []analyser.Type{}
 	for _, sym := range params {
@@ -198,8 +200,10 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	}
 	t.collectVariables(body)
 	t.text.printlnt("sub rsp, .frame\n")
-	t.text.printft("lea r11, [rel desc_%s]\n", name)
-	t.text.printlnt("mov [rbp-8], r11")
+	if t.trace {
+		t.text.printft("lea r11, [rel desc_%s]\n", name)
+		t.text.printlnt("mov [rbp-8], r11")
+	}
 
 	t.funcReturns = slices.Clone(returns)
 	t.fallible = fallible
@@ -284,7 +288,9 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	t.text.printlnt("ret")
 	t.text.printft(".frame equ %d\n", t.ctx.AlignTo(16))
 
-	t.emitDescriptor(name)
+	if t.trace {
+		t.emitDescriptor(name)
+	}
 	t.text.println("section .text")
 
 	if t.ctx.Pushed() != 0 {
