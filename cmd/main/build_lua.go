@@ -15,7 +15,7 @@ func resolveLuaPaths(root string, cfg *module.Config, tgt target.Target) (entry,
 	name := binaryNameOf(root, cfg)
 	binDir := pickPath(root, tgt, name, binOut, cfg.ProgramOutput.Bin, cfg.Output.Bin)
 	if binDir == "" {
-		binDir = filepath.Join(root, "bin", tgt.OS, tgt.Arch)
+		binDir = filepath.Join(root, "bin", profileDir(tgt))
 	}
 	entry = filepath.Join(binDir, name+".lua")
 	objDir = pickPath(root, tgt, name, objOut, cfg.ProgramOutput.Obj, cfg.Output.Obj)
@@ -63,7 +63,7 @@ func buildLua(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
 		if !strings.HasPrefix(c.mod.Path, "std/") {
-			c.info.RenderErrorBlocks(c.mod.BufferMap())
+			renderErrorBlocks(c)
 		}
 		backend := lua.New(c.merged, c.info, isEntry)
 		backend.SetFiles(c.declFiles)

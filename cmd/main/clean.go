@@ -50,7 +50,7 @@ func runClean(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, name := range cfg.ProgramNames(projectName(root)) {
-		for _, t := range target.List() {
+		for _, t := range targetsAndProfiles() {
 			eff := cfg.ForProgram(name).ForSystem(t.OS, t.Arch)
 			switch t.Arch {
 			case "x64":
@@ -67,7 +67,7 @@ func runClean(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, name := range cfg.LibraryNames() {
-		for _, t := range target.List() {
+		for _, t := range targetsAndProfiles() {
 			eff := cfg.ForLibrary(name).ForSystem(t.OS, t.Arch)
 			switch t.Arch {
 			case "x64":
@@ -146,4 +146,15 @@ func removeEmptyParents(root, dir string) {
 		}
 		dir = filepath.Dir(dir)
 	}
+}
+
+func targetsAndProfiles() []target.Target {
+	var out []target.Target
+	for _, t := range target.List() {
+		for _, profile := range target.Profiles() {
+			t.Profile = profile
+			out = append(out, t)
+		}
+	}
+	return out
 }

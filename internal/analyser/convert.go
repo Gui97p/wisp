@@ -557,6 +557,10 @@ func (a *Analyser) checkConversion(expr *ast.CallExpr, target Type) Type {
 		from = span
 	}
 
+	if _, isNull := from.(NullType); isNull && a.retypeNull(expr.Args[0], from, target) {
+		from = target
+	}
+
 	if !explicitConversion(from, target) {
 		a.errorf(expr, "cannot convert %s to %s", from.String(), target.String())
 		return InvalidType{}
@@ -632,6 +636,7 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 	case isUntyped(from) && isInteger(from):
 		a.checkConstFits(arg, PrimitiveType{Name: "uint64"})
 		a.fixUntyped(arg, PrimitiveType{Name: "uint64"})
+	case isNullType(from) && a.retypeNull(arg, from, result):
 	case isWideInteger(underlyingOf(from)):
 	case isString(underlyingOf(from)) && isByteLike(pointer.Element):
 	case sequenceMatches(underlyingOf(from), pointer.Element):
@@ -659,6 +664,11 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 	a.info.Types[cast] = result
 	expr.Cast = cast
 	return result
+}
+
+func isNullType(t Type) bool {
+	_, isNull := t.(NullType)
+	return isNull
 }
 
 func isInvalidType(t Type) bool {

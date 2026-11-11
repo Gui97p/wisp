@@ -256,6 +256,10 @@ func (p *Parser) parseVarStatement() ast.Statement {
 		p.advance()
 	}
 
+	return p.parseVarNames(stmt, currentType)
+}
+
+func (p *Parser) parseVarNames(stmt *ast.VarStmt, currentType ast.TypeRef) ast.Statement {
 	if p.current.Type != lexer.TOKEN_IDENT {
 		p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
 		return nil

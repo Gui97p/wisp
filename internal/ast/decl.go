@@ -44,11 +44,13 @@ func (c *ConstDecl) Tree(indent string) string {
 }
 
 type VarDecl struct {
-	Doc      string
-	Vars     []Param
-	Values   []Expression
-	Exported bool
-	Reach    int
+	Doc        string
+	Vars       []Param
+	Values     []Expression
+	Exported   bool
+	Reach      int
+	Selector   string
+	SelectorAt Position
 
 	NodePos
 }

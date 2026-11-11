@@ -29,6 +29,8 @@ type Config struct {
 	Programs  map[string]ProgramConfig `toml:"program" doc:"The programs of the project, declared as [program.<name>]. Without any, the project is one program named after its folder."`
 	Libraries map[string]LibraryConfig `toml:"library" doc:"The libraries of the project, declared as [library.<name>]. A library has no entry: it is the modules it lists and everything they import."`
 	Targets   map[string]TargetConfig  `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
+	Profile   string                   `toml:"profile" doc:"The profile to build with: debug (the default) or release. A program or library can choose its own, and --profile overrides it."`
+	Profiles  map[string]ProfileConfig `toml:"profiles" doc:"Adjusts what debug or release turn on, declared as [profiles.debug] or [profiles.release]. Only the keys that differ from the built-in profile are written."`
 
 	Entry         string       `toml:"-"`
 	ProgramName   string       `toml:"-"`
@@ -38,22 +40,32 @@ type Config struct {
 	ProgramOutput OutputConfig `toml:"-"`
 }
 
+type ProfileConfig struct {
+	Trace    *bool `toml:"trace" doc:"Keep the call stack information that panics and unhandled errors print as a stack trace (x86-64)."`
+	Snippets *bool `toml:"snippets" doc:"Show the line of source code in the blocks that report an error at run time."`
+	Strip    *bool `toml:"strip" doc:"Remove the symbol table from the linked binary (x86-64)."`
+	Optimize *bool `toml:"optimize" doc:"Let the compiler spend effort on faster code, such as keeping locals in registers."`
+	Checks   *bool `toml:"checks" doc:"Keep the run-time safety checks: index bounds, division by zero and null pointers."`
+}
+
 type LibraryConfig struct {
 	Modules []string     `toml:"modules" doc:"The modules the library is made of, by import path, such as \"geometry\". Whatever they import goes along."`
 	OS      string       `toml:"os" doc:"The system to build this library for. Defaults to the top-level os."`
 	Arch    string       `toml:"arch" doc:"The architecture to build this library for."`
-	Output  OutputConfig `toml:"output" doc:"Where this library writes its artifacts. {os}, {arch} and {name} are replaced."`
+	Output  OutputConfig `toml:"output" doc:"Where this library writes its artifacts. {profile}, {target}, {os}, {arch} and {name} are replaced."`
+	Profile string       `toml:"profile" doc:"The profile to build this library with. Defaults to the top-level profile."`
 }
 
 type ProgramConfig struct {
-	Name   string       `toml:"name" doc:"Name of the binary this program produces. Defaults to the name of the program."`
-	Entry  string       `toml:"entry" doc:"Entry file of this program, relative to the project root."`
-	OS     string       `toml:"os" doc:"The system to build this program for. Defaults to the top-level os."`
-	Arch   string       `toml:"arch" doc:"The architecture to build this program for."`
-	Link   []string     `toml:"link" doc:"Extra linker arguments for this program, added after the ones of the system."`
-	Libc   *bool        `toml:"libc" doc:"Link against the C library for this program."`
-	Output OutputConfig `toml:"output" doc:"Where this program writes its artifacts. {os}, {arch} and {name} are replaced."`
-	Run    RunConfig    `toml:"run" doc:"How wisp run starts this program. Its env adds to the top-level one."`
+	Name    string       `toml:"name" doc:"Name of the binary this program produces. Defaults to the name of the program."`
+	Entry   string       `toml:"entry" doc:"Entry file of this program, relative to the project root."`
+	OS      string       `toml:"os" doc:"The system to build this program for. Defaults to the top-level os."`
+	Arch    string       `toml:"arch" doc:"The architecture to build this program for."`
+	Link    []string     `toml:"link" doc:"Extra linker arguments for this program, added after the ones of the system."`
+	Libc    *bool        `toml:"libc" doc:"Link against the C library for this program."`
+	Output  OutputConfig `toml:"output" doc:"Where this program writes its artifacts. {profile}, {target}, {os}, {arch} and {name} are replaced."`
+	Run     RunConfig    `toml:"run" doc:"How wisp run starts this program. Its env adds to the top-level one."`
+	Profile string       `toml:"profile" doc:"The profile to build this program with. Defaults to the top-level profile."`
 
 	Systems map[string]SystemConfig `toml:"-"`
 }
@@ -143,6 +155,8 @@ func ConfigFields(section string) []ConfigField {
 		t = reflect.TypeFor[LibraryConfig]()
 	case "library.output":
 		t = reflect.TypeFor[OutputConfig]()
+	case "profiles":
+		t = reflect.TypeFor[ProfileConfig]()
 	case "program":
 		t = reflect.TypeFor[ProgramConfig]()
 	case "program.output", "program.system.output":
@@ -496,7 +510,30 @@ func decodeConfigSource(path, text string) (*Config, error) {
 		}
 	}
 
+	if cfg.Profile != "" {
+		if err := target.ValidateProfile(cfg.Profile); err != nil {
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"profile"}), Message: fmt.Sprintf("%q is not a profile", cfg.Profile), Help: profileHelp(err)})
+		}
+	}
+	for name := range cfg.Profiles {
+		if err := target.ValidateProfile(name); err != nil {
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"profiles", name}), Message: fmt.Sprintf("%q is not a profile", name), Help: profileHelp(err)})
+		}
+	}
+	for name, program := range cfg.Programs {
+		if program.Profile != "" {
+			if err := target.ValidateProfile(program.Profile); err != nil {
+				issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"program", name, "profile"}), Message: fmt.Sprintf("%q is not a profile", program.Profile), Help: profileHelp(err)})
+			}
+		}
+	}
+
 	for name, lib := range cfg.Libraries {
+		if lib.Profile != "" {
+			if err := target.ValidateProfile(lib.Profile); err != nil {
+				issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"library", name, "profile"}), Message: fmt.Sprintf("%q is not a profile", lib.Profile), Help: profileHelp(err)})
+			}
+		}
 		if !programNamePattern.MatchString(name) {
 			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"library", name}), Message: fmt.Sprintf("%q is not a valid library name", name), Help: "use lowercase letters, digits and underscores, starting with a letter"})
 		}
@@ -693,6 +730,33 @@ func decodeArchTables(text string, md toml.MetaData, cfg *Config, issues *[]Conf
 	return nil
 }
 
+func profileHelp(err error) string {
+	var unknown *target.UnknownError
+	if errors.As(err, &unknown) && unknown.Help != "" {
+		return unknown.Help
+	}
+	return "the profiles are " + target.Enumerate(target.Profiles())
+}
+
+func (c *Config) ProfileFacts(name string) target.Profile {
+	facts, _ := target.BuiltinProfile(name)
+	over, ok := c.Profiles[name]
+	if !ok {
+		return facts
+	}
+	set := func(dst *bool, v *bool) {
+		if v != nil {
+			*dst = *v
+		}
+	}
+	set(&facts.Trace, over.Trace)
+	set(&facts.Snippets, over.Snippets)
+	set(&facts.Strip, over.Strip)
+	set(&facts.Optimize, over.Optimize)
+	set(&facts.Checks, over.Checks)
+	return facts
+}
+
 func isProgramField(name string) bool {
 	return slices.Contains(tomlTags(reflect.TypeOf(ProgramConfig{})), name)
 }
@@ -869,6 +933,9 @@ func (c *Config) ForProgram(name string) *Config {
 	if bin.Arch != "" {
 		eff.Arch = bin.Arch
 	}
+	if bin.Profile != "" {
+		eff.Profile = bin.Profile
+	}
 	eff.ProgramLink = bin.Link
 	eff.ProgramLibc = bin.Libc
 	eff.ProgramOutput = bin.Output
@@ -953,6 +1020,9 @@ func (c *Config) ForLibrary(name string) *Config {
 	}
 	if lib.Arch != "" {
 		eff.Arch = lib.Arch
+	}
+	if lib.Profile != "" {
+		eff.Profile = lib.Profile
 	}
 	eff.ProgramOutput = lib.Output
 	return &eff

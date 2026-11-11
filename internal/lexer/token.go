@@ -138,6 +138,7 @@ const (
 	TOKEN_YIELD
 	TOKEN_INLINE
 	TOKEN_HASH // #
+	TOKEN_VAR
 )
 
 var keywords = map[string]TokenType{
@@ -145,6 +146,7 @@ var keywords = map[string]TokenType{
 	"const":    TOKEN_CONST,
 	"func":     TOKEN_FUNC,
 	"extern":   TOKEN_EXTERN,
+	"var":      TOKEN_VAR,
 	"struct":   TOKEN_STRUCT,
 	"type":     TOKEN_TYPE,
 	"enum":     TOKEN_ENUM,

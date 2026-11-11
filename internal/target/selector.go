@@ -115,7 +115,7 @@ func (p *selectorParser) not() (*Selector, error) {
 		break
 	}
 	if start == p.pos {
-		return nil, fmt.Errorf("expected an architecture or a system in the target expression")
+		return nil, fmt.Errorf("expected an architecture, a system or a profile in the target expression")
 	}
 	return &Selector{kind: selAtom, word: p.text[start:p.pos]}, nil
 }
@@ -180,7 +180,7 @@ func ValidateSelectorText(text string) error {
 			}
 		}
 		if !found {
-			return &UnknownError{Name: w, Help: Suggestion(w, known, "architectures and systems")}
+			return &UnknownError{Name: w, Help: Suggestion(w, known, "architectures, systems and profiles")}
 		}
 	}
 	return nil
@@ -191,6 +191,7 @@ func MatchesText(targetName, text string) bool {
 	if err != nil {
 		return false
 	}
+	t.Profile = ActiveProfile().Name
 	sel, err := cachedSelector(text)
 	if err != nil {
 		return false
@@ -199,6 +200,17 @@ func MatchesText(targetName, text string) bool {
 }
 
 func universe() []Target {
+	var out []Target
+	for _, t := range worldOfTargets() {
+		for _, profile := range Profiles() {
+			t.Profile = profile
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+func worldOfTargets() []Target {
 	registered := all()
 	universe := append([]Target{}, registered...)
 
@@ -261,8 +273,11 @@ func FirstMatching(text string) (string, bool) {
 		return "", false
 	}
 	for _, t := range all() {
-		if sel.Matches(t) {
-			return t.Name, true
+		for _, profile := range append([]string{ActiveProfile().Name}, Profiles()...) {
+			t.Profile = profile
+			if sel.Matches(t) {
+				return t.Name, true
+			}
 		}
 	}
 	return "", false

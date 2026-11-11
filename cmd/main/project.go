@@ -11,6 +11,7 @@ import (
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/module"
+	"github.com/Gui97p/wisp/internal/target"
 )
 
 type compiledModule struct {
@@ -45,6 +46,7 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 		return nil, err
 	}
 	module.ConfigureTarget(tgt.Name)
+	target.SetActiveProfile(cfg.ProfileFacts(tgt.Profile))
 
 	modules, err := module.DiscoverProject(root)
 	if err != nil {

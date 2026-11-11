@@ -114,7 +114,7 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 
 func (p *Parser) startsVarDeclaration() bool {
 	switch p.current.Type {
-	case lexer.TOKEN_LET:
+	case lexer.TOKEN_LET, lexer.TOKEN_VAR:
 		return true
 	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACKET:
 		return p.looksLikeTypeDeclaration()
@@ -123,7 +123,33 @@ func (p *Parser) startsVarDeclaration() bool {
 }
 
 func (p *Parser) parseVarDeclaration() *ast.VarDecl {
-	stmt := p.parseVarStatement()
+	var selector string
+	var selectorAt ast.Position
+	if p.current.Type == lexer.TOKEN_VAR {
+		sel, at, ok := p.optionalSelector()
+		if !ok {
+			return nil
+		}
+		selector, selectorAt = sel, at
+		p.advance()
+		if p.current.Type == lexer.TOKEN_LET || p.peek.Type == lexer.TOKEN_ASSIGN {
+			p.error("var is followed by a type: write var int count; or var<debug> int count = 1;")
+			return nil
+		}
+	}
+
+	var stmt ast.Statement
+	if p.current.Type == lexer.TOKEN_LET && p.peek.Type == lexer.TOKEN_LT {
+		sel, at, ok := p.optionalSelector()
+		if !ok {
+			return nil
+		}
+		selector, selectorAt = sel, at
+		p.advance()
+		stmt = p.parseVarNames(&ast.VarStmt{}, ast.TypeRef{})
+	} else {
+		stmt = p.parseVarStatement()
+	}
 	if stmt == nil {
 		return nil
 	}
@@ -134,7 +160,7 @@ func (p *Parser) parseVarDeclaration() *ast.VarDecl {
 		return nil
 	}
 
-	return &ast.VarDecl{Vars: vs.Vars, Values: vs.Values}
+	return &ast.VarDecl{Vars: vs.Vars, Values: vs.Values, Selector: selector, SelectorAt: selectorAt}
 }
 
 func (p *Parser) parseImportDeclaration() *ast.ImportDecl {
@@ -235,7 +261,7 @@ func (p *Parser) parseExported() []ast.Declaration {
 		decl.Exported = true
 		decls = append(decls, decl)
 
-	case lexer.TOKEN_LET, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACKET:
+	case lexer.TOKEN_LET, lexer.TOKEN_VAR, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACKET:
 		decl := p.parseVarDeclaration()
 		if decl == nil {
 			return nil

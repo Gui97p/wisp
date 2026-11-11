@@ -18,14 +18,16 @@ import (
 )
 
 var (
-	asmOut  string
-	objOut  string
-	binOut  string
-	osOpt   string
-	archOpt string
-	stdOpt  string
-	linkOpt []string
-	libcOpt bool
+	asmOut     string
+	objOut     string
+	binOut     string
+	osOpt      string
+	archOpt    string
+	profileOpt string
+	releaseOpt bool
+	stdOpt     string
+	linkOpt    []string
+	libcOpt    bool
 )
 
 var buildCmd = &cobra.Command{
@@ -58,10 +60,17 @@ func addBuildFlags(cmd *cobra.Command) {
 	f.StringVar(&binOut, "bin", "", "folder of the final product: the binary named after the program (x64), or its entry script (lua)")
 	f.StringVar(&osOpt, "os", "", "system to build for (linux, cc, or one declared in wisp.toml)")
 	f.StringVar(&archOpt, "arch", "", "architecture to build for (x64, lua)")
+	addProfileFlags(cmd)
 	f.StringArrayVar(&linkOpt, "link", nil, "extra argument for the linker, repeatable (object files, archives, -L, -l); x86-64 targets")
 	f.BoolVar(&libcOpt, "libc", false, "link the system C library and use its startup code instead of the Wisp start stub (x86-64 targets)")
 	addProjectFlags(cmd)
 	addOutputFlags(cmd)
+}
+
+func addProfileFlags(cmd *cobra.Command) {
+	f := cmd.Flags()
+	f.StringVar(&profileOpt, "profile", "", "profile to build with: debug (the default) or release")
+	f.BoolVar(&releaseOpt, "release", false, "build with the release profile, the same as --profile release")
 }
 
 func addProjectFlags(cmd *cobra.Command) {
@@ -101,7 +110,49 @@ func resolveTarget(cfg *module.Config) (target.Target, error) {
 		arch = archOpt
 	}
 
-	return target.Resolve(osName, arch)
+	tgt, err := target.Resolve(osName, arch)
+	if err != nil {
+		return tgt, err
+	}
+	profile, err := resolveProfile(cfg)
+	if err != nil {
+		return tgt, err
+	}
+	tgt.Profile = profile
+	return tgt, nil
+}
+
+func resolveProfile(cfg *module.Config) (string, error) {
+	name := cfg.Profile
+	if name == "" {
+		name = target.DefaultProfile
+	}
+	if releaseOpt {
+		if profileOpt != "" && profileOpt != "release" {
+			return "", fmt.Errorf("--release and --profile %s ask for different profiles", profileOpt)
+		}
+		name = "release"
+	} else if profileOpt != "" {
+		name = profileOpt
+	}
+	if err := target.ValidateProfile(name); err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
+func profileDir(tgt target.Target) string {
+	profile := tgt.Profile
+	if profile == "" {
+		profile = target.DefaultProfile
+	}
+	return filepath.Join(profile, tgt.OS+"-"+tgt.Arch)
+}
+
+func renderErrorBlocks(c compiledModule) {
+	if target.ActiveProfile().Snippets {
+		c.info.RenderErrorBlocks(c.mod.BufferMap())
+	}
 }
 
 func settle(cfg *module.Config) (*module.Config, target.Target, error) {
@@ -159,7 +210,11 @@ func binaryNameOf(root string, cfg *module.Config) string {
 }
 
 func expandPath(path string, tgt target.Target, name string) string {
-	return strings.NewReplacer("{os}", tgt.OS, "{arch}", tgt.Arch, "{name}", name).Replace(path)
+	profile := tgt.Profile
+	if profile == "" {
+		profile = target.DefaultProfile
+	}
+	return strings.NewReplacer("{profile}", profile, "{target}", tgt.OS+"-"+tgt.Arch, "{os}", tgt.OS, "{arch}", tgt.Arch, "{name}", name).Replace(path)
 }
 
 func pickPath(root string, tgt target.Target, name, flag string, layers ...string) string {
@@ -475,13 +530,13 @@ func resolveBuildTargets(root string, cfg *module.Config, tgt target.Target, for
 	}
 
 	if t.asmDir == "" {
-		t.asmDir = filepath.Join(root, "build", tgt.OS, tgt.Arch, program, "asm")
+		t.asmDir = filepath.Join(root, "build", profileDir(tgt), program, "asm")
 	}
 	if t.objDir == "" {
-		t.objDir = filepath.Join(root, "build", tgt.OS, tgt.Arch, program, "obj")
+		t.objDir = filepath.Join(root, "build", profileDir(tgt), program, "obj")
 	}
 	if binDir == "" {
-		binDir = filepath.Join(root, "bin", tgt.OS, tgt.Arch)
+		binDir = filepath.Join(root, "bin", profileDir(tgt))
 	}
 	t.binPath = filepath.Join(binDir, name)
 
@@ -540,7 +595,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			}
 			c := c
 			obj, err := stdc.object(c.mod.Path, func(objPath string) error {
-				c.info.RenderErrorBlocks(c.mod.BufferMap())
+				renderErrorBlocks(c)
 				std := x64.New(c.merged, c.info, false, tgt.Name, c.mod.Path)
 				std.SetFiles(c.declFiles)
 				std.SetSources(c.mod.BufferMap())
@@ -564,7 +619,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
-		c.info.RenderErrorBlocks(c.mod.BufferMap())
+		renderErrorBlocks(c)
 		backend := x64.New(c.merged, c.info, isEntry, tgt.Name, c.mod.Path)
 		backend.SetFiles(c.declFiles)
 		backend.SetSources(c.mod.BufferMap())
@@ -654,7 +709,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			return res, nil
 		}
 		linkStart := time.Now()
-		opts := x64.LinkOptions{Extra: append(append(append([]string{}, cfg.Link...), cfg.ProgramLink...), linkOpt...), Libc: useLibc(cfg, tgt)}
+		opts := x64.LinkOptions{Extra: append(append(append([]string{}, cfg.Link...), cfg.ProgramLink...), linkOpt...), Libc: useLibc(cfg, tgt), Strip: cfg.ProfileFacts(tgt.Profile).Strip}
 		if err := x64.Link(tgt, root, objPaths, libPaths, targets.binPath, targets.wantObj, opts); err != nil {
 			return nil, err
 		}

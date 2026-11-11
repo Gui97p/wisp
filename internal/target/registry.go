@@ -25,6 +25,8 @@ type Target struct {
 	Libc          *bool
 
 	Builtin bool
+
+	Profile string
 }
 
 type FieldError struct {
@@ -113,6 +115,10 @@ func CheckName(name string) error {
 		return &FieldError{Target: name, Message: "the name is not valid", Help: "use lowercase letters, digits and underscores, starting with a letter"}
 	}
 
+	if IsProfile(name) {
+		return &FieldError{Target: name, Message: "the name is already used by a profile", Help: "pick another name"}
+	}
+
 	for _, b := range builtin {
 		if name == b.OS || name == b.Arch {
 			return &FieldError{Target: name, Message: "the name is already used by a built-in system or architecture", Help: "pick another name"}
@@ -175,7 +181,11 @@ func hostArch() string {
 }
 
 func (t Target) CompileKey() string {
-	return strings.Join([]string{t.Name, t.Arch, t.OS, t.ABI, t.Format}, "|")
+	parts := []string{t.Name, t.Arch, t.OS, t.ABI, t.Format}
+	if p, ok := BuiltinProfile(t.Profile); ok {
+		parts = append(parts, p.CompileKey())
+	}
+	return strings.Join(parts, "|")
 }
 
 func Lookup(name string) (Target, error) {
@@ -220,7 +230,7 @@ func Resolve(osName, arch string) (Target, error) {
 }
 
 func (t Target) Matches(selector string) bool {
-	return selector == t.Arch || selector == t.OS
+	return selector == t.Arch || selector == t.OS || (t.Profile != "" && selector == t.Profile)
 }
 
 func MatchesName(targetName, selector string) bool {
@@ -234,7 +244,7 @@ func ValidateSelector(selector string) error {
 		}
 	}
 
-	return &UnknownError{Name: selector, Help: Suggestion(selector, Selectors(), "architectures and systems")}
+	return &UnknownError{Name: selector, Help: Suggestion(selector, Selectors(), "architectures, systems and profiles")}
 }
 
 func Architectures() []string {
@@ -325,6 +335,7 @@ func Selectors() []string {
 			}
 		}
 	}
+	selectors = append(selectors, Profiles()...)
 	sort.Strings(selectors)
 
 	return selectors

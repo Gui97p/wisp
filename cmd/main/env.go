@@ -32,6 +32,7 @@ func init() {
 	addProjectFlags(envCmd)
 	envCmd.Flags().StringVar(&osOpt, "os", "", "resolve for this system instead of the default")
 	envCmd.Flags().StringVar(&archOpt, "arch", "", "resolve for this architecture instead of the default")
+	addProfileFlags(envCmd)
 	envCmd.Flags().StringVar(&envProgram, "name", "", "resolve for this program of the project (the first one by default)")
 }
 
@@ -92,6 +93,7 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		{"entry", orDefault(cfg.Entry, "(the only main)")},
 		{"os", tgt.OS},
 		{"arch", tgt.Arch},
+		{"profile", tgt.Profile},
 		{"std", stdDescription()},
 		{"cache", cacheDescription()},
 	}

@@ -19,6 +19,7 @@ type projectSettings struct {
 	configErr    error
 	configSource string
 	target       string
+	profile      target.Profile
 }
 
 var (
@@ -68,6 +69,11 @@ func loadSettings(path string) *projectSettings {
 				}
 			}
 		}
+		profile := eff.Profile
+		if profile == "" {
+			profile = target.DefaultProfile
+		}
+		s.profile = cfg.ProfileFacts(profile)
 		if eff.Entry != "" {
 			s.entry = filepath.Join(root, eff.Entry)
 		}

@@ -236,6 +236,9 @@ func headerItems(declared, declaredBins, declaredLibs []string, headers map[stri
 		addNew("library."+n+".output", "output of "+n)
 	}
 	add("targets.<os>", "targets.${1:os}", "a new system")
+	for _, name := range target.Profiles() {
+		addNew("profiles."+name, "what the "+name+" profile turns on")
+	}
 
 	for _, n := range declaredBins {
 		addNew("program."+n+".output", "output of "+n)

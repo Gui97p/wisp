@@ -105,6 +105,12 @@ func (a *Analyser) constantInitializer(expr ast.Expression) bool {
 		return true
 	case *ast.FuncLiteral:
 		return true
+	case *ast.ConvExpr:
+		if e.Cast != nil && len(e.Args) == 1 {
+			if _, isNull := e.Args[0].(*ast.NullLiteral); isNull {
+				return true
+			}
+		}
 	case *ast.IdentLiteral:
 		if sym, ok := a.scope.Resolve(e.Value); ok && sym.Kind == FUNC {
 			return true

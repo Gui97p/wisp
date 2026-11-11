@@ -5,6 +5,7 @@ WISP="${WISP:-wisp}"
 case "$WISP" in
 */*) WISP="$(realpath "$WISP")" ;;
 esac
+PROFILE="${PROFILE:-debug}"
 TARGET="${1:-linux}"
 FILTER="${2:-}"
 ROOT="$(cd "$(dirname "$0")/numeric" && pwd)"
@@ -23,6 +24,10 @@ for dir in "$ROOT"/*/; do
         continue
     fi
 
+    if [[ -f "$dir/profile-only" && "$(cat "$dir/profile-only")" != "$PROFILE" ]]; then
+        continue
+    fi
+
     if [[ "$TARGET" == "cc" && -f "$dir/x64-only" ]]; then
         continue
     fi
@@ -34,9 +39,9 @@ for dir in "$ROOT"/*/; do
     out="$OUT/$name.out"
     err="$OUT/$name.err"
     if [[ "$TARGET" == "cc" ]]; then
-        flags=(--bin "$OUT/lua/$name")
+        flags=(--profile "$PROFILE" --bin "$OUT/lua/$name")
     else
-        flags=(--bin "$OUT/bin/$name" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name")
+        flags=(--profile "$PROFILE" --bin "$OUT/bin/$name" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name")
     fi
     envs=()
     if [[ -f "$dir/env.txt" ]]; then

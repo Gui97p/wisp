@@ -10,6 +10,7 @@ type manualCase struct {
 	luaOnly  bool
 	libc     bool
 	cmain    bool
+	profile  string
 	env      string
 	stderr   string
 	files    map[string]string
@@ -7025,6 +7026,81 @@ func main() ! {
     mem.free(fresh);
 }
 `, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc of null allocates", "realloc to a large block keeps the contents"}},
+
+	{dir: "profile_debug", profile: "debug", src: `var<debug> int level = 10;
+var<release> int level = 20;
+var<debug> [4]int slots;
+
+func<release> mode() string {
+    return "release";
+}
+
+func mode() string {
+    return "debug";
+}
+
+func<debug> only() int {
+    return 1;
+}
+
+func main() {
+    check(mode() == "debug", "a plain function is used when no version matches the profile");
+    check(only() == 1, "a function can exist only for the debug profile");
+    check(level == 10, "a global declared with var takes the version of the profile");
+    slots[2] = 5;
+    check(slots[2] == 5 && slots[0] == 0, "a global array declared with var for one profile starts zeroed");
+}
+`, expected: []string{"a plain function is used when no version matches the profile", "a function can exist only for the debug profile", "a global declared with var takes the version of the profile", "a global array declared with var for one profile starts zeroed"}},
+
+	{dir: "profile_release", profile: "release", src: `var<debug> int level = 10;
+var<release> int level = 20;
+var int plain;
+
+func<release> mode() string {
+    return "release";
+}
+
+func mode() string {
+    return "debug";
+}
+
+func<debug> only() int {
+    return 1;
+}
+
+func<release> only() int {
+    return 2;
+}
+
+func main() {
+    check(mode() == "release", "the release version replaces the plain one");
+    check(only() == 2, "a function can have one version per profile");
+    check(level == 20, "the release version of a global replaces the debug one");
+    check(plain == 0, "a global declared with var and no selector starts zeroed");
+}
+`, expected: []string{"the release version replaces the plain one", "a function can have one version per profile", "the release version of a global replaces the debug one", "a global declared with var and no selector starts zeroed"}},
+
+	{dir: "global_selectors", profile: "debug", src: `struct Entry {
+    int a;
+}
+
+let<debug> mode = 3;
+let<release> mode = 4;
+let plain = 5;
+var<debug> *Entry head = (*Entry)(null);
+Entry holder;
+
+func main() {
+    check(mode == 3, "let takes a selector, and the version of the profile is the one kept");
+    check(plain == 5, "let without a selector is the same as before");
+    check(head == null, "a global pointer starts as a converted null");
+    head = &holder;
+    holder.a = 9;
+    check(head.a == 9, "the pointer can be set later");
+    *Entry local = (*Entry)(null);
+    check(local == null, "null converts to a pointer type in a local too");
+}
+`, expected: []string{"let takes a selector, and the version of the profile is the one kept", "let without a selector is the same as before", "a global pointer starts as a converted null", "the pointer can be set later", "null converts to a pointer type in a local too"}},
 
 	{dir: "byte_alias", src: `func total([]uint8 data) int {
     int sum = 0;

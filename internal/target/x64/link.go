@@ -22,6 +22,7 @@ func trace(name string, args []string) {
 type LinkOptions struct {
 	Extra []string
 	Libc  bool
+	Strip bool
 }
 
 func Link(t target.Target, root string, objPaths, libPaths []string, outputPath string, keepObj bool, opts LinkOptions) error {
@@ -83,6 +84,9 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 		args = append(args, abs)
 	}
 
+	if opts.Strip {
+		args = append(args, "-s")
+	}
 	args = append(args, opts.Extra...)
 
 	trace(linker, args)

@@ -20,6 +20,7 @@ func init() {
 	addOutputFlags(checkCmd)
 	checkCmd.Flags().StringVar(&osOpt, "os", "", "analyse for this system instead of the default")
 	checkCmd.Flags().StringVar(&archOpt, "arch", "", "analyse for this architecture instead of the default")
+	addProfileFlags(checkCmd)
 }
 
 func runCheck(cmd *cobra.Command, args []string) error {

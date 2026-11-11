@@ -34,14 +34,36 @@
 # `asm` receive the object files and the generated assembly, or for Lua the
 # modules other than the entry, which by default sit beside it because that is
 # where `require` looks. If you move them somewhere else, the entry script gets
-# a line that tells `require` where they are. {os}, {arch} and {name} (the
-# program) are replaced, so one pattern serves every program and system. A
-# program with its own place goes in [bin.<name>.output]. Without this table the
-# files go to bin/<os>/<arch>/ and build/<os>/<arch>/<name>/.
+# a line that tells `require` where they are. {profile}, {target} (the system
+# and the architecture, as in linux-x64), {os}, {arch} and {name} (the program)
+# are replaced, so one pattern serves every program and system. A program with
+# its own place goes in [program.<name>.output]. Without this table the files go
+# to bin/<profile>/<target>/ and build/<profile>/<target>/<name>/.
 [output]
 bin = "bin"
 # obj = "build/obj"
 # asm = "build/asm"
+
+# Profiles. A build uses one of two profiles, debug (the default) or release,
+# chosen with `profile`, for a program or library with its own `profile` key,
+# or on the command line with --profile release or --release. Each profile is a
+# set of switches, and [profiles.debug] and [profiles.release] change only the
+# ones written there:
+#
+#   trace     keep the call stack information a panic prints as a trace
+#   snippets  show the line of source in the blocks that report an error
+#   strip     remove the symbol table from the binary
+#   optimize  spend effort on faster code
+#   checks    keep index, division and null checks
+#
+# debug turns on trace and snippets and keeps checks; release turns on strip
+# and optimize and keeps checks. The words `debug` and `release` also work in
+# the target expressions, so code can differ by profile (see platform/).
+#
+# profile = "debug"
+#
+# [profiles.release]
+# checks = false
 
 # Programs. Without any [program.<name>] the project is one program named after
 # its folder, built from the keys above and starting at its only `main`. Declare

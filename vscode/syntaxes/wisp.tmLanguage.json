@@ -300,7 +300,7 @@
                 },
                 {
                     "name": "keyword.control.import.wisp",
-                    "match": "\\b(import|public|internal|shared|extern|inline|as)\\b"
+                    "match": "\\b(import|public|internal|shared|extern|inline|var|as)\\b"
                 },
                 {
                     "begin": "\\b(native)(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*(\\()",
