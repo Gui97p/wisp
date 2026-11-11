@@ -46,8 +46,8 @@ func (t TokenType) DisplayName() string {
 		return "float64"
 	case TOKEN_BOOL:
 		return "bool"
-	case TOKEN_CHAR:
-		return "char"
+	case TOKEN_BYTE:
+		return "byte"
 	case TOKEN_STRING:
 		return "string"
 	case TOKEN_NULL:

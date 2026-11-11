@@ -148,7 +148,7 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 			if t.Name == "string" {
 				a.defineLoopVar(stmt, stmt.Var, PrimitiveType{Name: "int"}, stmt.VarAt, line, col)
 				if stmt.Var2 != "" {
-					a.defineLoopVar(stmt, stmt.Var2, PrimitiveType{Name: "char"}, stmt.Var2At, line, col)
+					a.defineLoopVar(stmt, stmt.Var2, PrimitiveType{Name: "uint8"}, stmt.Var2At, line, col)
 				}
 			} else {
 				a.errorf(stmt.Range, "cannot range over %s", rangeType)
@@ -528,7 +528,7 @@ func (a *Analyser) isStringElement(target ast.Expression) bool {
 		return false
 	}
 	a.error(target, "a string is read-only").
-		WithHelp("write into the []char it was made from, or build a new string")
+		WithHelp("write into the []byte it was made from, or build a new string")
 	return true
 }
 

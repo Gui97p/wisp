@@ -38,7 +38,7 @@ func integerRange(t Type) (bits int, signed bool, ok bool) {
 		return 32, true, true
 	case "int", "int64":
 		return 64, true, true
-	case "uint8", "char":
+	case "uint8":
 		return 8, false, true
 	case "uint16":
 		return 16, false, true

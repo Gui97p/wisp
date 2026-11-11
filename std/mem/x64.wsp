@@ -19,7 +19,7 @@ func leadingZeros(uint x) uint {
 }
 
 [11]*void classes;
-*char cur, end;
+*byte cur, end;
 
 int mode;
 [1024]*void ring;
@@ -41,19 +41,19 @@ const {
 }
 
 inline func header(*void p) int {
-	return (*int)((*char)(p) - 16)@;
+	return (*int)((*byte)(p) - 16)@;
 }
 
 inline func setHeader(*void p, int v) {
-	(*int)((*char)(p)-16)@ = v;
+	(*int)((*byte)(p)-16)@ = v;
 }
 
 inline func state(*void p) uint {
-	return (*uint)((*char)(p) - 8)@;
+	return (*uint)((*byte)(p) - 8)@;
 }
 
 inline func setState(*void p, uint v) {
-	(*uint)((*char)(p)-8)@ = v;
+	(*uint)((*byte)(p)-8)@ = v;
 }
 
 inline func classOf(int total) int {
@@ -203,7 +203,7 @@ inline func entryOf(*void p) *Entry {
 }
 
 func fail(*void p, string what) {
-	[2048]char buf;
+	[2048]byte buf;
 	*Entry entry = entryOf(p);
 	if entry != null && len(entry.site) > 0 {
 		if len(entry.freed) > 0 {
@@ -288,11 +288,11 @@ internal func rawAllocate(int n, bool zero) *void {
 				return null;
 			}
 			cur = chunk;
-			end = (*char)(chunk) + CHUNK_SIZE;
+			end = (*byte)(chunk) + CHUNK_SIZE;
 		}
 		*void p = cur;
 		cur += size;
-		*void head = (*char)(p) + 16;
+		*void head = (*byte)(p) + 16;
 		setHeader(head, class);
 		setState(head, LIVE);
 		return head;
@@ -303,7 +303,7 @@ internal func rawAllocate(int n, bool zero) *void {
 	if failed(p) {
 		return null;
 	}
-	*void head = (*char)(p) + 16;
+	*void head = (*byte)(p) + 16;
 	setHeader(head, mapped);
 	setState(head, LIVE);
 	return head;
@@ -335,7 +335,7 @@ internal func rawFree(*void p) {
 		if debugOn() {
 			forget(p);
 		}
-		sys.munmap((*char)(p)-16, h);
+		sys.munmap((*byte)(p)-16, h);
 	}
 }
 
@@ -365,5 +365,5 @@ internal native rawCopy(*void dst, src, int n) =>
 internal native rawCopyBackward(*void dst, src, int n) =>
 		"mov rdi, {dst}; add rdi, {n}; dec rdi; mov rsi, {src}; add rsi, {n}; dec rsi; mov rcx, {n}; std; rep movsb; cld";
 
-internal native rawSet(*void dst, char value, int n) =>
+internal native rawSet(*void dst, byte value, int n) =>
 		"mov rdi, {dst}; mov al, {value}; mov rcx, {n}; rep stosb";

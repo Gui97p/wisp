@@ -44,7 +44,7 @@ public func lastIndexOf(string s, sub) int {
     return last;
 }
 
-public func indexOfByte(string s, char c) int {
+public func indexOfByte(string s, byte c) int {
 	for i, ch in s {
 		if c == ch {
 			return i;
@@ -52,7 +52,7 @@ public func indexOfByte(string s, char c) int {
 	}
 	return -1;
 }
-public func lastIndexOfByte(string s, char c) int {
+public func lastIndexOfByte(string s, byte c) int {
 	int last = -1;
 	for i, ch in s {
 		if c == ch {

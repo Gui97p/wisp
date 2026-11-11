@@ -6,7 +6,7 @@ public const {
 	MaxFloat = 1400;
 }
 
-func formatUnsigned([]char buf, uint n, int base, bool upper) !string {
+func formatUnsigned([]byte buf, uint n, int base, bool upper) !string {
     int i = 0;
     string digits = upper
         ? "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -30,7 +30,7 @@ func formatUnsigned([]char buf, uint n, int base, bool upper) !string {
     int right = i - 1;
 
     loop left < right {
-        char tmp = buf[left];
+        byte tmp = buf[left];
         buf[left] = buf[right];
         buf[right] = tmp;
 
@@ -41,7 +41,7 @@ func formatUnsigned([]char buf, uint n, int base, bool upper) !string {
     return string(buf[0:i]);
 }
 
-public func formatInt([]char buf, int n, base, bool upper) !string {
+public func formatInt([]byte buf, int n, base, bool upper) !string {
 	errors.ensure(base in 2..36, errors.Kind.Invalid)!;
 	if n >= 0 {
 		return formatUnsigned(buf, uint(n), base, upper)!;
@@ -54,20 +54,20 @@ public func formatInt([]char buf, int n, base, bool upper) !string {
 	return string(buf[0:len(digits)+1]);
 }
 
-public func formatUint([]char buf, uint n, int base, bool upper) !string {
+public func formatUint([]byte buf, uint n, int base, bool upper) !string {
 	errors.ensure(base in 2..36, errors.Kind.Invalid)!;
 	return formatUnsigned(buf, n, base, upper)!;
 }
 
-public func itoa([]char buf, int n) !string {
+public func itoa([]byte buf, int n) !string {
 	return formatInt(buf, n, 10, false)!;
 }
 
-public func utoa([]char buf, uint n) !string {
+public func utoa([]byte buf, uint n) !string {
 	return formatUint(buf, n, 10, false)!;
 }
 
-func digitValue(char c) int {
+func digitValue(byte c) int {
 	if c >= '0' && c <= '9' {
         return c - '0';
     }

@@ -253,12 +253,12 @@ func (a *Analyser) checkCSignature(fd *ast.FuncDecl, what string, params, return
 
 	for i, t := range params {
 		if !cCompatible(t) && i < len(fd.Params) {
-			a.errorf(fd, "parameter %s has type %s, which C cannot take: use integers, bool, char, floats or pointers", fd.Params[i].Name, t.String())
+			a.errorf(fd, "parameter %s has type %s, which C cannot take: use integers, bool, byte, floats or pointers", fd.Params[i].Name, t.String())
 		}
 	}
 	for _, t := range returns {
 		if !cCompatible(t) {
-			a.errorf(fd, "function %s returns %s, which C cannot return: use an integer, bool, char, float or pointer", fd.Name, t.String())
+			a.errorf(fd, "function %s returns %s, which C cannot return: use an integer, bool, byte, float or pointer", fd.Name, t.String())
 		}
 	}
 }

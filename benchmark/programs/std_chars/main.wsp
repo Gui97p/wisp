@@ -6,13 +6,13 @@ const SIZE = 4194304;
 const REPEAT = 16;
 
 func main() {
-	*char buf = mem.alloc(SIZE)!!;
+	*byte buf = mem.alloc(SIZE)!!;
 	uint64 x = 88172645463325252;
 	for i in 0..SIZE-1 {
 		x ^= x << 13;
 		x ^= x >> 7;
 		x ^= x << 17;
-		buf[i] = char(x);
+		buf[i] = byte(x);
 	}
 	int digits = 0;
 	int alpha = 0;
@@ -21,7 +21,7 @@ func main() {
 	int hex = 0;
 	for _ in 0..REPEAT-1 {
 		for i in 0..SIZE-1 {
-			char c = buf[i];
+			byte c = buf[i];
 			if strings.isDigit(c) {
 				digits++;
 			}

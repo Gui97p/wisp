@@ -28,7 +28,7 @@ var keywords = []string{
 
 var primitiveNames = []string{
 	"int", "uint", "int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64",
-	"float", "float32", "float64", "bool", "char", "string",
+	"float", "float32", "float64", "bool", "byte", "string",
 }
 
 type analysis struct {

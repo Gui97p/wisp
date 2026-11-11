@@ -503,7 +503,7 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 	dstSize := sizeOf(dstType)
 
 	switch {
-	case isChar(srcType) && isString(dstType):
+	case isByte(srcType) && isString(dstType):
 		ptr, err := t.baseIndex(expr.Value)
 		if err != nil {
 			return nil, err

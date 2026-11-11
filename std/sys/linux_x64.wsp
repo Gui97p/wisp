@@ -39,13 +39,13 @@ const {
 	NO_FD = -1;
 }
 
-shared native read(int fd, *char buf, int n) int r =>
+shared native read(int fd, *byte buf, int n) int r =>
 		"mov eax, {SYS_READ}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
 
-shared native write(int fd, *char buf, int n) int r =>
+shared native write(int fd, *byte buf, int n) int r =>
 		"mov eax, {SYS_WRITE}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
 
-shared native open(*char path, int flags, int mode) int fd =>
+shared native open(*byte path, int flags, int mode) int fd =>
 		"mov eax, {SYS_OPENAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; mov r10, {mode}; syscall; mov {fd}, rax";
 
 shared native close(int fd) int r =>
@@ -64,7 +64,7 @@ shared func size(int fd) int {
 	return r < 0 ? r : stat.st_size;
 }
 
-shared native remove(*char path, int flags) int r =>
+shared native remove(*byte path, int flags) int r =>
 		"mov eax, {SYS_UNLINKAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; syscall; mov {r}, rax";
 
 shared native mmap(int len) *void r =>
@@ -90,7 +90,7 @@ shared native random(*void buf, int n) int r =>
 		"mov eax, {SYS_GETRANDOM}; mov rdi, {buf}; mov rsi, {n}; xor edx, edx; syscall; mov {r}, rax";
 
 shared func isatty(int fd) bool {
-	[64]char termios;
+	[64]byte termios;
 	int r;
 	native(in fd, termios, out r) "mov eax, {SYS_IOCTL}; mov rdi, {fd}; mov rsi, {TCGETS}; lea rdx, {&termios}; syscall; mov {r}, rax";
 	return r == 0;
@@ -98,28 +98,28 @@ shared func isatty(int fd) bool {
 
 shared native exit(int code) => "mov eax, {SYS_EXIT_GROUP}; mov rdi, {code}; syscall";
 
-shared native mkdir(*char path, int mode) int r =>
+shared native mkdir(*byte path, int mode) int r =>
 		"mov eax, {SYS_MKDIRAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {mode}; syscall; mov {r}, rax";
 
-shared native rename(*char from, to) int r =>
+shared native rename(*byte from, to) int r =>
 		"mov eax, {SYS_RENAMEAT}; mov rdi, {AT_FDCWD}; mov rsi, {from}; mov rdx, {AT_FDCWD}; mov r10, {to}; syscall; mov {r}, rax";
 
-shared native stat(*char path, *void buf) int r =>
+shared native stat(*byte path, *void buf) int r =>
 		"mov eax, {SYS_NEWFSTATAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {buf}; xor r10, r10; syscall; mov {r}, rax";
 
 shared native fstat(int fd, *void buf) int r =>
 		"mov eax, {SYS_FSTAT}; mov rdi, {fd}; mov rsi, {buf}; syscall; mov {r}, rax";
 
-shared native getdents(int fd, *char buf, int n) int r =>
+shared native getdents(int fd, *byte buf, int n) int r =>
 		"mov eax, {SYS_GETDENTS64}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
 
-shared native getcwd(*char buf, int n) int r =>
+shared native getcwd(*byte buf, int n) int r =>
 		"mov eax, {SYS_GETCWD}; mov rdi, {buf}; mov rsi, {n}; syscall; mov {r}, rax";
 
-shared native environ() **char r =>
+shared native environ() **byte r =>
 		"extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
 
-shared func parseDirent(*char buf, int pos) (string, int, int) {
+shared func parseDirent(*byte buf, int pos) (string, int, int) {
 	int start = pos + 19;
 	int end = start;
 	loop buf[end] != '\0' {

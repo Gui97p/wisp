@@ -37,13 +37,15 @@ public func demo() {
   fmt.printf("favorite == Color.Green: {}\n", favorite == Color.Green);
 
   // Primitive types: int, uint, int8..int64, uint8..uint64, float, float32,
-  // float64, bool, char and string. `int` and `uint` are 64 bits wide, and
-  // `float` is another name for float64, the way `int` is for int64.
+  // float64, bool, byte and string. `int` and `uint` are 64 bits wide, and
+  // `float` is another name for float64, the way `int` is for int64. `byte` is
+  // another name for uint8: a string is made of bytes, and so are buffers.
+  // A character literal such as 'w' is a byte.
   bool ready = true;
-  char letter = 'w';
-  fmt.printf("ready is {} and letter is {}\n", ready, letter);
+  byte letter = 'w';
+  fmt.printf("ready is {} and letter is {c}\n", ready, letter);
 
-  // A char takes the same escapes as a string: \n, \r, \t, \\, \', \", \0 and
+  // A character literal takes the same escapes as a string: \n, \r, \t, \\, \', \", \0 and
   // \xHH for a byte in hexadecimal. `'\0'` is the zero byte that ends a C string.
   fmt.printf("'\\0' == '\\x00': {}\n", '\0' == '\x00');
   fmt.printf("'\\n' is the byte {}\n", int('\n'));
@@ -53,9 +55,9 @@ public func demo() {
   small++;
   fmt.printf("int8 127 + 1 wraps to {}\n", small);
 
-  uint8 byte = 255;
-  byte++;
-  fmt.printf("uint8 255 + 1 wraps to {}\n", byte);
+  uint8 top = 255;
+  top++;
+  fmt.printf("uint8 255 + 1 wraps to {}\n", top);
 
   // A widening conversion is implicit; any other conversion names the type.
   int8 narrow = 5;

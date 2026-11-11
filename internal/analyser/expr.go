@@ -25,7 +25,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	case *ast.StringLiteral:
 		t = PrimitiveType{Name: "string"}
 	case *ast.CharLiteral:
-		t = PrimitiveType{Name: "char"}
+		t = PrimitiveType{Name: "uint8"}
 	case *ast.BoolLiteral:
 		t = PrimitiveType{Name: "bool"}
 	case *ast.IdentLiteral:
@@ -725,7 +725,7 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 		}
 		a.requireNumeric(expr, idxType, "string index")
 		a.checkConstIndex(expr.Index, -1)
-		return PrimitiveType{Name: "char"}
+		return PrimitiveType{Name: "uint8"}
 	default:
 		a.errorf(expr, "%s can't be indexed", arrType.String())
 		return InvalidType{}
@@ -1196,8 +1196,8 @@ func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {
 			a.errorf(expr, "'in' not supported for %s", right)
 			break
 		}
-		if _, untyped := left.(UntypedIntType); untyped || (!isChar(left) && !isString(left)) {
-			a.errorf(expr, "'in' expects char or string, got %s", left)
+		if _, untyped := left.(UntypedIntType); untyped || (!isByte(left) && !isString(left)) {
+			a.errorf(expr, "'in' expects byte or string, got %s", left)
 		}
 	default:
 		a.errorf(expr, "'in' not supported for %s", right)

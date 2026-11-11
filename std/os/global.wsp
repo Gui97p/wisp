@@ -44,13 +44,14 @@ public func errorIO(int code) Error {
 		case 21 => Error(IOError.IsDir);
 		case 28 => Error(errors.Kind.NoSpace);
 		case 32 => Error(errors.Kind.BrokenPipe);
-		case 34 => Error(errors.Kind.Range);
+		case 34 => Error(errors.Kind.Overflow);
+		case 38, 95 => Error(errors.Kind.Unsupported);
 		case 39 => Error(IOError.NotEmpty);
 		default => Error(IOError.IO);
 	};
 }
 
-internal func copypath(*char buf, string p) {
+internal func copypath(*byte buf, string p) {
 	for i, c in p {
 		buf[i] = c;
 	}

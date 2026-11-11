@@ -17,7 +17,7 @@ public func demo() ! {
   // `mem.Fixed` hands out pieces of a buffer you give it. It never asks the
   // heap for anything, so it works anywhere there is an array, and when the
   // buffer is full it fails with errors.Kind.NoSpace instead of growing.
-  [128]char storage;
+  [128]byte storage;
   mem.Fixed fixed = mem.Fixed{buffer: storage};
   *int numbers = fixed.alloc(sizeof(int) * 4)!;
   numbers[0] = 11;

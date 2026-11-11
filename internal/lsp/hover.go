@@ -111,7 +111,7 @@ var primitiveDocs = map[string]string{
 	"float32": "32-bit floating point number.",
 	"float64": "64-bit floating point number.",
 	"bool":    "`true` or `false`.",
-	"char":    "A single character, stored in one byte.",
+	"byte":    "An unsigned 8-bit integer, the same type as uint8. A string is made of bytes.",
 	"string":  "Text: a pointer to bytes and a length, compared by content.",
 }
 

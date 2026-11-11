@@ -23,19 +23,19 @@ public enum BufMode {
 
 public struct Writer {
 	int fd;
-	[]char buf;
+	[]byte buf;
 	BufMode mode;
 	internal int len, total;
 }
 
-func (*Writer w) put(*char c, int n) ! {
+func (*Writer w) put(*byte c, int n) ! {
 	if n == 0 {
 		return;
 	}
 
 	if w.fd < 0 {
 		errors.ensure(len(w.buf) - w.len >= n, errors.Kind.NoSpace)!;
-		mem.copy((*char)(w.buf) + w.len, c, n);
+		mem.copy((*byte)(w.buf) + w.len, c, n);
 		w.total += n;
 		w.len += n;
 		return;
@@ -56,7 +56,7 @@ func (*Writer w) put(*char c, int n) ! {
 		w.flush()!;
 	}
 
-	mem.copy((*char)(w.buf) + w.len, c, n);
+	mem.copy((*byte)(w.buf) + w.len, c, n);
 	w.total += n;
 	w.len += n;
 
@@ -73,15 +73,15 @@ func (*Writer w) put(*char c, int n) ! {
 }
 
 public func (*Writer w) write(string s) ! {
-	w.put((*char)(s), len(s))!;
+	w.put((*byte)(s), len(s))!;
 }
-public func (*Writer w) writeByte(char c) ! {
+public func (*Writer w) writeByte(byte c) ! {
 	w.put(&c, 1)!;
 }
-public func (*Writer w) writeBytes([]char data) ! {
-	w.put((*char)(data), len(data))!;
+public func (*Writer w) writeBytes([]byte data) ! {
+	w.put((*byte)(data), len(data))!;
 }
-public func (*Writer w) fill(char c, int n) ! {
+public func (*Writer w) fill(byte c, int n) ! {
 	for n {
 		w.put(&c, 1)!;
 	}
@@ -132,21 +132,21 @@ func (*Writer w) writePiece(render.Piece p, spec.Spec s, bool numeric) ! {
 	}
 }
 
-func (*Writer w) putInt([]char buf, int v, spec.Spec s) !bool {
+func (*Writer w) putInt([]byte buf, int v, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Int) ?? return false;
 	render.Piece piece = render.renderInt(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putUint([]char buf, uint v, spec.Spec s) !bool {
+func (*Writer w) putUint([]byte buf, uint v, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Uint) ?? return false;
 	render.Piece piece = render.renderUint(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putChar([]char buf, char v, spec.Spec s) !bool {
+func (*Writer w) putChar([]byte buf, byte v, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Char) ?? return false;
 	render.Piece piece = render.renderChar(buf, v, s)!;
 	w.writePiece(piece, s, false)!;
@@ -167,14 +167,14 @@ func (*Writer w) putString(string v, spec.Spec s) !bool {
 	return true;
 }
 
-func (*Writer w) putPointer([]char buf, *void v, spec.Spec s) !bool {
+func (*Writer w) putPointer([]byte buf, *void v, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Pointer) ?? return false;
 	render.Piece piece = render.renderPointer(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putFloat([]char buf, float x, spec.Spec s, bool single) !bool {
+func (*Writer w) putFloat([]byte buf, float x, spec.Spec s, bool single) !bool {
 	spec.validate(s, spec.Value.Float) ?? return false;
 	render.Piece piece = render.renderFloat(buf, x, s, single)!;
 	spec.Spec copy = s;
@@ -185,7 +185,7 @@ func (*Writer w) putFloat([]char buf, float x, spec.Spec s, bool single) !bool {
 	return true;
 }
 
-func (*Writer w) putError([]char buf, Error e, spec.Spec s) !bool {
+func (*Writer w) putError([]byte buf, Error e, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Error) ?? return false;
 	if e == null {
 		w.write("<null error>")!;
@@ -211,7 +211,7 @@ func (*Writer w) putError([]char buf, Error e, spec.Spec s) !bool {
 }
 
 public func (*Writer w) format(string format, ...args) !int {
-	[conv.MaxDigits]char buf;
+	[conv.MaxDigits]byte buf;
 	int argIndex;
 	Error problem;
 	cursor.Cursor c = cursor.Cursor{text: format};
@@ -276,12 +276,12 @@ public func (*Writer w) format(string format, ...args) !int {
 		switch let v = args[argIndex] {
 			case int:   ok = w.putInt(buf, v, s)!;
 			case uint:  ok = w.putUint(buf, v, s)!;
-			case char:  ok = w.putChar(buf, v, s)!;
+			case byte:  ok = w.putChar(buf, v, s)!;
 			case bool:  ok = w.putBool(v, s)!;
 			case string: ok = w.putString(v, s)!;
 			case *void: ok = w.putPointer(buf, v, s)!;
-			case float64: [conv.MaxFloat]char fBuf; ok = w.putFloat(fBuf, v, s, false)!;
-			case float32: [conv.MaxFloat]char fBuf; ok = w.putFloat(fBuf, v, s, true)!;
+			case float64: [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, false)!;
+			case float32: [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, true)!;
 			case Error: ok = w.putError(buf, v, s)!;
 			default:    bad = Error(FormatError.UnsupportedType);
 		}

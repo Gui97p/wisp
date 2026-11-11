@@ -7,9 +7,9 @@ func main() {
 	int total = 0;
 	for i in 1..ROUNDS {
 		int n = 16 + (i & 255);
-		*char a = mem.alloc(n)!!;
+		*byte a = mem.alloc(n)!!;
 		mem.fill(a, 7, n);
-		*char b = mem.alloc(n)!!;
+		*byte b = mem.alloc(n)!!;
 		mem.copy(b, a, n);
 		total += int(b[n - 1]) + n;
 		mem.free(a, b);

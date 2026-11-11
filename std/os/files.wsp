@@ -5,10 +5,10 @@ import "std/errors";
 import "std/mem";
 
 public func open(string p, int flags) !int {
-	[4096]char buf;
+	[4096]byte buf;
 	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
-	global.copypath((*char)(buf), p);
-	int r = sys.open((*char)(buf), flags | sys.O_CLOEXEC, 0o644);
+	global.copypath((*byte)(buf), p);
+	int r = sys.open((*byte)(buf), flags | sys.O_CLOEXEC, 0o644);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
@@ -20,25 +20,25 @@ public func create(string p) !int {
 }
 
 public func remove(string p) ! {
-	[4096]char buf;
+	[4096]byte buf;
 	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
-	global.copypath((*char)(buf), p);
-	int r = sys.remove((*char)(buf), 0);
+	global.copypath((*byte)(buf), p);
+	int r = sys.remove((*byte)(buf), 0);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
 }
 
-public func readFile(string p) ![]char {
+public func readFile(string p) ![]byte {
 	int fd = open(p, global.READ)!;
 	defer os.close(fd);
 	int size = os.size(fd)!;
 	if size == 0 {
 		return [];
 	}
-	*char alloc = mem.alloc(size)!;
+	*byte alloc = mem.alloc(size)!;
 	defer! mem.free(alloc);
-	[]char buf = alloc[0:size];
+	[]byte buf = alloc[0:size];
 	int total;
 	loop {
 		int r = os.read(fd, buf[total:])!;
@@ -50,10 +50,10 @@ public func readFile(string p) ![]char {
 public func rename(string from, to) ! {
 	errors.ensure(len(from) <= 4095, errors.Kind.Invalid)!;
 	errors.ensure(len(to) <= 4095, errors.Kind.Invalid)!;
-	[4096]char fromBuf, toBuf;
-	global.copypath((*char)(fromBuf), from);
-	global.copypath((*char)(toBuf), to);
-	int r = sys.rename((*char)(fromBuf), (*char)(toBuf));
+	[4096]byte fromBuf, toBuf;
+	global.copypath((*byte)(fromBuf), from);
+	global.copypath((*byte)(toBuf), to);
+	int r = sys.rename((*byte)(fromBuf), (*byte)(toBuf));
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
@@ -61,11 +61,11 @@ public func rename(string from, to) ! {
 
 public func stat(string p) !global.Stat {
 	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
-	[4096]char buf;
-	global.copypath((*char)(buf), p);
+	[4096]byte buf;
+	global.copypath((*byte)(buf), p);
 	
 	sys.Stat s;
-	int r = sys.stat((*char)(buf), &s);
+	int r = sys.stat((*byte)(buf), &s);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
@@ -84,8 +84,8 @@ public inline func exists(string p) bool {
 	return true;
 }
 
-public func cwd([]char buf) !string {
-	int r = sys.getcwd((*char)(buf), len(buf));
+public func cwd([]byte buf) !string {
+	int r = sys.getcwd((*byte)(buf), len(buf));
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
@@ -93,12 +93,12 @@ public func cwd([]char buf) !string {
 }
 
 public func getenv(string name) (string, bool) {
-	**char env = sys.environ();
+	**byte env = sys.environ();
 	if env == null {
 		return "", false;
 	}
 	for i in 0..1000000 {
-		*char entry = env[i];
+		*byte entry = env[i];
 		if entry == null {
 			break;
 		}

@@ -94,9 +94,9 @@ func isString(tp analyser.Type) bool {
 	return ok && p.Name == "string"
 }
 
-func isChar(tp analyser.Type) bool {
+func isByte(tp analyser.Type) bool {
 	p, ok := underlying(tp).(analyser.PrimitiveType)
-	return ok && p.Name == "char"
+	return ok && p.Name == "uint8"
 }
 
 func isFloat(tp analyser.Type) bool {

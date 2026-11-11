@@ -8,13 +8,13 @@ internal enum Align {
 }
 
 internal struct Spec {
-	char fill;
+	byte fill;
 	Align align;
 	bool alt;
 	bool zero;
 	int width;
 	int precision;
-	char kind;
+	byte kind;
 }
 
 internal enum SpecError {
@@ -40,7 +40,7 @@ internal func parse(string text) !Spec {
 	if len(text) == 0 {
 		return spec;
 	}
-	[3]char aligns = ['<', '>', '^'];
+	[3]byte aligns = ['<', '>', '^'];
 	const kinds = "dxXbocpeEfv";
 	
 	cursor.Cursor c = cursor.Cursor{text: text};
@@ -88,7 +88,7 @@ internal func parse(string text) !Spec {
 	}
 
 	if !c.done() {
-		char k = c.peek();
+		byte k = c.peek();
 		if !(k in kinds) {
 			return Error(SpecError.UnknownType);
 		}

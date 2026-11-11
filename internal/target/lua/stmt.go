@@ -721,7 +721,7 @@ func (t *LuaTarget) compoundText(stmt *ast.AssignStmt, target, value string) str
 	switch op {
 	case "+":
 		if pt, ok := targetType.(analyser.PrimitiveType); ok && pt.Name == "string" {
-			if vt, ok := t.info.Types[stmt.Values[0]].(analyser.PrimitiveType); ok && vt.Name == "char" {
+			if vt, ok := t.info.Types[stmt.Values[0]].(analyser.PrimitiveType); ok && vt.Name == "uint8" {
 				value = fmt.Sprintf("__lua_string.char(%s)", value)
 			}
 			return fmt.Sprintf("(%s .. %s)", target, value)

@@ -3,14 +3,14 @@ internal struct Cursor {
 	int pos;
 }
 
-internal inline func (*Cursor c) peekAt(int k) char {
+internal inline func (*Cursor c) peekAt(int k) byte {
 	if c.pos+k >= len(c.text) || k < 0 {
 		return '\0';
 	}
 	return c.text[c.pos+k];
 }
 
-internal inline func (*Cursor c) peek() char {
+internal inline func (*Cursor c) peek() byte {
 	return c.peekAt(0);
 }
 
@@ -22,7 +22,7 @@ internal inline func (*Cursor c) advanceN(int n) {
 	c.pos += n;
 }
 
-internal func (*Cursor c) advanceIf(char ch) bool {
+internal func (*Cursor c) advanceIf(byte ch) bool {
 	if c.peek() == ch {
 		c.advance();
 		return true;
@@ -30,7 +30,7 @@ internal func (*Cursor c) advanceIf(char ch) bool {
 	return false;
 }
 
-internal func (*Cursor c) advanceUntil(char ...chs) bool {
+internal func (*Cursor c) advanceUntil(byte ...chs) bool {
 	loop !(c.peek() in chs) {
 		if c.done() {
 			return false;

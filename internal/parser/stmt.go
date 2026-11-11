@@ -42,7 +42,7 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		lexer.TOKEN_FLOAT64,
 		lexer.TOKEN_STRING,
 		lexer.TOKEN_BOOL,
-		lexer.TOKEN_CHAR:
+		lexer.TOKEN_BYTE:
 		stmt = p.parseVarStatement()
 	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACKET:
 		if p.looksLikeTypeDeclaration() {

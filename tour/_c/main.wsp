@@ -13,7 +13,7 @@
 // Wisp, the same way `import "x" as y` renames a module: what is on the left
 // exists already, the name on the right is the new one.
 //
-// C only understands integers, bool, char, floats and pointers, so those are
+// C only understands integers, bool, byte, floats and pointers, so those are
 // the only types allowed in an extern signature, with at most one return
 // value and no `!`. A Wisp `int` is 64 bits wide; use the sized types
 // (`int32`, `uint8`, ...) to match what C declares.

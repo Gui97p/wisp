@@ -24,7 +24,6 @@ var zeroValues = map[string]string{
 	"float32": "0.0",
 	"float64": "0.0",
 
-	"char":   "0",
 	"string": `""`,
 	"bool":   "false",
 }
@@ -34,9 +33,9 @@ func isError(t analyser.Type) bool {
 	return ok && st.Name == "Error"
 }
 
-func isChar(t analyser.Type) bool {
+func isByte(t analyser.Type) bool {
 	pt, ok := t.(analyser.PrimitiveType)
-	return ok && pt.Name == "char"
+	return ok && pt.Name == "uint8"
 }
 
 func zeroValue(t analyser.Type) (string, error) {

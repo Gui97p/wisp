@@ -363,12 +363,12 @@ func main() {
     check(a == m, "alias int wraps like int64");
     uint u = 0;
     u -= 1;
-    char c = 65;
+    byte c = 65;
     c += 1;
-    check(c == 66, "alias char arithmetic");
-    char d = 255;
+    check(c == 66, "alias byte arithmetic");
+    byte d = 255;
     d += 1;
-    check(d == 0, "alias char wraps like uint8");
+    check(d == 0, "alias byte wraps like uint8");
 }
 `},
 
@@ -382,12 +382,12 @@ func main() {
     uint u = 0;
     u -= 1;
     check(u == 18446744073709551615, "alias uint wraps like uint64");
-    char c = 65;
+    byte c = 65;
     c += 1;
-    check(c == 66, "alias char arithmetic");
-    char d = 255;
+    check(c == 66, "alias byte arithmetic");
+    byte d = 255;
     d += 1;
-    check(d == 0, "alias char wraps like uint8");
+    check(d == 0, "alias byte wraps like uint8");
 }
 `},
 
@@ -612,28 +612,28 @@ func main() {
 }
 `},
 
-	{dir: "array_to_pointer", src: `func fill(*char p, int n, char c) {
+	{dir: "array_to_pointer", src: `func fill(*byte p, int n, byte c) {
     for i in 0..n - 1 {
         (p + i)@ = c;
     }
 }
 
-func first(*void p) *char {
-    return (*char)(p);
+func first(*void p) *byte {
+    return (*byte)(p);
 }
 
 func main() {
-    [8]char buf;
-    fill((*char)(buf), 8, 'a');
+    [8]byte buf;
+    fill((*byte)(buf), 8, 'a');
     check(buf[0] == 'a' && buf[7] == 'a', "an array converts to a pointer to its first element");
 
-    []char view = buf[2:6];
-    fill((*char)(view), 4, 'z');
+    []byte view = buf[2:6];
+    fill((*byte)(view), 4, 'z');
     check(buf[1] == 'a' && buf[2] == 'z' && buf[5] == 'z' && buf[6] == 'a', "a span points into the array it views");
 
-    []char empty = buf[3:3];
-    *char none = (*char)(empty);
-    check(none == (*char)(buf) + 3, "the pointer of an empty span is still its start");
+    []byte empty = buf[3:3];
+    *byte none = (*byte)(empty);
+    check(none == (*byte)(buf) + 3, "the pointer of an empty span is still its start");
 
     [3]int nums;
     *void raw = (*void)(nums);
@@ -1336,10 +1336,10 @@ func main() {
 `, expected: []string{"defer! reads an error passed up with !", "defer! reads an error returned by return Error", "defer! stays quiet when the function succeeds"}},
 	{dir: "empty_literal", src: `import "std/mem";
 struct Holder {
-    []char data;
+    []byte data;
 }
 
-func make() []char {
+func make() []byte {
     return [];
 }
 
@@ -1348,10 +1348,10 @@ func count([]int xs) int {
 }
 
 func main() {
-    []char a = make();
+    []byte a = make();
     check(len(a) == 0, "return [] gives an empty slice");
 
-    []char b = [];
+    []byte b = [];
     check(len(b) == 0, "a declaration takes the type of the slice");
 
     []int c = [1, 2];
@@ -1366,11 +1366,11 @@ func main() {
     [3]int arr = [];
     check(len(arr) == 3 && arr[0] == 0 && arr[2] == 0, "[] is also the zero array");
 
-    mem.free((*char)(a), (*char)(b));
+    mem.free((*byte)(a), (*byte)(b));
     check(true, "free accepts an empty slice");
 }
 `, expected: []string{"return [] gives an empty slice", "a declaration takes the type of the slice", "an assignment can empty a slice", "a struct field can be []", "an argument can be []", "[] is also the zero array", "free accepts an empty slice"}},
-	{dir: "in_array_literal", src: `func isSpace(char ch) bool {
+	{dir: "in_array_literal", src: `func isSpace(byte ch) bool {
     return ch in [' ', '\n', '\r', '\t'];
 }
 
@@ -1379,12 +1379,12 @@ func small(int n) bool {
 }
 
 func main() {
-    check(isSpace(' ') && isSpace('\t'), "a char is found in a literal of chars");
-    check(!isSpace('x'), "a char that is not in the literal");
+    check(isSpace(' ') && isSpace('\t'), "a byte is found in a literal of chars");
+    check(!isSpace('x'), "a byte that is not in the literal");
     check(small(2) && !small(9), "an int in a literal of ints");
     check(!(7 in [1, 2]), "a literal used directly in the expression");
 }
-`, expected: []string{"a char is found in a literal of chars", "a char that is not in the literal", "an int in a literal of ints", "a literal used directly in the expression"}},
+`, expected: []string{"a byte is found in a literal of chars", "a byte that is not in the literal", "an int in a literal of ints", "a literal used directly in the expression"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `public struct Counter {
     int n;
 }
@@ -1890,10 +1890,10 @@ func main() {
     []int none = a[2:2];
     check(!(10 in none), "in an empty span finds nothing");
     string word = "hello";
-    check('e' in word, "in finds a char in a string");
-    check('h' in word, "in finds the first char");
-    check('o' in word, "in finds the last char");
-    check(!('z' in word), "in does not find a missing char");
+    check('e' in word, "in finds a byte in a string");
+    check('h' in word, "in finds the first byte");
+    check('o' in word, "in finds the last byte");
+    check(!('z' in word), "in does not find a missing byte");
     [3]int8 bytes = [1, 2, 3];
     check(2 in bytes, "in over narrow elements");
     check(!(4 in bytes), "in over narrow elements, missing");
@@ -1910,11 +1910,11 @@ func main() {
 `},
 
 	{dir: "conv_char_string", src: `func main() {
-    char c = 'a';
+    byte c = 'a';
     string s = string(c);
-    check(s == "a", "char converts to a one byte string");
+    check(s == "a", "byte converts to a one byte string");
     check(len(s) == 1, "the string has length one");
-    check(string('z') == "z", "converted char literal");
+    check(string('z') == "z", "converted byte literal");
     string word = "hey";
     string first = string(word[0]);
     check(first == "h", "indexing a string then converting");
@@ -2276,9 +2276,9 @@ func main() {
     check(wide == 1, "implicit enum to int64");
     check(col == code, "implicit enum compared with int");
     check(code == col, "implicit int compared with enum");
-    char ch = 'a';
+    byte ch = 'a';
     int chi = ch;
-    check(chi == 97, "implicit char to int");
+    check(chi == 97, "implicit byte to int");
 }
 `},
 
@@ -2334,14 +2334,14 @@ func main() {
 	{dir: "view_semantics", x64Only: true, src: `import "std/fmt";
 import "std/mem";
 
-[64]char scratch;
-[64]char other;
+[64]byte scratch;
+[64]byte other;
 
 func main() ! {
-    [3]char word = ['a', 'b', 'c'];
+    [3]byte word = ['a', 'b', 'c'];
     string seen = string(word);
     word[0] = 'x';
-    check(seen == "xbc", "a char array converts to a string view of itself");
+    check(seen == "xbc", "a byte array converts to a string view of itself");
 
     *int8 b = mem.alloc(8)!;
     b[0] = 104;
@@ -2358,7 +2358,7 @@ func main() ! {
     let m, err2 = fmt.sprintf(other[:], "{p}", p);
     check(err2 == null && m == n && string(scratch[0:n]) == string(other[0:m]), "p is the default for a pointer");
 }
-`, expected: []string{"a char array converts to a string view of itself", "string is a view of the buffer", "a pointer starts with 0x", "p is the default for a pointer"}},
+`, expected: []string{"a byte array converts to a string view of itself", "string is a view of the buffer", "a pointer starts with 0x", "p is the default for a pointer"}},
 
 	{dir: "float_basic", src: `func main() {
     float x = 2.5;
@@ -2769,7 +2769,7 @@ func main() {
     check(on == 1, "a bool constant is 1 or 0");
 
     int n;
-    *char p;
+    *byte p;
     native<x64>(out n, p) "mov {n}, {Greeting.len}; lea rax, [rel {Greeting.ptr}]; mov {p}, rax";
     check(n == 3, "the length of a string constant");
     check(string(p[:n]) == "hey", "the address of a string constant");
@@ -3496,13 +3496,13 @@ func main() {
 	{dir: "abort_double_free", src: `import "std/mem";
 
 func main() {
-    *char p = mem.alloc(48) ?? null;
-    *char q = mem.alloc(48) ?? null;
+    *byte p = mem.alloc(48) ?? null;
+    *byte q = mem.alloc(48) ?? null;
     check(p != null && q != null, "double free before the second free");
     mem.free(p);
     mem.free(q);
     mem.free(null);
-    *char r = mem.alloc(48) ?? null;
+    *byte r = mem.alloc(48) ?? null;
     check(r != null, "a freed block is reused without a complaint");
     mem.free(r);
     mem.free(r);
@@ -3524,12 +3524,12 @@ func main() {
 	{dir: "mem_debug_clean", src: `import "std/mem";
 
 func main() {
-    *char first = mem.alloc(48) ?? null;
+    *byte first = mem.alloc(48) ?? null;
     mem.fill(first, 7, 48);
     mem.free(first);
     bool zeroed = true;
     for i in 0..2500 {
-        *char q = mem.alloc(48) ?? null;
+        *byte q = mem.alloc(48) ?? null;
         if q == null || q[0] != 0 || q[47] != 0 {
             zeroed = false;
         }
@@ -3537,10 +3537,10 @@ func main() {
         mem.free(q);
     }
     check(zeroed, "debug mode still hands out zeroed blocks after reuse");
-    *char big = mem.alloc(100000) ?? null;
+    *byte big = mem.alloc(100000) ?? null;
     check(big != null, "debug mode serves a large block");
     mem.free(big);
-    *char again = mem.alloc(48) ?? null;
+    *byte again = mem.alloc(48) ?? null;
     check(again != null && again[10] == 0, "debug mode recycles quarantined blocks");
     mem.free(again);
 }
@@ -3549,12 +3549,12 @@ func main() {
 	{dir: "abort_use_after_free", src: `import "std/mem";
 
 func main() {
-    *char p = mem.alloc(48) ?? null;
+    *byte p = mem.alloc(48) ?? null;
     check(p != null, "use after free before the stale write");
     mem.free(p);
     p[5] = 1;
     for i in 0..1100 {
-        *char q = mem.alloc(48) ?? null;
+        *byte q = mem.alloc(48) ?? null;
         mem.free(q);
     }
     check(true, "use after free never printed");
@@ -3564,9 +3564,9 @@ func main() {
 	{dir: "abort_double_free_reused", src: `import "std/mem";
 
 func main() {
-    *char p = mem.alloc(48) ?? null;
+    *byte p = mem.alloc(48) ?? null;
     mem.free(p);
-    *char q = mem.alloc(48) ?? null;
+    *byte q = mem.alloc(48) ?? null;
     check(q != null && q != p, "a freed block is not reused right away in debug mode");
     mem.free(p);
     check(true, "double free after reuse never printed");
@@ -3576,12 +3576,12 @@ func main() {
 	{dir: "mem_leak_report", src: `import "std/mem";
 
 func leaky() {
-    *char p = mem.alloc(48) ?? null;
+    *byte p = mem.alloc(48) ?? null;
     p[0] = 1;
 }
 
 func clean() {
-    *char q = mem.alloc(64) ?? null;
+    *byte q = mem.alloc(64) ?? null;
     mem.free(q);
 }
 
@@ -3589,7 +3589,7 @@ func main() {
     leaky();
     leaky();
     clean();
-    *char big = mem.alloc(100000) ?? null;
+    *byte big = mem.alloc(100000) ?? null;
     big[0] = 1;
     check(true, "the program runs to the end with leaks");
 }
@@ -3598,8 +3598,8 @@ func main() {
 	{dir: "mem_leak_none", src: `import "std/mem";
 
 func main() {
-    *char p = mem.alloc(48) ?? null;
-    *char q = mem.alloc(100000) ?? null;
+    *byte p = mem.alloc(48) ?? null;
+    *byte q = mem.alloc(100000) ?? null;
     mem.free(p);
     mem.free(q);
     check(true, "everything was freed");
@@ -3609,7 +3609,7 @@ func main() {
 	{dir: "mem_leak_off", src: `import "std/mem";
 
 func main() {
-    *char p = mem.alloc(48) ?? null;
+    *byte p = mem.alloc(48) ?? null;
     p[0] = 1;
     check(true, "no report without the debug variable");
 }
@@ -3619,7 +3619,7 @@ func main() {
 
 func main() {
     mem.Arena arena;
-    *char a = arena.alloc(100) ?? null;
+    *byte a = arena.alloc(100) ?? null;
     a[0] = 1;
     check(true, "an arena leak runs to the end");
 }
@@ -5926,7 +5926,7 @@ func main() {
     check(a15[14] == 0 && a16[0] == 0 && a16[15] == 0 && a17[16] == 0, "zeroed arrays of 15, 16 and 17 words");
     check(guardA == 111 && guardB == 222, "zeroing does not touch the neighbours");
 
-    [131]char bytes;
+    [131]byte bytes;
     int guardC = 333;
     bool clean = true;
     for i in 0..130 {
@@ -5956,9 +5956,9 @@ func main() {
     check(ok == 16 && guardA == 111 && guardB == 222, "copying 16 words");
 
     for i in 0..130 {
-        bytes[i] = char(i);
+        bytes[i] = byte(i);
     }
-    [131]char bcopy = bytes;
+    [131]byte bcopy = bytes;
     bool same = true;
     for i in 0..130 {
         if bcopy[i] != bytes[i] {
@@ -6008,7 +6008,7 @@ func main() {
     [127]int w127;
     [128]int w128;
     [129]int w129;
-    [1027]char bytes;
+    [1027]byte bytes;
     int guardB = 9;
     check(w127[126] == 0 && w128[0] == 0 && w128[127] == 0 && w129[128] == 0, "zeroed arrays of 127, 128 and 129 words");
     bool clean = true;
@@ -6039,9 +6039,9 @@ func main() {
     check(ok == 128 && guardA == 7 && guardB == 9, "copying 128 words");
 
     for i in 0..1026 {
-        bytes[i] = char(i);
+        bytes[i] = byte(i);
     }
-    [1027]char bcopy = bytes;
+    [1027]byte bcopy = bytes;
     bool same = true;
     for i in 0..1026 {
         if bcopy[i] != bytes[i] {
@@ -7026,6 +7026,35 @@ func main() ! {
 }
 `, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc of null allocates", "realloc to a large block keeps the contents"}},
 
+	{dir: "byte_alias", src: `func total([]uint8 data) int {
+    int sum = 0;
+    for _, b in data {
+        sum += b;
+    }
+    return sum;
+}
+
+func main() {
+    uint8 raw = 200;
+    byte b = raw;
+    uint8 back = b;
+    check(b == 200 && back == 200, "byte and uint8 are the same type");
+    [4]byte bytes = [1, 2, 3, 4];
+    check(total(bytes) == 10, "a byte array goes where uint8 elements are expected");
+    byte letter = 'a';
+    check(letter == 97, "a character literal is a byte");
+    letter += 1;
+    check(letter == 'b', "a byte takes arithmetic");
+    byte top = 255;
+    top++;
+    check(top == 0, "a byte wraps like uint8");
+    string s = "hi";
+    for _, c in s {
+        check(c == 'h' || c == 'i', "a string yields bytes");
+    }
+}
+`, expected: []string{"byte and uint8 are the same type", "a byte array goes where uint8 elements are expected", "a character literal is a byte", "a byte takes arithmetic", "a byte wraps like uint8", "a string yields bytes", "a string yields bytes"}},
+
 	{dir: "errors_helpers", src: `import "std/errors";
 
 func room(int n) ! {
@@ -7146,7 +7175,7 @@ func main() ! {
 import "std/strings";
 
 func main() ! {
-    [64]char buf;
+    [64]byte buf;
 
     check(strings.indexOf("hello", "ll") == 2, "indexOf finds the first match");
     check(strings.indexOf("hello", "") == 0, "indexOf of an empty sub is 0");
@@ -7210,7 +7239,7 @@ func main() ! {
 
     check(strings.concat(buf, "ab", "cd")!! == "abcd", "concat");
     check(strings.concat(buf, "ab", "")!! == "ab", "concat accepts empty parts");
-    [3]char small;
+    [3]byte small;
     string tooBig = strings.concat(small, "abcd") ?? "full";
     check(tooBig == "full", "concat reports NoSpace");
     check(strings.join(buf, ["a", "b", "c"], ", ")!! == "a, b, c", "join");
@@ -7223,23 +7252,23 @@ func main() ! {
     check(strings.upper(buf, "abC")!! == "ABC", "upper");
     check(strings.lower(buf, "AbC")!! == "abc", "lower");
 
-    [3]char word = ['a', 'b', 'c'];
+    [3]byte word = ['a', 'b', 'c'];
     strings.toUpper(word);
     check(string(word) == "ABC", "toUpper in place");
-    [4]char even = ['a', 'b', 'c', 'd'];
+    [4]byte even = ['a', 'b', 'c', 'd'];
     strings.reverse(even);
     check(string(even) == "dcba", "reverse even length");
-    [5]char odd = ['a', 'b', 'c', 'd', 'e'];
+    [5]byte odd = ['a', 'b', 'c', 'd', 'e'];
     strings.reverse(odd);
     check(string(odd) == "edcba", "reverse odd length");
-    [0]char nothing;
+    [0]byte nothing;
     strings.reverse(nothing);
     check(len(nothing) == 0, "reverse empty");
 
-    []char copy = strings.clone("hey")!;
+    []byte copy = strings.clone("hey")!;
     check(string(copy) == "hey", "clone copies the bytes");
-    mem.free((*char)(copy));
-    []char empty = strings.clone("")!;
+    mem.free((*byte)(copy));
+    []byte empty = strings.clone("")!;
     check(len(empty) == 0, "clone of an empty string");
 }
 `, expected: []string{"indexOf finds the first match", "indexOf of an empty sub is 0", "indexOf finds a match at the end", "indexOf misses", "lastIndexOf finds the last match", "count counts separate matches", "startsWith longer than the string is false", "endsWith matches the tail", "compare orders by prefix length", "equalFold ignores ASCII case", "trimSpace", "trim with a charset", "trimPrefix", "trimSuffix", "cut finds the separator", "cut without a separator", "splitter yields every piece", "splitter keeps the trailing empty piece", "splitter of an empty string yields one piece", "splitter with an empty separator yields bytes", "concat", "concat accepts empty parts", "concat reports NoSpace", "join", "rep", "replace all", "replace with a longer text", "replace with a shorter text", "replace the first only", "replace with a leading match", "upper", "lower", "toUpper in place", "reverse even length", "reverse odd length", "reverse empty", "clone copies the bytes", "clone of an empty string"}},
@@ -7296,7 +7325,7 @@ func main() {
 import "std/strings";
 
 func main() ! {
-    [64]char buf;
+    [64]byte buf;
 
     check(path.base("a/b") == "b", "base takes the last element");
     check(path.base("a/b/") == "b", "base ignores trailing separators");
@@ -7324,7 +7353,7 @@ func main() ! {
     check(path.join(buf, "a", "/")!! == "a", "join of a name and the root is the name");
     check(path.join(buf)!! == "" && path.join(buf, "")!! == "", "join of nothing is empty");
     check(path.join(buf, "/")!! == "/", "join of the root is the root");
-    [3]char tiny;
+    [3]byte tiny;
     string cut = path.join(tiny, "abc", "d") ?? "full";
     check(cut == "full", "join reports NoSpace");
     string cutRoot = path.join(tiny, "/ab", "c") ?? "full";
@@ -7378,8 +7407,8 @@ import "std/path";
 import "std/conv";
 
 func main() ! {
-    [256]char buf;
-    [32]char num;
+    [256]byte buf;
+    [32]byte num;
     string root = "/tmp/wisp_t_dir";
     os.mkdirAll(path.join(buf, root, "sub")!!)!;
     int fd = os.create(path.join(buf, root, "aa")!!)!;
@@ -7418,7 +7447,7 @@ func main() ! {
 
     os.mkdirAll(path.join(buf, root, "many")!!)!;
     for i in 1..300 {
-        [256]char full;
+        [256]byte full;
         int made = os.create(path.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
         os.close(made);
     }
@@ -7435,7 +7464,7 @@ func main() ! {
     check(seen == 300, "a listing that needs several reads finds every entry");
 
     for i in 1..300 {
-        [256]char full;
+        [256]byte full;
         os.remove(path.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
     }
     os.removeDir(path.join(buf, root, "many")!!)!;
@@ -7445,11 +7474,12 @@ func main() ! {
 }
 `, expected: []string{"a directory lists its files and subdirectories with their kinds", "the entries . and .. are not listed", "an empty directory lists nothing", "openDir on a file is NotDir", "a listing that needs several reads finds every entry"}},
 
-	{dir: "os_mkdirall", src: `import "std/os";
+	{dir: "os_mkdirall", src: `import "std/errors";
+import "std/os";
 import "std/path";
 
 func main() ! {
-    [256]char buf;
+    [256]byte buf;
     string root = "/tmp/wisp_t_mkdirall";
     os.mkdirAll(path.join(buf, root, "a", "b", "c")!!)!;
     check(os.isDir(path.join(buf, root, "a", "b", "c")!!), "mkdirAll creates every missing level");
@@ -7467,7 +7497,7 @@ func main() ! {
     let underFile = os.mkdirAll(path.join(buf, root, "file", "sub")!!);
     check(underFile == os.IOError.NotDir, "mkdirAll under a file is NotDir");
     let empty = os.mkdirAll("");
-    check(empty == os.IOError.NotFound, "mkdirAll of an empty path is NotFound");
+    check(empty == errors.Kind.NotFound, "mkdirAll of an empty path is NotFound");
 
     os.removeDir(path.join(buf, root, "a", "b", "d", "e")!!)!;
     os.removeDir(path.join(buf, root, "a", "b", "d")!!)!;
@@ -8197,11 +8227,11 @@ func main() ! {
     check(len(s) == 2, "string from int8 pointer slice length");
     check(s == "hi", "string from int8 pointer slice content");
 
-    *char c = mem.alloc(4)!;
+    *byte c = mem.alloc(4)!;
     c[0] = 'o';
     c[1] = 'k';
-    []char cs = c[0:2];
-    check(string(cs) == "ok", "string from char slice");
+    []byte cs = c[0:2];
+    check(string(cs) == "ok", "string from byte slice");
 
     [4]uint8 arr;
     arr[0] = 65;
@@ -8214,7 +8244,7 @@ func main() ! {
     mem.free(b);
     mem.free(c);
 }
-`, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string from char slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
+`, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string from byte slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
 
 	{dir: "free_slice", src: `import "std/mem";
 func main() ! {
@@ -8321,7 +8351,7 @@ Mode mode = Mode.On;
 P origin = P{x: 1, y: 2};
 int first, second = 4, 5;
 bool flag = true;
-char letter = 'q';
+byte letter = 'q';
 
 func above() int {
     return later;
@@ -8343,7 +8373,7 @@ func main() {
     check(table[0] == 1 && table[2] == 3, "global array initializer");
     check(origin.x == 1 && origin.y == 2, "global struct initializer");
     check(first == 4 && second == 5, "global multiple declaration");
-    check(flag && letter == 'q', "global bool and char");
+    check(flag && letter == 'q', "global bool and byte");
     counter += 5;
     check(counter == 5, "global compound assign");
     counter++;
@@ -8361,7 +8391,7 @@ func main() {
     bump();
     check(counter == 10, "global is shared across calls");
 }
-`, expected: []string{"global zero initializer", "global constant expression initializer", "global string initializer", "global inferred initializer", "global enum initializer", "global array initializer", "global struct initializer", "global multiple declaration", "global bool and char", "global compound assign", "global increment", "global array element write", "global struct field write", "global string write", "global used by a function above it", "global bool write", "global is shared across calls"}},
+`, expected: []string{"global zero initializer", "global constant expression initializer", "global string initializer", "global inferred initializer", "global enum initializer", "global array initializer", "global struct initializer", "global multiple declaration", "global bool and byte", "global compound assign", "global increment", "global array element write", "global struct field write", "global string write", "global used by a function above it", "global bool write", "global is shared across calls"}},
 
 	{dir: "fmt_core", src: `import "std/fmt";
 import "std/os";
@@ -8372,7 +8402,7 @@ enum Color {
     Green,
 }
 
-[256]char scratch;
+[256]byte scratch;
 
 func fm(string format, ...args) string {
     let n, err = fmt.sprintf(scratch[:], format, args...);
@@ -8433,10 +8463,11 @@ func main() {
     eq(fm("{.3}", "abcdef"), "abc", "precision cuts a string");
     eq(fm("{5.3}", "abcdef"), "abc  ", "width and precision");
     eq(fm("[{}]", ""), "[]", "empty string");
-    eq(fm("{}", 'x'), "x", "char");
-    eq(fm("{d}", 'A'), "65", "char as a number");
-    eq(fm("{x}", 'A'), "41", "char in hex");
-    eq(fm("{c}", 65), "A", "integer as a char");
+    eq(fm("{}", 'x'), "120", "byte prints as a number");
+    eq(fm("{c}", 'x'), "x", "byte as a character");
+    eq(fm("{d}", 'A'), "65", "byte as a number");
+    eq(fm("{x}", 'A'), "41", "byte in hex");
+    eq(fm("{c}", 65), "A", "integer as a byte");
     eq(fm("{}", true), "true", "true");
     eq(fm("{}", false), "false", "false");
     eq(fm("{6}", true), "true  ", "bool aligns left");
@@ -8463,26 +8494,26 @@ func main() {
     check(fe("{} {}", 1) == null && fl("{} {}", 1) == "1 {}", "fewer arguments are not an error");
     check(fe("{} {x}", 1, 255) == null, "a good format reports no error");
 
-    [16]char out;
+    [16]byte out;
     let n, e1 = fmt.sprintf(out[:], "ab{}", 12);
     check(e1 == null && n == 4, "sprintf returns the byte count");
-    [3]char tiny;
+    [3]byte tiny;
     let _, e2 = fmt.sprintf(tiny[:], "abcdef");
     check(e2 == errors.Kind.NoSpace, "sprintf into a buffer that is too small is NoSpace");
 
-    [32]char mem;
+    [32]byte mem;
     fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], mode: fmt.BufMode.Full};
     let k, _ = w.format("x={}", 5);
     check(k == 3 && w.buffered() == 3 && string(mem[0:3]) == "x=5", "a memory writer collects the text");
     let _, _ = w.format("y");
     check(w.buffered() == 4 && string(mem[0:4]) == "x=5y", "a second call appends");
-    [4]char narrow;
+    [4]byte narrow;
     fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[:], mode: fmt.BufMode.Full};
     let _, e3 = ws.format("abcde");
     check(e3 == errors.Kind.NoSpace, "a memory writer that fills up is NoSpace");
 
     let file, _ = os.create("fmt_core.txt");
-    [64]char store;
+    [64]byte store;
     fmt.Writer full = fmt.Writer{fd: file, buf: store[:], mode: fmt.BufMode.Full};
     let _, _ = full.format("hello");
     let held, _ = os.size(file);
@@ -8492,7 +8523,7 @@ func main() {
     check(flushed == 5, "flush writes the text");
 
     let lineFile, _ = os.create("fmt_line.txt");
-    [64]char lineStore;
+    [64]byte lineStore;
     fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[:], mode: fmt.BufMode.Line};
     let _, _ = line.format("ab");
     let beforeNewline, _ = os.size(lineFile);
@@ -8502,14 +8533,14 @@ func main() {
     check(afterNewline == 4, "a line writer flushes at the newline");
 
     let rawFile, _ = os.create("fmt_none.txt");
-    [8]char rawStore;
+    [8]byte rawStore;
     fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[:], mode: fmt.BufMode.None};
     let _, _ = raw.format("xyz");
     let atOnce, _ = os.size(rawFile);
     check(atOnce == 3, "a writer with no buffering writes at once");
 
     let streamFile, _ = os.create("fmt_stream.txt");
-    [4]char streamStore;
+    [4]byte streamStore;
     fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[:], mode: fmt.BufMode.Full};
     let _, _ = stream.format("abcdefghij");
     let _ = stream.flush();
@@ -8533,7 +8564,7 @@ func main() {
     let _ = os.remove("fmt_stream.txt");
     let _ = os.remove("fmt_call.txt");
 }
-`, expected: []string{"decimal", "negative decimal", "zero", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "char", "char as a number", "char in hex", "integer as a char", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "sprintf returns the byte count", "sprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
+`, expected: []string{"decimal", "negative decimal", "zero", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "byte prints as a number", "byte as a character", "byte as a number", "byte in hex", "integer as a byte", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "sprintf returns the byte count", "sprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
 
 	{dir: "fmt_core_wide", x64Only: true, src: `import "std/fmt";
 import "std/os";
@@ -8544,7 +8575,7 @@ enum Color {
     Green,
 }
 
-[256]char scratch;
+[256]byte scratch;
 
 func fm(string format, ...args) string {
     let n, err = fmt.sprintf(scratch[:], format, args...);
@@ -8606,10 +8637,11 @@ func main() {
     eq(fm("{.3}", "abcdef"), "abc", "precision cuts a string");
     eq(fm("{5.3}", "abcdef"), "abc  ", "width and precision");
     eq(fm("[{}]", ""), "[]", "empty string");
-    eq(fm("{}", 'x'), "x", "char");
-    eq(fm("{d}", 'A'), "65", "char as a number");
-    eq(fm("{x}", 'A'), "41", "char in hex");
-    eq(fm("{c}", 65), "A", "integer as a char");
+    eq(fm("{}", 'x'), "120", "byte prints as a number");
+    eq(fm("{c}", 'x'), "x", "byte as a character");
+    eq(fm("{d}", 'A'), "65", "byte as a number");
+    eq(fm("{x}", 'A'), "41", "byte in hex");
+    eq(fm("{c}", 65), "A", "integer as a byte");
     eq(fm("{}", true), "true", "true");
     eq(fm("{}", false), "false", "false");
     eq(fm("{6}", true), "true  ", "bool aligns left");
@@ -8636,26 +8668,26 @@ func main() {
     check(fe("{} {}", 1) == null && fl("{} {}", 1) == "1 {}", "fewer arguments are not an error");
     check(fe("{} {x}", 1, 255) == null, "a good format reports no error");
 
-    [16]char out;
+    [16]byte out;
     let n, e1 = fmt.sprintf(out[:], "ab{}", 12);
     check(e1 == null && n == 4, "sprintf returns the byte count");
-    [3]char tiny;
+    [3]byte tiny;
     let _, e2 = fmt.sprintf(tiny[:], "abcdef");
     check(e2 == errors.Kind.NoSpace, "sprintf into a buffer that is too small is NoSpace");
 
-    [32]char mem;
+    [32]byte mem;
     fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], mode: fmt.BufMode.Full};
     let k, _ = w.format("x={}", 5);
     check(k == 3 && w.buffered() == 3 && string(mem[0:3]) == "x=5", "a memory writer collects the text");
     let _, _ = w.format("y");
     check(w.buffered() == 4 && string(mem[0:4]) == "x=5y", "a second call appends");
-    [4]char narrow;
+    [4]byte narrow;
     fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[:], mode: fmt.BufMode.Full};
     let _, e3 = ws.format("abcde");
     check(e3 == errors.Kind.NoSpace, "a memory writer that fills up is NoSpace");
 
     let file, _ = os.create("fmt_core.txt");
-    [64]char store;
+    [64]byte store;
     fmt.Writer full = fmt.Writer{fd: file, buf: store[:], mode: fmt.BufMode.Full};
     let _, _ = full.format("hello");
     let held, _ = os.size(file);
@@ -8665,7 +8697,7 @@ func main() {
     check(flushed == 5, "flush writes the text");
 
     let lineFile, _ = os.create("fmt_line.txt");
-    [64]char lineStore;
+    [64]byte lineStore;
     fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[:], mode: fmt.BufMode.Line};
     let _, _ = line.format("ab");
     let beforeNewline, _ = os.size(lineFile);
@@ -8675,14 +8707,14 @@ func main() {
     check(afterNewline == 4, "a line writer flushes at the newline");
 
     let rawFile, _ = os.create("fmt_none.txt");
-    [8]char rawStore;
+    [8]byte rawStore;
     fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[:], mode: fmt.BufMode.None};
     let _, _ = raw.format("xyz");
     let atOnce, _ = os.size(rawFile);
     check(atOnce == 3, "a writer with no buffering writes at once");
 
     let streamFile, _ = os.create("fmt_stream.txt");
-    [4]char streamStore;
+    [4]byte streamStore;
     fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[:], mode: fmt.BufMode.Full};
     let _, _ = stream.format("abcdefghij");
     let _ = stream.flush();
@@ -8706,7 +8738,7 @@ func main() {
     let _ = os.remove("fmt_stream.txt");
     let _ = os.remove("fmt_call.txt");
 }
-`, expected: []string{"decimal", "negative decimal", "zero", "largest uint", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "char", "char as a number", "char in hex", "integer as a char", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "sprintf returns the byte count", "sprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
+`, expected: []string{"decimal", "negative decimal", "zero", "largest uint", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "byte prints as a number", "byte as a character", "byte as a number", "byte in hex", "integer as a byte", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "sprintf returns the byte count", "sprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
 
 	{dir: "variadic_method", src: `struct Counter {
     int seen;
@@ -8872,27 +8904,27 @@ func main() {
 }
 `, expected: []string{"!! gives the value of a call that works", "!! works inside an expression, in a function that cannot fail", "!! works on a call with no value"}, abort: "panic: unwrapped error"},
 
-	{dir: "char_escapes", src: `func code(char c) int {
+	{dir: "char_escapes", src: `func code(byte c) int {
     return int(c);
 }
 
 func main() {
-    check(code('\0') == 0, "a char can be the zero byte");
+    check(code('\0') == 0, "a byte can be the zero byte");
     check(code('\n') == 10 && code('\r') == 13 && code('\t') == 9, "newline, carriage return and tab");
     check(code('\\') == 92, "an escaped backslash");
     check(code('\'') == 39, "an escaped single quote");
     check(code('\"') == 34, "an escaped double quote");
     check(code('\x41') == 65, "a hexadecimal escape");
     check(code('\x7f') == 127, "a lower case hexadecimal escape");
-    check(code('a') == 97, "a plain char is unchanged");
+    check(code('a') == 97, "a plain byte is unchanged");
 
-    [3]char buf;
+    [3]byte buf;
     buf[0] = 'h';
     buf[1] = 'i';
     buf[2] = '\0';
     check(buf[2] == '\0' && buf[0] != '\0', "the terminator can be stored in a buffer");
 }
-`, expected: []string{"a char can be the zero byte", "newline, carriage return and tab", "an escaped backslash", "an escaped single quote", "an escaped double quote", "a hexadecimal escape", "a lower case hexadecimal escape", "a plain char is unchanged", "the terminator can be stored in a buffer"}},
+`, expected: []string{"a byte can be the zero byte", "newline, carriage return and tab", "an escaped backslash", "an escaped single quote", "an escaped double quote", "a hexadecimal escape", "a lower case hexadecimal escape", "a plain byte is unchanged", "the terminator can be stored in a buffer"}},
 
 	{dir: "array_const_size", files: map[string]string{"limits.wsp": `public const Rows = 3;
 public const Cells = Rows * 2;
@@ -9011,8 +9043,8 @@ func main() {
     check(p[0] == 104, "literal string data pointer first byte");
     check(p[4] == 111, "literal string data pointer last byte");
     check(p[5] == 0, "literal strings end with a zero byte");
-    *char c = (*char)("hi");
-    check(c[1] == 'i', "char pointer from a string");
+    *byte c = (*byte)("hi");
+    check(c[1] == 'i', "byte pointer from a string");
     *uint8 u = (*uint8)("A");
     check(u[0] == 65, "uint8 pointer from a string");
     string s = "xyz";
@@ -9020,7 +9052,7 @@ func main() {
     check(q[2] == 122, "pointer from a string variable");
     check((*int8)("z")@ == 122, "deref of a converted string");
 }
-`, expected: []string{"literal string data pointer first byte", "literal string data pointer last byte", "literal strings end with a zero byte", "char pointer from a string", "uint8 pointer from a string", "pointer from a string variable", "deref of a converted string"}},
+`, expected: []string{"literal string data pointer first byte", "literal string data pointer last byte", "literal strings end with a zero byte", "byte pointer from a string", "uint8 pointer from a string", "pointer from a string variable", "deref of a converted string"}},
 
 	{dir: "module_const", files: map[string]string{"consts.wsp": `public const Limit = 7;
 public const Name = "w";
@@ -9288,6 +9320,8 @@ func kind(int index, ...args) int {
             return 88;
         case int:
             return v + 1000;
+        case byte:
+            return 55;
         case uint:
             return 2000;
         case string:
@@ -9296,8 +9330,6 @@ func kind(int index, ...args) int {
             return v ? 1 : 0;
         case float:
             return 99;
-        case char:
-            return 55;
         default:
             return -1;
     }
@@ -9343,7 +9375,7 @@ func main() {
     check(kind(0, true) == 1, "a bool matches case bool");
     check(kind(0, Color.Green) == 77, "an enum matches its own case before the int group");
     check(kind(0, m) == 88, "a nominal type matches only its own case");
-    check(kind(0, 'x') == 55, "a char matches case char");
+    check(kind(0, 'x') == 55, "a byte matches case byte listed before the group");
     check(kind(1, "a", 7) == 1007, "the second argument is read by index");
     check(forward(true) == 1, "... passes the variadic on");
     check(forward("abcd") == 4, "a forwarded string keeps its type");
@@ -9353,7 +9385,7 @@ func main() {
     check(count() == 0, "no arguments is an empty variadic");
     check(sumInts("sum", 1, "ab", 3, true) == 6, "for iterates the arguments and default is skipped");
 }
-`, expected: []string{"an int literal matches case int and v is an int", "a case for a sized type is exact and listed before the group", "case uint matches an unsigned integer", "a string matches case string and v is a string", "a bool matches case bool", "an enum matches its own case before the int group", "a nominal type matches only its own case", "a char matches case char", "the second argument is read by index", "... passes the variadic on", "a forwarded string keeps its type", "explicit arguments can come before the spread", "a spread of nothing leaves only the explicit arguments", "len counts the arguments", "no arguments is an empty variadic", "for iterates the arguments and default is skipped"}},
+`, expected: []string{"an int literal matches case int and v is an int", "a case for a sized type is exact and listed before the group", "case uint matches an unsigned integer", "a string matches case string and v is a string", "a bool matches case bool", "an enum matches its own case before the int group", "a nominal type matches only its own case", "a byte matches case byte listed before the group", "the second argument is read by index", "... passes the variadic on", "a forwarded string keeps its type", "explicit arguments can come before the spread", "a spread of nothing leaves only the explicit arguments", "len counts the arguments", "no arguments is an empty variadic", "for iterates the arguments and default is skipped"}},
 
 	{dir: "ptr_deref_postfix", src: `struct P {
     int x;
@@ -9401,7 +9433,7 @@ func main() {
     ***int ppp = (***int)(&pp);
     check(ppp@@@ == 5, "a conversion to a triple pointer");
 
-    char a = 5;
+    byte a = 5;
     uint8 b = 3 * (*uint8)(&a)@;
     check(b == 15, "a conversion next to a multiplication and a dereference");
 
@@ -10170,7 +10202,7 @@ func differ(string got, string want) int {
 }
 
 func main() {
-    [1500]char buf;
+    [1500]byte buf;
     int shortBad;
     int fixedBad;
     int expBad;
@@ -10197,7 +10229,7 @@ func main() {
     special += differ(conv.formatFixed(buf[:], -0.001, 2) ?? "error", "-0.00");
     check(special == 0, "NaN, the infinities and signed zeros keep their text");
 
-    [3]char tiny;
+    [3]byte tiny;
     check((conv.ftoa(tiny[:], 123456.0) ?? "no space") == "no space", "a buffer that is too small is reported");
 }
 `, expected: []string{"ftoa writes the shortest text that reads back", "formatFixed matches the exact decimal expansion", "formatExp matches the exact decimal expansion", "ftoa32 writes the shortest text of a float32", "NaN, the infinities and signed zeros keep their text", "a buffer that is too small is reported"}},
@@ -10205,7 +10237,7 @@ func main() {
 	{dir: "fmt_float", src: `import "std/fmt";
 import "std/math";
 
-func render([]char buf, string format, ...args) string {
+func render([]byte buf, string format, ...args) string {
     let n, _ = fmt.sprintf(buf, format, args...);
     return string(buf[:n]);
 }
@@ -10217,7 +10249,7 @@ func differ(string got, string want) int {
 [8]float32 singles = [1.100000023841858, 0.10000000149011612, 2.5, 16777216.0, 3.4028234663852886e+38, 1.401298464324817e-45, 0.30000001192092896, 100.0];
 
 func main() {
-    [1400]char buf;
+    [1400]byte buf;
     int bad;
     int single;
     bad += differ(render(buf[:], "[{}]", 1.0), "[1]");
@@ -10621,9 +10653,9 @@ func main() {
     single += differ(render(buf[:], "{}", singles[7]), "100");
     single += differ(render(buf[:], "{.2f}", singles[7]), "100.00");
 
-    [8]char small;
+    [8]byte small;
     let _, problem = fmt.sprintf(small[:], "{}", 1234567.125);
-    [16]char chars;
+    [16]byte chars;
     let _, a = fmt.sprintf(chars[:], "{x}", 1.5);
     let _, b = fmt.sprintf(chars[:], "{#f}", 1.5);
     let _, c = fmt.sprintf(chars[:], "{.1001f}", 1.5);
@@ -10772,17 +10804,17 @@ func main() {
     check(first(arr) == 7 && first(tail) == 8, "an array and a slice are passed where a pointer is expected");
     check(present(arr) && present(tail), "an array and a slice are passed as a void pointer");
 
-    [8]char text;
-    []char view = text[:];
+    [8]byte text;
+    []byte view = text[:];
     text[2] = 'z';
-    *char at = view;
+    *byte at = view;
     check((at + 2)@ == 'z', "a slice of characters converts to a character pointer");
 }
 `, expected: []string{"an array converts to a pointer to its first element", "a slice converts to a pointer to its first element", "a slice converts to a void pointer", "an array and a slice are passed where a pointer is expected", "an array and a slice are passed as a void pointer", "a slice of characters converts to a character pointer"}},
 
 	{dir: "mem_zeroed", src: `import "std/mem";
 
-func dirty(*char p, int n) int {
+func dirty(*byte p, int n) int {
     int count;
     for i in 0..n-1 {
         if p[i] != 0 {
@@ -10793,9 +10825,9 @@ func dirty(*char p, int n) int {
 }
 
 func main() !int {
-    *char a = mem.alloc(100)!;
-    *char b = mem.alloc(100)!;
-    *char c = mem.alloc(100)!;
+    *byte a = mem.alloc(100)!;
+    *byte b = mem.alloc(100)!;
+    *byte c = mem.alloc(100)!;
     check(dirty(a, 100) == 0, "a new block is zeroed");
     mem.fill(a, 85, 100);
     mem.fill(b, 85, 100);
@@ -10803,19 +10835,19 @@ func main() !int {
     check(a[0] == 85 && a[99] == 85 && c[50] == 85, "fill sets every byte");
     mem.free(a, b, c);
 
-    *char x = mem.alloc(100)!;
-    *char y = mem.alloc(100)!;
-    *char z = mem.alloc(100)!;
+    *byte x = mem.alloc(100)!;
+    *byte y = mem.alloc(100)!;
+    *byte z = mem.alloc(100)!;
     check(dirty(x, 100) + dirty(y, 100) + dirty(z, 100) == 0, "a reused block is zeroed");
     mem.free(x, y, z);
 
-    *char grown = mem.alloc(16)!;
+    *byte grown = mem.alloc(16)!;
     mem.fill(grown, 7, 16);
     grown = mem.realloc(grown, 4000)!;
     check(grown[0] == 7 && grown[15] == 7, "realloc keeps the old contents");
     mem.free(grown);
 
-    [8]char letters;
+    [8]byte letters;
     mem.fill(letters, 'q', 8);
     check(letters[0] == 'q' && letters[7] == 'q', "fill takes an array");
     return 0;
@@ -10835,13 +10867,13 @@ func main() {
     let _, problem = mem.alloc(9223372036854775800);
     check(problem == errors.Kind.OutOfMemory, "the refusal is OutOfMemory");
 
-    *char a = mem.alloc(100) ?? null;
-    *char b = mem.alloc(100) ?? null;
-    *char c = mem.alloc(100) ?? null;
+    *byte a = mem.alloc(100) ?? null;
+    *byte b = mem.alloc(100) ?? null;
+    *byte c = mem.alloc(100) ?? null;
     mem.free(a, b, c);
-    *char x = mem.alloc(100) ?? null;
-    *char y = mem.alloc(100) ?? null;
-    *char z = mem.alloc(100) ?? null;
+    *byte x = mem.alloc(100) ?? null;
+    *byte y = mem.alloc(100) ?? null;
+    *byte z = mem.alloc(100) ?? null;
     check(x == c && y == b && z == a, "freed blocks are reused without losing the list");
 
     *int big = mem.alloc(100000) ?? null;
@@ -10854,33 +10886,33 @@ func main() {
 
 	{dir: "mem_move", src: `import "std/mem";
 
-func fill([]char t, string word) {
+func fill([]byte t, string word) {
     for i, c in word {
         t[i] = c;
     }
 }
 
 func main() {
-    [8]char a;
-    [8]char b;
-    [8]char c;
+    [8]byte a;
+    [8]byte b;
+    [8]byte c;
     fill(a, "abcdef");
     fill(b, "abcdef");
     fill(c, "abcdef");
-    mem.move((*char)(a) + 2, a, 4);
-    mem.move(b, (*char)(b) + 2, 4);
-    mem.move((*char)(c) + 3, c, 0);
+    mem.move((*byte)(a) + 2, a, 4);
+    mem.move(b, (*byte)(b) + 2, 4);
+    mem.move((*byte)(c) + 3, c, 0);
     check(string(a[0:6]) == "ababcd", "move copies forward over an overlap");
     check(string(b[0:6]) == "cdefef", "move copies backward over an overlap");
     check(string(c[0:6]) == "abcdef", "move of zero bytes changes nothing");
 
-    [8]char apart;
-    [4]char source;
+    [8]byte apart;
+    [4]byte source;
     fill(source, "xyz");
     mem.move(apart, source, 3);
     check(string(apart[0:3]) == "xyz", "move works when the regions do not overlap");
 
-    *char dirty = mem.allocDirty(64) ?? null;
+    *byte dirty = mem.allocDirty(64) ?? null;
     check(dirty != null, "allocDirty gives a block");
     mem.fill(dirty, 9, 64);
     check(dirty[0] == 9 && dirty[63] == 9, "a dirty block is usable");
@@ -10975,7 +11007,7 @@ func risky(int n) !int {
     return n;
 }
 
-func text([]char buf, string format, ...args) string {
+func text([]byte buf, string format, ...args) string {
     int n = fmt.sprintf(buf, format, args...)!!;
     return string(buf[0:n]);
 }
@@ -10984,7 +11016,7 @@ func main() {
     let _, e1 = risky(-1);
     let _, e2 = risky(0);
     let _, none = risky(3);
-    [64]char buf;
+    [64]byte buf;
     check(text(buf, "{}", e1) == "negative input", "an error prints its message");
     check(text(buf, "{}", e2) == "Kind.Invalid", "a default message is the member");
     check(text(buf, "[{>16}]", e1) == "[  negative input]", "the message aligns like a string");
@@ -11124,19 +11156,19 @@ func main() {
 import "std/errors";
 
 func main() {
-    [128]char storage;
+    [128]byte storage;
     mem.fill(storage, 7, 128);
     mem.Fixed f = mem.Fixed{buffer: storage};
 
-    *char a = f.alloc(10) ?? null;
-    *char b = f.alloc(20) ?? null;
+    *byte a = f.alloc(10) ?? null;
+    *byte b = f.alloc(20) ?? null;
     check(a != null && b != null, "fixed gives blocks");
     check(int(b) - int(a) == 16, "a block is rounded up to 16 bytes");
     check(a[0] == 0 && a[9] == 0 && b[0] == 0 && b[19] == 0, "alloc zeroes the block");
-    *char base = storage;
+    *byte base = storage;
     check(int(a) - int(base) >= 0 && int(b) - int(base) < 128, "blocks live inside the buffer");
 
-    *char c = f.allocDirty(48) ?? null;
+    *byte c = f.allocDirty(48) ?? null;
     check(c != null, "allocDirty gives a block");
     check(int(c) - int(a) == 48, "blocks are contiguous");
 
@@ -11146,7 +11178,7 @@ func main() {
     check(neg == null && e2 == errors.Kind.Invalid, "a negative size is invalid");
 
     f.reset();
-    *char d = f.alloc(10) ?? null;
+    *byte d = f.alloc(10) ?? null;
     check(d == a, "reset reuses the buffer");
     check(d[0] == 0, "alloc zeroes memory that was used before");
 }
@@ -11155,8 +11187,8 @@ func main() {
 
 func main() {
     mem.Arena a;
-    *char p = a.alloc(10) ?? null;
-    *char q = a.alloc(20) ?? null;
+    *byte p = a.alloc(10) ?? null;
+    *byte q = a.alloc(20) ?? null;
     check(p != null && q != null, "a zero arena works without init");
     check(int(q) - int(p) == 16, "arena blocks are rounded to 16 bytes");
     check(int(p) % 16 == 0 && int(q) % 16 == 0, "arena blocks are aligned");
@@ -11167,26 +11199,26 @@ func main() {
 
     int total = 0;
     bool ok = true;
-    *char last = null;
+    *byte last = null;
     for i in 0..40 {
-        *char b = a.alloc(5000) ?? null;
+        *byte b = a.alloc(5000) ?? null;
         if b == null {
             ok = false;
         } else {
-            b[0] = char(i);
-            b[4999] = char(i);
+            b[0] = byte(i);
+            b[4999] = byte(i);
             total += 5008;
         }
     }
     check(ok, "arena grows over several chunks");
     check(total > 65536, "arena used more than one chunk");
 
-    *char big = a.alloc(300000) ?? null;
+    *byte big = a.alloc(300000) ?? null;
     check(big != null, "arena serves a block bigger than a chunk");
     big[0] = 1;
     big[299999] = 2;
     check(big[0] == 1 && big[299999] == 2, "a big block is usable");
-    *char after = a.alloc(10) ?? null;
+    *byte after = a.alloc(10) ?? null;
     check(after != null && after[0] == 0, "arena keeps allocating after a big block");
     check(p[0] == 5 && q[0] == 6, "old blocks survive growth");
 
@@ -11200,20 +11232,20 @@ func main() {
     mem.Arena a;
     bool ok = true;
     for i in 0..30 {
-        *char b = a.alloc(5000) ?? null;
+        *byte b = a.alloc(5000) ?? null;
         if b == null {
             ok = false;
         } else {
             mem.fill(b, 9, 5000);
         }
     }
-    *char big = a.alloc(200000) ?? null;
+    *byte big = a.alloc(200000) ?? null;
     check(ok && big != null, "arena filled before reset");
     mem.fill(big, 9, 200000);
 
     a.reset();
-    *char x = a.alloc(100) ?? null;
-    *char y = a.alloc(100) ?? null;
+    *byte x = a.alloc(100) ?? null;
+    *byte y = a.alloc(100) ?? null;
     check(x != null && y != null, "arena works after reset");
     check(int(y) - int(x) == 112, "reset starts a fresh chunk");
     bool clean = true;
@@ -11228,7 +11260,7 @@ func main() {
         a.reset();
         bool good = true;
         for i in 0..20 {
-            *char b = a.alloc(5000) ?? null;
+            *byte b = a.alloc(5000) ?? null;
             if b == null || b[0] != 0 {
                 good = false;
             } else {
@@ -11240,22 +11272,22 @@ func main() {
 
     a.reset();
     a.reset();
-    *char again = a.alloc(10) ?? null;
+    *byte again = a.alloc(10) ?? null;
     check(again != null, "reset twice in a row is harmless");
 
     mem.Arena empty;
     empty.reset();
     empty.free();
-    *char fresh = empty.alloc(10) ?? null;
+    *byte fresh = empty.alloc(10) ?? null;
     check(fresh != null, "reset and free on an empty arena are harmless");
 
     a.free();
-    *char z = a.alloc(64) ?? null;
+    *byte z = a.alloc(64) ?? null;
     check(z != null && z[0] == 0 && z[63] == 0, "arena is usable after free");
     z[0] = 4;
     a.free();
     a.free();
-    *char w = a.alloc(64) ?? null;
+    *byte w = a.alloc(64) ?? null;
     check(w != null && w[0] == 0, "free twice in a row is harmless");
     a.free();
 }
@@ -11264,15 +11296,15 @@ func main() {
 
 func main() {
     mem.Arena a;
-    *char keep = a.alloc(100) ?? null;
+    *byte keep = a.alloc(100) ?? null;
     keep[0] = 42;
     keep[99] = 43;
 
     mem.Mark m = a.mark();
-    *char t1 = a.alloc(200) ?? null;
+    *byte t1 = a.alloc(200) ?? null;
     t1[0] = 1;
     a.rewind(m);
-    *char t2 = a.alloc(200) ?? null;
+    *byte t2 = a.alloc(200) ?? null;
     check(t1 == t2, "rewind reuses the space");
     check(t2[0] == 0, "alloc after rewind is zeroed");
     check(keep[0] == 42 && keep[99] == 43, "blocks before the mark survive");
@@ -11280,7 +11312,7 @@ func main() {
     mem.Mark m2 = a.mark();
     bool ok = true;
     for i in 0..29 {
-        *char b = a.alloc(5000) ?? null;
+        *byte b = a.alloc(5000) ?? null;
         if b == null {
             ok = false;
         } else {
@@ -11289,27 +11321,27 @@ func main() {
     }
     check(ok, "arena grows after a mark");
     a.rewind(m2);
-    *char t3 = a.alloc(100) ?? null;
+    *byte t3 = a.alloc(100) ?? null;
     check(t3 == t2 + 208 && t3[0] == 0, "rewind across chunks returns to the marked spot");
     check(keep[0] == 42 && t2[0] == 0, "old blocks survive a rewind over several chunks");
 
     mem.Arena empty;
     mem.Mark e = empty.mark();
-    *char x = empty.alloc(70000) ?? null;
+    *byte x = empty.alloc(70000) ?? null;
     check(x != null, "an empty arena allocates after mark");
     empty.rewind(e);
-    *char y = empty.alloc(10) ?? null;
+    *byte y = empty.alloc(10) ?? null;
     check(y != null && y[0] == 0, "rewind to an empty mark leaves a usable arena");
 
     mem.Mark nested1 = a.mark();
-    *char n1 = a.alloc(64) ?? null;
+    *byte n1 = a.alloc(64) ?? null;
     mem.Mark nested2 = a.mark();
-    *char n2 = a.alloc(64) ?? null;
+    *byte n2 = a.alloc(64) ?? null;
     a.rewind(nested2);
-    *char n3 = a.alloc(64) ?? null;
+    *byte n3 = a.alloc(64) ?? null;
     check(n3 == n2, "an inner rewind keeps the outer blocks");
     a.rewind(nested1);
-    *char n4 = a.alloc(64) ?? null;
+    *byte n4 = a.alloc(64) ?? null;
     check(n4 == n1, "an outer rewind drops them all");
     a.free();
     empty.free();

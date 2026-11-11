@@ -30,7 +30,8 @@ public func demo() {
   fmt.print("print writes a string, ");
   fmt.println("println adds a newline");
 
-  fmt.printf("an int {}, a string {}, a char {}, a bool {}\n", 42, "text", 'x', true);
+  fmt.printf("an int {}, a string {}, a byte {}, a bool {}\n", 42, "text", 'x', true);
+  fmt.printf("a byte is a number, and the c spec writes it as a character: {c}\n", 'x');
   fmt.printf("braces: {{ and }}\n");
 
   // An enum prints its number. Its name() method gives the name.
@@ -40,7 +41,7 @@ public func demo() {
   // Number types.
   fmt.printf("255 in hex {x}, upper case {X}, with a prefix {#x}\n", 255, 255, 255);
   fmt.printf("5 in binary {b}, with a prefix {#b}; 8 in octal {#o}\n", 5, 5, 8);
-  fmt.printf("65 as a char: {c}\n", 65);
+  fmt.printf("65 as a character: {c}\n", 65);
 
   // Width, alignment and fill.
   fmt.printf("[{6}] [{<6}] [{^6}] [{>6}]\n", 42, 42, 42, 42);
@@ -63,7 +64,7 @@ public func demo() {
 
   // `sprintf` writes into a buffer you provide (an array passes as a slice,
   // see collections.wsp) and returns how many bytes it wrote. It fails with NoSpace if the buffer is too small.
-  [32]char buffer;
+  [32]byte buffer;
   let size, problem = fmt.sprintf(buffer, "{} + {} = {}", 2, 3, 5);
   fmt.printf("sprintf wrote {} bytes: {}\n", size, string(buffer[:size]));
   fmt.printf("a fitting format reports a problem: {}\n", problem != null);

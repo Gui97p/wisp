@@ -401,8 +401,8 @@ var primitives = map[string]bool{
 	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
 	"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
 	"float": true, "float32": true, "float64": true,
-	"char": true, "string": true,
-	"bool": true,
+	"string": true,
+	"bool":   true,
 }
 
 func MethodsOf(t Type) map[string]*FuncType {
@@ -453,12 +453,12 @@ func isString(t Type) bool {
 	return p.Name == "string"
 }
 
-func isChar(t Type) bool {
+func isByte(t Type) bool {
 	p, ok := t.(PrimitiveType)
 	if !ok {
 		return false
 	}
-	return p.Name == "char"
+	return p.Name == "uint8"
 }
 
 func isNumeric(t Type) bool {
@@ -475,8 +475,7 @@ func isInteger(t Type) bool {
 	}
 	switch p.Name {
 	case "int", "int8", "int16", "int32", "int64",
-		"uint", "uint8", "uint16", "uint32", "uint64",
-		"char":
+		"uint", "uint8", "uint16", "uint32", "uint64":
 		return true
 	}
 	return false

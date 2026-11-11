@@ -412,7 +412,7 @@ func (t *LuaTarget) compileInExpression(b *strings.Builder, expr *ast.InExpr) er
 		b.WriteString("(__lua_string.find(")
 		t.compileExpression(b, expr.Right)
 		b.WriteString(", ")
-		if isChar(t.info.Types[expr.Left]) {
+		if isByte(t.info.Types[expr.Left]) {
 			b.WriteString("__lua_string.char(")
 			t.compileExpression(b, expr.Left)
 			b.WriteByte(')')

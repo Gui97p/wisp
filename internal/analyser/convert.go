@@ -524,7 +524,7 @@ func explicitConversion(from, to Type) bool {
 	if numericLike(from) && numericLike(to) {
 		return true
 	}
-	if isChar(from) && isString(to) {
+	if isByte(from) && isString(to) {
 		return true
 	}
 	if span, ok := from.(SpanType); ok && isString(to) && isByteLike(span.Element) {
@@ -672,7 +672,7 @@ func isByteLike(t Type) bool {
 		return false
 	}
 	switch p.Name {
-	case "char", "int8", "uint8":
+	case "int8", "uint8":
 		return true
 	}
 	return false

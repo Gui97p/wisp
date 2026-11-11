@@ -1,44 +1,44 @@
-public inline func isDigit(char c) bool {
+public inline func isDigit(byte c) bool {
 	return c in '0'..'9';
 }
 
-public inline func isHex(char c) bool {
+public inline func isHex(byte c) bool {
 	return c in '0'..'9' || lowerByte(c) in 'a'..'f';
 }
 
-public inline func isAlpha(char c) bool {
+public inline func isAlpha(byte c) bool {
 	return lowerByte(c) in 'a'..'z';
 }
 
-public inline func isAlphaNumeric(char c) bool {
+public inline func isAlphaNumeric(byte c) bool {
 	return isAlpha(c) || isDigit(c);
 }
 
-public inline func isUpper(char c) bool {
+public inline func isUpper(byte c) bool {
 	return c in 'A'..'Z';
 }
 
-public inline func isLower(char c) bool {
+public inline func isLower(byte c) bool {
 	return c in 'a'..'z';
 }
 
-public inline func isSpace(char c) bool {
+public inline func isSpace(byte c) bool {
 	return c in " \t\n\r\v\f";
 }
 
-public inline func isPrint(char c) bool {
+public inline func isPrint(byte c) bool {
 	return c >= ' ' && c <= '~';
 }
 
-public inline func upperByte(char c) char {
+public inline func upperByte(byte c) byte {
 	return c in 'a'..'z' ? c-32 : c;
 }
 
-public inline func lowerByte(char c) char {
+public inline func lowerByte(byte c) byte {
 	return c in 'A'..'Z' ? c+32 : c;
 }
 
-public func digitValue(char c, int base) (int, bool) {
+public func digitValue(byte c, int base) (int, bool) {
 	if !(base in 2..36) {
 		return 0, false;
 	}

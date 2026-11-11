@@ -16,7 +16,7 @@ public func floatToUint(float x) !uint {
 	return uint(x);
 }
 
-func special([]char buf, float x) !(string, bool) {
+func special([]byte buf, float x) !(string, bool) {
 	if math.isNaN(x) {
 		return strings.copy(buf, "NaN")!, true;
 	}
@@ -29,7 +29,7 @@ func special([]char buf, float x) !(string, bool) {
 	return "", false;
 }
 
-func layoutFixed([]char buf, bool neg, *decimal.Decimal dec, int decimals) !string {
+func layoutFixed([]byte buf, bool neg, *decimal.Decimal dec, int decimals) !string {
 	int size = (neg ? 1 : 0) + math.max(1, dec.dp) + (decimals > 0 ? 1 + decimals : 0);
 	errors.ensure(len(buf) >= size, errors.Kind.NoSpace)!;
 	int i;
@@ -42,7 +42,7 @@ func layoutFixed([]char buf, bool neg, *decimal.Decimal dec, int decimals) !stri
 		i++;
 	} else {
 		for k in 0..dec.dp-1 {
-			buf[i] = char(dec.digitAt(k) + '0');
+			buf[i] = byte(dec.digitAt(k) + '0');
 			i++;
 		}
 	}
@@ -52,7 +52,7 @@ func layoutFixed([]char buf, bool neg, *decimal.Decimal dec, int decimals) !stri
 		i++;
 	
 		for k in 0..decimals-1 {
-			buf[i] = char(dec.digitAt(dec.dp + k) + '0');
+			buf[i] = byte(dec.digitAt(dec.dp + k) + '0');
 			i++;
 		}
 	}
@@ -60,7 +60,7 @@ func layoutFixed([]char buf, bool neg, *decimal.Decimal dec, int decimals) !stri
 	return string(buf[:size]);
 }
 
-func layoutExp([]char buf, bool neg, *decimal.Decimal dec, int decimals, bool upper) !string {
+func layoutExp([]byte buf, bool neg, *decimal.Decimal dec, int decimals, bool upper) !string {
 	int exp = 0;
 	if dec.n > 0 {
 		exp = dec.dp - 1;
@@ -74,7 +74,7 @@ func layoutExp([]char buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 		buf[0] = '-';
 		i++;
 	}
-	buf[i] = char(dec.digitAt(0) + '0');
+	buf[i] = byte(dec.digitAt(0) + '0');
 	i++;
 
 	if decimals > 0 {
@@ -82,7 +82,7 @@ func layoutExp([]char buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 		i++;
 	
 		for k in 1..decimals {
-			buf[i] = char(dec.digitAt(k) + '0');
+			buf[i] = byte(dec.digitAt(k) + '0');
 			i++;
 		}
 	}
@@ -94,18 +94,18 @@ func layoutExp([]char buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 	i++;
 
 	if mag >= 100 {
-		buf[i] = char(mag / 100 + '0');
+		buf[i] = byte(mag / 100 + '0');
 		i++;
 	}
-	buf[i] = char((mag / 10) % 10 + '0');
+	buf[i] = byte((mag / 10) % 10 + '0');
 	i++;
-	buf[i] = char(mag % 10 + '0');
+	buf[i] = byte(mag % 10 + '0');
 	i++;
 
 	return string(buf[:size]);
 }
 
-func shortestText([]char buf, float x, bool single) !string {
+func shortestText([]byte buf, float x, bool single) !string {
 	let view, spec = special(buf, x)!;
 	if spec {
 		return view;
@@ -126,15 +126,15 @@ func shortestText([]char buf, float x, bool single) !string {
 	}
 }
 
-public func ftoa([]char buf, float x) !string {
+public func ftoa([]byte buf, float x) !string {
 	return shortestText(buf, x, false)!;
 }
 
-public func ftoa32 ([]char buf, float32 x) !string {
+public func ftoa32 ([]byte buf, float32 x) !string {
 	return shortestText(buf, x, true)!;
 }
 
-public func formatFixed([]char buf, float x, int n) !string {
+public func formatFixed([]byte buf, float x, int n) !string {
 	let view, spec = special(buf, x)!;
 	if spec {
 		return view;
@@ -147,7 +147,7 @@ public func formatFixed([]char buf, float x, int n) !string {
 	return layoutFixed(buf, neg, &dec, n)!;
 }
 
-public func formatExp([]char buf, float x, int n, bool upper) !string {
+public func formatExp([]byte buf, float x, int n, bool upper) !string {
 	let view, spec = special(buf, x)!;
 	if spec {
 		return view;

@@ -1,7 +1,7 @@
 import "std/sys";
 import "std/os/global";
 
-func writeRaw(int fd, *char buf, int n) !int {
+func writeRaw(int fd, *byte buf, int n) !int {
 	int total;
 	loop total < n {
 		int r = sys.write(fd, buf + total, n - total);
@@ -17,17 +17,17 @@ func writeRaw(int fd, *char buf, int n) !int {
 }
 
 public func write(int fd, string s) !int {
-	return writeRaw(fd, (*char)(s), len(s))!;
+	return writeRaw(fd, (*byte)(s), len(s))!;
 }
 
-public func writeBytes(int fd, []char buf) !int {
-	return writeRaw(fd, (*char)(buf), len(buf))!;
+public func writeBytes(int fd, []byte buf) !int {
+	return writeRaw(fd, (*byte)(buf), len(buf))!;
 }
 
-public func read(int fd, []char buf) !int {
+public func read(int fd, []byte buf) !int {
 	int r;
 	loop {
-		r = sys.read(fd, (*char)(buf), len(buf));
+		r = sys.read(fd, (*byte)(buf), len(buf));
 	} until r != -4;
 	if r < 0 {
 		return global.errorIO(sys.errno(r));

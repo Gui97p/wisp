@@ -15,8 +15,8 @@ struct Chunk {
 	int used;
 }
 
-inline func (*Chunk c) data() *char {
-	return (*char)(c) + HEADER;
+inline func (*Chunk c) data() *byte {
+	return (*byte)(c) + HEADER;
 }
 
 func newChunk(int need) !*Chunk {
@@ -38,7 +38,7 @@ public struct Arena {
 }
 
 public func (*Arena a) alloc(int n) !*void {
-	*char p = a.allocDirty(n)!;
+	*byte p = a.allocDirty(n)!;
 	mem.fill(p, 0, n);
 	return p;
 }

@@ -164,7 +164,7 @@ func (t *LuaTarget) compileBinaryExpr(b *strings.Builder, e *ast.BinaryExpr) err
 		text = fmt.Sprintf("(%s ~= %s)", left, right)
 	case "+":
 		if pt, ok := t.info.Types[e.Left].(analyser.PrimitiveType); ok && pt.Name == "string" {
-			if rt, ok := t.info.Types[e.Right].(analyser.PrimitiveType); ok && rt.Name == "char" {
+			if rt, ok := t.info.Types[e.Right].(analyser.PrimitiveType); ok && rt.Name == "uint8" {
 				right = fmt.Sprintf("__lua_string.char(%s)", right)
 			}
 			text = fmt.Sprintf("(%s .. %s)", left, right)
@@ -233,7 +233,7 @@ func (t *LuaTarget) compileCastExpr(b *strings.Builder, e *ast.CastExpr) error {
 	}
 
 	switch {
-	case isCharType(src) && isStringType(dst):
+	case isByteType(src) && isStringType(dst):
 		fmt.Fprintf(b, "string.char(%s)", value)
 	case isView(src) && isStringType(dst):
 		fmt.Fprintf(b, "__wisp_str(%s)", value)
@@ -253,9 +253,9 @@ func (t *LuaTarget) compileCastExpr(b *strings.Builder, e *ast.CastExpr) error {
 	return nil
 }
 
-func isCharType(tp analyser.Type) bool {
+func isByteType(tp analyser.Type) bool {
 	p, ok := tp.(analyser.PrimitiveType)
-	return ok && p.Name == "char"
+	return ok && p.Name == "uint8"
 }
 
 func isStringType(tp analyser.Type) bool {

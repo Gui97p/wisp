@@ -202,7 +202,7 @@ func alignOf(at analyser.Type) int {
 	switch tp := at.(type) {
 	case analyser.PrimitiveType:
 		switch tp.Name {
-		case "int8", "uint8", "bool", "char":
+		case "int8", "uint8", "bool":
 			return 1
 		case "int16", "uint16":
 			return 2
@@ -231,7 +231,7 @@ func sizeOf(at analyser.Type) int {
 	switch tp := at.(type) {
 	case analyser.PrimitiveType:
 		switch tp.Name {
-		case "int8", "uint8", "bool", "char":
+		case "int8", "uint8", "bool":
 			return 1
 		case "int16", "uint16":
 			return 2

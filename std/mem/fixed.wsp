@@ -2,25 +2,25 @@ import "std/errors";
 import "std/mem";
 
 public struct Fixed {
-	[]char buffer;
+	[]byte buffer;
 	internal int bUsed;
 }
 
 public func (*Fixed f) alloc(int n) !*void {
-	*char p = f.allocDirty(n)!;
+	*byte p = f.allocDirty(n)!;
 	mem.fill(p, 0, n);
 	return p;
 }
 
 public func (*Fixed f) allocDirty(int n) !*void {
-	int base = int((*char)(f.buffer));
+	int base = int((*byte)(f.buffer));
 	int start = (base + f.bUsed + 15) & ~15;
 	int off = start - base;
 	errors.ensure(n >= 0, errors.Kind.Invalid)!;
 	n = (n + 15) & ~15;
 	errors.ensure(off + n <= len(f.buffer), errors.Kind.NoSpace)!;
 	defer f.bUsed = off + n;
-	return (*char)(f.buffer) + off;
+	return (*byte)(f.buffer) + off;
 }
 
 public inline func (*Fixed f) reset() {

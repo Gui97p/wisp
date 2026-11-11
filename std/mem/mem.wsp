@@ -36,13 +36,13 @@ public inline func copy(*void dst, src, int n) {
 }
 
 public func move(*void dst, src, int n) {
-	if dst > src && dst < (*char)(src) + n {
+	if dst > src && dst < (*byte)(src) + n {
 		impl.rawCopyBackward(dst, src, n);
 	} else {
 		impl.rawCopy(dst, src, n);
 	}
 }
 
-public inline func fill(*void dst, char value, int n) {
+public inline func fill(*void dst, byte value, int n) {
 	impl.rawSet(dst, value, n);
 }

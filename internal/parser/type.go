@@ -30,7 +30,7 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 	}
 
 	ref := &ast.TypeRef{Layers: layers}
-	ref.Name = p.current.Literal
+	ref.Name = p.typeWord()
 	ref.Line, ref.Col, ref.EndLine, ref.EndCol = p.currentIdentPos()
 	if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_DOT {
 		p.advance()
@@ -43,6 +43,13 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 	}
 
 	return ref
+}
+
+func (p *Parser) typeWord() string {
+	if p.current.Type == lexer.TOKEN_BYTE {
+		return "uint8"
+	}
+	return p.current.Literal
 }
 
 func (p *Parser) parseTypeLayers() ([]ast.TypeLayer, bool) {
