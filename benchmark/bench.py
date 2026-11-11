@@ -25,7 +25,8 @@ CC = os.environ.get("CC", "cc")
 
 
 class Variant:
-    def __init__(self, name, language, source, tool, command, output="stdout"):
+    def __init__(self, name, language, source, tool, command, output="stdout", artifact=None):
+        self.artifact = artifact
         self.name = name
         self.language = language
         self.source = source
@@ -39,8 +40,14 @@ class Variant:
         return shutil.which(self.tool) is not None
 
 
-def wisp_command(src, out, work):
-    return [str(WISP), "build", "--bin", str(out), "--obj", str(work / "obj"), "--asm", str(work / "asm")], src
+def wisp_command(level):
+    def build(src, out, work):
+        return [str(WISP), "build", "--profile", level, "--bin", str(work / "bin"), "--obj", str(work / "obj"), "--asm", str(work / "asm")], src
+    return build
+
+
+def wisp_artifact(src, out, work):
+    return work / "bin" / src.name
 
 
 def c_command(level):
@@ -66,7 +73,8 @@ def rust_command(level):
 
 
 VARIANTS = [
-    Variant("wisp", "wisp", "main.wsp", "wisp", wisp_command),
+    Variant("wisp-debug", "wisp", "main.wsp", "wisp", wisp_command("debug"), artifact=wisp_artifact),
+    Variant("wisp-release", "wisp", "main.wsp", "wisp", wisp_command("release"), artifact=wisp_artifact),
     Variant("c-O0", "c", "main.c", CC, c_command("-O0")),
     Variant("c-O2", "c", "main.c", CC, c_command("-O2")),
     Variant("go", "go", "main.go", "go", go_command),
@@ -185,10 +193,11 @@ def build_variant(variant, bench, out, work):
     start = time.perf_counter()
     result = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
     elapsed = time.perf_counter() - start
-    if result.returncode != 0 or not out.exists():
+    final = variant.artifact(src, out, work) if variant.artifact else out
+    if result.returncode != 0 or not final.is_file():
         detail = (result.stderr or result.stdout).strip().splitlines()
         return None, elapsed, " | ".join(detail[-3:])
-    return out, elapsed, ""
+    return final, elapsed, ""
 
 
 def measure(variant, bench, args, expected):

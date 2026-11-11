@@ -4,7 +4,7 @@ The same six programs written in Wisp, C, Go, Zig and Rust, to follow how fast t
 
     make bench                      everything, 5 runs plus a warmup
     make bench ARGS="--quick"       3 runs, no warmup
-    make bench ARGS="--only fib,sieve --variants wisp,c-O0"
+    make bench ARGS="--only fib,sieve --variants wisp-release,c-O0"
     make bench ARGS="--compare last --label inline"
     python3 benchmark/bench.py --list
 
@@ -25,7 +25,7 @@ The four `std_*` programs exist only in Wisp: they follow what the standard libr
 
 Every program prints one line, and `expected.txt` holds what it must print: a variant that prints something else is reported as `WRONG OUTPUT`.
 
-Variants: `wisp`, `c-O0`, `c-O2` (the `CC` variable picks the compiler), `go`, `zig-debug`, `zig-fast`, `rust-O0`, `rust-O2`. A variant whose tool is not installed is skipped. The Zig and Rust sources were written without a compiler at hand: fix them if they do not build.
+Variants: `wisp-debug`, `wisp-release` (both selected by the language name `wisp`), `c-O0`, `c-O2` (the `CC` variable picks the compiler), `go`, `zig-debug`, `zig-fast`, `rust-O0`, `rust-O2`. A variant whose tool is not installed is skipped. The Zig and Rust sources were written without a compiler at hand: fix them if they do not build.
 
 For each program and variant the runner reports build time, binary size, min / median / stdev of the wall time, CPU time, peak memory (from a separate run, so it does not disturb the timing) and the ratio against `--ref` (default `c-O0`) and `--ref2` (default `c-O2`). The summary is the geometric mean of those ratios.
 
