@@ -146,13 +146,6 @@ func (*Writer w) putUint([]byte buf, uint v, spec.Spec s) !bool {
 	return true;
 }
 
-func (*Writer w) putChar([]byte buf, byte v, spec.Spec s) !bool {
-	spec.validate(s, spec.Value.Char) ?? return false;
-	render.Piece piece = render.renderChar(buf, v, s)!;
-	w.writePiece(piece, s, false)!;
-	return true;
-}
-
 func (*Writer w) putBool(bool v, spec.Spec s) !bool {
 	spec.validate(s, spec.Value.Bool) ?? return false;
 	render.Piece piece = render.renderBool(v);
@@ -276,7 +269,6 @@ public func (*Writer w) format(string format, ...args) !int {
 		switch let v = args[argIndex] {
 			case int:   ok = w.putInt(buf, v, s)!;
 			case uint:  ok = w.putUint(buf, v, s)!;
-			case byte:  ok = w.putChar(buf, v, s)!;
 			case bool:  ok = w.putBool(v, s)!;
 			case string: ok = w.putString(v, s)!;
 			case *void: ok = w.putPointer(buf, v, s)!;

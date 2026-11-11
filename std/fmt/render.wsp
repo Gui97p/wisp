@@ -1,5 +1,6 @@
 import "std/conv";
 import "std/fmt/spec";
+import "std/errors";
 
 internal struct Piece {
 	string sign;
@@ -32,6 +33,7 @@ func number([]byte buf, uint mag, bool neg, spec.Spec s) !Piece {
 internal func renderInt([]byte buf, int v, spec.Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
+		errors.ensure(v in 0..255, errors.Kind.Range)!;
 		buf[0] = byte(v);
 		piece.body = string(buf[:1]);
 		return piece;
@@ -47,25 +49,12 @@ internal func renderInt([]byte buf, int v, spec.Spec s) !Piece {
 internal func renderUint([]byte buf, uint v, spec.Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
+		errors.ensure(v < 256, errors.Kind.Range)!;
 		buf[0] = byte(v);
 		piece.body = string(buf[:1]);
 		return piece;
 	}
 	return number(buf, v, false, s)!;
-}
-
-internal func renderChar([]byte buf, byte c, spec.Spec s) !Piece {
-	Piece piece;
-
-	switch s.kind {
-		case 'd', 'x':
-			return number(buf, uint(c), false, s)!;
-		default:
-			buf[0] = c;
-			piece.body = string(buf[:1]);
-	}
-
-	return piece;
 }
 
 internal func renderPointer([]byte buf, *void v, spec.Spec s) !Piece {

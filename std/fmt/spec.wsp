@@ -27,7 +27,6 @@ internal enum SpecError {
 internal enum Value {
 	Int,
 	Uint,
-	Char,
 	Bool,
 	String,
 	Pointer,
@@ -109,13 +108,6 @@ internal func validate(Spec s, Value v) ! {
 			if s.kind in "pv" ||
 			(s.zero && s.kind == 'c') ||
 			(s.alt && !(s.kind in "xXbop")) ||
-			s.precision >= 0 {
-				return Error(SpecError.NotForType);
-			}
-		case .Char:
-			if !(s.kind == 0 || s.kind in "cdx") ||
-			(s.zero && !(s.kind in "dx")) ||
-			(s.alt && s.kind != 'x') ||
 			s.precision >= 0 {
 				return Error(SpecError.NotForType);
 			}
