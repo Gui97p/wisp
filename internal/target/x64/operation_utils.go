@@ -97,6 +97,13 @@ func (t *X64Target) local(sym *analyser.Symbol) Operand {
 	return slot(off, size)
 }
 
+func (t *X64Target) hiddenLocal(sym *analyser.Symbol, size int) Operand {
+	if _, ok := t.ctx.Register(sym); ok {
+		return t.local(sym)
+	}
+	return slot(t.ctx.Reserve(size), size)
+}
+
 func (t *X64Target) inlineLocal(sym *analyser.Symbol) Operand {
 	size := sizeOf(sym.Type)
 	reg, bound := t.ctx.Register(sym)

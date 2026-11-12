@@ -205,6 +205,7 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	t.funcName = display
 	t.sites = nil
 	t.candidates = nil
+	t.loopSyms = map[*ast.ForStmt]*loopState{}
 	t.text.printf("\nsection .text.%s progbits alloc exec nowrite align=32\n", name)
 	t.text.printf("%s:\n", name)
 	t.text.printlnt("push rbp")
@@ -428,6 +429,11 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	return t.compileFuncBody(name, display+fd.Name, t.isEntry && fd.Name == "main", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
 }
 
+func (t *X64Target) synthetic(name string, at ast.Node, order int) *analyser.Symbol {
+	line, col := at.Position()
+	return &analyser.Symbol{Name: name, Kind: analyser.VAR, Type: analyser.PrimitiveType{Name: "int"}, Line: line, Col: col + order}
+}
+
 func (t *X64Target) weigh(root ast.Node, depth int, weight map[*analyser.Symbol]int, barred map[*analyser.Symbol]bool) {
 	ast.Inspect(root, func(n ast.Node) bool {
 		switch n := n.(type) {
@@ -443,6 +449,23 @@ func (t *X64Target) weigh(root ast.Node, depth int, weight map[*analyser.Symbol]
 			}
 			if n.Var2 != "" {
 				weight[vs[1]] += 2 << (3 * min(depth+1, 8))
+			}
+			if n.Range != nil {
+				st := &loopState{
+					i: t.synthetic("__wisp_for_i", n, 2),
+				}
+				t.loopSyms[n] = st
+				b := 1 << (3 * min(depth+1, 8))
+				weight[st.i] += 3 * b
+				tp := t.info.Types[n.Range]
+				if _, ok := tp.(analyser.ArrayType); !ok {
+					st.n = t.synthetic("__wisp_for_n", n, 1)
+					weight[st.n] += b
+				}
+				if n.Var2 != "" {
+					st.p = t.synthetic("__wisp_for_p", n, 0)
+					weight[st.p] += b
+				}
 			}
 			return false
 		case *ast.LoopStmt:

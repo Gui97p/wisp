@@ -44,8 +44,13 @@ type inlineFrame struct {
 	deferDepth int
 }
 
+type loopState struct {
+	p, n, i *analyser.Symbol
+}
+
 type X64Target struct {
 	coalesceFrames []coalesceFrame
+	loopSyms       map[*ast.ForStmt]*loopState
 
 	program *ast.Program
 	info    *analyser.Info

@@ -7165,6 +7165,139 @@ func main() {
 }
 `, expected: []string{"let takes a selector, and the version of the profile is the one kept", "let without a selector is the same as before", "a global pointer starts as a converted null", "the pointer can be set later", "null converts to a pointer type in a local too"}},
 
+	{dir: "regs_range", x64Only: true, src: `struct Pair {
+    int a;
+    int b;
+}
+
+struct Trio {
+    int32 a;
+    int32 b;
+    int32 c;
+}
+
+func heavy(int x) int {
+    int p = x;
+    int q = x + 1;
+    int r = x + 2;
+    int s = x + 3;
+    int t = x + 4;
+    int u = x + 5;
+    for k in 1..3 {
+        p += q;
+        q += r;
+        r += s;
+        s += t;
+        t += u;
+        u += p;
+    }
+    return p + q + r + s + t + u;
+}
+
+func sums() int {
+    [6]int xs = [1, 2, 3, 4, 5, 6];
+    int t = 0;
+    for i, v in xs {
+        t += i * 10 + v;
+    }
+    return t;
+}
+
+func pairs() int {
+    [4]Pair ps = [Pair{a: 1, b: 2}, Pair{a: 3, b: 4}, Pair{a: 5, b: 6}, Pair{a: 7, b: 8}];
+    int t = 0;
+    for i, p in ps {
+        t += p.a * i + p.b;
+    }
+    return t;
+}
+
+func trios() int {
+    [3]Trio ts = [Trio{a: 1, b: 2, c: 3}, Trio{a: 4, b: 5, c: 6}, Trio{a: 7, b: 8, c: 9}];
+    int t = 0;
+    for _, x in ts {
+        t += int(x.a) + int(x.b) * 2 + int(x.c) * 3;
+    }
+    return t;
+}
+
+func text() int {
+    string s = "abc";
+    int t = 0;
+    for i, c in s {
+        t += i * int(c);
+    }
+    return t;
+}
+
+func withCall() int {
+    [5]int xs = [10, 20, 30, 40, 50];
+    int t = 0;
+    for i, v in xs {
+        if v == 20 {
+            continue;
+        }
+        if v == 50 {
+            break;
+        }
+        t += heavy(v) + i;
+    }
+    return t;
+}
+
+func nested() int {
+    [3]int a = [1, 2, 3];
+    [4]int b = [10, 20, 30, 40];
+    int t = 0;
+    for _, x in a {
+        for _, y in b {
+            t += x * y;
+        }
+    }
+    return t;
+}
+
+func deep() int {
+    [2]int a = [1, 2];
+    [2]int b = [3, 4];
+    [2]int c = [5, 6];
+    [2]int d = [7, 8];
+    int t = 0;
+    int u = 0;
+    for _, w in a {
+        for _, x in b {
+            for _, y in c {
+                for i, z in d {
+                    t += w * x * y * z;
+                    u += i;
+                }
+            }
+        }
+    }
+    return t * 10 + u;
+}
+
+func indexOnly() int {
+    [4]int xs = [9, 9, 9, 9];
+    int t = 0;
+    for i in xs {
+        t += i;
+    }
+    return t;
+}
+
+func main() {
+    check(sums() == 171, "index and element of an array");
+    check(pairs() == 54, "elements of 16 bytes");
+    check(trios() == 96, "elements of 12 bytes");
+    check(text() == 296, "the bytes of a string");
+    check(withCall() == 5219, "break, continue and a call inside the loop");
+    check(nested() == 600, "nested loops over arrays");
+    check(deep() == 34658, "more loops than registers");
+    check(indexOnly() == 6, "only the index");
+}
+`},
+
 	{dir: "regs_compound", x64Only: true, src: `func chain(int n) int {
     int a = 1;
     for i in 1..n {

@@ -1,6 +1,7 @@
 package x64
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -91,12 +92,32 @@ func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 		return err
 	}
 
-	p := slot(t.ctx.Reserve(8), 8)
-	n := slot(t.ctx.Reserve(8), 8)
-	i := slot(t.ctx.Reserve(8), 8)
+	var p, n, i Operand
+	ownsN := true
+	st := t.loopSyms[stmt]
+	if st == nil {
+		p = slot(t.ctx.Reserve(8), 8)
+		n = slot(t.ctx.Reserve(8), 8)
+		i = slot(t.ctx.Reserve(8), 8)
+	} else {
+		i = t.hiddenLocal(st.i, 8)
+		if st.p != nil {
+			p = t.hiddenLocal(st.p, 8)
+		}
+		ownsN = st.n != nil
+		if ownsN {
+			n = t.hiddenLocal(st.n, 8)
+		} else {
+			n = limit
+		}
+	}
 
-	t.store(Addr{Of: base}, p)
-	t.store(limit, n)
+	if p != nil {
+		t.store(Addr{Of: base}, p)
+	}
+	if ownsN {
+		t.store(limit, n)
+	}
 	t.store(Imm(0), i)
 
 	t.freeWord(base)
@@ -114,8 +135,8 @@ func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 	defer t.ctx.PopLoop()
 
 	t.text.printf("%s:\n", cond)
-	reg := t.materialize(i, 8)
-	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(reg, 8), t.memText(n))
+	reg := t.readReg(i, 8)
+	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(reg, 8), t.opText(n, 8))
 	t.text.printft("jae %s\n", ctx.BreakLabel)
 
 	syms := t.info.VarSymbols[stmt]
@@ -124,8 +145,8 @@ func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 	}
 
 	if stmt.Var2 != "" {
-		pReg := t.materialize(p, 8)
-		iReg := t.materialize(i, 8)
+		pReg := t.readReg(p, 8)
+		iReg := t.readReg(i, 8)
 
 		elemSize := 1
 		switch t := tp.(type) {
@@ -149,7 +170,7 @@ func (t *X64Target) compileForRange(stmt *ast.ForStmt) error {
 	}
 
 	t.text.printf("%s:\n", ctx.ContinueLabel)
-	t.text.printft("inc %s\n", t.memText(i))
+	t.text.printft("inc %s\n", t.opText(i, 8))
 	t.text.printft("jmp %s\n", cond)
 	t.text.printf("%s:\n", ctx.BreakLabel)
 
@@ -177,27 +198,40 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 		return err
 	}
 
-	endOffset := t.ctx.Reserve(8)
-	endSlot := slot(endOffset, size)
-	t.store(end, endSlot)
+	var endCmp string
+	if i, ok := end.(Imm); ok && Imm(int32(i)) == i {
+		endCmp = fmt.Sprintf("%d", i)
+	} else {
+		endOffset := t.ctx.Reserve(8)
+		endSlot := slot(endOffset, size)
+		t.store(end, endSlot)
+		endCmp = t.memText(endSlot)
+	}
 
+	var stepValue int64 = 1
 	known, up := false, true
 	if stmt.Step == nil {
 		known = true
 	} else if s, ok := t.info.Folded(stmt.Step); ok {
+		stepValue = s.Int.Int64()
 		known, up = true, s.Int.Sign() > 0
 	}
 
-	stepOffset := t.ctx.Reserve(8)
-	stepSlot := slot(stepOffset, size)
-	var step Operand = Imm(1)
-	if stmt.Step != nil {
-		step, err = t.compileExpr(stmt.Step)
-		if err != nil {
-			return err
+	fast := int64(int32(stepValue)) == stepValue && known
+
+	var stepSlot Mem
+	if !fast {
+		stepOffset := t.ctx.Reserve(8)
+		stepSlot = slot(stepOffset, size)
+		var step Operand = Imm(1)
+		if stmt.Step != nil {
+			step, err = t.compileExpr(stmt.Step)
+			if err != nil {
+				return err
+			}
 		}
+		t.store(step, stepSlot)
 	}
-	t.store(step, stepSlot)
 
 	if stmt.Step != nil && !known && t.checks {
 		stepOk := t.newLabel("step_ok")
@@ -246,17 +280,17 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 		if !up {
 			jDir = "l"
 		}
-		t.text.printft("cmp %s, %s\n", leftStr, t.memText(endSlot))
+		t.text.printft("cmp %s, %s\n", leftStr, endCmp)
 		t.text.printft("j%s %s\n", jDir, ctx.BreakLabel)
 	} else {
 		t.text.printft("cmp qword [rbp-%d], 0\n", dirOffset)
 		t.text.printft("je %s\n", down)
-		t.text.printft("cmp %s, %s\n", leftStr, t.memText(endSlot))
+		t.text.printft("cmp %s, %s\n", leftStr, endCmp)
 		t.text.printft("jg %s\n", ctx.BreakLabel)
 		t.text.printft("jmp %s\n", body)
 
 		t.text.printf("%s:\n", down)
-		t.text.printft("cmp %s, %s\n", leftStr, t.memText(endSlot))
+		t.text.printft("cmp %s, %s\n", leftStr, endCmp)
 		t.text.printft("jl %s\n", ctx.BreakLabel)
 	}
 
@@ -269,9 +303,15 @@ func (t *X64Target) compileForNumeric(stmt *ast.ForStmt) error {
 	}
 
 	t.text.printf("%s:\n", ctx.ContinueLabel)
-	stepReg := t.materialize(stepSlot, size)
-	t.text.printft("add %s, %s\n", t.opText(startSlot, size), t.ctx.GetRegister(stepReg, size))
-	t.ctx.FreeRegister(stepReg)
+	var right string
+	if fast {
+		right = fmt.Sprintf("%d", stepValue)
+	} else {
+		stepReg := t.materialize(stepSlot, size)
+		right = t.ctx.GetRegister(stepReg, size)
+		t.ctx.FreeRegister(stepReg)
+	}
+	t.text.printft("add %s, %s\n", t.opText(startSlot, size), right)
 	t.text.printft("jmp %s\n", condLabel)
 	t.text.printf("%s:\n", ctx.BreakLabel)
 
