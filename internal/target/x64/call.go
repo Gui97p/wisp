@@ -654,10 +654,19 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 			}
 			t.store(op, t.inlineLocal(call.Params[i]))
 		}
-		slots := make([]Operand, 0, len(call.Returns))
-		for _, r := range call.Returns {
-			size := sizeOf(r)
-			slots = append(slots, slot(t.ctx.Reserve(size), size))
+		var result x64context.Register
+		if !call.Fallible && len(call.Returns) == 1 && classOf(call.Returns[0]) == x64context.Int {
+			result = t.ctx.AllocFreeRegisterAmong(x64context.R8, x64context.R9, x64context.R10, x64context.R11)
+		}
+		var slots []Operand
+		if result != x64context.NoReg {
+			slots = []Operand{Reg{result, sizeOf(call.Returns[0])}}
+		} else {
+			slots = make([]Operand, 0, len(call.Returns))
+			for _, r := range call.Returns {
+				size := sizeOf(r)
+				slots = append(slots, slot(t.ctx.Reserve(size), size))
+			}
 		}
 		if call.Fallible {
 			s := slot(t.ctx.Reserve(8), 8)

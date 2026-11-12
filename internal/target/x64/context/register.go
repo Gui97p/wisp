@@ -153,6 +153,16 @@ func (c *Context) AllocFreeRegister() Register {
 	return NoReg
 }
 
+func (c *Context) AllocFreeRegisterAmong(regs ...Register) Register {
+	for _, reg := range regs {
+		if _, ok := c.registers[reg]; !ok {
+			c.AllocRegister(reg)
+			return reg
+		}
+	}
+	return NoReg
+}
+
 func (c *Context) AllocFreeXmm() Register {
 	xmms := XMMOrder
 	if c.optimized {

@@ -117,9 +117,9 @@ func (t *X64Target) compileVarStmt(stmt *ast.VarStmt) error {
 func (t *X64Target) compileInlineReturn(stmt *ast.ReturnStmt) error {
 	frame := t.inlineFrames[len(t.inlineFrames)-1]
 	isError := t.info.ErrorReturns[stmt]
-	last := frame.results[len(frame.results)-1].(Mem)
 
 	if isError {
+		last := frame.results[len(frame.results)-1]
 		op, err := t.compileExpr(stmt.Values[0])
 		if err != nil {
 			return err
@@ -137,9 +137,10 @@ func (t *X64Target) compileInlineReturn(stmt *ast.ReturnStmt) error {
 			return err
 		}
 		for i, op := range ops {
-			t.store(op, frame.results[i].(Mem))
+			t.store(op, frame.results[i])
 		}
 		if frame.call.Fallible {
+			last := frame.results[len(frame.results)-1]
 			t.store(Imm(0), last)
 		}
 	}

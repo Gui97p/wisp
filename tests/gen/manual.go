@@ -7165,6 +7165,56 @@ func main() {
 }
 `, expected: []string{"let takes a selector, and the version of the profile is the one kept", "let without a selector is the same as before", "a global pointer starts as a converted null", "the pointer can be set later", "null converts to a pointer type in a local too"}},
 
+	{dir: "regs_inline", x64Only: true, src: `int counter;
+
+func bump() {
+    counter++;
+}
+
+func plain(int x) int {
+    return x + 1;
+}
+
+inline func fromLoop(int n) int {
+    for i in 0..n {
+        if i * i > n {
+            return i;
+        }
+    }
+    return -1;
+}
+
+inline func withCall(int x) int {
+    int a = plain(x);
+    int b = plain(a);
+    return a * b;
+}
+
+inline func divided(int a, int b) int {
+    return a / b + a % b;
+}
+
+inline func deferred(int x) int {
+    defer bump();
+    return x * 2;
+}
+
+func main() {
+    check(fromLoop(10) == 4 && fromLoop(100) == 11, "return from inside a loop of an inline function");
+    check(withCall(3) == 20, "an inline body that calls a function");
+    check(divided(17, 5) == 5, "division in the return of an inline function");
+    int before = counter;
+    check(deferred(4) == 8 && counter == before + 1, "defer inside an inline function");
+    withCall(1);
+    check(fromLoop(10) + plain(withCall(3)) * divided(17, 5) == 109, "several inline results in one expression");
+    int sum = 0;
+    for i in 1..5 {
+        sum += withCall(i);
+    }
+    check(sum == 110, "inline results used in a loop");
+}
+`},
+
 	{dir: "regs_range", x64Only: true, src: `struct Pair {
     int a;
     int b;
