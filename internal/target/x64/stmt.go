@@ -210,28 +210,73 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 
 func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 	if len(stmt.Targets) == 1 {
-		memSlot, err := t.compileAssignable(stmt.Targets[0])
+		dst, err := t.compileAssignable(stmt.Targets[0])
 		if err != nil {
 			return err
 		}
-
-		op, err := t.compileExpr(stmt.Values[0])
-		if err != nil {
-			return err
-		}
+		targetType := t.info.Types[stmt.Targets[0]]
+		valueType := t.info.Types[stmt.Values[0]]
 
 		if stmt.Op == "=" {
-			t.store(op, memSlot)
-		} else {
-			targetType := t.info.Types[stmt.Targets[0]]
-			valueType := t.info.Types[stmt.Values[0]]
-			res, err := t.emitBinary(stmt.Op[:len(stmt.Op)-1], memSlot, op, targetType, valueType, targetType, nil)
+			switch s := stmt.Values[0].(type) {
+			case *ast.BinaryExpr:
+				if s.Operator != "/" && s.Operator != "%" {
+					var ident *ast.IdentLiteral
+					var expr ast.Expression
+					if targetIdent, ok := stmt.Targets[0].(*ast.IdentLiteral); ok {
+						targetSym := t.info.Idents[targetIdent]
+						if l, ok := s.Left.(*ast.IdentLiteral); ok && t.info.Idents[l] == targetSym {
+							ident = l
+							expr = s.Right
+						} else if r, ok := s.Right.(*ast.IdentLiteral); ok && t.info.Idents[r] == targetSym {
+							switch s.Operator {
+							case "+", "*", "&", "|", "^":
+								ident = r
+								expr = s.Left
+							}
+						}
+
+						if ident != nil {
+							value, err := t.compileExpr(expr)
+							if err != nil {
+								return err
+							}
+							if r, ok := dst.(Reg); ok && t.ctx.IsHome(r.Reg) {
+								t.inPlace = r.Reg
+								defer func() { t.inPlace = x64context.NoReg }()
+							}
+							op, err := t.emitBinary(s.Operator, dst, value, targetType, valueType, targetType, nil)
+							if err != nil {
+								return err
+							}
+							t.store(op, dst)
+							return nil
+						}
+					}
+				}
+			}
+			op, err := t.compileExpr(stmt.Values[0])
 			if err != nil {
 				return err
 			}
-			t.store(res, memSlot)
+			t.store(op, dst)
+		} else {
+			op, err := t.compileExpr(stmt.Values[0])
+			if err != nil {
+				return err
+			}
+			cOp := stmt.Op[:len(stmt.Op)-1]
+			if r, ok := dst.(Reg); ok && t.ctx.IsHome(r.Reg) && cOp != "/" && cOp != "%" {
+				t.inPlace = r.Reg
+				defer func() { t.inPlace = x64context.NoReg }()
+			}
+			res, err := t.emitBinary(cOp, dst, op, targetType, valueType, targetType, nil)
+			if err != nil {
+				return err
+			}
+			t.store(res, dst)
 		}
-		t.freeOp(memSlot)
+		t.freeOp(dst)
 
 		return nil
 	}

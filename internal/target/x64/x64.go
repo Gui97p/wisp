@@ -89,6 +89,8 @@ type X64Target struct {
 	sites    []callSite
 	funcName string
 
+	inPlace x64context.Register
+
 	libc, trace, snippets, optimize, checks bool
 }
 

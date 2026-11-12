@@ -368,7 +368,7 @@ func (t *X64Target) compileFloatComparison(op string, left, right Operand, leftT
 	case "<", "<=":
 		right, left = left, right
 	}
-	leftReg = t.materializeXmm(left)
+	leftReg = t.readXmm(left)
 	opText := t.opText(right, opSize)
 	if t.err != nil {
 		return nil, t.err
@@ -506,7 +506,7 @@ func (t *X64Target) branchValue(cond ast.Expression, label string, whenTrue bool
 		return err
 	}
 	size := sizeOf(t.info.Types[cond])
-	reg := t.materialize(op, size)
+	reg := t.readReg(op, size)
 	if t.err != nil {
 		return t.err
 	}
@@ -531,7 +531,7 @@ func (t *X64Target) emitCompare(op string, left, right Operand, leftType, rightT
 	}
 
 	opSize := sizeOf(tp)
-	leftReg := t.materialize(left, opSize)
+	leftReg := t.readReg(left, opSize)
 	opText := t.opText(right, opSize)
 	if t.err != nil {
 		return "", t.err
@@ -645,6 +645,15 @@ func (t *X64Target) compileBitwise(op string, left, right Operand, leftType, res
 				}
 				return Reg{leftReg, size}, nil
 			}
+			inst := "shl"
+			if op == ">>" {
+				inst = "shr"
+				if signed {
+					inst = "sar"
+				}
+			}
+			t.text.printft("%s %s, %d\n", inst, reg, o)
+			return Reg{leftReg, size}, nil
 		default:
 			if leftReg == x64context.CX {
 				leftReg = t.ctx.AllocFreeRegister()
@@ -684,7 +693,7 @@ func (t *X64Target) compileBitwise(op string, left, right Operand, leftType, res
 			t.text.printft("xor %s, %s\n", reg, reg)
 		}
 
-		t.text.printf("%s:", doneLabel)
+		t.text.printf("%s:\n", doneLabel)
 
 		if allocated {
 			t.pop(x64context.CX)

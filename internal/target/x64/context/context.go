@@ -86,7 +86,8 @@ func (c *Context) Size() int {
 }
 
 func (c *Context) Reserve(size int) int {
-	c.stackSize += size
+	align := max(min(size, 8), 1)
+	c.stackSize = (c.stackSize + size + align - 1) / align * align
 	return c.stackSize
 }
 
@@ -96,7 +97,8 @@ func (c *Context) AlignTo(align int) int {
 }
 
 func (c *Context) Set(ident *analyser.Symbol, size int) int {
-	c.stackSize += size
+	align := max(min(size, 8), 1)
+	c.stackSize = (c.stackSize + size + align - 1) / align * align
 	c.stackOffset[ident] = c.stackSize
 
 	return c.stackSize

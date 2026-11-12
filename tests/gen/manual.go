@@ -7165,6 +7165,148 @@ func main() {
 }
 `, expected: []string{"let takes a selector, and the version of the profile is the one kept", "let without a selector is the same as before", "a global pointer starts as a converted null", "the pointer can be set later", "null converts to a pointer type in a local too"}},
 
+	{dir: "regs_compound", x64Only: true, src: `func chain(int n) int {
+    int a = 1;
+    for i in 1..n {
+        a += i;
+        a *= 2;
+        a -= 3;
+        a ^= i;
+        a &= 1023;
+        a |= 1;
+        a <<= 1;
+        a >>= 1;
+    }
+    return a;
+}
+
+func reversed(int n) int {
+    int a = 5;
+    for i in 1..n {
+        a = i - a;
+    }
+    return a;
+}
+
+func doubled() int {
+    int8 s = 3;
+    for i in 1..4 {
+        s += s;
+    }
+    return int(s);
+}
+
+func shifts() int {
+    int sh = 3;
+    int v = 1;
+    for i in 1..4 {
+        v <<= sh;
+        v += i;
+    }
+    return v;
+}
+
+func floats() float {
+    float f = 1.0;
+    for i in 1..4 {
+        f *= 1.5;
+        f += 0.25;
+        f -= f / 8.0;
+    }
+    return f;
+}
+
+func wrapped() int {
+    uint8 u = 250;
+    for i in 1..3 {
+        u += 3;
+    }
+    return int(u);
+}
+
+func elements() int {
+    [5]int arr;
+    for i in 0..4 {
+        arr[i] += i * 3;
+    }
+    int sum = 0;
+    for i in 0..4 {
+        sum += arr[i];
+    }
+    return sum;
+}
+
+func main() {
+    check(chain(8) == 475, "every compound operator on a register local");
+    check(reversed(7) == -1, "a = e - a keeps the order of the operands");
+    check(doubled() == 48, "x += x on a small integer wraps");
+    check(shifts() == 4764, "a shift by a variable count");
+    float f = floats();
+    check(f > 4.3448 && f < 4.3449, "compound operators on a float register");
+    check(wrapped() == 3, "an unsigned byte wraps");
+    check(elements() == 30, "compound assignment on an array element");
+}
+`},
+
+	{dir: "regs_index", x64Only: true, src: `struct Pair {
+    int a;
+    int b;
+}
+
+struct Trio {
+    int32 a;
+    int32 b;
+    int32 c;
+}
+
+func pairs(int n) int {
+    [8]Pair ps;
+    for i in 0..n {
+        ps[i].a = i;
+        ps[i].b = i * 2;
+    }
+    int total = 0;
+    for i in 0..n {
+        total += ps[i].a + ps[i].b;
+    }
+    return total + n;
+}
+
+func trios() int {
+    [4]Trio ts;
+    int32 k = 0;
+    loop k < 4 {
+        ts[k].a = k;
+        ts[k].b = k + 1;
+        ts[k].c = k + 2;
+        k++;
+    }
+    int sum = 0;
+    for i in 0..3 {
+        sum += int(ts[i].a) + int(ts[i].b) + int(ts[i].c);
+    }
+    return sum;
+}
+
+func fill(*int p, int n) int {
+    for i in 0..n {
+        p[i] = i * i;
+    }
+    int t = 0;
+    for i in 0..n {
+        t += p[i];
+    }
+    return t;
+}
+
+func main() {
+    check(pairs(7) == 91, "an index into 16 byte elements is not changed by the scaling");
+    check(trios() == 30, "a 32 bit index into 12 byte elements");
+    [8]int buf;
+    check(fill(&buf[0], 5) == 55, "a pointer and an index kept in registers");
+}
+`},
+
 	{dir: "regs_locals", x64Only: true, src: `func mix(int n) int {
     int a = 1;
     int b = 2;

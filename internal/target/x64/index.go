@@ -59,7 +59,12 @@ func (t *X64Target) baseMem(expr ast.Expression) (Mem, Operand, error) {
 		if err != nil {
 			return Mem{}, nil, err
 		}
-		reg := t.materialize(op, 8)
+		var reg x64context.Register
+		if r, ok := op.(Reg); ok {
+			reg = r.Reg
+		} else {
+			reg = t.materialize(op, 8)
+		}
 		base = Mem{Base: reg}
 	case analyser.PrimitiveType:
 		if tp.Name != "string" {
@@ -94,6 +99,9 @@ func (t *X64Target) baseIndex(expr ast.Expression) (Reg, error) {
 	}
 	indexTp := t.info.Types[expr]
 	indexSize := sizeOf(indexTp)
+	if r, ok := index.(Reg); ok && indexSize == 8 {
+		return Reg{r.Reg, 8}, nil
+	}
 	index = t.widen(index, indexTp, 8)
 	reg := t.materialize(index, indexSize)
 
@@ -114,6 +122,14 @@ func (t *X64Target) checkIndexOk(reg Reg, limit Operand, inst, message string) {
 func (t *X64Target) elementAt(base Mem, index Reg, elemSize int) (Mem, error) {
 	scale := elemSize
 	if !slices.Contains([]int{1, 2, 4, 8}, elemSize) {
+		if t.ctx.IsHome(index.Reg) {
+			reg := t.ctx.AllocFreeRegister()
+			if reg == x64context.NoReg {
+				return Mem{}, fmt.Errorf("x86-64: no available registers")
+			}
+			t.loadWord(reg, Reg{index.Reg, 8})
+			index = Reg{reg, 8}
+		}
 		t.scale(index, scale)
 		scale = 1
 	}

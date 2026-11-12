@@ -17,7 +17,12 @@ func (t *X64Target) loadWord(dst x64context.Register, w Operand) {
 	switch o := w.(type) {
 	case Imm:
 		t.rejectSSE(dst, fmt.Sprintf("%d", o))
-		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(dst, 8), o)
+		if o == 0 {
+			reg4 := t.ctx.GetRegister(dst, 4)
+			t.text.printft("xor %s, %s\n", reg4, reg4)
+		} else {
+			t.text.printft("mov %s, %d\n", t.ctx.GetRegister(dst, 8), o)
+		}
 	case Reg:
 		if o.Reg != dst {
 			var inst string

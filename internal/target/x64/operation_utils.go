@@ -217,6 +217,20 @@ func (t *X64Target) freeOp(op Operand) {
 	}
 }
 
+func (t *X64Target) readReg(op Operand, size int) x64context.Register {
+	if r, ok := op.(Reg); ok {
+		return r.Reg
+	}
+	return t.materialize(op, size)
+}
+
+func (t *X64Target) readXmm(op Operand) x64context.Register {
+	if r, ok := op.(Reg); ok {
+		return r.Reg
+	}
+	return t.materializeXmm(op)
+}
+
 func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 	switch o := op.(type) {
 	case Imm:
@@ -228,7 +242,7 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, size), o)
 		return reg
 	case Reg:
-		if t.ctx.IsHome(o.Reg) {
+		if t.ctx.IsHome(o.Reg) && o.Reg != t.inPlace {
 			reg := t.ctx.AllocFreeRegister()
 			if reg == x64context.NoReg {
 				t.fail("x86-64: no available registers")
@@ -265,7 +279,7 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 func (t *X64Target) materializeXmm(op Operand) x64context.Register {
 	switch o := op.(type) {
 	case Reg:
-		if t.ctx.IsHome(o.Reg) {
+		if t.ctx.IsHome(o.Reg) && o.Reg != t.inPlace {
 			reg := t.ctx.AllocFreeXmm()
 			if reg == x64context.NoReg {
 				t.fail("x86-64: no available registers")
