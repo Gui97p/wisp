@@ -2,6 +2,7 @@ package x64
 
 import (
 	"fmt"
+	"math"
 	"math/bits"
 	"slices"
 
@@ -41,30 +42,113 @@ func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightTy
 	}
 }
 
-func (t *X64Target) remainderIsZero(expr *ast.BinaryExpr) (ast.Expression, int64, bool) {
+func (t *X64Target) remainderIsZero(expr *ast.BinaryExpr) (e ast.Expression, mask int64, ok bool) {
 	if expr.Operator != "==" && expr.Operator != "!=" {
-		return nil, 0, false
+		return
 	}
-	b, ok := expr.Left.(*ast.BinaryExpr)
-	if !ok || b.Operator != "%" {
-		return nil, 0, false
+	b, fok := expr.Left.(*ast.BinaryExpr)
+	if !fok || b.Operator != "%" {
+		return
 	}
-	f, ok := t.info.Folded(b.Right)
-	if !ok {
-		return nil, 0, false
+	f, fok := t.info.Folded(b.Right)
+	if !fok {
+		return
 	}
 	n := f.Bits()
 	if !(n > 0 && (n&(n-1)) == 0) || n > 0x7fffffff {
-		return nil, 0, false
+		return
 	}
-	fr, ok := t.info.Folded(expr.Right)
-	if !ok || fr.Bits() != 0 {
-		return nil, 0, false
+	fr, fok := t.info.Folded(expr.Right)
+	if !fok || fr.Bits() != 0 {
+		return
 	}
 	return b.Left, n - 1, true
 }
 
+func (t *X64Target) scaledPlusConst(expr *ast.BinaryExpr) (x ast.Expression, k, disp int64, ok bool) {
+	if expr.Operator != "+" && expr.Operator != "-" {
+		return
+	}
+	tp := t.info.Types[expr]
+	size := sizeOf(tp)
+	if !isInteger(tp) || size < 4 {
+		return
+	}
+	f, fok := t.info.Folded(expr.Right)
+	var mul *ast.BinaryExpr
+	if fok {
+		mul, fok = expr.Left.(*ast.BinaryExpr)
+		if !fok {
+			return
+		}
+	} else {
+		if expr.Operator == "-" {
+			return
+		}
+		f, fok = t.info.Folded(expr.Left)
+		if !fok {
+			return
+		}
+		mul, fok = expr.Right.(*ast.BinaryExpr)
+		if !fok {
+			return
+		}
+	}
+	if mul.Operator != "*" {
+		return
+	}
+	var tf analyser.ConstValue
+	x = mul.Right
+	if tf, fok = t.info.Folded(mul.Left); !fok {
+		tf, fok = t.info.Folded(mul.Right)
+		if !fok {
+			return
+		}
+		x = mul.Left
+	}
+	k = tf.Bits()
+	if !slices.Contains([]int64{2, 3, 4, 5, 8, 9}, k) {
+		return
+	}
+	disp = f.Bits()
+	if expr.Operator == "-" {
+		disp = -disp
+	}
+	if disp < math.MinInt32 || disp > math.MaxInt32 {
+		return
+	}
+
+	ok = true
+	return
+}
+
 func (t *X64Target) compileScalarBinary(expr *ast.BinaryExpr) (Operand, error) {
+	if x, k, disp, ok := t.scaledPlusConst(expr); ok {
+		op, err := t.compileExpr(x)
+		if err != nil {
+			return nil, err
+		}
+		size := sizeOf(t.info.Types[expr])
+		reg := t.readReg(op, size)
+		dst := t.ctx.AllocFreeRegister()
+		if dst == x64context.NoReg {
+			return nil, fmt.Errorf("no register avaiable")
+		}
+		r := t.ctx.GetRegister(reg, 8)
+		d := t.ctx.GetRegister(dst, size)
+		switch k {
+		case 3, 5, 9:
+			t.text.printft("lea %s, [%s + %s*%d %+d]\n", d, r, r, k-1, disp)
+		case 2:
+			t.text.printft("lea %s, [%s + %s %+d]\n", d, r, r, disp)
+		case 4, 8:
+			t.text.printft("lea %s, [%s*%d %+d]\n", d, r, k, disp)
+		}
+		t.ctx.FreeRegister(reg)
+		t.freeOp(op)
+		return Reg{dst, size}, nil
+	}
+
 	if x, mask, ok := t.remainderIsZero(expr); ok {
 		op, err := t.compileExpr(x)
 		if err != nil {
@@ -72,6 +156,9 @@ func (t *X64Target) compileScalarBinary(expr *ast.BinaryExpr) (Operand, error) {
 		}
 		size := sizeOf(t.info.Types[x])
 		result := t.ctx.AllocFreeRegister()
+		if result == x64context.NoReg {
+			return nil, fmt.Errorf("no register avaiable")
+		}
 		resultStr := t.ctx.GetRegister(result, 1)
 		t.text.printft("xor %s, %s\n", resultStr, resultStr)
 		t.text.printft("test %s, %d\n", t.opText(op, size), mask)
@@ -376,11 +463,17 @@ func (t *X64Target) divideByConstant(op string, reg x64context.Register, imm int
 			switch {
 			case imm == 1:
 			case signed:
-				t.text.printft("mov %s, %s\n", tmpStr, regStr)
-				t.text.printft("sar %s, %d\n", tmpStr, w-1)
-				t.text.printft("shr %s, %d\n", tmpStr, w-k)
-				t.text.printft("add %s, %s\n", regStr, tmpStr)
-				t.text.printft("sar %s, %d\n", regStr, k)
+				if k == 1 {
+					t.text.printft("mov %s, %s\n", tmpStr, regStr)
+					t.text.printft("shr %s, %d\n", tmpStr, w-k)
+					t.text.printft("add %s, %s\n", regStr, tmpStr)
+					t.text.printft("sar %s, %d\n", regStr, k)
+				} else {
+					t.text.printft("lea %s, [%s + %d]\n", tmpStr, t.ctx.GetRegister(reg, 8), imm-1)
+					t.text.printft("test %s, %s\n", regStr, regStr)
+					t.text.printft("cmovs %s, %s\n", regStr, tmpStr)
+					t.text.printft("sar %s, %d\n", regStr, k)
+				}
 			default:
 				t.text.printft("shr %s, %d\n", regStr, k)
 			}
@@ -390,10 +483,15 @@ func (t *X64Target) divideByConstant(op string, reg x64context.Register, imm int
 				regStr32 := t.ctx.GetRegister(reg, 4)
 				t.text.printft("xor %s, %s\n", regStr32, regStr32)
 			case signed:
-				t.text.printft("mov %s, %s\n", tmpStr, regStr)
-				t.text.printft("sar %s, %d\n", tmpStr, w-1)
-				t.text.printft("shr %s, %d\n", tmpStr, w-k)
-				t.text.printft("add %s, %s\n", tmpStr, regStr)
+				if k == 1 {
+					t.text.printft("mov %s, %s\n", tmpStr, regStr)
+					t.text.printft("shr %s, %d\n", tmpStr, w-k)
+					t.text.printft("add %s, %s\n", tmpStr, regStr)
+				} else {
+					t.text.printft("lea %s, [%s+%d]\n", tmpStr, t.ctx.GetRegister(reg, 8), imm-1)
+					t.text.printft("test %s, %s\n", regStr, regStr)
+					t.text.printft("cmovns %s, %s\n", tmpStr, regStr)
+				}
 				t.text.printft("and %s, %d\n", tmpStr, -imm)
 				t.text.printft("sub %s, %s\n", regStr, tmpStr)
 			default:

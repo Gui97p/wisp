@@ -7166,6 +7166,83 @@ func main() {
 }
 `, expected: []string{"let takes a selector, and the version of the profile is the one kept", "let without a selector is the same as before", "a global pointer starts as a converted null", "the pointer can be set later", "null converts to a pointer type in a local too"}},
 
+	{dir: "arith_pow2_lea", x64Only: true, src: `func d2(int x) int { return x / 2; }
+func d8(int x) int { return x / 8; }
+func dbig(int x) int { return x / 1073741824; }
+func m2(int x) int { return x % 2; }
+func m8(int x) int { return x % 8; }
+func mbig(int x) int { return x % 1073741824; }
+func e2(int32 x) int32 { return x / 2; }
+func e8(int32 x) int32 { return x / 8; }
+func f2(int32 x) int32 { return x % 2; }
+func f8(int32 x) int32 { return x % 8; }
+func u8(uint x) uint { return x / 8 + x % 8; }
+func l1(int n) int { return 3 * n + 1; }
+func l2(int n) int { return n * 3 - 5; }
+func l3(int n) int { return 1 + 5 * n; }
+func l4(int n) int { return n * 9 + 100; }
+func l5(int n) int { return n * 2 + 7; }
+func l6(int n) int { return n * 4 - 1; }
+func l7(int32 n) int32 { return n * 9 + 7; }
+func l8(int8 n) int8 { return n * 3 + 1; }
+
+func main() {
+    check(d2(-1073741825) == -536870912 && d8(-1073741825) == -134217728 && dbig(-1073741825) == -1 && m2(-1073741825) == -1 && m8(-1073741825) == -1 && mbig(-1073741825) == -1, "signed 64 bit division and remainder of -1073741825");
+    check(d2(-1073741824) == -536870912 && d8(-1073741824) == -134217728 && dbig(-1073741824) == -1 && m2(-1073741824) == 0 && m8(-1073741824) == 0 && mbig(-1073741824) == 0, "signed 64 bit division and remainder of -1073741824");
+    check(d2(-17) == -8 && d8(-17) == -2 && dbig(-17) == 0 && m2(-17) == -1 && m8(-17) == -1 && mbig(-17) == -17, "signed 64 bit division and remainder of -17");
+    check(d2(-16) == -8 && d8(-16) == -2 && dbig(-16) == 0 && m2(-16) == 0 && m8(-16) == 0 && mbig(-16) == -16, "signed 64 bit division and remainder of -16");
+    check(d2(-9) == -4 && d8(-9) == -1 && dbig(-9) == 0 && m2(-9) == -1 && m8(-9) == -1 && mbig(-9) == -9, "signed 64 bit division and remainder of -9");
+    check(d2(-8) == -4 && d8(-8) == -1 && dbig(-8) == 0 && m2(-8) == 0 && m8(-8) == 0 && mbig(-8) == -8, "signed 64 bit division and remainder of -8");
+    check(d2(-7) == -3 && d8(-7) == 0 && dbig(-7) == 0 && m2(-7) == -1 && m8(-7) == -7 && mbig(-7) == -7, "signed 64 bit division and remainder of -7");
+    check(d2(-2) == -1 && d8(-2) == 0 && dbig(-2) == 0 && m2(-2) == 0 && m8(-2) == -2 && mbig(-2) == -2, "signed 64 bit division and remainder of -2");
+    check(d2(-1) == 0 && d8(-1) == 0 && dbig(-1) == 0 && m2(-1) == -1 && m8(-1) == -1 && mbig(-1) == -1, "signed 64 bit division and remainder of -1");
+    check(d2(0) == 0 && d8(0) == 0 && dbig(0) == 0 && m2(0) == 0 && m8(0) == 0 && mbig(0) == 0, "signed 64 bit division and remainder of 0");
+    check(d2(1) == 0 && d8(1) == 0 && dbig(1) == 0 && m2(1) == 1 && m8(1) == 1 && mbig(1) == 1, "signed 64 bit division and remainder of 1");
+    check(d2(2) == 1 && d8(2) == 0 && dbig(2) == 0 && m2(2) == 0 && m8(2) == 2 && mbig(2) == 2, "signed 64 bit division and remainder of 2");
+    check(d2(7) == 3 && d8(7) == 0 && dbig(7) == 0 && m2(7) == 1 && m8(7) == 7 && mbig(7) == 7, "signed 64 bit division and remainder of 7");
+    check(d2(8) == 4 && d8(8) == 1 && dbig(8) == 0 && m2(8) == 0 && m8(8) == 0 && mbig(8) == 8, "signed 64 bit division and remainder of 8");
+    check(d2(9) == 4 && d8(9) == 1 && dbig(9) == 0 && m2(9) == 1 && m8(9) == 1 && mbig(9) == 9, "signed 64 bit division and remainder of 9");
+    check(d2(16) == 8 && d8(16) == 2 && dbig(16) == 0 && m2(16) == 0 && m8(16) == 0 && mbig(16) == 16, "signed 64 bit division and remainder of 16");
+    check(d2(17) == 8 && d8(17) == 2 && dbig(17) == 0 && m2(17) == 1 && m8(17) == 1 && mbig(17) == 17, "signed 64 bit division and remainder of 17");
+    check(d2(1073741824) == 536870912 && d8(1073741824) == 134217728 && dbig(1073741824) == 1 && m2(1073741824) == 0 && m8(1073741824) == 0 && mbig(1073741824) == 0, "signed 64 bit division and remainder of 1073741824");
+    check(d2(1073741825) == 536870912 && d8(1073741825) == 134217728 && dbig(1073741825) == 1 && m2(1073741825) == 1 && m8(1073741825) == 1 && mbig(1073741825) == 1, "signed 64 bit division and remainder of 1073741825");
+    check(d2(4611686018427387904) == 2305843009213693952 && d8(4611686018427387904) == 576460752303423488 && dbig(4611686018427387904) == 4294967296 && m2(4611686018427387904) == 0 && m8(4611686018427387904) == 0 && mbig(4611686018427387904) == 0, "signed 64 bit division and remainder of 4611686018427387904");
+    check(d2(9223372036854775807) == 4611686018427387903 && d8(9223372036854775807) == 1152921504606846975 && dbig(9223372036854775807) == 8589934591 && m2(9223372036854775807) == 1 && m8(9223372036854775807) == 7 && mbig(9223372036854775807) == 1073741823, "signed 64 bit division and remainder of 9223372036854775807");
+    check(d2(-9223372036854775807) == -4611686018427387903 && d8(-9223372036854775807) == -1152921504606846975 && dbig(-9223372036854775807) == -8589934591 && m2(-9223372036854775807) == -1 && m8(-9223372036854775807) == -7 && mbig(-9223372036854775807) == -1073741823, "signed 64 bit division and remainder of -9223372036854775807");
+    check(e2(-2147483647) == -1073741823 && e8(-2147483647) == -268435455 && f2(-2147483647) == -1 && f8(-2147483647) == -7, "signed 32 bit division and remainder of -2147483647");
+    check(e2(-1073741825) == -536870912 && e8(-1073741825) == -134217728 && f2(-1073741825) == -1 && f8(-1073741825) == -1, "signed 32 bit division and remainder of -1073741825");
+    check(e2(-17) == -8 && e8(-17) == -2 && f2(-17) == -1 && f8(-17) == -1, "signed 32 bit division and remainder of -17");
+    check(e2(-9) == -4 && e8(-9) == -1 && f2(-9) == -1 && f8(-9) == -1, "signed 32 bit division and remainder of -9");
+    check(e2(-8) == -4 && e8(-8) == -1 && f2(-8) == 0 && f8(-8) == 0, "signed 32 bit division and remainder of -8");
+    check(e2(-7) == -3 && e8(-7) == 0 && f2(-7) == -1 && f8(-7) == -7, "signed 32 bit division and remainder of -7");
+    check(e2(-1) == 0 && e8(-1) == 0 && f2(-1) == -1 && f8(-1) == -1, "signed 32 bit division and remainder of -1");
+    check(e2(0) == 0 && e8(0) == 0 && f2(0) == 0 && f8(0) == 0, "signed 32 bit division and remainder of 0");
+    check(e2(1) == 0 && e8(1) == 0 && f2(1) == 1 && f8(1) == 1, "signed 32 bit division and remainder of 1");
+    check(e2(7) == 3 && e8(7) == 0 && f2(7) == 1 && f8(7) == 7, "signed 32 bit division and remainder of 7");
+    check(e2(8) == 4 && e8(8) == 1 && f2(8) == 0 && f8(8) == 0, "signed 32 bit division and remainder of 8");
+    check(e2(9) == 4 && e8(9) == 1 && f2(9) == 1 && f8(9) == 1, "signed 32 bit division and remainder of 9");
+    check(e2(17) == 8 && e8(17) == 2 && f2(17) == 1 && f8(17) == 1, "signed 32 bit division and remainder of 17");
+    check(e2(1073741824) == 536870912 && e8(1073741824) == 134217728 && f2(1073741824) == 0 && f8(1073741824) == 0, "signed 32 bit division and remainder of 1073741824");
+    check(e2(2147483647) == 1073741823 && e8(2147483647) == 268435455 && f2(2147483647) == 1 && f8(2147483647) == 7, "signed 32 bit division and remainder of 2147483647");
+    check(u8(1000) == 125 && u8(18446744073709551615) == 2305843009213693958, "unsigned division and remainder");
+    check(l1(-7) == -20 && l2(-7) == -26 && l3(-7) == -34 && l4(-7) == 37 && l5(-7) == -7 && l6(-7) == -29, "multiply by a constant and add one of -7");
+    check(l1(0) == 1 && l2(0) == -5 && l3(0) == 1 && l4(0) == 100 && l5(0) == 7 && l6(0) == -1, "multiply by a constant and add one of 0");
+    check(l1(1) == 4 && l2(1) == -2 && l3(1) == 6 && l4(1) == 109 && l5(1) == 9 && l6(1) == 3, "multiply by a constant and add one of 1");
+    check(l1(5) == 16 && l2(5) == 10 && l3(5) == 26 && l4(5) == 145 && l5(5) == 17 && l6(5) == 19, "multiply by a constant and add one of 5");
+    check(l1(100) == 301 && l2(100) == 295 && l3(100) == 501 && l4(100) == 1000 && l5(100) == 207 && l6(100) == 399, "multiply by a constant and add one of 100");
+    check(l1(1000000007) == 3000000022 && l2(1000000007) == 3000000016 && l3(1000000007) == 5000000036 && l4(1000000007) == 9000000163 && l5(1000000007) == 2000000021 && l6(1000000007) == 4000000027, "multiply by a constant and add one of 1000000007");
+    check(l7(0) == 7, "32 bit multiply and add wraps for 0");
+    check(l7(5) == 52, "32 bit multiply and add wraps for 5");
+    check(l7(300000000) == -1594967289, "32 bit multiply and add wraps for 300000000");
+    check(l7(-300000000) == 1594967303, "32 bit multiply and add wraps for -300000000");
+    check(l7(2147483647) == 2147483646, "32 bit multiply and add wraps for 2147483647");
+    check(int(l8(0)) == 1, "8 bit multiply and add wraps for 0");
+    check(int(l8(10)) == 31, "8 bit multiply and add wraps for 10");
+    check(int(l8(100)) == 45, "8 bit multiply and add wraps for 100");
+    check(int(l8(-100)) == -43, "8 bit multiply and add wraps for -100");
+}
+`, expected: []string{"signed 64 bit division and remainder of -1073741825", "signed 64 bit division and remainder of -1073741824", "signed 64 bit division and remainder of -17", "signed 64 bit division and remainder of -16", "signed 64 bit division and remainder of -9", "signed 64 bit division and remainder of -8", "signed 64 bit division and remainder of -7", "signed 64 bit division and remainder of -2", "signed 64 bit division and remainder of -1", "signed 64 bit division and remainder of 0", "signed 64 bit division and remainder of 1", "signed 64 bit division and remainder of 2", "signed 64 bit division and remainder of 7", "signed 64 bit division and remainder of 8", "signed 64 bit division and remainder of 9", "signed 64 bit division and remainder of 16", "signed 64 bit division and remainder of 17", "signed 64 bit division and remainder of 1073741824", "signed 64 bit division and remainder of 1073741825", "signed 64 bit division and remainder of 4611686018427387904", "signed 64 bit division and remainder of 9223372036854775807", "signed 64 bit division and remainder of -9223372036854775807", "signed 32 bit division and remainder of -2147483647", "signed 32 bit division and remainder of -1073741825", "signed 32 bit division and remainder of -17", "signed 32 bit division and remainder of -9", "signed 32 bit division and remainder of -8", "signed 32 bit division and remainder of -7", "signed 32 bit division and remainder of -1", "signed 32 bit division and remainder of 0", "signed 32 bit division and remainder of 1", "signed 32 bit division and remainder of 7", "signed 32 bit division and remainder of 8", "signed 32 bit division and remainder of 9", "signed 32 bit division and remainder of 17", "signed 32 bit division and remainder of 1073741824", "signed 32 bit division and remainder of 2147483647", "unsigned division and remainder", "multiply by a constant and add one of -7", "multiply by a constant and add one of 0", "multiply by a constant and add one of 1", "multiply by a constant and add one of 5", "multiply by a constant and add one of 100", "multiply by a constant and add one of 1000000007", "32 bit multiply and add wraps for 0", "32 bit multiply and add wraps for 5", "32 bit multiply and add wraps for 300000000", "32 bit multiply and add wraps for -300000000", "32 bit multiply and add wraps for 2147483647", "8 bit multiply and add wraps for 0", "8 bit multiply and add wraps for 10", "8 bit multiply and add wraps for 100", "8 bit multiply and add wraps for -100"}},
+
 	{dir: "regs_inline", x64Only: true, src: `int counter;
 
 func bump() {
