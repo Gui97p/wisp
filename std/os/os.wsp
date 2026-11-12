@@ -65,3 +65,27 @@ public func sync(int fd) ! {
 public func isatty(int fd) bool {
 	return sys.isatty(fd);
 }
+
+public func getenv(string name) (string, bool) {
+	**byte env = sys.environ();
+	if env == null {
+		return "", false;
+	}
+	for i in 0..1000000 {
+		*byte entry = env[i];
+		if entry == null {
+			break;
+		}
+		int n;
+		loop entry[n] != '\0' {
+			n++;
+		}
+		string line = string(entry[:n]);
+		if len(line) > len(name) && line[len(name)] == '=' && line[:len(name)] == name {
+			return line[len(name)+1:], true;
+		}
+	}
+	return "", false;
+}
+
+public inline func args() []string => sys.args();

@@ -171,17 +171,9 @@ func (a *Analyser) warnUnusedParams(fd *ast.FuncDecl, params []*Symbol) {
 
 func (a *Analyser) checkMainFunc(fd *ast.FuncDecl) {
 	params := []Type{}
-	switch {
-	case len(fd.Params) == 0:
-	case len(fd.Params) == 1 && !fd.Params[0].Variadic && !fd.Params[0].Any:
-		t := a.resolveTypeRef(fd, a.scope, fd.Params[0].Type)
-		want := SpanType{Element: PrimitiveType{Name: "string"}}
-		if t != nil && !t.Equals(want) {
-			a.errorf(fd, "main takes the arguments as []string, got %s", t.String())
-		}
-		params = append(params, want)
-	default:
-		a.error(fd, "main takes no parameters, or a single []string with the arguments")
+	if len(fd.Params) > 0 {
+		a.error(fd, "main takes no parameters").
+			WithHelp("read the arguments of the program with os.args()")
 	}
 
 	returns := []Type{}

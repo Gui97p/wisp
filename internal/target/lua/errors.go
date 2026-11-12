@@ -244,13 +244,6 @@ func (t *LuaTarget) entryErrorCheck() string {
 	prelude, call := "", "main()"
 	for _, d := range t.program.Declarations {
 		fd, ok := d.(*ast.FuncDecl)
-		if ok && fd.Name == "main" && fd.Receiver == nil && len(fd.Params) == 1 {
-			prelude = "local __args = __wisp_pack(table.unpack(arg, 1, #arg))\n"
-			call = "main(__args)"
-		}
-	}
-	for _, d := range t.program.Declarations {
-		fd, ok := d.(*ast.FuncDecl)
 		if !ok || fd.Name != "main" || fd.Receiver != nil || !fd.Fallible {
 			continue
 		}

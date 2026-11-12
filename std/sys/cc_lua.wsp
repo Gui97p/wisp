@@ -255,6 +255,7 @@ shared func getcwd(*byte buf, int n) int {
 }
 
 shared native environ() **byte r => "r = nil";
+shared native args() []string s => "s = __wisp_pack(table.unpack(arg, 0, #arg))";
 
 shared func time(int clock) (int, int) {
 	sys.Timespec ts;

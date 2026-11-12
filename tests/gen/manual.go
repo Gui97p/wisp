@@ -1127,14 +1127,15 @@ func main() {
 
 }
 `, expected: []string{"an array variable passes as a slice", "the slice is a view of the array", "an array initialises a slice variable", "an array is assigned to a slice", "an array field passes as a slice", "an array element passes as a slice", "an explicit slice still works", "an array literal passes as a slice"}},
-	{dir: "main_args", luaOnly: true, src: `func main([]string args) !int {
-    check(len(args) == 0, "main receives the arguments as a string[]");
-    for _, a in args {
-        emit(a);
-    }
+	{dir: "main_args", src: `import "std/os";
+
+func main() !int {
+    []string args = os.args();
+    check(len(args) >= 1, "os.args() has at least the name of the program");
+    check(len(args[0]) > 0, "the first argument is the name of the program");
     return 0;
 }
-`, expected: []string{"main receives the arguments as a string[]"}},
+`, expected: []string{"os.args() has at least the name of the program", "the first argument is the name of the program"}},
 	{dir: "cyclic_modules", files: map[string]string{"world.wsp": `import "entity";
 
 public struct World {

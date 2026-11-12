@@ -4,6 +4,8 @@ global __wisp_panic_at
 global __wisp_panic
 extern __wisp_main
 global __wisp_envp
+global __wisp_args_ptr
+global __wisp_args_len
 
 %if WISP_TRACE
 global __wisp_site
@@ -29,6 +31,8 @@ section .rodata
 
 section .bss
 __wisp_envp: resq 1
+__wisp_args_ptr: resq 1
+__wisp_args_len: resq 1
 __wisp_exit_hook: resq 1
 
 section .text
@@ -266,8 +270,8 @@ main:
 	jmp .loop
 
 .endloop:
-	mov rsi, rdi
-	mov rdi, rsp
+	mov [rel __wisp_args_ptr], rsp
+	mov [rel __wisp_args_len], rdi
 	call __wisp_main
 __wisp_after_main:
 	push rax

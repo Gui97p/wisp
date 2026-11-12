@@ -119,6 +119,9 @@ shared native getcwd(*byte buf, int n) int r =>
 shared native environ() **byte r =>
 		"extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
 
+shared native args() []string s =>
+	"extern __wisp_args_ptr; extern __wisp_args_len; mov rax, [rel __wisp_args_ptr]; mov {s.ptr}, rax; mov rax, [rel __wisp_args_len]; mov {s.len}, rax";
+
 shared func parseDirent(*byte buf, int pos) (string, int, int) {
 	int start = pos + 19;
 	int end = start;
