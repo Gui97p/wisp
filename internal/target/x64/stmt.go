@@ -406,6 +406,7 @@ func (t *X64Target) loopCondition(cond ast.Expression, breakLabel string, until 
 
 func (t *X64Target) compileLoopStmt(stmt *ast.LoopStmt) error {
 	condLabel := t.newLabel("cond")
+	bodyLabel := t.newLabel("body")
 
 	ctx := x64context.LoopContext{
 		Label:            stmt.Label,
@@ -417,25 +418,29 @@ func (t *X64Target) compileLoopStmt(stmt *ast.LoopStmt) error {
 	t.pushLoop(ctx)
 	defer t.ctx.PopLoop()
 
-	t.text.printf("%s:\n", condLabel)
-
-	if err := t.loopCondition(stmt.Condition, ctx.BreakLabel, false); err != nil {
-		return err
+	if stmt.Condition != nil {
+		t.text.printft("jmp %s\n", condLabel)
 	}
-
+	t.text.printf("%s:\n", bodyLabel)
 	if err := t.compileStatement(stmt.Body); err != nil {
 		return err
 	}
 
 	t.text.printf("%s:\n", ctx.ContinueLabel)
-
 	if err := t.loopCondition(stmt.UntilCondition, ctx.BreakLabel, true); err != nil {
 		return err
 	}
 
-	t.text.printft("jmp %s\n", condLabel)
-	t.text.printf("%s:\n", ctx.BreakLabel)
+	t.text.printf("%s:\n", condLabel)
+	if stmt.Condition == nil {
+		t.text.printft("jmp %s\n", bodyLabel)
+	} else {
+		if err := t.loopCondition(stmt.Condition, bodyLabel, true); err != nil {
+			return err
+		}
+	}
 
+	t.text.printf("%s:\n", ctx.BreakLabel)
 	return nil
 }
 

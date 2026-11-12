@@ -45,7 +45,7 @@ type inlineFrame struct {
 }
 
 type loopState struct {
-	p, n, i *analyser.Symbol
+	p, n, i, count *analyser.Symbol
 }
 
 type X64Target struct {

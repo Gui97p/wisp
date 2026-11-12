@@ -429,9 +429,9 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	return t.compileFuncBody(name, display+fd.Name, t.isEntry && fd.Name == "main", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
 }
 
-func (t *X64Target) synthetic(name string, at ast.Node, order int) *analyser.Symbol {
+func (t *X64Target) synthetic(name string, tp analyser.Type, at ast.Node, order int) *analyser.Symbol {
 	line, col := at.Position()
-	return &analyser.Symbol{Name: name, Kind: analyser.VAR, Type: analyser.PrimitiveType{Name: "int"}, Line: line, Col: col + order}
+	return &analyser.Symbol{Name: name, Kind: analyser.VAR, Type: tp, Line: line, Col: col + order}
 }
 
 func (t *X64Target) weigh(root ast.Node, depth int, weight map[*analyser.Symbol]int, barred map[*analyser.Symbol]bool) {
@@ -451,21 +451,26 @@ func (t *X64Target) weigh(root ast.Node, depth int, weight map[*analyser.Symbol]
 				weight[vs[1]] += 2 << (3 * min(depth+1, 8))
 			}
 			if n.Range != nil {
+				intTp := analyser.PrimitiveType{Name: "int"}
 				st := &loopState{
-					i: t.synthetic("__wisp_for_i", n, 2),
+					i: t.synthetic("__wisp_for_i", intTp, n, 2),
 				}
 				t.loopSyms[n] = st
 				b := 1 << (3 * min(depth+1, 8))
 				weight[st.i] += 3 * b
 				tp := t.info.Types[n.Range]
 				if _, ok := tp.(analyser.ArrayType); !ok {
-					st.n = t.synthetic("__wisp_for_n", n, 1)
+					st.n = t.synthetic("__wisp_for_n", intTp, n, 1)
 					weight[st.n] += b
 				}
 				if n.Var2 != "" {
-					st.p = t.synthetic("__wisp_for_p", n, 0)
+					st.p = t.synthetic("__wisp_for_p", intTp, n, 0)
 					weight[st.p] += b
 				}
+			} else if n.Start == nil {
+				st := &loopState{count: t.synthetic("__wisp_for_count", t.info.Types[n.End], n, 0)}
+				t.loopSyms[n] = st
+				weight[st.count] += 2 << (3 * min(depth+1, 8))
 			}
 			return false
 		case *ast.LoopStmt:
