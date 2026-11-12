@@ -964,8 +964,17 @@ func (t *X64Target) compileCoalesce(expr *ast.CoalesceExpr) ([]Operand, error) {
 	t.text.printft("jz %s\n", endLabel)
 	t.ctx.FreeRegister(reg)
 
+	var lastYield ast.Statement
+	if expr.Block != nil {
+		block := expr.Block.(*ast.BlockStmt)
+		l := len(block.Statements)
+		if l > 0 && isYield(block.Statements[l-1]) {
+			lastYield = block.Statements[l-1]
+		}
+	}
+
 	t.collectVariables(expr.Block)
-	t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{slots: slots, end: endLabel, deferDepth: len(t.deferScopes)})
+	t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{slots: slots, end: endLabel, deferDepth: len(t.deferScopes), lastYield: lastYield})
 	err = t.compileStatement(expr.Block)
 	t.coalesceFrames = t.coalesceFrames[:len(t.coalesceFrames)-1]
 	if err != nil {

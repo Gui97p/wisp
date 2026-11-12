@@ -18,6 +18,7 @@ type coalesceFrame struct {
 	slots      []Mem
 	end        string
 	deferDepth int
+	lastYield  ast.Statement
 }
 
 type callSite struct {

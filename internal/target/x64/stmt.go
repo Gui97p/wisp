@@ -366,7 +366,7 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 		if err := t.compileStatement(stmt.Then); err != nil {
 			return err
 		}
-		if !(folded || endsInReturn) {
+		if !(folded || endsInReturn || stmt.Else == nil) {
 			t.text.printft("jmp %s\n", endLabel)
 		}
 	}
@@ -504,6 +504,8 @@ func (t *X64Target) compileYieldStmt(stmt *ast.YieldStmt) error {
 	if err := t.emitDefers(frame.deferDepth, false); err != nil {
 		return err
 	}
-	t.text.printft("jmp %s\n", frame.end)
+	if stmt != frame.lastYield {
+		t.text.printft("jmp %s\n", frame.end)
+	}
 	return nil
 }

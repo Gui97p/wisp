@@ -41,7 +41,49 @@ func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightTy
 	}
 }
 
+func (t *X64Target) remainderIsZero(expr *ast.BinaryExpr) (ast.Expression, int64, bool) {
+	if expr.Operator != "==" && expr.Operator != "!=" {
+		return nil, 0, false
+	}
+	b, ok := expr.Left.(*ast.BinaryExpr)
+	if !ok || b.Operator != "%" {
+		return nil, 0, false
+	}
+	f, ok := t.info.Folded(b.Right)
+	if !ok {
+		return nil, 0, false
+	}
+	n := f.Bits()
+	if !(n > 0 && (n&(n-1)) == 0) || n > 0x7fffffff {
+		return nil, 0, false
+	}
+	fr, ok := t.info.Folded(expr.Right)
+	if !ok || fr.Bits() != 0 {
+		return nil, 0, false
+	}
+	return b.Left, n - 1, true
+}
+
 func (t *X64Target) compileScalarBinary(expr *ast.BinaryExpr) (Operand, error) {
+	if x, mask, ok := t.remainderIsZero(expr); ok {
+		op, err := t.compileExpr(x)
+		if err != nil {
+			return nil, err
+		}
+		size := sizeOf(t.info.Types[x])
+		result := t.ctx.AllocFreeRegister()
+		resultStr := t.ctx.GetRegister(result, 1)
+		t.text.printft("xor %s, %s\n", resultStr, resultStr)
+		t.text.printft("test %s, %d\n", t.opText(op, size), mask)
+		sOp := "z"
+		if expr.Operator == "!=" {
+			sOp = "nz"
+		}
+		t.text.printft("set%s %s\n", sOp, resultStr)
+		t.freeOp(op)
+		return Reg{result, 1}, nil
+	}
+
 	left, err := t.compileExpr(expr.Left)
 	if err != nil {
 		return nil, err
@@ -168,9 +210,7 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 
 	if op == "*" {
 		if _, ok := left.(Imm); ok {
-			if _, ok := right.(Mem); ok {
-				left, right = right, left
-			}
+			left, right = right, left
 		}
 
 		if m, ok := left.(Mem); ok {
@@ -181,6 +221,19 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 				}
 				t.text.printft("imul %s, %s, %d\n", t.ctx.GetRegister(dst, size), t.memText(m), i)
 				t.freeOp(left)
+				return Reg{dst, size}, nil
+			}
+		} else if i, ok := right.(Imm); ok {
+			if i == 1 {
+				return Reg{t.materialize(left, size), size}, nil
+			} else if i > 0 && (i&(i-1)) == 0 {
+				dst := t.materialize(left, size)
+				t.text.printft("shl %s, %d\n", t.ctx.GetRegister(dst, size), bits.TrailingZeros(uint(i)))
+				return Reg{dst, size}, nil
+			} else if (i == 3 || i == 5 || i == 9) && size >= 4 {
+				dst := t.materialize(left, size)
+				dstStr := t.ctx.GetRegister(dst, size)
+				t.text.printft("lea %s, [%s + %s*%d]\n", dstStr, dstStr, dstStr, i-1)
 				return Reg{dst, size}, nil
 			}
 		}
@@ -473,6 +526,25 @@ func (t *X64Target) fusableComparison(c *ast.BinaryExpr) bool {
 }
 
 func (t *X64Target) branchCompare(c *ast.BinaryExpr, label string, whenTrue bool) error {
+	if x, mask, ok := t.remainderIsZero(c); ok {
+		op, err := t.compileExpr(x)
+		if err != nil {
+			return err
+		}
+		size := sizeOf(t.info.Types[x])
+		reg := t.readReg(op, size)
+		t.text.printft("test %s, %d\n", t.ctx.GetRegister(reg, size), mask)
+		jumpIfZero := (c.Operator == "==") == whenTrue
+		cOp := "jnz"
+		if jumpIfZero {
+			cOp = "jz"
+		}
+		t.ctx.FreeRegister(reg)
+		t.freeOp(op)
+		t.text.printft("%s %s\n", cOp, label)
+		return nil
+	}
+
 	left, err := t.compileExpr(c.Left)
 	if err != nil {
 		return err
@@ -542,7 +614,12 @@ func (t *X64Target) emitCompare(op string, left, right Operand, leftType, rightT
 		ccop = setccOperators[op]
 	}
 
-	t.text.printft("cmp %s, %s\n", t.ctx.GetRegister(leftReg, opSize), opText)
+	leftStr := t.ctx.GetRegister(leftReg, opSize)
+	if i, ok := right.(Imm); ok && i == 0 {
+		t.text.printft("test %s, %s\n", leftStr, leftStr)
+	} else {
+		t.text.printft("cmp %s, %s\n", leftStr, opText)
+	}
 
 	t.ctx.FreeRegister(leftReg)
 	t.freeOp(right)

@@ -381,6 +381,11 @@ func isReturn(stmt ast.Statement) bool {
 	return ok
 }
 
+func isYield(stmt ast.Statement) bool {
+	_, ok := stmt.(*ast.YieldStmt)
+	return ok
+}
+
 const descriptorMagic = 0x57495350
 
 func (t *X64Target) emitDescriptor(name string) {
