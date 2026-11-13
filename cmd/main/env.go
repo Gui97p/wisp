@@ -8,6 +8,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/target"
+	"github.com/Gui97p/wisp/internal/toolchain"
 	"github.com/Gui97p/wisp/internal/version"
 	"github.com/spf13/cobra"
 )
@@ -107,6 +108,9 @@ func runEnv(cmd *cobra.Command, args []string) error {
 			envEntry{"asm", out.asmDir},
 			envEntry{"libc", fmt.Sprint(useLibc(cfg, tgt))},
 			envEntry{"link", strings.Join(append(append(append([]string{}, tgt.LinkArgs...), cfg.Link...), cfg.ProgramLink...), " ")},
+			envEntry{"nasm", toolDescription("nasm")},
+			envEntry{"linker", toolDescription(linkerNames(useLibc(cfg, tgt))...)},
+			envEntry{"archiver", toolDescription("llvm-ar", "ar")},
 		)
 	case "lua":
 		entry, objDir := resolveLuaPaths(root, cfg, tgt)
@@ -137,6 +141,21 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%-*s  %s\n", width, e.key, e.value)
 	}
 	return nil
+}
+
+func linkerNames(libc bool) []string {
+	if libc {
+		return []string{"cc"}
+	}
+	return []string{"ld.lld", "ld"}
+}
+
+func toolDescription(names ...string) string {
+	path, err := toolchain.Find(names...)
+	if err != nil {
+		return "(not found)"
+	}
+	return path
 }
 
 func configPath(root string) string {

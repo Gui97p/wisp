@@ -110,8 +110,8 @@ func (c *Config) RunEnv() []EnvVar {
 
 type TargetConfig struct {
 	Arch    string   `toml:"arch" doc:"CPU architecture of a system of your own that has just one. A system with several writes a [targets.<os>.<arch>] table for each instead."`
-	ABI     string   `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
-	Format  string   `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
+	ABI     string   `toml:"abi" doc:"Calling convention: sysv (the default) or win64."`
+	Format  string   `toml:"format" doc:"Object format: elf64 (the default) or win64."`
 	Entry   string   `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
 	Runtime string   `toml:"runtime" doc:"Assembly file with the runtime routines (allocation, panic, I/O) for this system."`
 	Start   string   `toml:"start" doc:"Assembly file that calls main and leaves the program. Required for systems of your own."`
@@ -122,8 +122,8 @@ type TargetConfig struct {
 }
 
 type ArchConfig struct {
-	ABI     string   `toml:"abi" doc:"Calling convention. Only sysv is supported, and it is the default."`
-	Format  string   `toml:"format" doc:"Object format. Only elf64 is supported, and it is the default."`
+	ABI     string   `toml:"abi" doc:"Calling convention: sysv (the default) or win64."`
+	Format  string   `toml:"format" doc:"Object format: elf64 (the default) or win64."`
 	Entry   string   `toml:"entry" doc:"Symbol where the linker starts the program. Defaults to _start."`
 	Runtime string   `toml:"runtime" doc:"Assembly file with the runtime routines for this architecture of the system."`
 	Start   string   `toml:"start" doc:"Assembly file that calls main and leaves the program, for this architecture."`

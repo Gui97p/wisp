@@ -206,7 +206,11 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	t.sites = nil
 	t.candidates = nil
 	t.loopSyms = map[*ast.ForStmt]*loopState{}
-	t.text.printf("\nsection .text.%s progbits alloc exec nowrite align=32\n", name)
+	desc, err := newDesc(t.format, name, true, 32)
+	if err != nil {
+		return err
+	}
+	t.text.printf("\nsection .text%s\n", desc)
 	t.text.printf("%s:\n", name)
 
 	if t.trace {
@@ -416,7 +420,14 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	if t.trace {
 		t.emitDescriptor(name)
 	}
-	t.text.println("section .text")
+	tText, err := textOf(t.format)
+	if err != nil {
+		return err
+	}
+	if tText != "" {
+		tText = " " + tText
+	}
+	t.text.printf("section .text%s\n", tText)
 
 	if t.ctx.Pushed() != 0 {
 		return fmt.Errorf("x86-64: stack alignment failed")
@@ -439,7 +450,12 @@ func isYield(stmt ast.Statement) bool {
 const descriptorMagic = 0x57495350
 
 func (t *X64Target) emitDescriptor(name string) {
-	t.text.printf("section .rodata.%s progbits alloc noexec nowrite align=8\n", name)
+	desc, err := newDesc(t.format, name, false, 8)
+	if err != nil {
+		t.fail("%s", err.Error())
+		return
+	}
+	t.text.printf("section .rodata%s\n", desc)
 	t.text.printf("desc_%s:\n", name)
 	t.text.printft("dq 0x%x\n", descriptorMagic)
 	t.text.printft("dq %s\n", name)

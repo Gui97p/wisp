@@ -19,6 +19,7 @@ prod: build
 
 	cp -r bin $(STAGE)/$(APP)
 	cp -r std $(STAGE)/$(APP)
+	if [ -d dependencies/toolchain/linux-amd64 ]; then mkdir -p $(STAGE)/$(APP)/toolchain && cp -a dependencies/toolchain/linux-amd64/. $(STAGE)/$(APP)/toolchain; fi
 
 	tar -C $(STAGE) -czf $(DIST)/$(NAME).tar.gz $(APP)
 

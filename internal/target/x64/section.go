@@ -21,10 +21,6 @@ func (w *Writable) println(str string) {
 	fmt.Fprintf(&w.b, "%s\n", str)
 }
 
-func (w *Writable) printt(str string) {
-	fmt.Fprintf(&w.b, "\t%s", str)
-}
-
 func (w *Writable) printft(str string, args ...any) {
 	fmt.Fprintf(&w.b, "\t"+str, args...)
 }
@@ -77,28 +73,98 @@ type rodataSection struct {
 	Writable
 }
 
-func NewRodata() *rodataSection {
+func rodataOf(name string) (string, error) {
+	switch name {
+	case "elf64":
+		return "align=16", nil
+	case "win64":
+		return "rdata align=16", nil
+	}
+	return "", fmt.Errorf("x86-64: unknown format")
+}
+
+func NewRodata(format string) (*rodataSection, error) {
 	section := &rodataSection{}
-	section.println("section .rodata align=16")
-	return section
+	r, err := rodataOf(format)
+	if err != nil {
+		return nil, err
+	}
+	if r != "" {
+		r = " " + r
+	}
+	section.printf("section .rodata%s\n", r)
+	return section, nil
 }
 
 type dataSection struct {
 	Writable
 }
 
-func NewData() *dataSection {
+func dataOf(name string) (string, error) {
+	switch name {
+	case "elf64":
+		return "", nil
+	case "win64":
+		return "data align=8", nil
+	}
+	return "", fmt.Errorf("x86-64: unknown format")
+}
+
+func NewData(format string) (*dataSection, error) {
 	section := &dataSection{}
-	section.println("section .data")
-	return section
+	d, err := dataOf(format)
+	if err != nil {
+		return nil, err
+	}
+	if d != "" {
+		d = " " + d
+	}
+	section.printf("section .data%s\n", d)
+	return section, nil
 }
 
 type textSection struct {
 	Writable
 }
 
-func NewText() *textSection {
+func textOf(name string) (string, error) {
+	switch name {
+	case "elf64":
+		return "", nil
+	case "win64":
+		return "code align=16", nil
+	}
+	return "", fmt.Errorf("x86-64: unknown format")
+}
+
+func NewText(format string) (*textSection, error) {
 	section := &textSection{}
-	section.println("section .text")
-	return section
+	t, err := textOf(format)
+	if err != nil {
+		return nil, err
+	}
+	if t != "" {
+		t = " " + t
+	}
+	section.printf("section .text%s\n", t)
+	return section, nil
+}
+
+func newDesc(format, name string, exec bool, align int) (string, error) {
+	al := fmt.Sprintf("align=%d", align)
+	switch format {
+	case "elf64":
+		e := "noexec"
+		if exec {
+			e = "exec"
+		}
+		return fmt.Sprintf(".%s progbits alloc %s nowrite %s", name, e, al), nil
+	case "win64":
+		e := "rdata"
+		if exec {
+			e = "code"
+		}
+		return fmt.Sprintf("$%s %s %s", name, e, al), nil
+	}
+	return "", fmt.Errorf("x86-64: unknown format")
 }

@@ -209,6 +209,13 @@ func binaryNameOf(root string, cfg *module.Config) string {
 	return programNameOf(root, cfg)
 }
 
+func executableName(tgt target.Target, name string) string {
+	if tgt.OS == "windows" && !strings.HasSuffix(name, ".exe") {
+		return name + ".exe"
+	}
+	return name
+}
+
 func expandPath(path string, tgt target.Target, name string) string {
 	profile := tgt.Profile
 	if profile == "" {
@@ -538,7 +545,7 @@ func resolveBuildTargets(root string, cfg *module.Config, tgt target.Target, for
 	if binDir == "" {
 		binDir = filepath.Join(root, "bin", profileDir(tgt))
 	}
-	t.binPath = filepath.Join(binDir, name)
+	t.binPath = filepath.Join(binDir, executableName(tgt, name))
 
 	return t
 }
@@ -596,7 +603,10 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			c := c
 			obj, err := stdc.object(c.mod.Path, func(objPath string) error {
 				renderErrorBlocks(c)
-				std := x64.New(c.merged, c.info, false, tgt.Name, c.mod.Path)
+				std, err := x64.New(c.merged, c.info, false, tgt.Name, tgt.Format, c.mod.Path)
+				if err != nil {
+					return err
+				}
 				std.SetFiles(c.declFiles)
 				std.SetSources(c.mod.BufferMap())
 				source, err := std.Compile()
@@ -620,7 +630,10 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
 		renderErrorBlocks(c)
-		backend := x64.New(c.merged, c.info, isEntry, tgt.Name, c.mod.Path)
+		backend, err := x64.New(c.merged, c.info, isEntry, tgt.Name, tgt.Format, c.mod.Path)
+		if err != nil {
+			return nil, err
+		}
 		backend.SetFiles(c.declFiles)
 		backend.SetSources(c.mod.BufferMap())
 		backend.SetLibc(useLibc(cfg, tgt))

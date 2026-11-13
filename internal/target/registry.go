@@ -59,8 +59,19 @@ var linuxStart string
 //go:embed asm/linux_x64_runtime.asm
 var linuxRuntime string
 
+//go:embed asm/windows_x64_start.asm
+var windowsStart string
+
+//go:embed asm/windows_x64_runtime.asm
+var windowsRuntime string
+
+var abis = []string{"sysv", "win64"}
+
+var formats = []string{"elf64", "win64"}
+
 var builtin = []Target{
 	{Name: "linux/x64", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
+	{Name: "windows/x64", Arch: "x64", OS: "windows", ABI: "win64", Format: "win64", Entry: "_start", StartSource: windowsStart, RuntimeSource: windowsRuntime, Builtin: true},
 	{Name: "cc/lua", Arch: "lua", OS: "cc", Builtin: true},
 }
 
@@ -139,14 +150,14 @@ func Register(t Target) error {
 	if t.ABI == "" {
 		t.ABI = "sysv"
 	}
-	if t.ABI != "sysv" {
-		return &FieldError{Target: t.OS, Field: "abi", Message: fmt.Sprintf("unsupported abi %q", t.ABI), Help: "only sysv exists"}
+	if !slices.Contains(abis, t.ABI) {
+		return &FieldError{Target: t.OS, Field: "abi", Message: fmt.Sprintf("unsupported abi %q", t.ABI), Help: fmt.Sprintf("the calling conventions are %s", Enumerate(abis))}
 	}
 	if t.Format == "" {
 		t.Format = "elf64"
 	}
-	if t.Format != "elf64" {
-		return &FieldError{Target: t.OS, Field: "format", Message: fmt.Sprintf("unsupported format %q", t.Format), Help: "only elf64 exists"}
+	if !slices.Contains(formats, t.Format) {
+		return &FieldError{Target: t.OS, Field: "format", Message: fmt.Sprintf("unsupported format %q", t.Format), Help: fmt.Sprintf("the object formats are %s", Enumerate(formats))}
 	}
 	if t.Entry == "" {
 		t.Entry = "_start"
@@ -171,6 +182,14 @@ func Register(t Target) error {
 }
 
 var assemblyArchs = []string{"x64"}
+
+func ABIs() []string {
+	return slices.Clone(abis)
+}
+
+func Formats() []string {
+	return slices.Clone(formats)
+}
 
 func hostArch() string {
 	switch runtime.GOARCH {

@@ -42,6 +42,7 @@ tests/*
 *.vsix
 std/wisp.toml
 tour/bin/
+dependencies/
 
 # VS Code extension build
 vscode/node_modules/

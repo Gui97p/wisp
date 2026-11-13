@@ -159,9 +159,9 @@ func valueChoices(section, key string, declared []string) []string {
 	case section == "targets" && key == "arch":
 		return []string{"x64"}
 	case section == "targets" && key == "abi":
-		return []string{"sysv"}
+		return target.ABIs()
 	case section == "targets" && key == "format":
-		return []string{"elf64"}
+		return target.Formats()
 	}
 	return nil
 }

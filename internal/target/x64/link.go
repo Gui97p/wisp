@@ -10,6 +10,7 @@ import (
 	"github.com/Gui97p/wisp/internal/diag"
 
 	"github.com/Gui97p/wisp/internal/target"
+	"github.com/Gui97p/wisp/internal/toolchain"
 )
 
 var Trace func(name string, args []string)
@@ -27,7 +28,16 @@ type LinkOptions struct {
 	Strip bool
 }
 
+var windowsLibraries = []string{"kernel32", "ntdll", "advapi32", "bcrypt"}
+
 func Link(t target.Target, root string, objPaths, libPaths []string, outputPath string, keepObj bool, opts LinkOptions) error {
+	pe := t.Format == "win64"
+	if t.Format != "elf64" && !pe {
+		return fmt.Errorf("linking the %s format is not implemented yet", t.Format)
+	}
+	if pe && opts.Libc {
+		return fmt.Errorf("--libc is not available on %s: the Wisp runtime calls the system libraries directly", t.OS)
+	}
 	tmp, err := os.MkdirTemp("", "wisp-link-")
 	if err != nil {
 		return fmt.Errorf("failed to create a temporary folder (%s)", diag.Reason(err))
@@ -39,17 +49,30 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 		return err
 	}
 
-	linker := "ld"
+	var linker string
 	args := []string{}
 	if opts.Libc {
-		cc, err := exec.LookPath("cc")
+		cc, err := toolchain.Find("cc")
 		if err != nil {
-			return fmt.Errorf("--libc links through a C compiler driver, but cc was not found in PATH")
+			return fmt.Errorf("--libc links through a C compiler driver, but %w", err)
 		}
 		linker = cc
 		args = append(args, "-no-pie")
 		args = append(args, t.LinkArgs...)
+	} else if pe {
+		ld, err := toolchain.Find("ld.lld")
+		if err != nil {
+			return fmt.Errorf("linking for %s needs lld: %w", t.OS, err)
+		}
+		linker = ld
+		args = append(args, "-m", "i386pep", "--subsystem", "console", "-e", t.Entry)
+		args = append(args, t.LinkArgs...)
 	} else {
+		ld, err := toolchain.Find("ld.lld", "ld")
+		if err != nil {
+			return err
+		}
+		linker = ld
 		args = append(args, t.LinkArgs...)
 		if t.Entry != "" && t.Entry != "_start" {
 			args = append(args, "-e", t.Entry)
@@ -93,6 +116,17 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 		args = append(args, abs)
 	}
 
+	if pe {
+		libDir, err := toolchain.LibDir(t.OS + "-" + t.Arch)
+		if err != nil {
+			return err
+		}
+		args = append(args, "-L"+libDir)
+		for _, lib := range windowsLibraries {
+			args = append(args, "-l"+lib)
+		}
+	}
+
 	if opts.Strip {
 		args = append(args, "-s")
 	}
@@ -117,9 +151,9 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 }
 
 func Archive(t target.Target, objPaths []string, outputPath string, traceOpt bool) error {
-	ar, err := exec.LookPath("ar")
+	ar, err := toolchain.Find("llvm-ar", "ar")
 	if err != nil {
-		return fmt.Errorf("building a library needs ar, which was not found in PATH")
+		return fmt.Errorf("building a library needs an archiver, but %w", err)
 	}
 
 	tmp, err := os.MkdirTemp("", "wisp-archive-")

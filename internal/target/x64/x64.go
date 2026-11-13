@@ -12,6 +12,7 @@ import (
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/target"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
+	"github.com/Gui97p/wisp/internal/toolchain"
 )
 
 type coalesceFrame struct {
@@ -58,6 +59,7 @@ type X64Target struct {
 	isEntry bool
 	module  string
 	target  string
+	format  string
 
 	ctx *x64context.Context
 
@@ -101,19 +103,34 @@ type X64Target struct {
 	libc, trace, snippets, optimize, checks bool
 }
 
-func New(program *ast.Program, info *analyser.Info, isEntry bool, t string, module string) *X64Target {
+func New(program *ast.Program, info *analyser.Info, isEntry bool, t, format string, module string) (*X64Target, error) {
 	prof := target.ActiveProfile()
+
+	data, err := NewData(format)
+	if err != nil {
+		return nil, err
+	}
+	rodata, err := NewRodata(format)
+	if err != nil {
+		return nil, err
+	}
+	text, err := NewText(format)
+	if err != nil {
+		return nil, err
+	}
+
 	return &X64Target{
 		program: program,
 		info:    info,
 		isEntry: isEntry,
 		module:  module,
 		target:  t,
+		format:  format,
 
 		prelude:  NewPrelude(),
-		data:     NewData(),
-		rodata:   NewRodata(),
-		text:     NewText(),
+		data:     data,
+		rodata:   rodata,
+		text:     text,
 		postlude: NewPostlude(),
 
 		dataLabel: map[any]string{},
@@ -124,7 +141,7 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, t string, modu
 		snippets: prof.Snippets,
 		optimize: prof.Optimize,
 		checks:   prof.Checks,
-	}
+	}, nil
 }
 
 func (t *X64Target) SetLibc(libc bool) {
@@ -200,10 +217,6 @@ func (t *X64Target) Compile() (string, error) {
 }
 
 func Assemble(asmSource, objPath, asmPath string, keepAsm bool, format string, defines ...string) error {
-	if format == "" {
-		format = "elf64"
-	}
-
 	if err := os.WriteFile(asmPath, []byte(asmSource), 0644); err != nil {
 		return fmt.Errorf("failed to write the assembly file (%s)", diag.Reason(err))
 	}
@@ -212,8 +225,12 @@ func Assemble(asmSource, objPath, asmPath string, keepAsm bool, format string, d
 	for _, def := range defines {
 		args = append(args, "-d"+def)
 	}
-	trace("nasm", args)
-	nasmCmd := exec.Command("nasm", args...)
+	nasm, err := toolchain.Find("nasm")
+	if err != nil {
+		return err
+	}
+	trace(nasm, args)
+	nasmCmd := exec.Command(nasm, args...)
 	nasmCmd.Stderr = os.Stderr
 	if err := nasmCmd.Run(); err != nil {
 		return fmt.Errorf("nasm failed (%s)", diag.Reason(err))
