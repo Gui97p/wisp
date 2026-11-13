@@ -31,12 +31,16 @@ Features a backend cannot generate yet live in [`tour/_pending/`](tour/_pending)
 
 ## Install
 
-You need Go, plus `nasm` and `ld` for x86-64, `cc` for `--libc` and the C tests, and `lua` 5.4 for the Lua backend.
+You need Go. The assembler and the linker (`nasm`, `lld`, and for Windows the import libraries) come bundled: `make toolchain` runs `scripts/fetch-toolchain.sh`, which downloads them with fixed versions and checksums into `dependencies/` (ignored by git), and `make prod` copies them into the package. Without a bundle `wisp` falls back to `nasm` and `ld.lld` (or `ld`) in the `PATH`. `cc` is only for `--libc` and the C tests on Linux, and `lua` 5.4 for the Lua backend.
 
 ```bash
 make build         # bin/wisp
+make toolchain     # fetch nasm, lld and the Windows import libraries into dependencies/
+make prod          # package for Linux into dist/ (a .tar.gz)
+make prod-windows  # package for Windows into dist/ (a .zip with wisp.exe)
 make install       # package into dist/ and install to /usr/local/wisp (asks for sudo)
 make test          # both backends; FILTER=name narrows it
+make test-windows  # the Windows executables, run through WSL
 make ext           # package the VS Code extension into dist/vscode
 ```
 
@@ -72,7 +76,7 @@ os = "linux"                  # the system to build for (and arch = "x64", if th
 bin = "bin"
 ```
 
-A project can declare libraries too, `[library.<name>]` with the `modules` they are made of: `wisp build` writes `<name>.a` for them, and a program or library only contains what its entry or modules import. A project can declare several programs, `[program.<name>]`, each with its own `entry`, `name` (of the binary), `link`, `libc`, `os`, `arch`, `output` and `run.env`. `wisp build` builds all of them, `wisp build <name>` one, and `wisp run <name>` runs one; `default` in `wisp.toml` names the one `wisp run` starts without a name. A program can adjust `name`, `link`, `libc`, `output` and `run.env` for one system with `[program.<name>.<os>]` (or `[program.<name>.<os>.<arch>]`). Output paths accept `{profile}`, `{target}` (the system and architecture, as in `linux-x64`), `{os}`, `{arch}` and `{name}`. A build uses the `debug` profile or the `release` one (`--release`, `--profile`, or `profile` in `wisp.toml`), which decide whether the stack trace and the source snippets of errors are kept and whether the binary is stripped; `debug` and `release` can also be used in `#target` and the declaration selectors.
+A project can declare libraries too, `[library.<name>]` with the `modules` they are made of: `wisp build` writes `<name>.a` for them, and a program or library only contains what its entry or modules import. A project can declare several programs, `[program.<name>]`, each with its own `entry`, `name` (of the binary), `link`, `libc`, `os`, `arch`, `output` and `run.env`. `wisp build` builds all of them, `wisp build <name>` one, and `wisp run <name>` runs one; `default` in `wisp.toml` names the one `wisp run` starts without a name. A program can adjust `name`, `link`, `libc`, `output` and `run.env` for one system with `[program.<name>.<os>]` (or `[program.<name>.<os>.<arch>]`). Output paths accept `{profile}`, `{target}` (the system and architecture, as in `linux-x64`), `{os}`, `{arch}` and `{name}`. A build uses the `debug`, `release` or `fast` profile (`--release`, `--profile`, or `profile` in `wisp.toml`), which decide whether the stack trace and the source snippets of errors are kept, whether the binary is stripped and optimised, and whether the run-time checks stay (index bounds, division by zero, null pointers): `release` is optimised and keeps them, `fast` drops them. The three names can also be used in `#target` and the declaration selectors.
 
 `bin`, `obj` and `asm` are folders: the binary of each program is written to `bin` under its name (the `name` of the program, which defaults to the program's own name). Without `[output]`, files go under folders named after the profile, the system and the architecture: `bin/<profile>/<os>-<arch>/` and `build/<profile>/<os>-<arch>/<name>/`. For Lua the entry script is `<name>.lua` in the same place, with the other modules beside it.
 
@@ -80,8 +84,11 @@ A project can declare libraries too, `[library.<name>]` with the `modules` they 
 
 | System | Status |
 | --- | --- |
-| `linux` (x64) | The main backend: NASM assembly, linked with `ld`, System V calling convention. |
+| `linux` (x64) | The main backend: NASM assembly, linked with `lld` (or `ld`), System V calling convention. |
+| `windows` (x64) | The same programs as a console `.exe`: NASM `win64` objects linked with `lld`, over `kernel32`. See below. |
 | `cc` (lua) | Secondary: Lua for CC: Tweaked computers, the stdlib uses its `fs` API. It has floating point and function values, but no `extern`. Numbers are doubles there: integers are exact up to 2^53 and `int64` and `uint64` do not wrap around. |
+
+The `windows` system keeps the Wisp calling convention for Wisp functions and uses Win64 where C is involved: `extern` functions and the ones exported with `as` take their arguments the Windows way, and a function value taken from one of them goes through an adapter. The standard library talks to `kernel32` from plain Wisp (`std/sys`), `path` follows the system (drive letters, UNC paths, both separators on input and `\` on output), paths longer than 260 characters work, the console gets UTF-16 and a Windows console needs no setup. The program has 8 MB of stack and no `--libc`. The compiler runs on Linux, where `--os windows` cross-compiles, and on Windows, from the zip made by `make prod-windows`. The test suite runs on Linux and executes the Windows programs through WSL (`make test-windows`, or `tests/run.sh windows`).
 
 A system of your own is a `[targets.<name>]` block with an architecture, a start file and a runtime file; the name is the system's name, the one `#target` and `--os` use. A system says how to build for it; where the result goes belongs to the program (`[output]` and `[program.<name>.output]`). `wisp init target <name>` writes both, with comments that say what each routine must do.
 
@@ -102,5 +109,6 @@ internal/target/     the x64 and Lua backends, and the x64 start stub and runtim
 std/                 standard library
 tour/                the tutorial
 tests/               test generator (gen) and runner (run.sh)
+scripts/             fetch-toolchain.sh, which builds dependencies/ (nasm, lld, import libraries)
 vscode/              VS Code extension
 ```

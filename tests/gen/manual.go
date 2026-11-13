@@ -10459,6 +10459,80 @@ func main() {
 		"    check(r == 42, \"a backtick block goes to the assembler as written\");\n" +
 		"}\n", expected: []string{"a backtick block goes to the assembler as written"}},
 
+	{dir: "win64_variadic", system: "windows", x64Only: true, files: map[string]string{"lib.asm": `default rel
+global vcheck
+global vfirst
+
+section .text code align=16
+vcheck:
+	cmp ecx, 5
+	jne .e0
+	cmp edx, 7
+	jne .e1
+	mov rax, 0x4004000000000000
+	cmp r8, rax
+	jne .e2
+	mov rax, 0x3FE0000000000000
+	cmp r9, rax
+	jne .e3
+	movq rax, xmm2
+	mov rcx, 0x4004000000000000
+	cmp rax, rcx
+	jne .e4
+	mov rax, [rsp+40]
+	mov rcx, 0x3FF8000000000000
+	cmp rax, rcx
+	jne .e5
+	xor eax, eax
+	ret
+.e0:
+	mov eax, 10
+	ret
+.e1:
+	mov eax, 1
+	ret
+.e2:
+	mov eax, 2
+	ret
+.e3:
+	mov eax, 3
+	ret
+.e4:
+	mov eax, 4
+	ret
+.e5:
+	mov eax, 5
+	ret
+
+vfirst:
+	cmp ecx, 1
+	jne .f0
+	mov rax, 0x3FF4000000000000
+	cmp rdx, rax
+	jne .f1
+	movq rcx, xmm1
+	cmp rcx, rax
+	jne .f2
+	xor eax, eax
+	ret
+.f0:
+	mov eax, 10
+	ret
+.f1:
+	mov eax, 1
+	ret
+.f2:
+	mov eax, 2
+	ret
+`}, src: `extern func vcheck(int32 n, ...) int32;
+extern func vfirst(int32 n, ...) int32;
+
+func main() {
+    check(vcheck(5, 7, 2.5, 0.5, 1.5) == 0, "variadic floats go in both the xmm and the integer register of their position");
+    check(vfirst(1, 1.25) == 0, "a float in the first variadic position is duplicated too");
+}
+`, expected: []string{"variadic floats go in both the xmm and the integer register of their position", "a float in the first variadic position is duplicated too"}},
+
 	{dir: "win64_export", system: "windows", x64Only: true, files: map[string]string{"lib.asm": `default rel
 global run_caller
 extern wisp_scale

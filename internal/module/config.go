@@ -19,7 +19,7 @@ import (
 
 type Config struct {
 	Default   string                   `toml:"default" doc:"The program that wisp run and wisp env use when no name is given. Without it a project with several programs asks for the name."`
-	OS        string                   `toml:"os" doc:"The system to build for: linux, cc, or a name declared in [targets.<name>]. Defaults to the system of the machine."`
+	OS        string                   `toml:"os" doc:"The system to build for: linux, windows, cc, or a name declared in [targets.<name>]. Defaults to the system of the machine."`
 	Arch      string                   `toml:"arch" doc:"The architecture to build for. Only needed when the system has more than one; otherwise it is a check."`
 	Std       string                   `toml:"std" doc:"The standard library. Leave it out for the one that ships with the compiler, write a folder to replace it, or \"none\" to build without any (a folder called none is written ./none)."`
 	Link      []string                 `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`

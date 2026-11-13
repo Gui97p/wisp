@@ -7,6 +7,12 @@
 //     cc -c -O1 -fno-stack-protector -fno-pic -ffreestanding lib.c -o lib.o
 //     wisp run
 //
+// On Windows (`os = "windows"` in wisp.toml) the C side has to be built for
+// Windows, and `extern` functions and the ones exported with `as` take their
+// arguments the Win64 way instead of System V. The Wisp code does not change:
+// the compiler picks the convention from the system it builds for, and a
+// function value taken from a C function goes through a small adapter.
+//
 // `extern func` declares a function defined in C. It has no body, and the
 // linker finds it in the objects listed under `link` in wisp.toml (or given
 // with --link). The name is the C symbol; `as` gives it another name in

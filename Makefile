@@ -1,4 +1,4 @@
-.PHONY: build prod prod-windows toolchain install ext run clean version testgen test test-cc test-x64 bench
+.PHONY: build prod prod-windows toolchain install test-windows ext run clean version testgen test test-cc test-x64 bench
 APP=wisp
 DIST=dist/wisp
 STAGE=dist/wisp-tmp
@@ -59,6 +59,9 @@ test-cc: build testgen
 
 test-x64: build testgen
 	WISP=bin/$(APP) tests/run.sh linux $(FILTER)
+
+test-windows: build testgen
+	WISP_TOOLCHAIN=$(CURDIR)/dependencies/toolchain/linux-amd64/bin WISP=bin/$(APP) tests/run.sh windows $(FILTER)
 
 test: test-cc test-x64
 

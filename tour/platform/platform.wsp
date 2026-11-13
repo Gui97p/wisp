@@ -3,8 +3,8 @@
 // A line that starts with `#` is a directive. `#target` goes at the top of a
 // file and says which targets the file is for. In any other target the file
 // simply does not exist: its declarations are not even looked at. The words
-// are architectures (`x64`, `lua`), systems (`linux`, `cc`) or profiles
-// (`debug`, `release`), joined with
+// are architectures (`x64`, `lua`), systems (`linux`, `windows`, `cc`) or
+// profiles (`debug`, `release`, `fast`), joined with
 // `&&`, `||`, `!` and parentheses: `#target x64 && linux`, or
 // `#target (x64 || lua) && !windows`.
 //
