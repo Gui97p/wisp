@@ -69,3 +69,34 @@ public func isatty(int fd) bool {
 public inline func getenv(string name) (string, bool) => sys.getenv(name);
 
 public inline func args() []string => sys.args();
+
+public struct Environ {
+	internal sys.Env state;
+}
+
+public func environ() Environ {
+	Environ e;
+	sys.envOpen(&e.state);
+	return e;
+}
+
+public func (*Environ e) next() (string, string, bool) {
+	loop {
+		let entry, ok = sys.envNext(&e.state);
+		if !ok {
+			return "", "", false;
+		}
+		int eq;
+		loop eq < len(entry) && entry[eq] != '=' {
+			eq++;
+		}
+		if eq == 0 || eq == len(entry) {
+			continue;
+		}
+		return entry[:eq], entry[eq+1:], true;
+	}
+}
+
+public func (*Environ e) close() {
+	sys.envClose(&e.state);
+}

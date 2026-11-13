@@ -8083,6 +8083,47 @@ func main() {
 }
 `, expected: []string{"a switch expression infers .Member from the declared type", "a switch expression infers .Member from the return type", "a ternary infers .Member from the declared type", "a ternary infers .Member in an assignment", "a ternary infers .Member as an argument", "a ternary infers .Member on the side of a comparison"}},
 
+	{dir: "os_environ", x64Only: true, src: `import "std/os";
+import "std/strings";
+
+func main() {
+    os.Environ env = os.environ();
+    int count;
+    bool pathSeen;
+    bool consistent = true;
+    loop {
+        let name, value, ok = env.next();
+        if !ok {
+            break;
+        }
+        count++;
+        if strings.equalFold(name, "PATH") {
+            pathSeen = true;
+        }
+        let got, found = os.getenv(name);
+        if !found || got != value {
+            consistent = false;
+        }
+    }
+    env.close();
+    check(count > 0, "the environment has entries");
+    check(pathSeen, "PATH is among the entries");
+    check(consistent, "every entry agrees with getenv");
+
+    os.Environ again = os.environ();
+    int second;
+    loop {
+        let name, value, ok = again.next();
+        if !ok {
+            break;
+        }
+        second++;
+    }
+    again.close();
+    check(second == count, "a second walk sees the same number of entries");
+}
+`, expected: []string{"the environment has entries", "PATH is among the entries", "every entry agrees with getenv", "a second walk sees the same number of entries"}},
+
 	{dir: "os_getenv", x64Only: true, src: `import "std/os";
 
 func main() {
@@ -8288,6 +8329,47 @@ func main() ! {
     os.removeDir(root)!;
 }
 `, expected: []string{"a directory lists its files and subdirectories with their kinds", "the entries . and .. are not listed", "an empty directory lists nothing", "openDir on a file is NotDir", "a listing that needs several reads finds every entry"}},
+
+	{dir: "os_long_path", x64Only: true, src: `import "std/os";
+import "std/path";
+
+func main() ! {
+    string root = "/tmp/wisp_t_long";
+    string part = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
+    [2048]byte a, b, c;
+
+    string deep = path.join(a, root, part, part, part, part)!!;
+    check(len(deep) > 400, "the test path is longer than any legacy limit");
+    os.mkdirAll(deep)!;
+    check(os.isDir(deep), "mkdirAll creates a path longer than 260 characters");
+
+    string file = path.join(b, deep, "file.txt")!!;
+    int fd = os.create(file)!;
+    os.write(fd, "long")!;
+    os.close(fd);
+    let info = os.stat(file)!;
+    check(info.size == 4 && info.kind == .File, "stat sees a file inside a long path");
+    []byte data = os.readFile(file)!;
+    check(string(data) == "long", "a file inside a long path reads back");
+
+    os.Dir d = os.openDir(deep)!;
+    let name, kind, found = d.next()!;
+    check(found && name == "file.txt" && kind == .File, "a directory inside a long path lists its entries");
+    d.close();
+
+    string moved = path.join(c, deep, "moved.txt")!!;
+    os.rename(file, moved)!;
+    check(os.exists(moved) && !os.exists(file), "rename inside a long path");
+    os.remove(moved)!;
+
+    os.removeDir(deep)!;
+    os.removeDir(path.join(a, root, part, part, part)!!)!;
+    os.removeDir(path.join(a, root, part, part)!!)!;
+    os.removeDir(path.join(a, root, part)!!)!;
+    os.removeDir(root)!;
+    check(!os.exists(root), "everything created for the test is gone");
+}
+`, expected: []string{"the test path is longer than any legacy limit", "mkdirAll creates a path longer than 260 characters", "stat sees a file inside a long path", "a file inside a long path reads back", "a directory inside a long path lists its entries", "rename inside a long path", "everything created for the test is gone"}},
 
 	{dir: "os_mkdirall", src: `import "std/errors";
 import "std/os";
@@ -10322,6 +10404,140 @@ func main() {
 		"    check(r == 42, \"a backtick block goes to the assembler as written\");\n" +
 		"}\n", expected: []string{"a backtick block goes to the assembler as written"}},
 
+	{dir: "win64_export", system: "windows", x64Only: true, files: map[string]string{"lib.asm": `default rel
+global run_caller
+extern wisp_scale
+extern wisp_many
+extern wisp_mix
+extern wisp_drift
+
+section .text code align=16
+run_caller:
+	push rbp
+	mov rbp, rsp
+	push rbx
+	push r12
+	push r13
+	push r14
+	sub rsp, 64
+
+	mov rdi, 0x1111111111111111
+	mov rsi, 0x2222222222222222
+	mov rbx, 0x5555555555555555
+	mov r12, 0x6666666666666666
+	mov rax, 0x3333333333333333
+	movq xmm6, rax
+	mov rax, 0x4444444444444444
+	movq xmm15, rax
+	xor r14d, r14d
+
+	mov ecx, 6
+	mov edx, 7
+	call wisp_scale
+	cmp eax, 42
+	je .scale_ok
+	mov r14d, 1
+.scale_ok:
+	mov ecx, 1
+	mov edx, 2
+	mov r8d, 3
+	mov r9d, 4
+	mov dword [rsp+32], 5
+	mov dword [rsp+40], 6
+	mov dword [rsp+48], 7
+	call wisp_many
+	cmp eax, 140
+	je .many_ok
+	mov r14d, 2
+.many_ok:
+	mov ecx, 1
+	movsd xmm1, [rel two]
+	mov r8d, 3
+	movsd xmm3, [rel four]
+	call wisp_mix
+	cvttsd2si rax, xmm0
+	cmp eax, 4321
+	je .mix_ok
+	mov r14d, 3
+.mix_ok:
+	mov ecx, 10
+	movsd xmm1, [rel one_and_half]
+	call wisp_drift
+	cvttsd2si rax, xmm0
+	cmp eax, 25
+	je .drift_ok
+	mov r14d, 4
+.drift_ok:
+	mov rax, 0x1111111111111111
+	cmp rdi, rax
+	jne .clobbered
+	mov rax, 0x2222222222222222
+	cmp rsi, rax
+	jne .clobbered
+	mov rax, 0x5555555555555555
+	cmp rbx, rax
+	jne .clobbered
+	mov rax, 0x6666666666666666
+	cmp r12, rax
+	jne .clobbered
+	movq rax, xmm6
+	mov rcx, 0x3333333333333333
+	cmp rax, rcx
+	jne .clobbered
+	movq rax, xmm15
+	mov rcx, 0x4444444444444444
+	cmp rax, rcx
+	jne .clobbered
+	jmp .done
+.clobbered:
+	mov r14d, 5
+.done:
+	mov eax, r14d
+	add rsp, 64
+	pop r14
+	pop r13
+	pop r12
+	pop rbx
+	pop rbp
+	ret
+
+section .rodata rdata align=8
+two: dq 2.0
+four: dq 4.0
+one_and_half: dq 1.5
+`}, src: `extern func run_caller() int32;
+
+public func scale(int32 value, int32 factor) int32 as wisp_scale {
+    return value * factor;
+}
+
+public func many(int32 a, int32 b, int32 c, int32 d, int32 e, int32 f, int32 g) int32 as wisp_many {
+    return a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g * 7;
+}
+
+public func mix(int32 a, float64 b, int32 c, float64 d) float64 as wisp_mix {
+    return float64(a) + b * 10.0 + float64(c) * 100.0 + d * 1000.0;
+}
+
+public func drift(int32 n, float64 x) float64 as wisp_drift {
+    float64 total = 0.0;
+    int32 count = 0;
+    for i in 0..n-1 {
+        total += x;
+        count += 1;
+    }
+    return total + float64(count);
+}
+
+func main() {
+    check(scale(6, 7) == 42, "a Wisp call to an exported function");
+    check(many(1, 2, 3, 4, 5, 6, 7) == 140, "a Wisp call with arguments on the stack");
+    check(mix(1, 2.0, 3, 4.0) == 4321.0, "a Wisp call that mixes integers and floats by position");
+    check(drift(10, 1.5) == 25.0, "a Wisp call to an exported function that uses saved registers");
+    check(run_caller() == 0, "a Win64 caller gets the right results and its registers back");
+}
+`, expected: []string{"a Wisp call to an exported function", "a Wisp call with arguments on the stack", "a Wisp call that mixes integers and floats by position", "a Wisp call to an exported function that uses saved registers", "a Win64 caller gets the right results and its registers back"}},
+
 	{dir: "interop_extern", system: "linux", x64Only: true, files: map[string]string{"lib.c": `int add(int a, int b) { return a + b; }
 long mul64(long a, long b) { return a * b; }
 int sum_bytes(const char *p, int n) {
@@ -10378,7 +10594,7 @@ int main(void) {
 }
 `}, expected: []string{"42 42"}},
 
-	{dir: "interop_export", x64Only: true, cmain: true, files: map[string]string{"lib.wsp": `public func add(int32 a, int32 b) int32 as wisp_add {
+	{dir: "interop_export", system: "linux", x64Only: true, cmain: true, files: map[string]string{"lib.wsp": `public func add(int32 a, int32 b) int32 as wisp_add {
     return a + b;
 }
 

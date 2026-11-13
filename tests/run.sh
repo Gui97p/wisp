@@ -59,6 +59,18 @@ for dir in "$ROOT"/*/; do
     fi
 
     if [[ "$TARGET" != "cc" ]]; then
+        if [[ -f "$dir/lib.asm" ]]; then
+            mkdir -p "$OUT/c"
+            assembler=nasm
+            if [[ -n "${WISP_TOOLCHAIN:-}" && -x "$WISP_TOOLCHAIN/nasm" ]]; then
+                assembler="$WISP_TOOLCHAIN/nasm"
+            fi
+            if ! "$assembler" -f win64 "$dir/lib.asm" -o "$OUT/c/$name.o" 2>"$err"; then
+                printf 'BUILD %s  nasm failed\n' "$name" >>"$RESULTS"
+                continue
+            fi
+            flags+=(--link "$OUT/c/$name.o")
+        fi
         if [[ -f "$dir/lib.c" ]]; then
             mkdir -p "$OUT/c"
             if ! cc -c -O1 -fno-stack-protector -fno-pic -ffreestanding "$dir/lib.c" -o "$OUT/c/$name.o" 2>"$err"; then

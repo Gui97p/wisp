@@ -90,6 +90,7 @@ type X64Target struct {
 	inlineFrames []inlineFrame
 	candidates   []candidate
 	savedRegs    []savedReg
+	savedXmms    []savedReg
 
 	deferScopes []*deferScope
 	lambdas     []pendingLambda

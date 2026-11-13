@@ -6,6 +6,10 @@ shared struct Dir {
 	int fd;
 }
 
+shared struct Env {
+	int index;
+}
+
 native pathKind(string path) int kind =>
 		"if not __lua_fs.exists(path) then kind = 0 elseif __lua_fs.isDir(path) then kind = 2 else kind = 1 end";
 
@@ -262,3 +266,14 @@ shared func isatty(int fd) bool {
 }
 
 shared native exit(int code) => "if __lua_os.exit then __lua_os.exit(code) else error('exit ' .. code, 0) end";
+
+shared func envOpen(*Env e) {
+	e.index = 0;
+}
+
+shared func envNext(*Env _e) (string, bool) {
+	return "", false;
+}
+
+shared func envClose(*Env _e) {
+}

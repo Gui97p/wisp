@@ -66,7 +66,7 @@ func (t *X64Target) drainLambdas() error {
 		t.lambdas = t.lambdas[1:]
 		ctx := t.ctx
 		t.ctx = x64context.NewContext()
-		err := t.compileFuncBody(l.name, l.display, false, t.info.VarSymbols[l.lit], t.info.Types[l.lit].(*analyser.FuncType).Returns, l.lit.Fallible, l.lit.Block)
+		err := t.compileFuncBody(l.name, l.display, false, false, t.info.VarSymbols[l.lit], t.info.Types[l.lit].(*analyser.FuncType).Returns, l.lit.Fallible, l.lit.Block)
 		t.ctx = ctx
 		if err != nil {
 			return err
@@ -201,7 +201,7 @@ func classOf(tp analyser.Type) x64context.Class {
 	return x64context.Memory
 }
 
-func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*analyser.Symbol, returns []analyser.Type, fallible bool, body *ast.BlockStmt) error {
+func (t *X64Target) compileFuncBody(name, display string, entry, cabi bool, params []*analyser.Symbol, returns []analyser.Type, fallible bool, body *ast.BlockStmt) error {
 	t.funcName = display
 	t.sites = nil
 	t.candidates = nil
@@ -229,12 +229,17 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	}
 
 	sret := usesSret(t.funcReturns)
-	args := assignArgs(types, sret)
+	var args []x64context.ArgLoc
+	if cabi {
+		args = t.assignWin64Args(types)
+	} else {
+		args = assignArgs(types, sret)
+	}
 
 	stackSize := t.ctx.Size()
 
 	n := 0
-	if t.optimize && !t.trace && !entry && !fallible && !sret {
+	if t.optimize && !t.trace && !entry && !fallible && !sret && !cabi {
 		ps := map[*analyser.Symbol]bool{}
 		ok := len(args) == len(params)
 		for i, arg := range args {
@@ -328,10 +333,25 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	}
 
 	t.savedRegs = nil
+	t.savedXmms = nil
 	for _, reg := range t.ctx.SavedRegisters() {
 		off := t.ctx.Reserve(8)
 		t.text.printft("mov %s, %s\n", t.memText(slot(off, 8)), t.ctx.GetRegister(reg, 8))
 		t.savedRegs = append(t.savedRegs, savedReg{reg, off})
+	}
+
+	if cabi {
+		off := t.ctx.Reserve(16)
+		t.store(Reg{x64context.DI, 8}, slot(off, 8))
+		t.store(Reg{x64context.SI, 8}, slot(off-8, 8))
+		t.savedRegs = append(t.savedRegs, savedReg{reg: x64context.DI, offset: off}, savedReg{reg: x64context.SI, offset: off - 8})
+
+		for _, reg := range x64context.XMMWin64SavedOrder {
+			off := t.ctx.Reserve(16)
+			rStr := t.ctx.GetRegister(reg, 8)
+			t.text.printft("movups [rbp-%d], %s\n", off, rStr)
+			t.savedXmms = append(t.savedXmms, savedReg{reg: reg, offset: off})
+		}
 	}
 
 	for i, arg := range args {
@@ -410,6 +430,9 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 
 	for _, saved := range t.savedRegs {
 		t.text.printft("mov %s, %s\n", t.ctx.GetRegister(saved.reg, 8), t.memText(slot(saved.offset, 8)))
+	}
+	for _, saved := range t.savedXmms {
+		t.text.printft("movups %s, [rbp-%d]\n", t.ctx.GetRegister(saved.reg, 8), saved.offset)
 	}
 
 	t.text.printlnt("mov rsp, rbp")
@@ -497,7 +520,7 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		t.text.printf("global %s\n", name)
 	}
 
-	return t.compileFuncBody(name, display+fd.Name, t.isEntry && fd.Name == "main", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
+	return t.compileFuncBody(name, display+fd.Name, t.isEntry && fd.Name == "main", fd.CExport != "" && t.abi == "win64", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
 }
 
 func (t *X64Target) synthetic(name string, tp analyser.Type, at ast.Node, order int) *analyser.Symbol {

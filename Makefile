@@ -1,10 +1,11 @@
-.PHONY: build prod install ext run clean version testgen test test-cc test-x64 bench
+.PHONY: build prod prod-windows toolchain install ext run clean version testgen test test-cc test-x64 bench
 APP=wisp
 DIST=dist/wisp
 STAGE=dist/wisp-tmp
 
 VERSION = $(shell go run ./cmd/main version --short)
 NAME = wisp-$(VERSION)-linux-amd64
+WINNAME = wisp-$(VERSION)-windows-amd64
 
 build:
 	go build -o bin/$(APP) ./cmd/main
@@ -23,6 +24,19 @@ prod: build
 
 	tar -C $(STAGE) -czf $(DIST)/$(NAME).tar.gz $(APP)
 
+	rm -rf $(STAGE)
+
+toolchain:
+	scripts/fetch-toolchain.sh all
+
+prod-windows:
+	rm -f $(DIST)/$(WINNAME).zip
+	rm -rf $(STAGE)
+	mkdir -p $(DIST) $(STAGE)/$(APP)/bin
+	GOOS=windows GOARCH=amd64 go build -o $(STAGE)/$(APP)/bin/$(APP).exe ./cmd/main
+	cp -r std $(STAGE)/$(APP)
+	if [ -d dependencies/toolchain/windows-amd64 ]; then mkdir -p $(STAGE)/$(APP)/toolchain && cp -a dependencies/toolchain/windows-amd64/. $(STAGE)/$(APP)/toolchain; fi
+	cd $(STAGE) && zip -qr $(CURDIR)/$(DIST)/$(WINNAME).zip $(APP)
 	rm -rf $(STAGE)
 
 install: prod

@@ -77,6 +77,10 @@ struct StatBuf {
 	int __reserved2;
 }
 
+shared struct Env {
+	int index;
+}
+
 shared struct Dir {
 	int fd;
 	int pos, len;
@@ -328,4 +332,28 @@ shared func getenv(string name) (string, bool) {
 		}
 	}
 	return "", false;
+}
+
+shared func envOpen(*Env e) {
+	e.index = 0;
+}
+
+shared func envNext(*Env e) (string, bool) {
+	**byte env = environ();
+	if env == null {
+		return "", false;
+	}
+	*byte entry = env[e.index];
+	if entry == null {
+		return "", false;
+	}
+	e.index++;
+	int n;
+	loop entry[n] != '\0' {
+		n++;
+	}
+	return string(entry[:n]), true;
+}
+
+shared func envClose(*Env _e) {
 }

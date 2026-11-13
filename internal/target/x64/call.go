@@ -604,17 +604,23 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 
 	if cVariadic {
 		xi := 0
-		for _, arg := range argLocs {
+		for i, arg := range argLocs {
 			for _, reg := range arg.Regs {
 				if reg.Class() == x64context.SSE {
+					if cWin64 {
+						r := x64context.Win64ParamOrder[i]
+						t.text.printft("movq %s, %s\n", t.ctx.GetRegister(r, 8), t.ctx.GetRegister(reg, 8))
+					}
 					xi++
 				}
 			}
 		}
-		if xi == 0 {
-			t.text.printlnt("xor eax, eax")
-		} else {
-			t.text.printft("mov eax, %d\n", xi)
+		if !cWin64 {
+			if xi == 0 {
+				t.text.printlnt("xor eax, eax")
+			} else {
+				t.text.printft("mov eax, %d\n", xi)
+			}
 		}
 	}
 	xmms := t.ctx.XmmBindings()
@@ -781,7 +787,7 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		if ft, ok := underlying(sym.Type).(*analyser.FuncType); ok {
 			cVariadic = ft.CVariadic
 		}
-		return t.compileCall(sym.CName, sym.Extern || sym.Module != t.module, expr.Args, t.info.CallReturns[expr], cVariadic, sym.Extern && t.abi == "win64")
+		return t.compileCall(sym.CName, sym.Extern || sym.Module != t.module, expr.Args, t.info.CallReturns[expr], cVariadic, t.abi == "win64")
 	}
 	if sym.Module == "" {
 		return t.compileBuiltin(sym.Name, expr)
