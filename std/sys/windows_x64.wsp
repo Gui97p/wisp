@@ -4,6 +4,7 @@ import "std/sys";
 
 extern func GetStdHandle(int32 which) *void;
 extern func ReadFile(*void file, *byte buf, uint32 n, *void read, *void overlapped) int32;
+extern func WriteConsoleW(*void console, *uint16 text, uint32 n, *void written, *void reserved) int32;
 extern func WriteFile(*void file, *byte buf, uint32 n, *void written, *void overlapped) int32;
 extern func CreateFileW(*uint16 name, uint32 access, uint32 share, *void security, uint32 disposition, uint32 flags, *void template) *void;
 extern func CloseHandle(*void handle) int32;
@@ -108,6 +109,8 @@ var *uint16 wideB;
 var *uint16 wideScratch;
 var *uint16 wideValue;
 var *byte envBuffer;
+var [12]byte pendingBytes;
+var [3]int pendingCount;
 var *byte iterBuffer;
 
 internal func winerr(int code) int {
@@ -243,7 +246,112 @@ shared func read(int fd, *byte buf, int n) int {
 	return int(got);
 }
 
+internal func isConsole(int fd) bool {
+	uint32 mode;
+	return GetConsoleMode(handleOf(fd), &mode) != 0;
+}
+
+internal func sequenceLength(byte lead) int {
+	if lead >= 0xF0 && lead < 0xF8 {
+		return 4;
+	}
+	if lead >= 0xE0 && lead < 0xF0 {
+		return 3;
+	}
+	if lead >= 0xC0 && lead < 0xE0 {
+		return 2;
+	}
+	return 1;
+}
+
+internal func emitWide(int fd, *byte p, int n) int {
+	if n == 0 {
+		return 0;
+	}
+	if buffers() < 0 {
+		return -sys.ENOMEM;
+	}
+	int m = MultiByteToWideChar(CP_UTF8, 0, p, int32(n), wideScratch, int32(WIDE_MAX - 16));
+	if m <= 0 {
+		return -sys.EINVAL;
+	}
+	uint32 done;
+	if WriteConsoleW(handleOf(fd), wideScratch, uint32(m), &done, null) == 0 {
+		return lastError();
+	}
+	return 0;
+}
+
+internal func writeConsole(int fd, *byte buf, int n) int {
+	int i;
+	int held = pendingCount[fd];
+	if held > 0 {
+		[4]byte joined;
+		for k in 0..held-1 {
+			joined[k] = pendingBytes[fd * 4 + k];
+		}
+		int need = sequenceLength(joined[0]);
+		loop held < need && i < n {
+			joined[held] = buf[i];
+			held++;
+			i++;
+		}
+		if held < need {
+			for k in 0..held-1 {
+				pendingBytes[fd * 4 + k] = joined[k];
+			}
+			pendingCount[fd] = held;
+			return n;
+		}
+		pendingCount[fd] = 0;
+		int r = emitWide(fd, (*byte)(joined), held);
+		if r < 0 {
+			return r;
+		}
+	}
+
+	int tail = n;
+	int j = n - 1;
+	loop j >= i && n - j <= 3 && (buf[j] & 0xC0) == 0x80 {
+		j--;
+	}
+	if j >= i && buf[j] >= 0xC0 && n - j < sequenceLength(buf[j]) {
+		tail = j;
+	}
+
+	int pos = i;
+	loop pos < tail {
+		int end = tail;
+		if end - pos > 16384 {
+			end = pos + 16384;
+			loop end > pos && (buf[end] & 0xC0) == 0x80 {
+				end--;
+			}
+			if end == pos {
+				end = pos + 16384;
+			}
+		}
+		int r = emitWide(fd, buf + pos, end - pos);
+		if r < 0 {
+			return r;
+		}
+		pos = end;
+	}
+
+	int rest = n - tail;
+	if rest > 0 {
+		for k in 0..rest-1 {
+			pendingBytes[fd * 4 + k] = buf[tail + k];
+		}
+	}
+	pendingCount[fd] = rest;
+	return n;
+}
+
 shared func write(int fd, *byte buf, int n) int {
+	if (fd == 1 || fd == 2) && isConsole(fd) {
+		return writeConsole(fd, buf, n);
+	}
 	uint32 done;
 	if WriteFile(handleOf(fd), buf, uint32(n), &done, null) == 0 {
 		return lastError();

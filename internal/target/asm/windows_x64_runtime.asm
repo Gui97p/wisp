@@ -20,6 +20,9 @@ global __wisp_exit_hook
 global main
 
 extern GetStdHandle
+extern GetConsoleMode
+extern MultiByteToWideChar
+extern WriteConsoleW
 extern WriteFile
 extern ExitProcess
 
@@ -110,15 +113,67 @@ __wisp_write_to:
 	push r10
 	mov rdi, rsp
 	and rsp, -16
-	sub rsp, 64
+	sub rsp, 608
 	mov [rsp+48], rdx
+	mov [rsp+80], rsi
 	call GetStdHandle
+	mov [rsp+56], rax
 	mov rcx, rax
-	mov rdx, rsi
+	lea rdx, [rsp+72]
+	call GetConsoleMode
+	test eax, eax
+	jz .file
+
+.console:
+	mov rax, [rsp+48]
+	test rax, rax
+	jz .done
+	cmp rax, 256
+	jbe .take
+	mov eax, 256
+	mov rcx, [rsp+80]
+.back:
+	cmp eax, 1
+	jbe .take
+	mov dl, [rcx+rax]
+	and dl, 0xC0
+	cmp dl, 0x80
+	jne .take
+	dec eax
+	jmp .back
+.take:
+	mov [rsp+88], rax
+	mov ecx, 65001
+	xor edx, edx
+	mov r8, [rsp+80]
+	mov r9d, eax
+	lea rax, [rsp+96]
+	mov [rsp+32], rax
+	mov dword [rsp+40], 256
+	call MultiByteToWideChar
+	test eax, eax
+	jz .advance
+	mov r8d, eax
+	mov rcx, [rsp+56]
+	lea rdx, [rsp+96]
+	lea r9, [rsp+64]
+	mov qword [rsp+32], 0
+	call WriteConsoleW
+.advance:
+	mov rax, [rsp+88]
+	add [rsp+80], rax
+	sub [rsp+48], rax
+	jmp .console
+
+.file:
+	mov rcx, [rsp+56]
+	mov rdx, [rsp+80]
 	mov r8, [rsp+48]
-	lea r9, [rsp+40]
+	lea r9, [rsp+64]
 	mov qword [rsp+32], 0
 	call WriteFile
+
+.done:
 	mov rsp, rdi
 	pop r10
 	pop r9

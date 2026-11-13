@@ -5,16 +5,12 @@ extern main
 extern ExitProcess
 extern GetCommandLineW
 extern WideCharToMultiByte
-extern SetConsoleOutputCP
 extern VirtualAlloc
 
 section .text code align=16
 _start:
 	xor ebp, ebp
 	sub rsp, 72
-
-	mov ecx, 65001
-	call SetConsoleOutputCP
 
 	call GetCommandLineW
 	mov r14, rax

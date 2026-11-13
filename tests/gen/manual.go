@@ -8330,6 +8330,61 @@ func main() ! {
 }
 `, expected: []string{"a directory lists its files and subdirectories with their kinds", "the entries . and .. are not listed", "an empty directory lists nothing", "openDir on a file is NotDir", "a listing that needs several reads finds every entry"}},
 
+	{dir: "win64_console", system: "windows", x64Only: true, src: `import "std/os";
+
+extern func AllocConsole() int32;
+extern func CreateConsoleScreenBuffer(uint32 access, uint32 share, *void security, uint32 flags, *void reserved) *void;
+extern func SetStdHandle(uint32 which, *void handle) int32;
+extern func GetStdHandle(int32 which) *void;
+extern func GetConsoleOutputCP() uint32;
+extern func SetConsoleOutputCP(uint32 page) int32;
+extern func ReadConsoleOutputCharacterW(*void console, *uint16 text, uint32 n, uint32 at, *void read) int32;
+
+func main() ! {
+    *void original = GetStdHandle(-11);
+    AllocConsole();
+    *void screen = CreateConsoleScreenBuffer(0xC0000000, 3, null, 1, null);
+    uint32 page = GetConsoleOutputCP();
+    SetConsoleOutputCP(437);
+    SetStdHandle(0xFFFFFFF5, screen);
+
+    [2]byte first;
+    first[0] = 97;
+    first[1] = 195;
+    [12]byte second;
+    second[0] = 167;
+    second[1] = 195;
+    second[2] = 163;
+    second[3] = 111;
+    second[4] = 32;
+    second[5] = 195;
+    second[6] = 177;
+    second[7] = 195;
+    second[8] = 169;
+    second[9] = 195;
+    second[10] = 188;
+    second[11] = 10;
+    os.writeBytes(os.STDOUT, first)!;
+    os.writeBytes(os.STDOUT, second)!;
+    emit("ñü é");
+
+    [16]uint16 line;
+    uint32 got;
+    ReadConsoleOutputCharacterW(screen, (*uint16)(line), 8, 0, &got);
+    [16]uint16 next;
+    uint32 nextGot;
+    ReadConsoleOutputCharacterW(screen, (*uint16)(next), 4, 65536, &nextGot);
+
+    SetStdHandle(0xFFFFFFF5, original);
+    SetConsoleOutputCP(page);
+
+    check(got == 8, "the console buffer returns the characters that were written");
+    check(line[0] == 97 && line[1] == 231 && line[2] == 227 && line[3] == 111, "accented letters arrive intact when a write ends inside a character");
+    check(line[5] == 241 && line[6] == 233 && line[7] == 252, "the accents after the split arrive too");
+    check(nextGot == 4 && next[0] == 241 && next[1] == 252 && next[3] == 233, "the runtime write path converts to UTF-16 for a console");
+}
+`, expected: []string{"the console buffer returns the characters that were written", "accented letters arrive intact when a write ends inside a character", "the accents after the split arrive too", "the runtime write path converts to UTF-16 for a console"}},
+
 	{dir: "os_long_path", x64Only: true, src: `import "std/os";
 import "std/path";
 
