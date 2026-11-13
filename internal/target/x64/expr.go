@@ -168,6 +168,9 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 }
 
 func (t *X64Target) funcLabel(sym *analyser.Symbol) string {
+	if t.abi == "win64" && sym.CName != "" {
+		return t.queueAdapter(sym)
+	}
 	symName := t.funcSymbol(sym.Module, sym.Name)
 	if sym.CName != "" {
 		symName = sym.CName

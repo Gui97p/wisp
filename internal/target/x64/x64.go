@@ -50,9 +50,16 @@ type loopState struct {
 	p, n, i, count *analyser.Symbol
 }
 
+type pendingAdapter struct {
+	name string
+	sym  *analyser.Symbol
+}
+
 type X64Target struct {
 	coalesceFrames []coalesceFrame
 	loopSyms       map[*ast.ForStmt]*loopState
+	adapterSet     map[string]bool
+	adapters       []pendingAdapter
 
 	program *ast.Program
 	info    *analyser.Info
@@ -138,7 +145,8 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, t, format, abi
 
 		dataLabel: map[any]string{},
 
-		labels: map[string]int{},
+		labels:     map[string]int{},
+		adapterSet: map[string]bool{},
 
 		trace:    prof.Trace,
 		snippets: prof.Snippets,

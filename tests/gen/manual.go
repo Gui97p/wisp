@@ -10507,6 +10507,8 @@ four: dq 4.0
 one_and_half: dq 1.5
 `}, src: `extern func run_caller() int32;
 
+(int32, int32) => int32 globalScale = scale;
+
 public func scale(int32 value, int32 factor) int32 as wisp_scale {
     return value * factor;
 }
@@ -10535,8 +10537,18 @@ func main() {
     check(mix(1, 2.0, 3, 4.0) == 4321.0, "a Wisp call that mixes integers and floats by position");
     check(drift(10, 1.5) == 25.0, "a Wisp call to an exported function that uses saved registers");
     check(run_caller() == 0, "a Win64 caller gets the right results and its registers back");
+
+    (int32, int32) => int32 viaScale = scale;
+    check(viaScale(6, 7) == 42, "an exported function used as a value");
+    (int32, int32, int32, int32, int32, int32, int32) => int32 viaMany = many;
+    check(viaMany(1, 2, 3, 4, 5, 6, 7) == 140, "a function value with arguments on the stack");
+    (int32, float64, int32, float64) => float64 viaMix = mix;
+    check(viaMix(1, 2.0, 3, 4.0) == 4321.0, "a function value that mixes integers and floats");
+    () => int32 viaCaller = run_caller;
+    check(viaCaller() == 0, "an external function used as a value");
+    check(globalScale(6, 7) == 42, "a global initialised with an exported function");
 }
-`, expected: []string{"a Wisp call to an exported function", "a Wisp call with arguments on the stack", "a Wisp call that mixes integers and floats by position", "a Wisp call to an exported function that uses saved registers", "a Win64 caller gets the right results and its registers back"}},
+`, expected: []string{"a Wisp call to an exported function", "a Wisp call with arguments on the stack", "a Wisp call that mixes integers and floats by position", "a Wisp call to an exported function that uses saved registers", "a Win64 caller gets the right results and its registers back", "an exported function used as a value", "a function value with arguments on the stack", "a function value that mixes integers and floats", "an external function used as a value", "a global initialised with an exported function"}},
 
 	{dir: "interop_extern", system: "linux", x64Only: true, files: map[string]string{"lib.c": `int add(int a, int b) { return a + b; }
 long mul64(long a, long b) { return a * b; }

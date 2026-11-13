@@ -115,6 +115,16 @@ func (t *X64Target) queueLambda(e *ast.FuncLiteral) string {
 	return name
 }
 
+func (t *X64Target) queueAdapter(sym *analyser.Symbol) string {
+	name := sym.CName + "$adapter"
+	if t.adapterSet[name] {
+		return name
+	}
+	t.adapterSet[name] = true
+	t.adapters = append(t.adapters, pendingAdapter{name: name, sym: sym})
+	return name
+}
+
 var errFieldOffset = map[string]int{
 	"domain":  0,
 	"code":    16,

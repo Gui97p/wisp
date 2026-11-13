@@ -24,7 +24,11 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		if err != nil {
 			return err
 		}
-		return t.drainLambdas()
+		err = t.drainLambdas()
+		if err != nil {
+			return err
+		}
+		return t.drainAdapters()
 	case *ast.VarDecl:
 		syms := t.info.VarSymbols[d]
 		for i := range d.Vars {
@@ -43,6 +47,9 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 				return err
 			}
 			t.drainLambdas()
+			if err := t.drainAdapters(); err != nil {
+				return err
+			}
 		}
 		return nil
 	case *ast.StructDecl:
@@ -67,6 +74,21 @@ func (t *X64Target) drainLambdas() error {
 		ctx := t.ctx
 		t.ctx = x64context.NewContext()
 		err := t.compileFuncBody(l.name, l.display, false, false, t.info.VarSymbols[l.lit], t.info.Types[l.lit].(*analyser.FuncType).Returns, l.lit.Fallible, l.lit.Block)
+		t.ctx = ctx
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *X64Target) drainAdapters() error {
+	for len(t.adapters) > 0 {
+		a := t.adapters[0]
+		t.adapters = t.adapters[1:]
+		ctx := t.ctx
+		t.ctx = x64context.NewContext()
+		err := t.emitAdapter(a)
 		t.ctx = ctx
 		if err != nil {
 			return err

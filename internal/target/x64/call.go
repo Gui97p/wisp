@@ -200,6 +200,84 @@ func (t *X64Target) assignWin64Args(types []analyser.Type) []x64context.ArgLoc {
 	return argLocs
 }
 
+func (t *X64Target) emitAdapter(a pendingAdapter) error {
+	ft, ok := underlying(a.sym.Type).(*analyser.FuncType)
+	if !ok {
+		return fmt.Errorf("x86-64: %s is not a function", a.sym.Name)
+	}
+	if len(ft.Returns) > 1 || usesSret(ft.Returns) {
+		return fmt.Errorf("x86-64: a C function returns at most one scalar")
+	}
+	for _, tp := range ft.Params {
+		if sizeOf(tp) > 8 || classOf(tp) == x64context.Memory {
+			return fmt.Errorf("x86-64: a C function takes only scalars and pointers")
+		}
+	}
+
+	desc, err := newDesc(t.format, a.name, a.name, true, 32)
+	if err != nil {
+		return err
+	}
+	t.text.printf("\nsection .text%s\n", desc)
+	t.text.printf("%s:\n", a.name)
+	if a.sym.Extern || a.sym.Module != t.module {
+		t.prelude.define(a.sym.CName)
+	}
+
+	from := assignArgs(ft.Params, false)
+	to := t.assignWin64Args(ft.Params)
+
+	t.text.printlnt("push rbp")
+	t.text.printlnt("mov rbp, rsp")
+	t.text.printlnt("sub rsp, .frame")
+
+	saved := make([]int, len(ft.Params))
+	for i, tp := range ft.Params {
+		size := sizeOf(tp)
+		if size == 0 || len(from[i].Regs) == 0 {
+			continue
+		}
+		saved[i] = t.ctx.Reserve(8)
+		t.storeWord(slot(saved[i], size), Reg{from[i].Regs[0], size})
+	}
+	t.ctx.Reserve(32 + 8*max(0, len(ft.Params)-4))
+
+	for i, tp := range ft.Params {
+		size := sizeOf(tp)
+		if size == 0 {
+			continue
+		}
+		var src Operand
+		if len(from[i].Regs) > 0 {
+			src = slot(saved[i], size)
+		} else {
+			src = deref(x64context.BP, 16+from[i].Stack, size)
+		}
+		if len(to[i].Regs) > 0 {
+			t.loadWord(to[i].Regs[0], src)
+			continue
+		}
+		t.loadWord(x64context.AX, src)
+		t.storeWord(Mem{Base: x64context.SP, Disp: to[i].Stack, Size: size}, Reg{x64context.AX, size})
+	}
+
+	t.text.printft("call %s\n", a.sym.CName)
+	t.text.printlnt("mov rsp, rbp")
+	t.text.printlnt("pop rbp")
+	t.text.printlnt("ret")
+	t.text.printft(".frame equ %d\n", t.ctx.AlignTo(16))
+
+	tText, err := textOf(t.format)
+	if err != nil {
+		return err
+	}
+	if tText != "" {
+		tText = " " + tText
+	}
+	t.text.printf("section .text%s\n", tText)
+	return nil
+}
+
 func (t *X64Target) captureReturn(types []analyser.Type, memSlot Mem) []Operand {
 	if len(types) == 0 {
 		return nil
