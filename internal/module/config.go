@@ -29,8 +29,8 @@ type Config struct {
 	Programs  map[string]ProgramConfig `toml:"program" doc:"The programs of the project, declared as [program.<name>]. Without any, the project is one program named after its folder."`
 	Libraries map[string]LibraryConfig `toml:"library" doc:"The libraries of the project, declared as [library.<name>]. A library has no entry: it is the modules it lists and everything they import."`
 	Targets   map[string]TargetConfig  `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
-	Profile   string                   `toml:"profile" doc:"The profile to build with: debug (the default) or release. A program or library can choose its own, and --profile overrides it."`
-	Profiles  map[string]ProfileConfig `toml:"profiles" doc:"Adjusts what debug or release turn on, declared as [profiles.debug] or [profiles.release]. Only the keys that differ from the built-in profile are written."`
+	Profile   string                   `toml:"profile" doc:"The profile to build with: debug (the default), release (optimized, with the run-time checks) or fast (optimized, without the checks). A program or library can choose its own, and --profile overrides it."`
+	Profiles  map[string]ProfileConfig `toml:"profiles" doc:"Adjusts what a profile turns on, declared as [profiles.debug], [profiles.release] or [profiles.fast]. Only the keys that differ from the built-in profile are written."`
 
 	Entry         string       `toml:"-"`
 	ProgramName   string       `toml:"-"`

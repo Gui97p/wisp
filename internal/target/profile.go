@@ -19,6 +19,7 @@ const DefaultProfile = "debug"
 var builtinProfiles = []Profile{
 	{Name: "debug", Trace: true, Snippets: true, Checks: true},
 	{Name: "release", Strip: true, Optimize: true, Checks: true},
+	{Name: "fast", Strip: true, Optimize: true},
 }
 
 func Profiles() []string {

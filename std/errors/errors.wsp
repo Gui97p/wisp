@@ -17,7 +17,7 @@ public inline func assert(bool condition, const string message) {
 		panic(message);
 	}
 }
-public inline func<release> assert(bool _condition, const string _message) {}
+public inline func<!debug> assert(bool _condition, const string _message) {}
 
 public inline func unreachable(const string message) {
 	panic(message);

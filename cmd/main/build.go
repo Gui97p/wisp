@@ -69,7 +69,7 @@ func addBuildFlags(cmd *cobra.Command) {
 
 func addProfileFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
-	f.StringVar(&profileOpt, "profile", "", "profile to build with: debug (the default) or release")
+	f.StringVar(&profileOpt, "profile", "", "profile to build with: debug (the default), release or fast")
 	f.BoolVar(&releaseOpt, "release", false, "build with the release profile, the same as --profile release")
 }
 

@@ -7116,6 +7116,39 @@ func main() {
 }
 `, expected: []string{"a plain function is used when no version matches the profile", "a function can exist only for the debug profile", "a global declared with var takes the version of the profile", "a global array declared with var for one profile starts zeroed"}},
 
+	{dir: "profile_fast", profile: "fast", src: `var<debug> int level = 10;
+var<release> int level = 20;
+var<fast> int level = 30;
+var<release||fast> int common = 7;
+
+func<debug> mode() string {
+    return "debug";
+}
+
+func<release> mode() string {
+    return "release";
+}
+
+func<fast> mode() string {
+    return "fast";
+}
+
+func<!debug> optimized() int {
+    return 1;
+}
+
+func<debug> optimized() int {
+    return 0;
+}
+
+func main() {
+    check(mode() == "fast", "the fast version is chosen for the fast profile");
+    check(level == 30, "a global can have a version for fast");
+    check(common == 7, "release || fast matches the fast profile");
+    check(optimized() == 1, "!debug matches the fast profile");
+}
+`},
+
 	{dir: "profile_release", profile: "release", src: `var<debug> int level = 10;
 var<release> int level = 20;
 var int plain;
