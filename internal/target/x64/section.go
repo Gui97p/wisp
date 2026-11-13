@@ -150,7 +150,7 @@ func NewText(format string) (*textSection, error) {
 	return section, nil
 }
 
-func newDesc(format, name string, exec bool, align int) (string, error) {
+func newDesc(format, name, leader string, exec bool, align int) (string, error) {
 	al := fmt.Sprintf("align=%d", align)
 	switch format {
 	case "elf64":
@@ -164,7 +164,7 @@ func newDesc(format, name string, exec bool, align int) (string, error) {
 		if exec {
 			e = "code"
 		}
-		return fmt.Sprintf("$%s %s %s", name, e, al), nil
+		return fmt.Sprintf("$%s %s %s comdat=2:%s", name, e, al, leader), nil
 	}
 	return "", fmt.Errorf("x86-64: unknown format")
 }

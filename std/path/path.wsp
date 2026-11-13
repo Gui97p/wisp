@@ -1,38 +1,137 @@
 import "std/strings";
 
-internal const sep = "/";
+internal const<windows> sep = "\\";
+internal const<!windows> sep = "/";
+
+internal inline func<windows> isSep(byte c) bool => c == '\\' || c == '/';
+internal inline func<!windows> isSep(byte c) bool => c == '/';
+
+internal func<windows> isLetter(byte c) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+internal func<windows> volumeLen(string p) int {
+	int l = len(p);
+	if l >= 2 && p[1] == ':' && isLetter(p[0]) {
+		return 2;
+	}
+	if l >= 5 && isSep(p[0]) && isSep(p[1]) && !isSep(p[2]) && p[2] != '.' {
+		int n = 3;
+		loop n < l - 1 {
+			if isSep(p[n]) {
+				n++;
+				if !isSep(p[n]) {
+					if p[n] == '.' {
+						break;
+					}
+					loop n < l && !isSep(p[n]) {
+						n++;
+					}
+					return n;
+				}
+				break;
+			}
+			n++;
+		}
+	}
+	return 0;
+}
+
+internal inline func<!windows> volumeLen(string _p) int => 0;
+
+public func<windows> isAbs(string p) bool {
+	int v = volumeLen(p);
+	if v == 0 {
+		return false;
+	}
+	if v > 2 {
+		return true;
+	}
+	return v < len(p) && isSep(p[v]);
+}
+
+public inline func<!windows> isAbs(string p) bool {
+	return len(p) > 0 && p[0] == '/';
+}
+
+public struct Elements {
+	internal string rest;
+}
+
+public func (*Elements e) next() (string, bool) {
+	string s = e.rest;
+	loop s != "" && isSep(s[0]) {
+		s = s[1:];
+	}
+	if s == "" {
+		e.rest = "";
+		return "", false;
+	}
+	int i;
+	loop i < len(s) && !isSep(s[i]) {
+		i++;
+	}
+	e.rest = s[i:];
+	return s[:i], true;
+}
+
+public func elements(string p) Elements {
+	return Elements{rest: p[volumeLen(p):]};
+}
+
+internal func elementsAfterVolume(string s) Elements {
+	return Elements{rest: s};
+}
 
 public func base(string p) string {
 	if p == "" {
 		return ".";
 	}
-	p = strings.trimRight(p, sep);
-	if p == "" {
+	int v = volumeLen(p);
+	int end = len(p);
+	loop end > 0 && isSep(p[end-1]) {
+		end--;
+	}
+	if end <= v {
 		return sep;
 	}
-
-	int idx = strings.lastIndexOf(p, sep);
-	return p[idx+1:];
+	int i = end - 1;
+	loop i >= v && !isSep(p[i]) {
+		i--;
+	}
+	return p[i+1:end];
 }
 
 public func dir(string p) string {
 	if p == "" {
 		return ".";
 	}
-	p = strings.trimRight(p, sep);
-	if p == "" {
-		return sep;
+	int v = volumeLen(p);
+	if v > 2 && len(p) == v {
+		return p;
 	}
-	int idx = strings.lastIndexOf(p, sep);
-	if idx < 0 {
-		return ".";
+	int end = len(p);
+	loop end > v && isSep(p[end-1]) {
+		end--;
 	}
-
-	string head = strings.trimRight(p[:idx], sep);
-	if head == "" {
-		return sep;
+	if end == v {
+		return len(p) > v ? p[:v+1] : (v == 0 ? "." : p[:v]);
 	}
-	return head;
+	int i = end - 1;
+	loop i >= v && !isSep(p[i]) {
+		i--;
+	}
+	if i < v {
+		return v == 0 ? "." : p[:v];
+	}
+	int head = i;
+	loop head > v && isSep(p[head-1]) {
+		head--;
+	}
+	if head == v {
+		return p[:v+1];
+	}
+	return p[:head];
 }
 
 public func ext(string p) string {
@@ -44,12 +143,4 @@ public func ext(string p) string {
 
 public inline func stem(string p) string {
 	return strings.trimSuffix(base(p), ext(p));
-}
-
-public inline func isAbs(string p) bool {
-	return strings.startsWith(p, sep);
-}
-
-public inline func elements(string p) strings.Splitter {
-	return strings.tokens(p, sep);
 }

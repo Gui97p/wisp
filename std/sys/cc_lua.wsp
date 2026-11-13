@@ -2,59 +2,53 @@
 
 import "std/sys";
 
-native pathKind(*byte path) int kind =>
-		"local p = __wisp_cstr(path); if not __lua_fs.exists(p) then kind = 0 elseif __lua_fs.isDir(p) then kind = 2 else kind = 1 end";
+shared struct Dir {
+	int fd;
+}
 
-native parentKind(*byte path) int kind =>
-		"local d = __lua_fs.getDir(__wisp_cstr(path)); if d == '' then kind = 2 elseif not __lua_fs.exists(d) then kind = 0 elseif __lua_fs.isDir(d) then kind = 2 else kind = 1 end";
+native pathKind(string path) int kind =>
+		"if not __lua_fs.exists(path) then kind = 0 elseif __lua_fs.isDir(path) then kind = 2 else kind = 1 end";
 
-native pathSize(*byte path) int size =>
-		"size = __lua_fs.getSize(__wisp_cstr(path))";
+native parentKind(string path) int kind =>
+		"local d = __lua_fs.getDir(path); if d == '' then kind = 2 elseif not __lua_fs.exists(d) then kind = 0 elseif __lua_fs.isDir(d) then kind = 2 else kind = 1 end";
 
-native pathModified(*byte path) int ms =>
-		"local a = __lua_fs.attributes(__wisp_cstr(path)); ms = __lua_math.floor(a.modified or 0)";
+native pathSize(string path) int size =>
+		"size = __lua_fs.getSize(path)";
 
-native dirEmpty(*byte path) bool empty =>
-		"empty = #__lua_fs.list(__wisp_cstr(path)) == 0";
+native pathModified(string path) int ms =>
+		"local a = __lua_fs.attributes(path); ms = __lua_math.floor(a.modified or 0)";
 
-native pathDelete(*byte path) int r =>
-		"r = 0; local ok = pcall(__lua_fs.delete, __wisp_cstr(path)); if not ok then r = -13 end";
+native dirEmpty(string path) bool empty =>
+		"empty = #__lua_fs.list(path) == 0";
 
-native pathMakeDir(*byte path) int r =>
-		"r = 0; local ok = pcall(__lua_fs.makeDir, __wisp_cstr(path)); if not ok then r = -13 end";
+native pathDelete(string path) int r =>
+		"r = 0; local ok = pcall(__lua_fs.delete, path); if not ok then r = -13 end";
 
-native pathMove(*byte from, to) int r =>
-		"r = 0; local ok = pcall(__lua_fs.move, __wisp_cstr(from), __wisp_cstr(to)); if not ok then r = -13 end";
+native pathMakeDir(string path) int r =>
+		"r = 0; local ok = pcall(__lua_fs.makeDir, path); if not ok then r = -13 end";
 
-native samePath(*byte from, to) bool same =>
-		"same = __lua_fs.combine(__wisp_cstr(from)) == __lua_fs.combine(__wisp_cstr(to))";
+native pathMove(string from, to) int r =>
+		"r = 0; local ok = pcall(__lua_fs.move, from, to); if not ok then r = -13 end";
 
-native pathInside(*byte dir, path) bool inside =>
-		"local d = __lua_fs.combine(__wisp_cstr(dir)); inside = __lua_string.sub(__lua_fs.combine(__wisp_cstr(path)), 1, #d + 1) == d .. '/'";
+native samePath(string from, to) bool same =>
+		"same = __lua_fs.combine(from) == __lua_fs.combine(to)";
 
-native fdKind(int fd) int kind =>
-		"local e = __wisp_fds[fd]; if fd >= 0 and fd <= 2 then kind = 3 elseif e == nil then kind = 0 elseif e.names then kind = 2 else kind = 1 end";
+native pathInside(string dir, path) bool inside =>
+		"local d = __lua_fs.combine(dir); inside = __lua_string.sub(__lua_fs.combine(path), 1, #d + 1) == d .. '/'";
 
-native openFile(*byte path, string fsMode) int fd =>
-		"local h, err = __lua_fs.open(__wisp_cstr(path), fsMode); if h == nil then fd = (err and __lua_string.find(err, 'ccess')) and -13 or -2 else local n = 3; while __wisp_fds[n] ~= nil do n = n + 1 end; __wisp_fds[n] = {h = h}; fd = n end";
+native openFile(string path, string fsMode) int fd =>
+		"local h, err = __lua_fs.open(path, fsMode); if h == nil then fd = (err and __lua_string.find(err, 'ccess')) and -13 or -2 else local n = 3; while __wisp_fds[n] ~= nil do n = n + 1 end; __wisp_fds[n] = {h = h}; fd = n end";
 
-native dirOpen(*byte path) int fd =>
-		"local p = __wisp_cstr(path); local names = __lua_fs.list(p); __lua_table.sort(names); local n = 3; while __wisp_fds[n] ~= nil do n = n + 1 end; __wisp_fds[n] = {names = names, pos = 1, path = p}; fd = n";
+native listDir(string path) int fd =>
+		"local names = __lua_fs.list(path); __lua_table.sort(names); local n = 3; while __wisp_fds[n] ~= nil do n = n + 1 end; __wisp_fds[n] = {names = names, pos = 1, path = path}; fd = n";
 
 native dirName(int fd) string name =>
 		"local e = __wisp_fds[fd]; name = e and e.names and e.names[e.pos] or ''";
 
 native dirKind(int fd) int kind =>
-		"local e = __wisp_fds[fd]; kind = __lua_fs.isDir(__lua_fs.combine(e.path, e.names[e.pos])) and 4 or 8";
+		"local e = __wisp_fds[fd]; kind = __lua_fs.isDir(__lua_fs.combine(e.path, e.names[e.pos])) and 1 or 0";
 
 native dirSkip(int fd) => "local e = __wisp_fds[fd]; e.pos = e.pos + 1";
-
-func fill(*sys.Stat s, int kind, int size, int ms) {
-	s.st_mode = uint32(kind == 2 ? sys.S_IFDIR | 0o755 : sys.S_IFREG | 0o644);
-	s.st_size = size;
-	s.st_mtim.tv_sec = ms / 1000;
-	s.st_mtim.tv_nsec = (ms % 1000) * 1_000_000;
-}
 
 shared native read(int fd, *byte buf, int n) int r =>
 		"local e = __wisp_fds[fd]; local s; if fd == 0 then s = __lua_io.read(n) elseif e == nil then r = -9 elseif e.h == nil then r = -21 else s = e.h:read(n) end; if r >= 0 then if s == nil then r = 0 else for i = 1, #s do buf.t[buf.o + i - 1] = __lua_string.byte(s, i) end; r = #s end end";
@@ -62,29 +56,19 @@ shared native read(int fd, *byte buf, int n) int r =>
 shared native write(int fd, *byte buf, int n) int r =>
 		"local e = __wisp_fds[fd]; if fd == 1 or fd == 2 then local f = fd == 2 and (__lua_io.stderr or __lua_io.stdout) or __lua_io.stdout; f:write(__wisp_pstr(buf, n)); r = n elseif e == nil or fd == 0 then r = -9 elseif e.h == nil then r = -21 else e.h:write(__wisp_pstr(buf, n)); r = n end";
 
-shared func open(*byte path, int flags, int _mode) int {
-	if path[0] == '\0' {
+shared func open(string path, int flags) int {
+	if len(path) == 0 {
 		return -sys.ENOENT;
 	}
 	int kind = pathKind(path);
 	int access = flags & 3;
 	bool create = (flags & sys.O_CREAT) != 0;
 
-	if (flags & sys.O_DIRECTORY) != 0 {
-		if kind == 0 {
-			return -sys.ENOENT;
-		}
-		if kind != 2 {
-			return -sys.ENOTDIR;
-		}
-		return dirOpen(path);
-	}
-
 	if kind == 2 {
 		if access != sys.O_RDONLY {
 			return -sys.EISDIR;
 		}
-		return dirOpen(path);
+		return listDir(path);
 	}
 
 	if kind == 0 && !create {
@@ -123,26 +107,33 @@ shared native sync(int fd) int r =>
 shared native size(int fd) int r =>
 		"local e = __wisp_fds[fd]; if e == nil or fd <= 2 then r = -9 elseif e.h == nil then r = -21 else local pos = e.h:seek('cur'); r = e.h:seek('end'); e.h:seek('set', pos) end";
 
-shared func remove(*byte path, int flags) int {
+shared func remove(string path) int {
 	int kind = pathKind(path);
 	if kind == 0 {
 		return -sys.ENOENT;
 	}
-	if (flags & sys.AT_REMOVEDIR) != 0 {
-		if kind != 2 {
-			return -sys.ENOTDIR;
-		}
-		if !dirEmpty(path) {
-			return -sys.ENOTEMPTY;
-		}
-	} else if kind == 2 {
+	if kind == 2 {
 		return -sys.EISDIR;
 	}
 	return pathDelete(path);
 }
 
-shared func mkdir(*byte path, int _mode) int {
-	if path[0] == '\0' {
+shared func rmdir(string path) int {
+	int kind = pathKind(path);
+	if kind == 0 {
+		return -sys.ENOENT;
+	}
+	if kind != 2 {
+		return -sys.ENOTDIR;
+	}
+	if !dirEmpty(path) {
+		return -sys.ENOTEMPTY;
+	}
+	return pathDelete(path);
+}
+
+shared func mkdir(string path) int {
+	if len(path) == 0 {
 		return -sys.ENOENT;
 	}
 	if pathKind(path) != 0 {
@@ -155,8 +146,8 @@ shared func mkdir(*byte path, int _mode) int {
 	return pathMakeDir(path);
 }
 
-shared func rename(*byte from, to) int {
-	if from[0] == '\0' || to[0] == '\0' {
+shared func rename(string from, string to) int {
+	if len(from) == 0 || len(to) == 0 {
 		return -sys.ENOENT;
 	}
 	int source = pathKind(from);
@@ -193,68 +184,64 @@ shared func rename(*byte from, to) int {
 	return pathMove(from, to);
 }
 
-shared func stat(*byte path, *void buf) int {
+shared func stat(string path, *sys.Stat out) int {
 	int kind = pathKind(path);
 	if kind == 0 {
 		return -sys.ENOENT;
 	}
-	fill((*sys.Stat)(buf), kind, pathSize(path), pathModified(path));
+	out.kind = kind == 2 ? sys.KIND_DIR : sys.KIND_FILE;
+	out.size = pathSize(path);
+	out.modified = pathModified(path) * 1_000_000;
+	out.mode = kind == 2 ? 0o755 : 0o644;
 	return 0;
 }
 
-shared func getdents(int fd, *byte buf, int n) int {
-	int kind = fdKind(fd);
-	if kind == 0 || kind == 3 {
-		return -sys.EBADF;
+shared func dirOpen(string path, *Dir d) int {
+	int kind = pathKind(path);
+	if kind == 0 {
+		return -sys.ENOENT;
 	}
 	if kind != 2 {
 		return -sys.ENOTDIR;
 	}
-
-	int w;
-	loop {
-		string name = dirName(fd);
-		if name == "" {
-			break;
-		}
-		int need = len(name) + 2;
-		if w + need > n {
-			return w == 0 ? -sys.EINVAL : w;
-		}
-		buf[w] = byte(dirKind(fd));
-		for i, c in name {
-			buf[w + 1 + i] = c;
-		}
-		buf[w + 1 + len(name)] = '\0';
-		w += need;
-		dirSkip(fd);
-	}
-	return w;
+	d.fd = listDir(path);
+	return 0;
 }
 
-shared func parseDirent(*byte buf, int pos) (string, int, int) {
-	int start = pos + 1;
-	int stop = start;
-	loop buf[stop] != '\0' {
-		stop++;
+shared func dirNext(*Dir d, *sys.Entry e) int {
+	string name = dirName(d.fd);
+	if name == "" {
+		return 0;
 	}
-	return string(buf[start:stop]), int(buf[pos]), stop + 1;
+	for i, c in name {
+		e.name[i] = c;
+	}
+	e.len = len(name);
+	e.kind = dirKind(d.fd);
+	dirSkip(d.fd);
+	return 1;
 }
 
-shared func getcwd(*byte buf, int n) int {
+shared func dirClose(*Dir d) {
+	close(d.fd);
+}
+
+shared func getcwd([]byte buf) int {
 	string dir;
 	native(out dir) "dir = '/' .. (__lua_shell and __lua_shell.dir() or '')";
-	if len(dir) + 1 > n {
+	if len(dir) > len(buf) {
 		return -sys.ERANGE;
 	}
 	for i, c in dir {
 		buf[i] = c;
 	}
-	buf[len(dir)] = '\0';
-	return len(dir) + 1;
+	return len(dir);
 }
 
-shared native environ() **byte r => "r = nil";
+shared func getenv(string name) (string, bool) {
+	return "", false;
+}
+
 shared native args() []string s => "s = __wisp_pack(table.unpack(arg, 0, #arg))";
 
 shared func time(int clock) (int, int) {

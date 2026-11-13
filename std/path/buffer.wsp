@@ -10,13 +10,19 @@ public func join([]byte buf, string ...parts) !string {
 		if p == "" {
 			continue;
 		}
+		string rest = p;
 		if !seen {
 			seen = true;
-			if path.isAbs(p) {
+			int v = path.volumeLen(p);
+			total += len(strings.copy(buf[total:], p[:v])!);
+			if v < len(p) && path.isSep(p[v]) {
 				total += len(strings.copy(buf[total:], path.sep)!);
+			} else if v > 2 {
+				firstPassed = true;
 			}
+			rest = p[v:];
 		}
-		let elems = path.elements(p);
+		let elems = path.elementsAfterVolume(rest);
 		loop {
 			let n, found = elems.next();
 			if !found {
@@ -34,14 +40,15 @@ public func join([]byte buf, string ...parts) !string {
 
 public func clean([]byte buf, string p) !string {	
 	int total, depth;
-	bool abs = path.isAbs(p);
-	if abs {
-		strings.copy(buf, "/")!;
-		total++;
+	int v = path.volumeLen(p);
+	total += len(strings.copy(buf, p[:v])!);
+	bool rooted = v < len(p) && path.isSep(p[v]);
+	if rooted {
+		total += len(strings.copy(buf[total:], path.sep)!);
 	}
-	int rootLen = abs ? 1 : 0;
+	int rootLen = total;
 
-	let elems = path.elements(p);
+	let elems = path.elementsAfterVolume(p[v:]);
 	loop {
 		let n, found = elems.next();
 		if !found {
@@ -56,7 +63,7 @@ public func clean([]byte buf, string p) !string {
 					total = math.max(strings.lastIndexOf(string(buf[:total]), path.sep), rootLen);
 					depth--;
 					continue;
-				} else if abs {
+				} else if rooted {
 					continue;
 				}
 			default:

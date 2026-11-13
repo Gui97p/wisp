@@ -271,6 +271,13 @@ func (l *Lexer) NextToken() Token {
 				continue
 			}
 
+			if l.ch == '\\' && l.peek() == '\\' {
+				str.WriteByte('\\')
+				l.advance()
+				str.WriteByte('\\')
+				continue
+			}
+
 			if l.ch == '"' {
 				break
 			}

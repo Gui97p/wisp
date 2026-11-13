@@ -6,8 +6,6 @@ shared const {
 	O_EXCL = 128;
 	O_TRUNC = 512;
 	O_APPEND = 1024;
-	O_DIRECTORY = 65536;
-	O_CLOEXEC = 524288;
 
 	SEEK_SET = 0;
 	SEEK_CUR = 1;
@@ -16,29 +14,26 @@ shared const {
 	CLOCK_REALTIME = 0;
 	CLOCK_MONOTONIC = 1;
 
-	AT_REMOVEDIR = 512;
-
-	S_IFMT = 0o170000;
-	S_IFREG = 0o100000;
-	S_IFDIR = 0o040000;
-	S_IFLNK = 0o120000;
-
-	DT_UNKNOWN = 0;
-	DT_DIR = 4;
-	DT_REG = 8;
-	DT_LNK = 10;
+	KIND_FILE = 0;
+	KIND_DIR = 1;
+	KIND_LINK = 2;
+	KIND_OTHER = 3;
 
 	EPERM = 1;
 	ENOENT = 2;
 	EINTR = 4;
 	EIO = 5;
 	EBADF = 9;
+	ENOMEM = 12;
 	EACCES = 13;
+	EBUSY = 16;
 	EEXIST = 17;
 	ENOTDIR = 20;
 	EISDIR = 21;
 	EINVAL = 22;
 	ENOTTY = 25;
+	ENOSPC = 28;
+	EPIPE = 32;
 	ERANGE = 34;
 	ENAMETOOLONG = 36;
 	ENOSYS = 38;
@@ -51,27 +46,16 @@ shared struct Timespec {
 }
 
 shared struct Stat {
-	uint64 st_dev;
-	uint64 st_ino;
-	uint64 st_nlink;
+	int kind;
+	int size;
+	int modified;
+	int mode;
+}
 
-	uint32 st_mode;
-	uint32 st_uid;
-	uint32 st_gid;
-	uint32 pad0;
-
-	uint64 st_rdev;
-	int st_size;
-	int st_blksize;
-	int st_blocks;
-
-	Timespec st_atim;
-	Timespec st_mtim;
-	Timespec st_ctim;
-
-	int __reserved0;
-	int __reserved1;
-	int __reserved2;
+shared struct Entry {
+	int kind;
+	int len;
+	[1024]byte name;
 }
 
 shared func errno(int raw) int {

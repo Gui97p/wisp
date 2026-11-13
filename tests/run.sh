@@ -28,6 +28,16 @@ for dir in "$ROOT"/*/; do
         continue
     fi
 
+    if [[ -f "$dir/os-only" ]]; then
+        effective="$TARGET"
+        if [[ "$TARGET" == "cc" ]]; then
+            effective="linux"
+        fi
+        if [[ "$(cat "$dir/os-only")" != "$effective" ]]; then
+            continue
+        fi
+    fi
+
     if [[ "$TARGET" == "cc" && -f "$dir/x64-only" ]]; then
         continue
     fi
@@ -129,7 +139,14 @@ for dir in "$ROOT"/*/; do
         fi
         if [[ -f "$dir/max-size" ]]; then
             limit="$(cat "$dir/max-size")"
-            actual="$(stat -c %s "$OUT/bin/$name/$name" 2>/dev/null || echo 0)"
+            if [[ "$TARGET" == "windows" && -f "$dir/max-size-windows" ]]; then
+                limit="$(cat "$dir/max-size-windows")"
+            fi
+            exe="$name"
+            if [[ "$TARGET" == "windows" ]]; then
+                exe="$name.exe"
+            fi
+            actual="$(stat -c %s "$OUT/bin/$name/$exe" 2>/dev/null || echo 0)"
             if [[ "$actual" -eq 0 || "$actual" -gt "$limit" ]]; then
                 printf 'WRONG %s  binary is %s bytes, the limit is %s\n' "$name" "$actual" "$limit" >>"$RESULTS"
                 continue

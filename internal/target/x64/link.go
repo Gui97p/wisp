@@ -28,6 +28,8 @@ type LinkOptions struct {
 	Strip bool
 }
 
+const windowsStack = "8388608,8388608"
+
 var windowsLibraries = []string{"kernel32", "ntdll", "advapi32", "bcrypt"}
 
 func Link(t target.Target, root string, objPaths, libPaths []string, outputPath string, keepObj bool, opts LinkOptions) error {
@@ -65,7 +67,7 @@ func Link(t target.Target, root string, objPaths, libPaths []string, outputPath 
 			return fmt.Errorf("linking for %s needs lld: %w", t.OS, err)
 		}
 		linker = ld
-		args = append(args, "-m", "i386pep", "--subsystem", "console", "-e", t.Entry)
+		args = append(args, "-m", "i386pep", "--subsystem", "console", "-e", t.Entry, "--stack", windowsStack)
 		args = append(args, t.LinkArgs...)
 	} else {
 		ld, err := toolchain.Find("ld.lld", "ld")

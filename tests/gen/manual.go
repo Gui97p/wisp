@@ -12,7 +12,9 @@ type manualCase struct {
 	cmain    bool
 	profile  string
 	maxSize  int
+	maxWin   int
 	library  string
+	system   string
 	env      string
 	stderr   string
 	files    map[string]string
@@ -6262,7 +6264,7 @@ func main() {
 }
 `, expected: []string{"a native replaces the plain function of its architecture", "a native function returns several named results", "a native function with no result", "native statements pick their architecture"}},
 
-	{dir: "target_directive", files: map[string]string{"platform/platform.wsp": `import<x64> "platform/x64" as impl;
+	{dir: "target_directive", system: "linux", files: map[string]string{"platform/platform.wsp": `import<x64> "platform/x64" as impl;
 import<lua> "platform/lua" as impl;
 
 const SIZE = 1;
@@ -6356,7 +6358,7 @@ func main() {
 }
 `, expected: []string{"the entry of a package is always there", "only the part whose #target matches is loaded", "the entry reaches a variant through a conditional import", "native needs no selector inside a file with a #target", "a variant has a scope of its own, so equal names do not clash", "a #target can be an or", "the version that matches fewer targets wins"}},
 
-	{dir: "declaration_selectors", src: `func twice(int n) int {
+	{dir: "declaration_selectors", system: "linux", src: `func twice(int n) int {
     return -1;
 }
 
@@ -7043,7 +7045,7 @@ func main() {
 }
 `, expected: []string{"an empty program stays small"}},
 
-	{dir: "size_mem_release", profile: "release", x64Only: true, maxSize: 20000, src: `import "std/mem";
+	{dir: "size_mem_release", profile: "release", x64Only: true, maxSize: 20000, maxWin: 30000, src: `import "std/mem";
 
 func main() {
     *void p = mem.alloc(16) ?? null;
@@ -7083,7 +7085,7 @@ func main() {
 }
 `, expected: []string{"release before the unwrap"}, abort: "error[main.Fail]: Fail.Bad", stderr: "!raised here\n!was unwrapped here"},
 
-	{dir: "checks_off_release", profile: "release", x64Only: true, exit: 136, files: map[string]string{"wisp.toml": "[profiles.release]\nchecks = false\n"}, src: `func main() {
+	{dir: "checks_off_release", system: "linux", profile: "release", x64Only: true, exit: 136, files: map[string]string{"wisp.toml": "[profiles.release]\nchecks = false\n"}, src: `func main() {
     int zero = 0;
     check(true, "before the unchecked division");
     int r = 10 / zero;
@@ -8093,7 +8095,7 @@ func main() {
 }
 `, expected: []string{"getenv finds a variable that is always set", "getenv of a missing variable is false", "getenv does not match a prefix of a name"}},
 
-	{dir: "path_core", src: `import "std/path";
+	{dir: "path_core", system: "linux", src: `import "std/path";
 import "std/strings";
 
 func main() ! {
@@ -8131,7 +8133,7 @@ func main() ! {
     string cutRoot = path.join(tiny, "/ab", "c") ?? "full";
     check(cutRoot == "full", "join with a root reports NoSpace");
 
-    strings.Splitter el = path.elements("/a//b/");
+    path.Elements el = path.elements("/a//b/");
     int count;
     string joined = "";
     loop {
@@ -8143,9 +8145,9 @@ func main() ! {
         joined = piece;
     }
     check(count == 2 && joined == "b", "elements skips empty pieces");
-    strings.Splitter rootEl = path.elements("/");
+    path.Elements rootEl = path.elements("/");
     let none, rootOk = rootEl.next();
-    strings.Splitter emptyEl = path.elements("");
+    path.Elements emptyEl = path.elements("");
     let nothing, emptyOk = emptyEl.next();
     check(!rootOk && !emptyOk && none == "" && nothing == "", "elements of a root or an empty path is nothing");
     strings.Splitter toks = strings.tokens("a,b,", ",");
@@ -8173,6 +8175,47 @@ func main() ! {
     check(cutClean == "full", "clean reports NoSpace");
 }
 `, expected: []string{"base takes the last element", "base ignores trailing separators", "base of only separators is the root", "base of an empty path is a dot", "base keeps a trailing space", "dir drops the last element", "dir of a path under the root is the root", "dir of the root is the root", "dir of a single name is a dot", "dir ignores trailing separators", "dir does not clean", "ext is the last dot and stem is the rest", "a leading dot is part of the name", "a trailing dot is part of the name", "ext looks only at the base", "isAbs", "join puts one separator between parts", "join collapses repeated separators", "join skips empty parts", "join keeps the root of the first part", "join writes the root once", "join takes the root from the first part that is not empty", "join of a name and the root is the name", "join of nothing is empty", "join of the root is the root", "join reports NoSpace", "join with a root reports NoSpace", "elements skips empty pieces", "elements of a root or an empty path is nothing", "tokens skips the empty piece at the end", "clean of an empty path is a dot", "clean collapses separators", "clean drops dots", "clean resolves dot dot", "clean can end in a dot", "clean keeps leading dot dots in a relative path", "clean keeps the dot dot that has nothing to undo", "clean never goes above the root", "clean drops the trailing separator", "clean undoes several elements", "clean reports NoSpace"}},
+
+	{dir: "path_windows", system: "windows", src: `import "std/path";
+
+func main() ! {
+    [64]byte buf;
+
+    check(path.isAbs("C:\\a") && path.isAbs("C:/a") && path.isAbs("c:\\"), "a drive and a separator make a path absolute");
+    check(!path.isAbs("C:a") && !path.isAbs("\\a") && !path.isAbs("a") && !path.isAbs(""), "a drive alone, a rooted path or a relative one is not absolute");
+    check(path.isAbs("\\\\srv\\share\\x") && !path.isAbs("\\\\srv"), "a UNC path with a share is absolute");
+
+    check(path.base("C:\\a\\b.txt") == "b.txt" && path.base("a/b") == "b" && path.base("a\\b") == "b", "base takes the last element after either separator");
+    check(path.base("C:\\") == "\\" && path.base("C:") == "\\" && path.base("") == ".", "base of a root or a bare drive");
+    check(path.dir("C:\\a\\b") == "C:\\a" && path.dir("C:\\a") == "C:\\" && path.dir("C:\\") == "C:\\", "dir keeps the drive and the root");
+    check(path.dir("C:a") == "C:" && path.dir("a\\b") == "a" && path.dir("a/b") == "a" && path.dir("a") == ".", "dir of relative paths");
+    check(path.ext("a\\b.tar.gz") == ".gz" && path.stem("a\\b.tar.gz") == "b.tar", "ext and stem look at the last element");
+
+    check(path.join(buf, "C:\\", "a", "b")!! == "C:\\a\\b", "join keeps the drive and the root");
+    check(path.join(buf, "a/b", "c\\d")!! == "a\\b\\c\\d", "join writes the canonical separator");
+    check(path.join(buf, "C:", "a")!! == "C:a", "join of a bare drive and a name is drive relative");
+    check(path.join(buf, "\\\\srv\\share", "x")!! == "\\\\srv\\share\\x", "join keeps a UNC volume");
+    check(path.join(buf, "\\a", "b")!! == "\\a\\b", "join keeps a rooted path rooted");
+
+    check(path.clean(buf, "C:/a/./b/../c")!! == "C:\\a\\c", "clean writes the canonical separator and resolves dots");
+    check(path.clean(buf, "C:\\..")!! == "C:\\" && path.clean(buf, "C:\\a\\..\\..")!! == "C:\\", "clean never goes above the root");
+    check(path.clean(buf, "a\\..\\..\\b")!! == "..\\b", "clean keeps the dot dot that has nothing to undo");
+    check(path.clean(buf, "")!! == "." && path.clean(buf, "C:")!! == "C:", "clean of an empty path and of a bare drive");
+
+    path.Elements el = path.elements("C:\\a\\\\b/c");
+    int count;
+    string last = "";
+    loop {
+        let piece, ok = el.next();
+        if !ok {
+            break;
+        }
+        count++;
+        last = piece;
+    }
+    check(count == 3 && last == "c", "elements skips the drive and splits on both separators");
+}
+`, expected: []string{"a drive and a separator make a path absolute", "a drive alone, a rooted path or a relative one is not absolute", "a UNC path with a share is absolute", "base takes the last element after either separator", "base of a root or a bare drive", "dir keeps the drive and the root", "dir of relative paths", "ext and stem look at the last element", "join keeps the drive and the root", "join writes the canonical separator", "join of a bare drive and a name is drive relative", "join keeps a UNC volume", "join keeps a rooted path rooted", "clean writes the canonical separator and resolves dots", "clean never goes above the root", "clean keeps the dot dot that has nothing to undo", "clean of an empty path and of a bare drive", "elements skips the drive and splits on both separators"}},
 
 	{dir: "os_dir", src: `import "std/os";
 import "std/path";
@@ -8831,7 +8874,7 @@ func main() {
 }
 `, expected: []string{"Lua keywords work as names of variables, parameters and functions", "Lua keywords work as names of fields", "Lua keywords work as loop and handler names", "a module named math does not hide the Lua math library"}},
 
-	{dir: "target_files", files: map[string]string{"where/where.wsp": `import "std/math";
+	{dir: "target_files", system: "linux", files: map[string]string{"where/where.wsp": `import "std/math";
 import<x64> "where/x64" as arch;
 import<lua> "where/lua" as arch;
 
@@ -10279,7 +10322,7 @@ func main() {
 		"    check(r == 42, \"a backtick block goes to the assembler as written\");\n" +
 		"}\n", expected: []string{"a backtick block goes to the assembler as written"}},
 
-	{dir: "interop_extern", x64Only: true, files: map[string]string{"lib.c": `int add(int a, int b) { return a + b; }
+	{dir: "interop_extern", system: "linux", x64Only: true, files: map[string]string{"lib.c": `int add(int a, int b) { return a + b; }
 long mul64(long a, long b) { return a * b; }
 int sum_bytes(const char *p, int n) {
     int t = 0;
@@ -10317,7 +10360,7 @@ func main() ! {
 }
 `},
 
-	{dir: "library_archive", x64Only: true, library: "geo", files: map[string]string{"wisp.toml": "[library.geo]\nmodules = [\"lib\"]\n", "lib.wsp": `public func twice(int32 n) int32 as wisp_twice {
+	{dir: "library_archive", system: "linux", x64Only: true, library: "geo", files: map[string]string{"wisp.toml": "[library.geo]\nmodules = [\"lib\"]\n", "lib.wsp": `public func twice(int32 n) int32 as wisp_twice {
     return n * 2;
 }
 
@@ -10364,7 +10407,7 @@ int main(void) {
 }
 `}, expected: []string{"5 42 10"}},
 
-	{dir: "interop_libc_puts", x64Only: true, libc: true, src: `extern func puts(*int8 s) int32;
+	{dir: "interop_libc_puts", system: "linux", x64Only: true, libc: true, src: `extern func puts(*int8 s) int32;
 extern func strlen(*int8 s) int64;
 
 func main() {
@@ -10373,7 +10416,7 @@ func main() {
 }
 `, expected: []string{"libc strlen on a string literal", "hi"}},
 
-	{dir: "interop_libc_float", x64Only: true, libc: true, src: `extern func printf(*int8 fmt, ...) int32;
+	{dir: "interop_libc_float", system: "linux", x64Only: true, libc: true, src: `extern func printf(*int8 fmt, ...) int32;
 
 func main() int {
     float32 narrow = 1.5;
@@ -10385,7 +10428,7 @@ func main() int {
 }
 `, expected: []string{"2.500000 7 4.250000", "1.500000", "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 8.000000 9.000000 10.000000", "no floats"}},
 
-	{dir: "interop_libc_printf", x64Only: true, libc: true, src: `extern func printf(*int8 fmt, ...) int32;
+	{dir: "interop_libc_printf", system: "linux", x64Only: true, libc: true, src: `extern func printf(*int8 fmt, ...) int32;
 
 func main() int {
     string name = "wisp";
@@ -10396,7 +10439,7 @@ func main() int {
 }
 `, expected: []string{"42 wisp x|5000000000", "no args", "1 2 3 4 5 6 7"}},
 
-	{dir: "interop_libc_main_error", x64Only: true, libc: true, exit: 3, src: `extern func puts(*int8 s) int32;
+	{dir: "interop_libc_main_error", system: "linux", x64Only: true, libc: true, exit: 3, src: `extern func puts(*int8 s) int32;
 
 enum E {
     Ok,

@@ -191,7 +191,9 @@ type testcase struct {
 	cmain    bool
 	profile  string
 	maxSize  int
+	maxWin   int
 	library  string
+	system   string
 	files    map[string]string
 }
 
@@ -534,7 +536,7 @@ func main() {
 		if m.cmain || m.library != "" {
 			src = ""
 		}
-		cases = append(cases, testcase{dir: m.dir, src: src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, luaOnly: m.luaOnly, libc: m.libc, cmain: m.cmain, profile: m.profile, maxSize: m.maxSize, library: m.library, env: m.env, stderr: m.stderr, files: m.files})
+		cases = append(cases, testcase{dir: m.dir, src: src, expected: exp, abort: m.abort, exit: m.exit, x64Only: m.x64Only, luaOnly: m.luaOnly, libc: m.libc, cmain: m.cmain, profile: m.profile, maxSize: m.maxSize, maxWin: m.maxWin, library: m.library, system: m.system, env: m.env, stderr: m.stderr, files: m.files})
 	}
 
 	os.RemoveAll(root)
@@ -586,8 +588,20 @@ func main() {
 				os.Exit(1)
 			}
 		}
+		if c.maxWin > 0 {
+			if err := os.WriteFile(filepath.Join(dir, "max-size-windows"), []byte(fmt.Sprint(c.maxWin)), 0644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
 		if c.maxSize > 0 {
 			if err := os.WriteFile(filepath.Join(dir, "max-size"), []byte(fmt.Sprint(c.maxSize)), 0644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
+		if c.system != "" {
+			if err := os.WriteFile(filepath.Join(dir, "os-only"), []byte(c.system), 0644); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
 			}

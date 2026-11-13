@@ -1,14 +1,10 @@
 import "std/sys";
 import "std/os/global";
 import "std/os";
-import "std/errors";
 import "std/mem";
 
 public func open(string p, int flags) !int {
-	[4096]byte buf;
-	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
-	global.copypath((*byte)(buf), p);
-	int r = sys.open((*byte)(buf), flags | sys.O_CLOEXEC, 0o644);
+	int r = sys.open(p, flags);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
@@ -20,10 +16,7 @@ public func create(string p) !int {
 }
 
 public func remove(string p) ! {
-	[4096]byte buf;
-	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
-	global.copypath((*byte)(buf), p);
-	int r = sys.remove((*byte)(buf), 0);
+	int r = sys.remove(p);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
@@ -48,35 +41,25 @@ public func readFile(string p) ![]byte {
 }
 
 public func rename(string from, to) ! {
-	errors.ensure(len(from) <= 4095, errors.Kind.Invalid)!;
-	errors.ensure(len(to) <= 4095, errors.Kind.Invalid)!;
-	[4096]byte fromBuf, toBuf;
-	global.copypath((*byte)(fromBuf), from);
-	global.copypath((*byte)(toBuf), to);
-	int r = sys.rename((*byte)(fromBuf), (*byte)(toBuf));
+	int r = sys.rename(from, to);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
 }
 
 public func stat(string p) !global.Stat {
-	errors.ensure(len(p) <= 4095, errors.Kind.Invalid)!;
-	[4096]byte buf;
-	global.copypath((*byte)(buf), p);
-	
 	sys.Stat s;
-	int r = sys.stat((*byte)(buf), &s);
+	int r = sys.stat(p, &s);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
-	int mode = s.st_mode & sys.S_IFMT;
-	global.FileKind kind = switch mode {
-		case sys.S_IFREG => .File;
-		case sys.S_IFLNK => .Link;
-		case sys.S_IFDIR => .Dir;
+	global.FileKind kind = switch s.kind {
+		case sys.KIND_FILE => .File;
+		case sys.KIND_LINK => .Link;
+		case sys.KIND_DIR => .Dir;
 		default => .Other;
 	};
-	return global.Stat{mode: s.st_mode, kind: kind, modified: os.toNs(s.st_mtim.tv_sec, s.st_mtim.tv_nsec), size: s.st_size};
+	return global.Stat{mode: s.mode, kind: kind, modified: s.modified, size: s.size};
 }
 
 public inline func exists(string p) bool {
@@ -85,9 +68,9 @@ public inline func exists(string p) bool {
 }
 
 public func cwd([]byte buf) !string {
-	int r = sys.getcwd((*byte)(buf), len(buf));
+	int r = sys.getcwd(buf);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
-	return string(buf[:r-1]);
+	return string(buf[:r]);
 }
