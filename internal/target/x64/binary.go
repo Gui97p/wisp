@@ -2,7 +2,6 @@ package x64
 
 import (
 	"fmt"
-	"math"
 	"math/bits"
 	"slices"
 
@@ -40,86 +39,6 @@ func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightTy
 	default:
 		return nil, fmt.Errorf("x86-64: unsupported operator %s", op)
 	}
-}
-
-func (t *X64Target) remainderIsZero(expr *ast.BinaryExpr) (e ast.Expression, mask int64, ok bool) {
-	if expr.Operator != "==" && expr.Operator != "!=" {
-		return
-	}
-	b, fok := expr.Left.(*ast.BinaryExpr)
-	if !fok || b.Operator != "%" {
-		return
-	}
-	f, fok := t.info.Folded(b.Right)
-	if !fok {
-		return
-	}
-	n := f.Bits()
-	if !(n > 0 && (n&(n-1)) == 0) || n > 0x7fffffff {
-		return
-	}
-	fr, fok := t.info.Folded(expr.Right)
-	if !fok || fr.Bits() != 0 {
-		return
-	}
-	return b.Left, n - 1, true
-}
-
-func (t *X64Target) scaledPlusConst(expr *ast.BinaryExpr) (x ast.Expression, k, disp int64, ok bool) {
-	if expr.Operator != "+" && expr.Operator != "-" {
-		return
-	}
-	tp := t.info.Types[expr]
-	size := sizeOf(tp)
-	if !isInteger(tp) || size < 4 {
-		return
-	}
-	f, fok := t.info.Folded(expr.Right)
-	var mul *ast.BinaryExpr
-	if fok {
-		mul, fok = expr.Left.(*ast.BinaryExpr)
-		if !fok {
-			return
-		}
-	} else {
-		if expr.Operator == "-" {
-			return
-		}
-		f, fok = t.info.Folded(expr.Left)
-		if !fok {
-			return
-		}
-		mul, fok = expr.Right.(*ast.BinaryExpr)
-		if !fok {
-			return
-		}
-	}
-	if mul.Operator != "*" {
-		return
-	}
-	var tf analyser.ConstValue
-	x = mul.Right
-	if tf, fok = t.info.Folded(mul.Left); !fok {
-		tf, fok = t.info.Folded(mul.Right)
-		if !fok {
-			return
-		}
-		x = mul.Left
-	}
-	k = tf.Bits()
-	if !slices.Contains([]int64{2, 3, 4, 5, 8, 9}, k) {
-		return
-	}
-	disp = f.Bits()
-	if expr.Operator == "-" {
-		disp = -disp
-	}
-	if disp < math.MinInt32 || disp > math.MaxInt32 {
-		return
-	}
-
-	ok = true
-	return
 }
 
 func (t *X64Target) compileScalarBinary(expr *ast.BinaryExpr) (Operand, error) {

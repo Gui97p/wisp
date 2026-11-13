@@ -140,6 +140,9 @@ func (c *Context) AllocatedOrderRegisters() []Register {
 }
 
 func (c *Context) FreeRegister(reg Register) {
+	if c.homes[reg] {
+		return
+	}
 	delete(c.registers, reg)
 }
 

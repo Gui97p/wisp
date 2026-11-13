@@ -81,6 +81,15 @@ func (c *Context) Bind(ident *analyser.Symbol, reg Register) {
 	}
 }
 
+func (c *Context) Unbind(ident *analyser.Symbol) {
+	reg, ok := c.symbolRegisters[ident]
+	if !ok {
+		return
+	}
+	delete(c.symbolRegisters, ident)
+	delete(c.homes, reg)
+}
+
 func (c *Context) Size() int {
 	return c.stackSize
 }

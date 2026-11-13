@@ -208,22 +208,84 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	t.loopSyms = map[*ast.ForStmt]*loopState{}
 	t.text.printf("\nsection .text.%s progbits alloc exec nowrite align=32\n", name)
 	t.text.printf("%s:\n", name)
-	t.text.printlnt("push rbp")
-	t.text.printlnt("mov rbp, rsp")
+
 	if t.trace {
 		t.ctx.Reserve(8)
 	}
 
 	types := []analyser.Type{}
 	for _, sym := range params {
-		t.ctx.Set(sym, sizeOf(sym.Type))
 		types = append(types, sym.Type)
 	}
+
+	t.funcReturns = slices.Clone(returns)
+	t.fallible = fallible
+	if fallible {
+		t.funcReturns = append(t.funcReturns, analyser.ErrorType{})
+	}
+
+	sret := usesSret(t.funcReturns)
+	args := assignArgs(types, sret)
+
+	stackSize := t.ctx.Size()
+
+	n := 0
+	if t.optimize && !t.trace && !entry && !fallible && !sret {
+		ps := map[*analyser.Symbol]bool{}
+		ok := len(args) == len(params)
+		for i, arg := range args {
+			if classOf(params[i].Type) != x64context.Int || len(arg.Regs) != 1 {
+				ok = false
+			} else {
+				ps[params[i]] = true
+			}
+		}
+		if ok {
+			n = t.framelessPrefix(body, ps)
+		}
+		if n == len(body.Statements) {
+			n = 0
+		}
+	}
+	if n > 0 {
+		t.frameless = true
+		for i, arg := range args {
+			t.ctx.Bind(params[i], arg.Regs[0])
+			t.ctx.AllocRegister(arg.Regs[0])
+		}
+		for _, s := range body.Statements[:n] {
+			if err := t.compileStatement(s); err != nil {
+				return err
+			}
+		}
+		t.frameless = false
+		for i, arg := range args {
+			t.ctx.Unbind(params[i])
+			t.ctx.FreeRegister(arg.Regs[0])
+		}
+	}
+
+	if t.ctx.Size() != stackSize {
+		return fmt.Errorf("x86-64: frameless prefix used the stack")
+	}
+
+	for _, sym := range params {
+		t.ctx.Set(sym, sizeOf(sym.Type))
+	}
+
+	t.text.printlnt("push rbp")
+	t.text.printlnt("mov rbp, rsp")
+
+	if sret {
+		t.hidden = slot(t.ctx.Reserve(8), 8)
+		t.text.printft("mov %s, rdi\n", t.memText(t.hidden))
+	}
+
 	t.collectVariables(body)
 	if t.optimize {
 		weight := map[*analyser.Symbol]int{}
 		barred := map[*analyser.Symbol]bool{}
-		t.weigh(body, 0, weight, barred)
+		t.weigh(&ast.BlockStmt{Statements: body.Statements[n:]}, 0, weight, barred)
 
 		for sym, w := range weight {
 			if barred[sym] || w < minRegisterWeight {
@@ -261,11 +323,6 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 		t.text.printlnt("mov [rbp-8], r11")
 	}
 
-	t.funcReturns = slices.Clone(returns)
-	t.fallible = fallible
-	if fallible {
-		t.funcReturns = append(t.funcReturns, analyser.ErrorType{})
-	}
 	t.savedRegs = nil
 	for _, reg := range t.ctx.SavedRegisters() {
 		off := t.ctx.Reserve(8)
@@ -273,13 +330,6 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 		t.savedRegs = append(t.savedRegs, savedReg{reg, off})
 	}
 
-	sret := usesSret(t.funcReturns)
-	if sret {
-		t.hidden = slot(t.ctx.Reserve(8), 8)
-		t.text.printft("mov %s, rdi\n", t.memText(t.hidden))
-	}
-
-	args := assignArgs(types, sret)
 	for i, arg := range args {
 		sym := params[i]
 		loc := t.local(sym)
@@ -321,7 +371,7 @@ func (t *X64Target) compileFuncBody(name, display string, entry bool, params []*
 	if t.endsInReturn {
 		t.lastReturn = body.Statements[l-1]
 	}
-	if err := t.compileStatement(body); err != nil {
+	if err := t.compileStatement(&ast.BlockStmt{Statements: body.Statements[n:]}); err != nil {
 		return err
 	}
 

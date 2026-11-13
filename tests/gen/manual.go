@@ -7293,6 +7293,68 @@ func main() {
 }
 `},
 
+	{dir: "frameless_prefix", src: `func plain(int x) int {
+    return x + 1;
+}
+
+func guarded(int a, int b) int {
+    if a * 2 + b > 10 {
+        return a - b;
+    }
+    int t = plain(a);
+    return t * b;
+}
+
+func shape(int a, int b) int {
+    if a > b {
+        return a;
+    } else {
+        if a == b {
+            return 0;
+        }
+    }
+    int s = plain(a) + plain(b);
+    return s;
+}
+
+func ordered(int a, int b) (int, int) {
+    if a > b {
+        return b, a;
+    }
+    int x = plain(a);
+    int y = plain(b);
+    return y, x;
+}
+
+func divGuard(int a, int b) int {
+    if a / 2 > b {
+        return a;
+    }
+    int s = plain(a);
+    return s + b;
+}
+
+func narrow(uint8 a, int b) int {
+    if a > 200 {
+        return b;
+    }
+    return plain(b) + a;
+}
+
+func main() {
+    check(guarded(6, 1) == 5 && guarded(4, 3) == 1, "guard taken keeps the arguments");
+    check(guarded(2, 3) == 9 && guarded(0, 0) == 0 && guarded(5, 0) == 0 && guarded(3, 4) == 16, "guard not taken falls into the body with the arguments intact");
+    check(shape(5, 2) == 5 && shape(3, 3) == 0, "branches that return inside the prefix");
+    check(shape(1, 2) == 5 && shape(0, 7) == 9, "the else branch falls through to the body");
+    let p, q = ordered(5, 2);
+    check(p == 2 && q == 5, "two results returned from the prefix");
+    let r, s = ordered(1, 4);
+    check(r == 5 && s == 2, "two results returned from the body");
+    check(divGuard(10, 3) == 10 && divGuard(4, 3) == 8, "a division in the guard keeps the function correct");
+    check(narrow(250, 7) == 7 && narrow(5, 7) == 13, "a narrow parameter in the guard");
+}
+`},
+
 	{dir: "regs_range", x64Only: true, src: `struct Pair {
     int a;
     int b;

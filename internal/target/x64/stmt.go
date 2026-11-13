@@ -202,7 +202,9 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 	}
 
 	t.returnValue(ops, t.funcReturns, t.hidden)
-	if stmt != t.lastReturn {
+	if t.frameless {
+		t.text.printlnt("ret")
+	} else if stmt != t.lastReturn {
 		t.text.printlnt("jmp .return")
 	}
 

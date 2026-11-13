@@ -81,6 +81,7 @@ type X64Target struct {
 	funcReturns  []analyser.Type
 	fallible     bool
 	endsInReturn bool
+	frameless    bool
 	lastReturn   ast.Statement
 	hidden       Mem
 	inlineFrames []inlineFrame
