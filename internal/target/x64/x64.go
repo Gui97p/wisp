@@ -60,6 +60,7 @@ type X64Target struct {
 	module  string
 	target  string
 	format  string
+	abi     string
 
 	ctx *x64context.Context
 
@@ -103,7 +104,7 @@ type X64Target struct {
 	libc, trace, snippets, optimize, checks bool
 }
 
-func New(program *ast.Program, info *analyser.Info, isEntry bool, t, format string, module string) (*X64Target, error) {
+func New(program *ast.Program, info *analyser.Info, isEntry bool, t, format, abi string, module string) (*X64Target, error) {
 	prof := target.ActiveProfile()
 
 	data, err := NewData(format)
@@ -126,6 +127,7 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, t, format stri
 		module:  module,
 		target:  t,
 		format:  format,
+		abi:     abi,
 
 		prelude:  NewPrelude(),
 		data:     data,

@@ -170,6 +170,36 @@ func assignArgs(types []analyser.Type, sret bool) []x64context.ArgLoc {
 	return argLocs
 }
 
+func (t *X64Target) assignWin64Args(types []analyser.Type) []x64context.ArgLoc {
+	argLocs := []x64context.ArgLoc{}
+	var i int
+	for _, tp := range types {
+		classes := classify(tp)
+		if len(classes) == 0 {
+			argLocs = append(argLocs, x64context.ArgLoc{})
+			continue
+		} else {
+			for _, class := range classes {
+				argLoc := x64context.ArgLoc{}
+				if i < 4 {
+					var reg x64context.Register
+					if class == x64context.SSE {
+						reg = x64context.XMMWin64ParamOrder[i]
+					} else {
+						reg = x64context.Win64ParamOrder[i]
+					}
+					argLoc.Regs = append(argLoc.Regs, reg)
+				} else {
+					argLoc.Stack = (32 + 8*(i-4))
+				}
+				argLocs = append(argLocs, argLoc)
+				i++
+			}
+		}
+	}
+	return argLocs
+}
+
 func (t *X64Target) captureReturn(types []analyser.Type, memSlot Mem) []Operand {
 	if len(types) == 0 {
 		return nil
@@ -388,7 +418,7 @@ func (t *X64Target) compileVariadicCall(sym string, extern bool, receiver ast.Ex
 				return nil, err
 			}
 			args = append(args, t.hiddenArg(analyser.SpanType{Element: elem}, op))
-			return t.compileCall(sym, extern, args, rets, false)
+			return t.compileCall(sym, extern, args, rets, false, false)
 		}
 
 		rspMem := slot(t.ctx.Reserve(8), 8)
@@ -444,7 +474,7 @@ func (t *X64Target) compileVariadicCall(sym string, extern bool, receiver ast.Ex
 
 		t.text.printft("add %s, %d\n", t.ctx.GetRegister(lenReg, 8), extra)
 		args = append(args, t.hiddenArg(analyser.SpanType{Element: elem}, Wide{Words: []Operand{Addr{Of: Mem{Base: x64context.SP}}, Reg{lenReg, 8}}}))
-		ops, err := t.compileCall(sym, extern, args, rets, false)
+		ops, err := t.compileCall(sym, extern, args, rets, false, false)
 		if err != nil {
 			return nil, err
 		}
@@ -471,15 +501,20 @@ func (t *X64Target) compileVariadicCall(sym string, extern bool, receiver ast.Ex
 	}
 
 	args = append(args, t.hiddenArg(analyser.SpanType{Element: elem}, Wide{Words: []Operand{ptr, Imm(extra)}}))
-	return t.compileCall(sym, extern, args, rets, false)
+	return t.compileCall(sym, extern, args, rets, false, false)
 }
 
-func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, rets []analyser.Type, cVariadic bool) ([]Operand, error) {
+func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, rets []analyser.Type, cVariadic, cWin64 bool) ([]Operand, error) {
 	pushed := t.ctx.Pushed()
 
 	types := t.valueTypes(args)
 	sret := usesSret(rets)
-	argLocs := assignArgs(types, sret)
+	var argLocs []x64context.ArgLoc
+	if cWin64 {
+		argLocs = t.assignWin64Args(types)
+	} else {
+		argLocs = assignArgs(types, sret)
+	}
 
 	fast := t.registerOnly(args, types, argLocs, sret, cVariadic)
 	held := make([]Operand, len(args))
@@ -491,6 +526,9 @@ func (t *X64Target) compileCall(sym string, extern bool, args []ast.Expression, 
 	}
 
 	stackBytes := 0
+	if cWin64 {
+		stackBytes += 32
+	}
 	for i, arg := range argLocs {
 		size := sizeOf(types[i])
 		if len(arg.Regs) == 0 && size > 0 {
@@ -625,7 +663,7 @@ func (t *X64Target) compileIndirectCall(expr *ast.CallExpr) ([]Operand, error) {
 	t.loadWord(reg, s)
 	t.checkNotNull(reg)
 	t.ctx.FreeRegister(reg)
-	return t.compileCall(t.memText(s), false, expr.Args, t.info.CallReturns[expr], false)
+	return t.compileCall(t.memText(s), false, expr.Args, t.info.CallReturns[expr], false, false)
 }
 
 func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
@@ -711,7 +749,7 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 			return t.compileVariadicCall(sym, mc.Module != t.module, mc.Receiver, expr, mc.Func, rets)
 		}
 		args := append([]ast.Expression{mc.Receiver}, expr.Args...)
-		return t.compileCall(sym, mc.Module != t.module, args, rets, false)
+		return t.compileCall(sym, mc.Module != t.module, args, rets, false, false)
 	}
 
 	switch n := expr.Name.(type) {
@@ -736,14 +774,14 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		t.loadWord(reg, op)
 		t.checkNotNull(reg)
 		t.ctx.FreeRegister(reg)
-		return t.compileCall(t.opText(op, 8), false, expr.Args, t.info.CallReturns[expr], false)
+		return t.compileCall(t.opText(op, 8), false, expr.Args, t.info.CallReturns[expr], false, false)
 	}
 	if sym.CName != "" {
 		cVariadic := false
 		if ft, ok := underlying(sym.Type).(*analyser.FuncType); ok {
 			cVariadic = ft.CVariadic
 		}
-		return t.compileCall(sym.CName, sym.Extern || sym.Module != t.module, expr.Args, t.info.CallReturns[expr], cVariadic)
+		return t.compileCall(sym.CName, sym.Extern || sym.Module != t.module, expr.Args, t.info.CallReturns[expr], cVariadic, sym.Extern && t.abi == "win64")
 	}
 	if sym.Module == "" {
 		return t.compileBuiltin(sym.Name, expr)
@@ -756,7 +794,7 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		}
 	}
 
-	return t.compileCall(symbol, sym.Module != t.module, expr.Args, t.info.CallReturns[expr], false)
+	return t.compileCall(symbol, sym.Module != t.module, expr.Args, t.info.CallReturns[expr], false, false)
 }
 
 func (t *X64Target) moveArgs(argLocs []x64context.ArgLoc, held []Operand, order []int) {

@@ -603,7 +603,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			c := c
 			obj, err := stdc.object(c.mod.Path, func(objPath string) error {
 				renderErrorBlocks(c)
-				std, err := x64.New(c.merged, c.info, false, tgt.Name, tgt.Format, c.mod.Path)
+				std, err := x64.New(c.merged, c.info, false, tgt.Name, tgt.Format, tgt.ABI, c.mod.Path)
 				if err != nil {
 					return err
 				}
@@ -630,7 +630,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
 		renderErrorBlocks(c)
-		backend, err := x64.New(c.merged, c.info, isEntry, tgt.Name, tgt.Format, c.mod.Path)
+		backend, err := x64.New(c.merged, c.info, isEntry, tgt.Name, tgt.Format, tgt.ABI, c.mod.Path)
 		if err != nil {
 			return nil, err
 		}

@@ -203,7 +203,7 @@ func (t *X64Target) compileEmitBuiltin(expr *ast.CallExpr) ([]Operand, error) {
 		return nil, fmt.Errorf("x86-64: emit only accepts 1 parameter")
 	}
 
-	_, err = t.compileCall("__wisp_emit", true, expr.Args, nil, false)
+	_, err = t.compileCall("__wisp_emit", true, expr.Args, nil, false, false)
 	return nil, err
 }
 
