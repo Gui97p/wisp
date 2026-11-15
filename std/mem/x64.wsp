@@ -64,6 +64,13 @@ inline func failed(*void r) bool {
 }
 
 func<debug> report() {
+	for i in 0..ringCount-1 {
+		*void p = ring[(ringStart + i) % 1024];
+		int h = header(p);
+		int cap = (MIN_BLOCK << h) - 16;
+		checkPoison(p, cap);
+	}
+
 	if table == null {
 		return;
 	}

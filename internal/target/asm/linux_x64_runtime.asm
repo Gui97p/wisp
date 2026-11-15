@@ -176,69 +176,82 @@ __wisp_utoa:
 
 %if WISP_TRACE
 __wisp_site:
-        mov rax, [rdi+8]
-        lea rcx, [rel __wisp_after_main]
-        cmp rax, rcx
-        je .end
-        mov rcx, [rdi]
-        test rcx, rcx
-        jz .end
-        mov rcx, [rcx-8]
-        mov rdx, 0x57495350
-        cmp [rcx], rdx
-        jne .end
-        sub rax, [rcx+8]
-        mov rdx, [rcx+16]
-        lea rsi, [rcx+24]
+	mov rax, [rdi+8]
+	lea rcx, [rel __wisp_after_main]
+	cmp rax, rcx
+	je .end
+	mov rcx, [rdi]
+	test rcx, rcx
+	jz .end
+	mov rcx, [rcx-8]
+	mov rdx, 0x57495350
+	cmp [rcx], rdx
+	jne .end
+	sub rax, [rcx+8]
+	mov rdx, [rcx+16]
+	lea rsi, [rcx+24]
 .search:
-        test rdx, rdx
-        jz .none
-        cmp [rsi], rax
-        je .found
-        add rsi, 24
-        dec rdx
-        jmp .search
+	test rdx, rdx
+	jz .none
+	cmp [rsi], rax
+	je .found
+	add rsi, 24
+	dec rdx
+	jmp .search
 .found:
-        mov rax, [rsi+8]
-        mov rdx, [rsi+16]
-        ret
+	mov rax, [rsi+8]
+	mov rdx, [rsi+16]
+	ret
 .none:
-        xor eax, eax
-        xor edx, edx
-        ret
+	xor eax, eax
+	xor edx, edx
+	ret
 .end:
-        xor eax, eax
-        mov rdx, -1
-        ret
+	xor eax, eax
+	mov rdx, -1
+	ret
 
 __wisp_trace:
-        push r12
-        push r13
-        mov r12, rbp
-        xor r13d, r13d
+	push r12
+	push r13
+	push r14 ; n
+	xor r14d, r14d ; n
+	mov r12, rbp
+	xor r13d, r13d
 
-        lit `\n`
+	lit `\n`
 
 .next:
-        mov rdi, r12
-        call __wisp_site
-        cmp rdx, -1
-        je .done
-        mov r12, [r12]
-        test rax, rax
-        jz .next
-        mov rsi, rax
-        call __wisp_write_error
-        inc r13
-        cmp r13, 16
-        jne .next
+	mov rdi, r12
+	call __wisp_site
+	cmp rdx, -1
+	je .done
+	mov r12, [r12]
+	test rax, rax
+	jz .next
+	test r14, r14
+	jnz .print
+	cmp rdx, 4
+	jb .user
+	cmp dword [rax], 0x2f647473
+	je .next
 
-        lit `... more frames\n`
+.user:
+	mov r14d, 1
+.print:
+	mov rsi, rax
+	call __wisp_write_error
+	inc r13
+	cmp r13, 16
+	jne .next
+
+	lit `... more frames\n`
 
 .done:
-        pop r13
-        pop r12
-        ret
+	pop r14
+	pop r13
+	pop r12
+	ret
 %endif
 
 main:
@@ -275,13 +288,14 @@ main:
 	call __wisp_main
 __wisp_after_main:
 	push rax
-	push rax
+	push rbp
 	mov rax, [rel __wisp_exit_hook]
 	test rax, rax
 	jz .nohook
+	xor ebp, ebp
 	call rax
 .nohook:
-	pop rax
+	pop rbp
 	pop rax
 	leave
 	ret

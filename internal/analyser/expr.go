@@ -1298,7 +1298,7 @@ func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes
 				break
 			}
 			if !cCompatible(at) {
-				d := a.errorf(expr, "argument %d from %s has type %s, which C cannot take", i+1, ft.Name, at.String())
+				d := a.errorf(expr, "argument %d from %s has type %s, which C cannot take", i+1, ft.Name, at)
 				if isString(at) {
 					d.WithHelp("pass the address of the bytes instead, as in *int8(s)")
 				}

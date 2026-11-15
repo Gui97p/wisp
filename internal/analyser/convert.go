@@ -613,7 +613,7 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 	}
 	pointer, isPointer := result.(PointerType)
 	if !isPointer {
-		a.errorf(expr, "%s is not a pointer type: write a conversion to it as %s(x)", result.String(), result.String())
+		a.errorf(expr, "%s is not a pointer type: write a conversion to it as %s(x)", result, result)
 		for _, arg := range expr.Args {
 			a.checkExpr(arg)
 		}

@@ -166,7 +166,7 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 			returns[i] = a.resolveTypeRef(node, scope, r)
 		}
 		if slices.Contains(params, nil) || slices.Contains(returns, nil) {
-			return nil
+			return InvalidType{}
 		}
 		result = &FuncType{Params: params, Returns: returns, Fallible: ref.FuncFallible}
 	} else if primitives[ref.Name] {
@@ -183,14 +183,14 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 			a.suggest(d, ref.Name, append(scope.names(func(sym *Symbol) bool {
 				return sym.Kind == STRUCT || sym.Kind == TYPE
 			}), "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float", "float32", "float64", "byte", "string", "bool"))
-			return nil
+			return InvalidType{}
 		}
 		switch symbol.Kind {
 		case STRUCT, TYPE:
 			result = symbol.Type
 		default:
 			a.errorAtRef(node, ref, "%s is not a type", qualified(ref.Module, ref.Name))
-			return nil
+			return InvalidType{}
 		}
 	}
 
