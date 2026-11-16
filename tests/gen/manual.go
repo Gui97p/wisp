@@ -8385,6 +8385,82 @@ func main() ! {
 }
 `, expected: []string{"the console buffer returns the characters that were written", "accented letters arrive intact when a write ends inside a character", "the accents after the split arrive too", "the runtime write path converts to UTF-16 for a console"}},
 
+	{dir: "win64_console_input", system: "windows", x64Only: true, src: `import "std/os";
+
+extern func AllocConsole() int32;
+extern func CreateFileW(*uint16 name, uint32 access, uint32 share, *void security, uint32 disposition, uint32 flags, *void template) *void;
+extern func SetStdHandle(uint32 which, *void handle) int32;
+extern func GetStdHandle(int32 which) *void;
+extern func FlushConsoleInputBuffer(*void console) int32;
+extern func WriteConsoleInputW(*void console, *void records, uint32 n, *void written) int32;
+
+struct Key {
+    uint16 kind;
+    uint16 padding;
+    int32 down;
+    uint16 repeat;
+    uint16 virtualKey;
+    uint16 scan;
+    uint16 character;
+    uint32 state;
+}
+
+func press(*Key k, int character, int virtualKey) {
+    k.kind = 1;
+    k.down = 1;
+    k.repeat = 1;
+    k.virtualKey = uint16(virtualKey);
+    k.character = uint16(character);
+}
+
+func main() ! {
+    *void original = GetStdHandle(-10);
+    AllocConsole();
+    [8]uint16 name;
+    name[0] = 67;
+    name[1] = 79;
+    name[2] = 78;
+    name[3] = 73;
+    name[4] = 78;
+    name[5] = 36;
+    *void keyboard = CreateFileW((*uint16)(name), 0xC0000000, 3, null, 3, 0, null);
+    FlushConsoleInputBuffer(keyboard);
+
+    [8]Key keys;
+    press(&keys[0], 97, 0);
+    press(&keys[1], 231, 0);
+    press(&keys[2], 0x20AC, 0);
+    press(&keys[3], 13, 13);
+    press(&keys[4], 122, 0);
+    press(&keys[5], 13, 13);
+    press(&keys[6], 26, 0);
+    press(&keys[7], 13, 13);
+    uint32 written;
+    WriteConsoleInputW(keyboard, &keys[0], 8, &written);
+    SetStdHandle(0xFFFFFFF6, keyboard);
+
+    [1]byte one;
+    [8]byte seq;
+    for i in 0..6 {
+        int r = os.read(os.STDIN, one)!;
+        seq[i] = r == 1 ? one[0] : 0;
+    }
+    [64]byte big;
+    int n = os.read(os.STDIN, big)!;
+    int end = os.read(os.STDIN, big)!;
+
+    SetStdHandle(0xFFFFFFF6, original);
+
+    check(written == 8, "the key events reached the console");
+    check(seq[0] == 97, "a console read starts with the first character");
+    check(seq[1] == 195 && seq[2] == 167, "a two byte character comes out one byte per read");
+    check(seq[3] == 226 && seq[4] == 130 && seq[5] == 172, "a three byte character comes out one byte per read");
+    check(seq[6] == 10, "Enter is a single line feed, not a carriage return and a line feed");
+    check(n == 2 && big[0] == 122 && big[1] == 10, "the next line arrives whole with a single line feed");
+    check(end == 0, "Control Z ends the input");
+}
+`, expected: []string{"the key events reached the console", "a console read starts with the first character", "a two byte character comes out one byte per read", "a three byte character comes out one byte per read", "Enter is a single line feed, not a carriage return and a line feed", "the next line arrives whole with a single line feed", "Control Z ends the input"}},
+
 	{dir: "os_long_path", x64Only: true, src: `import "std/os";
 import "std/path";
 
