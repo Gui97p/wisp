@@ -745,7 +745,7 @@ func (p *Parser) parseInExpr(left ast.Expression) ast.Expression {
 func (p *Parser) parseSwitchExpression() ast.Expression {
 	line, col := p.current.Line, p.current.Column
 	p.advance()
-	block, value := p.parseSwitchHeader(line, col)
+	block, value, typed := p.parseSwitchHeader(line, col)
 	if block == nil {
 		return nil
 	}
@@ -758,7 +758,7 @@ func (p *Parser) parseSwitchExpression() ast.Expression {
 
 	for p.peek.Type == lexer.TOKEN_CASE {
 		armLine, armCol := p.peek.Line, p.peek.Column
-		condition := p.parseCaseExpression(value, line, col)
+		condition := p.parseCaseExpression(value, line, col, typed)
 		if condition == nil {
 			return nil
 		}

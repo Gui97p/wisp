@@ -162,10 +162,15 @@ func (a *Analyser) checkBoxedArgs(expr *ast.CallExpr, argTypes []Type, fixed int
 }
 
 func (a *Analyser) checkTypeCase(expr *ast.BinaryExpr) Type {
-	if expr.Operator != "==" {
-		a.errorf(expr, "operator %s does not apply to an any value", expr.Operator).
-			WithHelp("inspect it with a switch on types, as in `switch let v = a { case int: ... }`")
+	if !expr.TypeTest {
+		a.errorf(expr, "an any value is inspected with a switch on types").
+			WithHelp("write `switch type a { case int v: ... }`")
 		return InvalidType{}
+	}
+
+	if group, ok := a.typeGroup(expr.Right); ok {
+		a.info.TypeCases[expr] = &TypeCase{Type: group, Group: true}
+		return PrimitiveType{Name: "bool"}
 	}
 
 	t, ok := a.labelType(expr.Right)
@@ -181,15 +186,22 @@ func (a *Analyser) checkTypeCase(expr *ast.BinaryExpr) Type {
 		return InvalidType{}
 	}
 
-	group := false
-	if _, isLabel := expr.Right.(*ast.TypeLabel); isLabel {
-		if p, isPrimitive := t.(PrimitiveType); isPrimitive {
-			group = p.Name == "int" || p.Name == "uint"
-		}
-	}
-
-	a.info.TypeCases[expr] = &TypeCase{Type: t, Group: group}
+	a.info.TypeCases[expr] = &TypeCase{Type: t, Group: false}
 	return PrimitiveType{Name: "bool"}
+}
+
+func (a *Analyser) typeGroup(label ast.Expression) (Type, bool) {
+	id, ok := label.(*ast.IdentLiteral)
+	if !ok || (id.Value != "signed" && id.Value != "unsigned") {
+		return nil, false
+	}
+	if sym, found := a.scope.Resolve(id.Value); found && isTypeSymbol(sym) {
+		return nil, false
+	}
+	if id.Value == "signed" {
+		return PrimitiveType{Name: "int"}, true
+	}
+	return PrimitiveType{Name: "uint"}, true
 }
 
 func (a *Analyser) labelType(label ast.Expression) (Type, bool) {
@@ -203,7 +215,7 @@ func (a *Analyser) labelType(label ast.Expression) (Type, bool) {
 	case *ast.IdentLiteral:
 		sym, found := a.scope.Resolve(l.Value)
 		if !found || !isTypeSymbol(sym) {
-			a.errorf(l, "%s is not a type", l.Value).WithHelp("a case of a switch on an any value names a type")
+			a.errorf(l, "%s is not a type", l.Value).WithHelp("a case of a switch on types names a type, or one of the groups signed and unsigned")
 			return nil, false
 		}
 		sym.Used = true
@@ -217,7 +229,7 @@ func (a *Analyser) labelType(label ast.Expression) (Type, bool) {
 	}
 
 	a.error(label, "an any value is only compared with a type, in a switch").
-		WithHelp("write `switch let v = a { case int: ... }`")
+		WithHelp("write `switch type a { case int v: ... }`")
 	return nil, false
 }
 
@@ -227,7 +239,7 @@ func isTypeSymbol(sym *Symbol) bool {
 
 func (a *Analyser) narrowSwitchVariable(condition ast.Expression) {
 	match, ok := condition.(*ast.BinaryExpr)
-	if !ok {
+	if !ok || match.Bind == nil {
 		return
 	}
 	tc := a.info.TypeCases[match]
@@ -243,7 +255,7 @@ func (a *Analyser) narrowSwitchVariable(condition ast.Expression) {
 		return
 	}
 
-	narrowed := &Symbol{Name: original.Name, Kind: VAR, Type: tc.Type, File: original.File, Used: true}
+	narrowed := &Symbol{Name: match.Bind.Name, Kind: VAR, Type: tc.Type, File: original.File, Line: match.Bind.Line, Col: match.Bind.Col}
 	a.scope.Define(narrowed)
 	a.info.Narrowed[narrowed] = original
 }

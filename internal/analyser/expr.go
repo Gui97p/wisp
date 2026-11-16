@@ -222,6 +222,11 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	if _, boxed := left.(BoxedType); boxed {
 		return a.checkTypeCase(expr)
 	}
+	if expr.TypeTest {
+		a.errorf(expr, "a switch on types needs an any value, such as an element of an untyped variadic").
+			WithHelp("this one is %s", left.String())
+		return InvalidType{}
+	}
 	right := a.checkExpr(expr.Right)
 
 	if expr.Operator == "==" || expr.Operator == "!=" {

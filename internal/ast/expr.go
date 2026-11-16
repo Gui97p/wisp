@@ -5,11 +5,21 @@ import (
 	"strings"
 )
 
+type TypeBind struct {
+	Name    string
+	Line    int
+	Col     int
+	EndLine int
+	EndCol  int
+}
+
 type BinaryExpr struct {
 	Left      Expression
 	Operator  string
 	Right     Expression
 	Synthetic bool
+	TypeTest  bool
+	Bind      *TypeBind
 
 	NodePos
 }

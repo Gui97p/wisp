@@ -7,30 +7,40 @@ import (
 	"github.com/Gui97p/wisp/internal/lexer"
 )
 
-func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expression) {
+func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expression, bool) {
 	block := &ast.BlockStmt{}
 
 	if p.current.Type == lexer.TOKEN_LBRACE {
 		block.SetPos(line, col)
 		block.SetEndPos(p.currentEnd())
-		return block, nil
+		return block, nil, false
+	}
+
+	typed := false
+	if p.current.Type == lexer.TOKEN_TYPE {
+		typed = true
+		p.advance()
+		if p.current.Type == lexer.TOKEN_LET {
+			p.error("a switch on types does not name the value, name it in each case: case int v:")
+			return nil, nil, false
+		}
 	}
 
 	name := fmt.Sprintf("__wisp_switch_%d", p.switchNameCount)
 	var nameLine, nameCol, nameEndLine, nameEndCol int
 	if p.current.Type == lexer.TOKEN_LET {
 		if !p.expect(lexer.TOKEN_IDENT) {
-			return nil, nil
+			return nil, nil, false
 		}
 		name = p.current.Literal
 		nameLine, nameCol, nameEndLine, nameEndCol = p.currentIdentPos()
 
 		if !p.checkReservedName(name) {
-			return nil, nil
+			return nil, nil, false
 		}
 
 		if !p.expect(lexer.TOKEN_ASSIGN) {
-			return nil, nil
+			return nil, nil, false
 		}
 		p.advance()
 	} else {
@@ -42,7 +52,7 @@ func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expressio
 	value := p.parseExpression()
 	p.allowStructLiteral = last
 	if value == nil {
-		return nil, nil
+		return nil, nil, false
 	}
 
 	varStmt := &ast.VarStmt{}
@@ -59,7 +69,7 @@ func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expressio
 	ident.SetPos(line, col)
 	ident.SetEndPos(p.currentEnd())
 
-	return block, ident
+	return block, ident, typed
 }
 
 func (p *Parser) parseSwitchBlock() []ast.Statement {
@@ -85,14 +95,33 @@ func (p *Parser) parseSwitchBlock() []ast.Statement {
 	return stmts
 }
 
-func (p *Parser) startsTypeLabel() bool {
+func (p *Parser) startsTypeLabel(typed bool) bool {
 	if p.current.Type == lexer.TOKEN_STAR {
 		return true
 	}
-	return p.isPrimitiveType() && (p.peek.Type == lexer.TOKEN_COLON || p.peek.Type == lexer.TOKEN_COMMA)
+	if !p.isPrimitiveType() {
+		return false
+	}
+	if p.peek.Type == lexer.TOKEN_COLON || p.peek.Type == lexer.TOKEN_COMMA {
+		return true
+	}
+	return typed && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_ARROW)
 }
 
-func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast.Expression {
+func (p *Parser) parseTypeBind(typed bool) (*ast.TypeBind, bool) {
+	if !typed || p.peek.Type != lexer.TOKEN_IDENT {
+		return nil, true
+	}
+	p.advance()
+	name := p.current.Literal
+	line, col, endLine, endCol := p.currentIdentPos()
+	if !p.checkReservedName(name) {
+		return nil, false
+	}
+	return &ast.TypeBind{Name: name, Line: line, Col: col, EndLine: endLine, EndCol: endCol}, true
+}
+
+func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int, typed bool) ast.Expression {
 	p.advance()
 	p.advance()
 
@@ -105,7 +134,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 		return expr
 	}
 
-	if p.startsTypeLabel() {
+	if p.startsTypeLabel(typed) {
 		labelLine, labelCol := p.current.Line, p.current.Column
 		ref := p.parseTypeDefinitionPrefix()
 		if ref == nil {
@@ -116,7 +145,12 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 		label.SetPos(labelLine, labelCol)
 		label.SetEndPos(p.currentEnd())
 
-		match := &ast.BinaryExpr{Left: value, Operator: "==", Right: label, Synthetic: true}
+		bind, ok := p.parseTypeBind(typed)
+		if !ok {
+			return nil
+		}
+
+		match := &ast.BinaryExpr{Left: value, Operator: "==", Right: label, Synthetic: true, TypeTest: typed, Bind: bind}
 		match.SetPos(line, col)
 		match.SetEndPos(p.currentEnd())
 		return match
@@ -125,6 +159,17 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 	expr := p.parseExpression()
 	if expr == nil {
 		return nil
+	}
+
+	if typed {
+		bind, ok := p.parseTypeBind(typed)
+		if !ok {
+			return nil
+		}
+		match := &ast.BinaryExpr{Left: value, Operator: "==", Right: expr, Synthetic: true, TypeTest: true, Bind: bind}
+		match.SetPos(line, col)
+		match.SetEndPos(p.currentEnd())
+		return match
 	}
 
 	if p.peek.Type == lexer.TOKEN_RANGE {
@@ -175,13 +220,24 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int) ast
 	return expr
 }
 
-func (p *Parser) parseCaseExpression(value ast.Expression, line, col int) ast.Expression {
-	expr := p.parseOneCaseExpression(value, line, col)
+func (p *Parser) parseCaseExpression(value ast.Expression, line, col int, typed bool) ast.Expression {
+	expr := p.parseOneCaseExpression(value, line, col, typed)
+	if expr == nil {
+		return nil
+	}
+	types, named := 1, false
+	if m, ok := expr.(*ast.BinaryExpr); ok && m.Bind != nil {
+		named = true
+	}
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
-		right := p.parseOneCaseExpression(value, line, col)
+		right := p.parseOneCaseExpression(value, line, col, typed)
 		if right == nil {
 			return nil
+		}
+		types++
+		if m, ok := right.(*ast.BinaryExpr); ok && m.Bind != nil {
+			named = true
 		}
 
 		expr = &ast.BinaryExpr{
@@ -192,6 +248,11 @@ func (p *Parser) parseCaseExpression(value ast.Expression, line, col int) ast.Ex
 		}
 		expr.(*ast.BinaryExpr).SetPos(line, col)
 		expr.(*ast.BinaryExpr).SetEndPos(p.currentEnd())
+	}
+
+	if typed && types > 1 && named {
+		p.error("a case with several types cannot name the value")
+		return nil
 	}
 
 	return expr

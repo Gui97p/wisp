@@ -266,16 +266,16 @@ public func (*Writer w) format(string format, ...args) !int {
 
 		bool ok;
 		Error bad = Error(FormatError.WrongType);
-		switch let v = args[argIndex] {
-			case int:   ok = w.putInt(buf, v, s)!;
-			case uint:  ok = w.putUint(buf, v, s)!;
-			case bool:  ok = w.putBool(v, s)!;
-			case string: ok = w.putString(v, s)!;
-			case *void: ok = w.putPointer(buf, v, s)!;
-			case float64: [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, false)!;
-			case float32: [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, true)!;
-			case Error: ok = w.putError(buf, v, s)!;
-			default:    bad = Error(FormatError.UnsupportedType);
+		switch type args[argIndex] {
+			case signed v:   ok = w.putInt(buf, v, s)!;
+			case unsigned v: ok = w.putUint(buf, v, s)!;
+			case bool v:     ok = w.putBool(v, s)!;
+			case string v:   ok = w.putString(v, s)!;
+			case *void v:    ok = w.putPointer(buf, v, s)!;
+			case float64 v:  [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, false)!;
+			case float32 v:  [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, true)!;
+			case Error v:    ok = w.putError(buf, v, s)!;
+			default:         bad = Error(FormatError.UnsupportedType);
 		}
 		argIndex++;
 		if !ok {

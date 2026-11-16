@@ -423,7 +423,7 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 func (p *Parser) parseSwitchStatement() ast.Statement {
 	line, col := p.current.Line, p.current.Column
 	p.advance()
-	block, value := p.parseSwitchHeader(line, col)
+	block, value, typed := p.parseSwitchHeader(line, col)
 	if block == nil {
 		return nil
 	}
@@ -447,7 +447,7 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 			first = false
 		}
 
-		expr := p.parseCaseExpression(value, line, col)
+		expr := p.parseCaseExpression(value, line, col, typed)
 
 		currentIf.Condition = expr
 

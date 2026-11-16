@@ -8,14 +8,20 @@
 // error at the call.
 //
 // This is how `fmt.printf` itself is written: its `...args` is read with a
-// `switch` on the type of each argument.
+// `switch type` on each argument.
 //
-// `switch let v = args[i] { ... }` names the value once, and `v` has the type
-// of the case that matched. `case int` matches every signed integer and
-// `case uint` every unsigned one; a more specific case such as `case int8`
-// has to come first. An enum is an int, and `case Color` matches it before
-// the group does. A type of your own, such as `type Meters int`, matches only
-// its own case. `default` runs for anything else, and `v` stays untyped there.
+// `switch type args[i] { ... }` dispatches on the type of the value, and each
+// case names it with the type it matched: `case int v:` gives a `v` that is
+// an `int`, `case string s:` an `s` that is a `string`. The name is optional,
+// `case bool:` just tests. A case is exactly the type it names, so `case int`
+// is only `int`, and `case int8`, `case Color` (an enum) or `case Meters` (a
+// type of your own, such as `type Meters int`) are each their own case, in any
+// order. Two groups cover the integers that arrive in any size: `case signed v`
+// matches every signed integer and `case unsigned v` every unsigned one, and
+// `v` is an `int` or a `uint`. A group is the one thing that depends on order:
+// put a specific case before the group that contains it. `signed` and
+// `unsigned` are not reserved words, a type of your own may use them.
+// `default` runs for anything else and has no name.
 //
 // `rest...` passes a variadic on to another function that takes `...name`.
 
@@ -29,17 +35,17 @@ enum Color {
 func describe(...args) int {
   int total;
   for _, arg in args {
-    switch let v = arg {
+    switch type arg {
       case Color:
         fmt.printf("a Color adds 100\n");
         total += 100;
-      case int:
-        fmt.printf("the int {} adds {}\n", v, v);
+      case signed v:
+        fmt.printf("the integer {} adds {}\n", v, v);
         total += v;
-      case string:
+      case string v:
         fmt.printf("the string \"{}\" adds its length, {}\n", v, len(v));
         total += len(v);
-      case bool:
+      case bool v:
         fmt.printf("the bool {} adds {}\n", v, v ? 1 : 0);
         total += v ? 1 : 0;
     }

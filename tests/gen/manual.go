@@ -2619,12 +2619,12 @@ func main() ! {
 	{dir: "float_any", src: `func sum(...args) int {
     int total;
     for _, arg in args {
-        switch let v = arg {
-            case float32:
+        switch type arg {
+            case float32 v:
                 total += int(v * 10.0);
-            case float64:
+            case float64 v:
                 total += int(v);
-            case int:
+            case signed v:
                 total += v;
         }
     }
@@ -9780,10 +9780,10 @@ func (*Counter c) count(...args) int {
 func (*Counter c) sum(string label, ...args) int {
     int total = 0;
     for _, a in args {
-        switch let v = a {
-            case int:
+        switch type a {
+            case signed v:
                 total += v;
-            case string:
+            case string v:
                 total += len(v);
         }
     }
@@ -10313,10 +10313,10 @@ func main() {
 `, expected: []string{"an enum value reports its member name", "a member reports its own name", "explicit values are matched by value", "a value with no member reports a question mark", "a name method written by hand replaces the generated one"}},
 
 	{dir: "any_variadic_float", src: `func kind(...args) int {
-    switch let v = args[0] {
+    switch type args[0] {
         case float:
             return 99;
-        case int:
+        case signed:
             return 1;
         default:
             return -1;
@@ -10339,27 +10339,44 @@ func main() {
 type Meters int;
 
 func kind(int index, ...args) int {
-    switch let v = args[index] {
+    switch type args[index] {
         case int8:
             return 8;
         case Color:
             return 77;
         case Meters:
             return 88;
-        case int:
+        case signed v:
             return v + 1000;
         case byte:
             return 55;
-        case uint:
+        case unsigned:
             return 2000;
-        case string:
+        case string v:
             return len(v);
-        case bool:
+        case bool v:
             return v ? 1 : 0;
         case float:
             return 99;
         default:
             return -1;
+    }
+}
+
+func exact(...args) int {
+    switch type args[0] {
+        case int v:
+            return 1;
+        case int16 v:
+            return 2;
+        case signed v:
+            return 3;
+        case uint v:
+            return 4;
+        case unsigned v:
+            return 5;
+        default:
+            return 0;
     }
 }
 
@@ -10374,10 +10391,10 @@ func count(...xs) int {
 func sumInts(string label, ...xs) int {
     int total = 0;
     for _, x in xs {
-        switch let v = x {
-            case int:
+        switch type x {
+            case signed v:
                 total += v;
-            case string:
+            case string v:
                 total += len(v);
         }
     }
@@ -10396,9 +10413,16 @@ func main() {
     int8 small = 5;
     uint big = 7;
     Meters m = Meters(3);
-    check(kind(0, 5) == 1005, "an int literal matches case int and v is an int");
+    check(kind(0, 5) == 1005, "an int literal matches case signed and v is an int");
     check(kind(0, small) == 8, "a case for a sized type is exact and listed before the group");
-    check(kind(0, big) == 2000, "case uint matches an unsigned integer");
+    check(kind(0, big) == 2000, "case unsigned matches an unsigned integer");
+    int16 mid = 9;
+    check(exact(5) == 1, "case int is exactly int");
+    check(exact(mid) == 2, "a sized case is exact too");
+    check(exact(small) == 3, "a signed integer of another size falls to the signed group");
+    check(exact(big) == 4, "case uint is exactly uint");
+    check(exact('x') == 5, "an unsigned integer of another size falls to the unsigned group");
+    check(exact("s") == 0, "anything else reaches default");
     check(kind(0, "hello") == 5, "a string matches case string and v is a string");
     check(kind(0, true) == 1, "a bool matches case bool");
     check(kind(0, Color.Green) == 77, "an enum matches its own case before the int group");
@@ -10413,7 +10437,7 @@ func main() {
     check(count() == 0, "no arguments is an empty variadic");
     check(sumInts("sum", 1, "ab", 3, true) == 6, "for iterates the arguments and default is skipped");
 }
-`, expected: []string{"an int literal matches case int and v is an int", "a case for a sized type is exact and listed before the group", "case uint matches an unsigned integer", "a string matches case string and v is a string", "a bool matches case bool", "an enum matches its own case before the int group", "a nominal type matches only its own case", "a byte matches case byte listed before the group", "the second argument is read by index", "... passes the variadic on", "a forwarded string keeps its type", "explicit arguments can come before the spread", "a spread of nothing leaves only the explicit arguments", "len counts the arguments", "no arguments is an empty variadic", "for iterates the arguments and default is skipped"}},
+`, expected: []string{"an int literal matches case signed and v is an int", "a case for a sized type is exact and listed before the group", "case unsigned matches an unsigned integer", "case int is exactly int", "a sized case is exact too", "a signed integer of another size falls to the signed group", "case uint is exactly uint", "an unsigned integer of another size falls to the unsigned group", "anything else reaches default", "a string matches case string and v is a string", "a bool matches case bool", "an enum matches its own case before the int group", "a nominal type matches only its own case", "a byte matches case byte listed before the group", "the second argument is read by index", "... passes the variadic on", "a forwarded string keeps its type", "explicit arguments can come before the spread", "a spread of nothing leaves only the explicit arguments", "len counts the arguments", "no arguments is an empty variadic", "for iterates the arguments and default is skipped"}},
 
 	{dir: "ptr_deref_postfix", src: `struct P {
     int x;
@@ -12203,10 +12227,10 @@ func fail(int n) !int {
 func describe(...args) int {
     int seen = 0;
     for _, arg in args {
-        switch let v = arg {
-            case int:
+        switch type arg {
+            case signed v:
                 seen += v;
-            case Error:
+            case Error v:
                 if v == null {
                     check(true, "a null error is held as null");
                 } else {
