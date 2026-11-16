@@ -228,7 +228,7 @@ func (t *X64Target) compileFuncBody(name, display string, entry, cabi bool, para
 	t.sites = nil
 	t.candidates = nil
 	t.loopSyms = map[*ast.ForStmt]*loopState{}
-	desc, err := newDesc(t.format, name, name, true, 32)
+	desc, err := newDesc(t.format, name, name, true, 32, false)
 	if err != nil {
 		return err
 	}
@@ -495,12 +495,16 @@ func isYield(stmt ast.Statement) bool {
 const descriptorMagic = 0x57495350
 
 func (t *X64Target) emitDescriptor(name string) {
-	desc, err := newDesc(t.format, name, "desc_"+name, false, 8)
+	desc, err := newDesc(t.format, name, "desc_"+name, false, 8, t.pic)
 	if err != nil {
 		t.fail("%s", err.Error())
 		return
 	}
-	t.text.printf("section .rodata%s\n", desc)
+	prefix := ".rodata"
+	if t.pic && t.format == "elf64" {
+		prefix = ".data.rel.ro"
+	}
+	t.text.printf("section %s%s\n", prefix, desc)
 	t.text.printf("desc_%s:\n", name)
 	t.text.printft("dq 0x%x\n", descriptorMagic)
 	t.text.printft("dq %s\n", name)

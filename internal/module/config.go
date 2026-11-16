@@ -54,6 +54,7 @@ type LibraryConfig struct {
 	Arch    string       `toml:"arch" doc:"The architecture to build this library for."`
 	Output  OutputConfig `toml:"output" doc:"Where this library writes its artifacts. {profile}, {target}, {os}, {arch} and {name} are replaced."`
 	Profile string       `toml:"profile" doc:"The profile to build this library with. Defaults to the top-level profile."`
+	Shared  bool         `toml:"shared" doc:"Also write <name>.so, a shared library (Linux only). Only the functions exported with as are visible from outside."`
 }
 
 type ProgramConfig struct {

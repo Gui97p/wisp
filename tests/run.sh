@@ -90,7 +90,11 @@ for dir in "$ROOT"/*/; do
         (
             cd "$dir" &&
                 timeout 120 "$WISP" build --os "$TARGET" --profile "$PROFILE" --bin "$OUT/bin/$name" >"$out.raw" &&
-                cc -no-pie main.c "$OUT/bin/$name/$lib.a" -o "$OUT/bin/$name/prog" &&
+                if [[ -f "shared-lib" ]]; then
+                    cc main.c "$OUT/bin/$name/$lib.so" -Wl,-rpath,"$OUT/bin/$name" -o "$OUT/bin/$name/prog"
+                else
+                    cc -no-pie main.c "$OUT/bin/$name/$lib.a" -o "$OUT/bin/$name/prog"
+                fi &&
                 "$OUT/bin/$name/prog" >>"$out.raw"
         ) 2>"$err"
     elif [[ -f "$dir/main.c" ]]; then

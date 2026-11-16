@@ -109,17 +109,17 @@ type X64Target struct {
 
 	inPlace x64context.Register
 
-	libc, trace, snippets, optimize, checks bool
+	libc, trace, snippets, optimize, checks, pic bool
 }
 
-func New(program *ast.Program, info *analyser.Info, isEntry bool, t, format, abi string, module string) (*X64Target, error) {
+func New(program *ast.Program, info *analyser.Info, isEntry bool, t, format, abi string, pic bool, module string) (*X64Target, error) {
 	prof := target.ActiveProfile()
 
 	data, err := NewData(format)
 	if err != nil {
 		return nil, err
 	}
-	rodata, err := NewRodata(format)
+	rodata, err := NewRodata(format, pic)
 	if err != nil {
 		return nil, err
 	}
@@ -136,6 +136,7 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, t, format, abi
 		target:  t,
 		format:  format,
 		abi:     abi,
+		pic:     pic,
 
 		prelude:  NewPrelude(),
 		data:     data,

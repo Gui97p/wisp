@@ -73,6 +73,7 @@ func runClean(cmd *cobra.Command, args []string) error {
 			case "x64":
 				out := resolveBuildTargets(root, eff, t, false)
 				add(archivePath(out.binPath))
+				add(sharedPath(out.binPath))
 				add(out.objDir)
 				add(out.asmDir)
 			case "lua":

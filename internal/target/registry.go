@@ -27,6 +27,7 @@ type Target struct {
 	Builtin bool
 
 	Profile string
+	PIC     bool
 }
 
 type FieldError struct {
@@ -201,6 +202,9 @@ func hostArch() string {
 
 func (t Target) CompileKey() string {
 	parts := []string{t.Name, t.Arch, t.OS, t.ABI, t.Format}
+	if t.PIC {
+		parts = append(parts, "pic")
+	}
 	if p, ok := BuiltinProfile(t.Profile); ok {
 		parts = append(parts, p.CompileKey())
 	}

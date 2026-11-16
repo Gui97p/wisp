@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/target"
 	"github.com/Gui97p/wisp/internal/target/x64"
@@ -286,6 +287,10 @@ func archivePath(binPath string) string {
 	return binPath + ".a"
 }
 
+func sharedPath(binPath string) string {
+	return binPath + ".so"
+}
+
 func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, error) {
 	root, base, err := openProject(cmd)
 	if err != nil {
@@ -339,6 +344,13 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 				return nil, fmt.Errorf("the programs %s and %s would both write %s: give one of them another name", other, name, relPath(product))
 			}
 			products[product] = name
+			if job.library && tgt.Arch == "x64" && eff.Libraries[name].Shared {
+				shared := sharedPath(strings.TrimSuffix(product, ".a"))
+				if other, taken := products[shared]; taken {
+					return nil, fmt.Errorf("the programs %s and %s would both write %s: give one of them another name", other, name, relPath(shared))
+				}
+				products[shared] = name
+			}
 			for _, dir := range dirs {
 				key := tgt.Arch + "|" + filepath.Clean(dir)
 				if other, taken := folders[key]; taken && other.target != tgt.Name {
@@ -552,6 +564,14 @@ func resolveBuildTargets(root string, cfg *module.Config, tgt target.Target, for
 
 func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, job buildJob) (*buildResult, error) {
 	targets := resolveBuildTargets(root, cfg, tgt, forRun)
+	shared := job.library && cfg.Libraries[job.name].Shared
+	if shared {
+		if tgt.OS != "linux" {
+			return nil, fmt.Errorf("the library %s asks for a shared library (shared = true), which only exists for linux", job.name)
+		}
+		tgt.PIC = true
+	}
+	var exports []string
 	if job.library {
 		targets.binPath = archivePath(targets.binPath)
 	}
@@ -603,7 +623,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			c := c
 			obj, err := stdc.object(c.mod.Path, func(objPath string) error {
 				renderErrorBlocks(c)
-				std, err := x64.New(c.merged, c.info, false, tgt.Name, tgt.Format, tgt.ABI, c.mod.Path)
+				std, err := x64.New(c.merged, c.info, false, tgt.Name, tgt.Format, tgt.ABI, tgt.PIC, c.mod.Path)
 				if err != nil {
 					return err
 				}
@@ -630,13 +650,18 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		isEntry := proj.mainMod != nil && c.mod == proj.mainMod.mod
 
 		renderErrorBlocks(c)
-		backend, err := x64.New(c.merged, c.info, isEntry, tgt.Name, tgt.Format, tgt.ABI, c.mod.Path)
+		backend, err := x64.New(c.merged, c.info, isEntry, tgt.Name, tgt.Format, tgt.ABI, tgt.PIC, c.mod.Path)
 		if err != nil {
 			return nil, err
 		}
 		backend.SetFiles(c.declFiles)
 		backend.SetSources(c.mod.BufferMap())
 		backend.SetLibc(useLibc(cfg, tgt))
+		for _, d := range c.merged.Declarations {
+			if fd, ok := d.(*ast.FuncDecl); ok && fd.CExport != "" {
+				exports = append(exports, fd.CExport)
+			}
+		}
 		source, err := backend.Compile()
 		if err != nil {
 			return nil, c.reportFailure(err)
@@ -719,6 +744,15 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			}
 			detail("Archived in %s", elapsed(archiveStart))
 			detail("lib: %s", relPath(targets.binPath))
+			if shared {
+				linkStart := time.Now()
+				out := sharedPath(strings.TrimSuffix(targets.binPath, ".a"))
+				if err := x64.LinkShared(tgt, append(append([]string{}, objPaths...), libPaths...), out, exports, prof.Strip, prof.Trace); err != nil {
+					return nil, err
+				}
+				detail("Linked in %s", elapsed(linkStart))
+				detail("lib: %s", relPath(out))
+			}
 			res.product = targets.binPath
 			return res, nil
 		}

@@ -2,7 +2,9 @@ global __wisp_emit
 global __wisp_error_emit
 global __wisp_panic_at
 global __wisp_panic
+%ifndef WISP_LIBRARY
 extern __wisp_main
+%endif
 global __wisp_envp
 global __wisp_args_ptr
 global __wisp_args_len
@@ -15,7 +17,9 @@ global __wisp_trace
 global __wisp_after_main
 global __wisp_exit_hook
 
+%ifndef WISP_LIBRARY
 global main
+%endif
 
 %macro lit 1
 	section .rodata
@@ -254,6 +258,10 @@ __wisp_trace:
 	ret
 %endif
 
+%ifdef WISP_LIBRARY
+__wisp_after_main:
+	ret
+%else
 main:
 	push rbp
 	mov rbp, rsp
@@ -299,5 +307,6 @@ __wisp_after_main:
 	pop rax
 	leave
 	ret
+%endif
 
 section .note.GNU-stack noalloc noexec nowrite progbits

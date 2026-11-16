@@ -226,3 +226,72 @@ func Archive(t target.Target, objPaths []string, outputPath string, traceOpt boo
 	}
 	return nil
 }
+
+func LinkShared(t target.Target, objPaths []string, outputPath string, exports []string, strip, traceOpt bool) error {
+	if t.Format != "elf64" {
+		return fmt.Errorf("shared libraries are only available for the elf64 format")
+	}
+	ld, err := toolchain.Find("ld.lld", "ld")
+	if err != nil {
+		return err
+	}
+
+	tmp, err := os.MkdirTemp("", "wisp-shared-")
+	if err != nil {
+		return fmt.Errorf("failed to create a temporary folder (%s)", diag.Reason(err))
+	}
+	defer os.RemoveAll(tmp)
+
+	outputPath, err = filepath.Abs(outputPath)
+	if err != nil {
+		return err
+	}
+
+	wisp_trace := "WISP_TRACE=0"
+	if traceOpt {
+		wisp_trace = "WISP_TRACE=1"
+	}
+	runtimeObj := filepath.Join(tmp, "runtime.o")
+	if err := Assemble(t.RuntimeSource, runtimeObj, filepath.Join(tmp, "runtime.asm"), false, t.Format, wisp_trace, "WISP_LIBRARY"); err != nil {
+		return err
+	}
+
+	var script strings.Builder
+	script.WriteString("{\n")
+	if len(exports) > 0 {
+		script.WriteString("global:\n")
+		for _, name := range exports {
+			fmt.Fprintf(&script, "\t%s;\n", name)
+		}
+	}
+	script.WriteString("local: *;\n};\n")
+	scriptPath := filepath.Join(tmp, "exports.map")
+	if err := os.WriteFile(scriptPath, []byte(script.String()), 0644); err != nil {
+		return err
+	}
+
+	args := []string{"-shared", "-Bsymbolic", "--gc-sections", "--version-script=" + scriptPath, "-soname", filepath.Base(outputPath), "-o", outputPath}
+	args = append(args, t.LinkArgs...)
+	args = append(args, runtimeObj)
+	for _, p := range objPaths {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			return err
+		}
+		args = append(args, abs)
+	}
+	if strip {
+		args = append(args, "-s")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return err
+	}
+	trace(ld, args)
+	cmd := exec.Command(ld, args...)
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s failed (%s)", filepath.Base(ld), diag.Reason(err))
+	}
+	return nil
+}

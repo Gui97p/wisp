@@ -83,11 +83,15 @@ func rodataOf(name string) (string, error) {
 	return "", fmt.Errorf("x86-64: unknown format")
 }
 
-func NewRodata(format string) (*rodataSection, error) {
+func NewRodata(format string, pic bool) (*rodataSection, error) {
 	section := &rodataSection{}
 	r, err := rodataOf(format)
 	if err != nil {
 		return nil, err
+	}
+	if pic && format == "elf64" {
+		section.printf("section .data.rel.ro progbits alloc noexec write align=16\n")
+		return section, nil
 	}
 	if r != "" {
 		r = " " + r
@@ -150,15 +154,17 @@ func NewText(format string) (*textSection, error) {
 	return section, nil
 }
 
-func newDesc(format, name, leader string, exec bool, align int) (string, error) {
+func newDesc(format, name, leader string, exec bool, align int, pic bool) (string, error) {
 	al := fmt.Sprintf("align=%d", align)
 	switch format {
 	case "elf64":
-		e := "noexec"
+		e, w := "noexec", "nowrite"
 		if exec {
 			e = "exec"
+		} else if pic {
+			w = "write"
 		}
-		return fmt.Sprintf(".%s progbits alloc %s nowrite %s", name, e, al), nil
+		return fmt.Sprintf(".%s progbits alloc %s %s %s", name, e, w, al), nil
 	case "win64":
 		e := "rdata"
 		if exec {

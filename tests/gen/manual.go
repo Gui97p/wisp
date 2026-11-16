@@ -10835,6 +10835,45 @@ int main(void) {
 }
 `}, expected: []string{"42 42"}},
 
+	{dir: "library_shared", system: "linux", x64Only: true, library: "geo", files: map[string]string{"shared-lib": "yes\n", "wisp.toml": "[library.geo]\nmodules = [\"lib\"]\nshared = true\n", "lib.wsp": `import "std/fmt";
+
+public func twice(int32 n) int32 as wisp_twice {
+    return n * 2;
+}
+
+public func total(int64 a, int64 b) int64 as wisp_total {
+    return a + b;
+}
+
+public func shout(int32 n) int32 as wisp_shout {
+    fmt.printf("shout {} {}\n", n, n / 2);
+    return n + 1;
+}
+
+func hidden() int32 {
+    return 7;
+}
+`, "main.c": `#include <stdio.h>
+
+extern int wisp_twice(int);
+extern long wisp_total(long, long);
+extern int wisp_shout(int);
+extern void __wisp_panic(void) __attribute__((weak));
+extern int std_fmt_printf __attribute__((weak));
+
+int main(void) {
+    printf("twice %d\n", wisp_twice(21));
+    fflush(stdout);
+    printf("total %ld\n", wisp_total(40, 2));
+    fflush(stdout);
+    printf("shout returned %d\n", wisp_shout(10));
+    fflush(stdout);
+    printf("runtime hidden %d\n", &__wisp_panic == 0);
+    printf("std hidden %d\n", &std_fmt_printf == 0);
+    return 0;
+}
+`}, expected: []string{"twice 42", "total 42", "shout 10 5", "shout returned 11", "runtime hidden 1", "std hidden 1"}},
+
 	{dir: "interop_export", system: "linux", x64Only: true, cmain: true, files: map[string]string{"lib.wsp": `public func add(int32 a, int32 b) int32 as wisp_add {
     return a + b;
 }

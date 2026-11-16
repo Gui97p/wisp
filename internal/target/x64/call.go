@@ -214,7 +214,7 @@ func (t *X64Target) emitAdapter(a pendingAdapter) error {
 		}
 	}
 
-	desc, err := newDesc(t.format, a.name, a.name, true, 32)
+	desc, err := newDesc(t.format, a.name, a.name, true, 32, false)
 	if err != nil {
 		return err
 	}
