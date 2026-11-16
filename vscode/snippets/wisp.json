@@ -59,6 +59,18 @@
         ],
         "description": "Switch as a statement"
     },
+    "switch (type)": {
+        "prefix": "switchtype",
+        "body": [
+            "switch type ${1:value} {",
+            "\tcase ${2:int} ${3:v}:",
+            "\t\t$4",
+            "\tdefault:",
+            "\t\t$0",
+            "}"
+        ],
+        "description": "Switch on the type of an any value"
+    },
     "method": {
         "prefix": "method",
         "body": [

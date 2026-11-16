@@ -149,9 +149,13 @@ func (t *LuaTarget) compileExpressionNode(b *strings.Builder, expr ast.Expressio
 			}
 			return nil
 		}
-		b.WriteString(t.foreignPrefix(t.info.Idents[e]))
-		b.WriteString(luaIdent(e.Value))
-		if t.isBoxed(t.info.Idents[e]) {
+		symbol, name := t.info.Idents[e], e.Value
+		if original, narrowed := t.info.Narrowed[symbol]; narrowed {
+			symbol, name = original, original.Name
+		}
+		b.WriteString(t.foreignPrefix(symbol))
+		b.WriteString(luaIdent(name))
+		if t.isBoxed(symbol) {
 			b.WriteString("[0]")
 		}
 		if t.narrowedIdent(e) {

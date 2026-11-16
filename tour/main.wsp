@@ -26,6 +26,7 @@ import "errors";
 import "assertions";
 import "pointers";
 import "memory";
+import "files";
 import "globals";
 import "interop";
 import "platform";
@@ -88,6 +89,9 @@ func main() !int {
 
   fmt.printf("\n== allocators ==\n");
   memory.demo()!;
+
+  fmt.printf("\n== files and paths ==\n");
+  files.demo()!;
 
   fmt.printf("\n== globals ==\n");
   globals.demo();

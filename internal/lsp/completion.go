@@ -161,6 +161,9 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 	for _, p := range primitiveNames {
 		items = append(items, item(p, protocol.CompletionItemKindClass, "type"))
 	}
+	if before := textBefore(path, int(pos.Line), int(pos.Character)); typeCaseTyping.MatchString(lastLine(before)) && insideTypeSwitch(before) {
+		items = append(items, typeGroupItems()...)
+	}
 
 	if info != nil {
 		for _, sym := range scopeAt(info, line, col).Visible() {

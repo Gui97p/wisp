@@ -1,0 +1,104 @@
+// Tour - Files, paths and the environment.
+//
+// `std/os` is the way into the system and `std/path` is for the names of
+// files. Both work the same on every system, and what differs is hidden
+// inside: a path on Windows may start with a drive (`C:\`) and use either
+// slash, but the functions below do the same thing there.
+//
+// Anything that builds new text asks you for the memory: `path.join` and
+// `path.clean` write into a buffer you pass and give back a slice of it. The
+// buffer is yours, so it can live on the stack and nothing is allocated.
+// Anything that only looks at a path (`base`, `dir`, `ext`, `stem`) returns a
+// piece of the path itself.
+//
+// Failures are errors, as everywhere else: a function that can fail is marked
+// with `!`, and `errors.Kind` says what went wrong.
+
+import "std/errors";
+import "std/fmt";
+import "std/mem";
+import "std/os";
+import "std/path";
+
+func writeNotes(string file) ! {
+  int fd = os.create(file)!;
+  defer os.close(fd);
+  os.write(fd, "one line\n")!;
+  os.write(fd, "and another\n")!;
+}
+
+public func demo() ! {
+  // `os.args()` is the list of arguments, the program's own name first.
+  fmt.printf("started with {} argument(s)\n", len(os.args()));
+
+  // `getenv` looks one variable up, `environ` walks all of them. The strings
+  // point into memory the system owns, and are valid until the next call.
+  let value, found = os.getenv("PATH");
+  fmt.printf("PATH is set: {}, and not empty: {}\n", found, len(value) > 0);
+
+  os.Environ env = os.environ();
+  int variables;
+  loop {
+    let _name, _text, more = env.next();
+    if !more {
+      break;
+    }
+    variables++;
+  }
+  env.close();
+  fmt.printf("the environment has variables: {}\n", variables > 0);
+
+  // Taking a path apart never allocates.
+  string file = "/tmp/wisp_tour_files/notes.tar.gz";
+  fmt.printf("base {}, dir {}, ext {}, stem {}\n", path.base(file), path.dir(file), path.ext(file), path.stem(file));
+
+  // Putting one together writes into your buffer. `clean` also resolves
+  // `.` and `..`.
+  [256]byte buffer;
+  string root = path.join(buffer, "/tmp", "wisp_tour_files")!;
+  [256]byte other;
+  string messy = path.clean(other, "/tmp/./wisp_tour_files/../wisp_tour_files/")!;
+  fmt.printf("the same folder from two spellings: {}\n", root == messy);
+
+  // Folders and files. `mkdirAll` creates every missing level, `create`
+  // opens a file for writing, and `defer` closes it when the function ends.
+  os.mkdirAll(root)!;
+
+  [256]byte pathBuffer;
+  string first = path.join(pathBuffer, root, "first.txt")!;
+  writeNotes(first)!;
+
+  let info = os.stat(first)!;
+  fmt.printf("first.txt is {} bytes, a file: {}\n", info.size, info.kind == .File);
+
+  // `readFile` allocates the content, so the memory is yours to free.
+  []byte content = os.readFile(first)!;
+  defer mem.free((*byte)(content));
+  fmt.printf("it reads back {} bytes, starting with \"{}\"\n", len(content), string(content[:8]));
+
+  // Renaming, and asking a folder what is in it. The order of the entries
+  // depends on the system, so this only counts them.
+  [256]byte moved;
+  string second = path.join(moved, root, "second.txt")!;
+  os.rename(first, second)!;
+  fmt.printf("after the rename: first {}, second {}\n", os.exists(first), os.exists(second));
+
+  os.Dir folder = os.openDir(root)!;
+  int entries;
+  loop {
+    let _name, _kind, more = folder.next()!;
+    if !more {
+      break;
+    }
+    entries++;
+  }
+  folder.close();
+  fmt.printf("the folder has {} entry\n", entries);
+
+  // A missing file is an error value you can compare, not a crash.
+  let _data, failure = os.readFile("/tmp/wisp_tour_files/missing.txt");
+  fmt.printf("a missing file: not found {}\n", failure == errors.Kind.NotFound);
+
+  os.remove(second)!;
+  os.removeDir(root)!;
+}

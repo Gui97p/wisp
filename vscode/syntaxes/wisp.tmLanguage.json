@@ -279,6 +279,20 @@
                     "match": "\\b(struct|type|enum)\\b"
                 },
                 {
+                    "match": "\\b(switch)\\s+(type)\\b",
+                    "captures": {
+                        "1": { "name": "keyword.control.conditional.wisp" },
+                        "2": { "name": "keyword.control.conditional.wisp" }
+                    }
+                },
+                {
+                    "match": "\\b(case)\\s+(signed|unsigned)\\b(?=\\s*[A-Za-z_:,=])",
+                    "captures": {
+                        "1": { "name": "keyword.control.conditional.wisp" },
+                        "2": { "name": "storage.type.primitive.wisp" }
+                    }
+                },
+                {
                     "name": "keyword.control.conditional.wisp",
                     "match": "\\b(if|else|switch|case|default)\\b"
                 },
