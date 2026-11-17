@@ -2,6 +2,35 @@
 // project on its own, no `entry` setting needed, and runs it on the host
 // x86-64 target.
 //
+// What each page teaches, in the order they run:
+//
+//   basics        constants, variables, operators
+//   printing      fmt: printf and its format specs
+//   branching     if, switch (exhaustive on enums), guards `return x if c;`,
+//                 blocks `{ }`, blocks that give a value, labeled blocks
+//   loops         for, loop, ranges, labels, break and continue
+//   functions     parameters, several results, `=>`, any order
+//   lambdas       function values, function literals, named function types
+//   inlining      inline functions, const parameters
+//   variadics     `type ...name`, any number of arguments
+//   anyargs       `...name` of any type, `switch type`, signed and unsigned
+//   cleanup       defer and defer!
+//   types         type aliases, enums, sizes, conversions
+//   floats        float32 and float64, formatting
+//   structs       structs, methods, literals
+//   collections   arrays, slices, strings
+//   errors        `!` functions, Error, `!`, `??`, `|e|`, handlers
+//   optionals     `?T`, null, `??`, `!!`, `if x |v|`, `loop x |v|`
+//   assertions    `!!` on a call that cannot fail here
+//   pointers      `*T`, `&`, `@`, indexing and slicing pointers
+//   memory        allocators: Fixed, Arena, marks and reset
+//   files         os, path, the environment
+//   globals       global variables and constants
+//   interop       native blocks and functions (assembly)
+//   platform      #target, per-system files and declarations
+//   geometry/     modules: public, internal and imported names
+//   _c/           calling C with extern (a project of its own)
+//
 // Every file is its own module. `import "basics"` loads basics.wsp and binds
 // it to the name `basics`; `as` picks another name. A module reaches the
 // others through the project root, so even files in subfolders write their
