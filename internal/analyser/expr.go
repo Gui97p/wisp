@@ -78,6 +78,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkTernaryExpr(e)
 	case *ast.SwitchExpr:
 		t = a.checkSwitchExprValue(e)
+	case *ast.BlockExpr:
+		t = a.checkBlockExpr(e)
 	case *ast.CoalesceExpr:
 		t = a.checkCoalesceExpr(e)
 	case *ast.PropagateExpr:
@@ -233,6 +235,12 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 		if t, handled := a.checkErrorComparison(expr, left, right); handled {
 			return t
 		}
+		if t, handled := a.checkOptionalComparison(expr, left, right); handled {
+			return t
+		}
+		if a.checkNeverNull(expr, left, right) {
+			return PrimitiveType{Name: "bool"}
+		}
 	}
 
 	if t, handled := a.pointerArithmetic(expr, left, right); handled {
@@ -336,6 +344,9 @@ func (a *Analyser) checkDerefExpr(expr *ast.DerefExpr) Type {
 		a.errorf(expr, "expected a pointer before @, got %s", value.String())
 		return InvalidType{}
 	}
+	if a.rejectOptionalUse(expr, value, "@") {
+		return InvalidType{}
+	}
 	if isVoidPointer(ptr) {
 		a.error(expr, "cannot dereference *void: convert it to a typed pointer first")
 		return InvalidType{}
@@ -435,6 +446,10 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 
 	a.callee = expr.Name
 	nameType := a.checkExpr(expr.Name)
+	if a.rejectOptionalUse(expr, nameType, "a call") {
+		a.evalArgTypes(expr)
+		return []Type{InvalidType{}}
+	}
 	if nt, isNamed := nameType.(NamedType); isNamed {
 		if _, isFunc := nt.Underlying.(*FuncType); isFunc {
 			nameType = nt.Underlying
@@ -520,7 +535,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 				continue
 			}
 			if !a.coerceAt(expr.Args, len(argTypes), i, argTypes[i], ft.Params[i]) {
-				a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), argTypes[i].String()).WithHelp("%s", signatureHelp(ft))
+				a.argumentMismatch(expr, i, ft, argTypes[i])
 				continue
 			}
 			a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), ft.Params[i])
@@ -554,7 +569,7 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 			continue
 		}
 		if !a.coerceAt(expr.Args, len(argTypes), i, at, ft.Params[i]) {
-			a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String()).WithHelp("%s", signatureHelp(ft))
+			a.argumentMismatch(expr, i, ft, at)
 			continue
 		}
 		a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), ft.Params[i])
@@ -673,6 +688,10 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 
 	byPointer := false
 	if ptr, ok := objType.(PointerType); ok {
+		if ptr.Nullable {
+			a.rejectOptionalUse(expr, objType, "a field access")
+			return InvalidType{}
+		}
 		objType = ptr.Element
 		byPointer = true
 	}
@@ -685,6 +704,10 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 
 	fieldType, ok := st.Fields[expr.Field]
 	if !ok {
+		if st.Optional != nil {
+			a.rejectOptionalUse(expr, objType, "a field access")
+			return InvalidType{}
+		}
 		a.suggest(a.errorf(expr, "invalid field %s in struct %s", expr.Field, st.Name), expr.Field, st.Order)
 		return InvalidType{}
 	}
@@ -715,6 +738,9 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 		a.checkConstIndex(expr.Index, -1)
 		return t.Element
 	case PointerType:
+		if a.rejectOptionalUse(expr, t, "an index") {
+			return InvalidType{}
+		}
 		if isVoidPointer(t) {
 			a.error(expr, "cannot index *void: convert it to a typed pointer first")
 			return InvalidType{}
@@ -754,6 +780,9 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 		a.checkConstSlice(expr, -1)
 		return t
 	case PointerType:
+		if a.rejectOptionalUse(expr, t, "a slice") {
+			return InvalidType{}
+		}
 		if isVoidPointer(t) {
 			a.error(expr, "cannot slice *void: convert it to a typed pointer first")
 			return InvalidType{}
@@ -818,10 +847,18 @@ func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
 		return []Type{InvalidType{}}
 	}
 
+	if element, optional := optionalElement(operand); optional {
+		if !expr.Assert {
+			a.errorf(expr, "! propagates an error, and %s has none: use !! to stop when it is null, or ?? to give a value", operand.String())
+			return []Type{InvalidType{}}
+		}
+		return []Type{element}
+	}
+
 	ft, ok := operand.(FallibleType)
 	if !ok {
 		if expr.Assert {
-			a.errorf(expr, "!! expects a call that can fail, got %s", operand.String())
+			a.errorf(expr, "!! expects a call that can fail or an optional (?T), got %s", operand.String())
 		} else {
 			a.errorf(expr, "! expects a call that can fail, got %s", operand.String())
 		}
@@ -875,9 +912,13 @@ func (a *Analyser) checkCoalesce(expr *ast.CoalesceExpr) []Type {
 		return invalid
 	}
 
+	if element, optional := optionalElement(left); optional {
+		return a.checkOptionalCoalesce(expr, element)
+	}
+
 	ft, ok := left.(FallibleType)
 	if !ok {
-		a.errorf(expr, "?? can only be used on a call that can fail, got %s", left)
+		a.errorf(expr, "?? can only be used on a call that can fail or on an optional (?T), got %s", left)
 		return invalid
 	}
 
@@ -915,7 +956,7 @@ func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr, values []Type) bool
 	a.yieldFrames = a.yieldFrames[:len(a.yieldFrames)-1]
 	a.exitScope()
 
-	if !valueless && !blockDiverges(b) {
+	if !valueless && !a.blockDiverges(b) {
 		d := a.error(expr, "the handler block must end with yield, return, break or continue")
 		if endsInSwitch(b) {
 			d.WithHelp("a switch handler needs a default, and every case must end with yield, return, continue or a labeled break: a plain break only leaves the switch")
@@ -933,18 +974,18 @@ func endsInSwitch(block *ast.BlockStmt) bool {
 	return ok && last.IsSwitch
 }
 
-func blockDiverges(block *ast.BlockStmt) bool {
-	return listDiverges(block.Statements, false)
+func (a *Analyser) blockDiverges(block *ast.BlockStmt) bool {
+	return a.listDiverges(block.Statements, false)
 }
 
-func listDiverges(list []ast.Statement, inSwitch bool) bool {
+func (a *Analyser) listDiverges(list []ast.Statement, inSwitch bool) bool {
 	if len(list) == 0 {
 		return false
 	}
-	return stmtDiverges(list[len(list)-1], inSwitch)
+	return a.stmtDiverges(list[len(list)-1], inSwitch)
 }
 
-func stmtDiverges(stmt ast.Statement, inSwitch bool) bool {
+func (a *Analyser) stmtDiverges(stmt ast.Statement, inSwitch bool) bool {
 	switch s := stmt.(type) {
 	case *ast.ReturnStmt, *ast.ContinueStmt, *ast.YieldStmt:
 		return true
@@ -955,9 +996,11 @@ func stmtDiverges(stmt ast.Statement, inSwitch bool) bool {
 			return false
 		}
 		inSwitch = inSwitch || s.IsSwitch
-		return listDiverges(s.Then.Statements, inSwitch) && stmtDiverges(s.Else, inSwitch)
+		return a.listDiverges(s.Then.Statements, inSwitch) && a.stmtDiverges(s.Else, inSwitch)
 	case *ast.BlockStmt:
-		return listDiverges(s.Statements, inSwitch)
+		return a.listDiverges(s.Statements, inSwitch)
+	case *ast.ExpressionStmt:
+		return a.isPanicCall(s.Expr)
 	}
 	return stmtTerminates(stmt)
 }
@@ -986,7 +1029,11 @@ func (a *Analyser) expandFallible(values []ast.Expression, types []Type, want in
 	if !ok || want != len(ft.Values)+1 {
 		return types, false
 	}
-	return append(append([]Type{}, ft.Values...), ErrorType{}), true
+	results := make([]Type, len(ft.Values), len(ft.Values)+1)
+	for i, v := range ft.Values {
+		results[i] = absentOnError(v)
+	}
+	return append(results, ErrorType{}), true
 }
 
 func (a *Analyser) isErrorConstructor(expr *ast.CallExpr) bool {

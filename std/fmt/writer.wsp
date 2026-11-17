@@ -275,6 +275,7 @@ public func (*Writer w) format(string format, ...args) !int {
 			case float64 v:  [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, false)!;
 			case float32 v:  [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, true)!;
 			case Error v:    ok = w.putError(buf, v, s)!;
+			case null:       ok = w.putString("null", s)!;
 			default:         bad = Error(FormatError.UnsupportedType);
 		}
 		argIndex++;

@@ -27,6 +27,7 @@ func (t *X64Target) push(reg x64context.Register) {
 
 var panicLabels = map[string]string{
 	"unwrapped error":             "the error was unwrapped here",
+	"unwrapped null":              "this value is null",
 	"integer divide by zero":      "the divisor is zero",
 	"null pointer dereference":    "this pointer is null",
 	"range step must be positive": "the step is not positive",

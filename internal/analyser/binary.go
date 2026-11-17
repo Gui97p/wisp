@@ -121,6 +121,10 @@ func (a *Analyser) pointerArithmetic(expr *ast.BinaryExpr, left, right Type) (Ty
 		return InvalidType{}, true
 	}
 
+	if a.rejectOptionalUse(expr, left, "arithmetic") || a.rejectOptionalUse(expr, right, "arithmetic") {
+		return InvalidType{}, true
+	}
+
 	if isVoidPointer(left) || isVoidPointer(right) {
 		a.errorf(expr, "arithmetic on %s: convert it to a typed pointer first", a.pointerName(left, right))
 		return InvalidType{}, true

@@ -29,9 +29,9 @@ public func demo() ! {
   pp.a = 10;
   fmt.printf("after pp.a = 10, pair is {}, {}\n", pair.a, pp.b);
 
-  // `null` is the empty pointer. Dereferencing it stops the program with a
-  // panic.
-  *int nothing = null;
+  // A pointer is never null. One that can be empty is optional, `?*int`, and
+  // has to be unwrapped before it is used (see the optionals page).
+  ?*int nothing = null;
   fmt.printf("nothing == null: {}\n", nothing == null);
 
   // `mem.alloc` asks for a number of bytes and can fail, so it is a fallible

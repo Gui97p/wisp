@@ -19,6 +19,9 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 	}
 
 	for p.peek.Type != lexer.TOKEN_EOF && precedence < p.peekPrecedence() {
+		if p.captureAllowed && p.peek.Type == lexer.TOKEN_PIPE && p.atCapture() {
+			break
+		}
 		line, col := left.Position()
 
 		switch p.peek.Type {
@@ -107,6 +110,12 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		return &ast.DotIdent{Name: p.current.Literal}
 	case lexer.TOKEN_LBRACKET:
 		return p.parseArrayLiteral()
+	case lexer.TOKEN_LBRACE:
+		block := p.parseBlockStatement()
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
+		return &ast.BlockExpr{Block: block}
 
 	case lexer.TOKEN_MINUS,
 		lexer.TOKEN_NOT,
@@ -137,7 +146,7 @@ func (p *Parser) looksLikePointerConversion() bool {
 	defer p.restore(cp)
 
 	p.advance()
-	if p.current.Type != lexer.TOKEN_STAR {
+	if p.current.Type != lexer.TOKEN_STAR && p.current.Type != lexer.TOKEN_QUESTION_MARK {
 		return false
 	}
 
@@ -628,8 +637,29 @@ func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {
 		return nil
 	}
 
+	if isPanicCall(value) {
+		stmt := &ast.ExpressionStmt{Expr: value}
+		line, col := value.Position()
+		endLine, endCol := value.EndPosition()
+		stmt.SetPos(line, col)
+		stmt.SetEndPos(endLine, endCol)
+		expr.Block = &ast.BlockStmt{Statements: []ast.Statement{stmt}}
+		expr.Block.(*ast.BlockStmt).SetPos(line, col)
+		expr.Block.(*ast.BlockStmt).SetEndPos(endLine, endCol)
+		return expr
+	}
+
 	expr.Block = valueHandler(value)
 	return expr
+}
+
+func isPanicCall(value ast.Expression) bool {
+	call, ok := value.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	id, ok := call.Name.(*ast.IdentLiteral)
+	return ok && id.Value == "panic"
 }
 
 func valueHandler(value ast.Expression) *ast.BlockStmt {

@@ -58,6 +58,9 @@ func receiverMembers(path string, scope *analyser.Scope, word, suffix string) []
 		}
 
 		if st := nativeStructOf(tp); st != nil {
+			if st.Optional != nil {
+				continue
+			}
 			for _, field := range st.Order {
 				if !matchesWord(field, word) || !analyser.FieldAccessible(st, field, path) {
 					continue

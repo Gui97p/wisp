@@ -232,6 +232,9 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 			if !a.scope.Define(sym) {
 				a.errorAlreadyDeclared(node, kind, v.Name)
 			}
+			if decl, isVar := node.(*ast.VarStmt); !isVar || !decl.Result {
+				a.requireZeroValue(node, v.Name, t)
+			}
 
 			a.info.VarTypes[node] = append(a.info.VarTypes[node], t)
 			a.info.VarSymbols[node] = append(a.info.VarSymbols[node], sym)
@@ -283,6 +286,9 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 						case !a.arrayElementAssignable(values, len(vars), i, valArr.Element, declArr.Element):
 							a.errorf(node, "array %s expects element type %s, got %s", v.Name, declArr.Element.String(), valArr.Element.String())
 						default:
+							if valArr.Size < declArr.Size {
+								a.requireZeroValue(node, v.Name+" (the elements left out)", declArr.Element)
+							}
 							if slot := a.valueSlot(values, len(vars), i); slot != nil {
 								a.fixArrayLiteral(*slot, declArr.Element, declArr.Size)
 							}

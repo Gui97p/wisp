@@ -26,7 +26,7 @@ public func demo() ! {
   fmt.printf("used {} bytes, {} left\n", fixed.used(), fixed.remaining());
 
   let more, failure = fixed.alloc(1000);
-  fmt.printf("a block that does not fit: {}, no space: {}\n", more == null, failure == errors.Kind.NoSpace);
+  fmt.printf("a block that does not fit: no space {}\n", failure == errors.Kind.NoSpace);
 
   // `reset` forgets every block at once and starts over from the beginning.
   fixed.reset();

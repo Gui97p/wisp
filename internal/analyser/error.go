@@ -69,7 +69,7 @@ func (a *Analyser) errorAlreadyDeclared(node ast.Node, kind SymbolKind, name str
 }
 
 func (a *Analyser) errorDeclaredAs(node ast.Node, name string, declared, got Type) {
-	a.errorf(node, "variable %s declared as %s, got %s", name, declared.String(), got.String())
+	a.helpMismatch(a.errorf(node, "variable %s declared as %s, got %s", name, declared.String(), got.String()), got, declared)
 }
 
 func (a *Analyser) errorConstAssign(node ast.Node, name string) {

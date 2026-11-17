@@ -10,7 +10,7 @@ const {
 } 
 
 struct Chunk {
-	*Chunk next;
+	?*Chunk next;
 	int size;
 	int used;
 }
@@ -29,12 +29,12 @@ func newChunk(int need) !*Chunk {
 }
 
 public struct Mark {
-	internal *Chunk chunk;
+	internal ?*Chunk chunk;
 	internal int used;
 }
 
 public struct Arena {
-	internal *Chunk head;
+	internal ?*Chunk head;
 }
 
 public func (*Arena a) alloc(int n) !*void {
@@ -47,18 +47,20 @@ public func (*Arena a) allocDirty(int n) !*void {
 	errors.ensure(n >= 0, errors.Kind.Invalid)!;
 	n = (n + 15) & ~15;
 	errors.ensure(n >= 0, errors.Kind.Invalid)!;
-	if a.head != null && a.head.used + n <= a.head.size {
-		defer a.head.used += n;
-		return a.head.data() + a.head.used;
+	if a.head |head| {
+		if head.used + n <= head.size {
+			defer head.used += n;
+			return head.data() + head.used;
+		}
 	}
 	*Chunk p = newChunk(n)!;
 	if n <= ARENA_CHUNK_SIZE - HEADER {
 		p.next = a.head;
 		a.head = p;
 	} else {
-		if a.head != null {
-			p.next = a.head.next;
-			a.head.next = p;
+		if a.head |head| {
+			p.next = head.next;
+			head.next = p;
 		} else {
 			a.head = p;
 		}
@@ -68,46 +70,48 @@ public func (*Arena a) allocDirty(int n) !*void {
 }
 
 public func (*Arena a) free() {
-	if a.head != null {
-		*Chunk c = a.head;
-		loop c != null {
-			*Chunk next = c.next;
-			mem.free(c);
-			c = next;
-		}
-		a.head = null;
+	?*Chunk c = a.head;
+	loop c |chunk| {
+		?*Chunk next = chunk.next;
+		mem.free(chunk);
+		c = next;
 	}
+	a.head = null;
 }
 
 public func (*Arena a) reset() {
-	if a.head != null {
-		*Chunk c = a.head.next;
-		loop c != null {
-			*Chunk next = c.next;
-			mem.free(c);
+	if a.head |head| {
+		?*Chunk c = head.next;
+		loop c |chunk| {
+			?*Chunk next = chunk.next;
+			mem.free(chunk);
 			c = next;
 		}
-		a.head.next = null;
-		a.head.used = 0;
+		head.next = null;
+		head.used = 0;
 	}
 }
 
 public inline func (*Arena a) mark() Mark {
-	int used = a.head != null ? a.head.used : 0;
+	int used;
+	if a.head |head| {
+		used = head.used;
+	}
 	return Mark{chunk: a.head, used: used};
 }
 
 public func (*Arena a) rewind(Mark m) {
-	if a.head != null {
-		*Chunk c = a.head;
-		loop c != null && c != m.chunk {
-			*Chunk next = c.next;
-			mem.free(c);
-			c = next;
+	?*Chunk c = a.head;
+	loop c |chunk| {
+		if c == m.chunk {
+			break;
 		}
-		a.head = m.chunk;
-		if m.chunk != null {
-			m.chunk.used = m.used;
-		}
+		?*Chunk next = chunk.next;
+		mem.free(chunk);
+		c = next;
+	}
+	a.head = m.chunk;
+	if m.chunk |kept| {
+		kept.used = m.used;
 	}
 }

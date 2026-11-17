@@ -96,7 +96,7 @@ func (p *Parser) parseSwitchBlock() []ast.Statement {
 }
 
 func (p *Parser) startsTypeLabel(typed bool) bool {
-	if p.current.Type == lexer.TOKEN_STAR {
+	if p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_QUESTION_MARK {
 		return true
 	}
 	if !p.isPrimitiveType() {

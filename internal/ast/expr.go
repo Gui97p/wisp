@@ -383,8 +383,9 @@ func (i *InExpr) Tree(indent string) string {
 }
 
 type PropagateExpr struct {
-	Value  Expression
-	Assert bool
+	Value     Expression
+	Assert    bool
+	Unchecked bool
 
 	NodePos
 }
@@ -460,4 +461,20 @@ func (a *SwitchArm) tree(head, pad string) string {
 	}
 
 	return b.String()
+}
+
+type BlockExpr struct {
+	Block *BlockStmt
+
+	NodePos
+}
+
+func (*BlockExpr) expr() {}
+func (b *BlockExpr) Tree(indent string) string {
+	var out strings.Builder
+
+	fmt.Fprintf(&out, "%sBlockExpr\n", indent)
+	out.WriteString(b.Block.Tree(indent + "└─ "))
+
+	return out.String()
 }

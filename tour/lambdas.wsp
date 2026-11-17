@@ -15,8 +15,9 @@
 //
 // `type Step (int) => int;` gives a function type a name, which is handy in
 // an array of them: `[2]Step`. The type can also be written in place,
-// as in `[2](int) => int`. A plain function converts to the named type. A function value can be `null`, and calling a null one stops the
-// program the way a null pointer does.
+// as in `[2](int) => int`. A plain function converts to the named type. A
+// function value is never null: one that can be missing is written `?Step`
+// (see the optionals page), and has to be unwrapped before it is called.
 
 import "std/fmt";
 
@@ -52,6 +53,7 @@ public func demo() {
   [2]Step table = [inc, dec];
   fmt.printf("table[0](5) = {}, table[1](5) = {}\n", table[0](5), table[1](5));
 
-  Step none = null;
-  fmt.printf("none is null: {}, triple is null: {}\n", none == null, triple == null);
+  ?Step none = null;
+  ?Step some = triple;
+  fmt.printf("none is null: {}, some is null: {}\n", none == null, some == null);
 }

@@ -245,6 +245,10 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 		return true
 	}
 
+	if handled, ok := a.coerceOptional(slot, from, to); handled {
+		return ok
+	}
+
 	if isImplicitEnum(from) {
 		return a.resolveDot(*slot, to)
 	}
@@ -358,11 +362,21 @@ func (a *Analyser) retypeNull(expr ast.Expression, from, to Type) bool {
 		return false
 	}
 	switch t := to.(type) {
-	case PointerType, ErrorType, *FuncType:
+	case ErrorType:
 		a.info.Types[lit] = to
 		return true
+	case PointerType:
+		if t.Nullable {
+			a.info.Types[lit] = to
+			return true
+		}
+	case *FuncType:
+		if t.Nullable {
+			a.info.Types[lit] = to
+			return true
+		}
 	case NamedType:
-		if _, isFunc := t.Underlying.(*FuncType); isFunc {
+		if _, isFunc := t.Underlying.(*FuncType); isFunc && t.Nullable {
 			a.info.Types[lit] = to
 			return true
 		}
@@ -378,6 +392,9 @@ func (a *Analyser) unifySlots(left, right *ast.Expression, lt, rt Type) (Type, T
 	if isImplicitEnum(rt) && isEnumType(lt) {
 		a.resolveDot(*right, lt)
 		return lt, lt
+	}
+	if t, ok := a.unifyOptional(left, right, lt, rt); ok {
+		return t, t
 	}
 	if a.retypeNull(*left, lt, rt) {
 		return rt, rt
@@ -755,5 +772,5 @@ func voidPointerConversion(from, to Type) bool {
 	}
 	_, fromVoid := fp.Element.(VoidType)
 	_, toVoid := tp.Element.(VoidType)
-	return fromVoid != toVoid
+	return fromVoid != toVoid && !(fp.Nullable && !tp.Nullable)
 }

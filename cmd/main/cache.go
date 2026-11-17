@@ -65,6 +65,9 @@ func cacheKey() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if resolved, err := filepath.EvalSymlinks(stdRoot); err == nil {
+		stdRoot = resolved
+	}
 
 	var files []string
 	err = filepath.WalkDir(stdRoot, func(p string, d fs.DirEntry, err error) error {

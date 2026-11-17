@@ -60,6 +60,9 @@ func (p *Parser) parseTypeLayers() ([]ast.TypeLayer, bool) {
 		case lexer.TOKEN_STAR:
 			layers = append(layers, ast.TypeLayer{Pointer: true})
 			p.advance()
+		case lexer.TOKEN_QUESTION_MARK:
+			layers = append(layers, ast.TypeLayer{Optional: true})
+			p.advance()
 		case lexer.TOKEN_LBRACKET:
 			if p.peek.Type == lexer.TOKEN_RBRACKET {
 				p.advance()
@@ -168,5 +171,5 @@ func (p *Parser) isStartType() bool {
 }
 
 func (p *Parser) isPointerType() bool {
-	return p.current.Type == lexer.TOKEN_STAR || p.isStartType()
+	return p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_QUESTION_MARK || p.isStartType()
 }

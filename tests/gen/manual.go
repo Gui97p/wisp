@@ -905,7 +905,7 @@ func main() {
 `},
 
 	{dir: "agg_null_pointer", src: `func main() {
-    *int p = null;
+    ?*int p = null;
     check(p == null, "null pointer equals null");
     int v = 5;
     p = &v;
@@ -1166,7 +1166,7 @@ public func isEven(int n) bool {
 
 public struct Entity {
     int hp;
-    *world.World owner;
+    ?*world.World owner;
 }
 
 public func make(int hp) Entity {
@@ -1182,7 +1182,7 @@ public func attach(*Entity e, *world.World w) {
 }
 
 public func worldCount(Entity e) int {
-    return e.owner.count;
+    return e.owner!!.count;
 }
 
 public func isOdd(int n) bool {
@@ -1639,25 +1639,390 @@ func main() {
 }
 `},
 
+	{dir: "optional_values", src: `struct Pair {
+    int a;
+    ?int b;
+    ?string label;
+}
+
+func half(int n) ?int {
+    if n % 2 != 0 {
+        return null;
+    }
+    return n / 2;
+}
+
+func name(bool known) ?string {
+    return known ? "wisp" : null;
+}
+
+func main() {
+    ?int a = 5;
+    ?int b;
+    ?int c = null;
+    check(a != null && b == null && c == null, "an optional starts as null and holds a value once assigned");
+    check(null != a && null == b, "null can be on the left");
+
+    b = 7;
+    check(b != null && b == 7 && b != 8, "an optional compares with a plain value");
+    a = null;
+    check(a == null, "null is assigned back");
+
+    ?int x = half(10);
+    ?int y = half(7);
+    check(x == 5 && y == null, "a function returns an optional value or null");
+    ?int hx = half(10);
+    ?int hy = half(3);
+    check(x == hx && y == hy && x != y, "optionals compare with each other");
+
+    ?string s = name(true);
+    ?string t = name(false);
+    check(s != null && t == null, "an optional string");
+    check(s == "wisp" && t != "wisp", "an optional string compares with a string");
+
+    Pair zero;
+    check(zero.a == 0 && zero.b == null && zero.label == null, "optional fields start as null in a zero struct");
+    Pair full = Pair{a: 1, b: 2, label: "x"};
+    check(full.b == 2 && full.label == "x", "optional fields take plain values");
+    Pair partial = Pair{a: 3};
+    check(partial.b == null && partial.label == null, "optional fields can be left out of a literal");
+
+    [3]?int many;
+    many[1] = 4;
+    check(many[0] == null && many[1] == 4 && many[2] == null, "an array of optionals starts as nulls");
+
+    ?float f = 2.5;
+    ?bool flag = true;
+    ?bool none;
+    check(f == 2.5 && flag == true && none == null, "optional floats and bools");
+
+    ?int8 small = 100;
+    ?uint64 big = 18446744073709551615;
+    check(small == 100 && big == 18446744073709551615, "optional integers of other sizes");
+}
+`, expected: []string{"an optional starts as null and holds a value once assigned", "null can be on the left", "an optional compares with a plain value", "null is assigned back", "a function returns an optional value or null", "optionals compare with each other", "an optional string", "an optional string compares with a string", "optional fields start as null in a zero struct", "optional fields take plain values", "optional fields can be left out of a literal", "an array of optionals starts as nulls", "optional floats and bools", "optional integers of other sizes"}},
+	{dir: "optional_coalesce", src: `var int calls;
+
+func lookup(int key) ?int {
+    calls++;
+    return key > 0 ? key * 10 : null;
+}
+
+func first(int a, int b) int {
+    int x = lookup(a) ?? return -1;
+    int y = lookup(b) ?? return -2;
+    return x + y;
+}
+
+func total(int n) int {
+    int sum;
+    for i in 0..n {
+        sum += lookup(i - 2) ?? continue;
+    }
+    return sum;
+}
+
+func firstNull(int n) int {
+    int i;
+    loop true {
+        int v = lookup(n - i) ?? break;
+        i++;
+    }
+    return i;
+}
+
+func main() {
+    ?int a = 4;
+    ?int b;
+    check((a ?? 0) == 4 && (b ?? 9) == 9, "?? gives the value or the default");
+
+    int c = b ?? {
+        int tmp = 3;
+        yield tmp * 2;
+    };
+    check(c == 6, "?? runs a block that yields");
+
+    calls = 0;
+    int d = lookup(5) ?? 0;
+    check(d == 50 && calls == 1, "the operand is evaluated once");
+    calls = 0;
+    int e = lookup(-1) ?? lookup(2) ?? 0;
+    check(e == 20 && calls == 2, "?? chains");
+
+    check(first(1, 2) == 30 && first(0, 1) == -1 && first(1, 0) == -2, "?? return leaves the function");
+    check(total(5) == 10 + 20 + 30, "?? continue skips the iteration");
+    check(firstNull(3) == 3, "?? break leaves the loop");
+
+    ?string name;
+    string shown = name ?? "nobody";
+    check(shown == "nobody", "?? on a string");
+
+    int sum = (a ?? 1) + (b ?? 2) * 3;
+    check(sum == 10, "?? inside an expression");
+
+    ?*int p;
+    int v = 7;
+    *int q = p ?? &v;
+    check(q@ == 7, "?? on a pointer");
+}
+`, expected: []string{"?? gives the value or the default", "?? runs a block that yields", "the operand is evaluated once", "?? chains", "?? return leaves the function", "?? continue skips the iteration", "?? break leaves the loop", "?? on a string", "?? inside an expression", "?? on a pointer"}},
+	{dir: "optional_capture", src: `var int calls;
+
+func next(int n) ?int {
+    calls++;
+    return n < 4 ? n : null;
+}
+
+func describe(?int v) int {
+    if v |n| {
+        return n + 100;
+    } else {
+        return -1;
+    }
+}
+
+func classify(?int a, ?int b) int {
+    if a |x| {
+        return x;
+    } else if b |y| {
+        return y * 10;
+    } else {
+        return 0;
+    }
+}
+
+func main() {
+    check(describe(5) == 105 && describe(null) == -1, "if with a capture and an else");
+    check(classify(1, 2) == 1 && classify(null, 2) == 20 && classify(null, null) == 0, "else if with captures");
+
+    int hits;
+    ?string label = "ok";
+    if label |text| {
+        check(text == "ok", "the capture has the plain type");
+        hits++;
+    }
+    ?string none;
+    if none |text| {
+        hits += 100;
+    }
+    check(hits == 1, "the block runs only when there is a value");
+
+    calls = 0;
+    if next(2) |v| {
+        check(v == 2 && calls == 1, "the source is evaluated once");
+    }
+
+    int sum;
+    int i;
+    loop next(i) |v| {
+        sum += v;
+        i++;
+    }
+    check(sum == 0 + 1 + 2 + 3 && i == 4, "loop with a capture stops at the first null");
+
+    int skipped;
+    int j;
+    loop next(j) |v| {
+        j++;
+        if v == 1 {
+            continue;
+        }
+        skipped += v;
+    }
+    check(skipped == 0 + 2 + 3, "continue goes back to evaluate the source again");
+
+    int stopped;
+    int k;
+    loop next(k) |v| {
+        k++;
+        if v == 2 {
+            break;
+        }
+        stopped++;
+    }
+    check(stopped == 2 && k == 3, "break leaves a loop with a capture");
+
+    ?int one = 1;
+    ?int two = 2;
+    int pairs;
+    if one |a| {
+        if two |b| {
+            pairs = a + b;
+        }
+    }
+    check(pairs == 3, "captures nest");
+}
+`, expected: []string{"if with a capture and an else", "else if with captures", "the capture has the plain type", "the block runs only when there is a value", "the source is evaluated once", "loop with a capture stops at the first null", "continue goes back to evaluate the source again", "break leaves a loop with a capture", "captures nest"}},
+	{dir: "optional_pointers", src: `struct Node {
+    int value;
+    ?*Node next;
+}
+
+type Step (int) => int;
+
+func double(int x) int => x * 2;
+func triple(int x) int => x * 3;
+
+func find(*Node head, int want) ?*Node {
+    ?*Node at = head;
+    loop at |node| {
+        if node.value == want {
+            return node;
+        }
+        at = node.next;
+    }
+    return null;
+}
+
+func chooser(bool first) ?Step {
+    return first ? double : null;
+}
+
+func main() {
+    Node c = Node{value: 3};
+    Node b = Node{value: 2, next: &c};
+    Node a = Node{value: 1, next: &b};
+    Node lone = Node{value: 9};
+    check(lone.next == null && a.next != null, "a pointer field that can be null");
+
+    int count;
+    ?*Node at = &a;
+    loop at |node| {
+        count++;
+        at = node.next;
+    }
+    check(count == 3, "walking a list until the pointer is null");
+
+    ?*Node hit = find(&a, 2);
+    ?*Node miss = find(&a, 8);
+    check(hit != null && miss == null, "a function returns a pointer or null");
+    check(hit!!.value == 2, "!! gives the pointer");
+    if hit |node| {
+        check(node.next == &c, "a pointer compares with an optional pointer");
+    }
+
+    *Node plain = &b;
+    ?*Node maybe = plain;
+    check(maybe == plain && maybe != null, "a pointer widens to an optional pointer");
+    maybe = null;
+    check(maybe == null && maybe != plain, "an optional pointer is set back to null");
+
+    ?Step f = chooser(true);
+    ?Step g = chooser(false);
+    check(f != null && g == null, "an optional function value");
+    if f |fn| {
+        check(fn(21) == 42, "a captured function value is called");
+    }
+    Step h = g ?? triple;
+    check(h(2) == 6, "?? on a function value");
+    ?Step swapped = triple;
+    swapped = null;
+    check(swapped == null, "a function variable is set to null");
+
+    ?*int p;
+    int v = 5;
+    p = &v;
+    p!!@ = 6;
+    check(v == 6, "writing through an unwrapped pointer");
+}
+`, expected: []string{"a pointer field that can be null", "walking a list until the pointer is null", "a function returns a pointer or null", "!! gives the pointer", "a pointer compares with an optional pointer", "a pointer widens to an optional pointer", "an optional pointer is set back to null", "an optional function value", "a captured function value is called", "?? on a function value", "a function variable is set to null", "writing through an unwrapped pointer"}},
+	{dir: "optional_inline", src: `inline func pick(?int v, int fallback) int {
+    return v ?? fallback;
+}
+
+inline func present(?int v) bool {
+    return v != null;
+}
+
+inline func scaled(?int v) ?int {
+    if v |n| {
+        return n * 2;
+    }
+    return null;
+}
+
+inline func widen(int n) ?int {
+    return n;
+}
+
+func main() {
+    ?int a = 4;
+    ?int b;
+    check(pick(a, 1) == 4 && pick(b, 1) == 1, "an inline function with ??");
+    check(present(a) && !present(b), "an inline function compares with null");
+    ?int sa = scaled(a);
+    ?int sb = scaled(b);
+    check(sa == 8 && sb == null, "an inline function with a capture");
+    ?int w = widen(3);
+    check(w == 3 && w != null, "an inline function widens its result");
+    check(pick(widen(6), 0) == 6, "inline calls compose");
+}
+`, expected: []string{"an inline function with ??", "an inline function compares with null", "an inline function with a capture", "an inline function widens its result", "inline calls compose"}},
+	{dir: "optional_fmt", src: `import "std/fmt";
+
+func main() {
+    [128]byte buf;
+    ?int a = 5;
+    ?int b;
+    ?string s = "wisp";
+    ?string t;
+    int n = 1;
+    ?*int p = &n;
+    ?*int q;
+    ?float f = 1.5;
+    ?bool flag = true;
+
+    int len = fmt.sprintf(buf, "{} {} {} {} {} {} {}", a, b, s, t, q, f, flag)!!;
+    check(string(buf[:len]) == "5 null wisp null null 1.5 true", "optionals print their value or null");
+
+    len = fmt.sprintf(buf, "[{4}] [{x}] [{>6}]", a, a, s)!!;
+    check(string(buf[:len]) == "[   5] [5] [  wisp]", "an optional follows the format of its value");
+
+    len = fmt.sprintf(buf, "[{6}]", b)!!;
+    check(string(buf[:len]) == "[null  ]", "null is padded like any other text");
+}
+`, expected: []string{"optionals print their value or null", "an optional follows the format of its value", "null is padded like any other text"}},
+	{dir: "optional_assert", src: `func find(int n) ?int {
+    return n > 0 ? n : null;
+}
+
+func main() {
+    check(find(3)!! == 3, "!! passes a value");
+    int v = find(0)!!;
+    check(false, "never printed");
+}
+`, expected: []string{"!! passes a value"}, abort: "panic: unwrapped null"},
+	{dir: "optional_panic_handler", src: `func find(int n) ?int {
+    return n > 0 ? n : null;
+}
+
+func main() {
+    int a = find(2) ?? panic("no value");
+    check(a == 2, "?? panic passes a value");
+    int b = find(-1) ?? panic("missing key");
+    check(false, "never printed");
+}
+`, expected: []string{"?? panic passes a value"}, abort: "panic: missing key"},
+
 	{dir: "ptr_null", src: `struct Node {
-    *int p;
+    ?*int p;
     int tag;
 }
 
-func pick(bool yes, *int p) *int {
+func pick(bool yes, *int p) ?*int {
     if yes {
         return p;
     }
     return null;
 }
 
-func isNull(*int p) bool {
+func isNull(?*int p) bool {
     return p == null;
 }
 
 func main() {
     int v = 1;
-    *int a = null;
+    ?*int a = null;
     check(a == null, "null pointer equals null");
     check(null == a, "null on the left");
     a = &v;
@@ -1669,7 +2034,7 @@ func main() {
     check(n.p == null, "omitted pointer field is null");
     n.p = &v;
     check(n.p != null, "assigned pointer field is not null");
-    n.p@ = 8;
+    n.p!!@ = 8;
     check(v == 8, "write through a pointer field");
     check(pick(false, &v) == null, "returned null");
     check(pick(true, &v) != null, "returned pointer");
@@ -2773,10 +3138,11 @@ func main() {
     check(on == 1, "a bool constant is 1 or 0");
 
     int n;
-    *byte p;
+    ?*byte p;
     native<x64>(out n, p) "mov {n}, {Greeting.len}; lea rax, [rel {Greeting.ptr}]; mov {p}, rax";
     check(n == 3, "the length of a string constant");
-    check(string(p[:n]) == "hey", "the address of a string constant");
+    *byte text = p!!;
+    check(string(text[:n]) == "hey", "the address of a string constant");
 }
 `}, expected: []string{"a constant of another module is an immediate", "a negative constant keeps its sign", "a bool constant is 1 or 0", "the length of a string constant", "the address of a string constant"}},
 
@@ -3500,14 +3866,14 @@ func main() {
 	{dir: "abort_double_free", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48) ?? null;
-    *byte q = mem.alloc(48) ?? null;
-    check(p != null && q != null, "double free before the second free");
+    *byte p = mem.alloc(48)!!;
+    *byte q = mem.alloc(48)!!;
+    check(int(p) != 0 && int(q) != 0, "double free before the second free");
     mem.free(p);
     mem.free(q);
     mem.free(null);
-    *byte r = mem.alloc(48) ?? null;
-    check(r != null, "a freed block is reused without a complaint");
+    *byte r = mem.alloc(48)!!;
+    check(int(r) != 0, "a freed block is reused without a complaint");
     mem.free(r);
     mem.free(r);
     check(true, "double free never printed");
@@ -3528,24 +3894,24 @@ func main() {
 	{dir: "mem_debug_clean", src: `import "std/mem";
 
 func main() {
-    *byte first = mem.alloc(48) ?? null;
+    *byte first = mem.alloc(48)!!;
     mem.fill(first, 7, 48);
     mem.free(first);
     bool zeroed = true;
     for i in 0..2500 {
-        *byte q = mem.alloc(48) ?? null;
-        if q == null || q[0] != 0 || q[47] != 0 {
+        *byte q = mem.alloc(48)!!;
+        if int(q) == 0 || q[0] != 0 || q[47] != 0 {
             zeroed = false;
         }
         q[0] = 9;
         mem.free(q);
     }
     check(zeroed, "debug mode still hands out zeroed blocks after reuse");
-    *byte big = mem.alloc(100000) ?? null;
-    check(big != null, "debug mode serves a large block");
+    *byte big = mem.alloc(100000)!!;
+    check(int(big) != 0, "debug mode serves a large block");
     mem.free(big);
-    *byte again = mem.alloc(48) ?? null;
-    check(again != null && again[10] == 0, "debug mode recycles quarantined blocks");
+    *byte again = mem.alloc(48)!!;
+    check(int(again) != 0 && again[10] == 0, "debug mode recycles quarantined blocks");
     mem.free(again);
 }
 `, expected: []string{"debug mode still hands out zeroed blocks after reuse", "debug mode serves a large block", "debug mode recycles quarantined blocks"}, profile: "debug"},
@@ -3553,12 +3919,12 @@ func main() {
 	{dir: "abort_use_after_free", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48) ?? null;
-    check(p != null, "use after free before the stale write");
+    *byte p = mem.alloc(48)!!;
+    check(int(p) != 0, "use after free before the stale write");
     mem.free(p);
     p[5] = 1;
     for i in 0..1100 {
-        *byte q = mem.alloc(48) ?? null;
+        *byte q = mem.alloc(48)!!;
         mem.free(q);
     }
     check(true, "use after free never printed");
@@ -3568,10 +3934,10 @@ func main() {
 	{dir: "abort_double_free_reused", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48) ?? null;
+    *byte p = mem.alloc(48)!!;
     mem.free(p);
-    *byte q = mem.alloc(48) ?? null;
-    check(q != null && q != p, "a freed block is not reused right away in debug mode");
+    *byte q = mem.alloc(48)!!;
+    check(int(q) != 0 && q != p, "a freed block is not reused right away in debug mode");
     mem.free(p);
     check(true, "double free after reuse never printed");
 }
@@ -3580,12 +3946,12 @@ func main() {
 	{dir: "mem_leak_report", src: `import "std/mem";
 
 func leaky() {
-    *byte p = mem.alloc(48) ?? null;
+    *byte p = mem.alloc(48)!!;
     p[0] = 1;
 }
 
 func clean() {
-    *byte q = mem.alloc(64) ?? null;
+    *byte q = mem.alloc(64)!!;
     mem.free(q);
 }
 
@@ -3593,7 +3959,7 @@ func main() {
     leaky();
     leaky();
     clean();
-    *byte big = mem.alloc(100000) ?? null;
+    *byte big = mem.alloc(100000)!!;
     big[0] = 1;
     check(true, "the program runs to the end with leaks");
 }
@@ -3602,8 +3968,8 @@ func main() {
 	{dir: "mem_leak_none", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48) ?? null;
-    *byte q = mem.alloc(100000) ?? null;
+    *byte p = mem.alloc(48)!!;
+    *byte q = mem.alloc(100000)!!;
     mem.free(p);
     mem.free(q);
     check(true, "everything was freed");
@@ -3613,7 +3979,7 @@ func main() {
 	{dir: "mem_leak_off", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48) ?? null;
+    *byte p = mem.alloc(48)!!;
     p[0] = 1;
     check(true, "no report in release");
 }
@@ -3623,7 +3989,7 @@ func main() {
 
 func main() {
     mem.Arena arena;
-    *byte a = arena.alloc(100) ?? null;
+    *byte a = arena.alloc(100)!!;
     a[0] = 1;
     check(true, "an arena leak runs to the end");
 }
@@ -6854,7 +7220,7 @@ func main() {
 `, expected: []string{"abortspan last element is readable", "abortspan before the bad read"}, abort: "panic: index out of range"},
 
 	{dir: "abort_null_deref", src: `func main() {
-    *int p = null;
+    *int p = (*int)(0);
     check(true, "abortnull before the dereference");
     int v = p@;
     check(false, "abortnull never printed");
@@ -6867,7 +7233,7 @@ func main() {
 }
 
 func main() {
-    *P p = null;
+    *P p = (*P)(0);
     check(true, "abortnullfield before the access");
     int v = p.y;
     check(false, "abortnullfield never printed");
@@ -6992,14 +7358,11 @@ func main() ! {
     check(same == p, "realloc within capacity keeps the block");
     *int big = mem.realloc(p, 100)!;
     check(big@ == 1234, "realloc keeps the contents");
-    *int fresh = mem.realloc(null, 50)!;
-    check(fresh != null, "realloc of null allocates");
     *int huge = mem.realloc(big, 100000)!;
     check(huge@ == 1234, "realloc to a large block keeps the contents");
     mem.free(huge);
-    mem.free(fresh);
 }
-`, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc of null allocates", "realloc to a large block keeps the contents"}},
+`, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc to a large block keeps the contents"}},
 
 	{dir: "assert_release", profile: "release", src: `import "std/errors";
 
@@ -7017,9 +7380,9 @@ func main() {
 	{dir: "size_mem_release", profile: "release", maxSize: 20000, maxWin: 30000, src: `import "std/mem";
 
 func main() {
-    *void p = mem.alloc(16) ?? null;
+    *void p = mem.alloc(16)!!;
     mem.free(p);
-    check(p != null, "allocating does not pull in the debug allocator or fmt");
+    check(int(p) != 0, "allocating does not pull in the debug allocator or fmt");
 }
 `, expected: []string{"allocating does not pull in the debug allocator or fmt"}},
 
@@ -7155,7 +7518,7 @@ func main() {
 let<debug> mode = 3;
 let<release> mode = 4;
 let plain = 5;
-var<debug> *Entry head = (*Entry)(null);
+var<debug> ?*Entry head = (?*Entry)(null);
 Entry holder;
 
 func main() {
@@ -7164,8 +7527,8 @@ func main() {
     check(head == null, "a global pointer starts as a converted null");
     head = &holder;
     holder.a = 9;
-    check(head.a == 9, "the pointer can be set later");
-    *Entry local = (*Entry)(null);
+    check(head!!.a == 9, "the pointer can be set later");
+    ?*Entry local = (?*Entry)(null);
     check(local == null, "null converts to a pointer type in a local too");
 }
 `, expected: []string{"let takes a selector, and the version of the profile is the one kept", "let without a selector is the same as before", "a global pointer starts as a converted null", "the pointer can be set later", "null converts to a pointer type in a local too"}},
@@ -8302,7 +8665,7 @@ func main() ! {
 	{dir: "win64_console", system: "windows", src: `import "std/os";
 
 extern func AllocConsole() int32;
-extern func CreateConsoleScreenBuffer(uint32 access, uint32 share, *void security, uint32 flags, *void reserved) *void;
+extern func CreateConsoleScreenBuffer(uint32 access, uint32 share, ?*void security, uint32 flags, ?*void reserved) *void;
 extern func SetStdHandle(uint32 which, *void handle) int32;
 extern func GetStdHandle(int32 which) *void;
 extern func GetConsoleOutputCP() uint32;
@@ -8357,7 +8720,7 @@ func main() ! {
 	{dir: "win64_console_input", system: "windows", src: `import "std/os";
 
 extern func AllocConsole() int32;
-extern func CreateFileW(*uint16 name, uint32 access, uint32 share, *void security, uint32 disposition, uint32 flags, *void template) *void;
+extern func CreateFileW(*uint16 name, uint32 access, uint32 share, ?*void security, uint32 disposition, uint32 flags, ?*void template) *void;
 extern func SetStdHandle(uint32 which, *void handle) int32;
 extern func GetStdHandle(int32 which) *void;
 extern func FlushConsoleInputBuffer(*void console) int32;
@@ -9102,7 +9465,7 @@ func main() ! {
     check(p[1] == 5, "struct pointer reinterpreted from int pointer");
     *int8 bytes = (*int8)(sp);
     check(bytes[0] == 77, "bytes view of a struct pointer");
-    check((*int)(0) == null, "converted zero is the null pointer");
+    check((?*int)(0) == null, "converted zero is the null pointer");
     mem.free(p);
 }
 `, expected: []string{"pointer to integer is not null", "pointer to int matches uint64", "integer to pointer round trip", "write through a converted integer", "read through a converted integer", "struct pointer reinterpreted from int pointer", "bytes view of a struct pointer", "converted zero is the null pointer"}},
@@ -9231,7 +9594,7 @@ func main() ! {
 
 	{dir: "free_node_next", profile: "release", src: `import "std/mem";
 struct Node {
-    *Node next;
+    ?*Node next;
     int v;
 }
 
@@ -9969,16 +10332,16 @@ func main() {
 `, expected: []string{"imported global initial value", "imported global changed by its module", "imported global written from outside is seen by the module", "compound write on an imported global", "imported string global", "imported string global written", "private global stays private", "increment on an imported global"}},
 
 	{dir: "global_pointer", src: `int slot = 5;
-*int cell = null;
+?*int cell = null;
 [4]int buffer;
 
 func main() {
     check(cell == null, "global null pointer");
     cell = &slot;
-    cell@ = 6;
+    cell!!@ = 6;
     check(slot == 6, "write through a global pointer");
     cell = &buffer[2];
-    cell@ = 7;
+    cell!!@ = 7;
     check(buffer[2] == 7, "global pointer to a global array element");
 }
 `, expected: []string{"global null pointer", "write through a global pointer", "global pointer to a global array element"}},
@@ -12001,7 +12364,7 @@ func dec(int x) int => x - 1;
 
 Step chosen = inc;
 Step made = (int x) int => x * 10;
-Step missing = null;
+?Step missing = null;
 [2]Step table = [inc, dec];
 (int) => int plain = dec;
 
@@ -12023,10 +12386,11 @@ func main() {
     check(plain(1) == 0, "a global of a function type written in full");
     check(apply(inc, 1) == 2, "a function converts to a named function type");
 
-    Step local = null;
-    check(missing == null && local == null && chosen != null, "a function value is compared with null");
-    chosen = null;
-    check(chosen == null, "a function variable is set to null");
+    ?Step local = null;
+    ?Step maybe = inc;
+    check(missing == null && local == null && maybe != null, "a function value is compared with null");
+    maybe = null;
+    check(maybe == null, "a function variable is set to null");
 }
 `, expected: []string{"a global function variable starts as a function", "a global function variable starts as a function literal", "a global array of function values", "a global struct with a function field", "a global of a function type written in full", "a function converts to a named function type", "a function value is compared with null", "a function variable is set to null"}},
 
@@ -12034,7 +12398,7 @@ func main() {
     return p@;
 }
 
-func present(*void p) bool {
+func present(?*void p) bool {
     return p != null;
 }
 
@@ -12104,29 +12468,29 @@ func main() !int {
 import "std/errors";
 
 func main() {
-    *void huge = mem.alloc(9223372036854775800) ?? null;
-    *void over = mem.alloc((1 << 47) + 1) ?? null;
-    check(huge == null && over == null, "a size that cannot exist is refused");
-    *void hugeDirty = mem.allocDirty(9223372036854775800) ?? null;
-    check(hugeDirty == null, "allocDirty refuses a size that cannot exist too");
+    let _, huge = mem.alloc(9223372036854775800);
+    let _, over = mem.alloc((1 << 47) + 1);
+    check(huge != null && over != null, "a size that cannot exist is refused");
+    let _, hugeDirty = mem.allocDirty(9223372036854775800);
+    check(hugeDirty != null, "allocDirty refuses a size that cannot exist too");
 
     let _, problem = mem.alloc(9223372036854775800);
     check(problem == errors.Kind.OutOfMemory, "the refusal is OutOfMemory");
 
-    *byte a = mem.alloc(100) ?? null;
-    *byte b = mem.alloc(100) ?? null;
-    *byte c = mem.alloc(100) ?? null;
+    *byte a = mem.alloc(100)!!;
+    *byte b = mem.alloc(100)!!;
+    *byte c = mem.alloc(100)!!;
     mem.free(a, b, c);
-    *byte x = mem.alloc(100) ?? null;
-    *byte y = mem.alloc(100) ?? null;
-    *byte z = mem.alloc(100) ?? null;
+    *byte x = mem.alloc(100)!!;
+    *byte y = mem.alloc(100)!!;
+    *byte z = mem.alloc(100)!!;
     check(x == c && y == b && z == a, "freed blocks are reused without losing the list");
 
-    *int big = mem.alloc(100000) ?? null;
+    *int big = mem.alloc(100000)!!;
     mem.fill(big, 1, 100000);
     mem.free(big);
-    *int again = mem.alloc(100000) ?? null;
-    check(again != null && again[0] == 0 && again[12000] == 0, "a large block is zeroed too");
+    *int again = mem.alloc(100000)!!;
+    check(int(again) != 0 && again[0] == 0 && again[12000] == 0, "a large block is zeroed too");
 }
 `, expected: []string{"a size that cannot exist is refused", "allocDirty refuses a size that cannot exist too", "the refusal is OutOfMemory", "freed blocks are reused without losing the list", "a large block is zeroed too"}},
 
@@ -12158,8 +12522,8 @@ func main() {
     mem.move(apart, source, 3);
     check(string(apart[0:3]) == "xyz", "move works when the regions do not overlap");
 
-    *byte dirty = mem.allocDirty(64) ?? null;
-    check(dirty != null, "allocDirty gives a block");
+    *byte dirty = mem.allocDirty(64)!!;
+    check(int(dirty) != 0, "allocDirty gives a block");
     mem.fill(dirty, 9, 64);
     check(dirty[0] == 9 && dirty[63] == 9, "a dirty block is usable");
     mem.free(dirty);
@@ -12352,7 +12716,7 @@ func main() {
     []*int slice = refs[:];
     check(len(slice) == 2 && slice[0]@ == 1, "a slice of pointers");
     [2]*void raw = [&a, &b];
-    check(raw[0] != null && raw[1] != null, "an array of void pointers");
+    check(int(raw[0]) != 0 && int(raw[1]) != 0, "an array of void pointers");
 }
 `, expected: []string{"an array of pointers writes through its elements", "an array of pointers is a parameter", "a pointer to an array reads the whole array", "arrays stack outermost first", "an array of function types is written in place", "a struct holds arrays of pointers and of functions", "a function returns an array type", "a slice of pointers", "an array of void pointers"}},
 	{dir: "ptr_compare_addr", src: `func main() {
@@ -12406,16 +12770,16 @@ func main() {
     mem.fill(storage, 7, 128);
     mem.Fixed f = mem.Fixed{buffer: storage};
 
-    *byte a = f.alloc(10) ?? null;
-    *byte b = f.alloc(20) ?? null;
-    check(a != null && b != null, "fixed gives blocks");
+    *byte a = f.alloc(10)!!;
+    *byte b = f.alloc(20)!!;
+    check(int(a) != 0 && int(b) != 0, "fixed gives blocks");
     check(int(b) - int(a) == 16, "a block is rounded up to 16 bytes");
     check(a[0] == 0 && a[9] == 0 && b[0] == 0 && b[19] == 0, "alloc zeroes the block");
     *byte base = storage;
     check(int(a) - int(base) >= 0 && int(b) - int(base) < 128, "blocks live inside the buffer");
 
-    *byte c = f.allocDirty(48) ?? null;
-    check(c != null, "allocDirty gives a block");
+    *byte c = f.allocDirty(48)!!;
+    check(int(c) != 0, "allocDirty gives a block");
     check(int(c) - int(a) == 48, "blocks are contiguous");
 
     let full, e1 = f.alloc(40);
@@ -12424,7 +12788,7 @@ func main() {
     check(neg == null && e2 == errors.Kind.Invalid, "a negative size is invalid");
 
     f.reset();
-    *byte d = f.alloc(10) ?? null;
+    *byte d = f.alloc(10)!!;
     check(d == a, "reset reuses the buffer");
     check(d[0] == 0, "alloc zeroes memory that was used before");
 }
@@ -12433,9 +12797,9 @@ func main() {
 
 func main() {
     mem.Arena a;
-    *byte p = a.alloc(10) ?? null;
-    *byte q = a.alloc(20) ?? null;
-    check(p != null && q != null, "a zero arena works without init");
+    *byte p = a.alloc(10)!!;
+    *byte q = a.alloc(20)!!;
+    check(int(p) != 0 && int(q) != 0, "a zero arena works without init");
     check(int(q) - int(p) == 16, "arena blocks are rounded to 16 bytes");
     check(int(p) % 16 == 0 && int(q) % 16 == 0, "arena blocks are aligned");
     check(p[0] == 0 && p[9] == 0 && q[19] == 0, "arena alloc is zeroed");
@@ -12445,10 +12809,9 @@ func main() {
 
     int total = 0;
     bool ok = true;
-    *byte last = null;
     for i in 0..40 {
-        *byte b = a.alloc(5000) ?? null;
-        if b == null {
+        *byte b = a.alloc(5000)!!;
+        if int(b) == 0 {
             ok = false;
         } else {
             b[0] = byte(i);
@@ -12459,13 +12822,13 @@ func main() {
     check(ok, "arena grows over several chunks");
     check(total > 65536, "arena used more than one chunk");
 
-    *byte big = a.alloc(300000) ?? null;
-    check(big != null, "arena serves a block bigger than a chunk");
+    *byte big = a.alloc(300000)!!;
+    check(int(big) != 0, "arena serves a block bigger than a chunk");
     big[0] = 1;
     big[299999] = 2;
     check(big[0] == 1 && big[299999] == 2, "a big block is usable");
-    *byte after = a.alloc(10) ?? null;
-    check(after != null && after[0] == 0, "arena keeps allocating after a big block");
+    *byte after = a.alloc(10)!!;
+    check(int(after) != 0 && after[0] == 0, "arena keeps allocating after a big block");
     check(p[0] == 5 && q[0] == 6, "old blocks survive growth");
 
     let neg, e1 = a.alloc(-1);
@@ -12478,21 +12841,21 @@ func main() {
     mem.Arena a;
     bool ok = true;
     for i in 0..30 {
-        *byte b = a.alloc(5000) ?? null;
-        if b == null {
+        *byte b = a.alloc(5000)!!;
+        if int(b) == 0 {
             ok = false;
         } else {
             mem.fill(b, 9, 5000);
         }
     }
-    *byte big = a.alloc(200000) ?? null;
-    check(ok && big != null, "arena filled before reset");
+    *byte big = a.alloc(200000)!!;
+    check(ok && int(big) != 0, "arena filled before reset");
     mem.fill(big, 9, 200000);
 
     a.reset();
-    *byte x = a.alloc(100) ?? null;
-    *byte y = a.alloc(100) ?? null;
-    check(x != null && y != null, "arena works after reset");
+    *byte x = a.alloc(100)!!;
+    *byte y = a.alloc(100)!!;
+    check(int(x) != 0 && int(y) != 0, "arena works after reset");
     check(int(y) - int(x) == 112, "reset starts a fresh chunk");
     bool clean = true;
     for i in 0..99 {
@@ -12506,8 +12869,8 @@ func main() {
         a.reset();
         bool good = true;
         for i in 0..20 {
-            *byte b = a.alloc(5000) ?? null;
-            if b == null || b[0] != 0 {
+            *byte b = a.alloc(5000)!!;
+            if int(b) == 0 || b[0] != 0 {
                 good = false;
             } else {
                 b[0] = 1;
@@ -12518,23 +12881,23 @@ func main() {
 
     a.reset();
     a.reset();
-    *byte again = a.alloc(10) ?? null;
-    check(again != null, "reset twice in a row is harmless");
+    *byte again = a.alloc(10)!!;
+    check(int(again) != 0, "reset twice in a row is harmless");
 
     mem.Arena empty;
     empty.reset();
     empty.free();
-    *byte fresh = empty.alloc(10) ?? null;
-    check(fresh != null, "reset and free on an empty arena are harmless");
+    *byte fresh = empty.alloc(10)!!;
+    check(int(fresh) != 0, "reset and free on an empty arena are harmless");
 
     a.free();
-    *byte z = a.alloc(64) ?? null;
-    check(z != null && z[0] == 0 && z[63] == 0, "arena is usable after free");
+    *byte z = a.alloc(64)!!;
+    check(int(z) != 0 && z[0] == 0 && z[63] == 0, "arena is usable after free");
     z[0] = 4;
     a.free();
     a.free();
-    *byte w = a.alloc(64) ?? null;
-    check(w != null && w[0] == 0, "free twice in a row is harmless");
+    *byte w = a.alloc(64)!!;
+    check(int(w) != 0 && w[0] == 0, "free twice in a row is harmless");
     a.free();
 }
 `, expected: []string{"arena filled before reset", "arena works after reset", "reset starts a fresh chunk", "alloc after reset is zeroed", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "reset twice in a row is harmless", "reset and free on an empty arena are harmless", "arena is usable after free", "free twice in a row is harmless"}},
@@ -12542,15 +12905,15 @@ func main() {
 
 func main() {
     mem.Arena a;
-    *byte keep = a.alloc(100) ?? null;
+    *byte keep = a.alloc(100)!!;
     keep[0] = 42;
     keep[99] = 43;
 
     mem.Mark m = a.mark();
-    *byte t1 = a.alloc(200) ?? null;
+    *byte t1 = a.alloc(200)!!;
     t1[0] = 1;
     a.rewind(m);
-    *byte t2 = a.alloc(200) ?? null;
+    *byte t2 = a.alloc(200)!!;
     check(t1 == t2, "rewind reuses the space");
     check(t2[0] == 0, "alloc after rewind is zeroed");
     check(keep[0] == 42 && keep[99] == 43, "blocks before the mark survive");
@@ -12558,8 +12921,8 @@ func main() {
     mem.Mark m2 = a.mark();
     bool ok = true;
     for i in 0..29 {
-        *byte b = a.alloc(5000) ?? null;
-        if b == null {
+        *byte b = a.alloc(5000)!!;
+        if int(b) == 0 {
             ok = false;
         } else {
             mem.fill(b, 9, 5000);
@@ -12567,27 +12930,27 @@ func main() {
     }
     check(ok, "arena grows after a mark");
     a.rewind(m2);
-    *byte t3 = a.alloc(100) ?? null;
+    *byte t3 = a.alloc(100)!!;
     check(t3 == t2 + 208 && t3[0] == 0, "rewind across chunks returns to the marked spot");
     check(keep[0] == 42 && t2[0] == 0, "old blocks survive a rewind over several chunks");
 
     mem.Arena empty;
     mem.Mark e = empty.mark();
-    *byte x = empty.alloc(70000) ?? null;
-    check(x != null, "an empty arena allocates after mark");
+    *byte x = empty.alloc(70000)!!;
+    check(int(x) != 0, "an empty arena allocates after mark");
     empty.rewind(e);
-    *byte y = empty.alloc(10) ?? null;
-    check(y != null && y[0] == 0, "rewind to an empty mark leaves a usable arena");
+    *byte y = empty.alloc(10)!!;
+    check(int(y) != 0 && y[0] == 0, "rewind to an empty mark leaves a usable arena");
 
     mem.Mark nested1 = a.mark();
-    *byte n1 = a.alloc(64) ?? null;
+    *byte n1 = a.alloc(64)!!;
     mem.Mark nested2 = a.mark();
-    *byte n2 = a.alloc(64) ?? null;
+    *byte n2 = a.alloc(64)!!;
     a.rewind(nested2);
-    *byte n3 = a.alloc(64) ?? null;
+    *byte n3 = a.alloc(64)!!;
     check(n3 == n2, "an inner rewind keeps the outer blocks");
     a.rewind(nested1);
-    *byte n4 = a.alloc(64) ?? null;
+    *byte n4 = a.alloc(64)!!;
     check(n4 == n1, "an outer rewind drops them all");
     a.free();
     empty.free();

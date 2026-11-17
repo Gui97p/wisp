@@ -356,7 +356,7 @@ func (p *Parser) finishNative(decl *ast.FuncDecl) *ast.FuncDecl {
 		declared := &ast.VarStmt{Vars: []ast.Param{{
 			Name: result.name, Type: result.typ,
 			Line: result.at.Line, Col: result.at.Col, EndLine: result.at.EndLine, EndCol: result.at.EndCol,
-		}}}
+		}}, Result: true}
 		place(declared, result.at)
 		body.Statements = append(body.Statements, declared)
 

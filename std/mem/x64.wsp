@@ -17,14 +17,14 @@ func leadingZeros(uint x) uint {
 	return n;
 }
 
-[11]*void classes;
-*byte cur, end;
+[11]?*void classes;
+int cur, end;
 
-var<debug> [1024]*void ring;
+var<debug> [1024]?*void ring;
 var<debug> int ringStart, ringCount;
 
-struct<debug> Entry { *void block; string site, freed; }
-var<debug> *Entry table;
+struct<debug> Entry { ?*void block; string site, freed; }
+var<debug> ?*Entry table;
 const<debug> SLOTS = 65536;
 
 const {
@@ -65,27 +65,26 @@ inline func failed(*void r) bool {
 
 func<debug> report() {
 	for i in 0..ringCount-1 {
-		*void p = ring[(ringStart + i) % 1024];
+		*void p = ring[(ringStart + i) % 1024] ?? continue;
 		int h = header(p);
 		int cap = (MIN_BLOCK << h) - 16;
 		checkPoison(p, cap);
 	}
 
-	if table == null {
-		return;
-	}
+	*Entry entries = table ?? return;
 
 	[64]string sites;
 	[64]int counts, bytes;
 	int groups, others;
 
 	for i in 0..SLOTS-1 {
-		*Entry entry = &table[i];
-		if entry.block == null || entry.block == (*void)(1) || state(entry.block) != LIVE {
+		*Entry entry = &entries[i];
+		*void block = entry.block ?? continue;
+		if block == (*void)(1) || state(block) != LIVE {
 			continue;
 		}
 
-		int h = header(entry.block);
+		int h = header(block);
 		int size = (h < 11 ? (MIN_BLOCK << h) : h) - 16;
 
 		int j;
@@ -132,11 +131,11 @@ func<debug> quarantine(*void p, int h) {
 	int cap = (MIN_BLOCK << h) - 16;
 	rawSet(p, 0xDD, cap);
 	if ringCount == len(ring) {
-		*void old = ring[ringStart];
+		*void old = ring[ringStart]!!;
 		int hOld = header(old);
 		int capOld = (MIN_BLOCK << hOld) - 16;
 		checkPoison(old, capOld);
-		((**void)(old))@ = classes[hOld];
+		((*?*void)(old))@ = classes[hOld];
 		classes[hOld] = old;
 		forget(old);
 		ringStart = (ringStart + 1) % 1024;
@@ -147,14 +146,12 @@ func<debug> quarantine(*void p, int h) {
 }
 
 func<debug> find(*void p) int {
-	if table == null {
-		return -1;
-	}
+	*Entry entries = table ?? return -1;
 
 	int slot = (int(p) >> 4) % SLOTS;
 	for i in 0..SLOTS-1 {
 		int at = (slot + i) % SLOTS;
-		*void block = table[at].block;
+		?*void block = entries[at].block;
 		if block == null {
 			return -1;
 		}
@@ -166,15 +163,17 @@ func<debug> find(*void p) int {
 }
 
 func<debug> remember(*void p, string site) {
-	if table == null {
-		table = sys.mmap(SLOTS * sizeof(Entry));
-	}
+	*Entry entries = table ?? {
+		*Entry fresh = sys.mmap(SLOTS * sizeof(Entry));
+		table = fresh;
+		yield fresh;
+	};
 
 	forget(p);
 	int slot = (int(p) >> 4) % SLOTS;
 	for i in 0..SLOTS-1 {
 		int at = (slot + i) % SLOTS;
-		*Entry entry = &table[at];
+		*Entry entry = &entries[at];
 		if entry.block == null || entry.block == (*void)(1) {
 			entry.block = p;
 			entry.site = site;
@@ -187,13 +186,18 @@ inline func forget(*void _p) {}
 func<debug> forget(*void p) {
 	int i = find(p);
 	if i >= 0 {
-		table[i].block = (*void)(1);
+		*Entry entries = table ?? return;
+		entries[i].block = (*void)(1);
 	}
 }
 
-inline func<debug> entryOf(*void p) *Entry {
+inline func<debug> entryOf(*void p) ?*Entry {
 	int i = find(p);
-	return i >= 0 ? &table[i] : null;
+	if i < 0 {
+		return null;
+	}
+	*Entry entries = table ?? return null;
+	return &entries[i];
 }
 
 inline func fail(*void _p, string what) {
@@ -201,14 +205,15 @@ inline func fail(*void _p, string what) {
 }
 func<debug> fail(*void p, string what) {
 	[2048]byte buf;
-	*Entry entry = entryOf(p);
-	if entry != null && len(entry.site) > 0 {
-		if len(entry.freed) > 0 {
-			string both = strings.concat(buf, what, "\nthe block was allocated at ", entry.site, "the block was freed at ", entry.freed[:len(entry.freed)-1]) ?? what;
-			panic(both);
-        }
-        string text = strings.concat(buf, what, "\nthe block was allocated at ", entry.site[:len(entry.site)-1]) ?? what;
-        panic(text);
+	if entryOf(p) |entry| {
+		if len(entry.site) > 0 {
+			if len(entry.freed) > 0 {
+				string both = strings.concat(buf, what, "\nthe block was allocated at ", entry.site, "the block was freed at ", entry.freed[:len(entry.freed)-1]) ?? what;
+				panic(both);
+			}
+			string text = strings.concat(buf, what, "\nthe block was allocated at ", entry.site[:len(entry.site)-1]) ?? what;
+			panic(text);
+		}
 	}
 	panic(what);
 }
@@ -222,12 +227,9 @@ internal func<debug> track(*void p) {
 		setExitHook(report);
 		hookPending = false;
 	}
-	if p == null {
-		return;
-	}
-	*void f;
+	?*void f;
 	native(out f) "mov rax, [rbp]; mov {f}, rax";
-	string site = callerSite(f);
+	string site = callerSite(f!!);
 	if len(site) <= 0 {
 		site = "";
 	}
@@ -236,14 +238,15 @@ internal func<debug> track(*void p) {
 
 internal inline func trackFree(*void _p) {}
 internal func<debug> trackFree(*void p) {
-    if p == null || state(p) != LIVE {
+    if state(p) != LIVE {
         return;
     }
-    *void f;
+    ?*void f;
     native(out f) "mov rax, [rbp]; mov {f}, rax";
     int i = find(p);
 	if i >= 0 {
-		table[i].freed = callerSite(f);
+		*Entry entries = table ?? return;
+		entries[i].freed = callerSite(f!!);
 	}
 }
 
@@ -271,7 +274,7 @@ internal inline func<debug> scrub(*void p, int size) {
 	rawSet(p, 0xCD, size - HEAD_SIZE);
 }
 
-internal func rawAllocate(int n, bool zero) *void {
+internal func rawAllocate(int n, bool zero) ?*void {
 	if n < 0 || n > MAX_ALLOC {
 		return null;
 	}
@@ -280,9 +283,8 @@ internal func rawAllocate(int n, bool zero) *void {
 	if total <= LOW_LIMIT {
 		int class = classOf(total);
 		int size = MIN_BLOCK << class;
-		if classes[class] != null {
-			*void p = classes[class];
-			classes[class] = ((**void)(p))@;
+		if classes[class] |p| {
+			classes[class] = ((*?*void)(p))@;
 			if zero {
 				rawSet(p, 0, size - HEAD_SIZE);
 			} else {
@@ -296,10 +298,10 @@ internal func rawAllocate(int n, bool zero) *void {
 			if failed(chunk) {
 				return null;
 			}
-			cur = chunk;
-			end = (*byte)(chunk) + CHUNK_SIZE;
+			cur = int(chunk);
+			end = cur + CHUNK_SIZE;
 		}
-		*void p = cur;
+		*byte p = (*byte)(cur);
 		cur += size;
 		*void head = (*byte)(p) + 16;
 		setHeader(head, class);
@@ -319,7 +321,7 @@ internal func rawAllocate(int n, bool zero) *void {
 }
 
 internal inline func recycle(*void p, int h) {
-	((**void)(p))@ = classes[h];
+	((*?*void)(p))@ = classes[h];
 	classes[h] = p;
 }
 internal inline func<debug> recycle(*void p, int h) {
@@ -327,10 +329,6 @@ internal inline func<debug> recycle(*void p, int h) {
 }
 
 internal func rawFree(*void p) {
-	if p == null {
-		return;
-	}
-
 	switch state(p) {
 		case DEAD:
 			fail(p, "double free");
@@ -349,21 +347,14 @@ internal func rawFree(*void p) {
 	}
 }
 
-internal func rawRealloc(*void p, int n) *void {
-	if p == null {
-		return rawAllocate(n, true);
-	}
-	
+internal func rawRealloc(*void p, int n) ?*void {
 	int h = header(p);
 	int cap = (h < 11 ? (MIN_BLOCK << h) : h) - 16;
 	if n <= cap {
 		return p;
 	}
 
-	*void np = rawAllocate(n, true);
-	if np == null {
-		return null;
-	}
+	*void np = rawAllocate(n, true) ?? return null;
 	rawCopy(np, p, cap);
 	rawFree(p);
 	return np;

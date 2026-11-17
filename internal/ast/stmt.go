@@ -48,6 +48,7 @@ func (b *BlockStmt) Tree(indent string) string {
 type VarStmt struct {
 	Vars   []Param
 	Values []Expression
+	Result bool
 
 	NodePos
 }
@@ -167,6 +168,13 @@ type IfStmt struct {
 	Then      *BlockStmt
 	Else      Statement
 	IsSwitch  bool
+
+	SwitchLink    bool
+	SwitchDefault bool
+
+	Capture    string
+	CaptureAt  Position
+	CaptureSrc *IdentLiteral
 
 	NodePos
 }

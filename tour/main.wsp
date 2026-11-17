@@ -23,6 +23,7 @@ import "floats";
 import "structs";
 import "collections";
 import "errors";
+import "optionals";
 import "assertions";
 import "pointers";
 import "memory";
@@ -80,6 +81,9 @@ func main() !int {
 
   fmt.printf("\n== errors ==\n");
   errors.demo();
+
+  fmt.printf("\n== optionals ==\n");
+  optionals.demo();
 
   fmt.printf("\n== assertions ==\n");
   assertions.demo();

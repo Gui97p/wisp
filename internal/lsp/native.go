@@ -78,7 +78,7 @@ func nativeItems(path string, pos protocol.Position, info *analyser.Info) ([]pro
 		}
 	}
 
-	if st := nativeStructOf(tp); st != nil {
+	if st := nativeStructOf(tp); st != nil && st.Optional == nil {
 		for _, field := range st.Order {
 			items = append(items, item(field, protocol.CompletionItemKindField, st.Fields[field].String()))
 		}

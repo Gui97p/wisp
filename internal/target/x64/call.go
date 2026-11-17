@@ -418,6 +418,10 @@ func (t *X64Target) hiddenArg(tp analyser.Type, value Operand) *ast.IdentLiteral
 }
 
 func (t *X64Target) boxArg(dst Mem, arg analyser.Type, op Operand) {
+	if element, optional := analyser.OptionalElement(arg); optional {
+		t.boxOptional(dst, arg, element, op)
+		return
+	}
 	layout := analyser.Layout(arg)
 
 	var tag Operand = Imm(analyser.BoxCode(layout.Code))

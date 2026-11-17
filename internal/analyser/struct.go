@@ -105,10 +105,20 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 			continue
 		}
 		if !a.coerce(&expr.Values[i], valueType, fieldType) {
-			a.errorf(expr, "field %s expects %s, got %s", key, fieldType.String(), valueType.String())
+			a.helpMismatch(a.errorf(expr, "field %s expects %s, got %s", key, fieldType.String(), valueType.String()), valueType, fieldType)
 			continue
 		}
 		a.checkConstFits(expr.Values[i], fieldType)
+	}
+
+	for _, field := range st.Order {
+		if seen[field] {
+			continue
+		}
+		if why := zeroProblem(st.Fields[field]); why != "" {
+			a.errorf(expr, "field %s of %s is missing and has no value to start with: %s", field, st.Name, why).
+				WithHelp("set it in the literal, or make the field optional (?T)")
+		}
 	}
 
 	return st

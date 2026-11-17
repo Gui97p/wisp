@@ -462,6 +462,10 @@
                     "match": ":"
                 },
                 {
+                    "name": "storage.modifier.optional.wisp",
+                    "match": "(?<![\\w)\\]?])\\?(?=[*\\[(A-Za-z_])"
+                },
+                {
                     "name": "keyword.operator.ternary.wisp",
                     "match": "\\?"
                 },

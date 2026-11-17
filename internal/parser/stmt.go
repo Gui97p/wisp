@@ -44,12 +44,14 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		lexer.TOKEN_BOOL,
 		lexer.TOKEN_BYTE:
 		stmt = p.parseVarStatement()
-	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACKET:
+	case lexer.TOKEN_IDENT, lexer.TOKEN_STAR, lexer.TOKEN_QUESTION_MARK, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACKET:
 		if p.looksLikeTypeDeclaration() {
 			stmt = p.parseVarStatement()
 		} else {
 			stmt = p.parseSimpleStatement()
 		}
+	case lexer.TOKEN_LBRACE:
+		stmt = p.parseBareBlock()
 	case lexer.TOKEN_RETURN:
 		stmt = p.parseReturnStatement()
 	case lexer.TOKEN_YIELD:
@@ -366,6 +368,7 @@ func (p *Parser) parseAssignStatement(targets []ast.Expression) ast.Statement {
 }
 
 func (p *Parser) parseYieldStatement() ast.Statement {
+	line, col := p.current.Line, p.current.Column
 	stmt := &ast.YieldStmt{}
 
 	for {
@@ -383,19 +386,48 @@ func (p *Parser) parseYieldStatement() ast.Statement {
 		p.advance()
 	}
 
+	return p.endJump(stmt, line, col)
+}
+
+func (p *Parser) endJump(stmt ast.Statement, line, col int) ast.Statement {
+	if p.peek.Type != lexer.TOKEN_IF {
+		if !p.expect(lexer.TOKEN_SEMICOLON) {
+			return nil
+		}
+		return stmt
+	}
+
+	stmt.SetPos(line, col)
+	stmt.SetEndPos(p.currentEnd())
+	p.advance()
+	p.advance()
+	cond := p.parseExpression()
+	if cond == nil {
+		return nil
+	}
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
 	}
 
-	return stmt
+	then := &ast.BlockStmt{Statements: []ast.Statement{stmt}}
+	then.SetPos(line, col)
+	then.SetEndPos(p.currentEnd())
+	guard := &ast.IfStmt{Condition: cond, Then: then}
+	guard.SetPos(line, col)
+	guard.SetEndPos(p.currentEnd())
+	return guard
 }
 
 func (p *Parser) parseReturnStatement() ast.Statement {
+	line, col := p.current.Line, p.current.Column
 	stmt := &ast.ReturnStmt{}
 
 	if p.peek.Type == lexer.TOKEN_SEMICOLON {
 		p.advance()
 		return stmt
+	}
+	if p.peek.Type == lexer.TOKEN_IF {
+		return p.endJump(stmt, line, col)
 	}
 
 	for {
@@ -413,11 +445,7 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 		p.advance()
 	}
 
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
-
-	return stmt
+	return p.endJump(stmt, line, col)
 }
 
 func (p *Parser) parseSwitchStatement() ast.Statement {
@@ -439,7 +467,7 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 
 	for p.peek.Type == lexer.TOKEN_CASE {
 		if !first {
-			newIf := &ast.IfStmt{Then: &ast.BlockStmt{}}
+			newIf := &ast.IfStmt{Then: &ast.BlockStmt{}, SwitchLink: true}
 			newIf.SetPos(line, col)
 			currentIf.Else = &ast.BlockStmt{Statements: []ast.Statement{newIf}}
 			currentIf = newIf
@@ -464,6 +492,7 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 
 	if p.peek.Type == lexer.TOKEN_DEFAULT {
 		p.advance()
+		stmt.SwitchDefault = true
 		if !p.expect(lexer.TOKEN_COLON) {
 			return nil
 		}
@@ -490,10 +519,11 @@ func (p *Parser) parseIfStatement() ast.Statement {
 	stmt := &ast.IfStmt{}
 
 	p.advance()
-	prev := p.allowStructLiteral
-	p.allowStructLiteral = false
-	stmt.Condition = p.parseExpression()
-	p.allowStructLiteral = prev
+	cond, capture, captureAt, ok := p.parseConditionWithCapture()
+	if !ok {
+		return nil
+	}
+	stmt.Condition = cond
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
@@ -528,6 +558,9 @@ func (p *Parser) parseIfStatement() ast.Statement {
 		}
 	}
 
+	if capture != "" {
+		return p.wrapCapture(stmt, cond, capture, captureAt)
+	}
 	return stmt
 }
 
@@ -637,12 +670,20 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 	stmt := &ast.LoopStmt{}
 
+	var capture string
+	var captureAt ast.Position
+	var source ast.Expression
 	if p.peek.Type != lexer.TOKEN_LBRACE {
 		p.advance()
-		prev := p.allowStructLiteral
-		p.allowStructLiteral = false
-		stmt.Condition = p.parseExpression()
-		p.allowStructLiteral = prev
+		cond, name, at, ok := p.parseConditionWithCapture()
+		if !ok {
+			return nil
+		}
+		if name != "" {
+			capture, captureAt, source = name, at, cond
+		} else {
+			stmt.Condition = cond
+		}
 	}
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
@@ -654,9 +695,26 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 		return nil
 	}
 
+	if capture != "" {
+		line, col := source.Position()
+		leave := &ast.BreakStmt{}
+		leave.SetPos(line, col)
+		leave.SetEndPos(p.currentEnd())
+		otherwise := &ast.BlockStmt{Statements: []ast.Statement{leave}}
+		otherwise.SetPos(line, col)
+		otherwise.SetEndPos(p.currentEnd())
+		test := &ast.IfStmt{Then: stmt.Body, Else: otherwise}
+		test.SetPos(line, col)
+		test.SetEndPos(p.currentEnd())
+		wrapped := p.wrapCapture(test, source, capture, captureAt)
+		stmt.Body = &ast.BlockStmt{Statements: []ast.Statement{wrapped}}
+		stmt.Body.SetPos(line, col)
+		stmt.Body.SetEndPos(p.currentEnd())
+	}
+
 	if p.peek.Type == lexer.TOKEN_UNTIL {
 		p.advance()
-		if stmt.Condition != nil {
+		if stmt.Condition != nil || capture != "" {
 			p.error("a loop takes either a condition or an until, not both")
 			return nil
 		}
@@ -678,6 +736,7 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 }
 
 func (p *Parser) parseBreakStatement() ast.Statement {
+	line, col := p.current.Line, p.current.Column
 	stmt := &ast.BreakStmt{}
 
 	if p.peek.Type == lexer.TOKEN_IDENT {
@@ -685,14 +744,11 @@ func (p *Parser) parseBreakStatement() ast.Statement {
 		stmt.Label = p.current.Literal
 	}
 
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
-
-	return stmt
+	return p.endJump(stmt, line, col)
 }
 
 func (p *Parser) parseContinueStatement() ast.Statement {
+	line, col := p.current.Line, p.current.Column
 	stmt := &ast.ContinueStmt{}
 
 	if p.peek.Type == lexer.TOKEN_IDENT {
@@ -700,11 +756,7 @@ func (p *Parser) parseContinueStatement() ast.Statement {
 		stmt.Label = p.current.Literal
 	}
 
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
-
-	return stmt
+	return p.endJump(stmt, line, col)
 }
 
 func (p *Parser) parseDeferStatement() ast.Statement {
@@ -876,4 +928,12 @@ func (p *Parser) parseLabeledStatement() ast.Statement {
 		p.error("expected for or loop after label")
 		return nil
 	}
+}
+
+func (p *Parser) parseBareBlock() ast.Statement {
+	block := p.parseBlockStatement()
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+	return block
 }

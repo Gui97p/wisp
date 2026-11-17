@@ -45,19 +45,23 @@ func (p PrimitiveType) Equals(other Type) bool {
 }
 
 type PointerType struct {
-	Element Type
+	Element  Type
+	Nullable bool
 }
 
 func (p PointerType) String() string {
+	if p.Nullable {
+		return "?*" + p.Element.String()
+	}
 	return "*" + p.Element.String()
 }
 
 func (p PointerType) Equals(other Type) bool {
 	if _, ok := other.(NullType); ok {
-		return true
+		return p.Nullable
 	}
 	o, ok := other.(PointerType)
-	if !ok {
+	if !ok || p.Nullable != o.Nullable {
 		return false
 	}
 	if _, isVoid := p.Element.(VoidType); isVoid {
@@ -140,8 +144,17 @@ func (NullType) String() string {
 }
 
 func (NullType) Equals(other Type) bool {
-	switch other.(type) {
-	case PointerType, ErrorType:
+	switch o := other.(type) {
+	case PointerType:
+		return o.Nullable
+	case *FuncType:
+		return o.Nullable
+	case NamedType:
+		_, isFunc := o.Underlying.(*FuncType)
+		return isFunc && o.Nullable
+	case *StructType:
+		return o.Optional != nil
+	case ErrorType:
 		return true
 	}
 	return false
@@ -201,6 +214,7 @@ type NamedType struct {
 	Members     map[string]int64
 	MemberOrder []string
 	MemberDocs  map[string]string
+	Nullable    bool
 }
 
 type ImplicitEnumType struct {
@@ -217,6 +231,9 @@ func (ImplicitEnumType) Equals(other Type) bool {
 }
 
 func (n NamedType) String() string {
+	if n.Nullable {
+		return "?" + n.Name
+	}
 	return n.Name
 }
 
@@ -231,14 +248,14 @@ func (n NamedType) Equals(other Type) bool {
 	if ft, isFunc := n.Underlying.(*FuncType); isFunc {
 		switch o := other.(type) {
 		case *FuncType:
-			return ft.Equals(o)
+			return n.Nullable == o.Nullable && ft.sameSignature(o)
 		case NullType:
-			return true
+			return n.Nullable
 		}
 	}
 
 	o, ok := other.(NamedType)
-	return ok && n.Name == o.Name
+	return ok && n.Name == o.Name && n.Nullable == o.Nullable
 }
 
 type StructType struct {
@@ -251,6 +268,7 @@ type StructType struct {
 	Module    string
 	Dir       string
 	Exported  bool
+	Optional  Type
 }
 
 func (s *StructType) String() string {
@@ -283,10 +301,14 @@ type FuncType struct {
 	Decl         *ast.FuncDecl
 	Scope        *Scope
 	Inline       bool
+	Nullable     bool
 }
 
 func (f *FuncType) String() string {
 	var b strings.Builder
+	if f.Nullable {
+		b.WriteString("?")
+	}
 	b.WriteString("func ")
 	b.WriteString(f.Name)
 	b.WriteRune('(')
@@ -316,17 +338,21 @@ func (f *FuncType) String() string {
 
 func (f *FuncType) Equals(other Type) bool {
 	if _, ok := other.(NullType); ok {
-		return true
+		return f.Nullable
 	}
 	if nt, isNamed := other.(NamedType); isNamed {
 		if of, ok := nt.Underlying.(*FuncType); ok {
-			return f.Equals(of)
+			return f.Nullable == nt.Nullable && f.sameSignature(of)
 		}
 	}
 	o, ok := other.(*FuncType)
-	if !ok {
+	if !ok || f.Nullable != o.Nullable {
 		return false
 	}
+	return f.sameSignature(o)
+}
+
+func (f *FuncType) sameSignature(o *FuncType) bool {
 	if len(f.Params) != len(o.Params) || len(f.Returns) != len(o.Returns) || f.Fallible != o.Fallible {
 		return false
 	}

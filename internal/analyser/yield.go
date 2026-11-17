@@ -5,6 +5,7 @@ import "github.com/Gui97p/wisp/internal/ast"
 type yieldFrame struct {
 	values []Type
 	bound  bool
+	infer  bool
 }
 
 func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
@@ -19,12 +20,28 @@ func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
 	types = a.rejectFallible(stmt.Values, a.checkExprList(stmt.Values))
 
 	if len(a.yieldFrames) == 0 {
-		a.error(stmt, "yield can only be used inside a ?? handler").
-			WithHelp("it gives the value of the ?? when the handler is a block")
+		a.error(stmt, "yield can only be used inside a ?? handler or a block that gives a value").
+			WithHelp("it gives the value of the ?? when the handler is a block, or of the block `{ ...; yield v; }`")
 		return
 	}
 
-	frame := a.yieldFrames[len(a.yieldFrames)-1]
+	top := len(a.yieldFrames) - 1
+	if a.yieldFrames[top].infer && len(a.yieldFrames[top].values) == 0 {
+		if len(types) != 1 {
+			a.errorf(stmt, "a block gives exactly one value, got %d", len(types))
+			a.yieldFrames[top].values = []Type{InvalidType{}}
+			return
+		}
+		first := types[0]
+		if _, bad := first.(InvalidType); bad {
+			a.yieldFrames[top].values = []Type{InvalidType{}}
+			return
+		}
+		first = defaultType(first)
+		a.yieldFrames[top].values = []Type{first}
+	}
+
+	frame := a.yieldFrames[top]
 	if len(frame.values) == 0 {
 		a.error(stmt, "this call has no value to yield")
 		return
@@ -71,10 +88,10 @@ func (a *Analyser) countMismatch(stmt *ast.YieldStmt, frame yieldFrame, got int)
 func (a *Analyser) yieldMismatch(stmt *ast.YieldStmt, frame yieldFrame, i int, got Type) {
 	switch {
 	case !stmt.Implicit:
-		a.errorf(stmt, "yield %d: expected %s, got %s", i+1, frame.values[i], got)
+		a.helpMismatch(a.errorf(stmt, "yield %d: expected %s, got %s", i+1, frame.values[i], got), got, frame.values[i])
 	case frame.bound:
-		a.errorf(stmt, "expected %s for the handler value, got %s", frame.values[i], got)
+		a.helpMismatch(a.errorf(stmt, "expected %s for the handler value, got %s", frame.values[i], got), got, frame.values[i])
 	default:
-		a.errorf(stmt, "expected %s for default value, got %s", frame.values[i], got)
+		a.helpMismatch(a.errorf(stmt, "expected %s for default value, got %s", frame.values[i], got), got, frame.values[i])
 	}
 }

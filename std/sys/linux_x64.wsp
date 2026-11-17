@@ -161,7 +161,7 @@ internal native getdents(int fd, *byte buf, int n) int r =>
 internal native rawGetcwd(*byte buf, int n) int r =>
 		"mov eax, {SYS_GETCWD}; mov rdi, {buf}; mov rsi, {n}; syscall; mov {r}, rax";
 
-internal native environ() **byte r =>
+internal native environ() ?*?*byte r =>
 		"extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
 
 shared native args() []string s =>
@@ -313,22 +313,20 @@ shared func getcwd([]byte buf) int {
 }
 
 shared func getenv(string name) (string, bool) {
-	**byte env = environ();
-	if env == null {
-		return "", false;
-	}
-	for i in 0..1000000 {
-		*byte entry = env[i];
-		if entry == null {
-			break;
-		}
-		int n;
-		loop entry[n] != '\0' {
-			n++;
-		}
-		string line = string(entry[:n]);
-		if len(line) > len(name) && line[len(name)] == '=' && line[:len(name)] == name {
-			return line[len(name)+1:], true;
+	if environ() |env| {
+		for i in 0..1000000 {
+			if env[i] |entry| {
+				int n;
+				loop entry[n] != '\0' {
+					n++;
+				}
+				string line = string(entry[:n]);
+				if len(line) > len(name) && line[len(name)] == '=' && line[:len(name)] == name {
+					return line[len(name)+1:], true;
+				}
+			} else {
+				break;
+			}
 		}
 	}
 	return "", false;
@@ -339,20 +337,17 @@ shared func envOpen(*Env e) {
 }
 
 shared func envNext(*Env e) (string, bool) {
-	**byte env = environ();
-	if env == null {
-		return "", false;
+	if environ() |env| {
+		if env[e.index] |entry| {
+			e.index++;
+			int n;
+			loop entry[n] != '\0' {
+				n++;
+			}
+			return string(entry[:n]), true;
+		}
 	}
-	*byte entry = env[e.index];
-	if entry == null {
-		return "", false;
-	}
-	e.index++;
-	int n;
-	loop entry[n] != '\0' {
-		n++;
-	}
-	return string(entry[:n]), true;
+	return "", false;
 }
 
 shared func envClose(*Env _e) {

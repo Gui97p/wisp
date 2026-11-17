@@ -76,11 +76,12 @@ type Position struct {
 }
 
 type TypeLayer struct {
-	Pointer bool
-	IsSpan  bool
-	Size    int64
-	Expr    Expression
-	Text    string
+	Pointer  bool
+	Optional bool
+	IsSpan   bool
+	Size     int64
+	Expr     Expression
+	Text     string
 }
 
 type TypeRef struct {
@@ -103,6 +104,8 @@ func (t *TypeRef) String() string {
 		switch {
 		case layer.Pointer:
 			b.WriteString("*")
+		case layer.Optional:
+			b.WriteString("?")
 		case layer.IsSpan:
 			b.WriteString("[]")
 		case layer.Expr != nil:
@@ -134,6 +137,8 @@ func (t *TypeRef) Tree(indent string) string {
 		switch {
 		case layer.Pointer:
 			fmt.Fprintf(&b, "%s│  └─ Pointer\n", indent)
+		case layer.Optional:
+			fmt.Fprintf(&b, "%s│  └─ Optional\n", indent)
 		case layer.IsSpan:
 			fmt.Fprintf(&b, "%s│  └─ Span\n", indent)
 		case layer.Expr != nil:

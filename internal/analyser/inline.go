@@ -117,7 +117,11 @@ func (a *Analyser) expandInline(expr *ast.CallExpr, ft *FuncType) {
 				}
 			case *ast.CastExpr:
 				if n.Implicit {
-					return ast.Clone(n.Value, options), true
+					return cloneUnwrapped(n.Value, options), true
+				}
+			case *ast.StructLiteral:
+				if n.Implicit {
+					return cloneUnwrapped(undoWidening(n), options), true
 				}
 			}
 			return nil, false
@@ -374,4 +378,11 @@ func placeholderFor(tp Type) (ConstRefInfo, bool) {
 		}
 	}
 	return ConstRefInfo{}, false
+}
+
+func cloneUnwrapped(node ast.Node, options ast.CloneOptions) ast.Node {
+	if replacement, ok := options.Replace(node); ok {
+		return replacement
+	}
+	return ast.Clone(node, options)
 }

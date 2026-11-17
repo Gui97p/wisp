@@ -10,7 +10,7 @@ var BoxCodes = []string{
 	"int", "int8", "int16", "int32", "int64",
 	"uint", "uint8", "uint16", "uint32", "uint64",
 	"float32", "float64",
-	"bool", "string", "pointer", "error",
+	"bool", "string", "pointer", "error", "null",
 }
 
 func BoxCode(name string) int {
@@ -68,6 +68,8 @@ func Layout(t Type) BoxLayout {
 		return BoxLayout{Identity: BoxKey(v)}
 	case ErrorType:
 		return BoxLayout{Code: "error"}
+	case NullType:
+		return BoxLayout{Code: "null"}
 	case PointerType:
 		pointee := "void"
 		switch elem := v.Element.(type) {
@@ -93,9 +95,12 @@ func boxable(t Type) (bool, string) {
 		return true, ""
 	case NamedType:
 		return boxable(v.Underlying)
-	case PointerType, ErrorType:
+	case PointerType, ErrorType, NullType:
 		return true, ""
 	case *StructType:
+		if v.Optional != nil {
+			return boxable(v.Optional)
+		}
 		return false, "pass a pointer to it instead"
 	case ArrayType, SpanType:
 		return false, "pass its address or a string instead"
@@ -206,6 +211,8 @@ func (a *Analyser) typeGroup(label ast.Expression) (Type, bool) {
 
 func (a *Analyser) labelType(label ast.Expression) (Type, bool) {
 	switch l := label.(type) {
+	case *ast.NullLiteral:
+		return NullType{}, true
 	case *ast.TypeLabel:
 		t := a.resolveTypeRef(l, a.scope, l.Type)
 		if _, invalid := t.(InvalidType); invalid || t == nil {

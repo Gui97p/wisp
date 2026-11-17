@@ -98,7 +98,7 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 			continue
 		}
 		if !a.coerceAt(stmt.Values, len(types), i, t, a.currentReturns[i]) {
-			a.errorf(stmt, "return %d: expected %s, got %s", i+1, a.currentReturns[i], t)
+			a.helpMismatch(a.errorf(stmt, "return %d: expected %s, got %s", i+1, a.currentReturns[i], t), t, a.currentReturns[i])
 			continue
 		}
 		a.checkConstFits(a.valueAt(stmt.Values, len(types), i), a.currentReturns[i])
@@ -109,6 +109,10 @@ func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
 	if stmt.IsSwitch {
 		a.pushSwitch()
 		defer a.popLoop()
+	}
+
+	if stmt.Capture != "" {
+		a.lowerCapture(stmt)
 	}
 
 	condType := a.checkExpr(stmt.Condition)
@@ -122,6 +126,7 @@ func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
 	if stmt.Else != nil {
 		a.checkStmt(stmt.Else)
 	}
+	a.checkExhaustive(stmt)
 }
 
 func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
@@ -320,7 +325,7 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 				continue
 			}
 			if !a.coerceAt(s.Values, len(s.Targets), i, valueTypes[i], targetType) {
-				a.errorf(s.Targets[i], "assign expected %s, got %s", targetType.String(), valueTypes[i].String())
+				a.helpMismatch(a.errorf(s.Targets[i], "assign expected %s, got %s", targetType.String(), valueTypes[i].String()), valueTypes[i], targetType)
 				continue
 			}
 			a.checkConstFits(a.valueAt(s.Values, len(s.Targets), i), targetType)

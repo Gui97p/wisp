@@ -18,6 +18,8 @@ type Parser struct {
 	errors diag.List
 
 	allowStructLiteral bool
+	captureAllowed     bool
+	captureCount       int
 	switchNameCount    int
 	cVariadic          bool
 	native             *nativeHeader

@@ -162,6 +162,8 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		}
 
 		return ops[0], nil
+	case *ast.BlockExpr:
+		return t.compileBlockExpr(e)
 	default:
 		return nil, fmt.Errorf("%s is not supported yet", ast.Describe(expr))
 	}
@@ -891,6 +893,9 @@ func (t *X64Target) returnError(errOp Operand) error {
 }
 
 func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error) {
+	if _, isOptional := analyser.OptionalElement(t.info.Types[expr.Value]); isOptional {
+		return t.compileOptionalUnwrap(expr)
+	}
 	line, col, endLine, endCol := t.enter(expr)
 	defer t.leave(line, col, endLine, endCol)
 	ops, err := t.compileCallValues(expr.Value.(*ast.CallExpr))
@@ -939,6 +944,9 @@ func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error)
 }
 
 func (t *X64Target) compileCoalesce(expr *ast.CoalesceExpr) ([]Operand, error) {
+	if _, isOptional := analyser.OptionalElement(t.info.Types[expr.Left]); isOptional {
+		return t.compileOptionalCoalesce(expr)
+	}
 	ops, err := t.compileCallValues(expr.Left.(*ast.CallExpr))
 	if err != nil {
 		return nil, err

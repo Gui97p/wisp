@@ -1,4 +1,4 @@
-.PHONY: build prod prod-windows toolchain install test-windows ext run clean version testgen test test-x64 bench
+.PHONY: build prod prod-windows toolchain install test-windows ext install-ext run clean version testgen test test-x64 bench
 APP=wisp
 DIST=dist/wisp
 STAGE=dist/wisp-tmp
@@ -47,6 +47,9 @@ ext:
 	mkdir -p dist/vscode
 	cd vscode && npx @vscode/vsce package
 	mv vscode/*.vsix dist/vscode
+
+install-ext: ext
+	code --install-extension "dist/vscode/$$(ls -t dist/vscode/*.vsix | head -n 1 | xargs basename)"
 
 run:
 	go run ./cmd/main

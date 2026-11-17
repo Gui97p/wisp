@@ -198,6 +198,8 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		switch {
 		case layer.Pointer:
 			result = PointerType{Element: result}
+		case layer.Optional:
+			result = a.optionalOf(node, result)
 		case layer.IsSpan:
 			result = SpanType{Element: result}
 		case layer.Expr != nil:

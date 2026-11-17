@@ -2,30 +2,29 @@ import "std/mem/x64" as impl;
 import "std/errors";
 
 public func alloc(int n) !*void {
-	*void p = impl.rawAllocate(n, true);
-	errors.ensure(p != null, errors.Kind.OutOfMemory)!;
+	*void p = impl.rawAllocate(n, true) ?? return Error(errors.Kind.OutOfMemory);
 	impl.track(p);
 	return p;
 }
 
 public func allocDirty(int n) !*void {
-	*void p = impl.rawAllocate(n, false);
-	errors.ensure(p != null, errors.Kind.OutOfMemory)!;
+	*void p = impl.rawAllocate(n, false) ?? return Error(errors.Kind.OutOfMemory);
 	impl.track(p);
 	return p;
 }
 
-public func free(*void ...p) {
+public func free(?*void ...p) {
 	for _, v in p {
-		impl.trackFree(v);
-		impl.rawFree(v);
+		if v |block| {
+			impl.trackFree(block);
+			impl.rawFree(block);
+		}
 	}
 }
 
 public func realloc(*void p, int n) !*void {
 	impl.trackFree(p);
-	*void new = impl.rawRealloc(p, n);
-	errors.ensure(new != null, errors.Kind.OutOfMemory)!;
+	*void new = impl.rawRealloc(p, n) ?? return Error(errors.Kind.OutOfMemory);
 	impl.track(new);
 	return new;
 }

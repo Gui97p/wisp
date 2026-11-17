@@ -463,7 +463,7 @@ func memberItems(path, base string, scope *analyser.Scope, suffix string) []prot
 	if pt, ok := t.(analyser.PointerType); ok {
 		t = pt.Element
 	}
-	if st, ok := t.(*analyser.StructType); ok {
+	if st, ok := t.(*analyser.StructType); ok && st.Optional == nil {
 		for _, f := range st.Order {
 			if !analyser.FieldAccessible(st, f, path) {
 				continue
@@ -645,6 +645,9 @@ func structLiteralItems(text string, scope *analyser.Scope) ([]protocol.Completi
 	}
 
 	items := []protocol.CompletionItem{}
+	if ctx.st.Optional != nil {
+		return items, true
+	}
 	for _, field := range ctx.st.Order {
 		if ctx.used[field] {
 			continue

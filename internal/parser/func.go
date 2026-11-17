@@ -271,7 +271,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.advance()
 			p.advance()
 
-			if p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_LBRACKET || p.current.Type == lexer.TOKEN_CONST ||
+			if p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_QUESTION_MARK || p.current.Type == lexer.TOKEN_LBRACKET || p.current.Type == lexer.TOKEN_CONST ||
 				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC || p.peek.Type == lexer.TOKEN_DOT)) {
 				break
 			}
@@ -358,7 +358,7 @@ func (p *Parser) parseReturnTypes(header, extern bool) []ast.TypeRef {
 
 			return returnTypes
 		}
-	} else if p.isStartType() || p.current.Type == lexer.TOKEN_STAR {
+	} else if p.isStartType() || p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_QUESTION_MARK {
 		rType := p.parseTypeDefinitionPrefix()
 		if rType == nil {
 			return nil

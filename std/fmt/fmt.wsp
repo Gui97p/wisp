@@ -3,7 +3,7 @@ import "std/fmt/writer";
 
 public func fprint(int fd, string text) {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
+	writer.Writer w = writer.Writer{fd: fd, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.flush() ?? return;
@@ -11,7 +11,7 @@ public func fprint(int fd, string text) {
 
 public func fprintln(int fd, string text) {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
+	writer.Writer w = writer.Writer{fd: fd, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.writeByte('\n') ?? return;
@@ -20,7 +20,7 @@ public func fprintln(int fd, string text) {
 
 public func fprintf(int fd, string format, ...args) !int {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: fd, buf: buf[:], mode: .Full};
+	writer.Writer w = writer.Writer{fd: fd, buf: buf, mode: .Full};
 
 	let r, p = w.format(format, args...);
 	let fp = w.flush();
@@ -35,7 +35,7 @@ public func fprintf(int fd, string format, ...args) !int {
 
 public func print(string text) {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf[:], mode: .Full};
+	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.flush() ?? return;
@@ -43,7 +43,7 @@ public func print(string text) {
 
 public func println(string text) {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf[:], mode: .Full};
+	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.writeByte('\n') ?? return;
