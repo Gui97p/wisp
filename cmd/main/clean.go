@@ -16,7 +16,7 @@ var cleanDryRun bool
 
 var cleanCmd = &cobra.Command{
 	Use:          "clean",
-	Short:        "Remove the files a build writes (binaries, objects, assembly, Lua)",
+	Short:        "Remove the files a build writes (binaries, objects, assembly)",
 	Args:         cobra.NoArgs,
 	RunE:         runClean,
 	SilenceUsage: true,
@@ -58,10 +58,6 @@ func runClean(cmd *cobra.Command, args []string) error {
 				add(out.binPath)
 				add(out.objDir)
 				add(out.asmDir)
-			case "lua":
-				entry, objDir := resolveLuaPaths(root, eff, t)
-				add(entry)
-				add(objDir)
 			}
 		}
 	}
@@ -76,9 +72,6 @@ func runClean(cmd *cobra.Command, args []string) error {
 				add(sharedPath(out.binPath))
 				add(out.objDir)
 				add(out.asmDir)
-			case "lua":
-				_, objDir := resolveLuaPaths(root, eff, t)
-				add(objDir)
 			}
 		}
 	}

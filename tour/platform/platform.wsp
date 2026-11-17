@@ -3,20 +3,19 @@
 // A line that starts with `#` is a directive. `#target` goes at the top of a
 // file and says which targets the file is for. In any other target the file
 // simply does not exist: its declarations are not even looked at. The words
-// are architectures (`x64`, `lua`), systems (`linux`, `windows`, `cc`) or
-// profiles (`debug`, `release`, `fast`), joined with
-// `&&`, `||`, `!` and parentheses: `#target x64 && linux`, or
-// `#target (x64 || lua) && !windows`.
+// are architectures (`x64`), systems (`linux`, `windows`) or profiles (`debug`,
+// `release`, `fast`), joined with `&&`, `||`, `!` and parentheses:
+// `#target x64 && linux`, or `#target x64 && !windows`.
 //
 // `#target` only filters. The file is still a module of its own, with its own
-// names. Here x64.wsp and lua.wsp are two such modules, and this file picks
+// names. Here linux.wsp and windows.wsp are two such modules, and this file picks
 // the one that exists with an import that has the same kind of condition in
 // angle brackets and a common name:
 //
-//     import<x64> "platform/x64" as arch;
-//     import<lua> "platform/lua" as arch;
+//     import<linux> "platform/linux" as system;
+//     import<windows> "platform/windows" as system;
 //
-// Whatever `arch.` reaches is the module of the target being built, and what
+// Whatever `system.` reaches is the module of the target being built, and what
 // they make public is also part of this package, as with any file in the folder.
 //
 // The same expressions work after `func`, `struct`, `enum`, `type`, `const`,
@@ -28,19 +27,17 @@
 // A name that exists only for other targets gets an error that says so.
 
 import "std/fmt";
-import<x64> "platform/x64" as arch;
-import<lua> "platform/lua" as arch;
+import<linux> "platform/linux" as system;
+import<windows> "platform/windows" as system;
 
-func bits() int => 0;
+func lineEnd() string => "\n";
 
-func<x64> bits() int => 64;
-
-func<lua> bits() int => 53;
+func<windows> lineEnd() string => "\r\n";
 
 public func describe() string {
-  return arch.name();
+  return system.name();
 }
 
 public func demo() {
-  fmt.printf("this build is for the {} architecture, {} bits wide, {} for numbers\n", arch.name(), arch.width(), bits());
+  fmt.printf("this build is for {}, paths are separated with \"{}\", and a line ends with {} byte(s)\n", system.name(), system.separator(), len(lineEnd()));
 }

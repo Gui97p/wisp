@@ -3,7 +3,7 @@
 # any [table], because a key written after a [table] line belongs to it.
 
 # The system to build for, and its architecture. Without them the project
-# builds for the host: `linux`, which is x64. `cc` is the Lua one. The
+# builds for the host: `linux` or `windows`, both x64. The
 # architecture is only needed when a system has more than one; otherwise it is
 # a check. `--os` and `--arch` take priority.
 # os = "linux"
@@ -30,11 +30,8 @@
 
 # Where a build writes its files, for every program. All three are folders.
 # `bin` receives the final products, each under the name of its program (an
-# executable, or for the Lua system the entry script <name>.lua). `obj` and
-# `asm` receive the object files and the generated assembly, or for Lua the
-# modules other than the entry, which by default sit beside it because that is
-# where `require` looks. If you move them somewhere else, the entry script gets
-# a line that tells `require` where they are. {profile}, {target} (the system
+# executable). `obj` and `asm` receive the object files and the generated
+# assembly. {profile}, {target} (the system
 # and the architecture, as in linux-x64), {os}, {arch} and {name} (the program)
 # are replaced, so one pattern serves every program and system. A program with
 # its own place goes in [program.<name>.output]. Without this table the files go
@@ -79,7 +76,7 @@ bin = "bin"
 # entry = "tools/main.wsp"      # the file whose main starts it
 # name = "mytools"              # the binary, which defaults to "tools"
 # link = ["-lm"]
-# os = "cc"                     # a program can be built for another system
+# os = "windows"                # a program can be built for another system
 #
 # [program.tools.output]
 # bin = "out/{arch}"
@@ -104,7 +101,7 @@ bin = "bin"
 # <name>.a in the `bin` folder, that holds those modules, the standard library
 # modules they use and the runtime of the system, so it links on its own; name it
 # libgeo if you want to link it with -lgeo. Ask for `obj` alone and only the
-# object files are written. A Lua library is the .lua files of its modules.
+# object files are written.
 #
 # [library.geo]
 # modules = ["geometry", "shapes"]
@@ -125,7 +122,7 @@ bin = "bin"
 # link = ["-z", "noexecstack"]  # extra linker arguments
 # libc = false                  # link the C library for this system
 #
-# Built-in systems (linux, cc) are not adjusted here: link and libc go at the top
+# Built-in systems (linux, windows) are not adjusted here: link and libc go at the top
 # level or in a [program.<name>] block, and a different start or runtime is a system
 # of your own under another name. A system with more than one architecture
 # describes each one in [targets.<os>.<arch>].

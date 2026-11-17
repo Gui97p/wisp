@@ -1,0 +1,5 @@
+#target windows
+
+internal func name() string => "Windows";
+
+internal func separator() string => "\\";

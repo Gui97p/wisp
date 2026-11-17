@@ -1,5 +1,4 @@
-import<x64> "std/mem/x64" as impl;
-import<lua> "std/mem/lua" as impl;
+import "std/mem/x64" as impl;
 import "std/errors";
 
 public func alloc(int n) !*void {

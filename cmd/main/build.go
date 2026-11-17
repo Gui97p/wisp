@@ -57,10 +57,10 @@ func init() {
 func addBuildFlags(cmd *cobra.Command) {
 	f := cmd.Flags()
 	f.StringVar(&asmOut, "asm", "", "output directory for generated .asm files (x64)")
-	f.StringVar(&objOut, "obj", "", "output directory for the object files (x64), or for the modules other than the entry (lua)")
-	f.StringVar(&binOut, "bin", "", "folder of the final product: the binary named after the program (x64), or its entry script (lua)")
-	f.StringVar(&osOpt, "os", "", "system to build for (linux, cc, or one declared in wisp.toml)")
-	f.StringVar(&archOpt, "arch", "", "architecture to build for (x64, lua)")
+	f.StringVar(&objOut, "obj", "", "output directory for the object files")
+	f.StringVar(&binOut, "bin", "", "folder of the final product: the binary named after the program")
+	f.StringVar(&osOpt, "os", "", "system to build for (linux, windows, or one declared in wisp.toml)")
+	f.StringVar(&archOpt, "arch", "", "architecture to build for (x64)")
 	addProfileFlags(cmd)
 	f.StringArrayVar(&linkOpt, "link", nil, "extra argument for the linker, repeatable (object files, archives, -L, -l); x86-64 targets")
 	f.BoolVar(&libcOpt, "libc", false, "link the system C library and use its startup code instead of the Wisp start stub (x86-64 targets)")
@@ -183,13 +183,11 @@ func rejectFlags(cmd *cobra.Command, tgt target.Target, names ...string) error {
 }
 
 type buildResult struct {
-	name     string
-	target   string
-	product  string
-	binPath  string
-	luaDir   string
-	luaEntry string
-	env      []module.EnvVar
+	name    string
+	target  string
+	product string
+	binPath string
+	env     []module.EnvVar
 }
 
 func projectName(root string) string {
@@ -332,13 +330,6 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 				if job.library {
 					product = archivePath(product)
 				}
-			case "lua":
-				entry, objDir := resolveLuaPaths(root, eff, tgt)
-				dirs = []string{objDir}
-				product = entry
-				if job.library {
-					product = objDir + "|" + name
-				}
 			}
 			if other, taken := products[product]; taken {
 				return nil, fmt.Errorf("the programs %s and %s would both write %s: give one of them another name", other, name, relPath(product))
@@ -390,11 +381,6 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 		switch tgt.Arch {
 		case "x64":
 			res, err = buildX64(root, cfg, tgt, forRun, job)
-		case "lua":
-			if err := rejectFlags(cmd, tgt, "asm", "link", "libc"); err != nil {
-				return nil, err
-			}
-			res, err = buildLua(root, cfg, tgt, forRun, job)
 		default:
 			return nil, fmt.Errorf("target %q has no build pipeline", tgt.Name)
 		}
@@ -458,18 +444,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	res := results[0]
 	detail("Finished %s -> %s in %s", res.target, relPath(res.product), elapsed(start))
 
-	var run *exec.Cmd
-	if res.binPath != "" {
-		run = exec.Command(resolveExecutable(res.binPath), programArgs...)
-	} else {
-		rel, err := filepath.Rel(res.luaDir, res.luaEntry)
-		if err != nil {
-			return err
-		}
-		detail("Running %s", relPath(res.luaEntry))
-		run = exec.Command("lua", append([]string{rel}, programArgs...)...)
-		run.Dir = res.luaDir
-	}
+	run := exec.Command(resolveExecutable(res.binPath), programArgs...)
 
 	run.Env = os.Environ()
 	for _, v := range res.env {

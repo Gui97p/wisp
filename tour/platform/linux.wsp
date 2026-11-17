@@ -1,0 +1,5 @@
+#target linux
+
+internal func name() string => "Linux";
+
+internal func separator() string => "/";

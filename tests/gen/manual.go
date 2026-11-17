@@ -6,8 +6,6 @@ type manualCase struct {
 	expected []string
 	abort    string
 	exit     int
-	x64Only  bool
-	luaOnly  bool
 	libc     bool
 	cmain    bool
 	profile  string
@@ -73,7 +71,7 @@ func main() {
 }
 `},
 
-	{dir: "big_literal_wide", x64Only: true, src: `func id(int64 x) int64 {
+	{dir: "big_literal_wide", src: `func id(int64 x) int64 {
     return x;
 }
 
@@ -377,7 +375,7 @@ func main() {
 }
 `},
 
-	{dir: "alias_types_wide", x64Only: true, src: `func main() {
+	{dir: "alias_types_wide", src: `func main() {
     int a = 9223372036854775807;
     a += 1;
     int m = 0;
@@ -421,7 +419,7 @@ func main() {
 }
 `},
 
-	{dir: "cast_literal_wide", x64Only: true, src: `func main() {
+	{dir: "cast_literal_wide", src: `func main() {
     int big = 300;
     uint8 a = uint8(big);
     check(a == 44, "castlit 300 to uint8");
@@ -2337,7 +2335,7 @@ func main() {
 }
 `},
 
-	{dir: "view_semantics", x64Only: true, src: `import "std/fmt";
+	{dir: "view_semantics", src: `import "std/fmt";
 import "std/mem";
 
 [64]byte scratch;
@@ -2580,7 +2578,7 @@ func main() ! {
 }
 `, expected: []string{"two floats arrive in xmm0 and xmm1", "integer and float registers are counted apart", "float32 arguments", "more floats than registers spill to the stack", "a float result comes back in xmm0", "a float and an int come back together", "two floats come back in xmm0 and xmm1 without crossing", "a fallible function returns a float", "two ints and a float come back in rax, rdx and xmm0", "three floats come back through memory", "a struct of two floats is passed in two xmm registers", "a struct of two floats is returned in xmm0 and xmm1", "a struct with an int and a float is passed in one of each", "a struct with an int and a float is returned in rax and xmm0", "two float32 fields share one xmm register", "a struct larger than sixteen bytes goes through memory"}},
 
-	{dir: "float_uint64", x64Only: true, src: `func main() {
+	{dir: "float_uint64", src: `func main() {
     uint64 big = 18446744073709551615;
     float f = float(big);
     check(f > 18000000000000000000.0 && f < 19000000000000000000.0, "the largest uint64 becomes a float near two to the 64");
@@ -2740,7 +2738,7 @@ func main() {
 }
 `, expected: []string{"an integer literal initializes a float global", "a float array global", "a float32 global", "the largest float as a global", "negative and zero elements"}},
 
-	{dir: "native_consts", x64Only: true, files: map[string]string{"limits/limits.wsp": `public const {
+	{dir: "native_consts", files: map[string]string{"limits/limits.wsp": `public const {
     Base = 40;
     Extra = 2;
 }
@@ -3341,7 +3339,7 @@ func main() {
 }
 `},
 
-	{dir: "divmod_registers_wide", x64Only: true, src: `func idiv(int a, int b) int {
+	{dir: "divmod_registers_wide", src: `func idiv(int a, int b) int {
     return a / b;
 }
 
@@ -3396,7 +3394,7 @@ func main() {
     int r = outer(0);
     check(r == 0, "trace never printed");
 }
-`, expected: []string{"trace before the failing call"}, abort: ": in main.compute", x64Only: true},
+`, expected: []string{"trace before the failing call"}, abort: ": in main.compute"},
 
 	{dir: "trace_outer", profile: "debug", src: `func div(int a, int b) int {
     return a / b;
@@ -3416,7 +3414,7 @@ func main() {
     int r = outer(0);
     check(r == 0, "trace outer never printed");
 }
-`, expected: []string{"trace outer before the failing call"}, abort: ": in main.outer", x64Only: true},
+`, expected: []string{"trace outer before the failing call"}, abort: ": in main.outer"},
 
 	{dir: "trace_main", profile: "debug", src: `func div(int a, int b) int {
     return a / b;
@@ -3427,7 +3425,7 @@ func main() {
     int r = div(1, 0);
     check(r == 0, "trace main never printed");
 }
-`, expected: []string{"trace main before the failing call"}, abort: ": in main.main", x64Only: true},
+`, expected: []string{"trace main before the failing call"}, abort: ": in main.main"},
 
 	{dir: "trace_method", profile: "debug", src: `struct Counter {
     int n;
@@ -3447,7 +3445,7 @@ func main() {
     int r = c.split(0);
     check(r == 0, "trace method never printed");
 }
-`, expected: []string{"trace method before the failing call"}, abort: ": in main.Counter.split", x64Only: true},
+`, expected: []string{"trace method before the failing call"}, abort: ": in main.Counter.split"},
 
 	{dir: "trace_unwrap", profile: "debug", src: `enum Fail {
     Bad = 1
@@ -3469,7 +3467,7 @@ func main() {
     int r = settle(-1);
     check(r == 0, "trace unwrap never printed");
 }
-`, expected: []string{"trace unwrap before the failing call"}, abort: ": in main.main", x64Only: true},
+`, expected: []string{"trace unwrap before the failing call"}, abort: ": in main.main"},
 
 	{dir: "trace_lambda", profile: "debug", src: `func apply(Step f, int v) int {
     return f(v);
@@ -3483,7 +3481,7 @@ func main() {
     int r = apply(half, 0);
     check(r == 0, "trace lambda never printed");
 }
-`, expected: []string{"trace lambda before the failing call"}, abort: ": in main.apply", x64Only: true},
+`, expected: []string{"trace lambda before the failing call"}, abort: ": in main.apply"},
 
 	{dir: "trace_deep", profile: "debug", src: `func down(int n) int {
     if n == 0 {
@@ -3497,7 +3495,7 @@ func main() {
     int r = down(60);
     check(r == 0, "trace deep never printed");
 }
-`, expected: []string{"trace deep before the failing call"}, abort: "more frames", x64Only: true},
+`, expected: []string{"trace deep before the failing call"}, abort: "more frames"},
 
 	{dir: "abort_double_free", src: `import "std/mem";
 
@@ -3514,7 +3512,7 @@ func main() {
     mem.free(r);
     check(true, "double free never printed");
 }
-`, expected: []string{"double free before the second free", "a freed block is reused without a complaint"}, abort: "panic: double free", x64Only: true},
+`, expected: []string{"double free before the second free", "a freed block is reused without a complaint"}, abort: "panic: double free"},
 
 	{dir: "abort_panic_location", src: `func fail(string why) {
     panic(why);
@@ -3525,7 +3523,7 @@ func main() {
     fail("custom reason");
     check(true, "panic location never printed");
 }
-`, expected: []string{"panic location before the panic"}, abort: "--> main.wsp", x64Only: true},
+`, expected: []string{"panic location before the panic"}, abort: "--> main.wsp"},
 
 	{dir: "mem_debug_clean", src: `import "std/mem";
 
@@ -3550,7 +3548,7 @@ func main() {
     check(again != null && again[10] == 0, "debug mode recycles quarantined blocks");
     mem.free(again);
 }
-`, expected: []string{"debug mode still hands out zeroed blocks after reuse", "debug mode serves a large block", "debug mode recycles quarantined blocks"}, profile: "debug", x64Only: true},
+`, expected: []string{"debug mode still hands out zeroed blocks after reuse", "debug mode serves a large block", "debug mode recycles quarantined blocks"}, profile: "debug"},
 
 	{dir: "abort_use_after_free", src: `import "std/mem";
 
@@ -3565,7 +3563,7 @@ func main() {
     }
     check(true, "use after free never printed");
 }
-`, expected: []string{"use after free before the stale write"}, abort: "the block was freed at", profile: "debug", x64Only: true},
+`, expected: []string{"use after free before the stale write"}, abort: "the block was freed at", profile: "debug"},
 
 	{dir: "abort_double_free_reused", src: `import "std/mem";
 
@@ -3577,7 +3575,7 @@ func main() {
     mem.free(p);
     check(true, "double free after reuse never printed");
 }
-`, expected: []string{"a freed block is not reused right away in debug mode"}, abort: "the block was freed at", profile: "debug", x64Only: true},
+`, expected: []string{"a freed block is not reused right away in debug mode"}, abort: "the block was freed at", profile: "debug"},
 
 	{dir: "mem_leak_report", src: `import "std/mem";
 
@@ -3599,7 +3597,7 @@ func main() {
     big[0] = 1;
     check(true, "the program runs to the end with leaks");
 }
-`, expected: []string{"the program runs to the end with leaks"}, profile: "debug", stderr: "leak: 2 blocks, 96 bytes, allocated at\nin main.leaky\nleak: 1 blocks\nin main.main", x64Only: true},
+`, expected: []string{"the program runs to the end with leaks"}, profile: "debug", stderr: "leak: 2 blocks, 96 bytes, allocated at\nin main.leaky\nleak: 1 blocks\nin main.main"},
 
 	{dir: "mem_leak_none", src: `import "std/mem";
 
@@ -3610,7 +3608,7 @@ func main() {
     mem.free(q);
     check(true, "everything was freed");
 }
-`, expected: []string{"everything was freed"}, profile: "debug", stderr: "!leak:", x64Only: true},
+`, expected: []string{"everything was freed"}, profile: "debug", stderr: "!leak:"},
 
 	{dir: "mem_leak_off", src: `import "std/mem";
 
@@ -3619,7 +3617,7 @@ func main() {
     p[0] = 1;
     check(true, "no report in release");
 }
-`, expected: []string{"no report in release"}, stderr: "!leak:", profile: "release", x64Only: true},
+`, expected: []string{"no report in release"}, stderr: "!leak:", profile: "release"},
 
 	{dir: "mem_leak_arena", src: `import "std/mem";
 
@@ -3629,7 +3627,7 @@ func main() {
     a[0] = 1;
     check(true, "an arena leak runs to the end");
 }
-`, expected: []string{"an arena leak runs to the end"}, profile: "debug", stderr: "leak: 1 blocks\nmain.wsp:\n!arena_x64.wsp", x64Only: true},
+`, expected: []string{"an arena leak runs to the end"}, profile: "debug", stderr: "leak: 1 blocks\nmain.wsp:\n!arena_x64.wsp"},
 
 	{dir: "const_fold", src: `const K = 10;
 const DEBUG = false;
@@ -6239,18 +6237,14 @@ func main() {
 }
 
 native<x64> add(int a, int b) int r => "mov rax, {a}; add rax, {b}; mov {r}, rax";
-native<lua> add(int a, int b) int r => "r = a + b";
 
 native<x64> split(int a) (int lo, int hi) => "mov rax, {a}; mov {lo}, rax; add rax, 1; mov {hi}, rax";
-native<lua> split(int a) (int lo, int hi) => "lo = a; hi = a + 1";
 
 native<x64> reset() => "nop";
-native<lua> reset() => "local unused = 0";
 
 func mixed(int a) int {
     int r;
     native<x64>(in a, out r) "mov rax, {a}; add rax, 5; mov {r}, rax";
-    native<lua>(in a, out r) "r = a + 5";
     return r;
 }
 
@@ -6265,7 +6259,6 @@ func main() {
 `, expected: []string{"a native replaces the plain function of its architecture", "a native function returns several named results", "a native function with no result", "native statements pick their architecture"}},
 
 	{dir: "target_directive", system: "linux", files: map[string]string{"platform/platform.wsp": `import<x64> "platform/x64" as impl;
-import<lua> "platform/lua" as impl;
 
 const SIZE = 1;
 
@@ -6307,36 +6300,12 @@ internal func bumpTwice(int a) int {
 public func twice(int n) int {
     return n * 2;
 }
-`, "platform/lua.wsp": `// the same names, for the other architecture
-#target lua
-
-const SIZE = 2;
-
-internal func kind() int {
-    return 3;
-}
-
-internal func size() int {
-    return SIZE;
-}
-
-internal native bump(int a) int r => "r = a + 1";
-
-internal func bumpTwice(int a) int {
-    int r;
-    native(in a, out r) "r = a + 2";
-    return r;
-}
-
-public func twice(int n) int {
-    return n + n;
-}
-`, "platform/everything.wsp": `#target x64 || lua
+`, "platform/everything.wsp": `#target x64 || windows
 
 public func always() int {
     return 5;
 }
-`, "platform/neither.wsp": `#target !x64 && !lua
+`, "platform/neither.wsp": `#target !x64 && !windows
 
 public func twice(int n) int {
     return -1;
@@ -6366,7 +6335,7 @@ func<x64> twice(int n) int {
     return n * 2;
 }
 
-func<lua> twice(int n) int {
+func<windows> twice(int n) int {
     return n + n;
 }
 
@@ -6382,7 +6351,7 @@ func<x64 && linux> level() int {
     return 2;
 }
 
-func<lua> level() int {
+func<windows> level() int {
     return 2;
 }
 
@@ -6391,7 +6360,7 @@ struct<x64> Pair {
     int b;
 }
 
-struct<lua> Pair {
+struct<windows> Pair {
     int a;
     int b;
     int c;
@@ -6402,27 +6371,27 @@ enum<x64> Mode {
     Slow
 }
 
-enum<lua> Mode {
+enum<windows> Mode {
     Fast = 1,
     Slow,
     Extra
 }
 
 const<x64> LIMIT = 10;
-const<lua> LIMIT = 10;
+const<windows> LIMIT = 10;
 
 const<x64> {
     LOW = 1;
     HIGH = 9;
 }
 
-const<lua> {
+const<windows> {
     LOW = 1;
     HIGH = 9;
 }
 
 type<x64> Count int;
-type<lua> Count int;
+type<windows> Count int;
 
 func main() {
     check(twice(4) == 8, "a func with a selector replaces the plain one, in Wisp");
@@ -6636,7 +6605,7 @@ func main() {
 }
 `, expected: []string{"abortdiv8 before the division by zero"}, abort: "panic: integer divide by zero"},
 
-	{dir: "abort_div_zero_uint64", x64Only: true, src: `func main() {
+	{dir: "abort_div_zero_uint64", src: `func main() {
     uint64 a = 18446744073709551615;
     uint64 z = 0;
     check(a / 2 == 9223372036854775807, "abortdivu64 before the division by zero");
@@ -6697,7 +6666,7 @@ func main() {
 }
 `},
 
-	{dir: "div_min_by_minus_one_wide", x64Only: true, src: `func main() {
+	{dir: "div_min_by_minus_one_wide", src: `func main() {
     int8 min8 = 0;
     min8 -= 100;
     min8 -= 28;
@@ -7040,12 +7009,12 @@ func main() {
 }
 `, expected: []string{"assert does nothing in release"}},
 
-	{dir: "size_empty_release", profile: "release", x64Only: true, maxSize: 8192, src: `func main() {
+	{dir: "size_empty_release", profile: "release", maxSize: 8192, src: `func main() {
     check(true, "an empty program stays small");
 }
 `, expected: []string{"an empty program stays small"}},
 
-	{dir: "size_mem_release", profile: "release", x64Only: true, maxSize: 20000, maxWin: 30000, src: `import "std/mem";
+	{dir: "size_mem_release", profile: "release", maxSize: 20000, maxWin: 30000, src: `import "std/mem";
 
 func main() {
     *void p = mem.alloc(16) ?? null;
@@ -7054,7 +7023,7 @@ func main() {
 }
 `, expected: []string{"allocating does not pull in the debug allocator or fmt"}},
 
-	{dir: "trace_off_release", profile: "release", x64Only: true, src: `func div(int a, int b) int {
+	{dir: "trace_off_release", profile: "release", src: `func div(int a, int b) int {
     return a / b;
 }
 
@@ -7070,7 +7039,7 @@ func main() {
 }
 `, expected: []string{"release runs before the failing call"}, abort: "panic: integer divide by zero", stderr: "!: in main.\n!the divisor is zero"},
 
-	{dir: "snippets_off_release", profile: "release", x64Only: true, src: `enum Fail {
+	{dir: "snippets_off_release", profile: "release", src: `enum Fail {
     Bad = 1
 }
 
@@ -7085,7 +7054,7 @@ func main() {
 }
 `, expected: []string{"release before the unwrap"}, abort: "error[main.Fail]: Fail.Bad", stderr: "!raised here\n!was unwrapped here"},
 
-	{dir: "checks_off_release", system: "linux", profile: "release", x64Only: true, exit: 136, files: map[string]string{"wisp.toml": "[profiles.release]\nchecks = false\n"}, src: `func main() {
+	{dir: "checks_off_release", system: "linux", profile: "release", exit: 136, files: map[string]string{"wisp.toml": "[profiles.release]\nchecks = false\n"}, src: `func main() {
     int zero = 0;
     check(true, "before the unchecked division");
     int r = 10 / zero;
@@ -7201,7 +7170,7 @@ func main() {
 }
 `, expected: []string{"let takes a selector, and the version of the profile is the one kept", "let without a selector is the same as before", "a global pointer starts as a converted null", "the pointer can be set later", "null converts to a pointer type in a local too"}},
 
-	{dir: "arith_pow2_lea", x64Only: true, src: `func d2(int x) int { return x / 2; }
+	{dir: "arith_pow2_lea", src: `func d2(int x) int { return x / 2; }
 func d8(int x) int { return x / 8; }
 func dbig(int x) int { return x / 1073741824; }
 func m2(int x) int { return x % 2; }
@@ -7278,7 +7247,7 @@ func main() {
 }
 `, expected: []string{"signed 64 bit division and remainder of -1073741825", "signed 64 bit division and remainder of -1073741824", "signed 64 bit division and remainder of -17", "signed 64 bit division and remainder of -16", "signed 64 bit division and remainder of -9", "signed 64 bit division and remainder of -8", "signed 64 bit division and remainder of -7", "signed 64 bit division and remainder of -2", "signed 64 bit division and remainder of -1", "signed 64 bit division and remainder of 0", "signed 64 bit division and remainder of 1", "signed 64 bit division and remainder of 2", "signed 64 bit division and remainder of 7", "signed 64 bit division and remainder of 8", "signed 64 bit division and remainder of 9", "signed 64 bit division and remainder of 16", "signed 64 bit division and remainder of 17", "signed 64 bit division and remainder of 1073741824", "signed 64 bit division and remainder of 1073741825", "signed 64 bit division and remainder of 4611686018427387904", "signed 64 bit division and remainder of 9223372036854775807", "signed 64 bit division and remainder of -9223372036854775807", "signed 32 bit division and remainder of -2147483647", "signed 32 bit division and remainder of -1073741825", "signed 32 bit division and remainder of -17", "signed 32 bit division and remainder of -9", "signed 32 bit division and remainder of -8", "signed 32 bit division and remainder of -7", "signed 32 bit division and remainder of -1", "signed 32 bit division and remainder of 0", "signed 32 bit division and remainder of 1", "signed 32 bit division and remainder of 7", "signed 32 bit division and remainder of 8", "signed 32 bit division and remainder of 9", "signed 32 bit division and remainder of 17", "signed 32 bit division and remainder of 1073741824", "signed 32 bit division and remainder of 2147483647", "unsigned division and remainder", "multiply by a constant and add one of -7", "multiply by a constant and add one of 0", "multiply by a constant and add one of 1", "multiply by a constant and add one of 5", "multiply by a constant and add one of 100", "multiply by a constant and add one of 1000000007", "32 bit multiply and add wraps for 0", "32 bit multiply and add wraps for 5", "32 bit multiply and add wraps for 300000000", "32 bit multiply and add wraps for -300000000", "32 bit multiply and add wraps for 2147483647", "8 bit multiply and add wraps for 0", "8 bit multiply and add wraps for 10", "8 bit multiply and add wraps for 100", "8 bit multiply and add wraps for -100"}},
 
-	{dir: "regs_inline", x64Only: true, src: `int counter;
+	{dir: "regs_inline", src: `int counter;
 
 func bump() {
     counter++;
@@ -7390,7 +7359,7 @@ func main() {
 }
 `},
 
-	{dir: "regs_range", x64Only: true, src: `struct Pair {
+	{dir: "regs_range", src: `struct Pair {
     int a;
     int b;
 }
@@ -7523,7 +7492,7 @@ func main() {
 }
 `},
 
-	{dir: "regs_compound", x64Only: true, src: `func chain(int n) int {
+	{dir: "regs_compound", src: `func chain(int n) int {
     int a = 1;
     for i in 1..n {
         a += i;
@@ -7606,7 +7575,7 @@ func main() {
 }
 `},
 
-	{dir: "regs_index", x64Only: true, src: `struct Pair {
+	{dir: "regs_index", src: `struct Pair {
     int a;
     int b;
 }
@@ -7665,7 +7634,7 @@ func main() {
 }
 `},
 
-	{dir: "regs_locals", x64Only: true, src: `func mix(int n) int {
+	{dir: "regs_locals", src: `func mix(int n) int {
     int a = 1;
     int b = 2;
     int c = 3;
@@ -8083,7 +8052,7 @@ func main() {
 }
 `, expected: []string{"a switch expression infers .Member from the declared type", "a switch expression infers .Member from the return type", "a ternary infers .Member from the declared type", "a ternary infers .Member in an assignment", "a ternary infers .Member as an argument", "a ternary infers .Member on the side of a comparison"}},
 
-	{dir: "os_environ", x64Only: true, src: `import "std/os";
+	{dir: "os_environ", src: `import "std/os";
 import "std/strings";
 
 func main() {
@@ -8124,7 +8093,7 @@ func main() {
 }
 `, expected: []string{"the environment has entries", "PATH is among the entries", "every entry agrees with getenv", "a second walk sees the same number of entries"}},
 
-	{dir: "os_getenv", x64Only: true, src: `import "std/os";
+	{dir: "os_getenv", src: `import "std/os";
 
 func main() {
     let path, found = os.getenv("PATH");
@@ -8330,7 +8299,7 @@ func main() ! {
 }
 `, expected: []string{"a directory lists its files and subdirectories with their kinds", "the entries . and .. are not listed", "an empty directory lists nothing", "openDir on a file is NotDir", "a listing that needs several reads finds every entry"}},
 
-	{dir: "win64_console", system: "windows", x64Only: true, src: `import "std/os";
+	{dir: "win64_console", system: "windows", src: `import "std/os";
 
 extern func AllocConsole() int32;
 extern func CreateConsoleScreenBuffer(uint32 access, uint32 share, *void security, uint32 flags, *void reserved) *void;
@@ -8385,7 +8354,7 @@ func main() ! {
 }
 `, expected: []string{"the console buffer returns the characters that were written", "accented letters arrive intact when a write ends inside a character", "the accents after the split arrive too", "the runtime write path converts to UTF-16 for a console"}},
 
-	{dir: "win64_console_input", system: "windows", x64Only: true, src: `import "std/os";
+	{dir: "win64_console_input", system: "windows", src: `import "std/os";
 
 extern func AllocConsole() int32;
 extern func CreateFileW(*uint16 name, uint32 access, uint32 share, *void security, uint32 disposition, uint32 flags, *void template) *void;
@@ -8461,7 +8430,7 @@ func main() ! {
 }
 `, expected: []string{"the key events reached the console", "a console read starts with the first character", "a two byte character comes out one byte per read", "a three byte character comes out one byte per read", "Enter is a single line feed, not a carriage return and a line feed", "the next line arrives whole with a single line feed", "Control Z ends the input"}},
 
-	{dir: "os_long_path", x64Only: true, src: `import "std/os";
+	{dir: "os_long_path", src: `import "std/os";
 import "std/path";
 
 func main() ! {
@@ -8585,7 +8554,7 @@ func main() {
 }
 `, expected: []string{"min and max of a single argument", "min and max of several arguments", "min and max of nothing are zero", "abs", "clamp", "mod is never negative", "gcd is not negative", "gcd with a zero", "sqrt rounds down", "sqrt of a negative is zero", "sqrt at the top of the range", "leadingZeros", "the signed limits", "the unsigned limits", "checkedAdd inside the range", "checkedSub inside the range", "checkedMul at the top of the range", "checkedMul of mixed signs", "checkedMul that lands on the minimum", "checkedMul by zero", "checkedAbs", "pow 2 to the 62", "pow 10 to the 18", "pow -2 to the 63 is the minimum", "pow with a zero", "lcm is not negative", "lcm with a zero", "checkedAdd past the top is Overflow", "checkedMul of the minimum by -1 is Overflow", "checkedMul of -1 by the minimum is Overflow", "checkedMul past the top is Overflow", "checkedAbs of the minimum is Overflow", "pow 3 to the 40 is Overflow"}},
 
-	{dir: "math_core_wide", x64Only: true, src: `import "std/math";
+	{dir: "math_core_wide", src: `import "std/math";
 import "std/errors";
 
 func main() {
@@ -9035,61 +9004,9 @@ func main() {
 }
 `, expected: []string{"two modules call each other", "a function reaches the other module through the cycle", "a constant of the other module is read after loading"}},
 
-	{dir: "lua_keywords", src: `import "std/math";
-
-struct Box {
-    int end;
-    int function;
-    int local;
-}
-
-const then = 5;
-int goto = 6;
-
-func repeat(int not, int or) int {
-    return not + or;
-}
-
-func nil(int and) int => and * 2;
-
-func risky(int n) !int {
-    if n == 0 {
-        return Error(Kind.A);
-    }
-    return n;
-}
-
-enum Kind {
-    A = 1
-}
-
-func main() {
-    int end = 1;
-    int do = 2;
-    int elseif = 3;
-    int while = 4;
-    int total = repeat(end, do) + nil(elseif) + while + then + goto;
-    check(total == 24, "Lua keywords work as names of variables, parameters and functions");
-
-    Box box = Box{end: 7, function: 8, local: 9};
-    box.end = box.end + 1;
-    check(box.end == 8 && box.function == 8 && box.local == 9, "Lua keywords work as names of fields");
-
-    for local in 0..2 {
-        total += local;
-    }
-    int v = risky(0) ?? |or| {
-        yield 100;
-    };
-    check(total == 27 && v == 100, "Lua keywords work as loop and handler names");
-
-    check(math.max(total, 1) == 27 && math.MIN_INT < 0, "a module named math does not hide the Lua math library");
-}
-`, expected: []string{"Lua keywords work as names of variables, parameters and functions", "Lua keywords work as names of fields", "Lua keywords work as loop and handler names", "a module named math does not hide the Lua math library"}},
-
 	{dir: "target_files", system: "linux", files: map[string]string{"where/where.wsp": `import "std/math";
 import<x64> "where/x64" as arch;
-import<lua> "where/lua" as arch;
+import<windows> "where/windows" as arch;
 
 public func name() int {
     return arch.which() + arch.extra() + math.min(0, 1);
@@ -9113,7 +9030,7 @@ internal func both() int {
 internal func extra() int {
     return 1;
 }
-`, "where/lua.wsp": `#target lua
+`, "where/windows.wsp": `#target windows
 
 import "std/math";
 
@@ -9160,7 +9077,7 @@ func main() ! {
 }
 `, expected: []string{"pointer slice length", "pointer slice first", "pointer slice last", "pointer slice writes through to the buffer", "slice of a pointer slice", "pointer slice with variable bounds", "pointer slice with the start omitted begins at the pointer"}},
 
-	{dir: "ptr_convert", x64Only: true, src: `import "std/mem";
+	{dir: "ptr_convert", src: `import "std/mem";
 struct P {
     int a;
     int b;
@@ -9288,7 +9205,7 @@ func main() ! {
 }
 `, expected: []string{"free of a slice releases its block", "free of null still works"}},
 
-	{dir: "free_many", profile: "release", x64Only: true, src: `import "std/mem";
+	{dir: "free_many", profile: "release", src: `import "std/mem";
 func main() ! {
     *int a = mem.alloc(24)!;
     *int b = mem.alloc(24)!;
@@ -9594,7 +9511,7 @@ func main() {
 }
 `, expected: []string{"decimal", "negative decimal", "zero", "int8", "d type letter", "hex lower case", "hex upper case", "hex prefix", "binary", "binary prefix", "octal", "octal prefix", "negative hex", "number aligns right", "left align", "center with even padding", "center with odd padding puts the extra space on the right", "zero padding", "zero padding goes after the sign", "zero padded hex", "zeros go after the prefix", "width smaller than the text changes nothing", "custom fill", "custom fill with center", "string", "string aligns left", "string right align", "precision cuts a string", "width and precision", "empty string", "byte prints as a number", "byte as a character", "byte as a number", "byte in hex", "integer as a byte", "true", "false", "bool aligns left", "an enum prints its number", "an enum by name through name()", "plain text", "text around a placeholder", "several placeholders of different types", "escaped braces", "an escaped brace before a placeholder", "an escaped brace after a placeholder", "fewer arguments keep the placeholder as written", "no arguments", "a type letter that does not fit the type is written back and reported as WrongType", "a number with no digits in a spec is BadSpec", "an unknown type letter is BadSpec", "text after the type letter is BadSpec", "an open brace with no close is Unmatched", "a lone close brace is Unmatched", "an extra argument is ExtraArgument", "an argument of a named type is UnsupportedType", "a problem does not stop the text after it, and takes its argument", "fewer arguments are not an error", "a good format reports no error", "sprintf returns the byte count", "sprintf into a buffer that is too small is NoSpace", "a memory writer collects the text", "a second call appends", "a memory writer that fills up is NoSpace", "a full writer holds the text until flush", "flush writes the text", "a line writer holds the text until a newline", "a line writer flushes at the newline", "a writer with no buffering writes at once", "a small buffer is flushed as it fills", "fprintf writes everything in one call", "fprintf still writes the text when the format has a problem"}},
 
-	{dir: "fmt_core_wide", x64Only: true, src: `import "std/fmt";
+	{dir: "fmt_core_wide", src: `import "std/fmt";
 import "std/os";
 import "std/errors";
 
@@ -10477,7 +10394,7 @@ func main() {
 }
 `, expected: []string{"write through a pointer", "compound assignment and increment through a pointer", "one @ per pointer level", "write through two levels", "multiplication next to a dereference", "unary minus before a dereference", "a field of the dereferenced struct", "dereference of a call", "& is the inverse of @", "& of the dereference of a call", "& of a double dereference", "dereference of a parenthesized expression"}},
 
-	{dir: "ptr_convert_levels", x64Only: true, src: `func main() {
+	{dir: "ptr_convert_levels", src: `func main() {
     int x = 5;
     *int p = &x;
     **int pp = (**int)(&p);
@@ -10495,7 +10412,7 @@ func main() {
 }
 `, expected: []string{"a conversion to a double pointer", "a conversion to a triple pointer", "a conversion next to a multiplication and a dereference", "a double pointer to bytes"}},
 
-	{dir: "native_bindings", x64Only: true, src: `struct P {
+	{dir: "native_bindings", src: `struct P {
     int x;
     int y;
 }
@@ -10544,7 +10461,7 @@ func main() {
 }
 `, expected: []string{"bindings in sequence share their mode", "inout reads and writes", "a variable can be named out", "struct fields are operands", "{&name} is the address of any variable", "string parts are operands", "a global is an operand", "a global struct has fields"}},
 
-	{dir: "native_raw_block", x64Only: true, src: "func main() {\n" +
+	{dir: "native_raw_block", src: "func main() {\n" +
 		"    int r = 0;\n" +
 		"    native<x64>(out r) `\n" +
 		"        ; the answer\n" +
@@ -10559,7 +10476,7 @@ func main() {
 		"    check(r == 42, \"a backtick block goes to the assembler as written\");\n" +
 		"}\n", expected: []string{"a backtick block goes to the assembler as written"}},
 
-	{dir: "win64_variadic", system: "windows", x64Only: true, files: map[string]string{"lib.asm": `default rel
+	{dir: "win64_variadic", system: "windows", files: map[string]string{"lib.asm": `default rel
 global vcheck
 global vfirst
 
@@ -10633,7 +10550,7 @@ func main() {
 }
 `, expected: []string{"variadic floats go in both the xmm and the integer register of their position", "a float in the first variadic position is duplicated too"}},
 
-	{dir: "win64_export", system: "windows", x64Only: true, files: map[string]string{"lib.asm": `default rel
+	{dir: "win64_export", system: "windows", files: map[string]string{"lib.asm": `default rel
 global run_caller
 extern wisp_scale
 extern wisp_many
@@ -10779,7 +10696,7 @@ func main() {
 }
 `, expected: []string{"a Wisp call to an exported function", "a Wisp call with arguments on the stack", "a Wisp call that mixes integers and floats by position", "a Wisp call to an exported function that uses saved registers", "a Win64 caller gets the right results and its registers back", "an exported function used as a value", "a function value with arguments on the stack", "a function value that mixes integers and floats", "an external function used as a value", "a global initialised with an exported function"}},
 
-	{dir: "interop_extern", system: "linux", x64Only: true, files: map[string]string{"lib.c": `int add(int a, int b) { return a + b; }
+	{dir: "interop_extern", system: "linux", files: map[string]string{"lib.c": `int add(int a, int b) { return a + b; }
 long mul64(long a, long b) { return a * b; }
 int sum_bytes(const char *p, int n) {
     int t = 0;
@@ -10817,7 +10734,7 @@ func main() ! {
 }
 `},
 
-	{dir: "library_archive", system: "linux", x64Only: true, library: "geo", files: map[string]string{"wisp.toml": "[library.geo]\nmodules = [\"lib\"]\n", "lib.wsp": `public func twice(int32 n) int32 as wisp_twice {
+	{dir: "library_archive", system: "linux", library: "geo", files: map[string]string{"wisp.toml": "[library.geo]\nmodules = [\"lib\"]\n", "lib.wsp": `public func twice(int32 n) int32 as wisp_twice {
     return n * 2;
 }
 
@@ -10835,7 +10752,7 @@ int main(void) {
 }
 `}, expected: []string{"42 42"}},
 
-	{dir: "library_shared", system: "linux", x64Only: true, library: "geo", files: map[string]string{"shared-lib": "yes\n", "wisp.toml": "[library.geo]\nmodules = [\"lib\"]\nshared = true\n", "lib.wsp": `import "std/fmt";
+	{dir: "library_shared", system: "linux", library: "geo", files: map[string]string{"shared-lib": "yes\n", "wisp.toml": "[library.geo]\nmodules = [\"lib\"]\nshared = true\n", "lib.wsp": `import "std/fmt";
 
 public func twice(int32 n) int32 as wisp_twice {
     return n * 2;
@@ -10874,7 +10791,7 @@ int main(void) {
 }
 `}, expected: []string{"twice 42", "total 42", "shout 10 5", "shout returned 11", "runtime hidden 1", "std hidden 1"}},
 
-	{dir: "interop_export", system: "linux", x64Only: true, cmain: true, files: map[string]string{"lib.wsp": `public func add(int32 a, int32 b) int32 as wisp_add {
+	{dir: "interop_export", system: "linux", cmain: true, files: map[string]string{"lib.wsp": `public func add(int32 a, int32 b) int32 as wisp_add {
     return a + b;
 }
 
@@ -10903,7 +10820,7 @@ int main(void) {
 }
 `}, expected: []string{"5 42 10"}},
 
-	{dir: "interop_libc_puts", system: "linux", x64Only: true, libc: true, src: `extern func puts(*int8 s) int32;
+	{dir: "interop_libc_puts", system: "linux", libc: true, src: `extern func puts(*int8 s) int32;
 extern func strlen(*int8 s) int64;
 
 func main() {
@@ -10912,7 +10829,7 @@ func main() {
 }
 `, expected: []string{"libc strlen on a string literal", "hi"}},
 
-	{dir: "interop_libc_float", system: "linux", x64Only: true, libc: true, src: `extern func printf(*int8 fmt, ...) int32;
+	{dir: "interop_libc_float", system: "linux", libc: true, src: `extern func printf(*int8 fmt, ...) int32;
 
 func main() int {
     float32 narrow = 1.5;
@@ -10924,7 +10841,7 @@ func main() int {
 }
 `, expected: []string{"2.500000 7 4.250000", "1.500000", "1.000000 2.000000 3.000000 4.000000 5.000000 6.000000 7.000000 8.000000 9.000000 10.000000", "no floats"}},
 
-	{dir: "interop_libc_printf", system: "linux", x64Only: true, libc: true, src: `extern func printf(*int8 fmt, ...) int32;
+	{dir: "interop_libc_printf", system: "linux", libc: true, src: `extern func printf(*int8 fmt, ...) int32;
 
 func main() int {
     string name = "wisp";
@@ -10935,7 +10852,7 @@ func main() int {
 }
 `, expected: []string{"42 wisp x|5000000000", "no args", "1 2 3 4 5 6 7"}},
 
-	{dir: "interop_libc_main_error", system: "linux", x64Only: true, libc: true, exit: 3, src: `extern func puts(*int8 s) int32;
+	{dir: "interop_libc_main_error", system: "linux", libc: true, exit: 3, src: `extern func puts(*int8 s) int32;
 
 enum E {
     Ok,
@@ -12183,7 +12100,7 @@ func main() !int {
 }
 `, expected: []string{"a new block is zeroed", "fill sets every byte", "a reused block is zeroed", "realloc keeps the old contents", "fill takes an array"}},
 
-	{dir: "mem_limits", profile: "release", x64Only: true, src: `import "std/mem";
+	{dir: "mem_limits", profile: "release", src: `import "std/mem";
 import "std/errors";
 
 func main() {
@@ -12554,7 +12471,7 @@ func main() {
     let neg, e1 = a.alloc(-1);
     check(neg == null && e1 != null, "arena rejects a negative size");
 }
-`, expected: []string{"a zero arena works without init", "arena blocks are rounded to 16 bytes", "arena blocks are aligned", "arena alloc is zeroed", "arena blocks do not overlap", "arena grows over several chunks", "arena used more than one chunk", "arena serves a block bigger than a chunk", "a big block is usable", "arena keeps allocating after a big block", "old blocks survive growth", "arena rejects a negative size"}, x64Only: true},
+`, expected: []string{"a zero arena works without init", "arena blocks are rounded to 16 bytes", "arena blocks are aligned", "arena alloc is zeroed", "arena blocks do not overlap", "arena grows over several chunks", "arena used more than one chunk", "arena serves a block bigger than a chunk", "a big block is usable", "arena keeps allocating after a big block", "old blocks survive growth", "arena rejects a negative size"}},
 	{dir: "mem_arena_reset", src: `import "std/mem";
 
 func main() {
@@ -12620,7 +12537,7 @@ func main() {
     check(w != null && w[0] == 0, "free twice in a row is harmless");
     a.free();
 }
-`, expected: []string{"arena filled before reset", "arena works after reset", "reset starts a fresh chunk", "alloc after reset is zeroed", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "reset twice in a row is harmless", "reset and free on an empty arena are harmless", "arena is usable after free", "free twice in a row is harmless"}, x64Only: true},
+`, expected: []string{"arena filled before reset", "arena works after reset", "reset starts a fresh chunk", "alloc after reset is zeroed", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "reset twice in a row is harmless", "reset and free on an empty arena are harmless", "arena is usable after free", "free twice in a row is harmless"}},
 	{dir: "mem_arena_mark", src: `import "std/mem";
 
 func main() {
@@ -12675,5 +12592,5 @@ func main() {
     a.free();
     empty.free();
 }
-`, expected: []string{"rewind reuses the space", "alloc after rewind is zeroed", "blocks before the mark survive", "arena grows after a mark", "rewind across chunks returns to the marked spot", "old blocks survive a rewind over several chunks", "an empty arena allocates after mark", "rewind to an empty mark leaves a usable arena", "an inner rewind keeps the outer blocks", "an outer rewind drops them all"}, x64Only: true},
+`, expected: []string{"rewind reuses the space", "alloc after rewind is zeroed", "blocks before the mark survive", "arena grows after a mark", "rewind across chunks returns to the marked spot", "old blocks survive a rewind over several chunks", "an empty arena allocates after mark", "rewind to an empty mark leaves a usable arena", "an inner rewind keeps the outer blocks", "an outer rewind drops them all"}},
 }

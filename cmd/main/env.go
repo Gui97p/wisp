@@ -112,9 +112,6 @@ func runEnv(cmd *cobra.Command, args []string) error {
 			envEntry{"linker", toolDescription(linkerNames(useLibc(cfg, tgt))...)},
 			envEntry{"archiver", toolDescription("llvm-ar", "ar")},
 		)
-	case "lua":
-		entry, objDir := resolveLuaPaths(root, cfg, tgt)
-		entries = append(entries, envEntry{"bin", entry}, envEntry{"obj", objDir})
 	}
 
 	if len(args) > 0 {

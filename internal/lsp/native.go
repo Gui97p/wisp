@@ -35,9 +35,6 @@ func nativeItems(path string, pos protocol.Position, info *analyser.Info) ([]pro
 	if strings.TrimSpace(selector) == "" {
 		selector = module.FileDirective(path)
 	}
-	if strings.TrimSpace(selector) == "lua" {
-		return nil, false
-	}
 
 	items := []protocol.CompletionItem{}
 	content := text[start+1:]

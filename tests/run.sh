@@ -11,7 +11,6 @@ FILTER="${2:-}"
 ROOT="$(cd "$(dirname "$0")/numeric" && pwd)"
 OUT="$(mktemp -d)"
 RESULTS="$OUT/results.txt"
-export LUA_INIT="@$(cd "$(dirname "$0")/shim" && pwd)/cc.lua"
 : >"$RESULTS"
 
 clean() {
@@ -29,59 +28,41 @@ for dir in "$ROOT"/*/; do
     fi
 
     if [[ -f "$dir/os-only" ]]; then
-        effective="$TARGET"
-        if [[ "$TARGET" == "cc" ]]; then
-            effective="linux"
-        fi
-        if [[ "$(cat "$dir/os-only")" != "$effective" ]]; then
+        if [[ "$(cat "$dir/os-only")" != "$TARGET" ]]; then
             continue
         fi
     fi
 
-    if [[ "$TARGET" == "cc" && -f "$dir/x64-only" ]]; then
-        continue
-    fi
-
-    if [[ "$TARGET" != "cc" && -f "$dir/lua-only" ]]; then
-        continue
-    fi
-
     out="$OUT/$name.out"
     err="$OUT/$name.err"
-    if [[ "$TARGET" == "cc" ]]; then
-        flags=(--profile "$PROFILE" --bin "$OUT/lua/$name")
-    else
-        flags=(--profile "$PROFILE" --bin "$OUT/bin/$name" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name")
-    fi
+    flags=(--profile "$PROFILE" --bin "$OUT/bin/$name" --obj "$OUT/obj/$name" --asm "$OUT/asm/$name")
     envs=()
     if [[ -f "$dir/env.txt" ]]; then
         read -r -a envs <"$dir/env.txt"
     fi
 
-    if [[ "$TARGET" != "cc" ]]; then
-        if [[ -f "$dir/lib.asm" ]]; then
-            mkdir -p "$OUT/c"
-            assembler=nasm
-            if [[ -n "${WISP_TOOLCHAIN:-}" && -x "$WISP_TOOLCHAIN/nasm" ]]; then
-                assembler="$WISP_TOOLCHAIN/nasm"
-            fi
-            if ! "$assembler" -f win64 "$dir/lib.asm" -o "$OUT/c/$name.o" 2>"$err"; then
-                printf 'BUILD %s  nasm failed\n' "$name" >>"$RESULTS"
-                continue
-            fi
-            flags+=(--link "$OUT/c/$name.o")
+    if [[ -f "$dir/lib.asm" ]]; then
+        mkdir -p "$OUT/c"
+        assembler=nasm
+        if [[ -n "${WISP_TOOLCHAIN:-}" && -x "$WISP_TOOLCHAIN/nasm" ]]; then
+            assembler="$WISP_TOOLCHAIN/nasm"
         fi
-        if [[ -f "$dir/lib.c" ]]; then
-            mkdir -p "$OUT/c"
-            if ! cc -c -O1 -fno-stack-protector -fno-pic -ffreestanding "$dir/lib.c" -o "$OUT/c/$name.o" 2>"$err"; then
-                printf 'BUILD %s  cc failed\n' "$name" >>"$RESULTS"
-                continue
-            fi
-            flags+=(--link "$OUT/c/$name.o")
+        if ! "$assembler" -f win64 "$dir/lib.asm" -o "$OUT/c/$name.o" 2>"$err"; then
+            printf 'BUILD %s  nasm failed\n' "$name" >>"$RESULTS"
+            continue
         fi
-        if [[ -f "$dir/libc" ]]; then
-            flags+=(--libc)
+        flags+=(--link "$OUT/c/$name.o")
+    fi
+    if [[ -f "$dir/lib.c" ]]; then
+        mkdir -p "$OUT/c"
+        if ! cc -c -O1 -fno-stack-protector -fno-pic -ffreestanding "$dir/lib.c" -o "$OUT/c/$name.o" 2>"$err"; then
+            printf 'BUILD %s  cc failed\n' "$name" >>"$RESULTS"
+            continue
         fi
+        flags+=(--link "$OUT/c/$name.o")
+    fi
+    if [[ -f "$dir/libc" ]]; then
+        flags+=(--libc)
     fi
 
     if [[ -f "$dir/library" ]]; then
@@ -110,7 +91,7 @@ for dir in "$ROOT"/*/; do
     fi
     code=$?
 
-    clean <"$out.raw" | grep -v '^\[\(lua\|x64\)\]' >"$out"
+    clean <"$out.raw" | grep -v '^\[x64\]' >"$out"
     clean <"$err" >"$err.clean"
 
     if grep -q -E '>> error|^Error:|nasm|ld:|collect2|goroutine [0-9]+' "$err.clean" && ! grep -q '^FAIL$' "$out"; then

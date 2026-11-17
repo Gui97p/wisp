@@ -21,14 +21,6 @@ var initCmd = &cobra.Command{
 	SilenceUsage: true,
 }
 
-var initLuaCmd = &cobra.Command{
-	Use:          "cc",
-	Short:        "Initialize a project that targets CC: Tweaked",
-	Args:         cobra.NoArgs,
-	RunE:         runInitLua,
-	SilenceUsage: true,
-}
-
 var initLibCmd = &cobra.Command{
 	Use:          "lib",
 	Short:        "Initialize a library project (object files, no main)",
@@ -53,7 +45,7 @@ var makeDefault bool
 
 func init() {
 	initTargetCmd.Flags().BoolVar(&makeDefault, "default", false, "make the new target the default of the project")
-	initCmd.AddCommand(initLuaCmd, initLibCmd, initTargetCmd)
+	initCmd.AddCommand(initLibCmd, initTargetCmd)
 }
 
 const nativeTomlContent = `os = "%s"
@@ -64,23 +56,12 @@ bin = "bin"
 # asm = "build/asm"
 `
 
-const luaTomlContent = `os = "cc"
-
-[output]
-bin = "dist"
-`
-
 const libTomlContent = `[library.lib]
 modules = ["lib"]
 `
 
 const nativeMainContent = `func main() int {
     return 0;
-}
-`
-
-const luaMainContent = `func main() {
-    emit("Hello, Wisp!");
 }
 `
 
@@ -188,10 +169,6 @@ section .note.GNU-stack noalloc noexec nowrite progbits
 
 func runInit(cmd *cobra.Command, args []string) error {
 	return scaffold(fmt.Sprintf(nativeTomlContent, runtime.GOOS), map[string]string{"main.wsp": nativeMainContent})
-}
-
-func runInitLua(cmd *cobra.Command, args []string) error {
-	return scaffold(luaTomlContent, map[string]string{"main.wsp": luaMainContent})
 }
 
 func runInitLib(cmd *cobra.Command, args []string) error {

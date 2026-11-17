@@ -49,8 +49,8 @@ func (e *FieldError) Error() string {
 }
 
 type Output struct {
-	Bin string `toml:"bin" doc:"Folder of the final products. Each program is written there under its own name, or as <name>.lua for a Lua system."`
-	Obj string `toml:"obj" doc:"Folder of the object files, or for a Lua system of the modules other than the entry. For Lua it defaults to the folder of the entry, which is where require looks."`
+	Bin string `toml:"bin" doc:"Folder of the final products. Each program is written there under its own name."`
+	Obj string `toml:"obj" doc:"Folder of the object files."`
 	Asm string `toml:"asm" doc:"Folder of the generated assembly."`
 }
 
@@ -73,7 +73,6 @@ var formats = []string{"elf64", "win64"}
 var builtin = []Target{
 	{Name: "linux/x64", Arch: "x64", OS: "linux", ABI: "sysv", Format: "elf64", Entry: "_start", StartSource: linuxStart, RuntimeSource: linuxRuntime, LinkArgs: []string{"-z", "noexecstack"}, Builtin: true},
 	{Name: "windows/x64", Arch: "x64", OS: "windows", ABI: "win64", Format: "win64", Entry: "_start", StartSource: windowsStart, RuntimeSource: windowsRuntime, Builtin: true},
-	{Name: "cc/lua", Arch: "lua", OS: "cc", Builtin: true},
 }
 
 var project []Target

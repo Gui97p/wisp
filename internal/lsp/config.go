@@ -254,9 +254,7 @@ func headerItems(declared, declaredBins, declaredLibs []string, headers map[stri
 		}
 		archs := target.Architectures()
 		for _, arch := range archs {
-			if arch != "lua" {
-				addNew("targets."+n+"."+arch, n+" on "+arch)
-			}
+			addNew("targets."+n+"."+arch, n+" on "+arch)
 		}
 	}
 	return items

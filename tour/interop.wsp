@@ -1,7 +1,7 @@
 // Tour - Native code.
 //
 // `native` embeds code written for one architecture. What is in angle brackets
-// picks it: `native<lua>`, `native<x64>`, or an expression such as
+// picks it: `native<x64>`, or an expression such as
 // `native<x64 && linux>` (see the platform folder). Inside a file that already
 // has a `#target`, the brackets are redundant and can be left out: a plain
 // `native` there is for whatever that file is for. Blocks for other
@@ -22,8 +22,7 @@
 // until the next one: `in a, b, out c`. They are checked like any other use
 // of a variable: they must exist, and an `out` can't be a constant.
 //
-// In Lua the native code uses the variable names directly. For x86-64 the
-// code refers to a binding with `{name}`, which becomes a sized memory
+// The code refers to a binding with `{name}`, which becomes a sized memory
 // operand, and `;` separates instructions. A string also has parts you can
 // name: `{s.ptr}` and `{s.len}`. A struct field is `{p.x}`, and `{&name}` is
 // the address of any variable, for `lea`. Globals work the same way as
@@ -37,16 +36,13 @@ import "std/fmt";
 
 public func abs(int x) int {
   int r;
-  native<lua>(out r, in x) "r = x < 0 and -x or x";
   native<x64>(in x, out r) "mov rax, {x}; mov rcx, rax; sar rcx, 63; xor rax, rcx; sub rax, rcx; mov {r}, rax";
   return r;
 }
 
 native<x64> sum(int a, int b) int total => "mov rax, {a}; add rax, {b}; mov {total}, rax";
-native<lua> sum(int a, int b) int total => "total = a + b";
 
 native<x64> halves(int n) (int low, int high) => "mov rax, {n}; sar rax, 1; mov {low}, rax; mov rcx, {n}; sub rcx, rax; mov {high}, rcx";
-native<lua> halves(int n) (int low, int high) => "low = n // 2; high = n - low";
 
 public func demo() {
   fmt.printf("abs(-5) = {}, abs(5) = {}\n", abs(-5), abs(5));

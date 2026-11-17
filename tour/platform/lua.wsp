@@ -1,5 +1,0 @@
-#target lua
-
-internal func name() string => "lua";
-
-internal func width() int => 53;
