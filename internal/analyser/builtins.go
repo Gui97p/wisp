@@ -18,6 +18,12 @@ func (a *Analyser) registerBuiltins() {
 		Name: "sizeof", Params: []Type{AnyType{}}, Returns: []Type{intType},
 	}})
 
+	for _, name := range []string{"make", "makeDirty", "create", "free", "resize"} {
+		a.universe.Define(&Symbol{Name: name, Kind: FUNC, Type: &FuncType{
+			Name: name, Params: []Type{AnyType{}}, Returns: nil, Variadic: true,
+		}})
+	}
+
 	for _, name := range []string{"truncate", "saturate"} {
 		a.universe.Define(&Symbol{Name: name, Kind: FUNC, Type: &FuncType{
 			Name: name, Params: []Type{AnyType{}, AnyType{}}, Returns: []Type{intType},

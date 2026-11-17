@@ -66,7 +66,7 @@ public func isatty(int fd) bool {
 	return sys.isatty(fd);
 }
 
-public inline func getenv(string name) (string, bool) => sys.getenv(name);
+public inline func env(string name) (string, bool) => sys.getenv(name);
 
 public inline func args() []string => sys.args();
 

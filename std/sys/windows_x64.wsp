@@ -794,8 +794,8 @@ shared func exit(int code) {
 	ExitProcess(uint32(code));
 }
 
-shared func mmap(int n) *void {
-	return VirtualAlloc(null, int64(n), MEM_COMMIT_RESERVE, PAGE_READWRITE) ?? (*void)(-sys.ENOMEM);
+shared func mmap(int n) ?*void {
+	return VirtualAlloc(null, int64(n), MEM_COMMIT_RESERVE, PAGE_READWRITE);
 }
 
 shared func munmap(*void addr, int _n) int {

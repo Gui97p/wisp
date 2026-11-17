@@ -1,33 +1,150 @@
+import<debug> "std/mem/debug" as dbg;
+import "std/mem/heap" as raw;
 import "std/mem/x64" as impl;
 import "std/errors";
 
-public func alloc(int n) !*void {
-	*void p = impl.rawAllocate(n, true) ?? return Error(errors.Kind.OutOfMemory);
-	impl.track(p);
+public type AllocFn (?*void, int) => !*void;
+public type ReallocFn (?*void, ?*void, int, int) => !*void;
+public type FreeFn (?*void, ?*void) => ();
+
+public struct Allocator {
+	internal ?*void state;
+	internal AllocFn allocFn, allocDirtyFn;
+	internal ReallocFn reallocFn;
+	internal FreeFn freeFn;
+}
+
+public func allocator(?*void state, AllocFn alloc, AllocFn allocDirty, ReallocFn realloc, FreeFn free) Allocator {
+	return Allocator{state: state, allocFn: alloc, allocDirtyFn: allocDirty, reallocFn: realloc, freeFn: free};
+}
+
+public inline func (Allocator a) alloc(int n) !*void {
+	return a.allocFn(a.state, n)!;
+}
+
+public inline func (Allocator a) allocDirty(int n) !*void {
+	return a.allocDirtyFn(a.state, n)!;
+}
+
+public inline func (Allocator a) realloc(?*void p, int old, int n) !*void {
+	return a.reallocFn(a.state, p, old, n)!;
+}
+
+public inline func (Allocator a) free(?*void p) {
+	a.freeFn(a.state, p);
+}
+
+func rawAlloc(?*void _state, int n) !*void {
+	*void p = raw.allocate(n, true) ?? return Error(errors.Kind.OutOfMemory);
 	return p;
 }
 
-public func allocDirty(int n) !*void {
-	*void p = impl.rawAllocate(n, false) ?? return Error(errors.Kind.OutOfMemory);
-	impl.track(p);
+func rawAllocDirty(?*void _state, int n) !*void {
+	*void p = raw.allocate(n, false) ?? return Error(errors.Kind.OutOfMemory);
 	return p;
+}
+
+func rawResize(?*void _state, ?*void p, int _old, int n) !*void {
+	*void block = p ?? return rawAlloc(null, n)!;
+	*void grown = raw.resize(block, n) ?? return Error(errors.Kind.OutOfMemory);
+	return grown;
+}
+
+func rawRelease(?*void _state, ?*void p) {
+	if p |block| {
+		raw.release(block);
+	}
+}
+
+let<debug> checked = dbg.Debug{parent: Allocator{state: null, allocFn: rawAlloc, allocDirtyFn: rawAllocDirty, reallocFn: rawResize, freeFn: rawRelease}};
+let<debug> hookPending = true;
+
+func<debug> leakReport() {
+	checked.report();
+}
+
+func<debug> arm() {
+	if hookPending {
+		impl.setExitHook(leakReport);
+		hookPending = false;
+	}
+}
+
+inline func arm() {}
+
+func obtain(int n, bool zero) !*void {
+	if zero {
+		return rawAlloc(null, n)!;
+	}
+	return rawAllocDirty(null, n)!;
+}
+
+func<debug> obtain(int n, bool zero) !*void {
+	arm();
+	if zero {
+		return checked.alloc(n)!;
+	}
+	return checked.allocDirty(n)!;
+}
+
+func giveBack(*void p) {
+	raw.release(p);
+}
+
+func<debug> giveBack(*void p) {
+	checked.free(p);
+}
+
+func resizeBlock(*void p, int n) !*void {
+	return rawResize(null, p, 0, n)!;
+}
+
+func<debug> resizeBlock(*void p, int n) !*void {
+	return checked.realloc(p, checked.sizeOf(p), n)!;
+}
+
+public func alloc(int n) !*void {
+	return obtain(n, true)!;
+}
+
+public func allocDirty(int n) !*void {
+	return obtain(n, false)!;
 }
 
 public func free(?*void ...p) {
 	for _, v in p {
 		if v |block| {
-			impl.trackFree(block);
-			impl.rawFree(block);
+			giveBack(block);
 		}
 	}
 }
 
 public func realloc(*void p, int n) !*void {
-	impl.trackFree(p);
-	*void new = impl.rawRealloc(p, n) ?? return Error(errors.Kind.OutOfMemory);
-	impl.track(new);
-	return new;
+	return resizeBlock(p, n)!;
 }
+
+func heapAlloc(?*void _state, int n) !*void {
+	return alloc(n)!;
+}
+
+func heapAllocDirty(?*void _state, int n) !*void {
+	return allocDirty(n)!;
+}
+
+func heapRealloc(?*void _state, ?*void p, int old, int n) !*void {
+	*void block = p ?? return alloc(n)!;
+	*void grown = realloc(block, n)!;
+	if n > old {
+		fill((*byte)(grown) + old, 0, n - old);
+	}
+	return grown;
+}
+
+func heapFree(?*void _state, ?*void p) {
+	free(p);
+}
+
+public let heap = Allocator{state: null, allocFn: heapAlloc, allocDirtyFn: heapAllocDirty, reallocFn: heapRealloc, freeFn: heapFree};
 
 public inline func copy(*void dst, src, int n) {
 	impl.rawCopy(dst, src, n);

@@ -31,9 +31,9 @@ public func demo() ! {
   // `os.args()` is the list of arguments, the program's own name first.
   fmt.printf("started with {} argument(s)\n", len(os.args()));
 
-  // `getenv` looks one variable up, `environ` walks all of them. The strings
+  // `env` looks one variable up, `environ` walks all of them. The strings
   // point into memory the system owns, and are valid until the next call.
-  let value, found = os.getenv("PATH");
+  let value, found = os.env("PATH");
   fmt.printf("PATH is set: {}, and not empty: {}\n", found, len(value) > 0);
 
   os.Environ env = os.environ();
@@ -62,7 +62,7 @@ public func demo() ! {
 
   // Folders and files. `mkdirAll` creates every missing level, `create`
   // opens a file for writing, and `defer` closes it when the function ends.
-  os.mkdirAll(root)!;
+  os.createDirAll(root)!;
 
   [256]byte pathBuffer;
   string first = path.join(pathBuffer, root, "first.txt")!;

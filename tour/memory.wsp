@@ -8,10 +8,22 @@
 // Every block comes back aligned to 16 bytes. `alloc` clears the block and
 // `allocDirty` skips the clearing, for memory you are about to overwrite
 // anyway.
+//
+// Asking for bytes and casting is the low level. `make`, `makeDirty` and
+// `create` do the arithmetic and give the type back, for any allocator: a
+// value with the methods `alloc` (and `allocDirty`, and `free` for `free`).
+// They are always spelled with the allocator in the first place, because
+// nothing in Wisp allocates behind your back. The heap is the one allocator
+// with no state, so it has the short forms (`mem.alloc`, `mem.free`) and is
+// also a value, `mem.heap`, for the places that ask for an allocator.
 
 import "std/errors";
 import "std/fmt";
 import "std/mem";
+
+struct Pair {
+  int first, second;
+}
 
 public func demo() ! {
   // `mem.Fixed` hands out pieces of a buffer you give it. It never asks the
@@ -25,6 +37,18 @@ public func demo() ! {
   fmt.printf("numbers: {}, {}, {}\n", numbers[0], numbers[1], numbers[3]);
   fmt.printf("used {} bytes, {} left\n", fixed.used(), fixed.remaining());
 
+  // `make(allocator, Type, count)` is a slice of `count` zeroed elements and
+  // `create(allocator, Type)` is one zeroed value, as a pointer. Both can fail
+  // like the allocator does, so they take the same `!`.
+  fixed.reset();
+  []int slots = make(&fixed, int, 6)!;
+  slots[5] = 50;
+  *Pair pair = create(&fixed, Pair)!;
+  pair.second = 8;
+  fmt.printf("a slice of {} ints, slots[5] = {}, slots[0] = {}\n", len(slots), slots[5], slots[0]);
+  fmt.printf("a pair: {} and {}\n", pair.first, pair.second);
+  fixed.reset();
+
   let _, failure = fixed.alloc(1000);
   fmt.printf("a block that does not fit: no space {}\n", failure == errors.Kind.NoSpace);
 
@@ -33,10 +57,10 @@ public func demo() ! {
   fmt.printf("after reset: used {}, {} left\n", fixed.used(), fixed.remaining());
 
   // `mem.Arena` grows by asking the heap for large chunks, so it has no limit
-  // other than memory itself. Blocks are never freed one by one: `free`
+  // other than memory itself. Blocks are never freed one by one: `release`
   // returns all the chunks, which `defer` does at the end of the scope.
   mem.Arena arena;
-  defer arena.free();
+  defer arena.release();
 
   *int first = arena.alloc(sizeof(int) * 100)!;
   first[99] = 7;
@@ -61,4 +85,49 @@ public func demo() ! {
     items[0] = round;
     fmt.printf("round {}: items[0] = {}, items[9] = {}\n", round, items[0], items[9]);
   }
+
+  // An allocator is a value, so it can be passed around: `arena.allocator()`
+  // and `fixed.allocator()` hand one out, and `mem.heap` is the global one. An
+  // arena can take its memory from another allocator instead of the heap, by
+  // setting `parent`, and `free` on an arena changes nothing: only `release`
+  // gives its chunks back.
+  []int onHeap = make(mem.heap, int, 3)!;
+  onHeap[0] = 1;
+  onHeap[2] = 3;
+  mem.Arena inner = mem.Arena{parent: arena.allocator()};
+  []byte text = make(&inner, byte, 40)!;
+  fmt.printf("a block of {} bytes from an arena that lives inside another one\n", len(text));
+
+  // `resize(allocator, slice, count)` grows or shrinks a slice. The old size
+  // comes from the slice itself, the new elements are zeroed, and an arena
+  // extends its last block in place instead of copying it.
+  onHeap = resize(mem.heap, onHeap, 6)!;
+  fmt.printf("grown to {}: {}, {}, {}, {}\n", len(onHeap), onHeap[0], onHeap[2], onHeap[3], onHeap[5]);
+  free(mem.heap, onHeap);
+  inner.release();
+
+  // Allocators that wrap another one. `Counting` keeps the numbers, `Failing`
+  // refuses after `after` calls (to test the error paths), and `Debug` checks
+  // what the program does with its blocks: double frees, writes past the end
+  // or into a freed block, and leaks, which `report` prints with the line that
+  // allocated them. `Pool` serves blocks of a single size.
+  mem.Counting counting;
+  mem.Debug debug = mem.Debug{parent: counting.allocator()};
+  []int tracked = make(debug, int, 5)!;
+  fmt.printf("live: {} blocks, {} bytes\n", counting.blocks(), counting.bytes());
+  free(debug, tracked);
+  fmt.printf("leaks: {}\n", debug.report());
+  debug.release();
+
+  mem.Failing failing = mem.Failing{after: 1};
+  []int head = make(failing, int, 2)!;
+  let _, problem = make(failing, int, 2);
+  fmt.printf("the second allocation fails: {}\n", problem == errors.Kind.OutOfMemory);
+  free(failing, head);
+
+  mem.Pool pool = mem.Pool{size: 32};
+  *int slot = pool.alloc(8)!;
+  pool.free(slot);
+  fmt.printf("the pool hands the same block back: {}\n", pool.alloc(8)! == slot);
+  pool.release();
 }

@@ -78,6 +78,9 @@ func signatureHelp(uri protocol.DocumentUri, pos protocol.Position) *protocol.Si
 			ft = analyser.MethodsOf(sym.Type)[member]
 		}
 	} else if sym, found := scope.Resolve(callee); found {
+		if help, builtin := isBuiltin(sym); builtin {
+			return builtinSignature(callee, help, arg)
+		}
 		ft, _ = sym.Type.(*analyser.FuncType)
 	}
 	if ft == nil {
@@ -114,6 +117,33 @@ func signatureHelp(uri protocol.DocumentUri, pos protocol.Position) *protocol.Si
 
 	return &protocol.SignatureHelp{
 		Signatures:      []protocol.SignatureInformation{{Label: label, Parameters: params}},
+		ActiveSignature: new(uint32),
+		ActiveParameter: &active,
+	}
+}
+
+func builtinSignature(name string, help builtinHelp, arg int) *protocol.SignatureHelp {
+	label := name + "("
+	params := make([]protocol.ParameterInformation, 0, len(help.params))
+	for i, text := range help.params {
+		if i > 0 {
+			label += ", "
+		}
+		start := uint32(len([]rune(label)))
+		label += text
+		params = append(params, protocol.ParameterInformation{Label: [2]uint32{start, uint32(len([]rune(label)))}})
+	}
+	label += ")"
+	if help.returns != "" {
+		label += " " + help.returns
+	}
+
+	active := uint32(arg)
+	if active >= uint32(len(params)) && len(params) > 0 {
+		active = uint32(len(params) - 1)
+	}
+	return &protocol.SignatureHelp{
+		Signatures:      []protocol.SignatureInformation{{Label: label, Parameters: params, Documentation: help.doc}},
 		ActiveSignature: new(uint32),
 		ActiveParameter: &active,
 	}

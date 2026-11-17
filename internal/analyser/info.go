@@ -37,6 +37,20 @@ type Info struct {
 	SwitchValues     map[*ast.SwitchExpr][]Type
 	Variants         map[ast.Expression]*VariantInfo
 	SumTests         map[*ast.BinaryExpr]*SumTest
+	Makes            map[*ast.CallExpr]*MakeInfo
+	Resizes          map[*ast.CallExpr]*ResizeInfo
+}
+
+type MakeInfo struct {
+	Elem  Type
+	Count ast.Expression
+	Size  *ast.CallExpr
+}
+
+type ResizeInfo struct {
+	Elem  Type
+	Slice ast.Expression
+	Count ast.Expression
 }
 
 type VariantInfo struct {
@@ -85,6 +99,8 @@ func NewInfo() *Info {
 		SwitchValues:     make(map[*ast.SwitchExpr][]Type),
 		Variants:         make(map[ast.Expression]*VariantInfo),
 		SumTests:         make(map[*ast.BinaryExpr]*SumTest),
+		Makes:            make(map[*ast.CallExpr]*MakeInfo),
+		Resizes:          make(map[*ast.CallExpr]*ResizeInfo),
 	}
 }
 

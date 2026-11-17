@@ -1,0 +1,110 @@
+import "std/errors";
+import "std/math";
+import "std/mem";
+
+const HEADER = 16;
+
+public struct Counting {
+	?mem.Allocator parent;
+	internal int liveBlocks, liveBytes, peakBytes, totalBlocks, totalBytes;
+}
+
+func (*Counting c) source() mem.Allocator {
+	return c.parent ?? mem.heap;
+}
+
+func (*Counting c) take(int n) {
+	c.liveBlocks++;
+	c.liveBytes += n;
+	c.totalBlocks++;
+	c.totalBytes += n;
+	c.peakBytes = math.max(c.peakBytes, c.liveBytes);
+}
+
+func (*Counting c) check(int n) ! {
+	errors.ensure(n >= 0, errors.Kind.Invalid)!;
+	errors.ensure(n <= 1 << 47, errors.Kind.OutOfMemory)!;
+}
+
+public func (*Counting c) alloc(int n) !*void {
+	c.check(n)!;
+	*void raw = c.source().alloc(n + HEADER)!;
+	(*int)(raw)@ = n;
+	c.take(n);
+	return (*byte)(raw) + HEADER;
+}
+
+public func (*Counting c) allocDirty(int n) !*void {
+	c.check(n)!;
+	*void raw = c.source().allocDirty(n + HEADER)!;
+	(*int)(raw)@ = n;
+	c.take(n);
+	return (*byte)(raw) + HEADER;
+}
+
+public func (*Counting c) realloc(?*void p, int _old, int n) !*void {
+	c.check(n)!;
+	*void block = p ?? return c.alloc(n)!;
+	*byte raw = (*byte)(block) - HEADER;
+	int was = (*int)(raw)@;
+	*void grown = c.source().realloc(raw, was + HEADER, n + HEADER)!;
+	(*int)(grown)@ = n;
+	c.liveBytes += n - was;
+	if n > was {
+		c.totalBytes += n - was;
+	}
+	c.peakBytes = math.max(c.peakBytes, c.liveBytes);
+	return (*byte)(grown) + HEADER;
+}
+
+public func (*Counting c) free(?*void p) {
+	*void block = p ?? return;
+	*byte raw = (*byte)(block) - HEADER;
+	c.liveBlocks--;
+	c.liveBytes -= (*int)(raw)@;
+	c.source().free(raw);
+}
+
+public inline func (*Counting c) blocks() int {
+	return c.liveBlocks;
+}
+
+public inline func (*Counting c) bytes() int {
+	return c.liveBytes;
+}
+
+public inline func (*Counting c) peak() int {
+	return c.peakBytes;
+}
+
+public inline func (*Counting c) allocations() int {
+	return c.totalBlocks;
+}
+
+public inline func (*Counting c) allocated() int {
+	return c.totalBytes;
+}
+
+public func (*Counting c) allocator() mem.Allocator {
+	return mem.allocator((*void)(c), countingAlloc, countingAllocDirty, countingRealloc, countingFree);
+}
+
+func countingOf(?*void state) *Counting {
+	return (*Counting)(state!!);
+}
+
+func countingAlloc(?*void state, int n) !*void {
+	return countingOf(state).alloc(n)!;
+}
+
+func countingAllocDirty(?*void state, int n) !*void {
+	return countingOf(state).allocDirty(n)!;
+}
+
+func countingRealloc(?*void state, ?*void p, int old, int n) !*void {
+	return countingOf(state).realloc(p, old, n)!;
+}
+
+func countingFree(?*void state, ?*void p) {
+	countingOf(state).free(p);
+}

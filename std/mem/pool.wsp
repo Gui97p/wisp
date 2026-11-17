@@ -1,0 +1,113 @@
+import "std/errors";
+import "std/math";
+import "std/mem";
+
+const {
+	HEADER = 16;
+	PER_CHUNK = 32;
+}
+
+struct Chunk {
+	?*Chunk next;
+}
+
+public struct Pool {
+	int size;
+	?mem.Allocator parent;
+	internal ?*void spare;
+	internal ?*Chunk chunks;
+	internal int liveBlocks;
+}
+
+func (*Pool p) source() mem.Allocator {
+	return p.parent ?? mem.heap;
+}
+
+func (*Pool p) stride() int {
+	return (math.max(p.size, 8) + 15) & ~15;
+}
+
+func (*Pool p) grow() ! {
+	int stride = p.stride();
+	*Chunk chunk = p.source().allocDirty(HEADER + stride * PER_CHUNK)!;
+	chunk.next = p.chunks;
+	p.chunks = chunk;
+	for i in 0..PER_CHUNK-1 {
+		*void block = (*byte)(chunk) + HEADER + i * stride;
+		((*?*void)(block))@ = p.spare;
+		p.spare = block;
+	}
+}
+
+public func (*Pool p) allocDirty(int n) !*void {
+	errors.ensure(p.size > 0 && n >= 0 && n <= p.size, errors.Kind.Invalid)!;
+	if p.spare == null {
+		p.grow()!;
+	}
+	*void block = p.spare!!;
+	p.spare = ((*?*void)(block))@;
+	p.liveBlocks++;
+	return block;
+}
+
+public func (*Pool p) alloc(int n) !*void {
+	*void block = p.allocDirty(n)!;
+	mem.fill(block, 0, p.stride());
+	return block;
+}
+
+public func (*Pool p) free(?*void b) {
+	*void block = b ?? return;
+	((*?*void)(block))@ = p.spare;
+	p.spare = block;
+	p.liveBlocks--;
+}
+
+public func (*Pool p) realloc(?*void b, int old, int n) !*void {
+	errors.ensure(old >= 0 && n >= 0, errors.Kind.Invalid)!;
+	*void block = b ?? return p.alloc(n)!;
+	errors.ensure(n <= p.size, errors.Kind.Invalid)!;
+	if n > old {
+		mem.fill((*byte)(block) + old, 0, n - old);
+	}
+	return block;
+}
+
+public func (*Pool p) release() {
+	?*Chunk c = p.chunks;
+	loop c |chunk| {
+		c = chunk.next;
+		p.source().free(chunk);
+	}
+	p.chunks = null;
+	p.spare = null;
+	p.liveBlocks = 0;
+}
+
+public inline func (*Pool p) blocks() int {
+	return p.liveBlocks;
+}
+
+public func (*Pool p) allocator() mem.Allocator {
+	return mem.allocator((*void)(p), poolAlloc, poolAllocDirty, poolRealloc, poolFree);
+}
+
+func poolOf(?*void state) *Pool {
+	return (*Pool)(state!!);
+}
+
+func poolAlloc(?*void state, int n) !*void {
+	return poolOf(state).alloc(n)!;
+}
+
+func poolAllocDirty(?*void state, int n) !*void {
+	return poolOf(state).allocDirty(n)!;
+}
+
+func poolRealloc(?*void state, ?*void p, int old, int n) !*void {
+	return poolOf(state).realloc(p, old, n)!;
+}
+
+func poolFree(?*void state, ?*void p) {
+	poolOf(state).free(p);
+}

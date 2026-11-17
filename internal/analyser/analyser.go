@@ -104,6 +104,9 @@ func AnalyzeGroup(group []*Analyser) {
 		a.registerMethods()
 		a.registerStructFields()
 		a.registerFuncSignatures()
+	}
+	publish(group, false)
+	for _, a := range group {
 		a.registerGlobals()
 	}
 	publish(group, true)

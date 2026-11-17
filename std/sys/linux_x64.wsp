@@ -115,8 +115,16 @@ shared func size(int fd) int {
 internal native rawRemove(*byte path, int flags) int r =>
 		"mov eax, {SYS_UNLINKAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; syscall; mov {r}, rax";
 
-shared native mmap(int len) *void r =>
+internal native rawMmap(int len) *void r =>
 		"mov eax, {SYS_MMAP}; xor edi, edi; mov rsi, {len}; mov rdx, {PROT_RW}; mov r10, {MAP_PRIVATE_ANON}; mov r8, {NO_FD}; xor r9d, r9d; syscall; mov {r}, rax";
+
+shared func mmap(int len) ?*void {
+	*void r = rawMmap(len);
+	if int(r) in -4095..-1 {
+		return null;
+	}
+	return r;
+}
 
 shared native munmap(*void addr, int len) int r =>
 		"mov eax, {SYS_MUNMAP}; mov rdi, {addr}; mov rsi, {len}; syscall; mov {r}, rax";

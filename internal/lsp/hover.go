@@ -14,13 +14,37 @@ import (
 type builtinHelp struct {
 	signature string
 	doc       string
+	params    []string
+	returns   string
 }
 
 var builtinHelps = map[string]builtinHelp{
-	"emit":   {"func emit(string text)", "Writes a string and a newline to standard output."},
-	"len":    {"func len(x) int", "The length of an array, slice, string or variadic parameter."},
-	"panic":  {"func panic(string message)", "Stops the program with the message and the source position, and exits with code 1."},
-	"sizeof": {"func sizeof(x) int", "The size in bytes of a type or of an expression."},
+	"emit":   {"func emit(string text)", "Writes a string and a newline to standard output.", []string{"string text"}, ""},
+	"len":    {"func len(x) int", "The length of an array, slice, string or variadic parameter.", []string{"x"}, "int"},
+	"panic":  {"func panic(string message)", "Stops the program with the message and the source position, and exits with code 1.", []string{"string message"}, ""},
+	"sizeof": {"func sizeof(x) int", "The size in bytes of a type or of an expression.", []string{"x"}, "int"},
+	"make": {"func make(allocator, Type, count) ![]Type", "A slice of `count` zeroed elements, asked from the allocator's `alloc` method as `count` times the size of the type. The allocator is any value with the methods `alloc` and `free`, and the type is written as a name. It fails like the allocator does.",
+		[]string{"allocator", "Type", "count"}, "![]Type"},
+	"makeDirty": {"func makeDirty(allocator, Type, count) ![]Type", "Like `make`, but the elements are not cleared: it asks the allocator's `allocDirty` method, for memory you are about to overwrite.",
+		[]string{"allocator", "Type", "count"}, "![]Type"},
+	"create": {"func create(allocator, Type) !*Type", "One zeroed value, as a pointer, asked from the allocator's `alloc` method. It fails like the allocator does.",
+		[]string{"allocator", "Type"}, "!*Type"},
+	"free": {"func free(allocator, value)", "Hands a pointer or a slice back to the allocator, through its `free` method.",
+		[]string{"allocator", "value"}, ""},
+	"resize": {"func resize(allocator, slice, count) ![]Type", "The slice grown or shrunk to `count` elements through the allocator's `realloc` method, which is told the old size in bytes (the length of the slice times the element size). What is beyond the old length is zeroed. It fails like the allocator does, and the old slice stays valid when it does.",
+		[]string{"allocator", "slice", "count"}, "![]Type"},
+	"truncate": {"func truncate(Type, value) Type", "Converts an integer to a smaller or differently signed integer type keeping the low bits, so a value that does not fit wraps around. A plain conversion `Type(value)` stops the program instead.",
+		[]string{"Type", "value"}, "Type"},
+	"saturate": {"func saturate(Type, value) Type", "Converts an integer or a float to an integer type, stopping at the limits of the type: a value that is too big becomes the maximum and one that is too small the minimum. A float that is not a number becomes 0.",
+		[]string{"Type", "value"}, "Type"},
+}
+
+func isBuiltin(sym *analyser.Symbol) (builtinHelp, bool) {
+	if sym == nil || sym.File != "" || sym.Kind != analyser.FUNC {
+		return builtinHelp{}, false
+	}
+	help, ok := builtinHelps[sym.Name]
+	return help, ok
 }
 
 var errorFieldDocs = map[string]string{

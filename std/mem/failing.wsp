@@ -1,0 +1,70 @@
+import "std/errors";
+import "std/mem";
+
+public struct Failing {
+	?mem.Allocator parent;
+	?int after;
+	internal int attempts;
+}
+
+func (*Failing f) source() mem.Allocator {
+	return f.parent ?? mem.heap;
+}
+
+func (*Failing f) permit() ! {
+	f.attempts++;
+	if f.after |limit| {
+		errors.ensure(f.attempts <= limit, errors.Kind.OutOfMemory)!;
+	}
+}
+
+public func (*Failing f) alloc(int n) !*void {
+	f.permit()!;
+	return f.source().alloc(n)!;
+}
+
+public func (*Failing f) allocDirty(int n) !*void {
+	f.permit()!;
+	return f.source().allocDirty(n)!;
+}
+
+public func (*Failing f) realloc(?*void p, int old, int n) !*void {
+	f.permit()!;
+	return f.source().realloc(p, old, n)!;
+}
+
+public func (*Failing f) free(?*void p) {
+	f.source().free(p);
+}
+
+public inline func (*Failing f) calls() int {
+	return f.attempts;
+}
+
+public inline func (*Failing f) reset() {
+	f.attempts = 0;
+}
+
+public func (*Failing f) allocator() mem.Allocator {
+	return mem.allocator((*void)(f), failingAlloc, failingAllocDirty, failingRealloc, failingFree);
+}
+
+func failingOf(?*void state) *Failing {
+	return (*Failing)(state!!);
+}
+
+func failingAlloc(?*void state, int n) !*void {
+	return failingOf(state).alloc(n)!;
+}
+
+func failingAllocDirty(?*void state, int n) !*void {
+	return failingOf(state).allocDirty(n)!;
+}
+
+func failingRealloc(?*void state, ?*void p, int old, int n) !*void {
+	return failingOf(state).realloc(p, old, n)!;
+}
+
+func failingFree(?*void state, ?*void p) {
+	failingOf(state).free(p);
+}

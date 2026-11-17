@@ -513,6 +513,11 @@ func symbolItem(sym *analyser.Symbol, suffix string) protocol.CompletionItem {
 	if sym.Type != nil {
 		detail = sym.Type.String()
 	}
+	if help, builtin := isBuiltin(sym); builtin {
+		it := item(sym.Name, kind, help.signature)
+		it.Documentation = protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: help.doc}
+		return callable(it, len(help.params), suffix)
+	}
 	if ft, ok := sym.Type.(*analyser.FuncType); ok && sym.Kind == analyser.FUNC {
 		return callable(item(sym.Name, kind, analyser.FuncSignature(sym.Name, ft, nil)), len(ft.Params), suffix)
 	}

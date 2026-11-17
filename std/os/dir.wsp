@@ -17,20 +17,20 @@ public func removeDir(string p) ! {
 	}
 }
 
-public func mkdir(string p) ! {
+public func createDir(string p) ! {
 	int r = sys.mkdir(p);
 	if r < 0 {
 		return global.errorIO(sys.errno(r));
 	}
 }
 
-public func mkdirAll(string p) ! {
+public func createDirAll(string p) ! {
 	let s = os.stat(p) ?? |e| {
 		if e != errors.Kind.NotFound {
 			return e;
 		}
-		mkdirAll(path.dir(p))!;
-		mkdir(p) ?? |err| return isDir(p) ? null : err;
+		createDirAll(path.dir(p))!;
+		createDir(p) ?? |err| return isDir(p) ? null : err;
 		return;
 	};
 

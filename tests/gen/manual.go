@@ -2575,6 +2575,199 @@ func main() {
 }
 `, expected: []string{"the negation of zero is zero"}, abort: "panic: integer overflow", profile: "debug"},
 
+	{dir: "alloc_builtins", src: `import "std/errors";
+import "std/mem";
+
+struct Node {
+    int value;
+    ?*Node next;
+}
+
+struct Counter {
+    int allocs;
+    int dirty;
+    int frees;
+    int bytes;
+    int limit;
+}
+
+func (*Counter c) alloc(int n) !*void {
+    errors.ensure(c.limit == 0 || c.allocs < c.limit, errors.Kind.OutOfMemory)!;
+    c.allocs++;
+    c.bytes += n;
+    return mem.alloc(n)!;
+}
+
+func (*Counter c) allocDirty(int n) !*void {
+    errors.ensure(c.limit == 0 || c.allocs < c.limit, errors.Kind.OutOfMemory)!;
+    c.allocs++;
+    c.dirty++;
+    c.bytes += n;
+    return mem.allocDirty(n)!;
+}
+
+func (*Counter c) free(?*void p) {
+    c.frees++;
+    mem.free(p);
+}
+
+inline func ints(*Counter c, int n) ![]int {
+    return make(c, int, n)!;
+}
+
+func total(*Counter c, int n) !int {
+    []int xs = make(c, int, n)!;
+    defer free(c, xs);
+    int sum;
+    for i, _ in xs {
+        xs[i] = i;
+        sum += xs[i];
+    }
+    return sum;
+}
+
+func main() ! {
+    Counter c;
+    []int xs = make(&c, int, 5)!;
+    check(len(xs) == 5 && xs[0] == 0 && xs[4] == 0, "make gives a zeroed slice of the length asked");
+    check(c.allocs == 1 && c.bytes == 40, "make asks the allocator for count times the size");
+    xs[2] = 42;
+    check(xs[2] == 42, "the slice is usable");
+
+    []Node nodes = make(&c, Node, 3)!;
+    nodes[1].value = 7;
+    check(len(nodes) == 3 && nodes[0].next == null && nodes[1].value == 7, "make of a struct");
+
+    *Node n = create(&c, Node)!;
+    n.value = 9;
+    check(n.value == 9 && n.next == null && c.bytes == 40 + 3 * 16 + 16, "create gives a zeroed value and a pointer");
+
+    []byte raw = makeDirty(&c, byte, 16)!;
+    check(len(raw) == 16 && c.dirty == 1, "makeDirty asks for memory that is not cleared");
+
+    []int none = make(&c, int, 0)!;
+    check(len(none) == 0, "make of zero elements");
+
+    free(&c, xs);
+    free(&c, nodes);
+    free(&c, n);
+    free(&c, raw);
+    check(c.frees == 4, "free hands each block back to the allocator");
+
+    check(total(&c, 5)! == 10 && c.frees == 5, "make and free around a use");
+    []int viaInline = ints(&c, 3)!;
+    check(len(viaInline) == 3, "make inside an inline function");
+    free(&c, viaInline);
+
+    Counter small = Counter{limit: 1};
+    []int first = make(&small, int, 2)!;
+    let second, failure = make(&small, int, 2);
+    check(failure == errors.Kind.OutOfMemory && len(second) == 0, "a failing allocator makes make fail");
+    []int fallback = make(&small, int, 2) ?? first;
+    check(len(fallback) == 2, "make can be handled with ??");
+    free(&small, first);
+}
+`, expected: []string{"make gives a zeroed slice of the length asked", "make asks the allocator for count times the size", "the slice is usable", "make of a struct", "create gives a zeroed value and a pointer", "makeDirty asks for memory that is not cleared", "make of zero elements", "free hands each block back to the allocator", "make and free around a use", "make inside an inline function", "a failing allocator makes make fail", "make can be handled with ??"}},
+
+	{dir: "alloc_interface", src: `import "std/errors";
+import "std/mem";
+
+struct Counter {
+    int allocs;
+    int frees;
+}
+
+func (*Counter c) allocator() mem.Allocator {
+    return mem.allocator((*void)(c), countAlloc, countAllocDirty, countRealloc, countFree);
+}
+
+func countAlloc(?*void state, int n) !*void {
+    ((*Counter)(state!!)).allocs++;
+    return mem.alloc(n)!;
+}
+
+func countAllocDirty(?*void state, int n) !*void {
+    ((*Counter)(state!!)).allocs++;
+    return mem.allocDirty(n)!;
+}
+
+func countRealloc(?*void state, ?*void p, int old, int n) !*void {
+    return mem.heap.realloc(p, old, n)!;
+}
+
+func countFree(?*void state, ?*void p) {
+    ((*Counter)(state!!)).frees++;
+    mem.free(p);
+}
+
+func main() ! {
+    []int onHeap = make(mem.heap, int, 4)!;
+    onHeap[3] = 9;
+    check(len(onHeap) == 4 && onHeap[0] == 0 && onHeap[3] == 9, "the heap is a value the builtins accept");
+    free(mem.heap, onHeap);
+
+    mem.Arena arena;
+    mem.Allocator viaArena = arena.allocator();
+    []int a = make(viaArena, int, 8)!;
+    a[7] = 70;
+    check(len(a) == 8 && a[7] == 70, "an arena as an Allocator value");
+    free(viaArena, a);
+    check(a[7] == 70, "free on an arena changes nothing");
+
+    [256]byte storage;
+    mem.Fixed fixed = mem.Fixed{buffer: storage};
+    mem.Allocator viaFixed = fixed.allocator();
+    *int one = create(viaFixed, int)!;
+    one@ = 5;
+    check(one@ == 5 && fixed.used() >= 16, "a fixed buffer as an Allocator value");
+
+    Counter counts;
+    mem.Allocator counting = counts.allocator();
+    mem.Arena child = mem.Arena{parent: counting};
+    []byte block = make(&child, byte, 100)!;
+    check(len(block) == 100 && counts.allocs == 1, "an arena takes its memory from its parent");
+    child.release();
+    check(counts.frees == 1, "release hands the chunks back to the parent");
+
+    []int xs = make(mem.heap, int, 3)!;
+    xs[0] = 1;
+    xs[2] = 3;
+    xs = resize(mem.heap, xs, 6)!;
+    check(len(xs) == 6 && xs[0] == 1 && xs[2] == 3 && xs[3] == 0 && xs[5] == 0, "resize grows a slice and keeps its content, zeroing the rest");
+    xs = resize(mem.heap, xs, 2)!;
+    check(len(xs) == 2 && xs[0] == 1, "resize shrinks a slice");
+    xs = resize(mem.heap, xs, 5)!;
+    check(xs[2] == 0 && xs[4] == 0, "memory that comes back after a shrink is zeroed");
+    free(mem.heap, xs);
+
+    mem.Arena grower;
+    []int g = make(&grower, int, 4)!;
+    g[0] = 11;
+    *int before = (*int)(g);
+    g = resize(&grower, g, 8)!;
+    check((*int)(g) == before && g[0] == 11 && g[7] == 0, "an arena grows its last block in place");
+    []int other = make(&grower, int, 2)!;
+    g = resize(&grower, g, 100)!;
+    check(g[0] == 11 && len(g) == 100 && len(other) == 2, "an arena copies a block that is not the last");
+    grower.release();
+
+    [128]byte small;
+    mem.Fixed tight = mem.Fixed{buffer: small};
+    []int t = make(&tight, int, 4)!;
+    t[1] = 4;
+    t = resize(&tight, t, 8)!;
+    check(t[1] == 4 && len(t) == 8, "a fixed buffer grows its last block in place");
+    let _, full = resize(&tight, t, 100);
+    check(full == errors.Kind.NoSpace, "resize fails like the allocator does");
+    check(len(t) == 8 && t[1] == 4, "the old slice stays valid when resize fails");
+
+    []int none = [];
+    []int fresh = resize(mem.heap, none, 3)!;
+    check(len(fresh) == 3 && fresh[0] == 0, "resize of an empty slice allocates");
+    free(mem.heap, fresh);
+}
+`, expected: []string{"the heap is a value the builtins accept", "an arena as an Allocator value", "free on an arena changes nothing", "a fixed buffer as an Allocator value", "an arena takes its memory from its parent", "release hands the chunks back to the parent", "resize grows a slice and keeps its content, zeroing the rest", "resize shrinks a slice", "memory that comes back after a shrink is zeroed", "an arena grows its last block in place", "an arena copies a block that is not the last", "a fixed buffer grows its last block in place", "resize fails like the allocator does", "the old slice stays valid when resize fails", "resize of an empty slice allocates"}},
+
 	{dir: "ptr_null", src: `struct Node {
     ?*int p;
     int tag;
@@ -4450,6 +4643,114 @@ func main() {
     check(true, "double free never printed");
 }
 `, expected: []string{"double free before the second free", "a freed block is reused without a complaint"}, abort: "panic: double free"},
+
+	{dir: "mem_support", src: `import "std/errors";
+import "std/mem";
+
+func main() ! {
+    mem.Counting counting;
+    *int a = counting.alloc(100)!;
+    *int b = counting.alloc(50)!;
+    check(counting.blocks() == 2 && counting.bytes() == 150 && counting.peak() == 150, "counting sees two live blocks");
+    counting.free(a);
+    check(counting.blocks() == 1 && counting.bytes() == 50 && counting.peak() == 150, "a free lowers the live numbers and keeps the peak");
+    *int c = counting.realloc(b, 50, 400)!;
+    check(counting.bytes() == 400 && counting.peak() == 400 && counting.allocations() == 2, "realloc moves the byte count");
+    counting.free(c);
+    check(counting.blocks() == 0 && counting.bytes() == 0 && counting.allocated() == 500, "everything freed, totals kept");
+
+    mem.Failing failing = mem.Failing{after: 2};
+    []int s = make(failing, int, 4)!;
+    []int t = make(failing, int, 4)!;
+    let u, e = make(failing, int, 4);
+    check(e == errors.Kind.OutOfMemory && len(u) == 0, "the third allocation fails");
+    check(failing.calls() == 3, "failing counts the attempts");
+    free(failing, s);
+    free(failing, t);
+    failing.reset();
+    []int again = make(failing, int, 4)!;
+    check(len(again) == 4, "reset starts the count again");
+    free(failing, again);
+
+    mem.Pool pool = mem.Pool{size: 24};
+    *int p1 = pool.alloc(8)!;
+    *int p2 = pool.alloc(24)!;
+    p1@ = 7;
+    pool.free(p1);
+    *int p3 = pool.alloc(8)!;
+    check(p3 == p1 && p3@ == 0 && pool.blocks() == 2, "a freed block comes back zeroed");
+    let big, tooBig = pool.alloc(25);
+    check(tooBig == errors.Kind.Invalid && big == null, "a request larger than the block is refused");
+    []int fromPool = make(pool.allocator(), int, 3)!;
+    check(len(fromPool) == 3 && pool.blocks() == 3, "a pool serves the builtins");
+    free(pool.allocator(), fromPool);
+    pool.free(p2);
+    pool.free(p3);
+    check(pool.blocks() == 0, "the pool is empty again");
+    pool.release();
+
+    mem.Debug debug;
+    mem.Counting inner = mem.Counting{parent: mem.heap};
+    debug.parent = inner.allocator();
+    []int d = make(debug, int, 10)!;
+    d[9] = 5;
+    check(len(d) == 10 && d[0] == 0 && debug.blocks() == 1 && inner.blocks() == 1, "debug passes through to its parent");
+    []int grown = resize(debug, d, 20)!;
+    check(grown[9] == 5 && grown[19] == 0 && debug.blocks() == 1, "debug keeps the contents when a block moves");
+    free(debug, grown);
+    check(debug.blocks() == 0 && debug.report() == 0, "no leaks");
+    debug.release();
+    check(inner.blocks() == 0, "release gives the quarantine back");
+}
+`, expected: []string{"counting sees two live blocks", "a free lowers the live numbers and keeps the peak", "realloc moves the byte count", "everything freed, totals kept", "the third allocation fails", "failing counts the attempts", "reset starts the count again", "a freed block comes back zeroed", "a request larger than the block is refused", "a pool serves the builtins", "the pool is empty again", "debug passes through to its parent", "debug keeps the contents when a block moves", "no leaks", "release gives the quarantine back"}},
+
+	{dir: "abort_debug_double_free", src: `import "std/mem";
+
+func main() ! {
+    mem.Debug debug;
+    *byte p = debug.alloc(16)!;
+    debug.free(p);
+    check(true, "debug double free before the second free");
+    debug.free(p);
+    check(true, "debug double free never printed");
+}
+`, expected: []string{"debug double free before the second free"}, abort: "panic: double free"},
+
+	{dir: "abort_debug_overflow", src: `import "std/mem";
+
+func main() ! {
+    mem.Debug debug;
+    *byte p = debug.alloc(16)!;
+    p[16] = 1;
+    check(true, "debug overflow before the free");
+    debug.free(p);
+    check(true, "debug overflow never printed");
+}
+`, expected: []string{"debug overflow before the free"}, abort: "panic: buffer overflow"},
+
+	{dir: "abort_debug_use_after_free", src: `import "std/mem";
+
+func main() ! {
+    mem.Debug debug;
+    *byte p = debug.alloc(16)!;
+    debug.free(p);
+    p[3] = 1;
+    check(true, "debug use after free before the check");
+    debug.check();
+    check(true, "debug use after free never printed");
+}
+`, expected: []string{"debug use after free before the check"}, abort: "panic: use after free"},
+
+	{dir: "abort_debug_wrong_size", src: `import "std/mem";
+
+func main() ! {
+    mem.Debug debug;
+    *byte p = debug.alloc(16)!;
+    check(true, "debug wrong size before realloc");
+    p = debug.realloc(p, 32, 64)!;
+    check(true, "debug wrong size never printed");
+}
+`, expected: []string{"debug wrong size before realloc"}, abort: "panic: realloc with a size"},
 
 	{dir: "abort_panic_location", src: `func fail(string why) {
     panic(why);
@@ -8997,7 +9298,7 @@ func main() {
         if strings.equalFold(name, "PATH") {
             pathSeen = true;
         }
-        let got, found = os.getenv(name);
+        let got, found = os.env(name);
         if !found || got != value {
             consistent = false;
         }
@@ -9024,11 +9325,11 @@ func main() {
 	{dir: "os_getenv", src: `import "std/os";
 
 func main() {
-    let path, found = os.getenv("PATH");
+    let path, found = os.env("PATH");
     check(found && len(path) > 0, "getenv finds a variable that is always set");
-    let none, missing = os.getenv("WISP_SURELY_UNSET_VARIABLE");
+    let none, missing = os.env("WISP_SURELY_UNSET_VARIABLE");
     check(!missing && none == "", "getenv of a missing variable is false");
-    let part, partial = os.getenv("PAT");
+    let part, partial = os.env("PAT");
     check(!partial && part == "", "getenv does not match a prefix of a name");
 }
 `, expected: []string{"getenv finds a variable that is always set", "getenv of a missing variable is false", "getenv does not match a prefix of a name"}},
@@ -9163,7 +9464,7 @@ func main() ! {
     [256]byte buf;
     [32]byte num;
     string root = "/tmp/wisp_t_dir";
-    os.mkdirAll(path.join(buf, root, "sub")!!)!;
+    os.createDirAll(path.join(buf, root, "sub")!!)!;
     int fd = os.create(path.join(buf, root, "aa")!!)!;
     os.close(fd);
 
@@ -9198,7 +9499,7 @@ func main() ! {
     let notDir, problem = os.openDir(path.join(buf, root, "aa")!!);
     check(problem == os.IOError.NotDir, "openDir on a file is NotDir");
 
-    os.mkdirAll(path.join(buf, root, "many")!!)!;
+    os.createDirAll(path.join(buf, root, "many")!!)!;
     for i in 1..300 {
         [256]byte full;
         int made = os.create(path.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
@@ -9368,7 +9669,7 @@ func main() ! {
 
     string deep = path.join(a, root, part, part, part, part)!!;
     check(len(deep) > 400, "the test path is longer than any legacy limit");
-    os.mkdirAll(deep)!;
+    os.createDirAll(deep)!;
     check(os.isDir(deep), "mkdirAll creates a path longer than 260 characters");
 
     string file = path.join(b, deep, "file.txt")!!;
@@ -9406,22 +9707,22 @@ import "std/path";
 func main() ! {
     [256]byte buf;
     string root = "/tmp/wisp_t_mkdirall";
-    os.mkdirAll(path.join(buf, root, "a", "b", "c")!!)!;
+    os.createDirAll(path.join(buf, root, "a", "b", "c")!!)!;
     check(os.isDir(path.join(buf, root, "a", "b", "c")!!), "mkdirAll creates every missing level");
-    os.mkdirAll(path.join(buf, root, "a", "b", "c")!!)!;
+    os.createDirAll(path.join(buf, root, "a", "b", "c")!!)!;
     check(os.isDir(path.join(buf, root, "a", "b")!!), "mkdirAll of an existing directory is not an error");
-    os.mkdirAll(path.join(buf, root, "a", "b", "d", "e")!!)!;
+    os.createDirAll(path.join(buf, root, "a", "b", "d", "e")!!)!;
     check(os.isDir(path.join(buf, root, "a", "b", "d", "e")!!), "mkdirAll creates only what is missing");
-    os.mkdirAll(path.join(buf, root, "x", "y")!!)!;
+    os.createDirAll(path.join(buf, root, "x", "y")!!)!;
     check(os.isDir(path.join(buf, root, "x", "y")!!), "mkdirAll accepts a trailing separator");
 
     int fd = os.create(path.join(buf, root, "file")!!)!;
     os.close(fd);
-    let onFile = os.mkdirAll(path.join(buf, root, "file")!!);
+    let onFile = os.createDirAll(path.join(buf, root, "file")!!);
     check(onFile == os.IOError.NotDir, "mkdirAll over a file is NotDir");
-    let underFile = os.mkdirAll(path.join(buf, root, "file", "sub")!!);
+    let underFile = os.createDirAll(path.join(buf, root, "file", "sub")!!);
     check(underFile == os.IOError.NotDir, "mkdirAll under a file is NotDir");
-    let empty = os.mkdirAll("");
+    let empty = os.createDirAll("");
     check(empty == errors.Kind.NotFound, "mkdirAll of an empty path is NotFound");
 
     os.removeDir(path.join(buf, root, "a", "b", "d", "e")!!)!;
@@ -9467,20 +9768,20 @@ func main() {
     check(math.pow(0, 0)!! == 1 && math.pow(5, 0)!! == 1 && math.pow(0, 5)!! == 0 && math.pow(3, 4)!! == 81, "pow with a zero");
     check(math.lcm(4, 6)!! == 12 && math.lcm(-4, 6)!! == 12, "lcm is not negative");
     check(math.lcm(0, 5)!! == 0 && math.lcm(0, 0)!! == 0 && math.lcm(5, 0)!! == 0, "lcm with a zero");
-    let ve30, e30 = math.checkedAdd(math.MAX_INT, 1);
-    check(e30 == errors.Kind.Overflow, "checkedAdd past the top is Overflow");
-    let ve38, e38 = math.checkedMul(math.MIN_INT, -1);
-    check(e38 == errors.Kind.Overflow, "checkedMul of the minimum by -1 is Overflow");
-    let ve40, e40 = math.checkedMul(-1, math.MIN_INT);
-    check(e40 == errors.Kind.Overflow, "checkedMul of -1 by the minimum is Overflow");
-    let ve42, e42 = math.checkedMul(3037000500, 3037000500);
-    check(e42 == errors.Kind.Overflow, "checkedMul past the top is Overflow");
-    let ve48, e48 = math.checkedAbs(math.MIN_INT);
-    check(e48 == errors.Kind.Overflow, "checkedAbs of the minimum is Overflow");
-    let ve52, e52 = math.pow(3, 40);
-    check(e52 == errors.Kind.Overflow, "pow 3 to the 40 is Overflow");
+    ?int ve30 = math.checkedAdd(math.MAX_INT, 1);
+    check(ve30 == null, "checkedAdd past the top is null");
+    ?int ve38 = math.checkedMul(math.MIN_INT, -1);
+    check(ve38 == null, "checkedMul of the minimum by -1 is null");
+    ?int ve40 = math.checkedMul(-1, math.MIN_INT);
+    check(ve40 == null, "checkedMul of -1 by the minimum is null");
+    ?int ve42 = math.checkedMul(3037000500, 3037000500);
+    check(ve42 == null, "checkedMul past the top is null");
+    ?int ve48 = math.checkedAbs(math.MIN_INT);
+    check(ve48 == null, "checkedAbs of the minimum is null");
+    ?int ve52 = math.pow(3, 40);
+    check(ve52 == null, "pow 3 to the 40 is null");
 }
-`, expected: []string{"min and max of a single argument", "min and max of several arguments", "min and max of nothing are zero", "abs", "clamp", "mod is never negative", "gcd is not negative", "gcd with a zero", "sqrt rounds down", "sqrt of a negative is zero", "sqrt at the top of the range", "leadingZeros", "the signed limits", "the unsigned limits", "checkedAdd inside the range", "checkedSub inside the range", "checkedMul at the top of the range", "checkedMul of mixed signs", "checkedMul that lands on the minimum", "checkedMul by zero", "checkedAbs", "pow 2 to the 62", "pow 10 to the 18", "pow -2 to the 63 is the minimum", "pow with a zero", "lcm is not negative", "lcm with a zero", "checkedAdd past the top is Overflow", "checkedMul of the minimum by -1 is Overflow", "checkedMul of -1 by the minimum is Overflow", "checkedMul past the top is Overflow", "checkedAbs of the minimum is Overflow", "pow 3 to the 40 is Overflow"}},
+`, expected: []string{"min and max of a single argument", "min and max of several arguments", "min and max of nothing are zero", "abs", "clamp", "mod is never negative", "gcd is not negative", "gcd with a zero", "sqrt rounds down", "sqrt of a negative is zero", "sqrt at the top of the range", "leadingZeros", "the signed limits", "the unsigned limits", "checkedAdd inside the range", "checkedSub inside the range", "checkedMul at the top of the range", "checkedMul of mixed signs", "checkedMul that lands on the minimum", "checkedMul by zero", "checkedAbs", "pow 2 to the 62", "pow 10 to the 18", "pow -2 to the 63 is the minimum", "pow with a zero", "lcm is not negative", "lcm with a zero", "checkedAdd past the top is null", "checkedMul of the minimum by -1 is null", "checkedMul of -1 by the minimum is null", "checkedMul past the top is null", "checkedAbs of the minimum is null", "pow 3 to the 40 is null"}},
 
 	{dir: "math_core_wide", src: `import "std/math";
 import "std/errors";
@@ -9516,32 +9817,32 @@ func main() {
     check(math.pow(0, 0)!! == 1 && math.pow(5, 0)!! == 1 && math.pow(0, 5)!! == 0 && math.pow(3, 4)!! == 81, "pow with a zero");
     check(math.lcm(4, 6)!! == 12 && math.lcm(-4, 6)!! == 12, "lcm is not negative");
     check(math.lcm(0, 5)!! == 0 && math.lcm(0, 0)!! == 0 && math.lcm(5, 0)!! == 0, "lcm with a zero");
-    let ve30, e30 = math.checkedAdd(math.MAX_INT, 1);
-    check(e30 == errors.Kind.Overflow, "checkedAdd past the top is Overflow");
-    let ve32, e32 = math.checkedAdd(math.MIN_INT, -1);
-    check(e32 == errors.Kind.Overflow, "checkedAdd below the bottom is Overflow");
-    let ve34, e34 = math.checkedSub(math.MIN_INT, 1);
-    check(e34 == errors.Kind.Overflow, "checkedSub below the bottom is Overflow");
-    let ve36, e36 = math.checkedSub(0, math.MIN_INT);
-    check(e36 == errors.Kind.Overflow, "checkedSub of the minimum from zero is Overflow");
-    let ve38, e38 = math.checkedMul(math.MIN_INT, -1);
-    check(e38 == errors.Kind.Overflow, "checkedMul of the minimum by -1 is Overflow");
-    let ve40, e40 = math.checkedMul(-1, math.MIN_INT);
-    check(e40 == errors.Kind.Overflow, "checkedMul of -1 by the minimum is Overflow");
-    let ve42, e42 = math.checkedMul(3037000500, 3037000500);
-    check(e42 == errors.Kind.Overflow, "checkedMul past the top is Overflow");
-    let ve44, e44 = math.checkedMul(4611686018427387904, 2);
-    check(e44 == errors.Kind.Overflow, "checkedMul 2^62 by 2 is Overflow");
-    let ve46, e46 = math.checkedMul(-4611686018427387904, -2);
-    check(e46 == errors.Kind.Overflow, "checkedMul of two negatives past the top is Overflow");
-    let ve48, e48 = math.checkedAbs(math.MIN_INT);
-    check(e48 == errors.Kind.Overflow, "checkedAbs of the minimum is Overflow");
-    let ve50, e50 = math.pow(2, 63);
-    check(e50 == errors.Kind.Overflow, "pow past the top is Overflow");
-    let ve52, e52 = math.pow(3, 40);
-    check(e52 == errors.Kind.Overflow, "pow 3 to the 40 is Overflow");
+    ?int ve30 = math.checkedAdd(math.MAX_INT, 1);
+    check(ve30 == null, "checkedAdd past the top is null");
+    ?int ve32 = math.checkedAdd(math.MIN_INT, -1);
+    check(ve32 == null, "checkedAdd below the bottom is null");
+    ?int ve34 = math.checkedSub(math.MIN_INT, 1);
+    check(ve34 == null, "checkedSub below the bottom is null");
+    ?int ve36 = math.checkedSub(0, math.MIN_INT);
+    check(ve36 == null, "checkedSub of the minimum from zero is null");
+    ?int ve38 = math.checkedMul(math.MIN_INT, -1);
+    check(ve38 == null, "checkedMul of the minimum by -1 is null");
+    ?int ve40 = math.checkedMul(-1, math.MIN_INT);
+    check(ve40 == null, "checkedMul of -1 by the minimum is null");
+    ?int ve42 = math.checkedMul(3037000500, 3037000500);
+    check(ve42 == null, "checkedMul past the top is null");
+    ?int ve44 = math.checkedMul(4611686018427387904, 2);
+    check(ve44 == null, "checkedMul 2^62 by 2 is null");
+    ?int ve46 = math.checkedMul(-4611686018427387904, -2);
+    check(ve46 == null, "checkedMul of two negatives past the top is null");
+    ?int ve48 = math.checkedAbs(math.MIN_INT);
+    check(ve48 == null, "checkedAbs of the minimum is null");
+    ?int ve50 = math.pow(2, 63);
+    check(ve50 == null, "pow past the top is null");
+    ?int ve52 = math.pow(3, 40);
+    check(ve52 == null, "pow 3 to the 40 is null");
 }
-`, expected: []string{"min and max of a single argument", "min and max of several arguments", "min and max of nothing are zero", "abs", "clamp", "mod is never negative", "gcd is not negative", "gcd with a zero", "sqrt rounds down", "sqrt of a negative is zero", "sqrt at the top of the range", "popCount", "trailingZeros", "leadingZeros", "the 64-bit limits wrap around", "the signed limits", "the unsigned limits", "checkedAdd inside the range", "checkedSub inside the range", "checkedMul at the top of the range", "checkedMul of mixed signs", "checkedMul that lands on the minimum", "checkedMul by zero", "checkedAbs", "pow 2 to the 62", "pow 10 to the 18", "pow -2 to the 63 is the minimum", "pow with a zero", "lcm is not negative", "lcm with a zero", "checkedAdd past the top is Overflow", "checkedAdd below the bottom is Overflow", "checkedSub below the bottom is Overflow", "checkedSub of the minimum from zero is Overflow", "checkedMul of the minimum by -1 is Overflow", "checkedMul of -1 by the minimum is Overflow", "checkedMul past the top is Overflow", "checkedMul 2^62 by 2 is Overflow", "checkedMul of two negatives past the top is Overflow", "checkedAbs of the minimum is Overflow", "pow past the top is Overflow", "pow 3 to the 40 is Overflow"}},
+`, expected: []string{"min and max of a single argument", "min and max of several arguments", "min and max of nothing are zero", "abs", "clamp", "mod is never negative", "gcd is not negative", "gcd with a zero", "sqrt rounds down", "sqrt of a negative is zero", "sqrt at the top of the range", "popCount", "trailingZeros", "leadingZeros", "the 64-bit limits wrap around", "the signed limits", "the unsigned limits", "checkedAdd inside the range", "checkedSub inside the range", "checkedMul at the top of the range", "checkedMul of mixed signs", "checkedMul that lands on the minimum", "checkedMul by zero", "checkedAbs", "pow 2 to the 62", "pow 10 to the 18", "pow -2 to the 63 is the minimum", "pow with a zero", "lcm is not negative", "lcm with a zero", "checkedAdd past the top is null", "checkedAdd below the bottom is null", "checkedSub below the bottom is null", "checkedSub of the minimum from zero is null", "checkedMul of the minimum by -1 is null", "checkedMul of -1 by the minimum is null", "checkedMul past the top is null", "checkedMul 2^62 by 2 is null", "checkedMul of two negatives past the top is null", "checkedAbs of the minimum is null", "pow past the top is null", "pow 3 to the 40 is null"}},
 
 	{dir: "switch_tagless", src: `func classify(int a, int b) string {
     return switch {
@@ -13451,19 +13752,19 @@ func main() {
 
     mem.Arena empty;
     empty.reset();
-    empty.free();
+    empty.release();
     *byte fresh = empty.alloc(10)!!;
     check(int(fresh) != 0, "reset and free on an empty arena are harmless");
 
-    a.free();
+    a.release();
     *byte z = a.alloc(64)!!;
     check(int(z) != 0 && z[0] == 0 && z[63] == 0, "arena is usable after free");
     z[0] = 4;
-    a.free();
-    a.free();
+    a.release();
+    a.release();
     *byte w = a.alloc(64)!!;
     check(int(w) != 0 && w[0] == 0, "free twice in a row is harmless");
-    a.free();
+    a.release();
 }
 `, expected: []string{"arena filled before reset", "arena works after reset", "reset starts a fresh chunk", "alloc after reset is zeroed", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "arena survives repeated resets", "reset twice in a row is harmless", "reset and free on an empty arena are harmless", "arena is usable after free", "free twice in a row is harmless"}},
 	{dir: "mem_arena_mark", src: `import "std/mem";
@@ -13517,8 +13818,8 @@ func main() {
     a.rewind(nested1);
     *byte n4 = a.alloc(64)!!;
     check(n4 == n1, "an outer rewind drops them all");
-    a.free();
-    empty.free();
+    a.release();
+    empty.release();
 }
 `, expected: []string{"rewind reuses the space", "alloc after rewind is zeroed", "blocks before the mark survive", "arena grows after a mark", "rewind across chunks returns to the marked spot", "old blocks survive a rewind over several chunks", "an empty arena allocates after mark", "rewind to an empty mark leaves a usable arena", "an inner rewind keeps the outer blocks", "an outer rewind drops them all"}},
 }

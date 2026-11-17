@@ -19,9 +19,9 @@ inline func (*Chunk c) data() *byte {
 	return (*byte)(c) + HEADER;
 }
 
-func newChunk(int need) !*Chunk {
+func newChunk(mem.Allocator source, int need) !*Chunk {
 	int size = math.max(ARENA_CHUNK_SIZE - HEADER, need);
-	*Chunk p = mem.allocDirty(HEADER + size)!;
+	*Chunk p = source.allocDirty(HEADER + size)!;
 	p.size = size;
 	p.used = 0;
 	p.next = null;
@@ -34,7 +34,12 @@ public struct Mark {
 }
 
 public struct Arena {
+	?mem.Allocator parent;
 	internal ?*Chunk head;
+}
+
+func (*Arena a) source() mem.Allocator {
+	return a.parent ?? mem.heap;
 }
 
 public func (*Arena a) alloc(int n) !*void {
@@ -53,7 +58,7 @@ public func (*Arena a) allocDirty(int n) !*void {
 			return head.data() + head.used;
 		}
 	}
-	*Chunk p = newChunk(n)!;
+	*Chunk p = newChunk(a.source(), n)!;
 	if n <= ARENA_CHUNK_SIZE - HEADER {
 		p.next = a.head;
 		a.head = p;
@@ -69,22 +74,27 @@ public func (*Arena a) allocDirty(int n) !*void {
 	return p.data();
 }
 
-public func (*Arena a) free() {
+public func (*Arena a) release() {
+	mem.Allocator source = a.source();
 	?*Chunk c = a.head;
 	loop c |chunk| {
 		?*Chunk next = chunk.next;
-		mem.free(chunk);
+		source.free(chunk);
 		c = next;
 	}
 	a.head = null;
 }
 
+public func (*Arena _a) free(?*void _p) {
+}
+
 public func (*Arena a) reset() {
+	mem.Allocator source = a.source();
 	if a.head |head| {
 		?*Chunk c = head.next;
 		loop c |chunk| {
 			?*Chunk next = chunk.next;
-			mem.free(chunk);
+			source.free(chunk);
 			c = next;
 		}
 		head.next = null;
@@ -101,17 +111,60 @@ public inline func (*Arena a) mark() Mark {
 }
 
 public func (*Arena a) rewind(Mark m) {
+	mem.Allocator source = a.source();
 	?*Chunk c = a.head;
 	loop c |chunk| {
 		if c == m.chunk {
 			break;
 		}
 		?*Chunk next = chunk.next;
-		mem.free(chunk);
+		source.free(chunk);
 		c = next;
 	}
 	a.head = m.chunk;
 	if m.chunk |kept| {
 		kept.used = m.used;
 	}
+}
+
+public func (*Arena a) realloc(?*void p, int old, int n) !*void {
+	errors.ensure(old >= 0 && n >= 0, errors.Kind.Invalid)!;
+	*void block = p ?? return a.alloc(n)!;
+	int was = (old + 15) & ~15;
+	int want = (n + 15) & ~15;
+	if a.head |head| {
+		if (*byte)(block) + was == head.data() + head.used && head.used - was + want <= head.size {
+			head.used = head.used - was + want;
+			if n > old {
+				mem.fill((*byte)(block) + old, 0, n - old);
+			}
+			return block;
+		}
+	}
+	*void next = a.alloc(n)!;
+	mem.copy(next, block, math.min(old, n));
+	return next;
+}
+
+public func (*Arena a) allocator() mem.Allocator {
+	return mem.allocator((*void)(a), arenaAlloc, arenaAllocDirty, arenaRealloc, arenaFree);
+}
+
+func arenaOf(?*void state) *Arena {
+	return (*Arena)(state!!);
+}
+
+func arenaAlloc(?*void state, int n) !*void {
+	return arenaOf(state).alloc(n)!;
+}
+
+func arenaAllocDirty(?*void state, int n) !*void {
+	return arenaOf(state).allocDirty(n)!;
+}
+
+func arenaRealloc(?*void state, ?*void p, int old, int n) !*void {
+	return arenaOf(state).realloc(p, old, n)!;
+}
+
+func arenaFree(?*void _state, ?*void _p) {
 }

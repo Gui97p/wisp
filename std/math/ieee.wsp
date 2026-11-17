@@ -371,7 +371,7 @@ public func fmod(float x, y) float {
 	}
 
 	int hz = int(hx) - int(hy);
-	uint lz = (lx - ly) & 0xffffffff;
+	uint lz = (lx -% ly) & 0xffffffff;
 	if lx < ly {
 		hz -= 1;
 	}

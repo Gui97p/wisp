@@ -1,4 +1,5 @@
 import "std/errors";
+import "std/math";
 import "std/mem";
 
 public struct Fixed {
@@ -33,4 +34,48 @@ public inline func (*Fixed f) remaining() int {
 
 public inline func (*Fixed f) used() int {
 	return f.bUsed;
+}
+
+public inline func (*Fixed _f) free(?*void _p) {
+}
+
+public func (*Fixed f) realloc(?*void p, int old, int n) !*void {
+	errors.ensure(old >= 0 && n >= 0, errors.Kind.Invalid)!;
+	*void block = p ?? return f.alloc(n)!;
+	int was = (old + 15) & ~15;
+	int want = (n + 15) & ~15;
+	int base = int((*byte)(f.buffer));
+	if int(block) + was == base + f.bUsed && f.bUsed - was + want <= len(f.buffer) {
+		f.bUsed = f.bUsed - was + want;
+		if n > old {
+			mem.fill((*byte)(block) + old, 0, n - old);
+		}
+		return block;
+	}
+	*void next = f.alloc(n)!;
+	mem.copy(next, block, math.min(old, n));
+	return next;
+}
+
+public func (*Fixed f) allocator() mem.Allocator {
+	return mem.allocator((*void)(f), fixedAlloc, fixedAllocDirty, fixedRealloc, fixedFree);
+}
+
+func fixedOf(?*void state) *Fixed {
+	return (*Fixed)(state!!);
+}
+
+func fixedAlloc(?*void state, int n) !*void {
+	return fixedOf(state).alloc(n)!;
+}
+
+func fixedAllocDirty(?*void state, int n) !*void {
+	return fixedOf(state).allocDirty(n)!;
+}
+
+func fixedRealloc(?*void state, ?*void p, int old, int n) !*void {
+	return fixedOf(state).realloc(p, old, n)!;
+}
+
+func fixedFree(?*void _state, ?*void _p) {
 }

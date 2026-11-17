@@ -1,0 +1,259 @@
+#target x64
+
+import "std/errors";
+import "std/fmt";
+import "std/mem";
+import "std/mem/x64" as impl;
+import "std/strings";
+
+const {
+	HEAD = 64;
+	CANARY = 16;
+	MAX_BLOCK = 1 << 47;
+	uint LIVE = 0x57495350444C4956;
+	uint DEAD = 0x5749535044444541;
+}
+
+struct Header {
+	uint magic;
+	int size;
+	string site, freed;
+	?*Header prev, next;
+}
+
+public struct Debug {
+	?mem.Allocator parent;
+	internal ?*Header head;
+	internal int liveBlocks;
+	internal [256]?*Header ring;
+	internal int ringStart, ringCount;
+}
+
+inline func headerOf(*void p) *Header {
+	return (*Header)((*byte)(p) - HEAD);
+}
+
+inline func dataOf(*Header h) *byte {
+	return (*byte)(h) + HEAD;
+}
+
+func (*Debug d) source() mem.Allocator {
+	return d.parent ?? mem.heap;
+}
+
+func fail(*Header h, string what) {
+	[2048]byte buf;
+	if len(h.freed) > 0 {
+		string both = strings.concat(buf, what, "\nthe block was allocated at ", h.site, "the block was freed at ", h.freed[:len(h.freed)-1]) ?? what;
+		panic(both);
+	}
+	if len(h.site) > 0 {
+		string text = strings.concat(buf, what, "\nthe block was allocated at ", h.site[:len(h.site)-1]) ?? what;
+		panic(text);
+	}
+	panic(what);
+}
+
+func verifyCanary(*Header h) {
+	*uint8 p = (*uint8)(dataOf(h));
+	for i in 0..CANARY-1 {
+		if p[h.size + i] != 0xFD {
+			fail(h, "buffer overflow: a block was written past its end");
+		}
+	}
+}
+
+func verifyPoison(*Header h) {
+	*uint8 p = (*uint8)(dataOf(h));
+	for i in 0..h.size-1 {
+		if p[i] != 0xDD {
+			fail(h, "use after free: a freed block was written to");
+		}
+	}
+}
+
+func (*Debug d) obtain(int n, bool zero) !*void {
+	errors.ensure(n >= 0 && n <= MAX_BLOCK, errors.Kind.OutOfMemory)!;
+	int total = HEAD + n + CANARY;
+	*void raw = d.source().allocDirty(total)!;
+	if zero {
+		mem.fill(raw, 0, total);
+	}
+	*Header h = (*Header)(raw);
+	h.magic = LIVE;
+	h.size = n;
+	h.site = impl.site();
+	h.freed = "";
+	h.prev = null;
+	h.next = d.head;
+	if d.head |first| {
+		first.prev = h;
+	}
+	d.head = h;
+	if !zero {
+		mem.fill(dataOf(h), 0xCD, n);
+	}
+	mem.fill(dataOf(h) + n, 0xFD, CANARY);
+	d.liveBlocks++;
+	return dataOf(h);
+}
+
+public func (*Debug d) alloc(int n) !*void {
+	return d.obtain(n, true)!;
+}
+
+public func (*Debug d) allocDirty(int n) !*void {
+	return d.obtain(n, false)!;
+}
+
+func (*Debug d) evict() {
+	*Header old = d.ring[d.ringStart]!!;
+	verifyPoison(old);
+	d.ringStart = (d.ringStart + 1) % len(d.ring);
+	d.ringCount--;
+	d.source().free(old);
+}
+
+public func (*Debug d) free(?*void p) {
+	*void block = p ?? return;
+	*Header h = headerOf(block);
+	if h.magic == DEAD {
+		fail(h, "double free");
+	}
+	if h.magic != LIVE {
+		panic("free of a pointer this allocator did not give");
+	}
+	verifyCanary(h);
+	if h.prev |before| {
+		before.next = h.next;
+	} else {
+		d.head = h.next;
+	}
+	if h.next |after| {
+		after.prev = h.prev;
+	}
+	h.magic = DEAD;
+	h.freed = impl.site();
+	mem.fill(dataOf(h), 0xDD, h.size);
+	d.liveBlocks--;
+	if d.ringCount == len(d.ring) {
+		d.evict();
+	}
+	d.ring[(d.ringStart + d.ringCount) % len(d.ring)] = h;
+	d.ringCount++;
+}
+
+public func (*Debug d) realloc(?*void p, int old, int n) !*void {
+	*void block = p ?? return d.obtain(n, true)!;
+	*Header h = headerOf(block);
+	if h.magic == DEAD {
+		fail(h, "realloc of a freed block");
+	}
+	if h.magic != LIVE {
+		panic("realloc of a pointer this allocator did not give");
+	}
+	if h.size != old {
+		fail(h, "realloc with a size that is not the size of the block");
+	}
+	if n == old {
+		return block;
+	}
+	*void next = d.obtain(n, true)!;
+	mem.copy(next, block, old < n ? old : n);
+	d.free(block);
+	return next;
+}
+
+public func (*Debug d) check() {
+	for i in 0..d.ringCount-1 {
+		verifyPoison(d.ring[(d.ringStart + i) % len(d.ring)]!!);
+	}
+	?*Header c = d.head;
+	loop c |h| {
+		c = h.next;
+		verifyCanary(h);
+	}
+}
+
+public func (*Debug d) release() {
+	loop d.ringCount > 0 {
+		d.evict();
+	}
+}
+
+internal func (*Debug d) sizeOf(*void p) int {
+	*Header h = headerOf(p);
+	if h.magic == DEAD {
+		fail(h, "use of a freed block");
+	}
+	if h.magic != LIVE {
+		panic("a pointer this allocator did not give");
+	}
+	return h.size;
+}
+
+public inline func (*Debug d) blocks() int {
+	return d.liveBlocks;
+}
+
+public func (*Debug d) report() int {
+	d.check();
+
+	[64]string sites;
+	[64]int counts, bytes;
+	int groups, others;
+
+	?*Header c = d.head;
+	loop c |h| {
+		c = h.next;
+		int j;
+		loop j < groups && sites[j] != h.site {
+			j++;
+		}
+		if j == groups {
+			if groups == len(sites) {
+				others++;
+				continue;
+			}
+			sites[j] = h.site;
+			groups++;
+		}
+		counts[j]++;
+		bytes[j] += h.size;
+	}
+
+	int k;
+	loop k < groups {
+		fmt.fprintf(2, "leak: {} blocks, {} bytes, allocated at\n", counts[k], bytes[k])!!;
+		fmt.fprint(2, sites[k]);
+		k++;
+	}
+	if others > 0 {
+		fmt.fprintf(2, "leak: {} more blocks from other places\n", others)!!;
+	}
+	return d.liveBlocks;
+}
+
+public func (*Debug d) allocator() mem.Allocator {
+	return mem.allocator((*void)(d), debugAlloc, debugAllocDirty, debugRealloc, debugFree);
+}
+
+func debugOf(?*void state) *Debug {
+	return (*Debug)(state!!);
+}
+
+func debugAlloc(?*void state, int n) !*void {
+	return debugOf(state).alloc(n)!;
+}
+
+func debugAllocDirty(?*void state, int n) !*void {
+	return debugOf(state).allocDirty(n)!;
+}
+
+func debugRealloc(?*void state, ?*void p, int old, int n) !*void {
+	return debugOf(state).realloc(p, old, n)!;
+}
+
+func debugFree(?*void state, ?*void p) {
+	debugOf(state).free(p);
+}

@@ -389,6 +389,14 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 		return returns
 	}
 
+	for _, name := range []string{"make", "makeDirty", "create", "free", "resize"} {
+		if a.isBuiltinCall(expr, name) {
+			returns := a.checkAllocBuiltin(expr, name)
+			a.info.CallReturns[expr] = machineReturns(returns)
+			return returns
+		}
+	}
+
 	for _, name := range []string{"truncate", "saturate"} {
 		if a.isBuiltinCall(expr, name) {
 			returns := []Type{a.checkWidthBuiltin(expr, name)}
@@ -891,6 +899,11 @@ func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
 		} else {
 			a.errorf(expr, "! expects a call that can fail, got %s", operand.String())
 		}
+		return []Type{InvalidType{}}
+	}
+
+	if _, isCall := expr.Value.(*ast.CallExpr); !isCall {
+		a.errorf(expr, "%s must be applied directly to a call that can fail: this expression is not a call, so bind it with let v, e = ... or handle it with ??", map[bool]string{true: "!!", false: "!"}[expr.Assert])
 		return []Type{InvalidType{}}
 	}
 
