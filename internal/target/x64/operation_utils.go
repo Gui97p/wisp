@@ -28,12 +28,38 @@ func (t *X64Target) push(reg x64context.Register) {
 var panicLabels = map[string]string{
 	"unwrapped error":             "the error was unwrapped here",
 	"unwrapped null":              "this value is null",
+	"integer overflow":            "the result does not fit its type",
+	"integer conversion":          "the value does not fit the new type",
 	"integer divide by zero":      "the divisor is zero",
 	"null pointer dereference":    "this pointer is null",
 	"range step must be positive": "the step is not positive",
 }
 
+type panicText string
+
+func (t *X64Target) cstring(text string) string {
+	label, ok := t.createData("pstr", panicText(text))
+	if !ok {
+		t.rodata.printf("%s db %s\n", label, bytesToAsm(append([]byte(text), 0)))
+	}
+	return label
+}
+
+func (t *X64Target) panicSite(message, file string) {
+	t.prelude.define("__wisp_panic_site")
+	t.text.printft("lea rdi, [rel %s]\n", t.cstring(message))
+	t.text.printft("lea rsi, [rel %s]\n", t.cstring(file))
+	t.text.printft("mov edx, %d\n", t.line<<8|min(t.col, 255))
+	t.text.printlnt("call __wisp_panic_site")
+}
+
 func (t *X64Target) panic(message string) {
+	if !t.snippets && t.line != 0 {
+		if file := displayFile(t.file); file != "" {
+			t.panicSite(message, file)
+			return
+		}
+	}
 	message += t.where(panicLabels[message])
 	t.prelude.define("__wisp_panic")
 	label, ok := t.createData("str", message)

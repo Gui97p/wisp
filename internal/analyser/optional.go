@@ -764,3 +764,61 @@ func (a *Analyser) bindSumArm(arm *ast.SwitchArm) {
 	a.at(arm, block)
 	arm.Values = []ast.Expression{block}
 }
+
+func (a *Analyser) typeArgument(arg ast.Expression) (Type, bool) {
+	switch e := arg.(type) {
+	case *ast.IdentLiteral:
+		if sym, found := a.scope.Resolve(e.Value); found {
+			if sym.Kind == STRUCT || sym.Kind == TYPE {
+				sym.Used = true
+				return sym.Type, true
+			}
+		} else if primitives[e.Value] {
+			return PrimitiveType{Name: e.Value}, true
+		}
+	case *ast.MemberExpr:
+		if module, isIdent := e.Object.(*ast.IdentLiteral); isIdent {
+			if sym, found := a.lookupType(a.scope, module.Value, e.Field); found && (sym.Kind == STRUCT || sym.Kind == TYPE) {
+				return sym.Type, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (a *Analyser) checkWidthBuiltin(expr *ast.CallExpr, name string) Type {
+	if len(expr.Args) != 2 {
+		a.errorf(expr, "%s expects a type and a value, got %d arguments", name, len(expr.Args))
+		a.evalArgTypes(expr)
+		return InvalidType{}
+	}
+
+	target, ok := a.typeArgument(expr.Args[0])
+	if !ok || !isInteger(underlyingOf(target)) {
+		a.errorf(expr.Args[0], "%s takes an integer type first, as in %s(byte, x)", name, name)
+		a.checkExpr(expr.Args[1])
+		return InvalidType{}
+	}
+
+	from := a.checkExpr(expr.Args[1])
+	if _, bad := from.(InvalidType); bad {
+		return target
+	}
+	if !isInteger(underlyingOf(from)) && !(name == "saturate" && isFloat(underlyingOf(from))) {
+		a.errorf(expr.Args[1], "%s cannot take a %s", name, from.String()).
+			WithHelp("it takes an integer%s", map[bool]string{true: " or a floating point number", false: ""}[name == "saturate"])
+		return target
+	}
+	switch from.(type) {
+	case UntypedIntType:
+		a.fixUntyped(expr.Args[1], PrimitiveType{Name: "int"})
+	case UntypedFloatType:
+		a.fixUntyped(expr.Args[1], PrimitiveType{Name: "float"})
+	}
+
+	cast := &ast.CastExpr{Value: expr.Args[1], Truncate: name == "truncate", Saturate: name == "saturate"}
+	a.at(expr, cast)
+	a.info.Types[cast] = target
+	expr.Cast = cast
+	return target
+}

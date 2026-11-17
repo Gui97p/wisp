@@ -338,6 +338,8 @@ type CastExpr struct {
 	Value    Expression
 	Type     TypeRef
 	Implicit bool
+	Truncate bool
+	Saturate bool
 
 	NodePos
 }

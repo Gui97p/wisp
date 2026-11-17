@@ -166,11 +166,17 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 	}
 
 	if info != nil {
-		for _, sym := range scopeAt(info, line, col).Visible() {
+		scope := scopeAt(info, line, col)
+		depths := scope.Depths()
+		for _, sym := range scope.Visible() {
 			if strings.HasPrefix(sym.Name, "__wisp_") {
 				continue
 			}
-			items = append(items, symbolItem(sym, suffix))
+			it := symbolItem(sym, suffix)
+			if (sym.Kind == analyser.VAR || sym.Kind == analyser.PARAM) && !sym.Global {
+				it.SortText = ptr("0" + string(rune('0'+min(depths[sym], 9))) + sym.Name)
+			}
+			items = append(items, it)
 		}
 		items = append(items, shortcutItems(path, scopeAt(info, line, col), typedWord(prefix), suffix)...)
 	}
@@ -533,8 +539,30 @@ func callable(it protocol.CompletionItem, params int, suffix string) protocol.Co
 	return it
 }
 
+func rankOf(kind protocol.CompletionItemKind) string {
+	switch kind {
+	case protocol.CompletionItemKindVariable:
+		return "1"
+	case protocol.CompletionItemKindField, protocol.CompletionItemKindEnumMember:
+		return "2"
+	case protocol.CompletionItemKindMethod:
+		return "3"
+	case protocol.CompletionItemKindFunction:
+		return "4"
+	case protocol.CompletionItemKindConstant:
+		return "5"
+	case protocol.CompletionItemKindStruct, protocol.CompletionItemKindClass, protocol.CompletionItemKindEnum:
+		return "6"
+	case protocol.CompletionItemKindModule:
+		return "7"
+	case protocol.CompletionItemKindKeyword:
+		return "8"
+	}
+	return "9"
+}
+
 func item(label string, kind protocol.CompletionItemKind, detail string) protocol.CompletionItem {
-	it := protocol.CompletionItem{Label: label, Kind: &kind}
+	it := protocol.CompletionItem{Label: label, Kind: &kind, SortText: ptr(rankOf(kind) + label)}
 	if detail != "" {
 		it.Detail = &detail
 	}

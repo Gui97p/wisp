@@ -72,6 +72,8 @@ func (l *Lexer) NextToken() Token {
 		case '+':
 			l.advance()
 			t = l.token(TOKEN_INCREMENT, "++")
+		case '%', '|':
+			t = l.overflowOperator(TOKEN_PLUS, TOKEN_PLUS_ASSIGN, '+')
 		default:
 			t = l.token(TOKEN_PLUS, "+")
 		}
@@ -83,6 +85,8 @@ func (l *Lexer) NextToken() Token {
 		case '-':
 			l.advance()
 			t = l.token(TOKEN_DECREMENT, "--")
+		case '%', '|':
+			t = l.overflowOperator(TOKEN_MINUS, TOKEN_MINUS_ASSIGN, '-')
 		default:
 			t = l.token(TOKEN_MINUS, "-")
 		}
@@ -91,6 +95,8 @@ func (l *Lexer) NextToken() Token {
 		case '=':
 			l.advance()
 			t = l.token(TOKEN_STAR_ASSIGN, "*=")
+		case '%', '|':
+			t = l.overflowOperator(TOKEN_STAR, TOKEN_STAR_ASSIGN, '*')
 		default:
 			t = l.token(TOKEN_STAR, "*")
 		}
@@ -557,4 +563,15 @@ func hexDigit(c byte) (byte, bool) {
 		return c - 'A' + 10, true
 	}
 	return 0, false
+}
+
+func (l *Lexer) overflowOperator(plain, assign TokenType, first byte) Token {
+	l.advance()
+	mark := l.ch
+	text := string([]byte{first, mark})
+	if l.peek() == '=' {
+		l.advance()
+		return l.token(assign, text+"=")
+	}
+	return l.token(plain, text)
 }

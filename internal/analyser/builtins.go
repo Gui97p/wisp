@@ -18,5 +18,11 @@ func (a *Analyser) registerBuiltins() {
 		Name: "sizeof", Params: []Type{AnyType{}}, Returns: []Type{intType},
 	}})
 
+	for _, name := range []string{"truncate", "saturate"} {
+		a.universe.Define(&Symbol{Name: name, Kind: FUNC, Type: &FuncType{
+			Name: name, Params: []Type{AnyType{}, AnyType{}}, Returns: []Type{intType},
+		}})
+	}
+
 	a.universe.Define(&Symbol{Name: "Error", Kind: TYPE, Type: ErrorType{}})
 }

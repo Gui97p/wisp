@@ -117,10 +117,10 @@ func main() {
     uint64 h = 9223372036854775808;
     check(h == 9223372036854775808, "biglit uint64 two to the 63");
     check(u != h, "biglit uint64 distinct");
-    uint64 w = h + h;
+    uint64 w = h +% h;
     check(w == 0, "biglit uint64 wraps to zero");
     uint64 x = 0;
-    x -= 1;
+    x -%= 1;
     check(x == 18446744073709551615, "biglit uint64 zero minus one");
 }
 `},
@@ -154,7 +154,7 @@ func idb(bool x) bool {
 }
 
 func add8(int8 a, int8 b) int8 {
-    return a + b;
+    return a +% b;
 }
 
 func gt8(int8 a, int8 b) bool {
@@ -359,60 +359,60 @@ func main() {
 
 	{dir: "alias_types", src: `func main() {
     int a = 9223372036854775807;
-    a += 1;
+    a +%= 1;
     int m = 0;
-    m -= 9223372036854775807;
-    m -= 1;
+    m -%= 9223372036854775807;
+    m -%= 1;
     check(a == m, "alias int wraps like int64");
     uint u = 0;
-    u -= 1;
+    u -%= 1;
     byte c = 65;
     c += 1;
     check(c == 66, "alias byte arithmetic");
     byte d = 255;
-    d += 1;
+    d +%= 1;
     check(d == 0, "alias byte wraps like uint8");
 }
 `},
 
 	{dir: "alias_types_wide", src: `func main() {
     int a = 9223372036854775807;
-    a += 1;
+    a +%= 1;
     int m = 0;
     m -= 9223372036854775807;
     m -= 1;
     check(a == m, "alias int wraps like int64");
     uint u = 0;
-    u -= 1;
+    u -%= 1;
     check(u == 18446744073709551615, "alias uint wraps like uint64");
     byte c = 65;
     c += 1;
     check(c == 66, "alias byte arithmetic");
     byte d = 255;
-    d += 1;
+    d +%= 1;
     check(d == 0, "alias byte wraps like uint8");
 }
 `},
 
 	{dir: "cast_literal", src: `func main() {
     int big = 300;
-    uint8 a = uint8(big);
+    uint8 a = truncate(uint8, big);
     check(a == 44, "castlit 300 to uint8");
     int two = 200;
-    int8 b = int8(two);
+    int8 b = truncate(int8, two);
     check(b + 56 == 0, "castlit 200 to int8");
     int wide = 70000;
-    uint16 c = uint16(wide);
+    uint16 c = truncate(uint16, wide);
     check(c == 4464, "castlit 70000 to uint16");
     int64 huge = 4294967295;
-    int32 d = int32(huge);
+    int32 d = truncate(int32, huge);
     check(d + 1 == 0, "castlit 4294967295 to int32");
     int64 five = 5000000000;
-    uint32 e = uint32(five);
+    uint32 e = truncate(uint32, five);
     check(e == 705032704, "castlit 5000000000 to uint32");
     uint64 top = 18446744073709551615;
-    int64 f = int64(top);
-    uint8 g = uint8(200);
+    int64 f = truncate(int64, top);
+    uint8 g = truncate(uint8, 200);
     check(g == 200, "castlit constant that fits");
     int8 h = int8(0 + 100);
     check(h == 100, "castlit constant expression");
@@ -421,24 +421,24 @@ func main() {
 
 	{dir: "cast_literal_wide", src: `func main() {
     int big = 300;
-    uint8 a = uint8(big);
+    uint8 a = truncate(uint8, big);
     check(a == 44, "castlit 300 to uint8");
     int two = 200;
-    int8 b = int8(two);
+    int8 b = truncate(int8, two);
     check(b + 56 == 0, "castlit 200 to int8");
     int wide = 70000;
-    uint16 c = uint16(wide);
+    uint16 c = truncate(uint16, wide);
     check(c == 4464, "castlit 70000 to uint16");
     int64 huge = 4294967295;
-    int32 d = int32(huge);
+    int32 d = truncate(int32, huge);
     check(d + 1 == 0, "castlit 4294967295 to int32");
     int64 five = 5000000000;
-    uint32 e = uint32(five);
+    uint32 e = truncate(uint32, five);
     check(e == 705032704, "castlit 5000000000 to uint32");
     uint64 top = 18446744073709551615;
-    int64 f = int64(top);
+    int64 f = truncate(int64, top);
     check(f + 1 == 0, "castlit uint64 max to int64");
-    uint8 g = uint8(200);
+    uint8 g = truncate(uint8, 200);
     check(g == 200, "castlit constant that fits");
     int8 h = int8(0 + 100);
     check(h == 100, "castlit constant expression");
@@ -2389,6 +2389,192 @@ func main() {
 }
 `, expected: []string{"a switch reads the data of the variant", "the zero value is the first variant with zeroed data", "== tests the variant", "!= tests the variant", "a method can test the variant", "name() gives the variant", "a method changes the data through the pointer receiver", "switching on a pointer binds a pointer to the data", "switching on a value binds a copy", "== works through a pointer", "variants with different data go through a function", "a switch expression with no default covers every variant", "an array of values with data", "a struct field of an enum with data", "an enum without data is unchanged"}},
 
+	{dir: "int_wrap", src: `func main() {
+    uint8 a = 250;
+    check(a +% 10 == 4, "unsigned addition wraps");
+    uint8 e = 3;
+    check(e -% 5 == 254, "unsigned subtraction wraps");
+    check(uint8(16) *% 17 == 16, "unsigned multiplication wraps");
+    int8 c = 127;
+    check(c +% 1 == -128, "signed addition wraps to the minimum");
+    int8 low = -128;
+    check(low -% 1 == 127, "signed subtraction wraps to the maximum");
+    check(int8(100) *% 3 == 44, "signed multiplication wraps");
+
+    int big = 9223372036854775807;
+    check(big +% 1 == -9223372036854775807 - 1, "a 64 bit integer wraps");
+    uint64 top = 18446744073709551615;
+    check(top +% 1 == 0, "an unsigned 64 bit integer wraps");
+
+    uint32 h = 2166136261;
+    h = h *% 16777619;
+    h ^= 65;
+    h *%= 16777619;
+    check(h == 1349974778, "a hash step with *%");
+
+    uint16 n = 65535;
+    n +%= 2;
+    check(n == 1, "+%= wraps in place");
+    n -%= 3;
+    check(n == 65534, "-%= wraps in place");
+
+    const uint8 K = 200 +% 100;
+    const int8 M = 100 *% 3;
+    check(K == 44 && M == 44, "constants wrap while compiling");
+
+    int plain = 7;
+    check(plain +% 1 == 8 && plain -% 9 == -2, "no change when nothing overflows");
+}
+`, expected: []string{"unsigned addition wraps", "unsigned subtraction wraps", "unsigned multiplication wraps", "signed addition wraps to the minimum", "signed subtraction wraps to the maximum", "signed multiplication wraps", "a 64 bit integer wraps", "an unsigned 64 bit integer wraps", "a hash step with *%", "+%= wraps in place", "-%= wraps in place", "constants wrap while compiling", "no change when nothing overflows"}},
+	{dir: "int_truncate", src: `func main() {
+    int x = 300;
+    check(truncate(uint8, x) == 44, "truncate keeps the low bits");
+    check(truncate(int8, 200) == -56, "truncate of a constant into a signed type");
+    check(truncate(uint16, -1) == 65535, "truncate of a negative number");
+    uint32 word = 0x12345678;
+    check(truncate(uint8, word) == 0x78 && truncate(uint8, word >> 8) == 0x56, "extracting the bytes of a word");
+    int8 small = -2;
+    check(truncate(uint32, small) == 4294967294, "truncate widens by sign extension, then cuts");
+    check(truncate(int, 5) == 5, "truncate to the same size changes nothing");
+}
+`, expected: []string{"truncate keeps the low bits", "truncate of a constant into a signed type", "truncate of a negative number", "extracting the bytes of a word", "truncate widens by sign extension, then cuts", "truncate to the same size changes nothing"}},
+	{dir: "int_saturate", src: `func main() {
+    int big = 1000;
+    int neg = -1000;
+    check(saturate(uint8, big) == 255 && saturate(uint8, neg) == 0, "saturate stops at the limits of an unsigned type");
+    check(saturate(int8, big) == 127 && saturate(int8, neg) == -128, "saturate stops at the limits of a signed type");
+    check(saturate(int8, 50) == 50, "a value that fits is unchanged");
+    check(saturate(int32, 5000000000) == 2147483647, "saturate into 32 bits");
+
+    uint8 volume = 250;
+    check(volume +| 10 == 255 && volume +| 3 == 253, "+| stops at the maximum");
+    uint8 low = 3;
+    check(low -| 10 == 0 && low -| 1 == 2, "-| stops at the minimum");
+    int8 s = 100;
+    check(s *| 3 == 127 && s *| -3 == -128 && s *| 1 == 100, "*| stops at either end");
+    int top = 9223372036854775807;
+    check(top +| 1 == top, "a 64 bit integer stops at its maximum");
+
+    uint8 level = 250;
+    level +|= 10;
+    check(level == 255, "+|= stops in place");
+    level -|= 255;
+    check(level == 0, "-|= stops in place");
+
+    float f = 1e10;
+    float g = -5.5;
+    check(saturate(int32, f) == 2147483647 && saturate(int8, g) == -5, "saturate takes a float too");
+}
+`, expected: []string{"saturate stops at the limits of an unsigned type", "saturate stops at the limits of a signed type", "a value that fits is unchanged", "saturate into 32 bits", "+| stops at the maximum", "-| stops at the minimum", "*| stops at either end", "a 64 bit integer stops at its maximum", "+|= stops in place", "-|= stops in place", "saturate takes a float too"}},
+	{dir: "abort_overflow_add", src: `func main() {
+    int8 a = 100;
+    check(a + 27 == 127, "no complaint at the limit");
+    int8 b = a + 28;
+    check(false, "overflow never printed");
+}
+`, expected: []string{"no complaint at the limit"}, abort: "panic: integer overflow", profile: "debug"},
+	{dir: "abort_overflow_mul", src: `func main() {
+    int big = 4611686018427387904;
+    check(big * 1 == big, "no complaint when it fits");
+    int over = big * 2;
+    check(false, "overflow never printed");
+}
+`, expected: []string{"no complaint when it fits"}, abort: "panic: integer overflow", profile: "debug"},
+	{dir: "abort_overflow_sub", src: `func main() {
+    uint8 a = 3;
+    check(a - 3 == 0, "no complaint at zero");
+    uint8 b = a - 4;
+    check(false, "overflow never printed");
+}
+`, expected: []string{"no complaint at zero"}, abort: "panic: integer overflow", profile: "debug"},
+	{dir: "abort_convert_range", src: `func main() {
+    int x = 200;
+    check(uint8(x) == 200, "a value that fits converts");
+    int8 y = int8(x);
+    check(false, "conversion never printed");
+}
+`, expected: []string{"a value that fits converts"}, abort: "panic: integer conversion", profile: "debug"},
+	{dir: "int_checks_off", src: `func main() {
+    int8 a = 100;
+    int8 b = a + 28;
+    check(b == -128, "without checks the result wraps");
+    int x = 300;
+    uint8 y = uint8(x);
+    check(y == 44, "without checks a conversion truncates");
+}
+`, expected: []string{"without checks the result wraps", "without checks a conversion truncates"}, profile: "fast"},
+
+	{dir: "abort_div_overflow", src: `func main() {
+    int32 min = 0;
+    min -= 2147483647;
+    min -= 1;
+    int32 neg = 0;
+    neg -= 1;
+    check(min % neg == 0, "the remainder of the minimum by minus one is zero");
+    int32 q = min / neg;
+    check(false, "overflow never printed");
+}
+`, expected: []string{"the remainder of the minimum by minus one is zero"}, abort: "panic: integer overflow", profile: "debug"},
+
+	{dir: "conv_float_int", src: `func main() {
+    float a = 3.9;
+    float b = -3.9;
+    check(int(a) == 3 && int(b) == -3, "a float converts by dropping the fraction");
+    float edge = 127.0;
+    check(int8(edge) == 127 && uint8(255.0) == 255 && int8(-128.0) == -128, "the limits of the type convert");
+    float32 small = 12.75;
+    check(int16(small) == 12 && uint32(small) == 12, "a float32 converts too");
+    float huge = 18446744073709549568.0;
+    check(uint64(huge) == 18446744073709549568, "a float near the top of uint64 converts");
+    check(int(-0.5) == 0 && uint8(0.9) == 0, "a fraction that truncates to zero converts");
+}
+`, expected: []string{"a float converts by dropping the fraction", "the limits of the type convert", "a float32 converts too", "a float near the top of uint64 converts", "a fraction that truncates to zero converts"}},
+
+	{dir: "abort_convert_float", src: `func main() {
+    float big = 300.5;
+    check(uint8(255.0) == 255, "a float that fits converts");
+    uint8 b = uint8(big);
+    check(false, "conversion never printed");
+}
+`, expected: []string{"a float that fits converts"}, abort: "panic: integer conversion", profile: "debug"},
+
+	{dir: "abort_convert_negative", src: `func main() {
+    int x = 5;
+    check(uint(x) == 5, "a positive value becomes unsigned");
+    int y = -1;
+    uint z = uint(y);
+    check(false, "conversion never printed");
+}
+`, expected: []string{"a positive value becomes unsigned"}, abort: "panic: integer conversion", profile: "debug"},
+
+	{dir: "abort_convert_nan", src: `func main() {
+    float zero = 0.0;
+    float nan = zero / zero;
+    check(int(1.5) == 1, "a number converts");
+    int n = int(nan);
+    check(false, "conversion never printed");
+}
+`, expected: []string{"a number converts"}, abort: "panic: integer conversion", profile: "debug"},
+
+	{dir: "abort_overflow_neg", src: `func main() {
+    int8 a = -127;
+    check(-a == 127, "no complaint when the negation fits");
+    int8 m = a;
+    m -= 1;
+    int8 n = -m;
+    check(false, "overflow never printed");
+}
+`, expected: []string{"no complaint when the negation fits"}, abort: "panic: integer overflow", profile: "debug"},
+
+	{dir: "abort_overflow_neg_unsigned", src: `func main() {
+    uint8 zero = 0;
+    check(-zero == 0, "the negation of zero is zero");
+    uint8 one = 1;
+    uint8 n = -one;
+    check(false, "overflow never printed");
+}
+`, expected: []string{"the negation of zero is zero"}, abort: "panic: integer overflow", profile: "debug"},
+
 	{dir: "ptr_null", src: `struct Node {
     ?*int p;
     int tag;
@@ -3046,14 +3232,14 @@ enum Level {
 
 func main() {
     int64 big = 300;
-    uint8 n = uint8(big);
+    uint8 n = truncate(uint8, big);
     check(n == 44, "conv narrowing wraps");
     uint8 u = 200;
-    int8 s = int8(u);
+    int8 s = truncate(int8, u);
     check(s + 56 == 0, "conv sign change wraps");
     int64 wide = int64(s);
     check(wide + 56 == 0, "conv widening keeps sign");
-    uint16 z = uint16(s);
+    uint16 z = truncate(uint16, s);
     check(z == 65480, "conv signed to wider unsigned");
     UserID uid = 42;
     int raw = int(uid);
@@ -4403,14 +4589,14 @@ func main() {
     check(!(3 < 2) && (3 >= 3), "constant comparisons");
     check(-9223372036854775807 - 1 < 0, "the smallest int");
 
-    uint8 wrapped = uint8(200) + uint8(100);
+    uint8 wrapped = uint8(200) +% uint8(100);
     check(wrapped == 44, "a typed constant sum wraps at its width");
-    uint8 halved = (uint8(200) + uint8(100)) / uint8(2);
+    uint8 halved = (uint8(200) +% uint8(100)) / uint8(2);
     check(halved == 22, "a wrapped intermediate is not folded exactly");
-    int8 negative = int8(100) + int8(100);
+    int8 negative = int8(100) +% int8(100);
     check(negative == -56, "int8 constants wrap");
     int max = 9223372036854775807;
-    int past = max + 1;
+    int past = max +% 1;
     check(past < 0, "int overflow wraps at run time");
     uint64 high = uint64(1) << 63;
     check(high > 9223372036854775807, "an unsigned constant above the signed range");
@@ -6153,11 +6339,11 @@ func boolean(int a) bool {
 }
 
 func narrow8(int a) int8 {
-    return int8(a);
+    return truncate(int8, a);
 }
 
 func narrowU16(int a) uint16 {
-    return uint16(a);
+    return truncate(uint16, a);
 }
 
 func pointer(*int p) *int {
@@ -6794,7 +6980,7 @@ func main() {
     check(ok == 128 && guardA == 7 && guardB == 9, "copying 128 words");
 
     for i in 0..1026 {
-        bytes[i] = byte(i);
+        bytes[i] = truncate(byte, i);
     }
     [1027]byte bcopy = bytes;
     bool same = true;
@@ -7397,14 +7583,12 @@ func main() {
     min8 -= 28;
     int8 neg8 = 0;
     neg8 -= 1;
-    check(min8 / neg8 == min8, "minneg int8 quotient wraps to min");
     check(min8 % neg8 == 0, "minneg int8 remainder is zero");
     int32 min32 = 0;
     min32 -= 2147483647;
     min32 -= 1;
     int32 neg32 = 0;
     neg32 -= 1;
-    check(min32 / neg32 == min32, "minneg int32 quotient wraps to min");
     check(min32 % neg32 == 0, "minneg int32 remainder is zero");
     int64 min64 = 0;
     min64 -= 9223372036854775807;
@@ -7423,21 +7607,18 @@ func main() {
     min8 -= 28;
     int8 neg8 = 0;
     neg8 -= 1;
-    check(min8 / neg8 == min8, "minneg int8 quotient wraps to min");
     check(min8 % neg8 == 0, "minneg int8 remainder is zero");
     int32 min32 = 0;
     min32 -= 2147483647;
     min32 -= 1;
     int32 neg32 = 0;
     neg32 -= 1;
-    check(min32 / neg32 == min32, "minneg int32 quotient wraps to min");
     check(min32 % neg32 == 0, "minneg int32 remainder is zero");
     int64 min64 = 0;
     min64 -= 9223372036854775807;
     min64 -= 1;
     int64 neg64 = 0;
     neg64 -= 1;
-    check(min64 / neg64 == min64, "minneg int64 quotient wraps to min");
     check(min64 % neg64 == 0, "minneg int64 remainder is zero");
     int64 seven = 7;
     check(seven / neg64 == 0 - 7, "minneg ordinary value by minus one");
@@ -7993,8 +8174,7 @@ func main() {
     check(int(l8(100)) == 45, "8 bit multiply and add wraps for 100");
     check(int(l8(-100)) == -43, "8 bit multiply and add wraps for -100");
 }
-`, expected: []string{"signed 64 bit division and remainder of -1073741825", "signed 64 bit division and remainder of -1073741824", "signed 64 bit division and remainder of -17", "signed 64 bit division and remainder of -16", "signed 64 bit division and remainder of -9", "signed 64 bit division and remainder of -8", "signed 64 bit division and remainder of -7", "signed 64 bit division and remainder of -2", "signed 64 bit division and remainder of -1", "signed 64 bit division and remainder of 0", "signed 64 bit division and remainder of 1", "signed 64 bit division and remainder of 2", "signed 64 bit division and remainder of 7", "signed 64 bit division and remainder of 8", "signed 64 bit division and remainder of 9", "signed 64 bit division and remainder of 16", "signed 64 bit division and remainder of 17", "signed 64 bit division and remainder of 1073741824", "signed 64 bit division and remainder of 1073741825", "signed 64 bit division and remainder of 4611686018427387904", "signed 64 bit division and remainder of 9223372036854775807", "signed 64 bit division and remainder of -9223372036854775807", "signed 32 bit division and remainder of -2147483647", "signed 32 bit division and remainder of -1073741825", "signed 32 bit division and remainder of -17", "signed 32 bit division and remainder of -9", "signed 32 bit division and remainder of -8", "signed 32 bit division and remainder of -7", "signed 32 bit division and remainder of -1", "signed 32 bit division and remainder of 0", "signed 32 bit division and remainder of 1", "signed 32 bit division and remainder of 7", "signed 32 bit division and remainder of 8", "signed 32 bit division and remainder of 9", "signed 32 bit division and remainder of 17", "signed 32 bit division and remainder of 1073741824", "signed 32 bit division and remainder of 2147483647", "unsigned division and remainder", "multiply by a constant and add one of -7", "multiply by a constant and add one of 0", "multiply by a constant and add one of 1", "multiply by a constant and add one of 5", "multiply by a constant and add one of 100", "multiply by a constant and add one of 1000000007", "32 bit multiply and add wraps for 0", "32 bit multiply and add wraps for 5", "32 bit multiply and add wraps for 300000000", "32 bit multiply and add wraps for -300000000", "32 bit multiply and add wraps for 2147483647", "8 bit multiply and add wraps for 0", "8 bit multiply and add wraps for 10", "8 bit multiply and add wraps for 100", "8 bit multiply and add wraps for -100"}},
-
+`, expected: []string{"signed 64 bit division and remainder of -1073741825", "signed 64 bit division and remainder of -1073741824", "signed 64 bit division and remainder of -17", "signed 64 bit division and remainder of -16", "signed 64 bit division and remainder of -9", "signed 64 bit division and remainder of -8", "signed 64 bit division and remainder of -7", "signed 64 bit division and remainder of -2", "signed 64 bit division and remainder of -1", "signed 64 bit division and remainder of 0", "signed 64 bit division and remainder of 1", "signed 64 bit division and remainder of 2", "signed 64 bit division and remainder of 7", "signed 64 bit division and remainder of 8", "signed 64 bit division and remainder of 9", "signed 64 bit division and remainder of 16", "signed 64 bit division and remainder of 17", "signed 64 bit division and remainder of 1073741824", "signed 64 bit division and remainder of 1073741825", "signed 64 bit division and remainder of 4611686018427387904", "signed 64 bit division and remainder of 9223372036854775807", "signed 64 bit division and remainder of -9223372036854775807", "signed 32 bit division and remainder of -2147483647", "signed 32 bit division and remainder of -1073741825", "signed 32 bit division and remainder of -17", "signed 32 bit division and remainder of -9", "signed 32 bit division and remainder of -8", "signed 32 bit division and remainder of -7", "signed 32 bit division and remainder of -1", "signed 32 bit division and remainder of 0", "signed 32 bit division and remainder of 1", "signed 32 bit division and remainder of 7", "signed 32 bit division and remainder of 8", "signed 32 bit division and remainder of 9", "signed 32 bit division and remainder of 17", "signed 32 bit division and remainder of 1073741824", "signed 32 bit division and remainder of 2147483647", "unsigned division and remainder", "multiply by a constant and add one of -7", "multiply by a constant and add one of 0", "multiply by a constant and add one of 1", "multiply by a constant and add one of 5", "multiply by a constant and add one of 100", "multiply by a constant and add one of 1000000007", "32 bit multiply and add wraps for 0", "32 bit multiply and add wraps for 5", "32 bit multiply and add wraps for 300000000", "32 bit multiply and add wraps for -300000000", "32 bit multiply and add wraps for 2147483647", "8 bit multiply and add wraps for 0", "8 bit multiply and add wraps for 10", "8 bit multiply and add wraps for 100", "8 bit multiply and add wraps for -100"}, profile: "fast"},
 	{dir: "regs_inline", src: `int counter;
 
 func bump() {
@@ -8266,7 +8446,7 @@ func reversed(int n) int {
 func doubled() int {
     int8 s = 3;
     for i in 1..4 {
-        s += s;
+        s +%= s;
     }
     return int(s);
 }
@@ -8294,7 +8474,7 @@ func floats() float {
 func wrapped() int {
     uint8 u = 250;
     for i in 1..3 {
-        u += 3;
+        u +%= 3;
     }
     return int(u);
 }
@@ -8409,11 +8589,11 @@ func small() (int, int, int, int, int) {
     uint16 d = 65000;
     int32 e = 2000000000;
     for i in 1..3 {
-        a += 50;
-        b += 100;
-        c += 5000;
-        d += 1000;
-        e += 1000000000;
+        a +%= 50;
+        b +%= 100;
+        c +%= 5000;
+        d +%= 1000;
+        e +%= 1000000000;
     }
     return int(a), int(b), int(c), int(d), int(e);
 }
@@ -8537,7 +8717,7 @@ func main() {
     letter += 1;
     check(letter == 'b', "a byte takes arithmetic");
     byte top = 255;
-    top++;
+    top +%= 1;
     check(top == 0, "a byte wraps like uint8");
     string s = "hi";
     for _, c in s {
@@ -9320,7 +9500,7 @@ func main() {
     check(math.popCount(0) == 0 && math.popCount(255) == 8 && math.popCount(0xFFFFFFFFFFFFFFFF) == 64, "popCount");
     check(math.trailingZeros(8) == 3 && math.trailingZeros(1) == 0 && math.trailingZeros(0) == 64 && math.trailingZeros(0x8000000000000000) == 63, "trailingZeros");
     check(math.leadingZeros(1) == 63 && math.leadingZeros(0) == 64 && math.leadingZeros(0x8000000000000000) == 0 && math.leadingZeros(255) == 56, "leadingZeros");
-    check(math.MIN_INT == -0x8000000000000000 && math.MAX_INT == 0x7FFFFFFFFFFFFFFF && math.MIN_INT - 1 == math.MAX_INT, "the 64-bit limits wrap around");
+    check(math.MIN_INT == -0x8000000000000000 && math.MAX_INT == 0x7FFFFFFFFFFFFFFF && math.MIN_INT -% 1 == math.MAX_INT, "the 64-bit limits wrap around");
     check(math.MIN_INT8 == -128 && math.MAX_INT8 == 127 && math.MIN_INT16 == -32768 && math.MAX_INT16 == 32767 && math.MIN_INT32 == -2147483648 && math.MAX_INT32 == 2147483647, "the signed limits");
     check(math.MAX_UINT8 == 255 && math.MAX_UINT16 == 65535 && math.MAX_UINT32 == 4294967295 && math.MAX_UINT64 == 0xFFFFFFFFFFFFFFFF && math.MAX_UINT == math.MAX_UINT64, "the unsigned limits");
     check(math.checkedAdd(math.MAX_INT, -1)!! == 9223372036854775806, "checkedAdd inside the range");
@@ -11540,10 +11720,10 @@ int main(void) {
 `}, expected: []string{"twice 42", "total 42", "shout 10 5", "shout returned 11", "runtime hidden 1", "std hidden 1"}},
 
 	{dir: "interop_export", system: "linux", cmain: true, files: map[string]string{"lib.wsp": `public func add(int32 a, int32 b) int32 as wisp_add {
-    return a + b;
+    return a +% b;
 }
 
-public func scale(int64 v, int64 k) int64 as wisp_scale => v * k;
+public func scale(int64 v, int64 k) int64 as wisp_scale => v *% k;
 
 func local() int32 {
     return 1;

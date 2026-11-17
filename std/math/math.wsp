@@ -1,45 +1,56 @@
-import "std/errors";
 import "std/math/constants";
 
-public inline func checkedAdd(int a, b) !int {
-	errors.ensure((b <= 0 || a <= constants.MAX_INT - b) && (b >= 0 || a >= constants.MIN_INT - b), errors.Kind.Overflow)!;
-	return a + b;
+public func checkedAdd(int a, b) ?int {
+	int r = a +% b;
+	return null if ((a ^ r) & (b ^ r)) < 0;
+	return r;
 }
 
-public inline func checkedSub(int a, b) !int {
-	errors.ensure((b <= 0 || a >= constants.MIN_INT + b) && (b >= 0 || a <= constants.MAX_INT + b), errors.Kind.Overflow)!;
-	return a - b;
+public func checkedSub(int a, b) ?int {
+	int r = a -% b;
+	return null if ((a ^ b) & (a ^ r)) < 0;
+	return r;
 }
 
-public func checkedMul(int a, b) !int {
-    if a == 0 || b == 0 {
-        return 0;
-    }
-	const kind = errors.Kind.Overflow;
-
-	switch {
-		case a == -1:
-			errors.ensure(b != constants.MIN_INT, kind)!;
-		case b == -1:
-			errors.ensure(a != constants.MIN_INT, kind)!;
-	}
-
-    if a > 0 {
-        if b > 0 {
-			errors.ensure(a <= constants.MAX_INT / b, kind)!;
-        } else {
-			errors.ensure(b <= constants.MAX_INT / a, kind)!;
-        }
-    } else {
-		errors.ensure(a >= (b > 0 ? constants.MIN_INT : constants.MAX_INT) / b, kind)!;
-    }
-
-    return a * b;
+public func checkedMul(int a, b) ?int {
+	return 0 if a == 0 || b == 0;
+	return null if (a == -1 && b == constants.MIN_INT) || (b == -1 && a == constants.MIN_INT);
+	int r = a *% b;
+	return null if r / b != a;
+	return r;
 }
 
-public inline func checkedAbs(int x) !int {
-	errors.ensure(x != constants.MIN_INT, errors.Kind.Overflow)!;
+public func addOverflow(int a, b) (int, bool) {
+	int r = a +% b;
+	return r, ((a ^ r) & (b ^ r)) < 0;
+}
+
+public inline func checkedAbs(int x) ?int {
+	return null if x == constants.MIN_INT;
 	return x < 0 ? -x : x;
+}
+
+public func checkedAddUnsigned(uint a, b) ?uint {
+	uint r = a +% b;
+	return null if r < a;
+	return r;
+}
+
+public func checkedSubUnsigned(uint a, b) ?uint {
+	return null if b > a;
+	return a -% b;
+}
+
+public func checkedMulUnsigned(uint a, b) ?uint {
+	return 0 if a == 0 || b == 0;
+	uint r = a *% b;
+	return null if r / b != a;
+	return r;
+}
+
+public func addOverflowUnsigned(uint a, b) (uint, bool) {
+	uint r = a +% b;
+	return r, r < a;
 }
 
 public inline func abs(int x) int {
@@ -101,15 +112,12 @@ public func gcd(int a, b) int {
 	return abs(a);
 }
 
-public func lcm(int a, b) !int {
-	if a == 0 || b == 0 {
-		return 0;
-	}
-	return abs(checkedMul(a / gcd(a, b), b)!);
+public func lcm(int a, b) ?int {
+	return 0 if a == 0 || b == 0;
+	return abs(checkedMul(a / gcd(a, b), b) ?? return null);
 }
 
-public func pow(int base, exp) !int {
-	errors.ensure(exp >= 0, errors.Kind.Invalid)!;
+public func pow(int base, uint exp) ?int {
 	if exp == 0 {
 		return 1;
 	}
@@ -117,11 +125,11 @@ public func pow(int base, exp) !int {
 	int r = 1;
 	loop exp > 0 {
 		if (exp & 1) == 1 {
-			r = checkedMul(r, base)!;
+			r = checkedMul(r, base) ?? return null;
 		}
 		exp >>= 1;
 		if exp > 0 {
-			base = checkedMul(base, base)!;
+			base = checkedMul(base, base) ?? return null;
 		}
 	}
 

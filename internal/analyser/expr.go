@@ -253,7 +253,7 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	}
 
 	switch expr.Operator {
-	case "+", "-", "*", "/", "%", "==", "!=", ">", ">=", "<", "<=", "&", "|", "^":
+	case "+", "-", "*", "/", "%", "==", "!=", ">", ">=", "<", "<=", "&", "|", "^", "+%", "-%", "*%", "+|", "-|", "*|":
 		a.checkBinaryConst(expr.Operator, expr.Left, expr.Right, left, right)
 		left, right = a.unifySlots(&expr.Left, &expr.Right, left, right)
 		if expr.Operator == "/" || expr.Operator == "%" {
@@ -270,6 +270,8 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	}
 
 	switch expr.Operator {
+	case "+%", "-%", "*%", "+|", "-|", "*|":
+		return a.checkOverflowArithmetic(expr, expr.Operator, left, right)
 	case "+", "-", "*", "/", "%":
 		return a.checkArithmetic(expr, expr.Operator, left, right)
 	case "==", "!=", ">", ">=", "<", "<=":
@@ -385,6 +387,14 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 		returns := []Type{a.checkSizeof(expr)}
 		a.info.CallReturns[expr] = returns
 		return returns
+	}
+
+	for _, name := range []string{"truncate", "saturate"} {
+		if a.isBuiltinCall(expr, name) {
+			returns := []Type{a.checkWidthBuiltin(expr, name)}
+			a.info.CallReturns[expr] = returns
+			return returns
+		}
 	}
 
 	if target, ok := a.conversionTarget(expr); ok {

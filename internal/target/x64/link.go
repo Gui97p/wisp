@@ -192,7 +192,7 @@ func Archive(t target.Target, objPaths []string, outputPath string, traceOpt boo
 
 	if t.RuntimeSource != "" {
 		runtimeObj := filepath.Join(tmp, "runtime-build.o")
-		if err := Assemble(t.RuntimeSource, runtimeObj, filepath.Join(tmp, "runtime.asm"), false, t.Format, wisp_trace); err != nil {
+		if err := Assemble(t.RuntimeSource, runtimeObj, filepath.Join(tmp, "runtime.asm"), false, t.Format, wisp_trace, "WISP_LIBRARY"); err != nil {
 			return err
 		}
 		if err := stage("wisp_runtime.o", runtimeObj); err != nil {

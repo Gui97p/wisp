@@ -4,6 +4,7 @@ global __wisp_emit
 global __wisp_error_emit
 global __wisp_panic_at
 global __wisp_panic
+global __wisp_panic_site
 extern __wisp_main
 global __wisp_envp
 global __wisp_args_ptr
@@ -201,6 +202,54 @@ __wisp_panic_at:
 	pop rdx
 	pop rsi
 	call __wisp_write_error
+
+%if WISP_TRACE
+	call __wisp_trace
+%endif
+
+	and rsp, -16
+	sub rsp, 32
+	mov ecx, 1
+	call ExitProcess
+
+__wisp_write_cstr:
+	xor edx, edx
+.length:
+	cmp byte [rsi + rdx], 0
+	je .write
+	inc rdx
+	jmp .length
+.write:
+	jmp __wisp_write_error
+
+__wisp_write_number:
+	sub rsp, 32
+	lea rsi, [rsp + 32]
+	call __wisp_utoa
+	mov rsi, rax
+	call __wisp_write_error
+	add rsp, 32
+	ret
+
+__wisp_panic_site:
+	push rdx
+	push rsi
+	push rdi
+	lit "panic: "
+	pop rsi
+	call __wisp_write_cstr
+	lit `\n--> `
+	pop rsi
+	call __wisp_write_cstr
+	pop rbx
+	lit ":"
+	mov rdi, rbx
+	shr rdi, 8
+	call __wisp_write_number
+	lit ":"
+	movzx edi, bl
+	call __wisp_write_number
+	lit `\n`
 
 %if WISP_TRACE
 	call __wisp_trace

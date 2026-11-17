@@ -112,6 +112,14 @@ func (a *Analyser) evalConversion(e *ast.CastExpr) (ConstValue, bool) {
 	}
 
 	target := underlying(a.info.Types[e])
+	if (e.Truncate || e.Saturate) && value.Kind == ConstInt {
+		if bits, signed, ok := IntegerRange(a.info.Types[e]); ok {
+			if e.Saturate {
+				return constInt(clampBig(value.Int, bits, signed)), true
+			}
+			return constInt(wrapBig(value.Int, bits, signed)), true
+		}
+	}
 	switch {
 	case isFloatType(target) && value.Kind == ConstInt:
 		return ConstValue{Kind: ConstFloat, Float: value.asFloat()}, true
@@ -254,6 +262,8 @@ func (a *Analyser) evalIntBinary(e *ast.BinaryExpr, l, r *big.Int) (ConstValue, 
 		return constInt(new(big.Int).Sub(l, r)), true
 	case "*":
 		return constInt(new(big.Int).Mul(l, r)), true
+	case "+%", "-%", "*%", "+|", "-|", "*|":
+		return a.evalOverflowBinary(e, l, r), true
 	case "/", "%":
 		if r.Sign() == 0 {
 			if a.quiet {
@@ -382,4 +392,53 @@ func (a *Analyser) moduleConst(member *ast.MemberExpr) (ConstValue, bool) {
 		return ConstValue{}, false
 	}
 	return *export.Const, true
+}
+
+func (a *Analyser) evalOverflowBinary(e *ast.BinaryExpr, l, r *big.Int) ConstValue {
+	var exact *big.Int
+	switch e.Operator[0] {
+	case '+':
+		exact = new(big.Int).Add(l, r)
+	case '-':
+		exact = new(big.Int).Sub(l, r)
+	default:
+		exact = new(big.Int).Mul(l, r)
+	}
+
+	bits, signed, ok := IntegerRange(a.info.Types[e])
+	if !ok {
+		bits, signed = 64, true
+	}
+	if e.Operator[1] == '|' {
+		return constInt(clampBig(exact, bits, signed))
+	}
+	return constInt(wrapBig(exact, bits, signed))
+}
+
+func wrapBig(v *big.Int, bits int, signed bool) *big.Int {
+	modulus := new(big.Int).Lsh(big.NewInt(1), uint(bits))
+	wrapped := new(big.Int).Mod(v, modulus)
+	if signed && wrapped.Cmp(new(big.Int).Rsh(modulus, 1)) >= 0 {
+		wrapped.Sub(wrapped, modulus)
+	}
+	return wrapped
+}
+
+func clampBig(v *big.Int, bits int, signed bool) *big.Int {
+	one := big.NewInt(1)
+	var lo, hi *big.Int
+	if signed {
+		hi = new(big.Int).Sub(new(big.Int).Lsh(one, uint(bits-1)), one)
+		lo = new(big.Int).Neg(new(big.Int).Lsh(one, uint(bits-1)))
+	} else {
+		hi = new(big.Int).Sub(new(big.Int).Lsh(one, uint(bits)), one)
+		lo = big.NewInt(0)
+	}
+	switch {
+	case v.Cmp(hi) > 0:
+		return hi
+	case v.Cmp(lo) < 0:
+		return lo
+	}
+	return v
 }

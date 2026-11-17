@@ -440,6 +440,10 @@ func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
 		return Reg{reg, size}, nil
 	}
 
+	if imm, isImm := value.(Imm); isImm && expr.Operator == "-" {
+		return Imm(-int64(imm)), nil
+	}
+
 	reg := t.materialize(value, size)
 	regStr := t.ctx.GetRegister(reg, size)
 
@@ -453,6 +457,13 @@ func (t *X64Target) compileUnaryExpr(expr *ast.UnaryExpr) (Operand, error) {
 			return nil, fmt.Errorf("x86-64: unsupported unary operator %s", expr.Operator)
 		}
 		t.text.printft("%s %s\n", inst, regStr)
+		if expr.Operator == "-" && t.checks && isInteger(tp) {
+			if isSigned(tp) {
+				t.overflowCheck("jno")
+			} else {
+				t.overflowCheck("jnc")
+			}
+		}
 	}
 
 	return Reg{reg, size}, nil
@@ -509,6 +520,18 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 	srcType := t.info.Types[expr.Value]
 	dstType := t.info.Types[expr]
 
+	if expr.Saturate {
+		op, err := t.compileExpr(expr.Value)
+		if err != nil {
+			return nil, err
+		}
+		if isFloat(srcType) {
+			return t.saturateFloat(op, srcType, dstType)
+		}
+		return t.saturateInteger(op, srcType, dstType), nil
+	}
+	checkedCast := t.checks && !expr.Implicit && !expr.Truncate
+
 	if underlying(srcType).Equals(underlying(dstType)) {
 		return t.compileExpr(expr.Value)
 	}
@@ -548,6 +571,13 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 		op, err := t.compileExpr(expr.Value)
 		if err != nil {
 			return nil, err
+		}
+		if checkedCast {
+			xmm := t.materializeXmm(op)
+			if err := t.checkFloatRange(xmm, srcType, dstType); err != nil {
+				return nil, err
+			}
+			op = Reg{xmm, srcSize}
 		}
 		reg := t.ctx.AllocFreeRegister()
 		regStr := t.ctx.GetRegister(reg, 8)
@@ -650,6 +680,10 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 		op, err := t.compileExpr(expr.Value)
 		if err != nil {
 			return nil, err
+		}
+
+		if checkedCast && isInteger(srcType) && isInteger(dstType) && conversionNeedsCheck(srcType, dstType) {
+			return t.checkedConversion(op, srcType, dstType), nil
 		}
 
 		reg := t.materialize(t.widen(op, srcType, dstSize), dstSize)

@@ -22,9 +22,16 @@ func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightTy
 	}
 
 	switch op {
+	case "+%", "-%", "*%":
+		return t.compileArithmetic(op[:1], left, right, resultType)
+	case "+|", "-|", "*|":
+		return t.saturatingArithmetic(op, left, right, resultType)
 	case "+", "-", "*", "/", "%":
 		if isFloat(resultType) {
 			return t.compileFloatArithmetic(op, left, right, resultType)
+		}
+		if t.checks && op != "/" && op != "%" && isInteger(resultType) {
+			return t.checkedArithmetic(op, left, right, resultType)
 		}
 		return t.compileArithmetic(op, left, right, resultType)
 	case "==", "!=", ">", ">=", "<", "<=":
@@ -42,7 +49,7 @@ func (t *X64Target) emitBinary(op string, left, right Operand, leftType, rightTy
 }
 
 func (t *X64Target) compileScalarBinary(expr *ast.BinaryExpr) (Operand, error) {
-	if x, k, disp, ok := t.scaledPlusConst(expr); ok {
+	if x, k, disp, ok := t.scaledPlusConst(expr); ok && !t.checks {
 		op, err := t.compileExpr(x)
 		if err != nil {
 			return nil, err
@@ -328,6 +335,9 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 			t.text.printft("cmp %s, -1\n", divisor)
 			t.text.printft("jne %s\n", normalLabel)
 			t.text.printft("neg %s\n", acc)
+			if t.checks && op == "/" {
+				t.overflowCheck("jno")
+			}
 			t.text.printlnt("xor edx, edx")
 			t.text.printft("jmp %s\n", doneLabel)
 			t.text.printf("%s:\n", normalLabel)
@@ -344,6 +354,13 @@ func (t *X64Target) compileArithmetic(op string, left, right Operand, tp analyse
 
 		t.text.printft("%s %s\n", inst, divisor)
 		t.text.printf("%s:\n", doneLabel)
+		if t.checks && op == "/" && signed && size < 4 {
+			fits := t.ctx.AllocFreeRegister()
+			t.text.printft("movsx %s, %s\n", t.ctx.GetRegister(fits, 4), t.ctx.GetRegister(x64context.AX, size))
+			t.text.printft("cmp %s, eax\n", t.ctx.GetRegister(fits, 4))
+			t.ctx.FreeRegister(fits)
+			t.overflowCheck("je")
+		}
 
 		leftReg = t.ctx.AllocFreeRegister()
 		source := x64context.AX

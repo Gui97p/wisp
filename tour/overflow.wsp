@@ -1,0 +1,59 @@
+// Tour - Integer overflow: wrapping, saturating and truncating.
+//
+// An integer has a fixed size, and the result of an operation can be too big
+// for it. `+`, `-` and `*` treat that as a bug: in the `debug` and `release`
+// profiles the program stops with the place of the operation, and in `fast`
+// the result simply wraps. When overflow is what you want, say so with the
+// operator that matches:
+//
+//     wrap around    +%   -%   *%     hashes, checksums, counters
+//     stop at limit  +|   -|   *|     volume, brightness, clamped counts
+//
+// Both exist with `=` too (`+%=`, `-|=`, ...), and only for integers.
+//
+// A conversion such as `uint8(x)` is for values that fit, and stops the same
+// way when they do not. To cut a value down on purpose use
+// `truncate(type, value)`, which keeps the low bits, and to clamp it use
+// `saturate(type, value)`, which also takes a floating point number.
+
+import "std/fmt";
+
+public func demo() {
+  // Unsigned numbers go from the top back to zero, and the other way around.
+  uint8 volume = 250;
+  fmt.printf("250 +% 10 = {}\n", volume +% 10);
+  uint8 low = 3;
+  fmt.printf("3 -% 5 = {}\n", low -% 5);
+
+  // Signed numbers go from the maximum to the minimum.
+  int8 top = 127;
+  fmt.printf("127 +% 1 = {}\n", top +% 1);
+
+  // A hash is the usual reason: FNV-1a keeps multiplying and wants the
+  // wrapped result, in the same 32 bits on every run.
+  uint32 hash = 2166136261;
+  string word = "wisp";
+  for _, c in word {
+    hash ^= c;
+    hash *%= 16777619;
+  }
+  fmt.printf("the hash of {} is {}\n", word, hash);
+
+  // `truncate` keeps the low bits, which is how a byte is taken out of a
+  // bigger number.
+  uint32 color = 0x336699;
+  fmt.printf("red {}, green {}, blue {}\n", truncate(uint8, color >> 16), truncate(uint8, color >> 8), truncate(uint8, color));
+  fmt.printf("300 truncated to a byte is {}\n", truncate(uint8, 300));
+
+  // Saturating stops at the limits instead of coming back around.
+  uint8 loud = 250;
+  fmt.printf("250 +| 10 = {}, 3 -| 10 = {}\n", loud +| 10, low -| 10);
+  int8 gain = 100;
+  fmt.printf("100 *| 3 = {}, 100 *| -3 = {}\n", gain *| 3, gain *| -3);
+
+  // `saturate` does the same for a conversion, from an integer or a float.
+  int wide = 1000;
+  fmt.printf("1000 saturated to a byte is {}, to an int8 is {}\n", saturate(uint8, wide), saturate(int8, wide));
+  float level = -3.7;
+  fmt.printf("-3.7 saturated to a byte is {}, to an int8 is {}\n", saturate(uint8, level), saturate(int8, level));
+}

@@ -225,7 +225,7 @@ func arith(t ty) {
 					g.open()
 					g.decl(t, "a", a)
 					g.decl(t, "b", b)
-					g.line("%s r = a %s b;", t.name, op)
+					g.line("%s r = a %s%% b;", t.name, op)
 					g.decl(t, "e", t.wrap(r))
 					g.check("r == e", fmt.Sprintf("arith_%s %s %s %s", t.name, name, tag(a), tag(b)))
 				}
@@ -305,6 +305,7 @@ func divOverflow(t ty) {
 		g.decl(t, "e", t.min())
 		g.check("q == e", fmt.Sprintf("divovf_%s min div m1 wraps to min", t.name))
 	})
+	cases[len(cases)-1].profile = "fast"
 	opCase("divovf", "mod", t, func(g *gen) {
 		g.open()
 		g.decl(t, "a", t.min())
@@ -350,10 +351,15 @@ func shift(t ty) {
 func unary(t ty) {
 	opCase("unary", "neg", t, func(g *gen) {
 		for _, a := range t.samples() {
+			neg := new(big.Int).Neg(a)
 			g.open()
 			g.decl(t, "a", a)
-			g.line("%s n = -a;", t.name)
-			g.decl(t, "en", t.wrap(new(big.Int).Neg(a)))
+			if neg.Cmp(t.min()) >= 0 && neg.Cmp(t.max()) <= 0 {
+				g.line("%s n = -a;", t.name)
+			} else {
+				g.line("%s n = 0 -%% a;", t.name)
+			}
+			g.decl(t, "en", t.wrap(neg))
 			g.check("n == en", fmt.Sprintf("unary_%s neg %s", t.name, tag(a)))
 		}
 	})
@@ -430,7 +436,11 @@ func compound(t ty) {
 					g.open()
 					g.decl(t, "a", a)
 					g.decl(t, "b", b)
-					g.line("a %s b;", op)
+					spelled := op
+					if op == "+=" || op == "-=" || op == "*=" {
+						spelled = op[:1] + "%="
+					}
+					g.line("a %s b;", spelled)
 					g.decl(t, "e", t.wrap(r))
 					g.check("a == e", fmt.Sprintf("compound_%s %s %s %s", t.name, names[op], tag(a), tag(b)))
 				}
@@ -466,6 +476,9 @@ func compound(t ty) {
 func incdec(t ty) {
 	opCase("incdec", "inc", t, func(g *gen) {
 		for _, a := range t.samples() {
+			if a.Cmp(t.max()) == 0 {
+				continue
+			}
 			g.open()
 			g.decl(t, "a", a)
 			g.line("a++;")
@@ -475,6 +488,9 @@ func incdec(t ty) {
 	})
 	opCase("incdec", "dec", t, func(g *gen) {
 		for _, a := range t.samples() {
+			if a.Cmp(t.min()) == 0 {
+				continue
+			}
 			g.open()
 			g.decl(t, "a", a)
 			g.line("a--;")
@@ -490,9 +506,21 @@ func cast(src ty) {
 			for _, v := range src.samples() {
 				g.open()
 				g.decl(src, "a", v)
-				g.line("%s r = %s(a);", dst.name, dst.name)
+				g.line("%s r = truncate(%s, a);", dst.name, dst.name)
 				g.decl(dst, "e", dst.wrap(v))
 				g.check("r == e", fmt.Sprintf("cast_%s to %s %s", src.name, dst.name, tag(v)))
+			}
+		})
+		opCase("conv", dst.name, src, func(g *gen) {
+			for _, v := range src.samples() {
+				if v.Cmp(dst.min()) < 0 || v.Cmp(dst.max()) > 0 {
+					continue
+				}
+				g.open()
+				g.decl(src, "a", v)
+				g.line("%s r = %s(a);", dst.name, dst.name)
+				g.decl(dst, "e", v)
+				g.check("r == e", fmt.Sprintf("conv_%s to %s %s", src.name, dst.name, tag(v)))
 			}
 		})
 	}

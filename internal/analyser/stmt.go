@@ -367,6 +367,8 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 	switch baseOp {
 	case "&", "|", "^", "<<", ">>":
 		a.checkBitwise(s, baseOp, targetTypes[0], valueType)
+	case "+%", "-%", "*%", "+|", "-|", "*|":
+		a.checkOverflowArithmetic(s, baseOp, targetTypes[0], valueType)
 	default:
 		a.checkArithmetic(s, baseOp, targetTypes[0], valueType)
 	}

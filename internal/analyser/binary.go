@@ -28,6 +28,28 @@ func (a *Analyser) checkArithmetic(node ast.Node, op string, left, right Type) T
 	return typedSide(left, right)
 }
 
+func (a *Analyser) checkOverflowArithmetic(node ast.Node, op string, left, right Type) Type {
+	if _, ok := left.(InvalidType); ok {
+		return InvalidType{}
+	}
+	if _, ok := right.(InvalidType); ok {
+		return InvalidType{}
+	}
+
+	if !isInteger(underlyingOf(left)) || !isInteger(underlyingOf(right)) {
+		a.errorf(node, "operator %s is for integers, got %s and %s", op, left.String(), right.String()).
+			WithHelp("+%% -%% *%% wrap around and +| -| *| stop at the limits, and neither exists for floating point numbers")
+		return InvalidType{}
+	}
+
+	if !left.Equals(right) {
+		a.errorf(node, "incompatible types: %s %s %s", left.String(), op, right.String())
+		return InvalidType{}
+	}
+
+	return typedSide(left, right)
+}
+
 func typedSide(left, right Type) Type {
 	switch left.(type) {
 	case UntypedIntType, UntypedFloatType:

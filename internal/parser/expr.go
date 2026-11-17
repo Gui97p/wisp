@@ -98,7 +98,7 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		lexer.TOKEN_INT64, lexer.TOKEN_UINT64,
 		lexer.TOKEN_FLOAT, lexer.TOKEN_FLOAT32, lexer.TOKEN_FLOAT64,
 		lexer.TOKEN_BOOL, lexer.TOKEN_BYTE, lexer.TOKEN_STRING:
-		if p.peek.Type == lexer.TOKEN_LPAREN || p.peek.Type == lexer.TOKEN_RPAREN {
+		if p.peek.Type == lexer.TOKEN_LPAREN || p.peek.Type == lexer.TOKEN_RPAREN || p.peek.Type == lexer.TOKEN_COMMA {
 			return &ast.IdentLiteral{Value: p.typeWord()}
 		}
 	case lexer.TOKEN_NULL:

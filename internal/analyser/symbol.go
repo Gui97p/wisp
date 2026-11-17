@@ -101,6 +101,23 @@ func (s *Scope) captures(name string, module *Scope) bool {
 	return false
 }
 
+func (s *Scope) Depths() map[*Symbol]int {
+	depths := map[*Symbol]int{}
+	seen := map[string]bool{}
+	depth := 0
+	for scope := s; scope != nil; scope = scope.parent {
+		for name, sym := range scope.symbols {
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			depths[sym] = depth
+		}
+		depth++
+	}
+	return depths
+}
+
 func (s *Scope) Visible() []*Symbol {
 	seen := map[string]bool{}
 	var out []*Symbol

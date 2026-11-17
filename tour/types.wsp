@@ -50,13 +50,14 @@ public func demo() {
   fmt.printf("'\\0' == '\\x00': {}\n", '\0' == '\x00');
   fmt.printf("'\\n' is the byte {}\n", int('\n'));
 
-  // Integers wrap at their width.
+  // Integers have a width, and `+%` wraps at it (the overflow page has the
+  // other ways to handle going past it).
   int8 small = 127;
-  small++;
+  small +%= 1;
   fmt.printf("int8 127 + 1 wraps to {}\n", small);
 
   uint8 top = 255;
-  top++;
+  top +%= 1;
   fmt.printf("uint8 255 + 1 wraps to {}\n", top);
 
   // A widening conversion is implicit; any other conversion names the type.
@@ -64,7 +65,7 @@ public func demo() {
   int64 wide = narrow;
   fmt.printf("int8 {} widens to int64 {}\n", narrow, wide);
   int big = 300;
-  fmt.printf("int8(300) keeps the low bits: {}\n", int8(big));
+  fmt.printf("int8(100) fits: {}, and truncate(int8, 300) keeps the low bits: {}\n", int8(100), truncate(int8, big));
 
   // `sizeof` takes a type or an expression and gives its size in bytes.
   fmt.printf("sizeof int8, int32, int: {}, {}, {}\n", sizeof(int8), sizeof(int32), sizeof(int));

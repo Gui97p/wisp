@@ -34,7 +34,7 @@ internal func renderInt([]byte buf, int v, spec.Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		errors.ensure(v in 0..255, errors.Kind.Range)!;
-		buf[0] = byte(v);
+		buf[0] = truncate(byte, v);
 		piece.body = string(buf[:1]);
 		return piece;
 	}
@@ -50,7 +50,7 @@ internal func renderUint([]byte buf, uint v, spec.Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		errors.ensure(v < 256, errors.Kind.Range)!;
-		buf[0] = byte(v);
+		buf[0] = truncate(byte, v);
 		piece.body = string(buf[:1]);
 		return piece;
 	}

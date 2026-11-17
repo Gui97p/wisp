@@ -342,6 +342,11 @@ func (t *X64Target) compileIncDecStmt(stmt *ast.IncDecStmt) error {
 		}
 		op = fmt.Sprintf("%s, %d", t.opText(memSlot, 8), sizeOf(tp.Element))
 	default:
+		if tp := t.info.Types[stmt.Target]; t.checks && isInteger(tp) {
+			t.checkedIncDec(stmt, memSlot, tp)
+			t.freeOp(memSlot)
+			return nil
+		}
 		inst = incDecOperators[stmt.Op]
 		op = t.opText(memSlot, sizeOf(t.info.Types[stmt.Target]))
 	}

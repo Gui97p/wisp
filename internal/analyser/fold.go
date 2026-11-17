@@ -44,6 +44,9 @@ func (i *Info) exact(expr ast.Expression) bool {
 		}
 	case *ast.UnaryExpr:
 		child = e.Value
+		if _, literal := e.Value.(*ast.IntLiteral); literal && e.Operator == "-" {
+			child = nil
+		}
 	case *ast.CastExpr:
 		child = e.Value
 	case *ast.CallExpr:
