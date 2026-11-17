@@ -24,10 +24,11 @@ type Analyser struct {
 	untilFrame      int
 	untilSawBody    bool
 
-	mustUse      []*Symbol
-	pendingDots  map[*ast.DotIdent]bool
-	pendingEmpty map[*ast.ArrayLiteral]bool
-	quiet        bool
+	mustUse        []*Symbol
+	pendingDots    map[*ast.DotIdent]bool
+	pendingDotLits map[*ast.StructLiteral]bool
+	pendingEmpty   map[*ast.ArrayLiteral]bool
+	quiet          bool
 
 	inlineStack   []*ast.FuncDecl
 	currentInline *InlineCall
@@ -65,16 +66,17 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 	universe := NewScope(nil)
 	moduleScope := NewScope(universe)
 	return &Analyser{
-		program:      program,
-		info:         NewInfo(),
-		universe:     universe,
-		scope:        moduleScope,
-		moduleScope:  moduleScope,
-		modules:      modules,
-		declFiles:    declFiles,
-		module:       module,
-		pendingDots:  map[*ast.DotIdent]bool{},
-		pendingEmpty: map[*ast.ArrayLiteral]bool{},
+		program:        program,
+		info:           NewInfo(),
+		universe:       universe,
+		scope:          moduleScope,
+		moduleScope:    moduleScope,
+		modules:        modules,
+		declFiles:      declFiles,
+		module:         module,
+		pendingDots:    map[*ast.DotIdent]bool{},
+		pendingDotLits: map[*ast.StructLiteral]bool{},
+		pendingEmpty:   map[*ast.ArrayLiteral]bool{},
 	}
 }
 

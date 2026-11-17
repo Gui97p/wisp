@@ -16,6 +16,7 @@
 //   anyargs       `...name` of any type, `switch type`, signed and unsigned
 //   cleanup       defer and defer!
 //   types         type aliases, enums, sizes, conversions
+//   variants      enums with data: variants, switch with names, `x == .Name`
 //   floats        float32 and float64, formatting
 //   structs       structs, methods, literals
 //   collections   arrays, slices, strings
@@ -48,6 +49,7 @@ import "variadics";
 import "anyargs";
 import "cleanup";
 import "types";
+import "variants";
 import "floats";
 import "structs";
 import "collections";
@@ -98,6 +100,9 @@ func main() !int {
 
   fmt.printf("\n== types ==\n");
   types.demo();
+
+  fmt.printf("\n== enums with data ==\n");
+  variants.demo();
 
   fmt.printf("\n== floats ==\n");
   floats.demo();

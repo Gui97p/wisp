@@ -2238,6 +2238,157 @@ func main() {
 }
 `, expected: []string{"break leaves a labeled block", "leaving several blocks runs their defers from the inside out", "break gives the value of a labeled block", "a labeled block can be left from inside a loop", "leaving a block does not end the loop around it"}},
 
+	{dir: "enum_data", src: `enum Shape {
+    Circle { float radius; },
+    Rect { float w, h; },
+    Empty
+}
+
+enum Token {
+    Number { int value; },
+    Word { string text; },
+    Pair { int a, b; },
+    End
+}
+
+enum Level {
+    Low,
+    High = 5
+}
+
+func (*Shape s) scale(float k) {
+    switch s {
+        case .Circle c:
+            c.radius *= k;
+        case .Rect r:
+            r.w *= k;
+            r.h *= k;
+        case .Empty:
+    }
+}
+
+func (Shape s) isEmpty() bool => s == .Empty;
+
+func area(Shape s) float {
+    switch s {
+        case .Circle c:
+            return 3.0 * c.radius * c.radius;
+        case .Rect r:
+            return r.w * r.h;
+        case .Empty:
+            return 0;
+    }
+    return -1;
+}
+
+inline func width(Shape s) float {
+    return switch s {
+        case .Circle c => c.radius * 2;
+        case .Rect r => r.w;
+        case .Empty => 0;
+    };
+}
+
+func circle(float r) Shape {
+    return .Circle{radius: r};
+}
+
+func rect(float w, float h) Shape {
+    return Shape.Rect{w: w, h: h};
+}
+
+func show(Token t) int {
+    switch t {
+        case .Number n:
+            return n.value;
+        case .Word w:
+            return len(w.text);
+        case .Pair p:
+            return p.a + p.b;
+        case .End:
+            return -1;
+    }
+    return -2;
+}
+
+func kind(Token t) string {
+    return switch t {
+        case .Number => "number";
+        case .Word => "word";
+        case .Pair => "pair";
+        case .End => "end";
+    };
+}
+
+struct Holder {
+    Token token;
+    int id;
+}
+
+func main() {
+    Shape a = Shape.Circle{radius: 2.0};
+    Shape b = .Rect{w: 3, h: 4};
+    Shape c = .Empty;
+    Shape d = Shape.Empty;
+    check(area(a) == 12 && area(b) == 12 && area(c) == 0 && area(d) == 0, "a switch reads the data of the variant");
+
+    Shape zero;
+    check(zero == .Circle && area(zero) == 0, "the zero value is the first variant with zeroed data");
+
+    check(a == .Circle && b == .Rect && c == .Empty, "== tests the variant");
+    check(a != .Rect && c != .Circle, "!= tests the variant");
+    check(c.isEmpty() && !a.isEmpty(), "a method can test the variant");
+
+    check(circle(2).name() == "Circle" && rect(1, 1).name() == "Rect" && c.name() == "Empty", "name() gives the variant");
+
+    Shape big = circle(2);
+    big.scale(3);
+    Shape wide = rect(2, 5);
+    wide.scale(2);
+    check(width(big) == 12 && width(wide) == 4, "a method changes the data through the pointer receiver");
+
+    Shape p = rect(1, 1);
+    switch &p {
+        case .Rect r:
+            r.w = 100;
+        default:
+    }
+    check(width(p) == 100, "switching on a pointer binds a pointer to the data");
+
+    Shape q = rect(1, 1);
+    switch q {
+        case .Rect r:
+            r.w = 100;
+        default:
+    }
+    check(width(q) == 1, "switching on a value binds a copy");
+
+    *Shape ptr = &a;
+    check(ptr == .Circle && ptr != .Rect, "== works through a pointer");
+
+    Token one = .Number{value: 7};
+    Token two = Token.Word{text: "hello"};
+    Token three = .Pair{a: 20, b: 22};
+    Token four = .End;
+    check(show(one) == 7 && show(two) == 5 && show(three) == 42 && show(four) == -1, "variants with different data go through a function");
+    check(kind(one) == "number" && kind(two) == "word" && kind(three) == "pair" && kind(four) == "end", "a switch expression with no default covers every variant");
+
+    [3]Token list = [one, three, four];
+    int sum;
+    for i in 0..2 {
+        sum += show(list[i]);
+    }
+    check(sum == 48, "an array of values with data");
+
+    Holder h = Holder{token: two, id: 5};
+    check(show(h.token) == 5 && h.id == 5, "a struct field of an enum with data");
+
+    Level low = .Low;
+    Level high = Level.High;
+    check(int(high) == 5 && low == Level.Low, "an enum without data is unchanged");
+}
+`, expected: []string{"a switch reads the data of the variant", "the zero value is the first variant with zeroed data", "== tests the variant", "!= tests the variant", "a method can test the variant", "name() gives the variant", "a method changes the data through the pointer receiver", "switching on a pointer binds a pointer to the data", "switching on a value binds a copy", "== works through a pointer", "variants with different data go through a function", "a switch expression with no default covers every variant", "an array of values with data", "a struct field of an enum with data", "an enum without data is unchanged"}},
+
 	{dir: "ptr_null", src: `struct Node {
     ?*int p;
     int tag;

@@ -71,6 +71,12 @@ func (a *Analyser) resolveDot(expr ast.Expression, to Type) bool {
 		}
 		return true
 	}
+	if lit, isLit := expr.(*ast.StructLiteral); isLit && lit.Dot {
+		if _, stillImplicit := to.(ImplicitEnumType); stillImplicit {
+			return true
+		}
+		return a.resolveVariantLiteral(lit, to)
+	}
 	node, ok := expr.(*ast.DotIdent)
 	if !ok {
 		return false
@@ -80,6 +86,10 @@ func (a *Analyser) resolveDot(expr ast.Expression, to Type) bool {
 	}
 
 	delete(a.pendingDots, node)
+
+	if a.resolveVariantValue(node, node.Name, to) {
+		return true
+	}
 
 	enum, isNamed := to.(NamedType)
 	if !isNamed || !enum.Enum {
@@ -118,6 +128,21 @@ func (a *Analyser) reportUnresolvedDots() {
 	})
 	for _, node := range nodes {
 		a.errorf(node, "cannot infer the enum of .%s here: write Enum.%s", node.Name, node.Name)
+	}
+	lits := make([]*ast.StructLiteral, 0, len(a.pendingDotLits))
+	for lit := range a.pendingDotLits {
+		lits = append(lits, lit)
+	}
+	sort.Slice(lits, func(i, j int) bool {
+		li, ci := lits[i].Position()
+		lj, cj := lits[j].Position()
+		if li != lj {
+			return li < lj
+		}
+		return ci < cj
+	})
+	for _, lit := range lits {
+		a.errorf(lit, "cannot infer the enum of .%s{...} here: write Enum.%s{...}", lit.Name, lit.Name)
 	}
 }
 

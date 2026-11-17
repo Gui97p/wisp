@@ -26,6 +26,11 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 			return t.resolveIntLiteral(value.Bits())
 		}
 	}
+	if variant, ok := t.info.Variants[expr]; ok {
+		if _, isLiteral := expr.(*ast.StructLiteral); !isLiteral {
+			return t.compileVariantValue(variant), nil
+		}
+	}
 	switch e := expr.(type) {
 	case *ast.NullLiteral:
 		return Imm(0), nil
@@ -1020,7 +1025,9 @@ func (t *X64Target) compileSwitchValues(expr *ast.SwitchExpr) ([]Operand, error)
 	for i := range expr.Arms {
 		arms = append(arms, &expr.Arms[i])
 	}
-	arms = append(arms, expr.Default)
+	if expr.Default != nil {
+		arms = append(arms, expr.Default)
+	}
 
 	endLabel := t.newLabel("switch_end")
 	for _, arm := range arms {

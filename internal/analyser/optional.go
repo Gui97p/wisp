@@ -475,6 +475,12 @@ func zeroProblem(t Type) string {
 		if o.Optional != nil {
 			return ""
 		}
+		if o.Sum != nil {
+			if first := o.Sum.Variants[0]; first.Payload != nil {
+				return zeroProblem(first.Payload)
+			}
+			return ""
+		}
 		for _, name := range o.Order {
 			if why := zeroProblem(o.Fields[name]); why != "" {
 				return "field " + name + " of " + o.Name + ": " + why
@@ -590,15 +596,38 @@ func (a *Analyser) checkBlockExpr(expr *ast.BlockExpr) Type {
 	return frame.values[0]
 }
 
+type coverage struct {
+	enum    NamedType
+	sum     *StructType
+	covered map[int64]bool
+	known   bool
+}
+
+func (c *coverage) missing() []string {
+	var out []string
+	if c.sum != nil {
+		for _, v := range c.sum.Sum.Variants {
+			if !c.covered[v.Tag] {
+				out = append(out, "."+v.Name)
+			}
+		}
+		return out
+	}
+	for _, name := range c.enum.MemberOrder {
+		if !c.covered[c.enum.Members[name]] {
+			out = append(out, "."+name)
+		}
+	}
+	return out
+}
+
 func (a *Analyser) checkExhaustive(head *ast.IfStmt) {
 	if !head.IsSwitch || head.SwitchDefault {
 		return
 	}
-	covered := map[int64]bool{}
-	var enum NamedType
-	found := false
+	c := &coverage{covered: map[int64]bool{}}
 	for cur := head; cur != nil; {
-		a.collectCovered(cur.Condition, covered, &enum, &found)
+		a.collectCovered(cur.Condition, c)
 		next, _ := cur.Else.(*ast.BlockStmt)
 		cur = nil
 		if next != nil && len(next.Statements) == 1 {
@@ -607,15 +636,10 @@ func (a *Analyser) checkExhaustive(head *ast.IfStmt) {
 			}
 		}
 	}
-	if !found {
+	if !c.known {
 		return
 	}
-	var missing []string
-	for _, name := range enum.MemberOrder {
-		if !covered[enum.Members[name]] {
-			missing = append(missing, "."+name)
-		}
-	}
+	missing := c.missing()
 	if len(missing) == 0 {
 		return
 	}
@@ -623,23 +647,120 @@ func (a *Analyser) checkExhaustive(head *ast.IfStmt) {
 		WithHelp("add a case for each, or a default if the rest does not matter")
 }
 
-func (a *Analyser) collectCovered(cond ast.Expression, covered map[int64]bool, enum *NamedType, found *bool) {
+func (a *Analyser) coversEverything(arms []*ast.SwitchArm) bool {
+	c := &coverage{covered: map[int64]bool{}}
+	for _, arm := range arms {
+		if arm.Condition != nil {
+			a.collectCovered(arm.Condition, c)
+		}
+	}
+	return c.known && len(c.missing()) == 0
+}
+
+func (a *Analyser) collectCovered(cond ast.Expression, c *coverage) {
 	bin, ok := cond.(*ast.BinaryExpr)
 	if !ok {
 		return
 	}
+	if test := a.info.SumTests[bin]; test != nil {
+		c.sum, c.known = test.Sum, true
+		c.covered[test.Variant.Tag] = true
+		return
+	}
+	if member, isMember := bin.Left.(*ast.MemberExpr); isMember && member.Field == sumTag && bin.Operator == "==" {
+		if tag, isTag := bin.Right.(*ast.IntLiteral); isTag {
+			if sum, ok := sumOf(a.info.Types[member.Object]); ok {
+				c.sum, c.known = sum, true
+				c.covered[tag.Value] = true
+			}
+		}
+		return
+	}
 	switch bin.Operator {
 	case "||":
-		a.collectCovered(bin.Left, covered, enum, found)
-		a.collectCovered(bin.Right, covered, enum, found)
+		a.collectCovered(bin.Left, c)
+		a.collectCovered(bin.Right, c)
 	case "==":
 		named, isNamed := a.info.Types[bin.Left].(NamedType)
 		if !isNamed || !named.Enum {
 			return
 		}
-		*enum, *found = named, true
+		c.enum, c.known = named, true
 		if value, ok := a.info.EnumValues[bin.Right]; ok {
-			covered[value.Value] = true
+			c.covered[value.Value] = true
 		}
 	}
+}
+
+func (a *Analyser) sumBinding(test *SumTest, bind *ast.TypeBind) ast.Statement {
+	if test.Variant.Payload == nil {
+		line, col := bind.Line, bind.Col
+		a.errors.Add(a.currentFile, line, col, bind.EndLine, bind.EndCol, "variant %s has no data to name", test.Variant.Name)
+		return nil
+	}
+	subject := test.Subject
+	if id, ok := subject.(*ast.IdentLiteral); ok {
+		subject = a.copyIdent(id)
+	}
+	var value ast.Expression = a.optionalMember(subject, test.Variant.Field)
+	if _, isPointer := a.info.Types[test.Subject].(PointerType); isPointer {
+		ref := &ast.UnaryExpr{Operator: "&", Value: value}
+		a.at(test.Subject, ref)
+		value = ref
+	}
+	decl := &ast.VarStmt{}
+	decl.Vars = append(decl.Vars, ast.Param{Name: bind.Name, Line: bind.Line, Col: bind.Col, EndLine: bind.EndLine, EndCol: bind.EndCol})
+	decl.Values = append(decl.Values, value)
+	a.at(test.Subject, decl)
+	return decl
+}
+
+func (a *Analyser) bindSumCase(stmt *ast.IfStmt) {
+	bin, ok := stmt.Condition.(*ast.BinaryExpr)
+	if !ok || bin.Bind == nil {
+		return
+	}
+	test := a.info.SumTests[bin]
+	if test == nil {
+		return
+	}
+	bind := bin.Bind
+	bin.Bind = nil
+	if decl := a.sumBinding(test, bind); decl != nil {
+		stmt.Then.Statements = append([]ast.Statement{decl}, stmt.Then.Statements...)
+	}
+}
+
+func (a *Analyser) bindSumArm(arm *ast.SwitchArm) {
+	bin, ok := arm.Condition.(*ast.BinaryExpr)
+	if !ok || bin.Bind == nil {
+		return
+	}
+	test := a.info.SumTests[bin]
+	if test == nil {
+		return
+	}
+	bind := bin.Bind
+	bin.Bind = nil
+	decl := a.sumBinding(test, bind)
+	if decl == nil {
+		return
+	}
+	if arm.Exit != nil {
+		block := &ast.BlockStmt{Statements: []ast.Statement{decl, arm.Exit}}
+		a.at(arm, block)
+		arm.Exit = block
+		return
+	}
+	if len(arm.Values) != 1 {
+		a.errorf(arm, "a case that names its data gives exactly one value, got %d", len(arm.Values))
+		return
+	}
+	give := &ast.YieldStmt{Values: arm.Values}
+	a.at(arm, give)
+	body := &ast.BlockStmt{Statements: []ast.Statement{decl, give}}
+	a.at(arm, body)
+	block := &ast.BlockExpr{Block: body}
+	a.at(arm, block)
+	arm.Values = []ast.Expression{block}
 }

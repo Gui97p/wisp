@@ -520,7 +520,18 @@ func (p *Parser) parseStructLiteral(left ast.Expression) ast.Expression {
 	switch l := left.(type) {
 	case *ast.IdentLiteral:
 		lit = &ast.StructLiteral{Name: l.Value}
+	case *ast.DotIdent:
+		lit = &ast.StructLiteral{Name: l.Name, Dot: true}
 	case *ast.MemberExpr:
+		if inner, nested := l.Object.(*ast.MemberExpr); nested {
+			module, ok := inner.Object.(*ast.IdentLiteral)
+			if !ok {
+				p.error("expected identifier before {")
+				return nil
+			}
+			lit = &ast.StructLiteral{Module: module.Value, Name: inner.Field, Variant: l.Field}
+			break
+		}
 		module, ok := l.Object.(*ast.IdentLiteral)
 		if !ok {
 			p.error("expected identifier before {")
@@ -819,21 +830,21 @@ func (p *Parser) parseSwitchExpression() ast.Expression {
 		expr.Arms = append(expr.Arms, arm)
 	}
 
-	armLine, armCol := p.peek.Line, p.peek.Column
-	if !p.expect(lexer.TOKEN_DEFAULT) {
-		return nil
-	}
+	if p.peek.Type == lexer.TOKEN_DEFAULT {
+		armLine, armCol := p.peek.Line, p.peek.Column
+		p.advance()
 
-	if !p.expect(lexer.TOKEN_ARROW) {
-		return nil
-	}
+		if !p.expect(lexer.TOKEN_ARROW) {
+			return nil
+		}
 
-	arm, ok := p.parseSwitchArm()
-	if !ok {
-		return nil
+		arm, ok := p.parseSwitchArm()
+		if !ok {
+			return nil
+		}
+		arm.SetPos(armLine, armCol)
+		expr.Default = &arm
 	}
-	arm.SetPos(armLine, armCol)
-	expr.Default = &arm
 
 	if !p.expect(lexer.TOKEN_RBRACE) {
 		return nil

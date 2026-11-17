@@ -316,6 +316,9 @@ func (t *X64Target) compileInto(expr ast.Expression, dst Mem, tp analyser.Type) 
 	switch e := expr.(type) {
 	case *ast.StructLiteral:
 		st := structOf(tp)
+		if variant, ok := t.info.Variants[e]; ok {
+			return t.compileVariant(e, dst, variant)
+		}
 		layout := layoutOf(st)
 		for _, field := range st.Order {
 			f := layout.Fields[field]

@@ -192,13 +192,16 @@ func (s *StructDecl) Tree(indent string) string {
 }
 
 type EnumMember struct {
-	Name    string
-	Value   int64
-	Doc     string
-	Line    int
-	Col     int
-	EndLine int
-	EndCol  int
+	Name     string
+	Value    int64
+	Fields   []Param
+	Payload  bool
+	Numbered bool
+	Doc      string
+	Line     int
+	Col      int
+	EndLine  int
+	EndCol   int
 }
 
 type TypeDecl struct {
@@ -208,6 +211,7 @@ type TypeDecl struct {
 	Exported   bool
 	Reach      int
 	IsEnum     bool
+	Data       bool
 	Members    []EnumMember
 	Selector   string
 	SelectorAt Position

@@ -24,16 +24,7 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 		a.checkStmt(stmt)
 	}
 
-	if expr.Default == nil {
-		a.error(expr, "a switch expression needs a default")
-		return []Type{InvalidType{}}
-	}
-
-	arms := make([]*ast.SwitchArm, 0, len(expr.Arms)+1)
-	for i := range expr.Arms {
-		arms = append(arms, &expr.Arms[i])
-	}
-	arms = append(arms, expr.Default)
+	arms := switchArms(expr)
 
 	armTypes := make([][]Type, len(arms))
 	count, valid := -1, true
@@ -43,6 +34,7 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 			condType := a.checkExpr(arm.Condition)
 			a.requireBool(arm.Condition, condType, "case condition")
 			a.narrowSwitchVariable(arm.Condition)
+			a.bindSumArm(arm)
 		}
 
 		if arm.Exit != nil {
@@ -61,6 +53,12 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 	}
 
 	if !valid {
+		return []Type{InvalidType{}}
+	}
+
+	if expr.Default == nil && !a.coversEverything(arms) {
+		a.error(expr, "a switch expression needs a default, or a case for every member").
+			WithHelp("the expression must always give a value")
 		return []Type{InvalidType{}}
 	}
 

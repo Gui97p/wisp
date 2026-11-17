@@ -10,7 +10,7 @@ func (a *Analyser) registerTypeAliases() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		td, ok := d.(*ast.TypeDecl)
-		if !ok {
+		if !ok || td.Data {
 			continue
 		}
 

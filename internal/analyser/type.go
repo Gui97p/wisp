@@ -269,6 +269,27 @@ type StructType struct {
 	Dir       string
 	Exported  bool
 	Optional  Type
+	Sum       *SumInfo
+}
+
+type SumVariant struct {
+	Name    string
+	Tag     int64
+	Payload *StructType
+	Field   string
+}
+
+type SumInfo struct {
+	Variants []SumVariant
+	ByName   map[string]int
+}
+
+func (s *SumInfo) Find(name string) (SumVariant, bool) {
+	i, ok := s.ByName[name]
+	if !ok {
+		return SumVariant{}, false
+	}
+	return s.Variants[i], true
 }
 
 func (s *StructType) String() string {

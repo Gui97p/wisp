@@ -435,7 +435,20 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 			}
 		}
 
+		var fields []ast.Param
+		payload, numbered := false, false
+		if p.peek.Type == lexer.TOKEN_LBRACE {
+			p.advance()
+			fields = p.parseStructParamList()
+			if !p.expect(lexer.TOKEN_RBRACE) {
+				return nil
+			}
+			payload = true
+			enum.Data = true
+		}
+
 		if p.peek.Type == lexer.TOKEN_ASSIGN {
+			numbered = true
 			p.advance()
 			if !p.expect(lexer.TOKEN_INT_LITERAL) {
 				return nil
@@ -451,13 +464,16 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 			current = num
 		}
 		enum.Members = append(enum.Members, ast.EnumMember{
-			Name:    memberName,
-			Value:   current,
-			Doc:     memberDoc,
-			Line:    memberLine,
-			Col:     memberCol,
-			EndLine: memberEndLine,
-			EndCol:  memberEndCol,
+			Name:     memberName,
+			Fields:   fields,
+			Payload:  payload,
+			Numbered: numbered,
+			Value:    current,
+			Doc:      memberDoc,
+			Line:     memberLine,
+			Col:      memberCol,
+			EndLine:  memberEndLine,
+			EndCol:   memberEndCol,
 		})
 		current++
 
@@ -470,6 +486,15 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 
 	if !p.expect(lexer.TOKEN_RBRACE) {
 		return nil
+	}
+
+	if enum.Data {
+		for _, m := range enum.Members {
+			if m.Numbered {
+				p.errorf("%s has variants with data, so its members cannot be numbered", name)
+				return nil
+			}
+		}
 	}
 
 	return decls

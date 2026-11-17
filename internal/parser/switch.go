@@ -161,6 +161,17 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int, typ
 		return nil
 	}
 
+	if !typed && p.peek.Type == lexer.TOKEN_IDENT && isVariantName(expr) {
+		bind, ok := p.parseTypeBind(true)
+		if !ok {
+			return nil
+		}
+		match := &ast.BinaryExpr{Left: value, Operator: "==", Right: expr, Synthetic: true, Bind: bind}
+		match.SetPos(line, col)
+		match.SetEndPos(p.currentEnd())
+		return match
+	}
+
 	if typed {
 		bind, ok := p.parseTypeBind(typed)
 		if !ok {
@@ -250,10 +261,25 @@ func (p *Parser) parseCaseExpression(value ast.Expression, line, col int, typed 
 		expr.(*ast.BinaryExpr).SetEndPos(p.currentEnd())
 	}
 
-	if typed && types > 1 && named {
-		p.error("a case with several types cannot name the value")
+	if types > 1 && named {
+		if typed {
+			p.error("a case with several types cannot name the value")
+		} else {
+			p.error("a case with several variants cannot name the data")
+		}
 		return nil
 	}
 
 	return expr
+}
+
+func isVariantName(expr ast.Expression) bool {
+	switch e := expr.(type) {
+	case *ast.DotIdent:
+		return true
+	case *ast.MemberExpr:
+		_, ok := e.Object.(*ast.IdentLiteral)
+		return ok
+	}
+	return false
 }

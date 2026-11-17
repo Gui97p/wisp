@@ -119,6 +119,8 @@ type StructLiteral struct {
 	KeyAt    []Position
 	Values   []Expression
 	Implicit bool
+	Dot      bool
+	Variant  string
 
 	NodePos
 }

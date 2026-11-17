@@ -161,6 +161,36 @@ func layoutOf(st *analyser.StructType) *structLayout {
 
 	l := &structLayout{Align: 1, Fields: make(map[string]fieldLayout, len(st.Order))}
 	pos := 0
+	if st.Sum != nil {
+		for i, name := range st.Order {
+			tp := st.Fields[name]
+			l.Align = max(l.Align, alignOf(tp))
+			if i == 0 {
+				l.Fields[name] = fieldLayout{Offset: 0, Size: sizeOf(tp), Type: tp}
+				pos = sizeOf(tp)
+			}
+		}
+		base, widest := pos, 0
+		for i, name := range st.Order {
+			if i == 0 {
+				continue
+			}
+			tp := st.Fields[name]
+			base = max(base, alignUp(pos, alignOf(tp)))
+			widest = max(widest, sizeOf(tp))
+		}
+		for i, name := range st.Order {
+			if i == 0 {
+				continue
+			}
+			tp := st.Fields[name]
+			l.Fields[name] = fieldLayout{Offset: base, Size: sizeOf(tp), Type: tp}
+		}
+		pos = base + widest
+		l.Size = alignUp(pos, l.Align)
+		layouts[st] = l
+		return l
+	}
 	for _, name := range st.Order {
 		tp := st.Fields[name]
 		align := alignOf(tp)

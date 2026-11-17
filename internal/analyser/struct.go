@@ -9,6 +9,10 @@ import (
 func (a *Analyser) registerStructNames() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
+		if td, isEnum := d.(*ast.TypeDecl); isEnum && td.Data {
+			a.registerSumName(td)
+			continue
+		}
 		sd, ok := d.(*ast.StructDecl)
 		if !ok {
 			continue
@@ -38,6 +42,10 @@ func (a *Analyser) registerStructNames() {
 func (a *Analyser) registerStructFields() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
+		if td, isEnum := d.(*ast.TypeDecl); isEnum && td.Data {
+			a.registerSumFields(td)
+			continue
+		}
 		sd, ok := d.(*ast.StructDecl)
 		if !ok {
 			continue
@@ -68,6 +76,23 @@ func (a *Analyser) registerStructFields() {
 }
 
 func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
+	if expr.Dot {
+		a.pendingDotLits[expr] = true
+		return ImplicitEnumType{Name: expr.Name}
+	}
+	if expr.Variant != "" {
+		sum, ok := a.sumTypeExpr(&ast.MemberExpr{Object: &ast.IdentLiteral{Value: expr.Module}, Field: expr.Name})
+		if !ok {
+			a.errorf(expr, "%s.%s is not an enum with data", expr.Module, expr.Name)
+			return InvalidType{}
+		}
+		return a.checkVariantLiteral(expr, sum, expr.Variant)
+	}
+	if expr.Module != "" {
+		if sum, ok := a.sumTypeExpr(&ast.IdentLiteral{Value: expr.Module}); ok {
+			return a.checkVariantLiteral(expr, sum, expr.Name)
+		}
+	}
 	symbol, ok := a.lookupType(a.scope, expr.Module, expr.Name)
 	if !ok {
 		d := a.errorf(expr, "unknown type %s", qualified(expr.Module, expr.Name))
@@ -82,7 +107,15 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 		a.errorf(expr, "%s is not a struct", qualified(expr.Module, expr.Name))
 		return InvalidType{}
 	}
+	if st.Sum != nil {
+		a.errorf(expr, "%s has variants: write %s.Name{...} or .Name{...}", st.Name, st.Name)
+		return InvalidType{}
+	}
 
+	return a.checkFieldInits(expr, st)
+}
+
+func (a *Analyser) checkFieldInits(expr *ast.StructLiteral, st *StructType) Type {
 	seen := make(map[string]bool)
 	for i, key := range expr.Keys {
 		valueType := a.checkExpr(expr.Values[i])

@@ -2,11 +2,14 @@ package x64
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
+
+const sumTagField = "$tag"
 
 type optionalParts struct {
 	value   Operand
@@ -197,4 +200,43 @@ func (t *X64Target) compileBlockExpr(expr *ast.BlockExpr) (Operand, error) {
 
 	t.text.printf("%s:\n", endLabel)
 	return result, nil
+}
+
+func (t *X64Target) compileVariantValue(variant *analyser.VariantInfo) Operand {
+	size := sizeOf(variant.Sum)
+	dst := slot(t.ctx.Reserve(size), size)
+	t.storeVariantTag(dst, variant)
+	return dst
+}
+
+func (t *X64Target) storeVariantTag(dst Mem, variant *analyser.VariantInfo) {
+	layout := layoutOf(variant.Sum)
+	t.zero(dst)
+	tag := layout.Fields[sumTagField]
+	t.storeWord(dst.at(tag.Offset, tag.Size), Imm(variant.Variant.Tag))
+}
+
+func (t *X64Target) compileVariant(lit *ast.StructLiteral, dst Mem, variant *analyser.VariantInfo) error {
+	t.storeVariantTag(dst, variant)
+	if variant.Variant.Payload == nil {
+		return nil
+	}
+
+	layout := layoutOf(variant.Sum)
+	payload := layout.Fields[variant.Variant.Field]
+	region := dst.at(payload.Offset, payload.Size)
+	inner := layoutOf(variant.Variant.Payload)
+	for _, field := range variant.Variant.Payload.Order {
+		f := inner.Fields[field]
+		mem := region.at(f.Offset, f.Size)
+		index := slices.Index(lit.Keys, field)
+		if index == -1 {
+			t.zero(mem)
+			continue
+		}
+		if err := t.compileInto(lit.Values[index], mem, f.Type); err != nil {
+			return err
+		}
+	}
+	return nil
 }

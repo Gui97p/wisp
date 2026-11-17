@@ -123,6 +123,7 @@ func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
 
 	condType := a.checkExpr(stmt.Condition)
 	a.requireBool(stmt.Condition, condType, "if condition")
+	a.bindSumCase(stmt)
 
 	a.enterScope()
 	a.narrowSwitchVariable(stmt.Condition)

@@ -229,6 +229,11 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 			WithHelp("this one is %s", left.String())
 		return InvalidType{}
 	}
+	if _, isSum := sumOf(left); isSum {
+		if t, handled := a.checkSumTest(expr, left); handled {
+			return t
+		}
+	}
 	right := a.checkExpr(expr.Right)
 
 	if expr.Operator == "==" || expr.Operator == "!=" {
@@ -645,6 +650,20 @@ func (a *Analyser) evalArgTypes(expr *ast.CallExpr) []Type {
 func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 	if enum, ok := a.enumTypeExpr(expr.Object); ok {
 		return a.checkEnumMember(expr, enum)
+	}
+	if sum, ok := a.sumTypeExpr(expr.Object); ok {
+		variant, found := sum.Sum.Find(expr.Field)
+		switch {
+		case !found:
+			a.suggest(a.errorf(expr, "%s has no variant %s", sum.Name, expr.Field), expr.Field, variantNames(sum))
+			return InvalidType{}
+		case variant.Payload != nil:
+			a.errorf(expr, "variant %s has data: write %s.%s{...} with its fields", expr.Field, sum.Name, expr.Field)
+			return InvalidType{}
+		}
+		a.info.Members[expr] = &MemberInfo{Kind: MemberVariant}
+		a.info.Variants[expr] = &VariantInfo{Sum: sum, Variant: variant}
+		return sum
 	}
 
 	objType := a.checkExpr(expr.Object)

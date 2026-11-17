@@ -35,6 +35,19 @@ type Info struct {
 	TypeCases        map[*ast.BinaryExpr]*TypeCase
 	Narrowed         map[*Symbol]*Symbol
 	SwitchValues     map[*ast.SwitchExpr][]Type
+	Variants         map[ast.Expression]*VariantInfo
+	SumTests         map[*ast.BinaryExpr]*SumTest
+}
+
+type VariantInfo struct {
+	Sum     *StructType
+	Variant SumVariant
+}
+
+type SumTest struct {
+	Sum     *StructType
+	Variant SumVariant
+	Subject ast.Expression
 }
 
 type TypeCase struct {
@@ -70,6 +83,8 @@ func NewInfo() *Info {
 		TypeCases:        make(map[*ast.BinaryExpr]*TypeCase),
 		Narrowed:         make(map[*Symbol]*Symbol),
 		SwitchValues:     make(map[*ast.SwitchExpr][]Type),
+		Variants:         make(map[ast.Expression]*VariantInfo),
+		SumTests:         make(map[*ast.BinaryExpr]*SumTest),
 	}
 }
 
@@ -95,6 +110,7 @@ const (
 	MemberModule
 	MemberErrorField
 	MemberEnum
+	MemberVariant
 )
 
 type MemberInfo struct {
