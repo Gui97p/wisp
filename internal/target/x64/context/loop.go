@@ -6,6 +6,7 @@ type LoopContext struct {
 	ContinueLabel    string
 	SupportsContinue bool
 	DeferDepth       int
+	Block            bool
 }
 
 func (t *Context) PushLoop(ctx LoopContext) {
@@ -17,11 +18,12 @@ func (t *Context) PopLoop() {
 }
 
 func (t *Context) CurrentLoop() *LoopContext {
-	if len(t.loopStack) == 0 {
-		return nil
+	for i := len(t.loopStack) - 1; i >= 0; i-- {
+		if !t.loopStack[i].Block {
+			return &t.loopStack[i]
+		}
 	}
-
-	return &t.loopStack[len(t.loopStack)-1]
+	return nil
 }
 
 func (t *Context) CurrentContinuable() *LoopContext {

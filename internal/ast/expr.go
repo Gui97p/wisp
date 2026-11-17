@@ -465,6 +465,7 @@ func (a *SwitchArm) tree(head, pad string) string {
 
 type BlockExpr struct {
 	Block *BlockStmt
+	Label string
 
 	NodePos
 }

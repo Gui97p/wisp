@@ -27,6 +27,7 @@ func (e *ExpressionStmt) Tree(indent string) string {
 
 type BlockStmt struct {
 	Statements []Statement
+	Label      string
 
 	NodePos
 }
@@ -141,6 +142,7 @@ func (r *ReturnStmt) Tree(indent string) string {
 type YieldStmt struct {
 	Values   []Expression
 	Implicit bool
+	Target   string
 
 	NodePos
 }

@@ -284,6 +284,7 @@ type loopFrame struct {
 	Label            string
 	SupportsContinue bool
 	Continued        bool
+	Block            bool
 }
 
 func (a *Analyser) pushLoop(label string) {

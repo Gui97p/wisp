@@ -742,6 +742,16 @@ func (p *Parser) parseBreakStatement() ast.Statement {
 	if p.peek.Type == lexer.TOKEN_IDENT {
 		p.advance()
 		stmt.Label = p.current.Literal
+		if p.peek.Type != lexer.TOKEN_SEMICOLON && p.peek.Type != lexer.TOKEN_IF {
+			target := &ast.YieldStmt{Target: stmt.Label}
+			p.advance()
+			value := p.parseExpression()
+			if value == nil {
+				return nil
+			}
+			target.Values = append(target.Values, value)
+			return p.endJump(target, line, col)
+		}
 	}
 
 	return p.endJump(stmt, line, col)
@@ -924,8 +934,15 @@ func (p *Parser) parseLabeledStatement() ast.Statement {
 		}
 		stmt.Label = label
 		return stmt
+	case lexer.TOKEN_LBRACE:
+		block := p.parseBlockStatement()
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
+		block.Label = label
+		return block
 	default:
-		p.error("expected for or loop after label")
+		p.error("expected for, loop or a block after label")
 		return nil
 	}
 }

@@ -116,6 +116,19 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 			return nil
 		}
 		return &ast.BlockExpr{Block: block}
+	case lexer.TOKEN_COLON:
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil
+		}
+		label := p.current.Literal
+		if !p.checkReservedName(label) || !p.expect(lexer.TOKEN_LBRACE) {
+			return nil
+		}
+		block := p.parseBlockStatement()
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
+		return &ast.BlockExpr{Block: block, Label: label}
 
 	case lexer.TOKEN_MINUS,
 		lexer.TOKEN_NOT,

@@ -20,6 +20,7 @@ type coalesceFrame struct {
 	end        string
 	deferDepth int
 	lastYield  ast.Statement
+	label      string
 }
 
 type callSite struct {

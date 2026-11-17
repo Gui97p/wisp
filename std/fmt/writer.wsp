@@ -69,6 +69,7 @@ func (*Writer w) put(*byte c, int n) ! {
 			if w.len == len(w.buf) {
 				w.flush()!;
 			}
+		case .None:
 	}
 }
 
@@ -128,6 +129,7 @@ func (*Writer w) writePiece(render.Piece p, spec.Spec s, bool numeric) ! {
 				w.write(p.radix)!;
 				w.write(p.body)!;
 				w.fill(s.fill, pad-pad/2)!;
+			case .Default:
 		}
 	}
 }

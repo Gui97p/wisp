@@ -32,6 +32,11 @@ func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 		}
 		return err
 	case *ast.BlockStmt:
+		blockEnd := ""
+		if s.Label != "" {
+			blockEnd = t.newLabel("block_break")
+			t.pushLoop(x64context.LoopContext{Label: s.Label, BreakLabel: blockEnd, Block: true})
+		}
 		t.pushDeferScope()
 		var last ast.Statement
 		for _, stmt := range s.Statements {
@@ -49,6 +54,10 @@ func (t *X64Target) compileStatementNode(stmt ast.Statement) error {
 			}
 		}
 		t.popDeferScope()
+		if blockEnd != "" {
+			t.text.printf("%s:\n", blockEnd)
+			t.ctx.PopLoop()
+		}
 	case *ast.VarStmt:
 		err = t.compileVarStmt(s)
 	case *ast.ReturnStmt:
@@ -494,6 +503,14 @@ func (t *X64Target) compileYieldStmt(stmt *ast.YieldStmt) error {
 		return fmt.Errorf("x86-64: yield outside a ?? handler")
 	}
 	frame := t.coalesceFrames[len(t.coalesceFrames)-1]
+	if stmt.Target != "" {
+		for i := len(t.coalesceFrames) - 1; i >= 0; i-- {
+			if t.coalesceFrames[i].label == stmt.Target {
+				frame = t.coalesceFrames[i]
+				break
+			}
+		}
+	}
 
 	err := t.eachValue(stmt.Values, func(i int, op Operand) error {
 		t.store(op, frame.slots[i])

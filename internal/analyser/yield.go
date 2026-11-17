@@ -6,6 +6,7 @@ type yieldFrame struct {
 	values []Type
 	bound  bool
 	infer  bool
+	label  string
 }
 
 func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
@@ -26,6 +27,19 @@ func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
 	}
 
 	top := len(a.yieldFrames) - 1
+	if stmt.Target != "" {
+		top = -1
+		for i := len(a.yieldFrames) - 1; i >= 0; i-- {
+			if a.yieldFrames[i].label == stmt.Target {
+				top = i
+				break
+			}
+		}
+		if top < 0 {
+			a.errorf(stmt, "break %s gives a value, but %s is not the label of a block that gives one", stmt.Target, stmt.Target)
+			return
+		}
+	}
 	if a.yieldFrames[top].infer && len(a.yieldFrames[top].values) == 0 {
 		if len(types) != 1 {
 			a.errorf(stmt, "a block gives exactly one value, got %d", len(types))

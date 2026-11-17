@@ -68,9 +68,15 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 	case *ast.DeferStmt:
 		a.checkDeferStmt(s)
 	case *ast.BlockStmt:
+		if s.Label != "" {
+			a.loopFrames = append(a.loopFrames, loopFrame{Label: s.Label, Block: true})
+		}
 		a.enterScope()
 		a.checkBlock(s)
 		a.exitScope()
+		if s.Label != "" {
+			a.popLoop()
+		}
 	}
 }
 
@@ -445,9 +451,24 @@ func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
 			a.errorf(node, "%s outside a loop", kind)
 			return
 		}
-	} else if len(a.loopFrames) == 0 {
-		a.errorf(node, "%s outside a loop", kind)
-		return
+		if label != "" {
+			for _, f := range a.loopFrames {
+				if f.Label == label && f.Block {
+					a.errorf(node, "%s is the label of a block, which has no next turn: use break %s", label, label)
+					return
+				}
+			}
+		}
+	} else if label == "" {
+		if len(a.loopFrames) == 0 || !slices.ContainsFunc(a.loopFrames, func(f loopFrame) bool { return !f.Block }) {
+			a.errorf(node, "%s outside a loop", kind)
+			return
+		}
+		if inner := a.loopFrames[len(a.loopFrames)-1]; inner.Block {
+			a.errorf(node, "this break is inside the block :%s, so it is not clear which one it leaves", inner.Label).
+				WithHelp("write `break %s` to leave the block, or give the loop a label and break it by name", inner.Label)
+			return
+		}
 	}
 
 	if kind == "continue" {

@@ -2004,6 +2004,240 @@ func main() {
 }
 `, expected: []string{"?? panic passes a value"}, abort: "panic: missing key"},
 
+	{dir: "flow_guards", src: `var int calls;
+
+func divide(int a, int b) ?int {
+    return null if b == 0;
+    return a / b;
+}
+
+func clamp(int n) int {
+    return 0 if n < 0;
+    return 100 if n > 100;
+    return n;
+}
+
+func early(int n) int {
+    int seen;
+    for i in 0..9 {
+        continue if i % 2 == 0;
+        break if i > n;
+        seen++;
+    }
+    return seen;
+}
+
+func record(int n) {
+    return if n < 0;
+    calls++;
+}
+
+func pick(int n) int {
+    int v = {
+        yield -1 if n < 0;
+        yield n * 2;
+    };
+    return v;
+}
+
+func labeled() int {
+    int count;
+    :outer for i in 0..3 {
+        for j in 0..3 {
+            continue outer if j > i;
+            break outer if i == 3;
+            count++;
+        }
+    }
+    return count;
+}
+
+func main() {
+    ?int quotient = divide(8, 2);
+    ?int none = divide(1, 0);
+    check(quotient == 4 && none == null, "return with a guard");
+    check(clamp(-5) == 0 && clamp(500) == 100 && clamp(40) == 40, "several guards in a row");
+    check(early(5) == 3 && early(0) == 0, "continue and break with a guard");
+    record(-1);
+    record(1);
+    record(2);
+    check(calls == 2, "return without a value with a guard");
+    check(pick(-3) == -1 && pick(4) == 8, "yield with a guard");
+    check(labeled() == 6, "a labeled break and continue with a guard");
+}
+`, expected: []string{"return with a guard", "several guards in a row", "continue and break with a guard", "return without a value with a guard", "yield with a guard", "a labeled break and continue with a guard"}},
+	{dir: "flow_blocks", src: `func cleanup(string name) {
+    emit(name);
+}
+
+func main() {
+    int x = 1;
+    {
+        int x = 2;
+        check(x == 2, "a bare block has a scope of its own");
+    }
+    check(x == 1, "a name declared in a block does not leak");
+
+    int a = {
+        int base = 5 * 5;
+        yield base / 2;
+    };
+    check(a == 12, "a block gives a value");
+
+    string kind = {
+        if a > 10 {
+            yield "big";
+        }
+        yield "small";
+    };
+    check(kind == "big", "a block yields from inside an if");
+
+    ?int maybe = { yield 7; };
+    check(maybe == 7, "the value of a block is widened to its target type");
+
+    int total = ({ yield 1; }) + ({ yield 2; }) * 3;
+    check(total == 7, "a block is an operand");
+
+    int sum;
+    for i in 0..3 {
+        int sq = {
+            if i == 2 {
+                continue;
+            }
+            yield i * i;
+        };
+        sum += sq;
+    }
+    check(sum == 0 + 1 + 9, "continue leaves the loop turn from inside a block");
+
+    int order;
+    {
+        defer order = order * 10 + 2;
+        order = 1;
+    }
+    check(order == 12, "a defer in a bare block runs when the block ends");
+
+    int nested = {
+        int inner = {
+            yield 4;
+        };
+        yield inner + 1;
+    };
+    check(nested == 5, "blocks nest");
+
+    float ratio = { yield 1.5; };
+    check(ratio == 1.5, "a block gives a float");
+}
+`, expected: []string{"a bare block has a scope of its own", "a name declared in a block does not leak", "a block gives a value", "a block yields from inside an if", "the value of a block is widened to its target type", "a block is an operand", "continue leaves the loop turn from inside a block", "a defer in a bare block runs when the block ends", "blocks nest", "a block gives a float"}},
+	{dir: "flow_exhaustive", src: `enum Color {
+    Red,
+    Green,
+    Blue
+}
+
+func name(Color c) string {
+    switch c {
+        case .Red:
+            return "red";
+        case .Green, .Blue:
+            return "cool";
+    }
+    return "";
+}
+
+func code(Color c) int {
+    switch c {
+        case Color.Red:
+            return 1;
+        case Color.Green:
+            return 2;
+        case Color.Blue:
+            return 3;
+    }
+    return 0;
+}
+
+func other(Color c) string {
+    switch c {
+        case .Red:
+            return "red";
+        default:
+            return "not red";
+    }
+}
+
+func main() {
+    check(name(.Red) == "red" && name(.Green) == "cool" && name(.Blue) == "cool", "a switch that covers every member needs no default");
+    check(code(.Red) == 1 && code(.Green) == 2 && code(.Blue) == 3, "members written with the enum name");
+    check(other(.Red) == "red" && other(.Blue) == "not red", "a default stands for the members left out");
+    int n = 3;
+    switch n {
+        case 1:
+            emit("one");
+        case 3:
+            check(true, "an integer switch does not need a default");
+    }
+}
+`, expected: []string{"a switch that covers every member needs no default", "members written with the enum name", "a default stands for the members left out", "an integer switch does not need a default"}},
+
+	{dir: "flow_block_labels", src: `func find(int want) int {
+    int found = -1;
+    :search {
+        for i in 0..9 {
+            break search if i * i == want;
+            found = i;
+        }
+        found = -2;
+    }
+    return found;
+}
+
+func main() {
+    check(find(16) == 3 && find(100) == -2, "break leaves a labeled block");
+
+    int trace;
+    :outer {
+        defer trace = trace * 10 + 9;
+        trace = 1;
+        :inner {
+            defer trace = trace * 10 + 8;
+            trace = trace * 10 + 2;
+            break outer if trace > 0;
+            trace = 77;
+        }
+        trace = 66;
+    }
+    check(trace == 1289, "leaving several blocks runs their defers from the inside out");
+
+    int v = :pick {
+        for i in 0..5 {
+            break pick i * 100 if i == 3;
+        }
+        yield -1;
+    };
+    check(v == 300, "break gives the value of a labeled block");
+
+    int n;
+    :skip {
+        for i in 0..3 {
+            break skip if i == 2;
+            n++;
+        }
+    }
+    check(n == 2, "a labeled block can be left from inside a loop");
+
+    int k;
+    for i in 0..3 {
+        :blk {
+            break blk if i == 1;
+            k++;
+        }
+    }
+    check(k == 3, "leaving a block does not end the loop around it");
+
+}
+`, expected: []string{"break leaves a labeled block", "leaving several blocks runs their defers from the inside out", "break gives the value of a labeled block", "a labeled block can be left from inside a loop", "leaving a block does not end the loop around it"}},
+
 	{dir: "ptr_null", src: `struct Node {
     ?*int p;
     int tag;

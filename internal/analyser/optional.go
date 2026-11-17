@@ -572,7 +572,7 @@ func absentOnError(t Type) Type {
 
 func (a *Analyser) checkBlockExpr(expr *ast.BlockExpr) Type {
 	a.enterScope()
-	a.yieldFrames = append(a.yieldFrames, yieldFrame{infer: true})
+	a.yieldFrames = append(a.yieldFrames, yieldFrame{infer: true, label: expr.Label})
 	a.checkBlock(expr.Block)
 	frame := a.yieldFrames[len(a.yieldFrames)-1]
 	a.yieldFrames = a.yieldFrames[:len(a.yieldFrames)-1]

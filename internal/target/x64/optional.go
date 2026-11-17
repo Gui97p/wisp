@@ -188,7 +188,7 @@ func (t *X64Target) compileBlockExpr(expr *ast.BlockExpr) (Operand, error) {
 	}
 
 	t.collectVariables(expr.Block)
-	t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{slots: []Mem{result}, end: endLabel, deferDepth: len(t.deferScopes), lastYield: lastYield})
+	t.coalesceFrames = append(t.coalesceFrames, coalesceFrame{slots: []Mem{result}, end: endLabel, deferDepth: len(t.deferScopes), lastYield: lastYield, label: expr.Label})
 	err := t.compileStatement(expr.Block)
 	t.coalesceFrames = t.coalesceFrames[:len(t.coalesceFrames)-1]
 	if err != nil {
