@@ -106,8 +106,8 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 	}
 	if info != nil && (trigger == " " || trigger == ":") {
 		text := textBefore(path, int(pos.Line), int(pos.Character))
-		if enum, ok := structValueEnum(text, scopeFor(info, line, col)); ok {
-			return enumValueItems(enum)
+		if tp, ok := structValueEnum(text, scopeFor(info, line, col)); ok {
+			return enumValueItems(tp)
 		}
 	}
 	if line := lastLine(textBefore(path, int(pos.Line), int(pos.Character))); directiveTyping.MatchString(line) {
@@ -471,7 +471,7 @@ func memberItems(path, base string, scope *analyser.Scope, suffix string) []prot
 	}
 	if st, ok := t.(*analyser.StructType); ok && st.Optional == nil {
 		for _, f := range st.Order {
-			if !analyser.FieldAccessible(st, f, path) {
+			if hiddenField(f) || !analyser.FieldAccessible(st, f, path) {
 				continue
 			}
 			items = append(items, item(f, protocol.CompletionItemKindField, st.Fields[f].String()))
@@ -682,7 +682,7 @@ func structLiteralItems(text string, scope *analyser.Scope) ([]protocol.Completi
 		return items, true
 	}
 	for _, field := range ctx.st.Order {
-		if ctx.used[field] {
+		if ctx.used[field] || hiddenField(field) {
 			continue
 		}
 		it := item(field, protocol.CompletionItemKindField, analyser.TypeText(ctx.st.Fields[field]))
@@ -693,10 +693,11 @@ func structLiteralItems(text string, scope *analyser.Scope) ([]protocol.Completi
 	return items, true
 }
 
-func enumValueItems(enum analyser.NamedType) []protocol.CompletionItem {
+func enumValueItems(tp analyser.Type) []protocol.CompletionItem {
 	items := []protocol.CompletionItem{}
-	for _, member := range enum.MemberOrder {
-		it := item("."+member, protocol.CompletionItemKindEnumMember, enum.Name)
+	name, members, _ := dotMembers(tp)
+	for _, member := range members {
+		it := item("."+member, protocol.CompletionItemKindEnumMember, name)
 		text := "." + member
 		it.InsertText = &text
 		items = append(items, it)
@@ -764,13 +765,14 @@ func structLiteralContext(text string, scope *analyser.Scope) (literalContext, b
 	return ctx, true
 }
 
-func structValueEnum(text string, scope *analyser.Scope) (analyser.NamedType, bool) {
+func structValueEnum(text string, scope *analyser.Scope) (analyser.Type, bool) {
 	ctx, ok := structLiteralContext(text, scope)
 	if !ok || !ctx.hasKey {
-		return analyser.NamedType{}, false
+		return nil, false
 	}
-	enum, ok := ctx.st.Fields[ctx.key].(analyser.NamedType)
-	return enum, ok && enum.Enum
+	tp := ctx.st.Fields[ctx.key]
+	_, _, isChoice := dotMembers(tp)
+	return tp, isChoice
 }
 
 func lastLine(text string) string {
@@ -778,4 +780,8 @@ func lastLine(text string) string {
 		return text[i+1:]
 	}
 	return text
+}
+
+func hiddenField(name string) bool {
+	return strings.HasPrefix(name, "$")
 }

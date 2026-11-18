@@ -158,6 +158,7 @@ func (a *Analyser) checkSumTest(expr *ast.BinaryExpr, left Type) (Type, bool) {
 	test := &SumTest{Sum: sum, Variant: variant, Subject: subject}
 	expr.Left = a.optionalMember(subject, sumTag)
 	expr.Right = a.intLiteral(expr.Right, variant.Tag)
+	a.info.Variants[expr.Right] = &VariantInfo{Sum: sum, Variant: variant}
 	t := a.checkBinaryExpr(expr)
 	a.info.SumTests[expr] = test
 	return t, true

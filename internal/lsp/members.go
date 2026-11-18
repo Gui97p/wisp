@@ -62,7 +62,7 @@ func receiverMembers(path string, scope *analyser.Scope, word, suffix string) []
 				continue
 			}
 			for _, field := range st.Order {
-				if !matchesWord(field, word) || !analyser.FieldAccessible(st, field, path) {
+				if hiddenField(field) || !matchesWord(field, word) || !analyser.FieldAccessible(st, field, path) {
 					continue
 				}
 				it := item(sym.Name+"."+field, protocol.CompletionItemKindField, analyser.TypeText(st.Fields[field]))

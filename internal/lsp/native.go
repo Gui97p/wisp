@@ -140,6 +140,9 @@ func nativeItems(path string, pos protocol.Position, info *analyser.Info) ([]pro
 
 	if st := nativeStructOf(tp); st != nil && st.Optional == nil {
 		for _, field := range st.Order {
+			if hiddenField(field) {
+				continue
+			}
 			items = append(items, item(field, protocol.CompletionItemKindField, st.Fields[field].String()))
 		}
 	} else if nativeWordPair(tp) {

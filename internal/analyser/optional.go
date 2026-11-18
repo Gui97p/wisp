@@ -643,7 +643,7 @@ func (a *Analyser) checkExhaustive(head *ast.IfStmt) {
 	if len(missing) == 0 {
 		return
 	}
-	a.errorf(head, "this switch does not cover %s", strings.Join(missing, ", ")).
+	a.errorRange(switchKeyword(head), "this switch does not cover %s", strings.Join(missing, ", ")).
 		WithHelp("add a case for each, or a default if the rest does not matter")
 }
 
@@ -821,4 +821,9 @@ func (a *Analyser) checkWidthBuiltin(expr *ast.CallExpr, name string) Type {
 	a.info.Types[cast] = target
 	expr.Cast = cast
 	return target
+}
+
+func switchKeyword(node ast.Node) ast.Position {
+	line, col := node.Position()
+	return ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + len("switch") - 1}
 }

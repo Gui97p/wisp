@@ -121,10 +121,27 @@ func collectTokens(program *ast.Program, info *analyser.Info) []semanticToken {
 				add(at, tokenProperty)
 			}
 			line, col := e.Position()
+			span := func(from, length int) ast.Position {
+				return ast.Position{Line: line, Col: from, EndLine: line, EndCol: from + length - 1}
+			}
+			if _, isVariant := info.Variants[e]; isVariant {
+				switch {
+				case e.Dot:
+					add(span(col+1, len(e.Name)), tokenEnumMember)
+				case e.Variant != "":
+					typeAt := col + len(e.Module) + 1
+					add(span(typeAt, len(e.Name)), tokenType)
+					add(span(typeAt+len(e.Name)+1, len(e.Variant)), tokenEnumMember)
+				default:
+					add(span(col, len(e.Module)), tokenType)
+					add(span(col+len(e.Module)+1, len(e.Name)), tokenEnumMember)
+				}
+				return
+			}
 			if e.Module != "" {
 				col += len(e.Module) + 1
 			}
-			add(ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + len(e.Name) - 1}, tokenType)
+			add(span(col, len(e.Name)), tokenType)
 		}
 	})
 

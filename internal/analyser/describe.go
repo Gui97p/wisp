@@ -108,13 +108,43 @@ func EnumText(t NamedType) string {
 	return b.String()
 }
 
+func variantFields(variant SumVariant) string {
+	if variant.Payload == nil || len(variant.Payload.Order) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(variant.Payload.Order))
+	for _, field := range variant.Payload.Order {
+		parts = append(parts, TypeText(variant.Payload.Fields[field])+" "+field)
+	}
+	return " { " + strings.Join(parts, "; ") + " }"
+}
+
+func VariantText(sum *StructType, variant SumVariant) string {
+	return sum.Name + "." + variant.Name + variantFields(variant)
+}
+
 func StructText(st *StructType) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "struct %s {\n", st.Name)
-	for _, field := range st.Order {
-		fmt.Fprintf(&b, "  %s %s\n", TypeText(st.Fields[field]), field)
+	if st.Sum != nil {
+		fmt.Fprintf(&b, "enum %s {\n", st.Name)
+		for i, variant := range st.Sum.Variants {
+			comma := ","
+			if i == len(st.Sum.Variants)-1 {
+				comma = ""
+			}
+			fmt.Fprintf(&b, "  %s%s%s\n", variant.Name, variantFields(variant), comma)
+		}
+		b.WriteString("}")
+	} else {
+		fmt.Fprintf(&b, "struct %s {\n", st.Name)
+		for _, field := range st.Order {
+			if strings.HasPrefix(field, "$") {
+				continue
+			}
+			fmt.Fprintf(&b, "  %s %s\n", TypeText(st.Fields[field]), field)
+		}
+		b.WriteString("}")
 	}
-	b.WriteString("}")
 
 	names := make([]string, 0, len(st.Methods))
 	for name := range st.Methods {

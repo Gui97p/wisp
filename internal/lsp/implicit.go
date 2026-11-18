@@ -35,18 +35,39 @@ func implicitDotItems(path string, pos protocol.Position, info *analyser.Info) (
 
 	before := prefix[:loc[3]]
 	scope := scopeAt(info, int(pos.Line)+1, int(pos.Character)+1)
-	enum, ok := expectedEnum(before, textBefore(path, int(pos.Line), int(pos.Character)), scope, path, int(pos.Line))
+	name, members, ok := dotMembers(expectedEnum(before, textBefore(path, int(pos.Line), int(pos.Character)), scope, path, int(pos.Line)))
 	if !ok {
 		return items, true
 	}
 
-	for _, member := range enum.MemberOrder {
-		items = append(items, item(member, protocol.CompletionItemKindEnumMember, enum.Name))
+	for _, member := range members {
+		items = append(items, item(member, protocol.CompletionItemKindEnumMember, name))
 	}
 	return items, true
 }
 
-func expectedEnum(before, text string, scope *analyser.Scope, path string, line int) (analyser.NamedType, bool) {
+func dotMembers(tp analyser.Type) (string, []string, bool) {
+	if pointer, ok := tp.(analyser.PointerType); ok {
+		tp = pointer.Element
+	}
+	switch v := tp.(type) {
+	case analyser.NamedType:
+		if v.Enum {
+			return v.Name, v.MemberOrder, true
+		}
+	case *analyser.StructType:
+		if v.Sum != nil {
+			names := make([]string, 0, len(v.Sum.Variants))
+			for _, variant := range v.Sum.Variants {
+				names = append(names, variant.Name)
+			}
+			return v.Name, names, true
+		}
+	}
+	return "", nil, false
+}
+
+func expectedEnum(before, text string, scope *analyser.Scope, path string, line int) analyser.Type {
 	var tp analyser.Type
 
 	switch {
@@ -64,8 +85,7 @@ func expectedEnum(before, text string, scope *analyser.Scope, path string, line 
 		tp = contextType(before, text, scope, path, line)
 	}
 
-	enum, ok := tp.(analyser.NamedType)
-	return enum, ok && enum.Enum
+	return tp
 }
 
 func contextType(before, text string, scope *analyser.Scope, path string, line int) analyser.Type {
@@ -75,8 +95,8 @@ func contextType(before, text string, scope *analyser.Scope, path string, line i
 	if returnBefore.MatchString(before) {
 		return returnType(path, line, before, scope)
 	}
-	if enum, ok := structValueEnum(text, scope); ok {
-		return enum
+	if tp, ok := structValueEnum(text, scope); ok {
+		return tp
 	}
 	if callee, arg, ok := callContext(maskLiterals(before)); ok {
 		if ft := calleeType(scope, callee); ft != nil && arg < len(ft.Params) {

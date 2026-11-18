@@ -470,6 +470,11 @@ func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
 		return
 	}
 
+	if slices.ContainsFunc(a.yieldFrames, func(f yieldFrame) bool { return f.label == label }) {
+		a.errorf(node, "the block :%s gives a value, so the break needs one: write `break %s <value>;`", label, label)
+		return
+	}
+
 	a.errorf(node, "unknown label: %s", label)
 }
 

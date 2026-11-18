@@ -1,6 +1,10 @@
 package analyser
 
-import "github.com/Gui97p/wisp/internal/ast"
+import (
+	"slices"
+
+	"github.com/Gui97p/wisp/internal/ast"
+)
 
 type yieldFrame struct {
 	values []Type
@@ -19,6 +23,15 @@ func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
 		}
 	}
 	types = a.rejectFallible(stmt.Values, a.checkExprList(stmt.Values))
+
+	if stmt.Target != "" && !slices.ContainsFunc(a.yieldFrames, func(f yieldFrame) bool { return f.label == stmt.Target }) {
+		if slices.ContainsFunc(a.loopFrames, func(f loopFrame) bool { return f.Label == stmt.Target }) {
+			a.errorf(stmt, "%s labels a block or loop that gives no value, so the break takes none: write `break %s;`", stmt.Target, stmt.Target)
+		} else {
+			a.errorf(stmt, "unknown label: %s", stmt.Target)
+		}
+		return
+	}
 
 	if len(a.yieldFrames) == 0 {
 		a.error(stmt, "yield can only be used inside a ?? handler or a block that gives a value").

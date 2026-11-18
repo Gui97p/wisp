@@ -202,6 +202,11 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 				child = exprInStmt(arm.Exit, line, col)
 			}
 		}
+	case *ast.BlockExpr:
+		child = exprInStmt(e.Block, line, col)
+		if child == nil {
+			return nil
+		}
 	case *ast.TupleExpr:
 		child = firstExpr(line, col, e.Elements...)
 	case *ast.CastExpr:

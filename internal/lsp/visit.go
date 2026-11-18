@@ -99,6 +99,8 @@ func walkExpr(expr ast.Expression, fn func(ast.Expression)) {
 			walkExprs(arm.Values, fn)
 			walkStmt(arm.Exit, fn)
 		}
+	case *ast.BlockExpr:
+		walkStmt(e.Block, fn)
 	case *ast.TupleExpr:
 		walkExprs(e.Elements, fn)
 	case *ast.CastExpr:

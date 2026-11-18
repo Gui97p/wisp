@@ -50,7 +50,7 @@ func rawResize(?*void _state, ?*void p, int _old, int n) !*void {
 	return grown;
 }
 
-func rawRelease(?*void _state, ?*void p) {
+func<debug> rawRelease(?*void _state, ?*void p) {
 	if p |block| {
 		raw.release(block);
 	}
@@ -69,8 +69,6 @@ func<debug> arm() {
 		hookPending = false;
 	}
 }
-
-inline func arm() {}
 
 func obtain(int n, bool zero) !*void {
 	if zero {

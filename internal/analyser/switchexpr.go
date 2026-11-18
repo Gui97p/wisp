@@ -57,7 +57,7 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 	}
 
 	if expr.Default == nil && !a.coversEverything(arms) {
-		a.error(expr, "a switch expression needs a default, or a case for every member").
+		a.errorRange(switchKeyword(expr), "a switch expression needs a default, or a case for every member").
 			WithHelp("the expression must always give a value")
 		return []Type{InvalidType{}}
 	}

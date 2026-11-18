@@ -240,8 +240,12 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 		if e.Synthetic {
 			return ""
 		}
-	case *ast.SwitchExpr:
+	case *ast.SwitchExpr, *ast.BlockExpr:
 		return ""
+	}
+
+	if v, ok := info.Variants[expr]; ok {
+		return renderDoc(analyser.VariantText(v.Sum, v.Variant), fmt.Sprintf("Variant of `%s`.", v.Sum.Name))
 	}
 
 	switch e := expr.(type) {
