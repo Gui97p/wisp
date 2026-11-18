@@ -1,0 +1,6 @@
+import "std/fmt";
+import "calc";
+
+func main() {
+  fmt.printf("{}\n", calc.add(2, 2));
+}

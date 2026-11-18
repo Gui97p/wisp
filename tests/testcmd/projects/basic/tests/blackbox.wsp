@@ -1,0 +1,8 @@
+import "calc";
+
+#test("public api from another folder")
+func publicApi() {
+  if calc.add(1, 1) != 2 {
+    calc.divide(1, 0)!!;
+  }
+}

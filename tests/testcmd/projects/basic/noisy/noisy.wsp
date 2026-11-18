@@ -1,0 +1,6 @@
+func neverCalled(int n) int {
+  return n;
+}
+
+func main() {
+}

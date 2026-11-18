@@ -7,13 +7,14 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/module"
 	x64context "github.com/Gui97p/wisp/internal/target/x64/context"
 )
 
 func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 	switch d := decl.(type) {
 	case *ast.FuncDecl:
-		if d.Extern {
+		if d.Extern || (d.TagNamed("test") != nil && !t.testBuild) {
 			return nil
 		}
 		t.file = t.files[decl]
@@ -526,11 +527,15 @@ func (t *X64Target) emitDescriptor(name string) {
 	t.text.printf("desc_%s:\n", name)
 	t.text.printft("dq 0x%x\n", descriptorMagic)
 	t.text.printft("dq %s\n", name)
-	t.text.printft("dq %d\n", len(t.sites))
-	for i, site := range t.sites {
+	sites := t.sites
+	if t.module == module.TestMainPath {
+		sites = nil
+	}
+	t.text.printft("dq %d\n", len(sites))
+	for i, site := range sites {
 		t.text.printft("dq %s%s - %s, .s%d, %d\n", name, site.label, name, i, len(site.text))
 	}
-	for i, site := range t.sites {
+	for i, site := range sites {
 		data := bytesToAsm([]byte(site.text))
 		if data == "" {
 			data = "0"

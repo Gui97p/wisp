@@ -12,6 +12,7 @@
 //     #deprecated     every use gets a warning, `#deprecated("use fresh")`
 //     #noreturn       a function that never returns
 //     #must_use       a function whose result a caller should not throw away
+//     #test           a test that `wisp test` runs
 
 import "std/fmt";
 
@@ -73,6 +74,24 @@ public func oldTriple(int x) int {
 #must_use("the result is returned, nothing is stored in the arguments")
 func bigger(int a, int b) int {
   return a > b ? a : b;
+}
+
+// `#test` marks a test. It takes no parameters and gives no result, or only an
+// error, so it can use `!` like any function. The name between quotes is what
+// the report shows, and without it the name of the function is used. `wisp
+// test` runs every test of the project, each one in a process of its own: a
+// test passes when it returns, and fails when it returns an error or stops the
+// program, as a panic does. Tests can sit in the file they test, like this
+// one, in a file named name.test.wsp next to it (which sees what is
+// `internal`), or in any other folder of the project. Every other build
+// leaves them out, so this function does not exist in the program that the
+// tour runs.
+#test("a Wire holds what it was given")
+func wireRoundTrip() {
+  Wire w = Wire{kind: 2, value: 40, flags: 1};
+  if w.value != 40 {
+    panic("the value was lost");
+  }
 }
 
 public func demo() {

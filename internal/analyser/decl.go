@@ -345,7 +345,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 func (a *Analyser) warnUnusedFuncs() {
 	for _, d := range a.program.Declarations {
 		decl, ok := d.(*ast.FuncDecl)
-		if !ok || decl.Receiver != nil || decl.Exported || decl.Extern || decl.CExport != "" || decl.Name == "main" || silencesUnused(decl.Name) {
+		if !ok || decl.Receiver != nil || decl.Exported || decl.Extern || decl.CExport != "" || decl.Name == "main" || decl.TagNamed("test") != nil || silencesUnused(decl.Name) {
 			continue
 		}
 		sym, found := a.scope.symbols[decl.Name]

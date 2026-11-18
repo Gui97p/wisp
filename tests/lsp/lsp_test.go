@@ -37,6 +37,7 @@ func TestHover(t *testing.T) {
 		{"array literal type", shapes + "func main() {\n  let a = [2]¦P{.{x: 1, y: 1}, .{x: 2, y: 2}};\n}\n", []string{"[2]P"}},
 		{"conversion type", "func main() {\n  let b = ¦int32(3);\n}\n", []string{"Signed 32-bit"}},
 		{"tag", "#na¦ked\nfunc f() {}\nfunc main() {}\n", []string{"#naked", "no frame"}},
+		{"test tag", "#te¦st\nfunc f() {}\nfunc main() {}\n", []string{"#test", "wisp test"}},
 		{"label", "func main() {\n  :outer for i in 0..3 {\n    break :ou¦ter;\n  }\n}\n", []string{":outer", "declared on line 2"}},
 		{"capture", "func f() ?int { return null; }\nfunc main() {\n  if f() |va¦lue| {\n  }\n}\n", []string{"int value"}},
 		{"sizeof", "struct P { int x; }\nconst N = size¦of(P);\nfunc main() {}\n", []string{"func sizeof(x) int", "known at compile time"}},
@@ -116,7 +117,7 @@ func TestCompletion(t *testing.T) {
 		{"struct fields", shapes + "func main() {\n  P p;\n  p.¦\n}\n", both, true, nil},
 		{"field of a constant", "struct P { int x; int y; }\nconst P ORIGIN = .{x: 1, y: 2};\nfunc main() {\n  int n = ORIGIN.¦\n}\n", both, true, nil},
 		{"field of an array element", "struct P { int x; int y; }\nconst [2]P LIST = .{.{x: 1, y: 1}, .{x: 2, y: 2}};\nfunc main() {\n  int n = LIST[0].¦\n}\n", both, true, nil},
-		{"tags", "#¦\nfunc f() {}\nfunc main() {}\n", []string{"naked", "packed", "deprecated", "must_use", "noreturn"}, false, nil},
+		{"tags", "#¦\nfunc f() {}\nfunc main() {}\n", []string{"naked", "packed", "deprecated", "must_use", "noreturn", "test"}, false, nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -133,6 +134,40 @@ func TestCompletion(t *testing.T) {
 			}
 			if tc.exactly && len(got) != len(tc.want) {
 				t.Errorf("completion is %v, want exactly %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestTestFiles(t *testing.T) {
+	c := start(t)
+	calc := "public func add(int a, int b) int { return a + b; }\ninternal func secret(int n) int { return n * 7; }\n"
+	cases := []struct {
+		name   string
+		test   string
+		errors int
+		text   string
+	}{
+		{"a test next to the code sees what is internal", "import \"calc\";\n\n#test(\"secret\")\nfunc secret() {\n  int n = calc.secret(2);\n}\n", 0, ""},
+		{"a test with a fallible body", "import \"calc\";\n\n#test\nfunc ok() ! {\n  int n = calc.add(1, 2);\n}\n", 0, ""},
+		{"a test with a parameter", "import \"calc\";\n\n#test\nfunc bad(int n) {\n  int x = calc.add(n, 1);\n}\n", 1, "a test takes no parameters"},
+		{"a test with a result", "import \"calc\";\n\n#test\nfunc bad() int {\n  return calc.add(1, 1);\n}\n", 1, "a test gives no result"},
+		{"a test name that is not text", "import \"calc\";\n\n#test(3)\nfunc bad() {\n  int x = calc.add(1, 1);\n}\n", 1, "the name of a test is a text"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := c.openAs("calc.test.wsp", map[string]string{"calc.wsp": calc, "calc.test.wsp": tc.test})
+			var errors []string
+			for _, d := range p.diagnostics() {
+				if d.Severity == 1 {
+					errors = append(errors, d.Message)
+				}
+			}
+			if len(errors) != tc.errors {
+				t.Fatalf("%d errors, want %d: %v", len(errors), tc.errors, errors)
+			}
+			if tc.errors > 0 && !strings.Contains(errors[0], tc.text) {
+				t.Errorf("error %q does not contain %q", errors[0], tc.text)
 			}
 		})
 	}

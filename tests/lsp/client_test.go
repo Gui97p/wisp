@@ -206,6 +206,10 @@ type project struct {
 }
 
 func (c *client) open(files map[string]string) *project {
+	return c.openAs("main.wsp", files)
+}
+
+func (c *client) openAs(primary string, files map[string]string) *project {
 	c.t.Helper()
 	dir := c.t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "wisp.toml"), []byte("[output]\nbin = \"bin\"\n"), 0o644); err != nil {
@@ -217,7 +221,7 @@ func (c *client) open(files map[string]string) *project {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(clean), 0o644); err != nil {
 			c.t.Fatal(err)
 		}
-		if name == "main.wsp" {
+		if name == primary {
 			p.path, p.text, p.line, p.char = filepath.Join(dir, name), clean, line, char
 		}
 	}

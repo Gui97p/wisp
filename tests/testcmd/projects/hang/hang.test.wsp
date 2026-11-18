@@ -1,0 +1,9 @@
+#test("never ends")
+func forever() {
+  loop {
+  }
+}
+
+#test("ends at once")
+func quick() {
+}

@@ -39,6 +39,12 @@ var Tags = []TagSpec{
 		Args:    1,
 	},
 	{
+		Name: "test", Usage: "#test(\"name\")",
+		Doc:     "A test that `wisp test` runs, in a process of its own. It takes no parameters and gives no result, or only an error (`!`). It passes when it returns, and fails when it returns an error or stops the program, as a panic does. The name between quotes is optional and is what the report shows. The function is left out of every other build.",
+		Targets: []string{"function"},
+		Args:    1,
+	},
+	{
 		Name: "noreturn", Usage: "#noreturn",
 		Doc:     "A function that never returns, such as one that ends the program. Its body must not return, and the code after a call to it is unreachable.",
 		Targets: []string{"function", "method", "native function"},
@@ -162,6 +168,24 @@ func contains(list []string, item string) bool {
 
 func (a *Analyser) checkTagArgs(spec TagSpec, tag *ast.Tag, decl ast.Declaration) {
 	switch spec.Name {
+	case "test":
+		if len(tag.Args) == 1 {
+			if text, isText := tag.Args[0].(*ast.StringLiteral); !isText {
+				a.errorf(tag.Args[0], "the name of a test is a text between quotes")
+			} else if strings.TrimSpace(text.Value) == "" {
+				a.errorf(tag.Args[0], "the name of a test cannot be empty")
+			}
+		}
+		if fd, ok := decl.(*ast.FuncDecl); ok {
+			switch {
+			case len(fd.Params) > 0:
+				a.errorRange(tag.At, "a test takes no parameters, and %s takes %d", fd.Name, len(fd.Params))
+			case len(fd.ReturnTypes) > 0:
+				a.errorRange(tag.At, "a test gives no result, and %s gives one: it passes or fails", fd.Name)
+			case fd.Inline:
+				a.errorRange(tag.At, "a test cannot be inline")
+			}
+		}
 	case "deprecated", "must_use":
 		if len(tag.Args) == 1 {
 			if _, isText := tag.Args[0].(*ast.StringLiteral); !isText {

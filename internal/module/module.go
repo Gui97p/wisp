@@ -193,7 +193,7 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 				mod.FailImport(imp.Path, message)
 				continue
 			}
-			if len(depFiles) == 1 && len(mod.FilePaths) > 0 {
+			if len(depFiles) == 1 && len(mod.FilePaths) > 0 && mod.Path != TestMainPath {
 				if folder := packageFolder(depFiles[0]); folder != "" && !InsideFolder(mod.FilePaths[0], folder) {
 					pkg := importKey(root, folder)
 					mod.FailImport(imp.Path, fmt.Sprintf("module %q is internal to %q\nimport %q instead", importKey(root, strings.TrimSuffix(depFiles[0], ".wsp")), pkg, pkg))
@@ -312,7 +312,7 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(p, ".wsp") {
+		if !strings.HasSuffix(p, ".wsp") || skipFile(d.Name()) {
 			return nil
 		}
 		path, err := canonicalModulePath(root, p)
@@ -366,6 +366,10 @@ func loadModule(path, dir string, files []string, overrides map[string][]byte) *
 		program := p.ParseProgram()
 		if program.Target != "" && !target.MatchesText(currentTarget(), program.Target) {
 			program.Declarations = nil
+		}
+
+		if testsEnabled {
+			exposeTests(program)
 		}
 
 		mod.Files = append(mod.Files, program)
@@ -424,7 +428,7 @@ func importableUnder(root, prefix string, skipNested bool) []ImportCandidate {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(p, ".wsp") {
+		if !strings.HasSuffix(p, ".wsp") || skipFile(d.Name()) {
 			return nil
 		}
 
@@ -484,7 +488,7 @@ func packageParts(root string, mod *Module) []moduleRoot {
 	var parts []moduleRoot
 	for _, entry := range entries {
 		file := filepath.Join(mod.Dir, entry.Name())
-		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || file == entryFile {
+		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || file == entryFile || skipFile(entry.Name()) {
 			continue
 		}
 		key := importKey(root, strings.TrimSuffix(file, ".wsp"))
@@ -505,7 +509,7 @@ func methodSiblings(root string, mod *Module, overrides map[string][]byte) []mod
 	var found []moduleRoot
 	for _, entry := range entries {
 		file := filepath.Join(mod.Dir, entry.Name())
-		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || slices.Contains(mod.FilePaths, file) {
+		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || slices.Contains(mod.FilePaths, file) || skipFile(entry.Name()) {
 			continue
 		}
 

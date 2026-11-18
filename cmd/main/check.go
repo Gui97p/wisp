@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Gui97p/wisp/internal/module"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +26,7 @@ func init() {
 
 func runCheck(cmd *cobra.Command, args []string) error {
 	start := time.Now()
+	module.ConfigureTests(true)
 
 	root, cfg, err := openProject(cmd)
 	if err != nil {

@@ -38,6 +38,8 @@ type project struct {
 	mainMod   *compiledModule
 	mainCount int
 	cycles    [][]string
+	tests     []module.TestFunc
+	testTotal int
 }
 
 func loadProject(root string, cfg *module.Config) (*project, error) {
@@ -48,7 +50,14 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 	module.ConfigureTarget(tgt.Name)
 	target.SetActiveProfile(cfg.ProfileFacts(tgt.Profile))
 
-	modules, err := module.DiscoverProject(root)
+	var modules []*module.Module
+	var tests []module.TestFunc
+	testTotal := 0
+	if testRun {
+		modules, tests, testTotal, err = module.DiscoverProjectWithTests(root, testKeep, generateTestMain)
+	} else {
+		modules, err = module.DiscoverProject(root)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +77,9 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 
 	var cycles [][]string
 	for _, group := range module.Groups(modules) {
+		if len(group) == 1 && group[0].Path == module.TestMainPath && hadErrors {
+			continue
+		}
 		var members []*module.Module
 		groupFailed := false
 		if len(group) > 1 {
@@ -149,11 +161,14 @@ func loadProject(root string, cfg *module.Config) (*project, error) {
 	}
 
 	mainDecl, mainMod, mainCount := findMain(compiled, root, cfg.Entry)
+	if testRun {
+		mainDecl, mainMod, mainCount = findTestMain(compiled)
+	}
 	if mainDecl != nil {
 		mainDecl.Exported = true
 	}
 
-	return &project{program: cfg.ProgramName, entry: cfg.Entry, compiled: compiled, mainMod: mainMod, mainCount: mainCount, cycles: cycles}, nil
+	return &project{program: cfg.ProgramName, entry: cfg.Entry, compiled: compiled, mainMod: mainMod, mainCount: mainCount, cycles: cycles, tests: tests, testTotal: testTotal}, nil
 }
 
 func (p *project) of() string {

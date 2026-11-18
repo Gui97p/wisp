@@ -183,6 +183,7 @@ func rejectFlags(cmd *cobra.Command, tgt target.Target, names ...string) error {
 }
 
 type buildResult struct {
+	tests   []module.TestFunc
 	name    string
 	target  string
 	product string
@@ -239,6 +240,7 @@ func pickPath(root string, tgt target.Target, name, flag string, layers ...strin
 type buildJob struct {
 	name    string
 	library bool
+	tests   bool
 }
 
 func jobConfig(base *module.Config, job buildJob) *module.Config {
@@ -539,6 +541,9 @@ func resolveBuildTargets(root string, cfg *module.Config, tgt target.Target, for
 
 func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, job buildJob) (*buildResult, error) {
 	targets := resolveBuildTargets(root, cfg, tgt, forRun)
+	if job.tests {
+		targets = testTargets(root, tgt)
+	}
 	shared := job.library && cfg.Libraries[job.name].Shared
 	if shared {
 		if tgt.OS != "linux" {
@@ -557,6 +562,12 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		return nil, err
 	}
 	detail("Analysed %s in %s", count(len(proj.compiled), "module"), elapsed(analyseStart))
+	if job.tests && len(proj.tests) == 0 {
+		if proj.testTotal == 0 {
+			return nil, errNoTests
+		}
+		return nil, errNoMatch
+	}
 	codegenStart := time.Now()
 
 	if job.library {
@@ -632,6 +643,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		backend.SetFiles(c.declFiles)
 		backend.SetSources(c.mod.BufferMap())
 		backend.SetLibc(useLibc(cfg, tgt))
+		backend.SetTestBuild(job.tests)
 		for _, d := range c.merged.Declarations {
 			if fd, ok := d.(*ast.FuncDecl); ok && fd.CExport != "" {
 				exports = append(exports, fd.CExport)
@@ -697,7 +709,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		detail("obj: %s", relPath(targets.objDir))
 	}
 
-	res := &buildResult{}
+	res := &buildResult{tests: proj.tests}
 	switch {
 	case targets.wantBin:
 		res.product = targets.binPath

@@ -103,6 +103,7 @@ type X64Target struct {
 	savedRegs    []savedReg
 	curFile      string
 	constCount   int
+	testBuild    bool
 	localConsts  map[*analyser.Symbol]Mem
 	savedXmms    []savedReg
 
@@ -161,6 +162,10 @@ func New(program *ast.Program, info *analyser.Info, isEntry bool, t, format, abi
 		optimize: prof.Optimize,
 		checks:   prof.Checks,
 	}, nil
+}
+
+func (t *X64Target) SetTestBuild(on bool) {
+	t.testBuild = on
 }
 
 func (t *X64Target) SetLibc(libc bool) {

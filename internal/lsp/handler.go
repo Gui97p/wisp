@@ -17,6 +17,7 @@ var fileBuffer = map[string][]byte{}
 
 func NewHandler() *protocol.Handler {
 	handler := &protocol.Handler{}
+	module.ConfigureTests(true)
 
 	handler.Initialize = func(context *glsp.Context, params *protocol.InitializeParams) (any, error) {
 		capabilities := handler.CreateServerCapabilities()

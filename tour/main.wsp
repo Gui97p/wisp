@@ -31,7 +31,7 @@
 //   files         os, path, the environment
 //   globals       global variables and constants
 //   interop       native blocks and functions (assembly)
-//   tags          `#packed`, `#naked`, `#noreturn`, `#deprecated`
+//   tags          `#packed`, `#naked`, `#noreturn`, `#deprecated`, `#must_use`, `#test`
 //   platform      #target, per-system files and declarations
 //   geometry/     modules: public, internal and imported names
 //   _c/           calling C with extern (a project of its own)

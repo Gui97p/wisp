@@ -1,0 +1,21 @@
+import "std/errors";
+
+public func add(int a, int b) int {
+  return a + b;
+}
+
+internal func secret(int n) int {
+  return n * 7;
+}
+
+public func divide(int a, int b) !int {
+  errors.ensure(b != 0, errors.Kind.Invalid)!;
+  return a / b;
+}
+
+#test("add works in the file itself")
+func addInFile() {
+  if add(2, 3) != 5 {
+    divide(1, 0)!!;
+  }
+}
