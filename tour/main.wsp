@@ -21,6 +21,7 @@
 //   compiletime   `sizeof`, `alignof`, `offsetof`, `staticAssert`, `static { }` blocks
 //   floats        float32 and float64, formatting
 //   structs       structs, methods, literals
+//   literals      `T{...}`, `.{...}`, `[_]`: how every value is written
 //   collections   arrays, slices, strings
 //   errors        `!` functions, Error, `!`, `??`, `|e|`, handlers
 //   optionals     `?T`, null, `??`, `!!`, `if x |v|`, `loop x |v|`
@@ -57,6 +58,7 @@ import "overflow";
 import "compiletime";
 import "floats";
 import "structs";
+import "literals";
 import "collections";
 import "errors";
 import "optionals";
@@ -121,6 +123,9 @@ func main() !int {
 
   fmt.printf("\n== structs ==\n");
   structs.demo();
+
+  fmt.printf("\n== literals ==\n");
+  literals.demo();
 
   fmt.printf("\n== collections ==\n");
   collections.demo();

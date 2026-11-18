@@ -592,7 +592,7 @@ func main() {
 `},
 
 	{dir: "register_spill_index", src: `func main() {
-    [4]int xs = [10, 20, 30, 40];
+    [4]int xs = .{10, 20, 30, 40};
     int i1 = 1;
     int i2 = 2;
     int i3 = 3;
@@ -814,7 +814,7 @@ func main() {
 `},
 
 	{dir: "agg_array_basic", src: `func main() {
-    [5]int nums = [124, 512, 1, 5, 2];
+    [5]int nums = .{124, 512, 1, 5, 2};
     check(nums[0] == 124, "array literal first");
     check(nums[4] == 2, "array literal last");
     int i = 2;
@@ -839,12 +839,12 @@ func main() {
 `},
 
 	{dir: "agg_array_partial", src: `func main() {
-    [5]int partial = [7, 8];
+    [5]int partial = .{7, 8};
     check(partial[0] == 7, "partial array first");
     check(partial[1] == 8, "partial array second");
     check(partial[2] == 0, "partial array fills with zero");
     check(partial[4] == 0, "partial array last is zero");
-    [6]int8 small = [1, 2, 3];
+    [6]int8 small = .{1, 2, 3};
     check(small[2] == 3, "narrow elements are packed");
     check(small[5] == 0, "narrow partial fills with zero");
     small[5] = 9;
@@ -867,13 +867,13 @@ struct Bag {
 }
 
 func main() {
-    [2]P ps = [P{x: 1, y: 2}, P{x: 3, y: 4}];
+    [2]P ps = .{P{x: 1, y: 2}, P{x: 3, y: 4}};
     check(ps[0].x == 1, "array of struct first x");
     check(ps[1].y == 4, "array of struct second y");
     ps[1].x = 30;
     check(ps[1].x == 30, "array of struct field write");
     check(ps[0].y == 2, "array of struct write leaves the first alone");
-    Bag b = Bag{items: [5, 6, 7], count: 3};
+    Bag b = Bag{items: .{5, 6, 7}, count: 3};
     check(b.items[1] == 6, "array field read");
     b.items[2] = 70;
     check(b.items[2] == 70, "array field write");
@@ -886,7 +886,7 @@ func main() {
 }
 
 func main() {
-    [5]int nums = [10, 20, 30, 40, 50];
+    [5]int nums = .{10, 20, 30, 40, 50};
     []int middle = nums[1:3];
     []int head = nums[:2];
     []int tail = nums[3:];
@@ -961,7 +961,7 @@ func main() {
 }
 
 func main() {
-    [3]int a = [1, 2, 3];
+    [3]int a = .{1, 2, 3};
     *int q = &a[1];
     q@ = 20;
     check(a[1] == 20, "pointer to a constant index element");
@@ -975,7 +975,7 @@ func main() {
     py@ = 9;
     check(s.y == 9, "pointer to a struct field");
     check(s.x == 1, "field pointer leaves the other field alone");
-    [2]P ps = [P{x: 1, y: 2}, P{x: 3, y: 4}];
+    [2]P ps = .{P{x: 1, y: 2}, P{x: 3, y: 4}};
     *int px = &ps[1].x;
     px@ = 33;
     check(ps[1].x == 33, "pointer to a field of an array element");
@@ -1016,7 +1016,7 @@ func main() {
     *P r = same(&s);
     r.y = 100;
     check(s.y == 100, "returned pointer reaches the original");
-    [2]P ps = [P{x: 1, y: 2}, P{x: 3, y: 4}];
+    [2]P ps = .{P{x: 1, y: 2}, P{x: 3, y: 4}};
     *P e = &ps[1];
     e.y = 7;
     check(ps[1].y == 7, "pointer to an array element struct");
@@ -1100,7 +1100,7 @@ func bump([]int xs) {
 }
 
 func main() {
-    [4]int nums = [1, 2, 3, 4];
+    [4]int nums = .{1, 2, 3, 4};
     check(total(nums) == 10, "an array variable passes as a slice");
 
     bump(nums);
@@ -1115,15 +1115,15 @@ func main() {
     other[2] = 30;
     check(nums[2] == 30, "an array is assigned to a slice");
 
-    Box box = Box{items: [5, 6, 7]};
+    Box box = Box{items: .{5, 6, 7}};
     check(total(box.items) == 18, "an array field passes as a slice");
 
-    [2][2]int grid = [[1, 2], [3, 4]];
+    [2][2]int grid = .{.{1, 2}, .{3, 4}};
     check(total(grid[1]) == 7, "an array element passes as a slice");
 
     check(total(nums[1:3]) == 50, "an explicit slice still works");
 
-    check(total([4, 5, 6]) == 15, "an array literal passes as a slice");
+    check(total(.{4, 5, 6}) == 15, "an array literal passes as a slice");
 
 }
 `, expected: []string{"an array variable passes as a slice", "the slice is a view of the array", "an array initialises a slice variable", "an array is assigned to a slice", "an array field passes as a slice", "an array element passes as a slice", "an explicit slice still works", "an array literal passes as a slice"}},
@@ -1344,7 +1344,7 @@ struct Holder {
 }
 
 func make() []byte {
-    return [];
+    return .{};
 }
 
 func count([]int xs) int {
@@ -1355,19 +1355,19 @@ func main() {
     []byte a = make();
     check(len(a) == 0, "return [] gives an empty slice");
 
-    []byte b = [];
+    []byte b = .{};
     check(len(b) == 0, "a declaration takes the type of the slice");
 
-    []int c = [1, 2];
-    c = [];
+    []int c = .{1, 2};
+    c = .{};
     check(len(c) == 0, "an assignment can empty a slice");
 
-    Holder h = Holder{data: []};
+    Holder h = Holder{data: .{}};
     check(len(h.data) == 0, "a struct field can be []");
 
-    check(count([]) == 0, "an argument can be []");
+    check(count(.{}) == 0, "an argument can be []");
 
-    [3]int arr = [];
+    [3]int arr = .{};
     check(len(arr) == 3 && arr[0] == 0 && arr[2] == 0, "[] is also the zero array");
 
     mem.free((*byte)(a), (*byte)(b));
@@ -1375,18 +1375,18 @@ func main() {
 }
 `, expected: []string{"return [] gives an empty slice", "a declaration takes the type of the slice", "an assignment can empty a slice", "a struct field can be []", "an argument can be []", "[] is also the zero array", "free accepts an empty slice"}},
 	{dir: "in_array_literal", src: `func isSpace(byte ch) bool {
-    return ch in [' ', '\n', '\r', '\t'];
+    return ch in [_]byte{' ', '\n', '\r', '\t'};
 }
 
 func small(int n) bool {
-    return n in [1, 2, 3];
+    return n in [_]int{1, 2, 3};
 }
 
 func main() {
     check(isSpace(' ') && isSpace('\t'), "a byte is found in a literal of chars");
     check(!isSpace('x'), "a byte that is not in the literal");
     check(small(2) && !small(9), "an int in a literal of ints");
-    check(!(7 in [1, 2]), "a literal used directly in the expression");
+    check(!(7 in [_]int{1, 2}), "a literal used directly in the expression");
 }
 `, expected: []string{"a byte is found in a literal of chars", "a byte that is not in the literal", "an int in a literal of ints", "a literal used directly in the expression"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `public struct Counter {
@@ -1444,7 +1444,7 @@ func main() {
     Holder h = Holder{inner: e};
     h.inner.bump(2);
     check(h.inner.get() == 10, "qualified type as a struct field");
-    [2]counter.Counter pair = [counter.start(1), counter.start(2)];
+    [2]counter.Counter pair = .{counter.start(1), counter.start(2)};
     pair[1].bump(5);
     check(pair[1].get() == 7, "array of a qualified type");
     check(pair[0].get() == 1, "that leaves the other element alone");
@@ -1476,7 +1476,7 @@ func main() {
             hits = 3;
     }
     check(hits == 1, "switch on a nominal string");
-    [2]Name names = [Name("x"), Name("y")];
+    [2]Name names = .{Name("x"), Name("y")};
     check(names[1] == Name("y"), "array of nominal strings");
 }
 `},
@@ -1543,7 +1543,7 @@ func main() {
     Paint p = Paint{c: .Alpha, n: 1};
     check(p.c == .Alpha, "struct field infers the enum");
     check(int(p.c) == 11, "implicit numbering after an explicit value");
-    [3]Color cs = [.Red, Color.Green, .Blue];
+    [3]Color cs = .{.Red, Color.Green, .Blue};
     check(cs[0] == .Red, "array literal first");
     check(cs[1] == .Green, "array literal mixed");
     check(cs[2] == .Blue, "array literal inferred");
@@ -2373,7 +2373,7 @@ func main() {
     check(show(one) == 7 && show(two) == 5 && show(three) == 42 && show(four) == -1, "variants with different data go through a function");
     check(kind(one) == "number" && kind(two) == "word" && kind(three) == "pair" && kind(four) == "end", "a switch expression with no default covers every variant");
 
-    [3]Token list = [one, three, four];
+    [3]Token list = .{one, three, four};
     int sum;
     for i in 0..2 {
         sum += show(list[i]);
@@ -2761,7 +2761,7 @@ func main() ! {
     check(full == errors.Kind.NoSpace, "resize fails like the allocator does");
     check(len(t) == 8 && t[1] == 4, "the old slice stays valid when resize fails");
 
-    []int none = [];
+    []int none = .{};
     []int fresh = resize(mem.heap, none, 3)!;
     check(len(fresh) == 3 && fresh[0] == 0, "resize of an empty slice allocates");
     free(mem.heap, fresh);
@@ -2842,7 +2842,7 @@ func main() {
     let x, y = c.pair();
     check(x == 5, "method multiple return first");
     check(y == 10, "method multiple return second");
-    [2]Counter cs = [Counter{n: 1}, Counter{n: 2}];
+    [2]Counter cs = .{Counter{n: 1}, Counter{n: 2}};
     cs[1].bump(5);
     check(cs[1].n == 7, "method on an array element");
     check(cs[0].n == 1, "that leaves the other element alone");
@@ -2900,7 +2900,7 @@ func main() {
     check(s[0:3] == t, "a slice compares equal to its text");
     check(s[1:3] == "el", "a middle slice");
     check(s[2:2] == "", "an empty slice is the empty string");
-    [2]string arr = ["x", "y"];
+    [2]string arr = .{"x", "y"};
     check(arr[0] == "x", "array element equals");
     check(arr[1] != "x", "array element differs");
     string u = "hello";
@@ -2935,7 +2935,7 @@ func main() {
 `},
 
 	{dir: "for_in_collection", src: `func main() {
-    [4]int a = [10, 20, 30, 40];
+    [4]int a = .{10, 20, 30, 40};
     int total = 0;
     int idx = 0;
     for i, v in a {
@@ -3009,7 +3009,7 @@ func main() {
 }
 
 func main() {
-    [4]int a = [10, 20, 30, 40];
+    [4]int a = .{10, 20, 30, 40};
     check(30 in a, "in finds a middle element");
     check(10 in a, "in finds the first element");
     check(40 in a, "in finds the last element");
@@ -3027,13 +3027,13 @@ func main() {
     check('h' in word, "in finds the first byte");
     check('o' in word, "in finds the last byte");
     check(!('z' in word), "in does not find a missing byte");
-    [3]int8 bytes = [1, 2, 3];
+    [3]int8 bytes = .{1, 2, 3};
     check(2 in bytes, "in over narrow elements");
     check(!(4 in bytes), "in over narrow elements, missing");
-    [2]bool flags = [true, true];
+    [2]bool flags = .{true, true};
     check(true in flags, "in over bool elements");
     check(!(false in flags), "in over bool elements, missing");
-    [2]Color cols = [Color.Red, Color.Blue];
+    [2]Color cols = .{Color.Red, Color.Blue};
     check(Color.Blue in cols, "in over enum elements");
     check(!(Color.Green in cols), "in over enum elements, missing");
     int target = 40;
@@ -3064,7 +3064,7 @@ func main() {
     check(!("hellos" in word), "in does not find a longer string");
     check("" in word, "the empty string is in every string");
     check("" in "", "the empty string is in the empty string");
-    [3]string names = ["ann", "bob", "cy"];
+    [3]string names = .{"ann", "bob", "cy"};
     check("bob" in names, "in finds a string element");
     check("ann" in names, "in finds the first string element");
     check("cy" in names, "in finds the last string element");
@@ -3454,12 +3454,12 @@ func main() {
     int8 a = 1;
     int16 b = 300;
     int64 c = 5000000000;
-    [3]int64 xs = [a, b, c];
+    [3]int64 xs = .{a, b, c};
     check(xs[0] == 1, "literal array widens an int8 element");
     check(xs[1] == 300, "literal array widens an int16 element");
     check(xs[2] == 5000000000, "literal array keeps an int64 element");
-    let ys = [a, b];
-    check(ys[1] == 300, "literal array takes the common element type");
+    let ys = [_]int16{a, b};
+    check(ys[1] == 300 && len(ys) == 2, "an explicit literal widens its elements and counts them");
     check(a in xs, "in widens the left operand");
 }
 `},
@@ -3471,7 +3471,7 @@ import "std/mem";
 [64]byte other;
 
 func main() ! {
-    [3]byte word = ['a', 'b', 'c'];
+    [3]byte word = .{'a', 'b', 'c'};
     string seen = string(word);
     word[0] = 'x';
     check(seen == "xbc", "a byte array converts to a string view of itself");
@@ -3853,10 +3853,10 @@ func main() {
 `, expected: []string{"floor goes down", "ceil goes up", "trunc goes toward zero", "round goes away from zero on a half", "round of one half", "round of the largest number below one half", "round below a half", "round leaves a large float alone", "roundEven goes to the even neighbour", "roundEven of a negative half and a plain case", "square root", "square root of two", "square root of a negative is NaN", "square root of infinity", "isNaN", "NaN is different from itself", "isInf with a sign", "isInf of either sign", "isFinite", "isInteger", "fabs", "fabs and signbit on zero", "copysign", "fmin and fmax", "fmin and fmax with a NaN give NaN", "negative zero is below positive zero", "fclamp", "modf of a positive number", "modf of a negative number"}},
 
 	{dir: "float_globals", src: `float g = 1;
-[3]float c = [1.5, 2, 3.5e-3];
+[3]float c = .{1.5, 2, 3.5e-3};
 float32 h = 3;
 float64 big = 1.7976931348623157e308;
-[2]float negative = [-2.5, 0.0];
+[2]float negative = .{-2.5, 0.0};
 
 func main() {
     check(g == 1.0, "an integer literal initializes a float global");
@@ -4944,7 +4944,7 @@ func main() {
 `, expected: []string{"constant arithmetic", "constants and named constants fold", "constant division", "constant division truncates toward zero", "constant division with a negative divisor", "constant shifts", "an arithmetic right shift of a negative constant", "constant bitwise operators", "constant booleans", "constant comparisons", "the smallest int", "a typed constant sum wraps at its width", "a wrapped intermediate is not folded exactly", "int8 constants wrap", "int overflow wraps at run time", "an unsigned constant above the signed range", "bitwise not of a constant", "bitwise not of an unsigned constant", "a true constant condition takes the first branch", "a false constant condition is skipped", "a named constant condition", "enum members compare as constants", "a constant bound in a loop"}},
 
 	{dir: "const_divisors", src: `func main() {
-    [29]int values_int = [0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 1000000007, -1000000007, 2147483647, -2147483648, 4294967296, 9223372036854775807, -9223372036854775807, -9223372036854775807 - 1];
+    [29]int values_int = .{0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 1000000007, -1000000007, 2147483647, -2147483648, 4294967296, 9223372036854775807, -9223372036854775807, -9223372036854775807 - 1};
     int bad_int = 0;
     int v0_int = 1;
     int v1_int = 2;
@@ -5014,7 +5014,7 @@ func main() {
         }
     }
     check(bad_int == 0, "int division and modulo by constants match a runtime divisor");
-    [26]int32 values_int32 = [0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 1000000007, -1000000007, 2147483647, -2147483647, -2147483647 - 1];
+    [26]int32 values_int32 = .{0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 1000000007, -1000000007, 2147483647, -2147483647, -2147483647 - 1};
     int bad_int32 = 0;
     int32 v0_int32 = 1;
     int32 v1_int32 = 2;
@@ -5080,7 +5080,7 @@ func main() {
         }
     }
     check(bad_int32 == 0, "int32 division and modulo by constants match a runtime divisor");
-    [26]int16 values_int16 = [0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 12345, -12345, 32767, -32767, -32767 - 1];
+    [26]int16 values_int16 = .{0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 12345, -12345, 32767, -32767, -32767 - 1};
     int bad_int16 = 0;
     int16 v0_int16 = 1;
     int16 v1_int16 = 2;
@@ -5146,7 +5146,7 @@ func main() {
         }
     }
     check(bad_int16 == 0, "int16 division and modulo by constants match a runtime divisor");
-    [24]int8 values_int8 = [0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 127, -127, -127 - 1];
+    [24]int8 values_int8 = .{0, 1, -1, 2, -2, 3, -3, 7, -7, 8, -8, 9, -9, 15, 16, 17, -15, -16, -17, 100, -100, 127, -127, -127 - 1};
     int bad_int8 = 0;
     int8 v0_int8 = 1;
     int8 v1_int8 = 2;
@@ -5208,7 +5208,7 @@ func main() {
         }
     }
     check(bad_int8 == 0, "int8 division and modulo by constants match a runtime divisor");
-    [19]uint values_uint = [0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 255, 256, 1000000007, 4294967295, 4294967296, 9223372036854775807, 9223372036854775808, 18446744073709551615];
+    [19]uint values_uint = .{0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 255, 256, 1000000007, 4294967295, 4294967296, 9223372036854775807, 9223372036854775808, 18446744073709551615};
     int bad_uint = 0;
     uint v0_uint = 1;
     uint v1_uint = 2;
@@ -5266,7 +5266,7 @@ func main() {
         }
     }
     check(bad_uint == 0, "uint division and modulo by constants match a runtime divisor");
-    [17]uint32 values_uint32 = [0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 255, 256, 1000000007, 2147483647, 2147483648, 4294967295];
+    [17]uint32 values_uint32 = .{0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 255, 256, 1000000007, 2147483647, 2147483648, 4294967295};
     int bad_uint32 = 0;
     uint32 v0_uint32 = 1;
     uint32 v1_uint32 = 2;
@@ -5324,7 +5324,7 @@ func main() {
         }
     }
     check(bad_uint32 == 0, "uint32 division and modulo by constants match a runtime divisor");
-    [17]uint16 values_uint16 = [0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 255, 256, 12345, 32767, 32768, 65535];
+    [17]uint16 values_uint16 = .{0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 255, 256, 12345, 32767, 32768, 65535};
     int bad_uint16 = 0;
     uint16 v0_uint16 = 1;
     uint16 v1_uint16 = 2;
@@ -5382,7 +5382,7 @@ func main() {
         }
     }
     check(bad_uint16 == 0, "uint16 division and modulo by constants match a runtime divisor");
-    [15]uint8 values_uint8 = [0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 127, 128, 200, 255];
+    [15]uint8 values_uint8 = .{0, 1, 2, 3, 7, 8, 9, 15, 16, 17, 100, 127, 128, 200, 255};
     int bad_uint8 = 0;
     uint8 v0_uint8 = 1;
     uint8 v1_uint8 = 2;
@@ -6404,7 +6404,7 @@ func no() bool {
 }
 
 func main() {
-    [12]int vals_int = [0, 1, -1, 2, -2, 100, -100, 2147483647, -2147483648, 4294967296, 9223372036854775807, -9223372036854775807];
+    [12]int vals_int = .{0, 1, -1, 2, -2, 100, -100, 2147483647, -2147483648, 4294967296, 9223372036854775807, -9223372036854775807};
     int bad_int = 0;
     for i in 0..11 {
         for j in 0..11 {
@@ -6412,7 +6412,7 @@ func main() {
         }
     }
     check(bad_int == 0, "fused comparisons agree with values for int");
-    [9]int32 vals_int32 = [0, 1, -1, 2, -2, 100, -100, 2147483647, -2147483647];
+    [9]int32 vals_int32 = .{0, 1, -1, 2, -2, 100, -100, 2147483647, -2147483647};
     int bad_int32 = 0;
     for i in 0..8 {
         for j in 0..8 {
@@ -6420,7 +6420,7 @@ func main() {
         }
     }
     check(bad_int32 == 0, "fused comparisons agree with values for int32");
-    [9]int16 vals_int16 = [0, 1, -1, 2, -2, 100, -100, 32767, -32767];
+    [9]int16 vals_int16 = .{0, 1, -1, 2, -2, 100, -100, 32767, -32767};
     int bad_int16 = 0;
     for i in 0..8 {
         for j in 0..8 {
@@ -6428,7 +6428,7 @@ func main() {
         }
     }
     check(bad_int16 == 0, "fused comparisons agree with values for int16");
-    [9]int8 vals_int8 = [0, 1, -1, 2, -2, 100, -100, 127, -127];
+    [9]int8 vals_int8 = .{0, 1, -1, 2, -2, 100, -100, 127, -127};
     int bad_int8 = 0;
     for i in 0..8 {
         for j in 0..8 {
@@ -6436,7 +6436,7 @@ func main() {
         }
     }
     check(bad_int8 == 0, "fused comparisons agree with values for int8");
-    [10]uint vals_uint = [0, 1, 2, 100, 255, 4294967295, 4294967296, 9223372036854775807, 9223372036854775808, 18446744073709551615];
+    [10]uint vals_uint = .{0, 1, 2, 100, 255, 4294967295, 4294967296, 9223372036854775807, 9223372036854775808, 18446744073709551615};
     int bad_uint = 0;
     for i in 0..9 {
         for j in 0..9 {
@@ -6444,7 +6444,7 @@ func main() {
         }
     }
     check(bad_uint == 0, "fused comparisons agree with values for uint");
-    [8]uint32 vals_uint32 = [0, 1, 2, 100, 255, 2147483647, 2147483648, 4294967295];
+    [8]uint32 vals_uint32 = .{0, 1, 2, 100, 255, 2147483647, 2147483648, 4294967295};
     int bad_uint32 = 0;
     for i in 0..7 {
         for j in 0..7 {
@@ -6452,7 +6452,7 @@ func main() {
         }
     }
     check(bad_uint32 == 0, "fused comparisons agree with values for uint32");
-    [8]uint16 vals_uint16 = [0, 1, 2, 100, 255, 32767, 32768, 65535];
+    [8]uint16 vals_uint16 = .{0, 1, 2, 100, 255, 32767, 32768, 65535};
     int bad_uint16 = 0;
     for i in 0..7 {
         for j in 0..7 {
@@ -6460,7 +6460,7 @@ func main() {
         }
     }
     check(bad_uint16 == 0, "fused comparisons agree with values for uint16");
-    [8]uint8 vals_uint8 = [0, 1, 2, 100, 127, 128, 200, 255];
+    [8]uint8 vals_uint8 = .{0, 1, 2, 100, 127, 128, 200, 255};
     int bad_uint8 = 0;
     for i in 0..7 {
         for j in 0..7 {
@@ -7452,7 +7452,7 @@ func main() {
     uint u = 7;
     check(u * 5 == 35, "an unsigned variable times a constant");
 
-    [3]int a = [4, 5, 6];
+    [3]int a = .{4, 5, 6};
     int i = 1;
     check(a[i] * 5 == 25, "an array element times a constant");
     Box box;
@@ -8086,7 +8086,7 @@ func main() {
 `, expected: []string{"abortstep before the loop"}, abort: "panic: range step cannot be zero"},
 
 	{dir: "abort_index_array", src: `func main() {
-    [5]int nums = [1, 2, 3, 4, 5];
+    [5]int nums = .{1, 2, 3, 4, 5};
     int i = 4;
     check(nums[i] == 5, "abortidx last element is readable");
     i = 5;
@@ -8097,7 +8097,7 @@ func main() {
 `, expected: []string{"abortidx last element is readable", "abortidx before the bad read"}, abort: "panic: index out of range"},
 
 	{dir: "abort_index_negative", src: `func main() {
-    [5]int nums = [1, 2, 3, 4, 5];
+    [5]int nums = .{1, 2, 3, 4, 5};
     int i = 0;
     i -= 1;
     check(true, "abortneg before the bad read");
@@ -8107,7 +8107,7 @@ func main() {
 `, expected: []string{"abortneg before the bad read"}, abort: "panic: index out of range"},
 
 	{dir: "abort_index_write", src: `func main() {
-    [3]int nums = [1, 2, 3];
+    [3]int nums = .{1, 2, 3};
     int i = 3;
     check(true, "abortwrite before the bad write");
     nums[i] = 9;
@@ -8116,7 +8116,7 @@ func main() {
 `, expected: []string{"abortwrite before the bad write"}, abort: "panic: index out of range"},
 
 	{dir: "abort_index_span", src: `func main() {
-    [5]int nums = [1, 2, 3, 4, 5];
+    [5]int nums = .{1, 2, 3, 4, 5};
     []int part = nums[1:3];
     int i = 2;
     check(part[1] == 3, "abortspan last element is readable");
@@ -8164,7 +8164,7 @@ func main() {
 `, expected: []string{"abortnullerr before the access"}, abort: "panic: null pointer dereference"},
 
 	{dir: "abort_slice_end", src: `func main() {
-    [5]int nums = [1, 2, 3, 4, 5];
+    [5]int nums = .{1, 2, 3, 4, 5};
     int end = 6;
     check(true, "abortslice before the bad slice");
     []int part = nums[1:end];
@@ -8173,7 +8173,7 @@ func main() {
 `, expected: []string{"abortslice before the bad slice"}, abort: "panic: slice out of range"},
 
 	{dir: "abort_slice_order", src: `func main() {
-    [5]int nums = [1, 2, 3, 4, 5];
+    [5]int nums = .{1, 2, 3, 4, 5};
     int start = 3;
     int end = 2;
     check(true, "abortorder before the bad slice");
@@ -8658,7 +8658,7 @@ func heavy(int x) int {
 }
 
 func sums() int {
-    [6]int xs = [1, 2, 3, 4, 5, 6];
+    [6]int xs = .{1, 2, 3, 4, 5, 6};
     int t = 0;
     for i, v in xs {
         t += i * 10 + v;
@@ -8667,7 +8667,7 @@ func sums() int {
 }
 
 func pairs() int {
-    [4]Pair ps = [Pair{a: 1, b: 2}, Pair{a: 3, b: 4}, Pair{a: 5, b: 6}, Pair{a: 7, b: 8}];
+    [4]Pair ps = .{Pair{a: 1, b: 2}, Pair{a: 3, b: 4}, Pair{a: 5, b: 6}, Pair{a: 7, b: 8}};
     int t = 0;
     for i, p in ps {
         t += p.a * i + p.b;
@@ -8676,7 +8676,7 @@ func pairs() int {
 }
 
 func trios() int {
-    [3]Trio ts = [Trio{a: 1, b: 2, c: 3}, Trio{a: 4, b: 5, c: 6}, Trio{a: 7, b: 8, c: 9}];
+    [3]Trio ts = .{Trio{a: 1, b: 2, c: 3}, Trio{a: 4, b: 5, c: 6}, Trio{a: 7, b: 8, c: 9}};
     int t = 0;
     for _, x in ts {
         t += int(x.a) + int(x.b) * 2 + int(x.c) * 3;
@@ -8694,7 +8694,7 @@ func text() int {
 }
 
 func withCall() int {
-    [5]int xs = [10, 20, 30, 40, 50];
+    [5]int xs = .{10, 20, 30, 40, 50};
     int t = 0;
     for i, v in xs {
         if v == 20 {
@@ -8709,8 +8709,8 @@ func withCall() int {
 }
 
 func nested() int {
-    [3]int a = [1, 2, 3];
-    [4]int b = [10, 20, 30, 40];
+    [3]int a = .{1, 2, 3};
+    [4]int b = .{10, 20, 30, 40};
     int t = 0;
     for _, x in a {
         for _, y in b {
@@ -8721,10 +8721,10 @@ func nested() int {
 }
 
 func deep() int {
-    [2]int a = [1, 2];
-    [2]int b = [3, 4];
-    [2]int c = [5, 6];
-    [2]int d = [7, 8];
+    [2]int a = .{1, 2};
+    [2]int b = .{3, 4};
+    [2]int c = .{5, 6};
+    [2]int d = .{7, 8};
     int t = 0;
     int u = 0;
     for _, w in a {
@@ -8741,7 +8741,7 @@ func deep() int {
 }
 
 func indexOnly() int {
-    [4]int xs = [9, 9, 9, 9];
+    [4]int xs = .{9, 9, 9, 9};
     int t = 0;
     for i in xs {
         t += i;
@@ -9051,7 +9051,7 @@ func main() {
     byte b = raw;
     uint8 back = b;
     check(b == 200 && back == 200, "byte and uint8 are the same type");
-    [4]byte bytes = [1, 2, 3, 4];
+    [4]byte bytes = .{1, 2, 3, 4};
     check(total(bytes) == 10, "a byte array goes where uint8 elements are expected");
     byte letter = 'a';
     check(letter == 97, "a character literal is a byte");
@@ -9246,7 +9246,7 @@ func main() ! {
     [3]byte small;
     string tooBig = strings.concat(small, "abcd") ?? "full";
     check(tooBig == "full", "concat reports NoSpace");
-    check(strings.join(buf, ["a", "b", "c"], ", ")!! == "a, b, c", "join");
+    check(strings.join(buf, .{"a", "b", "c"}, ", ")!! == "a, b, c", "join");
     check(strings.rep(buf, "ab", 3)!! == "ababab", "rep");
     check(strings.replace(buf, "a-b-c", "-", "+", -1)!! == "a+b+c", "replace all");
     check(strings.replace(buf, "a-b-c", "-", "<>", -1)!! == "a<>b<>c", "replace with a longer text");
@@ -9256,13 +9256,13 @@ func main() ! {
     check(strings.upper(buf, "abC")!! == "ABC", "upper");
     check(strings.lower(buf, "AbC")!! == "abc", "lower");
 
-    [3]byte word = ['a', 'b', 'c'];
+    [3]byte word = .{'a', 'b', 'c'};
     strings.toUpper(word);
     check(string(word) == "ABC", "toUpper in place");
-    [4]byte even = ['a', 'b', 'c', 'd'];
+    [4]byte even = .{'a', 'b', 'c', 'd'};
     strings.reverse(even);
     check(string(even) == "dcba", "reverse even length");
-    [5]byte odd = ['a', 'b', 'c', 'd', 'e'];
+    [5]byte odd = .{'a', 'b', 'c', 'd', 'e'};
     strings.reverse(odd);
     check(string(odd) == "edcba", "reverse odd length");
     [0]byte nothing;
@@ -10525,7 +10525,7 @@ int sized = Base * 2 + 1;
 string name = "wisp";
 let inferred = 7;
 Mode mode = Mode.On;
-[3]int table = [1, 2, 3];
+[3]int table = .{1, 2, 3};
 P origin = P{x: 1, y: 2};
 int first, second = 4, 5;
 bool flag = true;
@@ -11241,7 +11241,7 @@ func main() {
     check(consts.Limit == 7, "an imported integer constant");
     check(consts.Name == "w", "an imported string constant");
     check(consts.On, "an imported bool constant");
-    [3]int values = [1, 2, 3];
+    [3]int values = .{1, 2, 3};
     check(values[consts.Limit - 6] == 2, "an imported constant as an index");
 }
 `, expected: []string{"an imported integer constant", "an imported string constant", "an imported bool constant", "an imported constant as an index"}},
@@ -11259,9 +11259,9 @@ func tag(string name, [2]int pair, bool on) int {
 }
 
 func main() {
-    [3]int data = [1, 2, 3];
+    [3]int data = .{1, 2, 3};
     check(total(2, data[0:3]) == 12, "a span parameter after another parameter");
-    [2]int pair = [10, 20];
+    [2]int pair = .{10, 20};
     check(tag("ab", pair, true) == 12, "an array parameter after another parameter");
 }
 `, expected: []string{"a span parameter after another parameter", "an array parameter after another parameter"}},
@@ -11621,7 +11621,7 @@ func main() {
     check(&first(p)@ == p, "& of the dereference of a call");
     check(&pp@@ == p, "& of a double dereference");
 
-    [3]int values = [1, 2, 3];
+    [3]int values = .{1, 2, 3};
     *int base = &values[0];
     check((base + 2)@ == 3, "dereference of a parenthesized expression");
 }
@@ -11688,7 +11688,7 @@ func main() {
     }
     check(sum == 30 && p.x == 99 && p.y == 20, "struct fields are operands");
 
-    [4]int values = [1, 2, 3, 4];
+    [4]int values = .{1, 2, 3, 4};
     int third = 0;
     native<x64> {
     	lea rax, &values;
@@ -12096,12 +12096,12 @@ func main() {
 	{dir: "static_local_const", src: `const string NAME = "wisp";
 
 func first() int {
-    const [3]int T = [1, 2, 3];
+    const [3]int T = .{1, 2, 3};
     return T[2];
 }
 
 func second() int {
-    const [3]int T = [10, 20, 30];
+    const [3]int T = .{10, 20, 30};
     return T[2];
 }
 
@@ -12109,7 +12109,7 @@ func main() {
     int i = 2;
     check(NAME[i] == 's', "a constant string can be indexed at run time");
     check(first() == 3 && second() == 30, "local constants of the same name in two functions");
-    const [2]int L = [7, 8];
+    const [2]int L = .{7, 8};
     int sum;
     for k in 0..1 {
         sum += L[k];
@@ -12117,6 +12117,142 @@ func main() {
     check(sum == 15, "a local constant array read in a loop");
 }
 `, expected: []string{"a constant string can be indexed at run time", "local constants of the same name in two functions", "a local constant array read in a loop"}},
+
+	{dir: "literal_forms", src: `struct Point {
+    int x;
+    int y;
+}
+
+struct Line {
+    Point from;
+    Point to;
+}
+
+struct Board {
+    [2][2]int cells;
+    []byte label;
+}
+
+func length2(Point p) int {
+    return p.x * p.x + p.y * p.y;
+}
+
+func origin() Point {
+    return .{x: 0, y: 0};
+}
+
+func total([]int values) int {
+    int sum;
+    for _i, v in values {
+        sum += v;
+    }
+    return sum;
+}
+
+func maybe(bool yes) ?Point {
+    return .{x: 7, y: 8} if yes;
+    return null;
+}
+
+const [3]int PRIMES = .{2, 3, 5};
+const Point HOME = .{x: 4, y: 5};
+
+func main() {
+    Point p = .{x: 1, y: 2};
+    check(p.x == 1 && p.y == 2, "a struct from the type on the left");
+
+    Point q = Point{x: 3, y: 4};
+    check(length2(q) == 25, "an explicit struct literal");
+    check(length2(.{x: 6, y: 8}) == 100, "a struct as an argument");
+    Point o = origin();
+    check(o.x == 0 && o.y == 0, "a struct as a return value");
+
+    Line l = .{from: .{x: 1, y: 1}, to: .{x: 2, y: 3}};
+    check(l.to.y == 3 && l.from.x == 1, "literals nest through fields");
+
+    Point zero = .{};
+    check(zero.x == 0 && zero.y == 0, "an empty literal is the zero value");
+
+    [3]int a = .{1, 2, 3};
+    check(a[2] == 3, "an array from the type on the left");
+    [5]int partial = .{7, 8};
+    check(partial[1] == 8 && partial[4] == 0, "the elements left out are zero");
+    [4]int zeros = .{};
+    check(zeros[3] == 0, "an empty array literal is zeros");
+
+    let b = [3]byte{1, 2, 3};
+    check(b[2] == 3 && len(b) == 3, "an explicit array literal");
+    let c = [_]int16{10, 20, 30, 40};
+    check(len(c) == 4 && c[3] == 40, "[_] counts the elements");
+    [_]int d = .{5, 6};
+    check(len(d) == 2 && d[1] == 6, "[_] on the declaration counts too");
+    [_]int e = a;
+    check(len(e) == 3, "[_] takes the size of an array value");
+
+    [2]Point corners = .{.{x: 1, y: 2}, .{x: 3, y: 4}};
+    check(corners[1].y == 4, "an array of structs");
+    [2][2]int grid = .{.{1, 2}, .{3, 4}};
+    check(grid[1][0] == 3, "an array of arrays");
+
+    check(total(.{1, 2, 3}) == 6, "an array literal passes as a slice");
+    []int none = .{};
+    check(len(none) == 0, "an empty slice literal");
+    []int empty = []int{};
+    check(len(empty) == 0, "an explicit empty slice");
+
+    Board board = .{cells: .{.{1, 2}, .{3, 4}}, label: .{}};
+    check(board.cells[1][1] == 4 && len(board.label) == 0, "literals in fields of every kind");
+
+    ?Point found = .{x: 9, y: 9};
+    if found |f| {
+        check(f.x == 9, "a literal into an optional");
+    } else {
+        check(false, "a literal into an optional");
+    }
+    if maybe(true) |m| {
+        check(m.x == 7 && m.y == 8, "an optional result built from a literal");
+    } else {
+        check(false, "an optional result built from a literal");
+    }
+
+    check(PRIMES[1] == 3 && HOME.y == 5, "constants built from literals");
+    check(3 in [_]int{1, 2, 3}, "a literal in an in test");
+}
+`, expected: []string{"a struct from the type on the left", "an explicit struct literal", "a struct as an argument", "a struct as a return value", "literals nest through fields", "an empty literal is the zero value", "an array from the type on the left", "the elements left out are zero", "an empty array literal is zeros", "an explicit array literal", "[_] counts the elements", "[_] on the declaration counts too", "[_] takes the size of an array value", "an array of structs", "an array of arrays", "an array literal passes as a slice", "an empty slice literal", "an explicit empty slice", "literals in fields of every kind", "a literal into an optional", "an optional result built from a literal", "constants built from literals", "a literal in an in test"}},
+
+	{dir: "call_result_access", src: `struct P {
+    int x;
+    int y;
+}
+
+struct Box {
+    [3]int items;
+    P corner;
+    string name;
+}
+
+func origin() P {
+    return .{x: 4, y: 5};
+}
+
+func box() Box {
+    return .{items: .{1, 2, 3}, corner: .{x: 7, y: 8}, name: "crate"};
+}
+
+func list() [3]int {
+    return .{9, 8, 7};
+}
+
+func main() {
+    check(origin().x == 4 && origin().y == 5, "a field of a small struct result");
+    check(box().corner.y == 8, "a nested field of a large struct result");
+    check(box().items[1] == 2, "an element of an array field of a result");
+    check(box().name == "crate", "a string field of a result");
+    check(list()[2] == 7, "an element of an array result");
+    int sum = origin().x + origin().y + list()[0];
+    check(sum == 18, "results used inside an expression");
+}
+`, expected: []string{"a field of a small struct result", "a nested field of a large struct result", "an element of an array field of a result", "a string field of a result", "an element of an array result", "results used inside an expression"}},
 
 	{dir: "switch_then_break", src: `func next(int k) ?int {
     return null if k > 3;
@@ -12371,9 +12507,9 @@ func main() {
     uint8 b;
 }
 
-public const [3]Color PALETTE = [Color{r: 255}, Color{g: 255}, Color{b: 255, r: 1}];
-public const [4]uint16 STEPS = [100, 200, 300, 400];
-public const NAMES = ["red", "green", "blue"];
+public const [3]Color PALETTE = .{Color{r: 255}, Color{g: 255}, Color{b: 255, r: 1}};
+public const [4]uint16 STEPS = .{100, 200, 300, 400};
+public const [3]string NAMES = .{"red", "green", "blue"};
 `}, src: `import "palette";
 
 struct Range {
@@ -12387,10 +12523,10 @@ enum Level {
     High
 }
 
-const [3]int TABLE = [10, 20, 30];
+const [3]int TABLE = .{10, 20, 30};
 const Range BOUNDS = Range{low: 2, high: 9};
-const [2]float WEIGHTS = [0.5, 1.5];
-const [2]string WORDS = ["ab", "cde"];
+const [2]float WEIGHTS = .{0.5, 1.5};
+const [2]string WORDS = .{"ab", "cde"};
 
 const [256]uint32 CRC = static {
     [256]uint32 table;
@@ -12985,12 +13121,12 @@ func main() !int {
 `, expected: []string{"mainerrint before the failure"}, abort: "error[main.Kind]: bad thing"},
 	{dir: "libm_exp", src: `import "std/math";
 
-[26]float expIn = [-511.8900582426383, 486.40723171212585, 369.28446656725964, -342.9033639648096, -6.390878071282714, -70.71250929576661, 212.23016181186813, 404.21269158971836, -568.5965785160712, -660.3135328691911, 470.0711454878176, -94.12610493292527, 0.9120685437784988, 0.8956549741186988, -0.8868972645463826, -0.8302560096821567, 0.6709977562588991, 0.4719399781370466, 0.3394608028804418, -0.3837270848217116, 0.0, 1.0, -1.0, 709.0, -745.0, 1e-20];
-[26]float expWant = [4.886212654088617e-223, 1.753786369552851e+211, 2.388944623308051e+160, 1.1993921554110276e-149, 0.0016767832195999158, 1.9496085075269736e-31, 1.480430992329736e+92, 3.526480385993986e+175, 1.1525068661192175e-247, 1.6961972269773522e-287, 1.41027753313563e+204, 1.322976179199616e-41, 2.4894667820224923, 2.4489392561214323, 0.4119318876463562, 0.43593766777066423, 1.9561881462163546, 1.6031011597207216, 1.4041902510656181, 0.6813173436529935, 1.0, 2.718281828459045, 0.36787944117144233, 8.218407461554972e+307, 5e-324, 1.0];
-[26]float expm1In = [-15.722122374486517, 2.65375351775711, -7.802690007115245, 6.235202315771666, 7.543218246483242, -26.068268445611213, -29.20992050670755, 20.2481449257876, -14.438759140319542, -15.940142337198218, 29.738690130627766, -1.7841895486531243, -0.527903820525131, -0.7936679315385684, -0.20788351477863798, -0.6900554583951795, -0.8669698086408202, -0.19681797102985032, 0.8359100861754378, 0.600904702991617, 1e-10, -1e-10, 0.25, -0.25, 40.0, -50.0];
-[26]float expm1Want = [-0.999999851417039, 13.207265913020407, -0.9995913657299079, 509.40387075612756, 1886.8959736464433, -0.999999999995228, -0.9999999999997938, 621809867.1678388, -0.9999994638002837, -0.9999998805230459, 8229037146411.302, -0.8320668925236464, -0.41015991460554746, -0.5478168271343251, -0.18769834766104365, -0.49845174676647747, -0.5797770220246046, -0.1786598725963487, 1.3069125824679428, 0.8237680226359645, 1.00000000005e-10, -9.999999999500001e-11, 0.2840254166877415, -0.22119921692859512, 2.3538526683701997e+17, -1.0];
-[27]float exp2In = [245.80338977940391, 483.5739785214587, 590.3871311313933, 884.9005675541007, 479.79714947986145, 844.6499933308339, -941.9895434327706, -68.75469124378935, 886.7134339966274, 297.94910627384843, 1.7600405025699777, 1.931724253918361, -0.08979223241432788, -1.4302711023320525, -2.997289710689574, 0.9769113773026055, -0.17847445761332992, 1.5583838105873582, -0.7610377675569504, 1.6208390156279409, 0.0, 1.0, -1.0, 10.0, 0.5, -1074.0, 1023.5];
-[27]float exp2Want = [9.867187013299923e+73, 3.7176855852651323e+145, 5.2995076639766425e+177, 2.407764538388296e+266, 2.712275665605046e+144, 1.8407034654891507e+254, 2.709516655103489e-284, 2.008054949959655e-21, 8.459431755429353e+266, 4.916071262359412e+89, 3.3870763377167425, 3.8151089407358665, 0.9396580629319634, 0.37106115858678024, 0.12523504939047095, 1.9682471337415564, 0.883636882533748, 2.9452371628460092, 0.5900717242876609, 3.075538456777682, 1.0, 2.0, 0.5, 1024.0, 1.4142135623730951, 5e-324, 1.2711610061536464e+308];
+[26]float expIn = .{-511.8900582426383, 486.40723171212585, 369.28446656725964, -342.9033639648096, -6.390878071282714, -70.71250929576661, 212.23016181186813, 404.21269158971836, -568.5965785160712, -660.3135328691911, 470.0711454878176, -94.12610493292527, 0.9120685437784988, 0.8956549741186988, -0.8868972645463826, -0.8302560096821567, 0.6709977562588991, 0.4719399781370466, 0.3394608028804418, -0.3837270848217116, 0.0, 1.0, -1.0, 709.0, -745.0, 1e-20};
+[26]float expWant = .{4.886212654088617e-223, 1.753786369552851e+211, 2.388944623308051e+160, 1.1993921554110276e-149, 0.0016767832195999158, 1.9496085075269736e-31, 1.480430992329736e+92, 3.526480385993986e+175, 1.1525068661192175e-247, 1.6961972269773522e-287, 1.41027753313563e+204, 1.322976179199616e-41, 2.4894667820224923, 2.4489392561214323, 0.4119318876463562, 0.43593766777066423, 1.9561881462163546, 1.6031011597207216, 1.4041902510656181, 0.6813173436529935, 1.0, 2.718281828459045, 0.36787944117144233, 8.218407461554972e+307, 5e-324, 1.0};
+[26]float expm1In = .{-15.722122374486517, 2.65375351775711, -7.802690007115245, 6.235202315771666, 7.543218246483242, -26.068268445611213, -29.20992050670755, 20.2481449257876, -14.438759140319542, -15.940142337198218, 29.738690130627766, -1.7841895486531243, -0.527903820525131, -0.7936679315385684, -0.20788351477863798, -0.6900554583951795, -0.8669698086408202, -0.19681797102985032, 0.8359100861754378, 0.600904702991617, 1e-10, -1e-10, 0.25, -0.25, 40.0, -50.0};
+[26]float expm1Want = .{-0.999999851417039, 13.207265913020407, -0.9995913657299079, 509.40387075612756, 1886.8959736464433, -0.999999999995228, -0.9999999999997938, 621809867.1678388, -0.9999994638002837, -0.9999998805230459, 8229037146411.302, -0.8320668925236464, -0.41015991460554746, -0.5478168271343251, -0.18769834766104365, -0.49845174676647747, -0.5797770220246046, -0.1786598725963487, 1.3069125824679428, 0.8237680226359645, 1.00000000005e-10, -9.999999999500001e-11, 0.2840254166877415, -0.22119921692859512, 2.3538526683701997e+17, -1.0};
+[27]float exp2In = .{245.80338977940391, 483.5739785214587, 590.3871311313933, 884.9005675541007, 479.79714947986145, 844.6499933308339, -941.9895434327706, -68.75469124378935, 886.7134339966274, 297.94910627384843, 1.7600405025699777, 1.931724253918361, -0.08979223241432788, -1.4302711023320525, -2.997289710689574, 0.9769113773026055, -0.17847445761332992, 1.5583838105873582, -0.7610377675569504, 1.6208390156279409, 0.0, 1.0, -1.0, 10.0, 0.5, -1074.0, 1023.5};
+[27]float exp2Want = .{9.867187013299923e+73, 3.7176855852651323e+145, 5.2995076639766425e+177, 2.407764538388296e+266, 2.712275665605046e+144, 1.8407034654891507e+254, 2.709516655103489e-284, 2.008054949959655e-21, 8.459431755429353e+266, 4.916071262359412e+89, 3.3870763377167425, 3.8151089407358665, 0.9396580629319634, 0.37106115858678024, 0.12523504939047095, 1.9682471337415564, 0.883636882533748, 2.9452371628460092, 0.5900717242876609, 3.075538456777682, 1.0, 2.0, 0.5, 1024.0, 1.4142135623730951, 5e-324, 1.2711610061536464e+308};
 
 func ulps(float a, float b) float {
     if math.isNaN(b) {
@@ -13055,14 +13191,14 @@ func main() {
 
 	{dir: "libm_log", src: `import "std/math";
 
-[27]float logIn = [2.6775161921773473e-29, 7.30182883550128e+35, 3.360086163397612e+254, 2.454946656957562e-21, 50671.50894967005, 2.6971016203361873e+52, 6.254697535355299e-190, 13969582.443943003, 8.504173854606704e+77, 6.1111579958679464e+175, 2.979022185553462e-244, 1.0983925402356037e-118, 1.2118560180328222, 1.486208753985883, 1.499615706687257, 0.7139005293880516, 0.516290664635102, 1.0621317380950466, 0.9110722092174971, 1.7155220783526257, 1.0, 2.0, 0.5, 10.0, 1e-310, 5e-324, 1.7976931348623157e+308];
-[27]float logWant = [-65.7900781260073, 82.57860309698083, 586.0685802380023, -47.4561819201914, 10.833119077968718, 120.72660255816527, -435.6578348817776, 16.452392841304913, 179.4396092452347, 404.76250755387593, -560.739167569528, -271.61119318933135, 0.19215308358757793, 0.39622841690413174, 0.40520887974265163, -0.3370116409302913, -0.6610853685400678, 0.060277962297010046, -0.09313312117787143, 0.539717453156387, 0.0, 0.6931471805599453, -0.6931471805599453, 2.302585092994046, -713.8013788281542, -744.4400719213812, 709.782712893384];
-[26]float log2In = [2.5415287642773857e-145, 1.4282221978440683e+111, 2.812877438393363e+110, 3.996656595088988e+209, 2.7195955647961264e-189, 2.1635422434790114e-162, 1.9767461474140362e-212, 1.2524527113607414e-165, 2.5951432026823167e+140, 1.3421889401951906e-222, 6.149660040717195e+18, 2.2106413795880964e-172, 0.6602428065524835, 1.553878285980283, 1.478063030471413, 1.9105285843491768, 0.9066728398404847, 0.8836632701495588, 1.601089046217045, 1.4876750273601136, 1.0, 2.0, 0.5, 8.0, 1e-310, 1024.0];
-[26]float log2Want = [-480.3338771997893, 369.24823897880424, 366.90413713108217, 696.2817654487891, -626.4010178116645, -537.038956081886, -703.2656285032133, -547.7933795235518, 466.44574743441285, -737.0434492907023, 62.41521236702153, -570.2271673171156, -0.5989314167950222, 0.6358735030444475, 0.5637077930359022, 0.9339718427204481, -0.14134602647686306, -0.17843137576057702, 0.6790535470567153, 0.5730594137985336, 0.0, 1.0, -1.0, 3.0, -1029.7977094150824, 10.0];
-[25]float log10In = [1.397284788912151e+279, 9.835949159798784e-294, 3.935245927290424e+141, 6.421475927747785e-206, 6.363132954435529e+291, 1.3439791298883743e-290, 4.951774748296471e+227, 6.46247150022087e+108, 2.5434868047505643e+214, 7.75783430764046e+299, 6.746978065682069e-157, 7.025129818036019e-98, 1.0422841623711128, 1.220720998401941, 1.1254289399084971, 1.1701388806758848, 1.1142735949248443, 1.4865587395914062, 0.8882830728351174, 1.4524938861552261, 1.0, 10.0, 100.0, 1e-05, 1e+22];
-[25]float log10Want = [279.1452849312738, -293.00718372471533, 141.59497187812528, -205.1923651411511, 291.8036709976939, -289.87160747521426, 227.69476088080268, 108.81039864084875, 214.40542948891493, 299.88974049967163, -156.17089070172685, -97.15334564598007, 0.01798613866148298, 0.0866164152141013, 0.05131807865249468, 0.06823741006386931, 0.04699183911196543, 0.1721820745072574, -0.05144861374868377, 0.16211431303163742, 0.0, 1.0, 2.0, -5.0, 22.0];
-[27]float log1pIn = [2.136683619177834, 3.8420777549408873, 4.763363698200021, 0.7448560128091484, 3.598983552409736, 3.2282770023920415, 2.971684512770744, -0.33012932698590114, -0.8286486950447445, 1.311184916220342, 3.480907225036643, 0.5217787674041998, -0.0006374702733335574, 0.0003228610969904888, -0.00033088059366499995, -0.0006041207916749592, -2.096932190376907e-05, -1.1930641785649421e-05, -4.0454919703713675e-05, -8.333777059837976e-05, 1e-20, -1e-20, 1e-10, -0.5, 0.3, 3.0, 1e+16];
-[27]float log1pWant = [1.1431660695408756, 1.5773439168216459, 1.7515212796424795, 0.5566720381004255, 1.5258353122108255, 1.44179458203788, 1.3791903152264438, -0.4006706105810075, -1.7640394149609855, 0.8377603437641773, 1.4998255315139413, 0.41987989237237416, -0.0006376735438988018, 0.00032280898856206836, -0.00033093534672678213, -0.0006043033461674385, -2.0969541763073163e-05, -1.1930712956322205e-05, -4.0455738026047974e-05, -8.334124338332803e-05, 1e-20, -1e-20, 9.999999999500001e-11, -0.6931471805599453, 0.26236426446749106, 1.3862943611198906, 36.841361487904734];
+[27]float logIn = .{2.6775161921773473e-29, 7.30182883550128e+35, 3.360086163397612e+254, 2.454946656957562e-21, 50671.50894967005, 2.6971016203361873e+52, 6.254697535355299e-190, 13969582.443943003, 8.504173854606704e+77, 6.1111579958679464e+175, 2.979022185553462e-244, 1.0983925402356037e-118, 1.2118560180328222, 1.486208753985883, 1.499615706687257, 0.7139005293880516, 0.516290664635102, 1.0621317380950466, 0.9110722092174971, 1.7155220783526257, 1.0, 2.0, 0.5, 10.0, 1e-310, 5e-324, 1.7976931348623157e+308};
+[27]float logWant = .{-65.7900781260073, 82.57860309698083, 586.0685802380023, -47.4561819201914, 10.833119077968718, 120.72660255816527, -435.6578348817776, 16.452392841304913, 179.4396092452347, 404.76250755387593, -560.739167569528, -271.61119318933135, 0.19215308358757793, 0.39622841690413174, 0.40520887974265163, -0.3370116409302913, -0.6610853685400678, 0.060277962297010046, -0.09313312117787143, 0.539717453156387, 0.0, 0.6931471805599453, -0.6931471805599453, 2.302585092994046, -713.8013788281542, -744.4400719213812, 709.782712893384};
+[26]float log2In = .{2.5415287642773857e-145, 1.4282221978440683e+111, 2.812877438393363e+110, 3.996656595088988e+209, 2.7195955647961264e-189, 2.1635422434790114e-162, 1.9767461474140362e-212, 1.2524527113607414e-165, 2.5951432026823167e+140, 1.3421889401951906e-222, 6.149660040717195e+18, 2.2106413795880964e-172, 0.6602428065524835, 1.553878285980283, 1.478063030471413, 1.9105285843491768, 0.9066728398404847, 0.8836632701495588, 1.601089046217045, 1.4876750273601136, 1.0, 2.0, 0.5, 8.0, 1e-310, 1024.0};
+[26]float log2Want = .{-480.3338771997893, 369.24823897880424, 366.90413713108217, 696.2817654487891, -626.4010178116645, -537.038956081886, -703.2656285032133, -547.7933795235518, 466.44574743441285, -737.0434492907023, 62.41521236702153, -570.2271673171156, -0.5989314167950222, 0.6358735030444475, 0.5637077930359022, 0.9339718427204481, -0.14134602647686306, -0.17843137576057702, 0.6790535470567153, 0.5730594137985336, 0.0, 1.0, -1.0, 3.0, -1029.7977094150824, 10.0};
+[25]float log10In = .{1.397284788912151e+279, 9.835949159798784e-294, 3.935245927290424e+141, 6.421475927747785e-206, 6.363132954435529e+291, 1.3439791298883743e-290, 4.951774748296471e+227, 6.46247150022087e+108, 2.5434868047505643e+214, 7.75783430764046e+299, 6.746978065682069e-157, 7.025129818036019e-98, 1.0422841623711128, 1.220720998401941, 1.1254289399084971, 1.1701388806758848, 1.1142735949248443, 1.4865587395914062, 0.8882830728351174, 1.4524938861552261, 1.0, 10.0, 100.0, 1e-05, 1e+22};
+[25]float log10Want = .{279.1452849312738, -293.00718372471533, 141.59497187812528, -205.1923651411511, 291.8036709976939, -289.87160747521426, 227.69476088080268, 108.81039864084875, 214.40542948891493, 299.88974049967163, -156.17089070172685, -97.15334564598007, 0.01798613866148298, 0.0866164152141013, 0.05131807865249468, 0.06823741006386931, 0.04699183911196543, 0.1721820745072574, -0.05144861374868377, 0.16211431303163742, 0.0, 1.0, 2.0, -5.0, 22.0};
+[27]float log1pIn = .{2.136683619177834, 3.8420777549408873, 4.763363698200021, 0.7448560128091484, 3.598983552409736, 3.2282770023920415, 2.971684512770744, -0.33012932698590114, -0.8286486950447445, 1.311184916220342, 3.480907225036643, 0.5217787674041998, -0.0006374702733335574, 0.0003228610969904888, -0.00033088059366499995, -0.0006041207916749592, -2.096932190376907e-05, -1.1930641785649421e-05, -4.0454919703713675e-05, -8.333777059837976e-05, 1e-20, -1e-20, 1e-10, -0.5, 0.3, 3.0, 1e+16};
+[27]float log1pWant = .{1.1431660695408756, 1.5773439168216459, 1.7515212796424795, 0.5566720381004255, 1.5258353122108255, 1.44179458203788, 1.3791903152264438, -0.4006706105810075, -1.7640394149609855, 0.8377603437641773, 1.4998255315139413, 0.41987989237237416, -0.0006376735438988018, 0.00032280898856206836, -0.00033093534672678213, -0.0006043033461674385, -2.0969541763073163e-05, -1.1930712956322205e-05, -4.0455738026047974e-05, -8.334124338332803e-05, 1e-20, -1e-20, 9.999999999500001e-11, -0.6931471805599453, 0.26236426446749106, 1.3862943611198906, 36.841361487904734};
 
 func ulps(float a, float b) float {
     if math.isNaN(b) {
@@ -13136,9 +13272,9 @@ func main() {
 
 	{dir: "libm_pow", src: `import "std/math";
 
-[39]float fpowIn = [8.255824496861566, 31.753647020831988, 10.808557251216204, 40.394636554651846, 25.259156831965885, 0.16899972420875523, 29.27227123413439, 39.68961358262968, 11.642420620463687, 49.878084831377095, 43.75322565029849, 1.713162266155488, 24.882640380850667, 47.59868621502933, 1.0836427448893351e-60, 6.830901365858836e-66, 7.201601543448497e-09, 5.160080461344857e-28, 4.078322563754017e-55, 3.6377771570065726e+63, 4.85328359299931e+48, 2.7134108841713474e+81, -2.527554730339845, -0.2106904139772201, -8.78746907826351, -4.466468335781403, -8.009313709451346, -1.2131588123392447, -7.109325777622437, -5.035752935564525, 2.0, 2.0, 10.0, 1.5, -2.0, 3.0, 2.0, 2.0, 1.0000000001];
-[39]float fpowIn2 = [7.590676968702695, -0.8359811177019516, 11.705334328009855, 0.498249585503725, -10.55774546015158, -5.158132334715688, -17.229409472667548, -10.709891342671213, -18.306583333952453, 9.547510078758435, 4.635603559565624, -6.842826145842867, -15.367607578988022, -5.262134366266684, 1.9050566593615956, 2.5676631787217934, 0.31201724984309376, -0.09177816728811372, -2.77716267988345, -1.5908032771368326, -1.748626708665743, 2.363794982045693, 9.0, -7.0, 6.0, 3.0, -5.0, 4.0, 5.0, 1.0, 10.0, 0.5, -3.0, 2.5, 3.0, 200.0, -1074.0, 1023.0, 1000000000.0];
-[39]float fpowWant = [9095622.966986442, 0.0555301564475088, 1260656784507.3506, 6.314662157316893, 1.5617760528415504e-15, 9608.73488029489, 5.417786106616778e-26, 7.556913017140847e-18, 3.0506315374422734e-20, 1.6248401325856884e+16, 40464311.11753076, 0.025127976108645003, 3.535175160270144e-22, 1.486859314289955e-09, 5.795094043904555e-115, 4.75213396868653e-168, 0.002879900064769065, 319.4349114600753, 1.1182547580017725e+151, 7.712828027727136e-102, 7.350175174883073e-86, 3.105528058989683e+192, -4210.2231523713, -54260.846503486966, 460450.40457081364, -89.10309272546003, -3.034055198348414e-05, 2.1660607312140896, -18161.097037790903, -5.035752935564525, 1024.0, 1.4142135623730951, 0.001, 2.7556759606310752, -8.0, 2.6561398887587478e+95, 5e-324, 8.98846567431158e+307, 1.105170927214347];
+[39]float fpowIn = .{8.255824496861566, 31.753647020831988, 10.808557251216204, 40.394636554651846, 25.259156831965885, 0.16899972420875523, 29.27227123413439, 39.68961358262968, 11.642420620463687, 49.878084831377095, 43.75322565029849, 1.713162266155488, 24.882640380850667, 47.59868621502933, 1.0836427448893351e-60, 6.830901365858836e-66, 7.201601543448497e-09, 5.160080461344857e-28, 4.078322563754017e-55, 3.6377771570065726e+63, 4.85328359299931e+48, 2.7134108841713474e+81, -2.527554730339845, -0.2106904139772201, -8.78746907826351, -4.466468335781403, -8.009313709451346, -1.2131588123392447, -7.109325777622437, -5.035752935564525, 2.0, 2.0, 10.0, 1.5, -2.0, 3.0, 2.0, 2.0, 1.0000000001};
+[39]float fpowIn2 = .{7.590676968702695, -0.8359811177019516, 11.705334328009855, 0.498249585503725, -10.55774546015158, -5.158132334715688, -17.229409472667548, -10.709891342671213, -18.306583333952453, 9.547510078758435, 4.635603559565624, -6.842826145842867, -15.367607578988022, -5.262134366266684, 1.9050566593615956, 2.5676631787217934, 0.31201724984309376, -0.09177816728811372, -2.77716267988345, -1.5908032771368326, -1.748626708665743, 2.363794982045693, 9.0, -7.0, 6.0, 3.0, -5.0, 4.0, 5.0, 1.0, 10.0, 0.5, -3.0, 2.5, 3.0, 200.0, -1074.0, 1023.0, 1000000000.0};
+[39]float fpowWant = .{9095622.966986442, 0.0555301564475088, 1260656784507.3506, 6.314662157316893, 1.5617760528415504e-15, 9608.73488029489, 5.417786106616778e-26, 7.556913017140847e-18, 3.0506315374422734e-20, 1.6248401325856884e+16, 40464311.11753076, 0.025127976108645003, 3.535175160270144e-22, 1.486859314289955e-09, 5.795094043904555e-115, 4.75213396868653e-168, 0.002879900064769065, 319.4349114600753, 1.1182547580017725e+151, 7.712828027727136e-102, 7.350175174883073e-86, 3.105528058989683e+192, -4210.2231523713, -54260.846503486966, 460450.40457081364, -89.10309272546003, -3.034055198348414e-05, 2.1660607312140896, -18161.097037790903, -5.035752935564525, 1024.0, 1.4142135623730951, 0.001, 2.7556759606310752, -8.0, 2.6561398887587478e+95, 5e-324, 8.98846567431158e+307, 1.105170927214347};
 
 func ulps(float a, float b) float {
     if math.isNaN(b) {
@@ -13185,12 +13321,12 @@ func main() {
 
 	{dir: "libm_trig", src: `import "std/math";
 
-[48]float sinIn = [-0.7312715117751976, 0.6948674738744653, 0.5275492379532281, -0.4898619485211566, -0.009129825816118098, -0.10101787042252375, 0.3031859454455259, 0.5774467022710263, 3.648274175113995, 3.582619896474795, -3.5475890581855305, -3.321024038728627, 2.6839910250355965, 1.8877599125481863, 1.3578432115217671, -1.5349083392868463, -52.40707458162173, 8.845845059190367, -26.008966690384156, 20.7840077192389, 25.144060821610807, -86.89422815203739, -97.36640168902517, 67.49381641929199, -527903.820525131, -793667.9315385683, -207883.51477863803, -690055.4583951795, -866969.8086408202, -196817.9710298503, 9256080398171218.0, 7.389104833201065e+17, 5.285633533007853e+18, 1.200064366491094e+21, 6.892506682481676e+17, 5.7174180267874065e+20, -2.0665991623833704e+299, -1.780459576802733e+299, -5.149653720690547e+299, 0.5, 3.141592653589793, 1.5707963267948966, 6.283185307179586, 1e-10, 1e+300, 1.7976931348623157e+308, 1e+22, 2000000.0];
-[48]float sinWant = [-0.6678165936974793, 0.6402836467265434, 0.5034172903243089, -0.470504076330938, -0.00912969898249011, -0.10084615006535798, 0.29856235164836836, 0.5458864145547881, -0.48527838036048504, -0.4268686398796877, 0.3949343624764782, 0.17847011636901, 0.44179776546647814, 0.9501861951184719, 0.9774110448580267, -0.9993560952903914, -0.8414712708463894, 0.5471310369711966, -0.7683284427854311, 0.9346028453968994, 0.011319351158098536, 0.8773762422250856, -0.022968552252065972, -0.9987288971489507, 0.015793206257686192, -0.889512390595496, 0.9273613350533669, 0.9967732899104907, 0.19081556755929413, 0.3267616548527848, 0.6896795585620723, 0.5498580618180777, 0.2501930087917851, -0.07468053365477546, 0.9064321487056509, 0.9367572192861974, -0.9559485715868026, -0.13692738568869572, 0.9918382307080797, 0.479425538604203, 1.2246467991473532e-16, 1.0, -2.4492935982947064e-16, 1e-10, -0.8178819121159085, 0.004961954789184062, -0.8522008497671888, -0.65571431556347];
-[48]float cosIn = [-0.7312715117751976, 0.6948674738744653, 0.5275492379532281, -0.4898619485211566, -0.009129825816118098, -0.10101787042252375, 0.3031859454455259, 0.5774467022710263, 3.648274175113995, 3.582619896474795, -3.5475890581855305, -3.321024038728627, 2.6839910250355965, 1.8877599125481863, 1.3578432115217671, -1.5349083392868463, -52.40707458162173, 8.845845059190367, -26.008966690384156, 20.7840077192389, 25.144060821610807, -86.89422815203739, -97.36640168902517, 67.49381641929199, -527903.820525131, -793667.9315385683, -207883.51477863803, -690055.4583951795, -866969.8086408202, -196817.9710298503, 9256080398171218.0, 7.389104833201065e+17, 5.285633533007853e+18, 1.200064366491094e+21, 6.892506682481676e+17, 5.7174180267874065e+20, -2.0665991623833704e+299, -1.780459576802733e+299, -5.149653720690547e+299, 0.5, 3.141592653589793, 1.5707963267948966, 6.283185307179586, 1e-10, 1e+300, 1.7976931348623157e+308, 1e+22, 2000000.0];
-[48]float cosWant = [0.7443258676025548, 0.7681385628482396, 0.8640434200909873, 0.8823978208019163, 0.9999583234297763, 0.9949020323715272, 0.9543901310146685, 0.8378591900817929, -0.8743597049010804, -0.9043136426524071, -0.9187093388745419, -0.9839453326090998, -0.8971146718390167, -0.31168284297709, 0.21134722470271688, 0.03588028436261607, -0.5403018603893219, -0.8370469690422534, 0.6400557819494443, -0.3556930156413243, 0.9999359340924596, 0.47980301122334346, -0.9997361880053378, -0.05040426568893402, -0.9998752795404546, 0.456911049305098, -0.3741670138427985, -0.08026835317244695, -0.9816259059219171, -0.9451067775219208, 0.7241147053482792, 0.8352581109176175, -0.9681959813755239, -0.9972075099461686, 0.4223514647693988, -0.3499798738716144, -0.2935342032560292, 0.9905810875685338, 0.12750264352501098, 0.8775825618903728, -1.0, 6.123233995736766e-17, 1.0, 1.0, -0.5753861119575491, -0.9999876894265599, 0.523214785395139, 0.7550090968757464];
-[47]float tanIn = [-0.7312715117751976, 0.6948674738744653, 0.5275492379532281, -0.4898619485211566, -0.009129825816118098, -0.10101787042252375, 0.3031859454455259, 0.5774467022710263, 3.648274175113995, 3.582619896474795, -3.5475890581855305, -3.321024038728627, 2.6839910250355965, 1.8877599125481863, 1.3578432115217671, -1.5349083392868463, -52.40707458162173, 8.845845059190367, -26.008966690384156, 20.7840077192389, 25.144060821610807, -86.89422815203739, -97.36640168902517, 67.49381641929199, -527903.820525131, -793667.9315385683, -207883.51477863803, -690055.4583951795, -866969.8086408202, -196817.9710298503, 9256080398171218.0, 7.389104833201065e+17, 5.285633533007853e+18, 1.200064366491094e+21, 6.892506682481676e+17, 5.7174180267874065e+20, -2.0665991623833704e+299, -1.780459576802733e+299, -5.149653720690547e+299, 0.5, 3.141592653589793, 6.283185307179586, 1e-10, 1e+300, 1.7976931348623157e+308, 1e+22, 2000000.0];
-[47]float tanWant = [-0.8972099758516939, 0.8335522751941874, 0.5826296209411526, -0.533210832165641, -0.009130079492889244, -0.10136289482188826, 0.31283051023479164, 0.651525245550506, 0.5550100006214106, 0.4720360500452652, -0.4298795557692813, -0.18138214640011135, -0.49246521022872847, -3.04856753115639, 4.624669409465218, -27.852513240715226, 1.5574095381423556, -0.6536443678868132, -1.2004085650867826, -2.627554672986156, 0.01132007638906583, 1.8286176236953124, 0.022974613230608933, 19.814372523796457, -0.015795176239325363, -1.9467955348165207, -2.478468974400255, -12.41801096590387, -0.1943872573127389, -0.3457404630083778, 0.952445176804351, 0.6583091557339104, -0.2584115340329484, 0.07488966229186027, 2.1461560437598033, -2.6766031112687205, 3.256685459421558, -0.13822935588725577, 7.778962092762573, 0.5463024898437905, -1.2246467991473532e-16, -2.4492935982947064e-16, 1e-10, 1.4214488238747245, -0.004962015874444895, -1.6287782256068988, -0.8684853179608544];
+[48]float sinIn = .{-0.7312715117751976, 0.6948674738744653, 0.5275492379532281, -0.4898619485211566, -0.009129825816118098, -0.10101787042252375, 0.3031859454455259, 0.5774467022710263, 3.648274175113995, 3.582619896474795, -3.5475890581855305, -3.321024038728627, 2.6839910250355965, 1.8877599125481863, 1.3578432115217671, -1.5349083392868463, -52.40707458162173, 8.845845059190367, -26.008966690384156, 20.7840077192389, 25.144060821610807, -86.89422815203739, -97.36640168902517, 67.49381641929199, -527903.820525131, -793667.9315385683, -207883.51477863803, -690055.4583951795, -866969.8086408202, -196817.9710298503, 9256080398171218.0, 7.389104833201065e+17, 5.285633533007853e+18, 1.200064366491094e+21, 6.892506682481676e+17, 5.7174180267874065e+20, -2.0665991623833704e+299, -1.780459576802733e+299, -5.149653720690547e+299, 0.5, 3.141592653589793, 1.5707963267948966, 6.283185307179586, 1e-10, 1e+300, 1.7976931348623157e+308, 1e+22, 2000000.0};
+[48]float sinWant = .{-0.6678165936974793, 0.6402836467265434, 0.5034172903243089, -0.470504076330938, -0.00912969898249011, -0.10084615006535798, 0.29856235164836836, 0.5458864145547881, -0.48527838036048504, -0.4268686398796877, 0.3949343624764782, 0.17847011636901, 0.44179776546647814, 0.9501861951184719, 0.9774110448580267, -0.9993560952903914, -0.8414712708463894, 0.5471310369711966, -0.7683284427854311, 0.9346028453968994, 0.011319351158098536, 0.8773762422250856, -0.022968552252065972, -0.9987288971489507, 0.015793206257686192, -0.889512390595496, 0.9273613350533669, 0.9967732899104907, 0.19081556755929413, 0.3267616548527848, 0.6896795585620723, 0.5498580618180777, 0.2501930087917851, -0.07468053365477546, 0.9064321487056509, 0.9367572192861974, -0.9559485715868026, -0.13692738568869572, 0.9918382307080797, 0.479425538604203, 1.2246467991473532e-16, 1.0, -2.4492935982947064e-16, 1e-10, -0.8178819121159085, 0.004961954789184062, -0.8522008497671888, -0.65571431556347};
+[48]float cosIn = .{-0.7312715117751976, 0.6948674738744653, 0.5275492379532281, -0.4898619485211566, -0.009129825816118098, -0.10101787042252375, 0.3031859454455259, 0.5774467022710263, 3.648274175113995, 3.582619896474795, -3.5475890581855305, -3.321024038728627, 2.6839910250355965, 1.8877599125481863, 1.3578432115217671, -1.5349083392868463, -52.40707458162173, 8.845845059190367, -26.008966690384156, 20.7840077192389, 25.144060821610807, -86.89422815203739, -97.36640168902517, 67.49381641929199, -527903.820525131, -793667.9315385683, -207883.51477863803, -690055.4583951795, -866969.8086408202, -196817.9710298503, 9256080398171218.0, 7.389104833201065e+17, 5.285633533007853e+18, 1.200064366491094e+21, 6.892506682481676e+17, 5.7174180267874065e+20, -2.0665991623833704e+299, -1.780459576802733e+299, -5.149653720690547e+299, 0.5, 3.141592653589793, 1.5707963267948966, 6.283185307179586, 1e-10, 1e+300, 1.7976931348623157e+308, 1e+22, 2000000.0};
+[48]float cosWant = .{0.7443258676025548, 0.7681385628482396, 0.8640434200909873, 0.8823978208019163, 0.9999583234297763, 0.9949020323715272, 0.9543901310146685, 0.8378591900817929, -0.8743597049010804, -0.9043136426524071, -0.9187093388745419, -0.9839453326090998, -0.8971146718390167, -0.31168284297709, 0.21134722470271688, 0.03588028436261607, -0.5403018603893219, -0.8370469690422534, 0.6400557819494443, -0.3556930156413243, 0.9999359340924596, 0.47980301122334346, -0.9997361880053378, -0.05040426568893402, -0.9998752795404546, 0.456911049305098, -0.3741670138427985, -0.08026835317244695, -0.9816259059219171, -0.9451067775219208, 0.7241147053482792, 0.8352581109176175, -0.9681959813755239, -0.9972075099461686, 0.4223514647693988, -0.3499798738716144, -0.2935342032560292, 0.9905810875685338, 0.12750264352501098, 0.8775825618903728, -1.0, 6.123233995736766e-17, 1.0, 1.0, -0.5753861119575491, -0.9999876894265599, 0.523214785395139, 0.7550090968757464};
+[47]float tanIn = .{-0.7312715117751976, 0.6948674738744653, 0.5275492379532281, -0.4898619485211566, -0.009129825816118098, -0.10101787042252375, 0.3031859454455259, 0.5774467022710263, 3.648274175113995, 3.582619896474795, -3.5475890581855305, -3.321024038728627, 2.6839910250355965, 1.8877599125481863, 1.3578432115217671, -1.5349083392868463, -52.40707458162173, 8.845845059190367, -26.008966690384156, 20.7840077192389, 25.144060821610807, -86.89422815203739, -97.36640168902517, 67.49381641929199, -527903.820525131, -793667.9315385683, -207883.51477863803, -690055.4583951795, -866969.8086408202, -196817.9710298503, 9256080398171218.0, 7.389104833201065e+17, 5.285633533007853e+18, 1.200064366491094e+21, 6.892506682481676e+17, 5.7174180267874065e+20, -2.0665991623833704e+299, -1.780459576802733e+299, -5.149653720690547e+299, 0.5, 3.141592653589793, 6.283185307179586, 1e-10, 1e+300, 1.7976931348623157e+308, 1e+22, 2000000.0};
+[47]float tanWant = .{-0.8972099758516939, 0.8335522751941874, 0.5826296209411526, -0.533210832165641, -0.009130079492889244, -0.10136289482188826, 0.31283051023479164, 0.651525245550506, 0.5550100006214106, 0.4720360500452652, -0.4298795557692813, -0.18138214640011135, -0.49246521022872847, -3.04856753115639, 4.624669409465218, -27.852513240715226, 1.5574095381423556, -0.6536443678868132, -1.2004085650867826, -2.627554672986156, 0.01132007638906583, 1.8286176236953124, 0.022974613230608933, 19.814372523796457, -0.015795176239325363, -1.9467955348165207, -2.478468974400255, -12.41801096590387, -0.1943872573127389, -0.3457404630083778, 0.952445176804351, 0.6583091557339104, -0.2584115340329484, 0.07488966229186027, 2.1461560437598033, -2.6766031112687205, 3.256685459421558, -0.13822935588725577, 7.778962092762573, 0.5463024898437905, -1.2246467991473532e-16, -2.4492935982947064e-16, 1e-10, 1.4214488238747245, -0.004962015874444895, -1.6287782256068988, -0.8684853179608544};
 
 func ulps(float a, float b) float {
     if math.isNaN(b) {
@@ -13255,15 +13391,15 @@ func main() {
 
 	{dir: "libm_inverse", src: `import "std/math";
 
-[30]float atanIn = [-731.2715117751975, 694.8674738744653, 527.5492379532282, -489.8619485211566, -9.129825816118114, -101.01787042252374, 303.18594544552593, 577.4467022710264, -812.2808264515302, -943.3050469559873, 2.736205631335496, 2.686964922356096, -2.660691793639148, -2.49076802904647, 2.0129932687766976, 1.4158199344111395, 1.0183824086413251, -1.1511812544651348, 2.844107606521153e+78, 8.28228034802315e+39, 7.192673673204811e+124, 8.749002340244788e+54, 0.0, 1.0, -1.0, 0.5, 0.4375, 0.6875, 1.1875, 2.4375];
-[30]float atanWant = [-1.5694288465080763, 1.5693572044482045, 1.5689007714033858, -1.5687549381670816, -1.461700103069288, -1.5608974115558094, 1.56749803283117, 1.5690645669694394, -1.569565226093966, -1.5697362247328739, 1.22040713438406, 1.2145115864407445, -1.2112875786393573, -1.1890125084158487, 1.1097339296193796, 0.9558516702506477, 0.794505407067393, -0.8555610530981614, 1.5707963267948966, 1.5707963267948966, 1.5707963267948966, 1.5707963267948966, 0.0, 0.7853981633974483, -0.7853981633974483, 0.4636476090008061, 0.4124104415973873, 0.6022873461349642, 0.870903457075653, 1.1814796049617557];
-[24]float asinIn = [0.24580338977940386, 0.4835739785214588, 0.5903871311313933, 0.8849005675541006, 0.4797971494798614, 0.844649993330834, -0.9419895434327705, -0.0687546912437893, 0.8867134339966274, 0.2979491062738484, 0.8018009835012454, -0.7735880706937113, -0.06186190443567252, -0.5068543347603394, 0.08752171847186085, 0.14788237585620156, 0.0, 0.5, -0.5, 0.97, -0.97, 1e-10, 1.0, -1.0];
-[24]float asinWant = [0.24834842371258845, 0.5047332593665551, 0.6315384016323191, 1.0862804925997964, 0.5004234973384735, 1.005911001145255, -1.2285094093101632, -0.06880897641716692, 1.09018710876951, 0.3025434578768013, 0.9303028924374376, -0.8844839431292576, -0.061901429043417174, -0.5315317295805175, 0.08763384220406949, 0.14842676190847662, 0.0, 0.5235987755982989, -0.5235987755982989, 1.3252308092796046, -1.3252308092796046, 1e-10, 1.5707963267948966, -1.5707963267948966];
-[24]float acosIn = [0.24580338977940386, 0.4835739785214588, 0.5903871311313933, 0.8849005675541006, 0.4797971494798614, 0.844649993330834, -0.9419895434327705, -0.0687546912437893, 0.8867134339966274, 0.2979491062738484, 0.8018009835012454, -0.7735880706937113, -0.06186190443567252, -0.5068543347603394, 0.08752171847186085, 0.14788237585620156, 0.0, 0.5, -0.5, 0.97, -0.97, 1e-10, 1.0, -1.0];
-[24]float acosWant = [1.3224479030823082, 1.0660630674283416, 0.9392579251625776, 0.48451583419510014, 1.0703728294564232, 0.5648853256496417, 2.79930573610506, 1.6396053032120634, 0.48060921802538653, 1.2682528689180954, 0.640493434357459, 2.4552802699241543, 1.6326977558383138, 2.102328056375414, 1.4831624845908271, 1.42236956488642, 1.5707963267948966, 1.0471975511965979, 2.0943951023931957, 0.24556551751529213, 2.896027136074501, 1.5707963266948965, 0.0, 3.141592653589793];
-[34]float atan2In = [-3.523344703336752, 3.0186894607970753, 0.7176400861337839, -8.840021504505863, -9.250086831160303, -8.602891528507621, -1.5096162171497198, -7.523960777007089, 2.5486644481117864, 1.5420589723499738, 9.525102111858402, 7.1693691809735896, -7.114898332851249, -3.830363517961313, -6.38547240152125, 2.7782693785236816, 0.9548893141911563, -8.807976600675346, 3.6079994636357178, -3.7170565924641696, 6.323241873990504e-13, -7.133631952949054e+51, 3678083.133760015, -2.4670640946315166e+28, 4.976617132840867e-88, -3.948357378673241e-21, 2.185820385317884e-42, -4.2626249349978694e-113, 1.0, -1.0, 0.0, 0.0, 1.0, -1.0];
-[34]float atan2In2 = [-6.9830165215099615, -8.551274266649145, -2.6862216617482897, 0.1487146637884056, -1.3270863267522834, -8.185739733122698, 6.537042493440762, -5.535220707859709, 8.954178849140114, -2.066390506984397, -9.068346387644874, -4.207814273366475, -7.644155238432633, 6.322527182400627, 1.6320032732493246, -2.552049145485375, -8.744220500533537, -5.880825743613469, -1.4481538866119426, 1.7112372701527754, -2.7914664083193375e-66, 1.0994187310424542e-109, 6.138946679557191e+59, 2.998092497825765e-100, 2.0667229952156493e-91, 8.72972094338623e+68, 3.895741490952576e+24, 7.473559341346019e+115, 1.0, 1.0, 1.0, -1.0, 0.0, 0.0];
-[34]float atan2Want = [-2.674304400263401, 2.8022384108050766, 2.880533522521628, -1.5539750286933314, -1.7132914266533001, -2.3313523233351185, -0.22695395117427608, -2.205068883706394, 0.2773006924279227, 2.500491187878527, 2.3316340177430117, 2.1015393520729835, -2.3920389443185233, -0.5446937228442252, -1.320572210439032, 2.3137796593213746, 3.03282132161895, -2.159493538734648, 1.952485839810284, -1.1393487122193562, 1.5707963267948966, -1.5707963267948966, 5.991391236558711e-54, -1.5707963267948966, 1.570381040100896, -4.5228907135509026e-90, 5.610794223369819e-67, -5.703607531977063e-229, 0.7853981633974483, -0.7853981633974483, 0.0, 3.141592653589793, 1.5707963267948966, -1.5707963267948966];
+[30]float atanIn = .{-731.2715117751975, 694.8674738744653, 527.5492379532282, -489.8619485211566, -9.129825816118114, -101.01787042252374, 303.18594544552593, 577.4467022710264, -812.2808264515302, -943.3050469559873, 2.736205631335496, 2.686964922356096, -2.660691793639148, -2.49076802904647, 2.0129932687766976, 1.4158199344111395, 1.0183824086413251, -1.1511812544651348, 2.844107606521153e+78, 8.28228034802315e+39, 7.192673673204811e+124, 8.749002340244788e+54, 0.0, 1.0, -1.0, 0.5, 0.4375, 0.6875, 1.1875, 2.4375};
+[30]float atanWant = .{-1.5694288465080763, 1.5693572044482045, 1.5689007714033858, -1.5687549381670816, -1.461700103069288, -1.5608974115558094, 1.56749803283117, 1.5690645669694394, -1.569565226093966, -1.5697362247328739, 1.22040713438406, 1.2145115864407445, -1.2112875786393573, -1.1890125084158487, 1.1097339296193796, 0.9558516702506477, 0.794505407067393, -0.8555610530981614, 1.5707963267948966, 1.5707963267948966, 1.5707963267948966, 1.5707963267948966, 0.0, 0.7853981633974483, -0.7853981633974483, 0.4636476090008061, 0.4124104415973873, 0.6022873461349642, 0.870903457075653, 1.1814796049617557};
+[24]float asinIn = .{0.24580338977940386, 0.4835739785214588, 0.5903871311313933, 0.8849005675541006, 0.4797971494798614, 0.844649993330834, -0.9419895434327705, -0.0687546912437893, 0.8867134339966274, 0.2979491062738484, 0.8018009835012454, -0.7735880706937113, -0.06186190443567252, -0.5068543347603394, 0.08752171847186085, 0.14788237585620156, 0.0, 0.5, -0.5, 0.97, -0.97, 1e-10, 1.0, -1.0};
+[24]float asinWant = .{0.24834842371258845, 0.5047332593665551, 0.6315384016323191, 1.0862804925997964, 0.5004234973384735, 1.005911001145255, -1.2285094093101632, -0.06880897641716692, 1.09018710876951, 0.3025434578768013, 0.9303028924374376, -0.8844839431292576, -0.061901429043417174, -0.5315317295805175, 0.08763384220406949, 0.14842676190847662, 0.0, 0.5235987755982989, -0.5235987755982989, 1.3252308092796046, -1.3252308092796046, 1e-10, 1.5707963267948966, -1.5707963267948966};
+[24]float acosIn = .{0.24580338977940386, 0.4835739785214588, 0.5903871311313933, 0.8849005675541006, 0.4797971494798614, 0.844649993330834, -0.9419895434327705, -0.0687546912437893, 0.8867134339966274, 0.2979491062738484, 0.8018009835012454, -0.7735880706937113, -0.06186190443567252, -0.5068543347603394, 0.08752171847186085, 0.14788237585620156, 0.0, 0.5, -0.5, 0.97, -0.97, 1e-10, 1.0, -1.0};
+[24]float acosWant = .{1.3224479030823082, 1.0660630674283416, 0.9392579251625776, 0.48451583419510014, 1.0703728294564232, 0.5648853256496417, 2.79930573610506, 1.6396053032120634, 0.48060921802538653, 1.2682528689180954, 0.640493434357459, 2.4552802699241543, 1.6326977558383138, 2.102328056375414, 1.4831624845908271, 1.42236956488642, 1.5707963267948966, 1.0471975511965979, 2.0943951023931957, 0.24556551751529213, 2.896027136074501, 1.5707963266948965, 0.0, 3.141592653589793};
+[34]float atan2In = .{-3.523344703336752, 3.0186894607970753, 0.7176400861337839, -8.840021504505863, -9.250086831160303, -8.602891528507621, -1.5096162171497198, -7.523960777007089, 2.5486644481117864, 1.5420589723499738, 9.525102111858402, 7.1693691809735896, -7.114898332851249, -3.830363517961313, -6.38547240152125, 2.7782693785236816, 0.9548893141911563, -8.807976600675346, 3.6079994636357178, -3.7170565924641696, 6.323241873990504e-13, -7.133631952949054e+51, 3678083.133760015, -2.4670640946315166e+28, 4.976617132840867e-88, -3.948357378673241e-21, 2.185820385317884e-42, -4.2626249349978694e-113, 1.0, -1.0, 0.0, 0.0, 1.0, -1.0};
+[34]float atan2In2 = .{-6.9830165215099615, -8.551274266649145, -2.6862216617482897, 0.1487146637884056, -1.3270863267522834, -8.185739733122698, 6.537042493440762, -5.535220707859709, 8.954178849140114, -2.066390506984397, -9.068346387644874, -4.207814273366475, -7.644155238432633, 6.322527182400627, 1.6320032732493246, -2.552049145485375, -8.744220500533537, -5.880825743613469, -1.4481538866119426, 1.7112372701527754, -2.7914664083193375e-66, 1.0994187310424542e-109, 6.138946679557191e+59, 2.998092497825765e-100, 2.0667229952156493e-91, 8.72972094338623e+68, 3.895741490952576e+24, 7.473559341346019e+115, 1.0, 1.0, 1.0, -1.0, 0.0, 0.0};
+[34]float atan2Want = .{-2.674304400263401, 2.8022384108050766, 2.880533522521628, -1.5539750286933314, -1.7132914266533001, -2.3313523233351185, -0.22695395117427608, -2.205068883706394, 0.2773006924279227, 2.500491187878527, 2.3316340177430117, 2.1015393520729835, -2.3920389443185233, -0.5446937228442252, -1.320572210439032, 2.3137796593213746, 3.03282132161895, -2.159493538734648, 1.952485839810284, -1.1393487122193562, 1.5707963267948966, -1.5707963267948966, 5.991391236558711e-54, -1.5707963267948966, 1.570381040100896, -4.5228907135509026e-90, 5.610794223369819e-67, -5.703607531977063e-229, 0.7853981633974483, -0.7853981633974483, 0.0, 3.141592653589793, 1.5707963267948966, -1.5707963267948966};
 
 func ulps(float a, float b) float {
     if math.isNaN(b) {
@@ -13337,17 +13473,17 @@ func main() {
 
 	{dir: "libm_hyper", src: `import "std/math";
 
-[29]float sinhIn = [-16.39764843713707, 27.737702150062965, -22.420146080948427, 12.289015372296475, -24.88888391695484, -15.153540904254896, 29.947712349754745, -17.43614208666523, 8.51210610432642, -2.4519742336561983, -2.812054131711431, -0.3010383666493368, -18.46614946543907, 19.8312764179783, -7.39852843699571e-05, -0.0002533761372099159, -0.0007229211749710896, 0.0007331236999726827, -0.0009871298918377534, 5.5641601044167065e-06, 0.0, 1.0, -1.0, 0.5, 22.0, 1e-10, 40.0, 700.0, -700.0];
-[29]float sinhWant = [-6612691.113457197, 556289661525.0116, -2728448311.234231, 108647.95805443199, -32216247287.721878, -1905764.357677977, 5071030509526.817, -18680577.507483955, 2487.3144750514853, -5.762562015355917, -8.291995397305712, -0.3056059024602484, -52325913.52831877, 204919799.25699922, -7.398528443745414e-05, -0.00025337613992101806, -0.0007229212379393358, 0.0007331237656447275, -0.0009871300521518383, 5.5641601044454175e-06, 0.0, 1.1752011936438014, -1.1752011936438014, 0.5210953054937474, 1792456423.065796, 1e-10, 1.1769263341851e+17, 5.0711602736750225e+303, -5.0711602736750225e+303];
-[29]float coshIn = [-16.39764843713707, 27.737702150062965, -22.420146080948427, 12.289015372296475, -24.88888391695484, -15.153540904254896, 29.947712349754745, -17.43614208666523, 8.51210610432642, -2.4519742336561983, -2.812054131711431, -0.3010383666493368, -18.46614946543907, 19.8312764179783, -7.39852843699571e-05, -0.0002533761372099159, -0.0007229211749710896, 0.0007331236999726827, -0.0009871298918377534, 5.5641601044167065e-06, 0.0, 1.0, -1.0, 0.5, 22.0, 1e-10, 40.0, 700.0, -700.0];
-[29]float coshWant = [6612691.113457274, 556289661525.0116, 2728448311.234231, 108647.958059034, 32216247287.721878, 1905764.3576782392, 5071030509526.817, 18680577.507483985, 2487.314676071495, 5.8486854062107705, 8.352076847643293, 1.0456552814472573, 52325913.528318785, 204919799.25699922, 1.0000000027369111, 1.0000000320997335, 1.000000261307524, 1.0000002687351919, 1.0000004872127513, 1.0000000000154798, 1.0, 1.5430806348152437, 1.5430806348152437, 1.1276259652063807, 1792456423.065796, 1.0, 1.1769263341851e+17, 5.0711602736750225e+303, 5.0711602736750225e+303];
-[29]float tanhIn = [-16.39764843713707, 27.737702150062965, -22.420146080948427, 12.289015372296475, -24.88888391695484, -15.153540904254896, 29.947712349754745, -17.43614208666523, 8.51210610432642, -2.4519742336561983, -2.812054131711431, -0.3010383666493368, -18.46614946543907, 19.8312764179783, -7.39852843699571e-05, -0.0002533761372099159, -0.0007229211749710896, 0.0007331236999726827, -0.0009871298918377534, 5.5641601044167065e-06, 0.0, 1.0, -1.0, 0.5, 22.0, 1e-10, 40.0, 700.0, -700.0];
-[29]float tanhWant = [-0.9999999999999886, 1.0, -1.0, 0.9999999999576429, -1.0, -0.9999999999998623, 1.0, -0.9999999999999986, 0.9999999191819147, -0.985274743831597, -0.9928064059474581, -0.29226257245817117, -0.9999999999999998, 1.0, -7.398528423496299e-05, -0.0002533761317877117, -0.0007229210490346266, 0.0007331235686286247, -0.000987129571209724, 5.564160104359284e-06, 0.0, 0.7615941559557649, -0.7615941559557649, 0.46211715726000974, 1.0, 1e-10, 1.0, 1.0, -1.0];
-[29]float cbrtIn = [142805.1893798269, -142221.89064977074, 156182.60226894077, -587803.5357209966, 626642.50271464, 647177.745066891, 306945.06780235143, -679540.8869623607, 41338.71927984909, -344454.3767558137, 2.6775161921773473e-29, 7.30182883550128e+35, 3.360086163397612e+254, 2.454946656957562e-21, 50671.50894967005, 2.6971016203361873e+52, 6.254697535355299e-190, 13969582.443943003, 8.504173854606704e+77, 6.1111579958679464e+175, 0.0, 1.0, -1.0, 8.0, -27.0, 1e-310, 5e-324, 1e+308, 64.0];
-[29]float cbrtWant = [52.2694579672263, -52.19819465110767, 53.85312192319572, -83.76785561677048, 85.57362888976633, 86.49835697222827, 67.45594328937398, -87.91679838136442, 34.57686963530208, -70.09879768605914, 2.9916494413930284e-10, 900486520304.3416, 6.952112715111348e+84, 1.3490064307013428e-07, 37.004506134817554, 2.998926141705759e+17, 8.552021242940491e-64, 240.83955071469737, 9.474232612219239e+25, 3.938895907977069e+58, 0.0, 1.0, -1.0, 2.0, -3.0, 4.641588833612774e-104, 1.7031839360032603e-108, 4.641588833612779e+102, 4.0];
-[27]float hypotIn = [-5.085864262290386, 33.28209422496761, -97.82791138198641, -45.19037210433372, 38.118530607736915, 11.638009550669608, -70.9394410579794, -67.54653552222227, -88.2351345178268, -85.07807327282451, -32.60008144164648, 68.48067356251235, -87.84306076220622, 1.785183285540299, 1.5256171878968414e+296, 3.7085107648648757e+286, -3.2178485129626407e+289, 3.266984050326304e-61, 7.495622743879694e-15, 1.6624120732911055e+284, 4.0986770555958134e+222, 2.7707441537506968e-151, 3.0, 0.0, 1e+308, 1e-310, 5e-324];
-[27]float hypotIn2 = [31.494500531451052, -71.47992941492645, -25.049101587327115, 62.06961044701674, 20.291407745546636, 32.26421717440019, -11.989041615046034, 81.19459630586451, 63.76402556841606, 37.38910081870836, -19.07714337427018, -96.27913993759944, 83.00672868198939, -81.80440218828333, 2.582537783336413e-236, -1.89821274679496e+232, -3.404767557015227e+33, 1.7243067365956842e+102, -1.0451907991655672e+25, 4.5301534182641625e-88, -4.5290651270709035e+105, -7.912784724479016e-84, 4.0, 0.0, 1e+308, 1e-310, 5e-324];
-[27]float hypotWant = [31.902501140506416, 78.84845023944662, 100.98394791101218, 76.77764174531902, 43.182908702274865, 34.299022962445115, 71.94540580513699, 105.6176923168043, 108.86362992326045, 92.93128327881648, 37.77171837929066, 118.1493776483788, 120.85743804399485, 81.82387852421435, 1.5256171878968414e+296, 3.7085107648648757e+286, 3.2178485129626407e+289, 1.7243067365956842e+102, 1.0451907991655672e+25, 1.6624120732911055e+284, 4.0986770555958134e+222, 7.912784724479016e-84, 5.0, 0.0, 1.4142135623730951e+308, 1.4142135623731e-310, 5e-324];
+[29]float sinhIn = .{-16.39764843713707, 27.737702150062965, -22.420146080948427, 12.289015372296475, -24.88888391695484, -15.153540904254896, 29.947712349754745, -17.43614208666523, 8.51210610432642, -2.4519742336561983, -2.812054131711431, -0.3010383666493368, -18.46614946543907, 19.8312764179783, -7.39852843699571e-05, -0.0002533761372099159, -0.0007229211749710896, 0.0007331236999726827, -0.0009871298918377534, 5.5641601044167065e-06, 0.0, 1.0, -1.0, 0.5, 22.0, 1e-10, 40.0, 700.0, -700.0};
+[29]float sinhWant = .{-6612691.113457197, 556289661525.0116, -2728448311.234231, 108647.95805443199, -32216247287.721878, -1905764.357677977, 5071030509526.817, -18680577.507483955, 2487.3144750514853, -5.762562015355917, -8.291995397305712, -0.3056059024602484, -52325913.52831877, 204919799.25699922, -7.398528443745414e-05, -0.00025337613992101806, -0.0007229212379393358, 0.0007331237656447275, -0.0009871300521518383, 5.5641601044454175e-06, 0.0, 1.1752011936438014, -1.1752011936438014, 0.5210953054937474, 1792456423.065796, 1e-10, 1.1769263341851e+17, 5.0711602736750225e+303, -5.0711602736750225e+303};
+[29]float coshIn = .{-16.39764843713707, 27.737702150062965, -22.420146080948427, 12.289015372296475, -24.88888391695484, -15.153540904254896, 29.947712349754745, -17.43614208666523, 8.51210610432642, -2.4519742336561983, -2.812054131711431, -0.3010383666493368, -18.46614946543907, 19.8312764179783, -7.39852843699571e-05, -0.0002533761372099159, -0.0007229211749710896, 0.0007331236999726827, -0.0009871298918377534, 5.5641601044167065e-06, 0.0, 1.0, -1.0, 0.5, 22.0, 1e-10, 40.0, 700.0, -700.0};
+[29]float coshWant = .{6612691.113457274, 556289661525.0116, 2728448311.234231, 108647.958059034, 32216247287.721878, 1905764.3576782392, 5071030509526.817, 18680577.507483985, 2487.314676071495, 5.8486854062107705, 8.352076847643293, 1.0456552814472573, 52325913.528318785, 204919799.25699922, 1.0000000027369111, 1.0000000320997335, 1.000000261307524, 1.0000002687351919, 1.0000004872127513, 1.0000000000154798, 1.0, 1.5430806348152437, 1.5430806348152437, 1.1276259652063807, 1792456423.065796, 1.0, 1.1769263341851e+17, 5.0711602736750225e+303, 5.0711602736750225e+303};
+[29]float tanhIn = .{-16.39764843713707, 27.737702150062965, -22.420146080948427, 12.289015372296475, -24.88888391695484, -15.153540904254896, 29.947712349754745, -17.43614208666523, 8.51210610432642, -2.4519742336561983, -2.812054131711431, -0.3010383666493368, -18.46614946543907, 19.8312764179783, -7.39852843699571e-05, -0.0002533761372099159, -0.0007229211749710896, 0.0007331236999726827, -0.0009871298918377534, 5.5641601044167065e-06, 0.0, 1.0, -1.0, 0.5, 22.0, 1e-10, 40.0, 700.0, -700.0};
+[29]float tanhWant = .{-0.9999999999999886, 1.0, -1.0, 0.9999999999576429, -1.0, -0.9999999999998623, 1.0, -0.9999999999999986, 0.9999999191819147, -0.985274743831597, -0.9928064059474581, -0.29226257245817117, -0.9999999999999998, 1.0, -7.398528423496299e-05, -0.0002533761317877117, -0.0007229210490346266, 0.0007331235686286247, -0.000987129571209724, 5.564160104359284e-06, 0.0, 0.7615941559557649, -0.7615941559557649, 0.46211715726000974, 1.0, 1e-10, 1.0, 1.0, -1.0};
+[29]float cbrtIn = .{142805.1893798269, -142221.89064977074, 156182.60226894077, -587803.5357209966, 626642.50271464, 647177.745066891, 306945.06780235143, -679540.8869623607, 41338.71927984909, -344454.3767558137, 2.6775161921773473e-29, 7.30182883550128e+35, 3.360086163397612e+254, 2.454946656957562e-21, 50671.50894967005, 2.6971016203361873e+52, 6.254697535355299e-190, 13969582.443943003, 8.504173854606704e+77, 6.1111579958679464e+175, 0.0, 1.0, -1.0, 8.0, -27.0, 1e-310, 5e-324, 1e+308, 64.0};
+[29]float cbrtWant = .{52.2694579672263, -52.19819465110767, 53.85312192319572, -83.76785561677048, 85.57362888976633, 86.49835697222827, 67.45594328937398, -87.91679838136442, 34.57686963530208, -70.09879768605914, 2.9916494413930284e-10, 900486520304.3416, 6.952112715111348e+84, 1.3490064307013428e-07, 37.004506134817554, 2.998926141705759e+17, 8.552021242940491e-64, 240.83955071469737, 9.474232612219239e+25, 3.938895907977069e+58, 0.0, 1.0, -1.0, 2.0, -3.0, 4.641588833612774e-104, 1.7031839360032603e-108, 4.641588833612779e+102, 4.0};
+[27]float hypotIn = .{-5.085864262290386, 33.28209422496761, -97.82791138198641, -45.19037210433372, 38.118530607736915, 11.638009550669608, -70.9394410579794, -67.54653552222227, -88.2351345178268, -85.07807327282451, -32.60008144164648, 68.48067356251235, -87.84306076220622, 1.785183285540299, 1.5256171878968414e+296, 3.7085107648648757e+286, -3.2178485129626407e+289, 3.266984050326304e-61, 7.495622743879694e-15, 1.6624120732911055e+284, 4.0986770555958134e+222, 2.7707441537506968e-151, 3.0, 0.0, 1e+308, 1e-310, 5e-324};
+[27]float hypotIn2 = .{31.494500531451052, -71.47992941492645, -25.049101587327115, 62.06961044701674, 20.291407745546636, 32.26421717440019, -11.989041615046034, 81.19459630586451, 63.76402556841606, 37.38910081870836, -19.07714337427018, -96.27913993759944, 83.00672868198939, -81.80440218828333, 2.582537783336413e-236, -1.89821274679496e+232, -3.404767557015227e+33, 1.7243067365956842e+102, -1.0451907991655672e+25, 4.5301534182641625e-88, -4.5290651270709035e+105, -7.912784724479016e-84, 4.0, 0.0, 1e+308, 1e-310, 5e-324};
+[27]float hypotWant = .{31.902501140506416, 78.84845023944662, 100.98394791101218, 76.77764174531902, 43.182908702274865, 34.299022962445115, 71.94540580513699, 105.6176923168043, 108.86362992326045, 92.93128327881648, 37.77171837929066, 118.1493776483788, 120.85743804399485, 81.82387852421435, 1.5256171878968414e+296, 3.7085107648648757e+286, 3.2178485129626407e+289, 1.7243067365956842e+102, 1.0451907991655672e+25, 1.6624120732911055e+284, 4.0986770555958134e+222, 7.912784724479016e-84, 5.0, 0.0, 1.4142135623730951e+308, 1.4142135623731e-310, 5e-324};
 
 func ulps(float a, float b) float {
     if math.isNaN(b) {
@@ -13430,9 +13566,9 @@ func main() {
 
 	{dir: "libm_fmod", src: `import "std/math";
 
-[13]float fmodIn = [5.5, -5.5, 5.5, 1e+300, 1e+300, 123456789.123, 2.5e-323, 1.7976931348623157e+308, 0.1, 3.0, 1e+22, 7.0, 2.5e-323];
-[13]float fmodIn2 = [2.0, 2.0, -2.0, 7.0, 1e-300, 0.001, 1e-323, 3.0, 0.03, 5.0, 10.0, 7.0, 1e-323];
-[13]float fmodWant = [1.5, -1.5, 1.5, 1.0, 4.891554850853602e-301, 0.000999993376923471, 5e-324, 2.0, 0.010000000000000009, 3.0, 0.0, 0.0, 5e-324];
+[13]float fmodIn = .{5.5, -5.5, 5.5, 1e+300, 1e+300, 123456789.123, 2.5e-323, 1.7976931348623157e+308, 0.1, 3.0, 1e+22, 7.0, 2.5e-323};
+[13]float fmodIn2 = .{2.0, 2.0, -2.0, 7.0, 1e-300, 0.001, 1e-323, 3.0, 0.03, 5.0, 10.0, 7.0, 1e-323};
+[13]float fmodWant = .{1.5, -1.5, 1.5, 1.0, 4.891554850853602e-301, 0.000999993376923471, 5e-324, 2.0, 0.010000000000000009, 3.0, 0.0, 0.0, 5e-324};
 
 func ulps(float a, float b) float {
     if math.isNaN(b) {
@@ -13480,13 +13616,13 @@ func main() {
 	{dir: "conv_float", src: `import "std/conv";
 import "std/math";
 
-[228]float xs = [1.0, 0.5, 0.1, 0.2, 0.3, 1e+23, 1e+22, 1e+21, 1e+20, 1e-05, 1e-06, 1e-07, 0.000123, 5e-324, 2.2250738585072014e-308, 1.7976931348623157e+308, 123456.789, 100.0, 3.14159, 2.718281828459045, 9.995, 0.375, 0.125, 2.5, 1.5, 0.999, 99.5, 1000000000000000.0, 1.2345678901234568e+17, 1e+23, 1.152921504606847e+18, 4503599627370496.0, 0.05, 0.25, 4.35, 0.0001, 123.456, 9007199254740992.0, 0.0, -0.0, -1.0, -0.5, -0.1, -0.2, -0.3, -1e+23, -1e+22, -1e+21, -1e+20, -1e-05, -1e-06, -1e-07, -0.000123, -5e-324, -2.2250738585072014e-308, -1.7976931348623157e+308, 5e-324, 4.144523e-317, 3.4766779039175e-310, 2.916448807822559e-303, 2.446494580089078e-296, 2.0522684006491881e-289, 1.7215675123832985e-282, 1.4441555006918637e-275, 1.2114454386347773e-268, 1.0162340898095202e-261, 8.52478941564886e-255, 7.151111669042735e-248, 5.998787255582524e-241, 5.0321474762477604e-234, 4.2212712576431773e-227, 3.541058984203562e-220, 2.9704555723361872e-213, 2.491798737774392e-206, 2.0902722826084166e-199, 1.7534474792067224e-192, 1.4708983551653345e-185, 1.2338789709326767e-178, 1.035052700659762e-171, 8.682651365176084e-165, 7.283535870312702e-158, 6.10987272699921e-151, 5.1253327236687384e-144, 4.299440708842937e-137, 3.606632272572553e-130, 3.02546243347603e-123, 2.5379418373156492e-116, 2.1289799200040754e-109, 1.7859177988785547e-102, 1.4981364335015035e-95, 1.256727927116218e-88, 1.0542197943230523e-81, 8.843436600416711e-75, 7.418412301374843e-68, 6.223015277861142e-61, 5.22024357439882e-54, 4.3790577010150533e-47, 3.6734198463196485e-40, 3.0814879110195774e-33, 2.5849394142282115e-26, 2.168404344971009e-19, 1.8189894035458565e-12, 1.52587890625e-05, 128.0, 1073741824.0, 9007199254740992.0, 7.555786372591432e+22, 6.338253001141147e+29, 5.316911983139664e+36, 4.460149039706125e+43, 3.7414441915671115e+50, 3.1385508676933404e+57, 2.6328072917139297e+64, 2.2085588309729804e+71, 1.8526734277970591e+78, 1.5541351137805833e+85, 1.3037030248540711e+92, 1.093625362391506e+99, 9.173994463960286e+105, 7.695704335233297e+112, 6.455624695217272e+119, 5.415370496329717e+126, 4.542742026847543e+133, 3.8107282108349515e+140, 3.196670515523576e+147, 2.6815615859885194e+154, 2.2494568972715982e+161, 1.8869812124107707e+168, 1.582914569427869e+175, 1.3278449820419177e+182, 1.1138771039116688e+189, 9.343878384890256e+195, 7.838213297051748e+202, 6.575169876935467e+209, 5.515652263101987e+216, 4.626864469947544e+223, 3.8812952307517723e+230, 3.2558664223046163e+237, 2.7312187117075883e+244, 2.291112313477997e+251, 1.9219243081740033e+258, 1.612226962694291e+265, 1.352433999707303e+272, 1.134503866941668e+279, 9.516908214257812e+285, 7.98336123813888e+292, 6.696928794914171e+299, 5.617791046444737e+306, 1.0846593320521653e-111, 3.827838586498353e+278, 1.1911478289890319e+91, 3.7276561872477e+279, 1.3653007914819919e+237, 5.3429589226471036e+243, 1.6278205303253624e+75, 2.4280161293618904e-49, 1.1567257858343133e+45, 2.606387362110178e+211, 6.862662879744832e+170, 5.234574084589718e-06, 4.7289621559886885e+168, 1.0250718162476351e-36, 4.2413611217723204e-307, 6.878915419638227e-259, 1.4290740184757722e-131, 3.235378915349377e-248, 1.4270773302164413e-301, 2.258599388854955e+241, 2.1118825046470448e-06, 6.291845313562883e-115, 9.123292170577517e-64, 2.4048551901096585e-94, 7.936797034399582e+307, 8.738245870117971e-89, 1.2114921281708982e-76, 9.146578401575517e+151, 1.624623429291922e+85, 7.194724112637607e+137, 2.2285169258594296e-253, 5.913330239262773e+23, 2.273918926158149e-131, 8.517071473104096e-222, 3.921932509748071e+89, 5.535950019483495e+133, 3.6271939668999635e-118, 5.527104338142335e+214, 2.9386314651465816e-81, 2.1118269707776657e-24, 43.70225546358949, 8.444807665433402e+17, 1.2637405834466526e+17, 36632.82207284301, 6.3717448457681405, 2.0479826081217932e+16, -62065.991241516494, -9260783.72451528, -2488797300621367.0, 781594735696.8141, 2004.6520687610835, -4.955734401956704e+17, 554535058.259937, 25052839446.311405, 2633131.1699909396, 1037041.6973867594, 863093714258093.6, 104.09943247115632, -7452753710206333.0, 1.3228152254733891e-12, 774900025230436.1, -0.29965278369793547, 0.00010193669270915556, 1529.1825692571877, -1102924998815943.6, 7195511241376391.0, -744.3015475397682, 160.1455926829016, -509.61541850508615, 3.779988296964296e+20, 4.3141735112427586e+19, 2.2581887956871841e+18, 2.1358283193825795e-10, -1.1381169656542993e-08, 1.4908423020533698e-10, -13952920.239815185, -147700579.50750175, -3.818792909503528e-05, 12396067411339.193, 15719542003.269464];
-[228]int ns = [2, 0, 5, 10, 9, 9, 12, 7, 11, 11, 2, 8, 3, 7, 9, 2, 9, 11, 8, 4, 1, 6, 10, 2, 2, 12, 12, 9, 4, 8, 6, 6, 12, 2, 8, 12, 3, 6, 0, 1, 6, 1, 0, 5, 10, 5, 12, 0, 0, 8, 7, 5, 10, 4, 7, 5, 1, 7, 7, 9, 9, 12, 2, 2, 9, 8, 3, 6, 9, 5, 7, 9, 3, 10, 11, 1, 8, 6, 0, 3, 10, 2, 0, 10, 8, 0, 7, 12, 10, 3, 7, 11, 10, 0, 2, 10, 8, 3, 12, 8, 2, 2, 10, 2, 6, 4, 6, 8, 6, 1, 6, 4, 2, 5, 2, 4, 7, 7, 12, 6, 4, 7, 2, 5, 8, 7, 7, 1, 8, 12, 8, 12, 4, 1, 3, 3, 0, 1, 7, 10, 5, 6, 8, 12, 10, 2, 0, 5, 2, 5, 8, 10, 9, 12, 8, 3, 1, 9, 11, 4, 8, 12, 9, 11, 3, 9, 4, 9, 4, 10, 8, 2, 1, 12, 4, 1, 6, 2, 1, 10, 0, 12, 5, 11, 12, 2, 10, 10, 1, 8, 5, 4, 9, 1, 4, 5, 2, 4, 4, 1, 0, 6, 12, 4, 6, 0, 0, 1, 3, 0, 4, 1, 1, 10, 8, 9, 5, 5, 12, 7, 9, 10, 10, 11, 9, 0, 6, 5];
-[228]string shortest = ["1", "0.5", "0.1", "0.2", "0.3", "1e+23", "1e+22", "1e+21", "100000000000000000000", "0.00001", "1e-06", "1e-07", "0.000123", "5e-324", "2.2250738585072014e-308", "1.7976931348623157e+308", "123456.789", "100", "3.14159", "2.718281828459045", "9.995", "0.375", "0.125", "2.5", "1.5", "0.999", "99.5", "1000000000000000", "123456789012345680", "1e+23", "1152921504606847000", "4503599627370496", "0.05", "0.25", "4.35", "0.0001", "123.456", "9007199254740992", "0", "-0", "-1", "-0.5", "-0.1", "-0.2", "-0.3", "-1e+23", "-1e+22", "-1e+21", "-100000000000000000000", "-0.00001", "-1e-06", "-1e-07", "-0.000123", "-5e-324", "-2.2250738585072014e-308", "-1.7976931348623157e+308", "5e-324", "4.144523e-317", "3.4766779039175e-310", "2.916448807822559e-303", "2.446494580089078e-296", "2.0522684006491881e-289", "1.7215675123832985e-282", "1.4441555006918637e-275", "1.2114454386347773e-268", "1.0162340898095202e-261", "8.52478941564886e-255", "7.151111669042735e-248", "5.998787255582524e-241", "5.0321474762477604e-234", "4.2212712576431773e-227", "3.541058984203562e-220", "2.9704555723361872e-213", "2.491798737774392e-206", "2.0902722826084166e-199", "1.7534474792067224e-192", "1.4708983551653345e-185", "1.2338789709326767e-178", "1.035052700659762e-171", "8.682651365176084e-165", "7.283535870312702e-158", "6.10987272699921e-151", "5.1253327236687384e-144", "4.299440708842937e-137", "3.606632272572553e-130", "3.02546243347603e-123", "2.5379418373156492e-116", "2.1289799200040754e-109", "1.7859177988785547e-102", "1.4981364335015035e-95", "1.256727927116218e-88", "1.0542197943230523e-81", "8.843436600416711e-75", "7.418412301374843e-68", "6.223015277861142e-61", "5.22024357439882e-54", "4.3790577010150533e-47", "3.6734198463196485e-40", "3.0814879110195774e-33", "2.5849394142282115e-26", "2.168404344971009e-19", "1.8189894035458565e-12", "0.0000152587890625", "128", "1073741824", "9007199254740992", "7.555786372591432e+22", "6.338253001141147e+29", "5.316911983139664e+36", "4.460149039706125e+43", "3.7414441915671115e+50", "3.1385508676933404e+57", "2.6328072917139297e+64", "2.2085588309729804e+71", "1.8526734277970591e+78", "1.5541351137805833e+85", "1.3037030248540711e+92", "1.093625362391506e+99", "9.173994463960286e+105", "7.695704335233297e+112", "6.455624695217272e+119", "5.415370496329717e+126", "4.542742026847543e+133", "3.8107282108349515e+140", "3.196670515523576e+147", "2.6815615859885194e+154", "2.2494568972715982e+161", "1.8869812124107707e+168", "1.582914569427869e+175", "1.3278449820419177e+182", "1.1138771039116688e+189", "9.343878384890256e+195", "7.838213297051748e+202", "6.575169876935467e+209", "5.515652263101987e+216", "4.626864469947544e+223", "3.8812952307517723e+230", "3.2558664223046163e+237", "2.7312187117075883e+244", "2.291112313477997e+251", "1.9219243081740033e+258", "1.612226962694291e+265", "1.352433999707303e+272", "1.134503866941668e+279", "9.516908214257812e+285", "7.98336123813888e+292", "6.696928794914171e+299", "5.617791046444737e+306", "1.0846593320521653e-111", "3.827838586498353e+278", "1.1911478289890319e+91", "3.7276561872477e+279", "1.3653007914819919e+237", "5.3429589226471036e+243", "1.6278205303253624e+75", "2.4280161293618904e-49", "1.1567257858343133e+45", "2.606387362110178e+211", "6.862662879744832e+170", "5.234574084589718e-06", "4.7289621559886885e+168", "1.0250718162476351e-36", "4.2413611217723204e-307", "6.878915419638227e-259", "1.4290740184757722e-131", "3.235378915349377e-248", "1.4270773302164413e-301", "2.258599388854955e+241", "2.1118825046470448e-06", "6.291845313562883e-115", "9.123292170577517e-64", "2.4048551901096585e-94", "7.936797034399582e+307", "8.738245870117971e-89", "1.2114921281708982e-76", "9.146578401575517e+151", "1.624623429291922e+85", "7.194724112637607e+137", "2.2285169258594296e-253", "5.913330239262773e+23", "2.273918926158149e-131", "8.517071473104096e-222", "3.921932509748071e+89", "5.535950019483495e+133", "3.6271939668999635e-118", "5.527104338142335e+214", "2.9386314651465816e-81", "2.1118269707776657e-24", "43.70225546358949", "844480766543340200", "126374058344665260", "36632.82207284301", "6.3717448457681405", "20479826081217932", "-62065.991241516494", "-9260783.72451528", "-2488797300621367", "781594735696.8141", "2004.6520687610835", "-495573440195670400", "554535058.259937", "25052839446.311405", "2633131.1699909396", "1037041.6973867594", "863093714258093.6", "104.09943247115632", "-7452753710206333", "1.3228152254733891e-12", "774900025230436.1", "-0.29965278369793547", "0.00010193669270915556", "1529.1825692571877", "-1102924998815943.6", "7195511241376391", "-744.3015475397682", "160.1455926829016", "-509.61541850508615", "377998829696429600000", "43141735112427586000", "2258188795687184100", "2.1358283193825795e-10", "-1.1381169656542993e-08", "1.4908423020533698e-10", "-13952920.239815185", "-147700579.50750175", "-0.00003818792909503528", "12396067411339.193", "15719542003.269464"];
-[228]string fixed = ["1.00", "0", "0.10000", "0.2000000000", "0.300000000", "99999999999999991611392.000000000", "10000000000000000000000.000000000000", "1000000000000000000000.0000000", "100000000000000000000.00000000000", "0.00001000000", "0.00", "0.00000010", "0.000", "0.0000000", "0.000000000", "179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00", "123456.789000000", "100.00000000000", "3.14159000", "2.7183", "10.0", "0.375000", "0.1250000000", "2.50", "1.50", "0.999000000000", "99.500000000000", "1000000000000000.000000000", "123456789012345680.0000", "99999999999999991611392.00000000", "1152921504606846976.000000", "4503599627370496.000000", "0.050000000000", "0.25", "4.35000000", "0.000100000000", "123.456", "9007199254740992.000000", "0", "-0.0", "-1.000000", "-0.5", "-0", "-0.20000", "-0.3000000000", "-99999999999999991611392.00000", "-10000000000000000000000.000000000000", "-1000000000000000000000", "-100000000000000000000", "-0.00001000", "-0.0000010", "-0.00000", "-0.0001230000", "-0.0000", "-0.0000000", "-179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00000", "0.0", "0.0000000", "0.0000000", "0.000000000", "0.000000000", "0.000000000000", "0.00", "0.00", "0.000000000", "0.00000000", "0.000", "0.000000", "0.000000000", "0.00000", "0.0000000", "0.000000000", "0.000", "0.0000000000", "0.00000000000", "0.0", "0.00000000", "0.000000", "0", "0.000", "0.0000000000", "0.00", "0", "0.0000000000", "0.00000000", "0", "0.0000000", "0.000000000000", "0.0000000000", "0.000", "0.0000000", "0.00000000000", "0.0000000000", "0", "0.00", "0.0000000000", "0.00000000", "0.000", "0.000000000000", "0.00000000", "0.00", "0.00", "0.0000152588", "128.00", "1073741824.000000", "9007199254740992.0000", "75557863725914323419136.000000", "633825300114114700748351602688.00000000", "5316911983139663491615228241121378304.000000", "44601490397061246283071436545296723011960832.0", "374144419156711147060143317175368453031918731001856.000000", "3138550867693340381917894711603833208051177722232017256448.0000", "26328072917139296674479506920917608079723773850137277813577744384.00", "220855883097298041197912187592864814478435487109452369765200775161577472.00000", "1852673427797059126777135760139006525652319754650249024631321344126610074238976.00", "15541351137805832567355695254588151253139254712417116170014499277911234281641667985408.0000", "130370302485407109521180524058200202307293977194619920040712988758680403184853549195737432064.0000000", "1093625362391505962186251113558810682676584715446606218212885303204976499599687961611756588511526912.0000000", "9173994463960286046443283581208347763186259956673124494950355357547691504353939232280074212440502746218496.000000000000", "76957043352332967211482500195592995713046365762627825523336510555167425334955489475418488779072100860950445293568.000000", "645562469521727147413979793000752968582426448207305878207664839135161905504210298657411338320034457858975792993186873344.0000", "5415370496329716522614090203404460358274291162843391748379842930887932241807862544999950011922147613471467208908991351228465152.0000000", "45427420268475430659332737993000283397102585042957378767593137448789955507087370207886940669610222847547657600391636120845912601788416.00", "381072821083495145432323880589986121307201921712032611188861933548019011086397170424842053596617672260721060927906081896416989218663120764928.00000", "3196670515523576044934755563308202297086564498088930458479776726656380660551439995003193449537015778467662777468320381844938727095591204153641140224.00000000", "26815615859885194199148049996411692254958731641184786755447122887443528060147093953603748596333806855380063716372972101707507765623893139892867298012168192.0000000", "224945689727159819140526925384299092943484855915095831655037778630591879033574393515952034305194542857496045531676044756160413302774714984450425759043258192756736.0000000", "1886981212410770676120777290494134445458460610208220214188103150122812081196074426043063362588829383770734187515381922449885292314962396316280717125716348021824697663488.0", "15829145694278690179872161345257420162248406342477557754500035589945422406818039498900249667919554879334250971265032917718487362195632077437922953926521162746662833417516744704.00000000", "132784498204191774672397051638117156832398279431757980799861034550100889965213060684790625566307321417222332371561625253836644834413176809852379994691646837985957817708848304757932032.000000000000", "1113877103911668754551067286547922686741510866027480451801560673315252726369306002564920119950530126899082595110740822097336109551117050292542153642510306198303709637294986560078826707091456.00000000", "9343878384890255807777119448474196633381331982845050737826186276657715542443371287564109437577976626746659450006721346172290467269376897020421450382791094657540085093089822617769726345721044533248.000000000000", "78382132970517478991165606422426233672355708521949855379734648809861125861064803929830588940942115354940041435601982738271645192059633193360683542052684438972998018132574030730004068581526319939960438784.0000", "657516987693546688405123735360016083193792475352896732437285112883591519287135102764208317034698556403372871107022277214127429031272975482890976846331485106244402958891055574773957969735540339658911656466972672.0", "5515652263101987298728728207430913795608113109085112352897269396216198887424215820128660001943808587833784893551335930816647064191168732319583111500951066614122648616177179922993422016587311577585463592732098692120576.000", "46268644699475435470014199270680622913148582491776246164412857235254375716637876222457838321585848270371190628323884999935972095850551557285913445801770125007762163162852820919462003875720454598226040577701224945512200798208.000", "388129523075177233787244872115625638814221504279174152784763009506512738171594221582719602207161619487621932674282768301542895011028703597861071818760295284801113744005212476387566321407899611206315749798429117187723211713454014464", "3255866422304616344765552632188114158762089024568314531443485259650408807528140659922574316831813618526821245406949824436469141432675471230646169947427163108444901161872077421124549944292877941762189949285100879873872435565174053364826112.0", "27312187117075883106631072934794271937104930088205959824983071996985496526101020964951786294769886374883040913790702552866360531575272919369168306390347079868805765445689403631464768659094790245289840706092591521717005303961503585448607241732096.0000000", "229111231347799689635350271469398707925773913377365220235531597618488512042823233274762274126597027003434876073751997760595174886056587013603560208332516636964102994463833696818134410091831830209960320065853961979807444428853900668922870296851794362368.0000000000", "1921924308174003258872616370050369756495810455948672905389542244035233680030523317234537010836564833497229828911284598430510768810573374275010933992099815720970170092183271059798176857571621225553914820586983072295508566795439261982531741155133337002515103744.00000", "16122269626942909129404900662735492142298807557254685123533957184651913530173488143140175045399694454793530120643833272670970079330526292030350920973600450955456136596649325078391464772840162385651374295294530896122681527488756156580761624107880751845994219387748352.000000", "135243399970730303066198984938628251268824915465247109664757941510828519054521564025450817507240240101036645118273824941793880975232687497536137978486512531688546991103745301547195268525165168909574203624502064231461895242944399805142629606084361337981321876709820927574016.00000000", "1134503866941667986143541334648056457619674836471095626110665786221268201568912028156408931347775536033476809532312754097331684299884724203331627335435786915422798797948806666521214607112348737236205441118127012028555106130125335760617903854636122194680820545543017511614811209728.000000000000", "9516908214257811601907599988159363584840065290620124537956939899622020205826587990689077212775400643774711832257235027522909345571487396529861315719055325605011013378863743193233193022939505515969530853007049198118833591724018432564205433218231411731277088674906521042072098232413978624.0000000000", "79833612381388792466254908521473542642698050417418301660101889697488475674758562631398318619705428043573697873767699809758897519535743746429566871931393256812800226918043427060701508857774519487306134269781756959733232418204834815555554210737921766300284836275030241665694339809213760397115392.00", "669692879491417075592765655662501131600878007315958504652343992731469406953085076558248986759809911329746670573470716765741965803557696277249036098418660925245910485926514436588817162816398196367372136384565404686473871329212422972447846496629816432160699779855408885478776864478289024177325354254336", "5617791046444737211654078721215702292556178059194708039794690036179146118921905097897139916325235500660003558745981042426837180275450519452901482207483566386805246669527046414884444362538940441232908842252656430276192208823201965046059784704400851161354703458893321819998351435577491134526104885300757004288.00000", "0.00", "382783858649835312998059259379585962980913189259961295132363681229404288120567225429229154342162481344861653071091598921429610309531815629185987858938229715130049285857112935446778149062652733681940819897924061405198195364816739294631193147518072471542487011264436470444795625472.00000", "11911478289890318933233656150104484001390591296674155805698192564751847790054903973261869056.00000000", "3727656187247700127713408548141998181126772038330437249250339547845364428074236473021086879735793504351992627574511132467582440501754539787490721169392814939052663536886970556379920949920518842920483883127880269424163197375922079893559024095859017487165013737675828299334821085184.0000000000", "1365300791481991878992475655405618405582440136977125424926971489685800651525539777855917178375630894558529245847619210147540696285334633137814898919385845308154935348776825233136335926432505595594349365073160840123031238266439622557958144.000000000", "5342958922647103554024987344105433580732544161049034675700983701092003762182878506031917881445115316332907219192288254340802601925502889783917630673913012179441680643249176484819688072537971967147767876209632395623645012061707666811586319745024.000000000000", "1627820530325362416684850076204815261111420869873146256810160292807374274560.00000000", "0.000", "1156725785834313301033035650532098759932772352.0", "26063873621101780268869868981214323994666451212955085871823171916661954314043401687198964624681946080652424907360250915664814293260787236379182248904259936225265352374316202425210092928501683857336405356124831744.000000000", "686266287974483162755661044886134755731078545643452547896130754664215772946589025072285125019648167861187138238840616007995067388027003711068728983757002571868252944728064.00000000000", "0.0000", "4728962155988688516462373293219827002913707667984768860674392372937707198568037868485128069164349671878523361767190321269635016556821855571254520307372307031298345533440.00000000", "0.000000000000", "0.000000000", "0.00000000000", "0.000", "0.000000000", "0.0000", "22585993888549549985589534450889036275863823839510900961757628826356293632822262887007785874963840459868648360526743242109997045703674718446864112930115449557202349788080187522209332934315775726928204293190269564675334868526030779043259875328.000000000", "0.0000", "0.0000000000", "0.00000000", "0.00", "79367970343995815212900396243250898913775880859213761097442913048039514289246594857418546716368415884852840718465949679251265606722558597093433645432422696756219012555276178720782031588780863236928307347582430614324596887781449212508657753708294399499338466830257940140587728047744485667397344683170103033856.0", "0.000000000000", "0.0000", "91465784015755166126930680949586216749485971686400238109146920719159139083897984043240513806389380556138032771898731389781950595818335628257427437125632.0", "16246234292919218822453163570986126592399715739278405378137178018491844796692601765888.000000", "719472411263760722278169518203223825052287375864630765001261451965240713805915384886765680361121785228447541818726264079930119486057742336.00", "0.0", "591333023926277304745984.0000000000", "0", "0.000000000000", "392193250974807083701903137234515081168852554249698148968032824231634747046735764745355264.00000", "55359500194834945684636719407020312085277404183775610843683302844633076514531137110368135714716130933215573933169838780453820156608512.00000000000", "0.000000000000", "55271043381423348927823682873502364624917743410175942309404460112914516499672226128183400855713443031605943576933745105555893355377210164760931147222964439831303386236532046725014364605733815803466864104225017692160.00", "0.0000000000", "0.0000000000", "43.7", "844480766543340160.00000000", "126374058344665264.00000", "36632.8221", "6.371744846", "20479826081217932.0", "-62065.9912", "-9260783.72452", "-2488797300621367.00", "781594735696.8141", "2004.6521", "-495573440195670400.0", "554535058", "25052839446.311405", "2633131.169990939554", "1037041.6974", "863093714258093.625000", "104", "-7452753710206333", "0.0", "774900025230436.125", "-0", "0.0001", "1529.2", "-1102924998815943.6", "7195511241376391.0000000000", "-744.30154754", "160.145592683", "-509.61542", "377998829696429588480.00000", "43141735112427585536.000000000000", "2258188795687184128.0000000", "0.000000000", "-0.0000000114", "0.0000000001", "-13952920.23981518485", "-147700579.507501751", "-0", "12396067411339.193359", "15719542003.26946"];
-[228]string scientific = ["1.00e+00", "5e-01", "1.00000e-01", "2.0000000000e-01", "3.000000000e-01", "1.000000000e+23", "1.000000000000e+22", "1.0000000e+21", "1.00000000000e+20", "1.00000000000e-05", "1.00e-06", "1.00000000e-07", "1.230e-04", "4.9406565e-324", "2.225073859e-308", "1.80e+308", "1.234567890e+05", "1.00000000000e+02", "3.14159000e+00", "2.7183e+00", "1.0e+01", "3.750000e-01", "1.2500000000e-01", "2.50e+00", "1.50e+00", "9.990000000000e-01", "9.950000000000e+01", "1.000000000e+15", "1.2346e+17", "1.00000000e+23", "1.152922e+18", "4.503600e+15", "5.000000000000e-02", "2.50e-01", "4.35000000e+00", "1.000000000000e-04", "1.235e+02", "9.007199e+15", "0e+00", "-0.0e+00", "-1.000000e+00", "-5.0e-01", "-1e-01", "-2.00000e-01", "-3.0000000000e-01", "-1.00000e+23", "-1.000000000000e+22", "-1e+21", "-1e+20", "-1.00000000e-05", "-1.0000000e-06", "-1.00000e-07", "-1.2300000000e-04", "-4.9407e-324", "-2.2250739e-308", "-1.79769e+308", "4.9e-324", "4.1445230e-317", "3.4766779e-310", "2.916448808e-303", "2.446494580e-296", "2.052268400649e-289", "1.72e-282", "1.44e-275", "1.211445439e-268", "1.01623409e-261", "8.525e-255", "7.151112e-248", "5.998787256e-241", "5.03215e-234", "4.2212713e-227", "3.541058984e-220", "2.970e-213", "2.4917987378e-206", "2.09027228261e-199", "1.8e-192", "1.47089836e-185", "1.233879e-178", "1e-171", "8.683e-165", "7.2835358703e-158", "6.11e-151", "5e-144", "4.2994407088e-137", "3.60663227e-130", "3e-123", "2.5379418e-116", "2.128979920004e-109", "1.7859177989e-102", "1.498e-95", "1.2567279e-88", "1.05421979432e-81", "8.8434366004e-75", "7e-68", "6.22e-61", "5.2202435744e-54", "4.37905770e-47", "3.673e-40", "3.081487911020e-33", "2.58493941e-26", "2.17e-19", "1.82e-12", "1.5258789062e-05", "1.28e+02", "1.073742e+09", "9.0072e+15", "7.555786e+22", "6.33825300e+29", "5.316912e+36", "4.5e+43", "3.741444e+50", "3.1386e+57", "2.63e+64", "2.20856e+71", "1.85e+78", "1.5541e+85", "1.3037030e+92", "1.0936254e+99", "9.173994463960e+105", "7.695704e+112", "6.4556e+119", "5.4153705e+126", "4.54e+133", "3.81073e+140", "3.19667052e+147", "2.6815616e+154", "2.2494569e+161", "1.9e+168", "1.58291457e+175", "1.327844982042e+182", "1.11387710e+189", "9.343878384890e+195", "7.8382e+202", "6.6e+209", "5.516e+216", "4.627e+223", "4e+230", "3.3e+237", "2.7312187e+244", "2.2911123135e+251", "1.92192e+258", "1.612227e+265", "1.35243400e+272", "1.134503866942e+279", "9.5169082143e+285", "7.98e+292", "7e+299", "5.61779e+306", "1.08e-111", "3.82784e+278", "1.19114783e+91", "3.7276561872e+279", "1.365300791e+237", "5.342958922647e+243", "1.62782053e+75", "2.428e-49", "1.2e+45", "2.606387362e+211", "6.86266287974e+170", "5.2346e-06", "4.72896216e+168", "1.025071816248e-36", "4.241361122e-307", "6.87891541964e-259", "1.429e-131", "3.235378915e-248", "1.4271e-301", "2.258599389e+241", "2.1119e-06", "6.2918453136e-115", "9.12329217e-64", "2.40e-94", "7.9e+307", "8.738245870118e-89", "1.2115e-76", "9.1e+151", "1.624623e+85", "7.19e+137", "2.2e-253", "5.9133302393e+23", "2e-131", "8.517071473104e-222", "3.92193e+89", "5.53595001948e+133", "3.627193966900e-118", "5.53e+214", "2.9386314651e-81", "2.1118269708e-24", "4.4e+01", "8.44480767e+17", "1.26374e+17", "3.6633e+04", "6.371744846e+00", "2.0e+16", "-6.2066e+04", "-9.26078e+06", "-2.49e+15", "7.8159e+11", "2.0047e+03", "-5.0e+17", "6e+08", "2.505284e+10", "2.633131169991e+06", "1.0370e+06", "8.630937e+14", "1e+02", "-7e+15", "1.3e-12", "7.749e+14", "-3e-01", "1.0194e-04", "1.5e+03", "-1.1e+15", "7.1955112414e+15", "-7.44301548e+02", "1.601455927e+02", "-5.09615e+02", "3.77999e+20", "4.314173511243e+19", "2.2581888e+18", "2.135828319e-10", "-1.1381169657e-08", "1.4908423021e-10", "-1.39529202398e+07", "-1.477005795e+08", "-4e-05", "1.239607e+13", "1.57195e+10"];
-[348]float32 singles = [1.100000023841858, 0.10000000149011612, 0.20000000298023224, 16777216.0, 16777216.0, 3.4028234663852886e+38, 1.401298464324817e-45, 1.1754943508222875e-38, 1.1754942106924411e-38, 2.5, 100.0, 10000000000.0, 9.999999747378752e-06, 123456.7890625, 0.5, 3.141590118408203, 8388608.0, 0.0010000000474974513, 7.000000024071085e-10, 1.0000000200408773e+21, 1.0000000200408773e+20, 1.401298464324817e-45, 5.605193857299268e-45, 2.2420775429197073e-44, 8.96831017167883e-44, 3.587324068671532e-43, 1.4349296274686127e-42, 5.739718509874451e-42, 2.2958874039497803e-41, 9.183549615799121e-41, 3.6734198463196485e-40, 1.4693679385278594e-39, 5.877471754111438e-39, 2.350988701644575e-38, 9.4039548065783e-38, 3.76158192263132e-37, 1.504632769052528e-36, 6.018531076210112e-36, 2.407412430484045e-35, 9.62964972193618e-35, 3.851859888774472e-34, 1.5407439555097887e-33, 6.162975822039155e-33, 2.465190328815662e-32, 9.860761315262648e-32, 3.944304526105059e-31, 1.5777218104420236e-30, 6.310887241768095e-30, 2.524354896707238e-29, 1.0097419586828951e-28, 4.0389678347315804e-28, 1.6155871338926322e-27, 6.462348535570529e-27, 2.5849394142282115e-26, 1.0339757656912846e-25, 4.1359030627651384e-25, 1.6543612251060553e-24, 6.617444900424222e-24, 2.6469779601696886e-23, 1.0587911840678754e-22, 4.235164736271502e-22, 1.6940658945086007e-21, 6.776263578034403e-21, 2.710505431213761e-20, 1.0842021724855044e-19, 4.336808689942018e-19, 1.734723475976807e-18, 6.938893903907228e-18, 2.7755575615628914e-17, 1.1102230246251565e-16, 4.440892098500626e-16, 1.7763568394002505e-15, 7.105427357601002e-15, 2.842170943040401e-14, 1.1368683772161603e-13, 4.547473508864641e-13, 1.8189894035458565e-12, 7.275957614183426e-12, 2.9103830456733704e-11, 1.1641532182693481e-10, 4.656612873077393e-10, 1.862645149230957e-09, 7.450580596923828e-09, 2.9802322387695312e-08, 1.1920928955078125e-07, 4.76837158203125e-07, 1.9073486328125e-06, 7.62939453125e-06, 3.0517578125e-05, 0.0001220703125, 0.00048828125, 0.001953125, 0.0078125, 0.03125, 0.125, 0.5, 2.0, 8.0, 32.0, 128.0, 512.0, 2048.0, 8192.0, 32768.0, 131072.0, 524288.0, 2097152.0, 8388608.0, 33554432.0, 134217728.0, 536870912.0, 2147483648.0, 8589934592.0, 34359738368.0, 137438953472.0, 549755813888.0, 2199023255552.0, 8796093022208.0, 35184372088832.0, 140737488355328.0, 562949953421312.0, 2251799813685248.0, 9007199254740992.0, 3.602879701896397e+16, 1.4411518807585587e+17, 5.764607523034235e+17, 2.305843009213694e+18, 9.223372036854776e+18, 3.6893488147419103e+19, 1.4757395258967641e+20, 5.902958103587057e+20, 2.3611832414348226e+21, 9.44473296573929e+21, 3.777893186295716e+22, 1.5111572745182865e+23, 6.044629098073146e+23, 2.4178516392292583e+24, 9.671406556917033e+24, 3.8685626227668134e+25, 1.5474250491067253e+26, 6.189700196426902e+26, 2.4758800785707605e+27, 9.903520314283042e+27, 3.961408125713217e+28, 1.5845632502852868e+29, 6.338253001141147e+29, 2.535301200456459e+30, 1.0141204801825835e+31, 4.056481920730334e+31, 1.6225927682921336e+32, 6.490371073168535e+32, 2.596148429267414e+33, 1.0384593717069655e+34, 4.153837486827862e+34, 1.661534994731145e+35, 6.64613997892458e+35, 2.658455991569832e+36, 1.0633823966279327e+37, 4.253529586511731e+37, 1.7014118346046923e+38, 427651744.0, 2.547185162393058e-22, 36195364.0, 0.0028192992322146893, 4.149376763962209e-06, 1.757453425343194e+37, 72855085645824.0, 2.9650671891113374e+29, 9.95041109722472e-30, 488259465510912.0, 4.14811129889614e-10, 1.4785936061398485e+28, 2.646033763885498, 202569800482816.0, 7.538920943653317e+36, 9.575886329773249e+32, 1.5220653183555626e-19, 5.945976155885546e-09, 1.9113986669062931e-16, 6.015948379448978e+34, 5.342517195590145e+24, 1.7715294509113022e-11, 1.6885224446437366e-34, 2.903176340503003e+18, 7.812536921489408e+16, 2.755411696853116e-05, 2.9708392432160193e+29, 3.9790334004554565e-37, 2.904117641493638e-17, 2248378335363072.0, 1.8420688422966097e-13, 1.2503969188794946e-16, 6.597132988574597e+17, 4.38898073105801e+35, 1.1230665797270545e+21, 2.659394495080713e+23, 2.369772369240988e+32, 1.656860077416218e-29, 4.51708271210615e-16, 9.330894070583363e+20, 7.910472277217195e-07, 2.321947531979101e-14, 8032745.5, 2.348468243234444e+31, 2.2365304188707697e-37, 3670.32080078125, 3.2204913067510088e+35, 1.5241902791979234e-12, 1.0235620917675525e-23, 103605.0390625, 1.3223037229241542e-34, 2.521476515233792e+17, 2.879321690587757e-30, 1.9435902597540802e-26, 3127584768.0, 1.776406762036087e-29, 8.080686709925441e-30, 4.675178657566546e-36, 2.9650597282768466e-29, 114.01451873779297, 1.1891872903069256e-11, 61064712.0, 511472664576.0, 6.209114899194697e+36, 2072314118144.0, 1.2201263965643493e-15, 1.0316582605282578e-36, 3.3209635148523375e-06, 2098308.75, 3.363048035533054e-29, 1.6424616874899378e-11, 6.276676458583097e-07, 2.4793944675138846e-09, 7.257958678508203e-10, 1.7107772047041593e-20, 4.2724425248715204e+21, 1.690171416157682e-06, 7141617827840.0, 5.119102944322095e-22, 3.2499047330766767e+21, 2.6588124920684174e-29, 8.137728367850519e-25, 4074.146240234375, 9.590404181385469e-37, 5981549887488.0, 1.167541762260992e+17, 6.616844598312106e+33, 3237.216552734375, 292887912775680.0, 34535.0234375, 2.377861285651761e-08, 2.0553641480457314e+30, 2.761294320824517e-19, 2.589513941102656e+22, 1.459639001098759e-27, 2.4284166878836833e-21, 3.7252302225969456e-37, 1.1741075137581145e-37, 1.2967961098719418e-17, 3142.440673828125, 0.04949638247489929, 9.428126759303268e-07, 1.3330700063248929e-18, 4.554634538510147e+35, 1.1188495469731732e-14, 3.021764823444129e-28, 3.5771351967105163e+34, 12499253248.0, 33127126.0, 4.67986929328606e-32, 2.9797892699234503e+26, 3.931947020024772e-25, 25615.099609375, 5.206802147923324e-36, 799667453952.0, 3.4233303549754906e+28, 7.272307084850065e+35, 1.8267215748698192e+25, 25.535350799560547, 9.115362891538693e+24, 1.6454149565885646e-18, 1.111885214975794e-12, 36066648064.0, 79.03518676757812, 8.56060929747326e+19, 1.1359405370763117e+19, 1.8182410939826706e-14, 1.3495665822854665e-34, 3109717803008.0, 3.735405538540504e+26, 4.5157538056905535e-38, 14875072512.0, 1.4897333512436535e+37, 3.140024134160749e-20, 0.011402626521885395, 1.8527549618710677e-34, 3.640932426731568e+36, 7.58390780414503e-22, 130932078018560.0, 9.654279708862305, 1.6830285110172996e+28, 2.6120617463746325e-27, 1.7793753983875485e+33, 1.6319230855404847e+19, 3.950124253898098e+31, 9.20798845580018e+28, 3.4660907033412514e-08, 1.911347634556109e+16, 1.010118697385253e+37, 3.324757830158731e-11, 1.209576654210883e+35, 4.842918837695099e+22, 5.1609991576717656e-21, 115808.625, 4.786896882988296e+25, 1.106794873838104e-17, 1.8045414338155319e-12, 1.4563501974730738e+28, 1.920021021219723e-23, 4.493606597932853e-10, 2.811250364442852e-11, 0.0015356814255937934, 73867812864.0, 0.0011088027385994792, 12219.603515625, 2.0890286262825964e+24, 0.021250629797577858, 8.304138051300919e+30, 3.5682443186021413e+22, 48950916677632.0, 3415008.5, 6.82681111619475e-15, 1.8247317120218636e-24, 9.84423529559585e-27, 15223494656.0, 2.617324241782626e-07, 4.418913753416339e-27, 0.1404142528772354, 4.59450051454919e+30, 1.5984642411119403e-38, -1.100000023841858, -0.10000000149011612, -0.20000000298023224, -16777216.0, -16777216.0, -3.4028234663852886e+38, -1.401298464324817e-45, -1.1754943508222875e-38];
-[348]string singleText = ["1.1", "0.1", "0.2", "16777216", "16777216", "3.4028235e+38", "1e-45", "1.1754944e-38", "1.1754942e-38", "2.5", "100", "10000000000", "0.00001", "123456.79", "0.5", "3.14159", "8388608", "0.001", "7e-10", "1e+21", "100000000000000000000", "1e-45", "6e-45", "2.2e-44", "9e-44", "3.59e-43", "1.435e-42", "5.74e-42", "2.2959e-41", "9.1835e-41", "3.67342e-40", "1.469368e-39", "5.877472e-39", "2.3509887e-38", "9.403955e-38", "3.761582e-37", "1.5046328e-36", "6.018531e-36", "2.4074124e-35", "9.62965e-35", "3.85186e-34", "1.540744e-33", "6.162976e-33", "2.4651903e-32", "9.8607613e-32", "3.9443045e-31", "1.5777218e-30", "6.3108872e-30", "2.524355e-29", "1.009742e-28", "4.038968e-28", "1.6155871e-27", "6.4623485e-27", "2.5849394e-26", "1.0339758e-25", "4.135903e-25", "1.6543612e-24", "6.617445e-24", "2.646978e-23", "1.0587912e-22", "4.2351647e-22", "1.6940659e-21", "6.7762636e-21", "2.7105054e-20", "1.0842022e-19", "4.3368087e-19", "1.7347235e-18", "6.938894e-18", "2.7755576e-17", "1.110223e-16", "4.440892e-16", "1.7763568e-15", "7.1054274e-15", "2.842171e-14", "1.1368684e-13", "4.5474735e-13", "1.8189894e-12", "7.275958e-12", "2.910383e-11", "1.1641532e-10", "4.656613e-10", "1.8626451e-09", "7.450581e-09", "2.9802322e-08", "1.1920929e-07", "4.7683716e-07", "1.9073486e-06", "7.6293945e-06", "0.000030517578", "0.00012207031", "0.00048828125", "0.001953125", "0.0078125", "0.03125", "0.125", "0.5", "2", "8", "32", "128", "512", "2048", "8192", "32768", "131072", "524288", "2097152", "8388608", "33554432", "134217730", "536870900", "2147483600", "8589935000", "34359740000", "137438950000", "549755800000", "2199023300000", "8796093000000", "35184372000000", "140737490000000", "562949950000000", "2251799800000000", "9007199000000000", "36028797000000000", "144115190000000000", "576460750000000000", "2305843000000000000", "9223372000000000000", "36893490000000000000", "147573950000000000000", "590295800000000000000", "2.3611832e+21", "9.444733e+21", "3.7778932e+22", "1.5111573e+23", "6.044629e+23", "2.4178516e+24", "9.671407e+24", "3.8685626e+25", "1.5474251e+26", "6.1897002e+26", "2.4758801e+27", "9.9035203e+27", "3.9614081e+28", "1.5845633e+29", "6.338253e+29", "2.5353012e+30", "1.0141205e+31", "4.056482e+31", "1.6225928e+32", "6.490371e+32", "2.5961484e+33", "1.0384594e+34", "4.1538375e+34", "1.661535e+35", "6.64614e+35", "2.658456e+36", "1.0633824e+37", "4.2535296e+37", "1.7014118e+38", "427651740", "2.5471852e-22", "36195364", "0.0028192992", "4.1493768e-06", "1.7574534e+37", "72855086000000", "2.9650672e+29", "9.950411e-30", "488259470000000", "4.1481113e-10", "1.4785936e+28", "2.6460338", "202569800000000", "7.538921e+36", "9.575886e+32", "1.5220653e-19", "5.945976e-09", "1.9113987e-16", "6.0159484e+34", "5.342517e+24", "1.7715295e-11", "1.6885224e-34", "2903176300000000000", "78125370000000000", "0.000027554117", "2.9708392e+29", "3.9790334e-37", "2.9041176e-17", "2248378300000000", "1.8420688e-13", "1.2503969e-16", "659713300000000000", "4.3889807e+35", "1.1230666e+21", "2.6593945e+23", "2.3697724e+32", "1.6568601e-29", "4.5170827e-16", "933089400000000000000", "7.910472e-07", "2.3219475e-14", "8032745.5", "2.3484682e+31", "2.2365304e-37", "3670.3208", "3.2204913e+35", "1.5241903e-12", "1.0235621e-23", "103605.04", "1.3223037e-34", "252147650000000000", "2.8793217e-30", "1.9435903e-26", "3127584800", "1.7764068e-29", "8.080687e-30", "4.6751787e-36", "2.9650597e-29", "114.01452", "1.1891873e-11", "61064710", "511472660000", "6.209115e+36", "2072314100000", "1.2201264e-15", "1.0316583e-36", "3.3209635e-06", "2098308.8", "3.363048e-29", "1.6424617e-11", "6.2766765e-07", "2.4793945e-09", "7.2579587e-10", "1.7107772e-20", "4.2724425e+21", "1.6901714e-06", "7141618000000", "5.119103e-22", "3.2499047e+21", "2.6588125e-29", "8.1377284e-25", "4074.1462", "9.590404e-37", "5981550000000", "116754180000000000", "6.6168446e+33", "3237.2166", "292887900000000", "34535.023", "2.3778613e-08", "2.0553641e+30", "2.7612943e-19", "2.589514e+22", "1.459639e-27", "2.4284167e-21", "3.7252302e-37", "1.1741075e-37", "1.2967961e-17", "3142.4407", "0.049496382", "9.428127e-07", "1.33307e-18", "4.5546345e+35", "1.11884955e-14", "3.0217648e-28", "3.5771352e+34", "12499253000", "33127126", "4.6798693e-32", "2.9797893e+26", "3.931947e-25", "25615.1", "5.206802e-36", "799667450000", "3.4233304e+28", "7.272307e+35", "1.8267216e+25", "25.53535", "9.115363e+24", "1.645415e-18", "1.1118852e-12", "36066650000", "79.03519", "85606090000000000000", "11359405000000000000", "1.8182411e-14", "1.3495666e-34", "3109717800000", "3.7354055e+26", "4.5157538e-38", "14875073000", "1.4897334e+37", "3.140024e-20", "0.0114026265", "1.852755e-34", "3.6409324e+36", "7.583908e-22", "130932080000000", "9.65428", "1.6830285e+28", "2.6120617e-27", "1.7793754e+33", "16319231000000000000", "3.9501243e+31", "9.207988e+28", "3.4660907e-08", "19113476000000000", "1.0101187e+37", "3.324758e-11", "1.2095767e+35", "4.842919e+22", "5.160999e-21", "115808.625", "4.786897e+25", "1.1067949e-17", "1.8045414e-12", "1.4563502e+28", "1.920021e-23", "4.4936066e-10", "2.8112504e-11", "0.0015356814", "73867810000", "0.0011088027", "12219.604", "2.0890286e+24", "0.02125063", "8.304138e+30", "3.5682443e+22", "48950917000000", "3415008.5", "6.826811e-15", "1.8247317e-24", "9.844235e-27", "15223495000", "2.6173242e-07", "4.4189138e-27", "0.14041425", "4.5945005e+30", "1.5984642e-38", "-1.1", "-0.1", "-0.2", "-16777216", "-16777216", "-3.4028235e+38", "-1e-45", "-1.1754944e-38"];
+[228]float xs = .{1.0, 0.5, 0.1, 0.2, 0.3, 1e+23, 1e+22, 1e+21, 1e+20, 1e-05, 1e-06, 1e-07, 0.000123, 5e-324, 2.2250738585072014e-308, 1.7976931348623157e+308, 123456.789, 100.0, 3.14159, 2.718281828459045, 9.995, 0.375, 0.125, 2.5, 1.5, 0.999, 99.5, 1000000000000000.0, 1.2345678901234568e+17, 1e+23, 1.152921504606847e+18, 4503599627370496.0, 0.05, 0.25, 4.35, 0.0001, 123.456, 9007199254740992.0, 0.0, -0.0, -1.0, -0.5, -0.1, -0.2, -0.3, -1e+23, -1e+22, -1e+21, -1e+20, -1e-05, -1e-06, -1e-07, -0.000123, -5e-324, -2.2250738585072014e-308, -1.7976931348623157e+308, 5e-324, 4.144523e-317, 3.4766779039175e-310, 2.916448807822559e-303, 2.446494580089078e-296, 2.0522684006491881e-289, 1.7215675123832985e-282, 1.4441555006918637e-275, 1.2114454386347773e-268, 1.0162340898095202e-261, 8.52478941564886e-255, 7.151111669042735e-248, 5.998787255582524e-241, 5.0321474762477604e-234, 4.2212712576431773e-227, 3.541058984203562e-220, 2.9704555723361872e-213, 2.491798737774392e-206, 2.0902722826084166e-199, 1.7534474792067224e-192, 1.4708983551653345e-185, 1.2338789709326767e-178, 1.035052700659762e-171, 8.682651365176084e-165, 7.283535870312702e-158, 6.10987272699921e-151, 5.1253327236687384e-144, 4.299440708842937e-137, 3.606632272572553e-130, 3.02546243347603e-123, 2.5379418373156492e-116, 2.1289799200040754e-109, 1.7859177988785547e-102, 1.4981364335015035e-95, 1.256727927116218e-88, 1.0542197943230523e-81, 8.843436600416711e-75, 7.418412301374843e-68, 6.223015277861142e-61, 5.22024357439882e-54, 4.3790577010150533e-47, 3.6734198463196485e-40, 3.0814879110195774e-33, 2.5849394142282115e-26, 2.168404344971009e-19, 1.8189894035458565e-12, 1.52587890625e-05, 128.0, 1073741824.0, 9007199254740992.0, 7.555786372591432e+22, 6.338253001141147e+29, 5.316911983139664e+36, 4.460149039706125e+43, 3.7414441915671115e+50, 3.1385508676933404e+57, 2.6328072917139297e+64, 2.2085588309729804e+71, 1.8526734277970591e+78, 1.5541351137805833e+85, 1.3037030248540711e+92, 1.093625362391506e+99, 9.173994463960286e+105, 7.695704335233297e+112, 6.455624695217272e+119, 5.415370496329717e+126, 4.542742026847543e+133, 3.8107282108349515e+140, 3.196670515523576e+147, 2.6815615859885194e+154, 2.2494568972715982e+161, 1.8869812124107707e+168, 1.582914569427869e+175, 1.3278449820419177e+182, 1.1138771039116688e+189, 9.343878384890256e+195, 7.838213297051748e+202, 6.575169876935467e+209, 5.515652263101987e+216, 4.626864469947544e+223, 3.8812952307517723e+230, 3.2558664223046163e+237, 2.7312187117075883e+244, 2.291112313477997e+251, 1.9219243081740033e+258, 1.612226962694291e+265, 1.352433999707303e+272, 1.134503866941668e+279, 9.516908214257812e+285, 7.98336123813888e+292, 6.696928794914171e+299, 5.617791046444737e+306, 1.0846593320521653e-111, 3.827838586498353e+278, 1.1911478289890319e+91, 3.7276561872477e+279, 1.3653007914819919e+237, 5.3429589226471036e+243, 1.6278205303253624e+75, 2.4280161293618904e-49, 1.1567257858343133e+45, 2.606387362110178e+211, 6.862662879744832e+170, 5.234574084589718e-06, 4.7289621559886885e+168, 1.0250718162476351e-36, 4.2413611217723204e-307, 6.878915419638227e-259, 1.4290740184757722e-131, 3.235378915349377e-248, 1.4270773302164413e-301, 2.258599388854955e+241, 2.1118825046470448e-06, 6.291845313562883e-115, 9.123292170577517e-64, 2.4048551901096585e-94, 7.936797034399582e+307, 8.738245870117971e-89, 1.2114921281708982e-76, 9.146578401575517e+151, 1.624623429291922e+85, 7.194724112637607e+137, 2.2285169258594296e-253, 5.913330239262773e+23, 2.273918926158149e-131, 8.517071473104096e-222, 3.921932509748071e+89, 5.535950019483495e+133, 3.6271939668999635e-118, 5.527104338142335e+214, 2.9386314651465816e-81, 2.1118269707776657e-24, 43.70225546358949, 8.444807665433402e+17, 1.2637405834466526e+17, 36632.82207284301, 6.3717448457681405, 2.0479826081217932e+16, -62065.991241516494, -9260783.72451528, -2488797300621367.0, 781594735696.8141, 2004.6520687610835, -4.955734401956704e+17, 554535058.259937, 25052839446.311405, 2633131.1699909396, 1037041.6973867594, 863093714258093.6, 104.09943247115632, -7452753710206333.0, 1.3228152254733891e-12, 774900025230436.1, -0.29965278369793547, 0.00010193669270915556, 1529.1825692571877, -1102924998815943.6, 7195511241376391.0, -744.3015475397682, 160.1455926829016, -509.61541850508615, 3.779988296964296e+20, 4.3141735112427586e+19, 2.2581887956871841e+18, 2.1358283193825795e-10, -1.1381169656542993e-08, 1.4908423020533698e-10, -13952920.239815185, -147700579.50750175, -3.818792909503528e-05, 12396067411339.193, 15719542003.269464};
+[228]int ns = .{2, 0, 5, 10, 9, 9, 12, 7, 11, 11, 2, 8, 3, 7, 9, 2, 9, 11, 8, 4, 1, 6, 10, 2, 2, 12, 12, 9, 4, 8, 6, 6, 12, 2, 8, 12, 3, 6, 0, 1, 6, 1, 0, 5, 10, 5, 12, 0, 0, 8, 7, 5, 10, 4, 7, 5, 1, 7, 7, 9, 9, 12, 2, 2, 9, 8, 3, 6, 9, 5, 7, 9, 3, 10, 11, 1, 8, 6, 0, 3, 10, 2, 0, 10, 8, 0, 7, 12, 10, 3, 7, 11, 10, 0, 2, 10, 8, 3, 12, 8, 2, 2, 10, 2, 6, 4, 6, 8, 6, 1, 6, 4, 2, 5, 2, 4, 7, 7, 12, 6, 4, 7, 2, 5, 8, 7, 7, 1, 8, 12, 8, 12, 4, 1, 3, 3, 0, 1, 7, 10, 5, 6, 8, 12, 10, 2, 0, 5, 2, 5, 8, 10, 9, 12, 8, 3, 1, 9, 11, 4, 8, 12, 9, 11, 3, 9, 4, 9, 4, 10, 8, 2, 1, 12, 4, 1, 6, 2, 1, 10, 0, 12, 5, 11, 12, 2, 10, 10, 1, 8, 5, 4, 9, 1, 4, 5, 2, 4, 4, 1, 0, 6, 12, 4, 6, 0, 0, 1, 3, 0, 4, 1, 1, 10, 8, 9, 5, 5, 12, 7, 9, 10, 10, 11, 9, 0, 6, 5};
+[228]string shortest = .{"1", "0.5", "0.1", "0.2", "0.3", "1e+23", "1e+22", "1e+21", "100000000000000000000", "0.00001", "1e-06", "1e-07", "0.000123", "5e-324", "2.2250738585072014e-308", "1.7976931348623157e+308", "123456.789", "100", "3.14159", "2.718281828459045", "9.995", "0.375", "0.125", "2.5", "1.5", "0.999", "99.5", "1000000000000000", "123456789012345680", "1e+23", "1152921504606847000", "4503599627370496", "0.05", "0.25", "4.35", "0.0001", "123.456", "9007199254740992", "0", "-0", "-1", "-0.5", "-0.1", "-0.2", "-0.3", "-1e+23", "-1e+22", "-1e+21", "-100000000000000000000", "-0.00001", "-1e-06", "-1e-07", "-0.000123", "-5e-324", "-2.2250738585072014e-308", "-1.7976931348623157e+308", "5e-324", "4.144523e-317", "3.4766779039175e-310", "2.916448807822559e-303", "2.446494580089078e-296", "2.0522684006491881e-289", "1.7215675123832985e-282", "1.4441555006918637e-275", "1.2114454386347773e-268", "1.0162340898095202e-261", "8.52478941564886e-255", "7.151111669042735e-248", "5.998787255582524e-241", "5.0321474762477604e-234", "4.2212712576431773e-227", "3.541058984203562e-220", "2.9704555723361872e-213", "2.491798737774392e-206", "2.0902722826084166e-199", "1.7534474792067224e-192", "1.4708983551653345e-185", "1.2338789709326767e-178", "1.035052700659762e-171", "8.682651365176084e-165", "7.283535870312702e-158", "6.10987272699921e-151", "5.1253327236687384e-144", "4.299440708842937e-137", "3.606632272572553e-130", "3.02546243347603e-123", "2.5379418373156492e-116", "2.1289799200040754e-109", "1.7859177988785547e-102", "1.4981364335015035e-95", "1.256727927116218e-88", "1.0542197943230523e-81", "8.843436600416711e-75", "7.418412301374843e-68", "6.223015277861142e-61", "5.22024357439882e-54", "4.3790577010150533e-47", "3.6734198463196485e-40", "3.0814879110195774e-33", "2.5849394142282115e-26", "2.168404344971009e-19", "1.8189894035458565e-12", "0.0000152587890625", "128", "1073741824", "9007199254740992", "7.555786372591432e+22", "6.338253001141147e+29", "5.316911983139664e+36", "4.460149039706125e+43", "3.7414441915671115e+50", "3.1385508676933404e+57", "2.6328072917139297e+64", "2.2085588309729804e+71", "1.8526734277970591e+78", "1.5541351137805833e+85", "1.3037030248540711e+92", "1.093625362391506e+99", "9.173994463960286e+105", "7.695704335233297e+112", "6.455624695217272e+119", "5.415370496329717e+126", "4.542742026847543e+133", "3.8107282108349515e+140", "3.196670515523576e+147", "2.6815615859885194e+154", "2.2494568972715982e+161", "1.8869812124107707e+168", "1.582914569427869e+175", "1.3278449820419177e+182", "1.1138771039116688e+189", "9.343878384890256e+195", "7.838213297051748e+202", "6.575169876935467e+209", "5.515652263101987e+216", "4.626864469947544e+223", "3.8812952307517723e+230", "3.2558664223046163e+237", "2.7312187117075883e+244", "2.291112313477997e+251", "1.9219243081740033e+258", "1.612226962694291e+265", "1.352433999707303e+272", "1.134503866941668e+279", "9.516908214257812e+285", "7.98336123813888e+292", "6.696928794914171e+299", "5.617791046444737e+306", "1.0846593320521653e-111", "3.827838586498353e+278", "1.1911478289890319e+91", "3.7276561872477e+279", "1.3653007914819919e+237", "5.3429589226471036e+243", "1.6278205303253624e+75", "2.4280161293618904e-49", "1.1567257858343133e+45", "2.606387362110178e+211", "6.862662879744832e+170", "5.234574084589718e-06", "4.7289621559886885e+168", "1.0250718162476351e-36", "4.2413611217723204e-307", "6.878915419638227e-259", "1.4290740184757722e-131", "3.235378915349377e-248", "1.4270773302164413e-301", "2.258599388854955e+241", "2.1118825046470448e-06", "6.291845313562883e-115", "9.123292170577517e-64", "2.4048551901096585e-94", "7.936797034399582e+307", "8.738245870117971e-89", "1.2114921281708982e-76", "9.146578401575517e+151", "1.624623429291922e+85", "7.194724112637607e+137", "2.2285169258594296e-253", "5.913330239262773e+23", "2.273918926158149e-131", "8.517071473104096e-222", "3.921932509748071e+89", "5.535950019483495e+133", "3.6271939668999635e-118", "5.527104338142335e+214", "2.9386314651465816e-81", "2.1118269707776657e-24", "43.70225546358949", "844480766543340200", "126374058344665260", "36632.82207284301", "6.3717448457681405", "20479826081217932", "-62065.991241516494", "-9260783.72451528", "-2488797300621367", "781594735696.8141", "2004.6520687610835", "-495573440195670400", "554535058.259937", "25052839446.311405", "2633131.1699909396", "1037041.6973867594", "863093714258093.6", "104.09943247115632", "-7452753710206333", "1.3228152254733891e-12", "774900025230436.1", "-0.29965278369793547", "0.00010193669270915556", "1529.1825692571877", "-1102924998815943.6", "7195511241376391", "-744.3015475397682", "160.1455926829016", "-509.61541850508615", "377998829696429600000", "43141735112427586000", "2258188795687184100", "2.1358283193825795e-10", "-1.1381169656542993e-08", "1.4908423020533698e-10", "-13952920.239815185", "-147700579.50750175", "-0.00003818792909503528", "12396067411339.193", "15719542003.269464"};
+[228]string fixed = .{"1.00", "0", "0.10000", "0.2000000000", "0.300000000", "99999999999999991611392.000000000", "10000000000000000000000.000000000000", "1000000000000000000000.0000000", "100000000000000000000.00000000000", "0.00001000000", "0.00", "0.00000010", "0.000", "0.0000000", "0.000000000", "179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00", "123456.789000000", "100.00000000000", "3.14159000", "2.7183", "10.0", "0.375000", "0.1250000000", "2.50", "1.50", "0.999000000000", "99.500000000000", "1000000000000000.000000000", "123456789012345680.0000", "99999999999999991611392.00000000", "1152921504606846976.000000", "4503599627370496.000000", "0.050000000000", "0.25", "4.35000000", "0.000100000000", "123.456", "9007199254740992.000000", "0", "-0.0", "-1.000000", "-0.5", "-0", "-0.20000", "-0.3000000000", "-99999999999999991611392.00000", "-10000000000000000000000.000000000000", "-1000000000000000000000", "-100000000000000000000", "-0.00001000", "-0.0000010", "-0.00000", "-0.0001230000", "-0.0000", "-0.0000000", "-179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00000", "0.0", "0.0000000", "0.0000000", "0.000000000", "0.000000000", "0.000000000000", "0.00", "0.00", "0.000000000", "0.00000000", "0.000", "0.000000", "0.000000000", "0.00000", "0.0000000", "0.000000000", "0.000", "0.0000000000", "0.00000000000", "0.0", "0.00000000", "0.000000", "0", "0.000", "0.0000000000", "0.00", "0", "0.0000000000", "0.00000000", "0", "0.0000000", "0.000000000000", "0.0000000000", "0.000", "0.0000000", "0.00000000000", "0.0000000000", "0", "0.00", "0.0000000000", "0.00000000", "0.000", "0.000000000000", "0.00000000", "0.00", "0.00", "0.0000152588", "128.00", "1073741824.000000", "9007199254740992.0000", "75557863725914323419136.000000", "633825300114114700748351602688.00000000", "5316911983139663491615228241121378304.000000", "44601490397061246283071436545296723011960832.0", "374144419156711147060143317175368453031918731001856.000000", "3138550867693340381917894711603833208051177722232017256448.0000", "26328072917139296674479506920917608079723773850137277813577744384.00", "220855883097298041197912187592864814478435487109452369765200775161577472.00000", "1852673427797059126777135760139006525652319754650249024631321344126610074238976.00", "15541351137805832567355695254588151253139254712417116170014499277911234281641667985408.0000", "130370302485407109521180524058200202307293977194619920040712988758680403184853549195737432064.0000000", "1093625362391505962186251113558810682676584715446606218212885303204976499599687961611756588511526912.0000000", "9173994463960286046443283581208347763186259956673124494950355357547691504353939232280074212440502746218496.000000000000", "76957043352332967211482500195592995713046365762627825523336510555167425334955489475418488779072100860950445293568.000000", "645562469521727147413979793000752968582426448207305878207664839135161905504210298657411338320034457858975792993186873344.0000", "5415370496329716522614090203404460358274291162843391748379842930887932241807862544999950011922147613471467208908991351228465152.0000000", "45427420268475430659332737993000283397102585042957378767593137448789955507087370207886940669610222847547657600391636120845912601788416.00", "381072821083495145432323880589986121307201921712032611188861933548019011086397170424842053596617672260721060927906081896416989218663120764928.00000", "3196670515523576044934755563308202297086564498088930458479776726656380660551439995003193449537015778467662777468320381844938727095591204153641140224.00000000", "26815615859885194199148049996411692254958731641184786755447122887443528060147093953603748596333806855380063716372972101707507765623893139892867298012168192.0000000", "224945689727159819140526925384299092943484855915095831655037778630591879033574393515952034305194542857496045531676044756160413302774714984450425759043258192756736.0000000", "1886981212410770676120777290494134445458460610208220214188103150122812081196074426043063362588829383770734187515381922449885292314962396316280717125716348021824697663488.0", "15829145694278690179872161345257420162248406342477557754500035589945422406818039498900249667919554879334250971265032917718487362195632077437922953926521162746662833417516744704.00000000", "132784498204191774672397051638117156832398279431757980799861034550100889965213060684790625566307321417222332371561625253836644834413176809852379994691646837985957817708848304757932032.000000000000", "1113877103911668754551067286547922686741510866027480451801560673315252726369306002564920119950530126899082595110740822097336109551117050292542153642510306198303709637294986560078826707091456.00000000", "9343878384890255807777119448474196633381331982845050737826186276657715542443371287564109437577976626746659450006721346172290467269376897020421450382791094657540085093089822617769726345721044533248.000000000000", "78382132970517478991165606422426233672355708521949855379734648809861125861064803929830588940942115354940041435601982738271645192059633193360683542052684438972998018132574030730004068581526319939960438784.0000", "657516987693546688405123735360016083193792475352896732437285112883591519287135102764208317034698556403372871107022277214127429031272975482890976846331485106244402958891055574773957969735540339658911656466972672.0", "5515652263101987298728728207430913795608113109085112352897269396216198887424215820128660001943808587833784893551335930816647064191168732319583111500951066614122648616177179922993422016587311577585463592732098692120576.000", "46268644699475435470014199270680622913148582491776246164412857235254375716637876222457838321585848270371190628323884999935972095850551557285913445801770125007762163162852820919462003875720454598226040577701224945512200798208.000", "388129523075177233787244872115625638814221504279174152784763009506512738171594221582719602207161619487621932674282768301542895011028703597861071818760295284801113744005212476387566321407899611206315749798429117187723211713454014464", "3255866422304616344765552632188114158762089024568314531443485259650408807528140659922574316831813618526821245406949824436469141432675471230646169947427163108444901161872077421124549944292877941762189949285100879873872435565174053364826112.0", "27312187117075883106631072934794271937104930088205959824983071996985496526101020964951786294769886374883040913790702552866360531575272919369168306390347079868805765445689403631464768659094790245289840706092591521717005303961503585448607241732096.0000000", "229111231347799689635350271469398707925773913377365220235531597618488512042823233274762274126597027003434876073751997760595174886056587013603560208332516636964102994463833696818134410091831830209960320065853961979807444428853900668922870296851794362368.0000000000", "1921924308174003258872616370050369756495810455948672905389542244035233680030523317234537010836564833497229828911284598430510768810573374275010933992099815720970170092183271059798176857571621225553914820586983072295508566795439261982531741155133337002515103744.00000", "16122269626942909129404900662735492142298807557254685123533957184651913530173488143140175045399694454793530120643833272670970079330526292030350920973600450955456136596649325078391464772840162385651374295294530896122681527488756156580761624107880751845994219387748352.000000", "135243399970730303066198984938628251268824915465247109664757941510828519054521564025450817507240240101036645118273824941793880975232687497536137978486512531688546991103745301547195268525165168909574203624502064231461895242944399805142629606084361337981321876709820927574016.00000000", "1134503866941667986143541334648056457619674836471095626110665786221268201568912028156408931347775536033476809532312754097331684299884724203331627335435786915422798797948806666521214607112348737236205441118127012028555106130125335760617903854636122194680820545543017511614811209728.000000000000", "9516908214257811601907599988159363584840065290620124537956939899622020205826587990689077212775400643774711832257235027522909345571487396529861315719055325605011013378863743193233193022939505515969530853007049198118833591724018432564205433218231411731277088674906521042072098232413978624.0000000000", "79833612381388792466254908521473542642698050417418301660101889697488475674758562631398318619705428043573697873767699809758897519535743746429566871931393256812800226918043427060701508857774519487306134269781756959733232418204834815555554210737921766300284836275030241665694339809213760397115392.00", "669692879491417075592765655662501131600878007315958504652343992731469406953085076558248986759809911329746670573470716765741965803557696277249036098418660925245910485926514436588817162816398196367372136384565404686473871329212422972447846496629816432160699779855408885478776864478289024177325354254336", "5617791046444737211654078721215702292556178059194708039794690036179146118921905097897139916325235500660003558745981042426837180275450519452901482207483566386805246669527046414884444362538940441232908842252656430276192208823201965046059784704400851161354703458893321819998351435577491134526104885300757004288.00000", "0.00", "382783858649835312998059259379585962980913189259961295132363681229404288120567225429229154342162481344861653071091598921429610309531815629185987858938229715130049285857112935446778149062652733681940819897924061405198195364816739294631193147518072471542487011264436470444795625472.00000", "11911478289890318933233656150104484001390591296674155805698192564751847790054903973261869056.00000000", "3727656187247700127713408548141998181126772038330437249250339547845364428074236473021086879735793504351992627574511132467582440501754539787490721169392814939052663536886970556379920949920518842920483883127880269424163197375922079893559024095859017487165013737675828299334821085184.0000000000", "1365300791481991878992475655405618405582440136977125424926971489685800651525539777855917178375630894558529245847619210147540696285334633137814898919385845308154935348776825233136335926432505595594349365073160840123031238266439622557958144.000000000", "5342958922647103554024987344105433580732544161049034675700983701092003762182878506031917881445115316332907219192288254340802601925502889783917630673913012179441680643249176484819688072537971967147767876209632395623645012061707666811586319745024.000000000000", "1627820530325362416684850076204815261111420869873146256810160292807374274560.00000000", "0.000", "1156725785834313301033035650532098759932772352.0", "26063873621101780268869868981214323994666451212955085871823171916661954314043401687198964624681946080652424907360250915664814293260787236379182248904259936225265352374316202425210092928501683857336405356124831744.000000000", "686266287974483162755661044886134755731078545643452547896130754664215772946589025072285125019648167861187138238840616007995067388027003711068728983757002571868252944728064.00000000000", "0.0000", "4728962155988688516462373293219827002913707667984768860674392372937707198568037868485128069164349671878523361767190321269635016556821855571254520307372307031298345533440.00000000", "0.000000000000", "0.000000000", "0.00000000000", "0.000", "0.000000000", "0.0000", "22585993888549549985589534450889036275863823839510900961757628826356293632822262887007785874963840459868648360526743242109997045703674718446864112930115449557202349788080187522209332934315775726928204293190269564675334868526030779043259875328.000000000", "0.0000", "0.0000000000", "0.00000000", "0.00", "79367970343995815212900396243250898913775880859213761097442913048039514289246594857418546716368415884852840718465949679251265606722558597093433645432422696756219012555276178720782031588780863236928307347582430614324596887781449212508657753708294399499338466830257940140587728047744485667397344683170103033856.0", "0.000000000000", "0.0000", "91465784015755166126930680949586216749485971686400238109146920719159139083897984043240513806389380556138032771898731389781950595818335628257427437125632.0", "16246234292919218822453163570986126592399715739278405378137178018491844796692601765888.000000", "719472411263760722278169518203223825052287375864630765001261451965240713805915384886765680361121785228447541818726264079930119486057742336.00", "0.0", "591333023926277304745984.0000000000", "0", "0.000000000000", "392193250974807083701903137234515081168852554249698148968032824231634747046735764745355264.00000", "55359500194834945684636719407020312085277404183775610843683302844633076514531137110368135714716130933215573933169838780453820156608512.00000000000", "0.000000000000", "55271043381423348927823682873502364624917743410175942309404460112914516499672226128183400855713443031605943576933745105555893355377210164760931147222964439831303386236532046725014364605733815803466864104225017692160.00", "0.0000000000", "0.0000000000", "43.7", "844480766543340160.00000000", "126374058344665264.00000", "36632.8221", "6.371744846", "20479826081217932.0", "-62065.9912", "-9260783.72452", "-2488797300621367.00", "781594735696.8141", "2004.6521", "-495573440195670400.0", "554535058", "25052839446.311405", "2633131.169990939554", "1037041.6974", "863093714258093.625000", "104", "-7452753710206333", "0.0", "774900025230436.125", "-0", "0.0001", "1529.2", "-1102924998815943.6", "7195511241376391.0000000000", "-744.30154754", "160.145592683", "-509.61542", "377998829696429588480.00000", "43141735112427585536.000000000000", "2258188795687184128.0000000", "0.000000000", "-0.0000000114", "0.0000000001", "-13952920.23981518485", "-147700579.507501751", "-0", "12396067411339.193359", "15719542003.26946"};
+[228]string scientific = .{"1.00e+00", "5e-01", "1.00000e-01", "2.0000000000e-01", "3.000000000e-01", "1.000000000e+23", "1.000000000000e+22", "1.0000000e+21", "1.00000000000e+20", "1.00000000000e-05", "1.00e-06", "1.00000000e-07", "1.230e-04", "4.9406565e-324", "2.225073859e-308", "1.80e+308", "1.234567890e+05", "1.00000000000e+02", "3.14159000e+00", "2.7183e+00", "1.0e+01", "3.750000e-01", "1.2500000000e-01", "2.50e+00", "1.50e+00", "9.990000000000e-01", "9.950000000000e+01", "1.000000000e+15", "1.2346e+17", "1.00000000e+23", "1.152922e+18", "4.503600e+15", "5.000000000000e-02", "2.50e-01", "4.35000000e+00", "1.000000000000e-04", "1.235e+02", "9.007199e+15", "0e+00", "-0.0e+00", "-1.000000e+00", "-5.0e-01", "-1e-01", "-2.00000e-01", "-3.0000000000e-01", "-1.00000e+23", "-1.000000000000e+22", "-1e+21", "-1e+20", "-1.00000000e-05", "-1.0000000e-06", "-1.00000e-07", "-1.2300000000e-04", "-4.9407e-324", "-2.2250739e-308", "-1.79769e+308", "4.9e-324", "4.1445230e-317", "3.4766779e-310", "2.916448808e-303", "2.446494580e-296", "2.052268400649e-289", "1.72e-282", "1.44e-275", "1.211445439e-268", "1.01623409e-261", "8.525e-255", "7.151112e-248", "5.998787256e-241", "5.03215e-234", "4.2212713e-227", "3.541058984e-220", "2.970e-213", "2.4917987378e-206", "2.09027228261e-199", "1.8e-192", "1.47089836e-185", "1.233879e-178", "1e-171", "8.683e-165", "7.2835358703e-158", "6.11e-151", "5e-144", "4.2994407088e-137", "3.60663227e-130", "3e-123", "2.5379418e-116", "2.128979920004e-109", "1.7859177989e-102", "1.498e-95", "1.2567279e-88", "1.05421979432e-81", "8.8434366004e-75", "7e-68", "6.22e-61", "5.2202435744e-54", "4.37905770e-47", "3.673e-40", "3.081487911020e-33", "2.58493941e-26", "2.17e-19", "1.82e-12", "1.5258789062e-05", "1.28e+02", "1.073742e+09", "9.0072e+15", "7.555786e+22", "6.33825300e+29", "5.316912e+36", "4.5e+43", "3.741444e+50", "3.1386e+57", "2.63e+64", "2.20856e+71", "1.85e+78", "1.5541e+85", "1.3037030e+92", "1.0936254e+99", "9.173994463960e+105", "7.695704e+112", "6.4556e+119", "5.4153705e+126", "4.54e+133", "3.81073e+140", "3.19667052e+147", "2.6815616e+154", "2.2494569e+161", "1.9e+168", "1.58291457e+175", "1.327844982042e+182", "1.11387710e+189", "9.343878384890e+195", "7.8382e+202", "6.6e+209", "5.516e+216", "4.627e+223", "4e+230", "3.3e+237", "2.7312187e+244", "2.2911123135e+251", "1.92192e+258", "1.612227e+265", "1.35243400e+272", "1.134503866942e+279", "9.5169082143e+285", "7.98e+292", "7e+299", "5.61779e+306", "1.08e-111", "3.82784e+278", "1.19114783e+91", "3.7276561872e+279", "1.365300791e+237", "5.342958922647e+243", "1.62782053e+75", "2.428e-49", "1.2e+45", "2.606387362e+211", "6.86266287974e+170", "5.2346e-06", "4.72896216e+168", "1.025071816248e-36", "4.241361122e-307", "6.87891541964e-259", "1.429e-131", "3.235378915e-248", "1.4271e-301", "2.258599389e+241", "2.1119e-06", "6.2918453136e-115", "9.12329217e-64", "2.40e-94", "7.9e+307", "8.738245870118e-89", "1.2115e-76", "9.1e+151", "1.624623e+85", "7.19e+137", "2.2e-253", "5.9133302393e+23", "2e-131", "8.517071473104e-222", "3.92193e+89", "5.53595001948e+133", "3.627193966900e-118", "5.53e+214", "2.9386314651e-81", "2.1118269708e-24", "4.4e+01", "8.44480767e+17", "1.26374e+17", "3.6633e+04", "6.371744846e+00", "2.0e+16", "-6.2066e+04", "-9.26078e+06", "-2.49e+15", "7.8159e+11", "2.0047e+03", "-5.0e+17", "6e+08", "2.505284e+10", "2.633131169991e+06", "1.0370e+06", "8.630937e+14", "1e+02", "-7e+15", "1.3e-12", "7.749e+14", "-3e-01", "1.0194e-04", "1.5e+03", "-1.1e+15", "7.1955112414e+15", "-7.44301548e+02", "1.601455927e+02", "-5.09615e+02", "3.77999e+20", "4.314173511243e+19", "2.2581888e+18", "2.135828319e-10", "-1.1381169657e-08", "1.4908423021e-10", "-1.39529202398e+07", "-1.477005795e+08", "-4e-05", "1.239607e+13", "1.57195e+10"};
+[348]float32 singles = .{1.100000023841858, 0.10000000149011612, 0.20000000298023224, 16777216.0, 16777216.0, 3.4028234663852886e+38, 1.401298464324817e-45, 1.1754943508222875e-38, 1.1754942106924411e-38, 2.5, 100.0, 10000000000.0, 9.999999747378752e-06, 123456.7890625, 0.5, 3.141590118408203, 8388608.0, 0.0010000000474974513, 7.000000024071085e-10, 1.0000000200408773e+21, 1.0000000200408773e+20, 1.401298464324817e-45, 5.605193857299268e-45, 2.2420775429197073e-44, 8.96831017167883e-44, 3.587324068671532e-43, 1.4349296274686127e-42, 5.739718509874451e-42, 2.2958874039497803e-41, 9.183549615799121e-41, 3.6734198463196485e-40, 1.4693679385278594e-39, 5.877471754111438e-39, 2.350988701644575e-38, 9.4039548065783e-38, 3.76158192263132e-37, 1.504632769052528e-36, 6.018531076210112e-36, 2.407412430484045e-35, 9.62964972193618e-35, 3.851859888774472e-34, 1.5407439555097887e-33, 6.162975822039155e-33, 2.465190328815662e-32, 9.860761315262648e-32, 3.944304526105059e-31, 1.5777218104420236e-30, 6.310887241768095e-30, 2.524354896707238e-29, 1.0097419586828951e-28, 4.0389678347315804e-28, 1.6155871338926322e-27, 6.462348535570529e-27, 2.5849394142282115e-26, 1.0339757656912846e-25, 4.1359030627651384e-25, 1.6543612251060553e-24, 6.617444900424222e-24, 2.6469779601696886e-23, 1.0587911840678754e-22, 4.235164736271502e-22, 1.6940658945086007e-21, 6.776263578034403e-21, 2.710505431213761e-20, 1.0842021724855044e-19, 4.336808689942018e-19, 1.734723475976807e-18, 6.938893903907228e-18, 2.7755575615628914e-17, 1.1102230246251565e-16, 4.440892098500626e-16, 1.7763568394002505e-15, 7.105427357601002e-15, 2.842170943040401e-14, 1.1368683772161603e-13, 4.547473508864641e-13, 1.8189894035458565e-12, 7.275957614183426e-12, 2.9103830456733704e-11, 1.1641532182693481e-10, 4.656612873077393e-10, 1.862645149230957e-09, 7.450580596923828e-09, 2.9802322387695312e-08, 1.1920928955078125e-07, 4.76837158203125e-07, 1.9073486328125e-06, 7.62939453125e-06, 3.0517578125e-05, 0.0001220703125, 0.00048828125, 0.001953125, 0.0078125, 0.03125, 0.125, 0.5, 2.0, 8.0, 32.0, 128.0, 512.0, 2048.0, 8192.0, 32768.0, 131072.0, 524288.0, 2097152.0, 8388608.0, 33554432.0, 134217728.0, 536870912.0, 2147483648.0, 8589934592.0, 34359738368.0, 137438953472.0, 549755813888.0, 2199023255552.0, 8796093022208.0, 35184372088832.0, 140737488355328.0, 562949953421312.0, 2251799813685248.0, 9007199254740992.0, 3.602879701896397e+16, 1.4411518807585587e+17, 5.764607523034235e+17, 2.305843009213694e+18, 9.223372036854776e+18, 3.6893488147419103e+19, 1.4757395258967641e+20, 5.902958103587057e+20, 2.3611832414348226e+21, 9.44473296573929e+21, 3.777893186295716e+22, 1.5111572745182865e+23, 6.044629098073146e+23, 2.4178516392292583e+24, 9.671406556917033e+24, 3.8685626227668134e+25, 1.5474250491067253e+26, 6.189700196426902e+26, 2.4758800785707605e+27, 9.903520314283042e+27, 3.961408125713217e+28, 1.5845632502852868e+29, 6.338253001141147e+29, 2.535301200456459e+30, 1.0141204801825835e+31, 4.056481920730334e+31, 1.6225927682921336e+32, 6.490371073168535e+32, 2.596148429267414e+33, 1.0384593717069655e+34, 4.153837486827862e+34, 1.661534994731145e+35, 6.64613997892458e+35, 2.658455991569832e+36, 1.0633823966279327e+37, 4.253529586511731e+37, 1.7014118346046923e+38, 427651744.0, 2.547185162393058e-22, 36195364.0, 0.0028192992322146893, 4.149376763962209e-06, 1.757453425343194e+37, 72855085645824.0, 2.9650671891113374e+29, 9.95041109722472e-30, 488259465510912.0, 4.14811129889614e-10, 1.4785936061398485e+28, 2.646033763885498, 202569800482816.0, 7.538920943653317e+36, 9.575886329773249e+32, 1.5220653183555626e-19, 5.945976155885546e-09, 1.9113986669062931e-16, 6.015948379448978e+34, 5.342517195590145e+24, 1.7715294509113022e-11, 1.6885224446437366e-34, 2.903176340503003e+18, 7.812536921489408e+16, 2.755411696853116e-05, 2.9708392432160193e+29, 3.9790334004554565e-37, 2.904117641493638e-17, 2248378335363072.0, 1.8420688422966097e-13, 1.2503969188794946e-16, 6.597132988574597e+17, 4.38898073105801e+35, 1.1230665797270545e+21, 2.659394495080713e+23, 2.369772369240988e+32, 1.656860077416218e-29, 4.51708271210615e-16, 9.330894070583363e+20, 7.910472277217195e-07, 2.321947531979101e-14, 8032745.5, 2.348468243234444e+31, 2.2365304188707697e-37, 3670.32080078125, 3.2204913067510088e+35, 1.5241902791979234e-12, 1.0235620917675525e-23, 103605.0390625, 1.3223037229241542e-34, 2.521476515233792e+17, 2.879321690587757e-30, 1.9435902597540802e-26, 3127584768.0, 1.776406762036087e-29, 8.080686709925441e-30, 4.675178657566546e-36, 2.9650597282768466e-29, 114.01451873779297, 1.1891872903069256e-11, 61064712.0, 511472664576.0, 6.209114899194697e+36, 2072314118144.0, 1.2201263965643493e-15, 1.0316582605282578e-36, 3.3209635148523375e-06, 2098308.75, 3.363048035533054e-29, 1.6424616874899378e-11, 6.276676458583097e-07, 2.4793944675138846e-09, 7.257958678508203e-10, 1.7107772047041593e-20, 4.2724425248715204e+21, 1.690171416157682e-06, 7141617827840.0, 5.119102944322095e-22, 3.2499047330766767e+21, 2.6588124920684174e-29, 8.137728367850519e-25, 4074.146240234375, 9.590404181385469e-37, 5981549887488.0, 1.167541762260992e+17, 6.616844598312106e+33, 3237.216552734375, 292887912775680.0, 34535.0234375, 2.377861285651761e-08, 2.0553641480457314e+30, 2.761294320824517e-19, 2.589513941102656e+22, 1.459639001098759e-27, 2.4284166878836833e-21, 3.7252302225969456e-37, 1.1741075137581145e-37, 1.2967961098719418e-17, 3142.440673828125, 0.04949638247489929, 9.428126759303268e-07, 1.3330700063248929e-18, 4.554634538510147e+35, 1.1188495469731732e-14, 3.021764823444129e-28, 3.5771351967105163e+34, 12499253248.0, 33127126.0, 4.67986929328606e-32, 2.9797892699234503e+26, 3.931947020024772e-25, 25615.099609375, 5.206802147923324e-36, 799667453952.0, 3.4233303549754906e+28, 7.272307084850065e+35, 1.8267215748698192e+25, 25.535350799560547, 9.115362891538693e+24, 1.6454149565885646e-18, 1.111885214975794e-12, 36066648064.0, 79.03518676757812, 8.56060929747326e+19, 1.1359405370763117e+19, 1.8182410939826706e-14, 1.3495665822854665e-34, 3109717803008.0, 3.735405538540504e+26, 4.5157538056905535e-38, 14875072512.0, 1.4897333512436535e+37, 3.140024134160749e-20, 0.011402626521885395, 1.8527549618710677e-34, 3.640932426731568e+36, 7.58390780414503e-22, 130932078018560.0, 9.654279708862305, 1.6830285110172996e+28, 2.6120617463746325e-27, 1.7793753983875485e+33, 1.6319230855404847e+19, 3.950124253898098e+31, 9.20798845580018e+28, 3.4660907033412514e-08, 1.911347634556109e+16, 1.010118697385253e+37, 3.324757830158731e-11, 1.209576654210883e+35, 4.842918837695099e+22, 5.1609991576717656e-21, 115808.625, 4.786896882988296e+25, 1.106794873838104e-17, 1.8045414338155319e-12, 1.4563501974730738e+28, 1.920021021219723e-23, 4.493606597932853e-10, 2.811250364442852e-11, 0.0015356814255937934, 73867812864.0, 0.0011088027385994792, 12219.603515625, 2.0890286262825964e+24, 0.021250629797577858, 8.304138051300919e+30, 3.5682443186021413e+22, 48950916677632.0, 3415008.5, 6.82681111619475e-15, 1.8247317120218636e-24, 9.84423529559585e-27, 15223494656.0, 2.617324241782626e-07, 4.418913753416339e-27, 0.1404142528772354, 4.59450051454919e+30, 1.5984642411119403e-38, -1.100000023841858, -0.10000000149011612, -0.20000000298023224, -16777216.0, -16777216.0, -3.4028234663852886e+38, -1.401298464324817e-45, -1.1754943508222875e-38};
+[348]string singleText = .{"1.1", "0.1", "0.2", "16777216", "16777216", "3.4028235e+38", "1e-45", "1.1754944e-38", "1.1754942e-38", "2.5", "100", "10000000000", "0.00001", "123456.79", "0.5", "3.14159", "8388608", "0.001", "7e-10", "1e+21", "100000000000000000000", "1e-45", "6e-45", "2.2e-44", "9e-44", "3.59e-43", "1.435e-42", "5.74e-42", "2.2959e-41", "9.1835e-41", "3.67342e-40", "1.469368e-39", "5.877472e-39", "2.3509887e-38", "9.403955e-38", "3.761582e-37", "1.5046328e-36", "6.018531e-36", "2.4074124e-35", "9.62965e-35", "3.85186e-34", "1.540744e-33", "6.162976e-33", "2.4651903e-32", "9.8607613e-32", "3.9443045e-31", "1.5777218e-30", "6.3108872e-30", "2.524355e-29", "1.009742e-28", "4.038968e-28", "1.6155871e-27", "6.4623485e-27", "2.5849394e-26", "1.0339758e-25", "4.135903e-25", "1.6543612e-24", "6.617445e-24", "2.646978e-23", "1.0587912e-22", "4.2351647e-22", "1.6940659e-21", "6.7762636e-21", "2.7105054e-20", "1.0842022e-19", "4.3368087e-19", "1.7347235e-18", "6.938894e-18", "2.7755576e-17", "1.110223e-16", "4.440892e-16", "1.7763568e-15", "7.1054274e-15", "2.842171e-14", "1.1368684e-13", "4.5474735e-13", "1.8189894e-12", "7.275958e-12", "2.910383e-11", "1.1641532e-10", "4.656613e-10", "1.8626451e-09", "7.450581e-09", "2.9802322e-08", "1.1920929e-07", "4.7683716e-07", "1.9073486e-06", "7.6293945e-06", "0.000030517578", "0.00012207031", "0.00048828125", "0.001953125", "0.0078125", "0.03125", "0.125", "0.5", "2", "8", "32", "128", "512", "2048", "8192", "32768", "131072", "524288", "2097152", "8388608", "33554432", "134217730", "536870900", "2147483600", "8589935000", "34359740000", "137438950000", "549755800000", "2199023300000", "8796093000000", "35184372000000", "140737490000000", "562949950000000", "2251799800000000", "9007199000000000", "36028797000000000", "144115190000000000", "576460750000000000", "2305843000000000000", "9223372000000000000", "36893490000000000000", "147573950000000000000", "590295800000000000000", "2.3611832e+21", "9.444733e+21", "3.7778932e+22", "1.5111573e+23", "6.044629e+23", "2.4178516e+24", "9.671407e+24", "3.8685626e+25", "1.5474251e+26", "6.1897002e+26", "2.4758801e+27", "9.9035203e+27", "3.9614081e+28", "1.5845633e+29", "6.338253e+29", "2.5353012e+30", "1.0141205e+31", "4.056482e+31", "1.6225928e+32", "6.490371e+32", "2.5961484e+33", "1.0384594e+34", "4.1538375e+34", "1.661535e+35", "6.64614e+35", "2.658456e+36", "1.0633824e+37", "4.2535296e+37", "1.7014118e+38", "427651740", "2.5471852e-22", "36195364", "0.0028192992", "4.1493768e-06", "1.7574534e+37", "72855086000000", "2.9650672e+29", "9.950411e-30", "488259470000000", "4.1481113e-10", "1.4785936e+28", "2.6460338", "202569800000000", "7.538921e+36", "9.575886e+32", "1.5220653e-19", "5.945976e-09", "1.9113987e-16", "6.0159484e+34", "5.342517e+24", "1.7715295e-11", "1.6885224e-34", "2903176300000000000", "78125370000000000", "0.000027554117", "2.9708392e+29", "3.9790334e-37", "2.9041176e-17", "2248378300000000", "1.8420688e-13", "1.2503969e-16", "659713300000000000", "4.3889807e+35", "1.1230666e+21", "2.6593945e+23", "2.3697724e+32", "1.6568601e-29", "4.5170827e-16", "933089400000000000000", "7.910472e-07", "2.3219475e-14", "8032745.5", "2.3484682e+31", "2.2365304e-37", "3670.3208", "3.2204913e+35", "1.5241903e-12", "1.0235621e-23", "103605.04", "1.3223037e-34", "252147650000000000", "2.8793217e-30", "1.9435903e-26", "3127584800", "1.7764068e-29", "8.080687e-30", "4.6751787e-36", "2.9650597e-29", "114.01452", "1.1891873e-11", "61064710", "511472660000", "6.209115e+36", "2072314100000", "1.2201264e-15", "1.0316583e-36", "3.3209635e-06", "2098308.8", "3.363048e-29", "1.6424617e-11", "6.2766765e-07", "2.4793945e-09", "7.2579587e-10", "1.7107772e-20", "4.2724425e+21", "1.6901714e-06", "7141618000000", "5.119103e-22", "3.2499047e+21", "2.6588125e-29", "8.1377284e-25", "4074.1462", "9.590404e-37", "5981550000000", "116754180000000000", "6.6168446e+33", "3237.2166", "292887900000000", "34535.023", "2.3778613e-08", "2.0553641e+30", "2.7612943e-19", "2.589514e+22", "1.459639e-27", "2.4284167e-21", "3.7252302e-37", "1.1741075e-37", "1.2967961e-17", "3142.4407", "0.049496382", "9.428127e-07", "1.33307e-18", "4.5546345e+35", "1.11884955e-14", "3.0217648e-28", "3.5771352e+34", "12499253000", "33127126", "4.6798693e-32", "2.9797893e+26", "3.931947e-25", "25615.1", "5.206802e-36", "799667450000", "3.4233304e+28", "7.272307e+35", "1.8267216e+25", "25.53535", "9.115363e+24", "1.645415e-18", "1.1118852e-12", "36066650000", "79.03519", "85606090000000000000", "11359405000000000000", "1.8182411e-14", "1.3495666e-34", "3109717800000", "3.7354055e+26", "4.5157538e-38", "14875073000", "1.4897334e+37", "3.140024e-20", "0.0114026265", "1.852755e-34", "3.6409324e+36", "7.583908e-22", "130932080000000", "9.65428", "1.6830285e+28", "2.6120617e-27", "1.7793754e+33", "16319231000000000000", "3.9501243e+31", "9.207988e+28", "3.4660907e-08", "19113476000000000", "1.0101187e+37", "3.324758e-11", "1.2095767e+35", "4.842919e+22", "5.160999e-21", "115808.625", "4.786897e+25", "1.1067949e-17", "1.8045414e-12", "1.4563502e+28", "1.920021e-23", "4.4936066e-10", "2.8112504e-11", "0.0015356814", "73867810000", "0.0011088027", "12219.604", "2.0890286e+24", "0.02125063", "8.304138e+30", "3.5682443e+22", "48950917000000", "3415008.5", "6.826811e-15", "1.8247317e-24", "9.844235e-27", "15223495000", "2.6173242e-07", "4.4189138e-27", "0.14041425", "4.5945005e+30", "1.5984642e-38", "-1.1", "-0.1", "-0.2", "-16777216", "-16777216", "-3.4028235e+38", "-1e-45", "-1.1754944e-38"};
 
 func differ(string got, string want) int {
     return got == want ? 0 : 1;
@@ -13537,7 +13673,7 @@ func differ(string got, string want) int {
     return got == want ? 0 : 1;
 }
 
-[8]float32 singles = [1.100000023841858, 0.10000000149011612, 2.5, 16777216.0, 3.4028234663852886e+38, 1.401298464324817e-45, 0.30000001192092896, 100.0];
+[8]float32 singles = .{1.100000023841858, 0.10000000149011612, 2.5, 16777216.0, 3.4028234663852886e+38, 1.401298464324817e-45, 0.30000001192092896, 100.0};
 
 func main() {
     [1400]byte buf;
@@ -14030,7 +14166,7 @@ func main() {
     let sum, diff = pair(7, 3);
     check(sum == 10 && diff == 4, "a function value with several results");
 
-    [2]Step table = [inc, dec];
+    [2]Step table = .{inc, dec};
     check(table[0](5) == 6 && table[1](5) == 4, "an array of function values");
 
     (int) => int again = triple;
@@ -14047,7 +14183,7 @@ func dec(int x) int => x - 1;
 Step chosen = inc;
 Step made = (int x) int => x * 10;
 ?Step missing = null;
-[2]Step table = [inc, dec];
+[2]Step table = .{inc, dec};
 (int) => int plain = dec;
 
 struct Hooks {
@@ -14085,7 +14221,7 @@ func present(?*void p) bool {
 }
 
 func main() {
-    [4]int arr = [7, 8, 9, 10];
+    [4]int arr = .{7, 8, 9, 10};
     []int tail = arr[1:];
     *int fromArray = arr;
     *int fromSlice = tail;
@@ -14359,7 +14495,7 @@ func twice(int v) int {
 }
 
 func pair(int a, int b) [2]int {
-    return [a, b];
+    return .{a, b};
 }
 
 func firstValue([2]*int refs) int {
@@ -14373,12 +14509,12 @@ func sum(*[3]int whole) int {
 func main() {
     int a = 1;
     int b = 2;
-    [2]*int refs = [&a, &b];
+    [2]*int refs = .{&a, &b};
     refs[1]@ = 20;
     check(b == 20, "an array of pointers writes through its elements");
     check(firstValue(refs) == 1, "an array of pointers is a parameter");
 
-    [3]int cells = [1, 2, 3];
+    [3]int cells = .{1, 2, 3};
     *[3]int whole = &cells;
     check(sum(whole) == 6, "a pointer to an array reads the whole array");
 
@@ -14386,7 +14522,7 @@ func main() {
     grid[1][2] = 7;
     check(len(grid) == 2 && len(grid[0]) == 3 && grid[1][2] == 7, "arrays stack outermost first");
 
-    [2](int) => int steps = [inc, twice];
+    [2](int) => int steps = .{inc, twice};
     check(steps[0](4) == 5 && steps[1](4) == 8, "an array of function types is written in place");
 
     Table t = Table{refs: refs, steps: steps};
@@ -14397,7 +14533,7 @@ func main() {
 
     []*int slice = refs[:];
     check(len(slice) == 2 && slice[0]@ == 1, "a slice of pointers");
-    [2]*void raw = [&a, &b];
+    [2]*void raw = .{&a, &b};
     check(int(raw[0]) != 0 && int(raw[1]) != 0, "an array of void pointers");
 }
 `, expected: []string{"an array of pointers writes through its elements", "an array of pointers is a parameter", "a pointer to an array reads the whole array", "arrays stack outermost first", "an array of function types is written in place", "a struct holds arrays of pointers and of functions", "a function returns an array type", "a slice of pointers", "an array of void pointers"}},
@@ -14405,14 +14541,14 @@ func main() {
     int a = 1;
     int b = 2;
     *int p = &a;
-    [2]*int refs = [&a, &b];
+    [2]*int refs = .{&a, &b};
     check(p == &a, "a pointer equals the address of its target");
     check(&a == p, "an address on the left works too");
     check(p != &b, "a pointer differs from another address");
     check(refs[0] == &a && refs[1] != &a, "array elements compare with addresses");
     check(&a != &b && &a == &a, "two addresses compare");
     check((p + 1) != &b || true, "pointer arithmetic compares with an address");
-    [4]int cells = [1, 2, 3, 4];
+    [4]int cells = .{1, 2, 3, 4};
     check(&cells[3] - &cells[1] == 2, "the difference of two addresses counts elements");
     check((&cells[2] - &cells[0]) * 2 == 4, "address differences take part in arithmetic");
 }

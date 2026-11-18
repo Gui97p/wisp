@@ -27,7 +27,8 @@ type Analyser struct {
 	mustUse        []*Symbol
 	pendingDots    map[*ast.DotIdent]bool
 	pendingDotLits map[*ast.StructLiteral]bool
-	pendingEmpty   map[*ast.ArrayLiteral]bool
+	pendingAnon    map[*ast.AnonLiteral]bool
+	inferSize      bool
 	quiet          bool
 
 	inlineStack   []*ast.FuncDecl
@@ -87,7 +88,7 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 		module:         module,
 		pendingDots:    map[*ast.DotIdent]bool{},
 		pendingDotLits: map[*ast.StructLiteral]bool{},
-		pendingEmpty:   map[*ast.ArrayLiteral]bool{},
+		pendingAnon:    map[*ast.AnonLiteral]bool{},
 	}
 }
 
@@ -131,7 +132,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.warnUnusedImports()
 		a.defaultUntyped()
 		a.reportUnresolvedDots()
-		a.reportUnresolvedEmpty()
+		a.reportUnresolvedAnon()
 		a.checkMustUse()
 		a.exports = a.buildExports(false)
 		a.checkPartConflicts()
@@ -224,6 +225,13 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 			result = a.optionalOf(node, result)
 		case layer.IsSpan:
 			result = SpanType{Element: result}
+		case layer.Expr != nil && isInferredSize(layer.Expr):
+			if !a.inferSize {
+				a.errorf(node, "[_] needs a value to count").
+					WithHelp("write it where a value gives the size: [_]int values = .{1, 2, 3}")
+				return nil
+			}
+			result = ArrayType{Element: result, Size: -1}
 		case layer.Expr != nil:
 			size, ok := a.arraySize(layer.Expr)
 			if !ok {

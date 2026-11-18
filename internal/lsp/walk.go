@@ -272,6 +272,8 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 		child = firstExpr(line, col, e.Elements...)
 	case *ast.StructLiteral:
 		child = firstExpr(line, col, e.Values...)
+	case *ast.AnonLiteral:
+		child = firstExpr(line, col, append(slices.Clone(e.Elements), e.Values...)...)
 	case *ast.FuncLiteral:
 		if e.Block != nil {
 			child = exprInStmt(e.Block, line, col)

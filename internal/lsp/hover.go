@@ -113,9 +113,9 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		}
 		text = hoverText(expr, program, info, line, col)
 		rng = exprRange(expr)
-		if conv, ok := expr.(*ast.ConvExpr); ok && refContains(&conv.Type, line, col) {
-			if t := typeRefHover(&conv.Type, program, info, line, col); t != "" {
-				text, rng = t, refRange(&conv.Type)
+		if ref := exprTypeRef(expr); ref != nil && refContains(ref, line, col) {
+			if t := typeRefHover(ref, program, info, line, col); t != "" {
+				text, rng = t, refRange(ref)
 			}
 		}
 	}

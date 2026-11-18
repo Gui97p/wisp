@@ -50,7 +50,7 @@ public func demo() {
   Op add = Op{name: "add", apply: (int a, int b) int => a + b};
   fmt.printf("{}(2, 3) = {}\n", add.name, add.apply(2, 3));
 
-  [2]Step table = [inc, dec];
+  [2]Step table = .{inc, dec};
   fmt.printf("table[0](5) = {}, table[1](5) = {}\n", table[0](5), table[1](5));
 
   ?Step none = null;

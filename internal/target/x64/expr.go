@@ -290,7 +290,9 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 		} else {
 			memSlot, ok := op.(Mem)
 			if !ok {
-				return Mem{}, fmt.Errorf("x86-64: operator is not a Mem")
+				size := sizeOf(info.Struct)
+				memSlot = slot(t.ctx.Reserve(size), size)
+				t.store(op, memSlot)
 			}
 			base = memSlot
 		}

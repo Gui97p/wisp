@@ -41,6 +41,11 @@ func definition(uri protocol.DocumentUri, pos protocol.Position) []protocol.Loca
 	}
 
 	if expr := exprInProgram(own, line, col); expr != nil {
+		if ref := exprTypeRef(expr); ref != nil && refContains(ref, line, col) {
+			if loc := symbolLocation(typeRefSymbol(ref, m.info, line, col)); loc != nil {
+				return []protocol.Location{*loc}
+			}
+		}
 		if locations := exprDefinition(pa, m, expr, line, col); len(locations) > 0 {
 			return locations
 		}

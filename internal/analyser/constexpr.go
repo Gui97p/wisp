@@ -700,7 +700,7 @@ func (a *Analyser) evalField(e *ast.MemberExpr) (ConstValue, bool) {
 		return ConstValue{}, false
 	}
 	for i, name := range st.Order {
-		if name == e.Field {
+		if name == e.Field && i < len(object.Elems) {
 			return object.Elems[i], true
 		}
 	}

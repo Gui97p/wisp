@@ -113,6 +113,10 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 	case lexer.TOKEN_NULL:
 		return &ast.NullLiteral{}
 	case lexer.TOKEN_DOT:
+		if p.peek.Type == lexer.TOKEN_LBRACE {
+			p.advance()
+			return p.parseAnonLiteral()
+		}
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return nil
 		}
@@ -487,41 +491,106 @@ func (p *Parser) parseIndexSliceExpression(array ast.Expression) ast.Expression 
 }
 
 func (p *Parser) parseArrayLiteral() ast.Expression {
-	arr := &ast.ArrayLiteral{}
+	ref := p.parseTypeDefinitionPrefix()
+	if ref == nil {
+		return nil
+	}
+	if len(ref.Layers) == 0 || (!ref.Layers[0].IsSpan && ref.Layers[0].Pointer) {
+		p.error("a literal that starts with [ needs an array or slice type, such as [3]int{1, 2, 3}")
+		return nil
+	}
+	if p.peek.Type != lexer.TOKEN_LBRACE {
+		p.errorf("expected { after the type %s: write %s{...}", ref.String(), ref.String())
+		return nil
+	}
+	p.advance()
 
-	if p.peek.Type == lexer.TOKEN_RBRACKET {
+	arr := &ast.ArrayLiteral{Type: ref}
+	if p.peek.Type == lexer.TOKEN_RBRACE {
 		p.advance()
 		return arr
 	}
-
-	p.advance()
-	prev := p.allowStructLiteral
-	p.allowStructLiteral = true
-	el := p.parseExpression()
-	p.allowStructLiteral = prev
-	if el == nil {
+	elements, ok := p.parseLiteralElements()
+	if !ok {
 		return nil
 	}
-	arr.Elements = append(arr.Elements, el)
+	arr.Elements = elements
+	return arr
+}
 
-	for p.peek.Type == lexer.TOKEN_COMMA {
-		p.advance()
+func (p *Parser) parseLiteralElements() ([]ast.Expression, bool) {
+	var elements []ast.Expression
+	for {
 		p.advance()
 		prev := p.allowStructLiteral
 		p.allowStructLiteral = true
 		el := p.parseExpression()
 		p.allowStructLiteral = prev
 		if el == nil {
+			return nil, false
+		}
+		elements = append(elements, el)
+		if p.peek.Type != lexer.TOKEN_COMMA {
+			break
+		}
+		p.advance()
+	}
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil, false
+	}
+	return elements, true
+}
+
+func (p *Parser) parseAnonLiteral() ast.Expression {
+	lit := &ast.AnonLiteral{}
+	if p.peek.Type == lexer.TOKEN_RBRACE {
+		p.advance()
+		return lit
+	}
+
+	for {
+		p.advance()
+		prev := p.allowStructLiteral
+		p.allowStructLiteral = true
+		first := p.parseExpression()
+		p.allowStructLiteral = prev
+		if first == nil {
 			return nil
 		}
-		arr.Elements = append(arr.Elements, el)
-	}
 
-	if !p.expect(lexer.TOKEN_RBRACKET) {
+		key, isKey := first.(*ast.IdentLiteral)
+		if isKey && p.peek.Type == lexer.TOKEN_COLON {
+			if len(lit.Elements) > 0 {
+				p.error("a literal is either values or name: value pairs, not both")
+				return nil
+			}
+			line, col := key.Position()
+			p.advance()
+			p.advance()
+			value := p.parseExpression()
+			if value == nil {
+				return nil
+			}
+			lit.Keys = append(lit.Keys, key.Value)
+			lit.KeyAt = append(lit.KeyAt, ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + len(key.Value) - 1})
+			lit.Values = append(lit.Values, value)
+		} else {
+			if len(lit.Keys) > 0 {
+				p.error("a literal is either values or name: value pairs, not both")
+				return nil
+			}
+			lit.Elements = append(lit.Elements, first)
+		}
+
+		if p.peek.Type != lexer.TOKEN_COMMA {
+			break
+		}
+		p.advance()
+	}
+	if !p.expect(lexer.TOKEN_RBRACE) {
 		return nil
 	}
-
-	return arr
+	return lit
 }
 
 func (p *Parser) parseStructLiteral(left ast.Expression) ast.Expression {

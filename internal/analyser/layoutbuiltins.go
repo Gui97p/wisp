@@ -211,7 +211,7 @@ func (a *Analyser) usesLayout(node ast.Node) bool {
 			if v.Static {
 				found = true
 			}
-		case *ast.StructLiteral:
+		case *ast.StructLiteral, *ast.AnonLiteral, *ast.ArrayLiteral:
 			found = true
 		case *ast.IdentLiteral:
 			if a.lateNames[v.Value] {

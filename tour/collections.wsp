@@ -17,13 +17,13 @@ func total([]int values) int {
 
 public func demo() {
   // A fixed-size array: the size is part of the type.
-  [5]int nums = [124, 512, 1, 5, 2];
+  [5]int nums = .{124, 512, 1, 5, 2};
 
   [Cells * 2]int sized;
   fmt.printf("an array of Cells * 2 has {} elements\n", len(sized));
 
   // A partial literal fills the rest with zero values.
-  [5]int partial = [7, 8];
+  [5]int partial = .{7, 8};
   fmt.printf("a partial literal: {}, {}, {}\n", partial[0], partial[1], partial[2]);
 
   // Elements can be assigned, incremented and updated in place.
@@ -48,8 +48,9 @@ public func demo() {
 
   // An array variable goes where a slice is expected without writing `[:]`.
   // It is the same view of the same elements: `total(nums)` is
-  // `total(nums[:])`. Only something that has an address converts, so a
-  // fresh array literal does not, and `[a:b]` is still how you take a part.
+  // `total(nums[:])`. Something that has an address converts, and so does
+  // an array literal, as a temporary array. `[a:b]` is still how you take a
+  // part.
   fmt.printf("total(nums) = {}\n", total(nums));
 
   // Strings slice the same way, and compare in dictionary order.
@@ -85,20 +86,20 @@ public func demo() {
   }
   fmt.printf("trimmed: [{}]\n", strings.trimSpace("  padded  "));
 
-  // `[]` is an empty slice, or an array of zeros. It has no element type of its
-  // own: it takes the one of whatever receives it, a declaration, an argument,
-  // a field or a `return`. It holds no memory, so `free` accepts it.
-  []int nothing = [];
-  fmt.printf("len([]) = {}\n", len(nothing));
+  // `.{}` is an empty slice, or an array of zeros. It has no element type of
+  // its own: it takes the one of whatever receives it, a declaration, an
+  // argument, a field or a `return`. It holds no memory, so `free` accepts it.
+  []int nothing = .{};
+  fmt.printf("len(nothing) = {}\n", len(nothing));
 
   // A type reads from left to right, outermost first: `[3]*int` is an array of
   // three pointers, and `*[3]int` is one pointer to an array of three ints.
   // `[]` and `[N]` stack the same way: `[2][3]int` is two arrays of three.
   int first = 1;
   int second = 2;
-  [2]*int refs = [&first, &second];
+  [2]*int refs = .{&first, &second};
   refs[0]@ = 10;
-  [2]int pair = [first, second];
+  [2]int pair = .{first, second};
   *[2]int whole = &pair;
   fmt.printf("first = {}, refs[1]@ = {}, whole@[1] = {}\n", first, refs[1]@, whole@[1]);
   [2][3]int grid;

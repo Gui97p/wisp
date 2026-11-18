@@ -66,6 +66,8 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkFuncLiteral(e)
 	case *ast.ArrayLiteral:
 		t = a.checkArrayLiteral(e)
+	case *ast.AnonLiteral:
+		t = a.checkAnonLiteral(e)
 	case *ast.BinaryExpr:
 		t = a.checkBinaryExpr(e)
 	case *ast.UnaryExpr:
@@ -184,45 +186,6 @@ func singleReturn(block *ast.BlockStmt) (*ast.ReturnStmt, bool) {
 		return nil, false
 	}
 	return ret, true
-}
-
-func (a *Analyser) checkArrayLiteral(expr *ast.ArrayLiteral) Type {
-	if len(expr.Elements) == 0 {
-		a.pendingEmpty[expr] = true
-		return EmptyArrayType{}
-	}
-
-	elemTypes := make([]Type, len(expr.Elements))
-	for i, el := range expr.Elements {
-		elemTypes[i] = a.checkExpr(el)
-	}
-
-	first := elemTypes[0]
-	if _, ok := first.(InvalidType); ok {
-		return InvalidType{}
-	}
-
-	common := first
-	for i := 1; i < len(elemTypes); i++ {
-		t := elemTypes[i]
-		if _, ok := t.(InvalidType); ok {
-			continue
-		}
-		next, ok := a.commonElement(common, t)
-		if !ok {
-			a.errorf(expr, "array index %d expected %s, got %s", i+1, common.String(), t.String())
-			continue
-		}
-		common = next
-	}
-
-	for i := range expr.Elements {
-		if _, ok := elemTypes[i].(InvalidType); !ok {
-			a.coerce(&expr.Elements[i], elemTypes[i], common)
-		}
-	}
-
-	return ArrayType{Element: common, Size: int64(len(expr.Elements))}
 }
 
 func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {

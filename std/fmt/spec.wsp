@@ -37,7 +37,7 @@ internal enum Value {
 internal func parse(string text) !Spec {
 	Spec spec = Spec{fill: ' ', precision: -1};
 	return spec if len(text) == 0;
-	[3]byte aligns = ['<', '>', '^'];
+	[3]byte aligns = .{'<', '>', '^'};
 	const kinds = "dxXbocpeEfv";
 	
 	cursor.Cursor c = cursor.Cursor{text: text};

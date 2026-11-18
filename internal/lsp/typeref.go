@@ -187,3 +187,13 @@ func refRange(ref *ast.TypeRef) *protocol.Range {
 		End:   protocol.Position{Line: uint32(ref.EndLine - 1), Character: uint32(ref.EndCol)},
 	}
 }
+
+func exprTypeRef(expr ast.Expression) *ast.TypeRef {
+	switch e := expr.(type) {
+	case *ast.ConvExpr:
+		return &e.Type
+	case *ast.ArrayLiteral:
+		return e.Type
+	}
+	return nil
+}

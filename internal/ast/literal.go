@@ -18,6 +18,7 @@ func (i *IdentLiteral) Tree(indent string) string {
 }
 
 type ArrayLiteral struct {
+	Type     *TypeRef
 	Elements []Expression
 
 	NodePos
@@ -37,6 +38,29 @@ func (a *ArrayLiteral) Tree(indent string) string {
 		b.WriteString(e.Tree(indent + "   "))
 	}
 
+	return b.String()
+}
+
+type AnonLiteral struct {
+	Elements []Expression
+	Keys     []string
+	KeyAt    []Position
+	Values   []Expression
+
+	NodePos
+}
+
+func (*AnonLiteral) expr() {}
+func (a *AnonLiteral) Tree(indent string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%sAnonLiteral\n", indent)
+	for _, e := range a.Elements {
+		b.WriteString(e.Tree(indent + "   "))
+	}
+	for i := range a.Keys {
+		fmt.Fprintf(&b, "%s   Field(%s)\n", indent, a.Keys[i])
+		b.WriteString(a.Values[i].Tree(indent + "      "))
+	}
 	return b.String()
 }
 

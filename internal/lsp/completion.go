@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"maps"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -102,6 +103,9 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
 	suffix := lineSuffix(path, int(pos.Line), int(pos.Character))
 
+	if items, ok := anonLiteralItems(path, pos); ok {
+		return items
+	}
 	if info != nil {
 		if fields, ok := structLiteralItems(textBefore(path, int(pos.Line), int(pos.Character)), scopeFor(info, line, col)); ok {
 			return fields
@@ -652,6 +656,15 @@ func literalType(text string, brace int, scope *analyser.Scope) (*analyser.Struc
 			tp = pointer.Element
 		}
 		sum, isSum := tp.(*analyser.StructType)
+		if variant == "" {
+			if isSum && sum.Optional != nil {
+				sum, isSum = sum.Optional.(*analyser.StructType)
+			}
+			if !isSum || sum.Sum != nil {
+				return nil, false
+			}
+			return sum, true
+		}
 		if !isSum || sum.Sum == nil {
 			return nil, false
 		}
@@ -739,10 +752,14 @@ func structLiteralContext(text string, scope *analyser.Scope) (literalContext, b
 		return literalContext{}, false
 	}
 
+	used, key, hasKey := scanLiteralBody(text[brace+1:])
+	return literalContext{st: st, used: used, key: key, hasKey: hasKey}, true
+}
+
+func scanLiteralBody(body string) (map[string]bool, string, bool) {
 	used := map[string]bool{}
 	depth := 0
 	segment := strings.Builder{}
-	body := text[brace+1:]
 	for i := 0; i < len(body); i++ {
 		c := body[i]
 		switch c {
@@ -775,11 +792,10 @@ func structLiteralContext(text string, scope *analyser.Scope) (literalContext, b
 		segment.WriteByte(c)
 	}
 
-	ctx := literalContext{st: st, used: used}
 	if key, _, hasKey := strings.Cut(segment.String(), ":"); hasKey {
-		ctx.key, ctx.hasKey = strings.TrimSpace(key), true
+		return used, strings.TrimSpace(key), true
 	}
-	return ctx, true
+	return used, "", false
 }
 
 func structValueEnum(text string, scope *analyser.Scope) (analyser.Type, bool) {
@@ -801,4 +817,69 @@ func lastLine(text string) string {
 
 func hiddenField(name string) bool {
 	return strings.HasPrefix(name, "$")
+}
+
+func anonLiteralItems(path string, pos protocol.Position) ([]protocol.CompletionItem, bool) {
+	text, ok := fileBuffer[path]
+	if !ok {
+		return nil, false
+	}
+	offset := cursorOffset(text, int(pos.Line), int(pos.Character))
+	if offset <= 0 {
+		return nil, false
+	}
+	before := string(text[:offset])
+	brace, ok := innermostOpen(before)
+	if !ok || brace == 0 || before[brace-1] != '.' {
+		return nil, false
+	}
+	used, _, hasKey := scanLiteralBody(before[brace+1:])
+	if hasKey {
+		return nil, false
+	}
+
+	start := offset
+	for start > brace+1 && isIdentByte(text[start-1]) {
+		start--
+	}
+	patched := make([]byte, 0, len(text)+8)
+	patched = append(patched, text[:start]...)
+	patched = append(patched, "__: 0"...)
+	patched = append(patched, text[offset:]...)
+
+	buffers := maps.Clone(fileBuffer)
+	buffers[path] = patched
+	pa, err := runProjectAnalysis(path, buffers)
+	if err != nil || pa == nil {
+		return nil, false
+	}
+	m := pa.moduleOf(path)
+	if m == nil || m.merged == nil {
+		return nil, false
+	}
+
+	var literal *ast.StructLiteral
+	walkProgram(m.merged, func(expr ast.Expression) {
+		if lit, isLit := expr.(*ast.StructLiteral); isLit && slices.Contains(lit.Keys, "__") {
+			literal = lit
+		}
+	})
+	if literal == nil {
+		return nil, false
+	}
+	st, ok := m.info.Types[literal].(*analyser.StructType)
+	if !ok {
+		return nil, false
+	}
+	items := []protocol.CompletionItem{}
+	for _, field := range st.Order {
+		if used[field] || hiddenField(field) {
+			continue
+		}
+		it := item(field, protocol.CompletionItemKindField, analyser.TypeText(st.Fields[field]))
+		text := field + ": "
+		it.InsertText = &text
+		items = append(items, it)
+	}
+	return items, true
 }

@@ -116,6 +116,10 @@ func collectTokens(program *ast.Program, info *analyser.Info) []semanticToken {
 				line, col := e.Position()
 				add(ast.Position{Line: line, Col: col + 1, EndLine: line, EndCol: col + len(e.Name)}, tokenEnumMember)
 			}
+		case *ast.AnonLiteral:
+			for _, at := range e.KeyAt {
+				add(at, tokenProperty)
+			}
 		case *ast.StructLiteral:
 			for _, at := range e.KeyAt {
 				add(at, tokenProperty)

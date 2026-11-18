@@ -22,7 +22,7 @@ public func readFile(string p) ![]byte {
 	int fd = open(p, global.READ)!;
 	defer os.close(fd);
 	int size = os.size(fd)!;
-	return [] if size == 0;
+	return .{} if size == 0;
 	*byte alloc = mem.alloc(size)!;
 	defer! mem.free(alloc);
 	[]byte buf = alloc[0:size];

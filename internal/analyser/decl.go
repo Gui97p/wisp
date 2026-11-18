@@ -272,59 +272,33 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 
 		var finalType Type
 		if hasExplicitType {
+			saved := a.inferSize
+			a.inferSize = true
 			declaredType := a.resolveTypeRef(node, a.scope, v.Type)
+			a.inferSize = saved
 			if declaredType == nil {
 				declaredType = InvalidType{}
 			}
 			if _, invalid := valueType.(InvalidType); !invalid {
 				if _, declInvalid := declaredType.(InvalidType); !declInvalid {
-					if declArr, ok := declaredType.(ArrayType); ok {
-						if _, isEmpty := valueType.(EmptyArrayType); isEmpty {
-							if slot := a.valueSlot(values, len(vars), i); slot != nil {
-								if lit, isLit := (*slot).(*ast.ArrayLiteral); isLit {
-									a.info.Types[lit] = declArr
-									delete(a.pendingEmpty, lit)
-									valueType = declArr
-								}
+					if _, anon := valueType.(AnonType); anon {
+						if slot := a.valueSlot(values, len(vars), i); slot != nil {
+							if resolved, ok := a.resolveAnon(slot, declaredType); ok {
+								valueType = resolved
+							} else {
+								valueType = InvalidType{}
 							}
 						}
-						valArr, ok := valueType.(ArrayType)
-						switch {
-						case !ok:
-							a.errorDeclaredAs(node, v.Name, declaredType, valueType)
-						case valArr.Size > declArr.Size:
-							a.errorf(node, "array %s declared with size %d, got %d elements", v.Name, declArr.Size, valArr.Size)
-						case !a.arrayElementAssignable(values, len(vars), i, valArr.Element, declArr.Element):
-							a.errorf(node, "array %s expects element type %s, got %s", v.Name, declArr.Element.String(), valArr.Element.String())
-						default:
-							if valArr.Size < declArr.Size {
-								a.requireZeroValue(node, v.Name+" (the elements left out)", declArr.Element)
-							}
-							if slot := a.valueSlot(values, len(vars), i); slot != nil {
-								a.fixArrayLiteral(*slot, declArr.Element, declArr.Size)
-							}
+					}
+					if _, invalid := valueType.(InvalidType); !invalid {
+						sized, ok := a.inferredSize(declaredType, valueType)
+						if !ok {
+							a.errorf(node, "[_] takes its size from an array value, got %s", valueType.String())
+							valueType = InvalidType{}
 						}
-					} else if declSpan, ok := declaredType.(SpanType); ok {
-						switch valT := valueType.(type) {
-						case ArrayType:
-							if slot := a.valueSlot(values, len(vars), i); slot != nil && isAddressable(*slot) && valT.Element.Equals(declSpan.Element) {
-								a.insertSlice(slot, declSpan)
-							} else if !a.arrayElementAssignable(values, len(vars), i, valT.Element, declSpan.Element) {
-								a.errorf(node, "span %s expects element type %s, got %s", v.Name, declSpan.Element.String(), valT.Element.String())
-							} else if slot := a.valueSlot(values, len(vars), i); slot != nil {
-								a.fixArrayLiteral(*slot, declSpan.Element, -1)
-							}
-						case EmptyArrayType:
-							if slot := a.valueSlot(values, len(vars), i); slot != nil {
-								a.retypeEmpty(*slot, valT, declSpan)
-							}
-						case SpanType:
-							if !valT.Equals(declSpan) {
-								a.errorDeclaredAs(node, v.Name, declaredType, valueType)
-							}
-						default:
-							a.errorDeclaredAs(node, v.Name, declaredType, valueType)
-						}
+						declaredType = sized
+					}
+					if _, invalid := valueType.(InvalidType); invalid {
 					} else if !a.coerceAt(values, len(vars), i, valueType, declaredType) {
 						a.errorDeclaredAs(node, v.Name, declaredType, valueType)
 					} else {
@@ -365,23 +339,6 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		a.info.VarTypes[node] = append(a.info.VarTypes[node], finalType)
 		a.info.VarSymbols[node] = append(a.info.VarSymbols[node], sym)
 	}
-}
-
-func (a *Analyser) arrayElementAssignable(values []ast.Expression, n, i int, from, to Type) bool {
-	if from.Equals(to) {
-		return true
-	}
-	if isImplicitEnum(from) {
-		return isEnumType(to)
-	}
-	slot := a.valueSlot(values, n, i)
-	if slot == nil {
-		return false
-	}
-	if _, isLiteral := (*slot).(*ast.ArrayLiteral); !isLiteral {
-		return false
-	}
-	return implicitConversion(from, to)
 }
 
 func (a *Analyser) warnUnusedFuncs() {

@@ -2,7 +2,6 @@ package analyser
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -241,8 +240,12 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 		return true
 	}
 
-	if a.retypeEmpty(*slot, from, to) {
-		return true
+	if _, anon := from.(AnonType); anon {
+		resolved, ok := a.resolveAnon(slot, to)
+		if !ok {
+			return true
+		}
+		from = resolved
 	}
 
 	if handled, ok := a.coerceOptional(slot, from, to); handled {
@@ -325,32 +328,6 @@ func (a *Analyser) coerceAt(values []ast.Expression, n, i int, from, to Type) bo
 		return from.Equals(to)
 	}
 	return a.coerce(slot, from, to)
-}
-
-func (a *Analyser) fixArrayLiteral(expr ast.Expression, elem Type, size int64) {
-	lit, ok := expr.(*ast.ArrayLiteral)
-	if !ok {
-		return
-	}
-
-	for i := range lit.Elements {
-		et := a.info.Types[lit.Elements[i]]
-		switch inner := elem.(type) {
-		case ArrayType:
-			a.fixArrayLiteral(lit.Elements[i], inner.Element, inner.Size)
-		case SpanType:
-			a.fixArrayLiteral(lit.Elements[i], inner.Element, -1)
-		}
-		a.coerce(&lit.Elements[i], et, elem)
-	}
-
-	if at, isArray := a.info.Types[lit].(ArrayType); isArray {
-		at.Element = elem
-		if size >= 0 {
-			at.Size = size
-		}
-		a.info.Types[lit] = at
-	}
 }
 
 func (a *Analyser) retypeNull(expr ast.Expression, from, to Type) bool {
@@ -724,41 +701,6 @@ func sequenceMatches(from Type, pointee Type) bool {
 		return true
 	}
 	return element.Equals(pointee)
-}
-
-func (a *Analyser) retypeEmpty(expr ast.Expression, from, to Type) bool {
-	if _, isEmpty := from.(EmptyArrayType); !isEmpty {
-		return false
-	}
-	lit, ok := expr.(*ast.ArrayLiteral)
-	if !ok {
-		return false
-	}
-	if _, isSpan := to.(SpanType); !isSpan {
-		return false
-	}
-	a.info.Types[lit] = to
-	delete(a.pendingEmpty, lit)
-	return true
-}
-
-func (a *Analyser) reportUnresolvedEmpty() {
-	nodes := make([]*ast.ArrayLiteral, 0, len(a.pendingEmpty))
-	for node := range a.pendingEmpty {
-		nodes = append(nodes, node)
-	}
-	sort.Slice(nodes, func(i, j int) bool {
-		li, ci := nodes[i].Position()
-		lj, cj := nodes[j].Position()
-		if li != lj {
-			return li < lj
-		}
-		return ci < cj
-	})
-	for _, node := range nodes {
-		a.error(node, "cannot infer the type of an empty []").
-			WithHelp("it takes the type of a slice that receives it, so write it where a slice is expected")
-	}
 }
 
 func voidPointerConversion(from, to Type) bool {

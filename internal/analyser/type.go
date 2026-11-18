@@ -126,14 +126,14 @@ func (UntypedFloatType) Equals(other Type) bool {
 	return isFloatName(p.Name)
 }
 
-type EmptyArrayType struct{}
+type AnonType struct{}
 
-func (EmptyArrayType) String() string {
-	return "[]"
+func (AnonType) String() string {
+	return ".{...}"
 }
 
-func (EmptyArrayType) Equals(other Type) bool {
-	_, ok := other.(SpanType)
+func (AnonType) Equals(other Type) bool {
+	_, ok := other.(AnonType)
 	return ok
 }
 

@@ -117,6 +117,9 @@ func walkExpr(expr ast.Expression, fn func(ast.Expression)) {
 		walkExprs(e.Elements, fn)
 	case *ast.StructLiteral:
 		walkExprs(e.Values, fn)
+	case *ast.AnonLiteral:
+		walkExprs(e.Elements, fn)
+		walkExprs(e.Values, fn)
 	case *ast.FuncLiteral:
 		walkStmt(e.Block, fn)
 	}

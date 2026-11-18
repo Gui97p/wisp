@@ -17,17 +17,20 @@ func (t *X64Target) baseMem(expr ast.Expression) (Mem, Operand, error) {
 	switch tp := info.(type) {
 	case analyser.ArrayType:
 		var mem Mem
-		if _, isLiteral := expr.(*ast.ArrayLiteral); isLiteral {
+		switch expr.(type) {
+		case *ast.ArrayLiteral, *ast.CallExpr:
 			op, err := t.compileExpr(expr)
 			if err != nil {
 				return Mem{}, nil, err
 			}
-			literal, ok := op.(Mem)
+			temporary, ok := op.(Mem)
 			if !ok {
-				return Mem{}, nil, fmt.Errorf("x86-64: an array literal is not in memory")
+				total := sizeOf(tp)
+				temporary = slot(t.ctx.Reserve(total), total)
+				t.store(op, temporary)
 			}
-			mem = literal
-		} else {
+			mem = temporary
+		default:
 			lvalue, err := t.compileLValue(expr)
 			if err != nil {
 				return Mem{}, nil, err
