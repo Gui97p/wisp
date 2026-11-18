@@ -783,6 +783,11 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 			}
 			t.store(op, t.inlineLocal(call.Params[i]))
 		}
+		if call.Rest != nil {
+			if err := t.bindInlineRest(expr, call); err != nil {
+				return nil, err
+			}
+		}
 		var result x64context.Register
 		if !call.Fallible && len(call.Returns) == 1 && classOf(call.Returns[0]) == x64context.Int {
 			result = t.ctx.AllocFreeRegisterAmong(x64context.R8, x64context.R9, x64context.R10, x64context.R11)
@@ -1028,4 +1033,38 @@ func hasCall(exprs []ast.Expression) bool {
 		}
 	}
 	return false
+}
+
+func (t *X64Target) bindInlineRest(expr *ast.CallExpr, call *analyser.InlineCall) error {
+	dst := t.inlineLocal(call.Rest)
+	extra := len(expr.Args) - call.RestFrom
+
+	if expr.Spread {
+		op, err := t.compileExpr(expr.Args[call.RestFrom])
+		if err != nil {
+			return err
+		}
+		t.store(op, dst)
+		return nil
+	}
+
+	const boxSize = 24
+	block := slot(t.ctx.Reserve((extra*boxSize+7)/8*8), extra*boxSize)
+	for i := range extra {
+		arg := expr.Args[call.RestFrom+i]
+		op, err := t.compileExpr(arg)
+		if err != nil {
+			return err
+		}
+		if boxed, ok := t.info.Boxes[arg]; ok {
+			t.boxArg(block.at(i*boxSize, boxSize), boxed, op)
+		}
+	}
+
+	var ptr Operand = Imm(0)
+	if extra > 0 {
+		ptr = Addr{Of: block}
+	}
+	t.store(Wide{Words: []Operand{ptr, Imm(extra)}}, dst)
+	return nil
 }

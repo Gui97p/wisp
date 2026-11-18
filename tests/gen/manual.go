@@ -12254,6 +12254,63 @@ func main() {
 }
 `, expected: []string{"a field of a small struct result", "a nested field of a large struct result", "an element of an array field of a result", "a string field of a result", "an element of an array result", "results used inside an expression"}},
 
+	{dir: "inline_variadic", src: `import "std/fmt";
+
+var int sink;
+
+func count(...args) int {
+    return len(args);
+}
+
+func sumInts(...args) int {
+    int total;
+    for _i, a in args {
+        switch type a {
+            case signed v:
+                total += v;
+            default:
+        }
+    }
+    return total;
+}
+
+inline func tally(int base, ...args) int {
+    return base + sumInts(args...);
+}
+
+inline func howMany(...args) int {
+    return count(args...) + len(args);
+}
+
+inline func describe(string tag, ...args) string {
+    if len(args) == 0 {
+        return tag;
+    }
+    switch type args[0] {
+        case string first:
+            return first;
+        default:
+            return tag;
+    }
+}
+
+func forward(...args) int {
+    return tally(100, args...);
+}
+
+func main() {
+    check(tally(1) == 1, "an inline function with no variadic arguments");
+    check(tally(1, 2, 3) == 6, "an inline function with several");
+    int n = 10;
+    check(tally(n, n + 1, 5) == 26, "variables and expressions as variadic arguments");
+    check(howMany() == 0 && howMany(1, "a", true) == 6, "len and passing on in the same body");
+    check(describe("none") == "none" && describe("tag", 3) == "tag" && describe("tag", "first") == "first", "switch type on an element of the variadic");
+    check(forward(1, 2, 3) == 106 && forward() == 100, "a variadic passed on to an inline function");
+    sink = tally(2, 3);
+    check(sink == 5, "the result of an inline function with a variadic goes anywhere");
+}
+`, expected: []string{"an inline function with no variadic arguments", "an inline function with several", "variables and expressions as variadic arguments", "len and passing on in the same body", "switch type on an element of the variadic", "a variadic passed on to an inline function", "the result of an inline function with a variadic goes anywhere"}},
+
 	{dir: "switch_then_break", src: `func next(int k) ?int {
     return null if k > 3;
     return k;

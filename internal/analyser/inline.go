@@ -13,6 +13,8 @@ type InlineCall struct {
 	Receiver *Symbol
 	Params   []*Symbol
 	ArgIndex []int
+	Rest     *Symbol
+	RestFrom int
 	Returns  []Type
 	Fallible bool
 }
@@ -28,8 +30,8 @@ func (a *Analyser) checkInlineDecl(fd *ast.FuncDecl) {
 		if p.Const && !fd.Inline {
 			a.errorf(fd, "parameter %s is const, and only an inline function can take const parameters", p.Name)
 		}
-		if fd.Inline && (p.Variadic || p.Any) {
-			a.errorf(fd, "an inline function cannot take ...%s yet", p.Name)
+		if fd.Inline && p.Variadic && !p.Any {
+			a.errorf(fd, "an inline function cannot take a typed ...%s yet, only an untyped one", p.Name)
 		}
 	}
 	if fd.Inline && fd.Name == "main" && fd.Receiver == nil {
@@ -85,7 +87,21 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 	if !force && slices.Contains(a.inlineStack, decl) {
 		return
 	}
-	if len(expr.Args) != len(decl.Params) || len(ft.Params) != len(decl.Params) {
+	variadic := len(decl.Params) > 0 && decl.Params[len(decl.Params)-1].Any
+	fixedCount := len(decl.Params)
+	if variadic {
+		fixedCount--
+	}
+	switch {
+	case len(ft.Params) != len(decl.Params):
+		return
+	case variadic && len(expr.Args) < fixedCount:
+		return
+	case !variadic && len(expr.Args) != len(decl.Params):
+		return
+	}
+	if variadic && expr.Spread && len(expr.Args) > fixedCount+1 {
+		a.errorf(expr, "%s takes arguments for ...%s or a variadic passed on with ..., and this call gives both", decl.Name, decl.Params[fixedCount].Name)
 		return
 	}
 
@@ -97,6 +113,9 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 	substitutions := map[string]func() ast.Expression{}
 	fixed := inlineBindings(decl.Body)
 	for i, p := range decl.Params {
+		if variadic && i == fixedCount {
+			continue
+		}
 		if !p.Const {
 			if produce, ok := a.propagatedArgument(expr.Args[i], ft.Params[i], p.Name, fixed, at); ok && !force {
 				substitutions[p.Name] = produce
@@ -173,6 +192,12 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 		param := &Symbol{Name: decl.Params[i].Name, Kind: PARAM, Type: ft.Params[i], File: a.currentFile, Used: true}
 		a.scope.Define(param)
 		call.Params = append(call.Params, param)
+	}
+	if variadic {
+		rest := &Symbol{Name: decl.Params[fixedCount].Name, Kind: PARAM, Type: SpanType{Element: ft.Params[fixedCount]}, File: a.currentFile, Used: true}
+		a.scope.Define(rest)
+		call.Rest = rest
+		call.RestFrom = fixedCount
 	}
 
 	a.checkBlock(body)

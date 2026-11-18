@@ -226,7 +226,7 @@ func TestTestingModule(t *testing.T) {
 		"ok    t.test: freed memory is fine",
 		"FAIL  t.test: expect fails with a message",
 		"expected 4, got 5",
-		"at t.test.wsp:13:3: in t.test.failsWithMessage",
+		"--> t.test.wsp:13:3",
 		"strings differ at byte 6",
 		`want: "hello world"`,
 		"expected 1, got 2: the difference 1 is more than 0.5",

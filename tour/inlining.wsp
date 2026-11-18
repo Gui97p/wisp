@@ -11,9 +11,15 @@
 // value that must be known at compile time. Because it has no single
 // compiled copy, a function with `const` parameters cannot be used as a value.
 //
+// An inline function can take an untyped `...args`, which works as it does in
+// any function: `args` is a sequence you can measure, index and pass on with
+// `args...`. The arguments are packed at the call the way a normal call would
+// pack them. That makes an inline function a good thin wrapper, and an error
+// it raises is reported at the line of the call.
+//
 // An inline function that calls itself is expanded once and then called
-// normally. `...args` is not supported yet. A public inline function can only
-// use public names of its module, since the body ends up in other modules.
+// normally. A public inline function can only use public names of its module,
+// since the body ends up in other modules.
 
 import "std/fmt";
 
@@ -40,6 +46,14 @@ inline func clamp(int x, int low, int high) int {
   return x;
 }
 
+func countAll(...args) int {
+  return len(args);
+}
+
+inline func sumWith(int start, ...args) int {
+  return start + countAll(args...) * 10;
+}
+
 public func demo() {
   fmt.printf("add(2, 3) = {}\n", add(2, 3));
   fmt.printf("abs(-7) = {}, abs(4) = {}\n", abs(-7), abs(4));
@@ -50,4 +64,6 @@ public func demo() {
     total += clamp(i * 3, 2, 9);
   }
   fmt.printf("sum of clamp(i * 3, 2, 9) = {}\n", total);
+
+  fmt.printf("sumWith(1) = {}, sumWith(1, 2, 3) = {}\n", sumWith(1), sumWith(1, 2, 3));
 }
