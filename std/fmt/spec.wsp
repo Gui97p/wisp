@@ -36,9 +36,7 @@ internal enum Value {
 
 internal func parse(string text) !Spec {
 	Spec spec = Spec{fill: ' ', precision: -1};
-	if len(text) == 0 {
-		return spec;
-	}
+	return spec if len(text) == 0;
 	[3]byte aligns = ['<', '>', '^'];
 	const kinds = "dxXbocpeEfv";
 	
@@ -71,9 +69,7 @@ internal func parse(string text) !Spec {
 	}
 
 	let n, digits, fits = c.number();
-	if !fits {
-		return Error(SpecError.BadNumber);
-	}
+	return Error(SpecError.BadNumber) if !fits;
 	if digits > 0 {
 		spec.width = n;
 	}
@@ -88,16 +84,12 @@ internal func parse(string text) !Spec {
 
 	if !c.done() {
 		byte k = c.peek();
-		if !(k in kinds) {
-			return Error(SpecError.UnknownType);
-		}
+		return Error(SpecError.UnknownType) if !(k in kinds);
 		spec.kind = k;
 		c.advance();
 	}
 
-	if !c.done() {
-		return Error(SpecError.Trailing);
-	}
+	return Error(SpecError.Trailing) if !c.done();
 
 	return spec;
 }

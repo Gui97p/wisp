@@ -116,9 +116,7 @@ internal func (*Decimal dec) shouldRoundUp(int nd) bool {
 	}
 
 	uint d = dec.d[nd];
-	if d == 5 && nd+1 == dec.n {
-		return nd == 0 ? false : dec.d[nd-1] % 2 == 1;
-	}
+	return nd == 0 ? false : dec.d[nd-1] % 2 == 1 if d == 5 && nd+1 == dec.n;
 
 	return d >= 5;
 }
@@ -164,9 +162,7 @@ internal func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive
 	int upperDelta;
 	for ui in 0..dec.n {
 		int mi = ui - upper.dp + dec.dp;
-		if mi >= dec.n {
-			break;
-		}
+		break if mi >= dec.n;
 		int li = ui - upper.dp + lower.dp;
 
 		uint l = lower.digitAt(li);

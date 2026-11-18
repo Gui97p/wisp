@@ -71,17 +71,13 @@ func<debug> arm() {
 }
 
 func obtain(int n, bool zero) !*void {
-	if zero {
-		return rawAlloc(null, n)!;
-	}
+	return rawAlloc(null, n)! if zero;
 	return rawAllocDirty(null, n)!;
 }
 
 func<debug> obtain(int n, bool zero) !*void {
 	arm();
-	if zero {
-		return checked.alloc(n)!;
-	}
+	return checked.alloc(n)! if zero;
 	return checked.allocDirty(n)!;
 }
 

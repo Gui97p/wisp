@@ -17,15 +17,9 @@ public func floatToUint(float x) !uint {
 }
 
 func special([]byte buf, float x) !(string, bool) {
-	if math.isNaN(x) {
-		return strings.copy(buf, "NaN")!, true;
-	}
-	if math.isInf(x, 1) {
-		return strings.copy(buf, "inf")!, true;
-	}
-	if math.isInf(x, -1) {
-		return strings.copy(buf, "-inf")!, true;
-	}
+	return strings.copy(buf, "NaN")!, true if math.isNaN(x);
+	return strings.copy(buf, "inf")!, true if math.isInf(x, 1);
+	return strings.copy(buf, "-inf")!, true if math.isInf(x, -1);
 	return "", false;
 }
 
@@ -107,9 +101,7 @@ func layoutExp([]byte buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 
 func shortestText([]byte buf, float x, bool single) !string {
 	let view, spec = special(buf, x)!;
-	if spec {
-		return view;
-	}
+	return view if spec;
 
 	bool neg = math.signbit(x);
 	decimal.Decimal dec;
@@ -119,11 +111,8 @@ func shortestText([]byte buf, float x, bool single) !string {
 		dec.setShortest(math.fabs(x));
 	}
 	
-	if dec.dp-1 in -5..20 {
-		return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))!;
-	} else {
-		return layoutExp(buf, neg, &dec, dec.n-1, false)!;
-	}
+	return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))! if dec.dp-1 in -5..20;
+	return layoutExp(buf, neg, &dec, dec.n-1, false)!;
 }
 
 public func ftoa([]byte buf, float x) !string {
@@ -136,9 +125,7 @@ public func ftoa32 ([]byte buf, float32 x) !string {
 
 public func formatFixed([]byte buf, float x, int n) !string {
 	let view, spec = special(buf, x)!;
-	if spec {
-		return view;
-	}
+	return view if spec;
 
 	bool neg = math.signbit(x);
 	decimal.Decimal dec;
@@ -149,9 +136,7 @@ public func formatFixed([]byte buf, float x, int n) !string {
 
 public func formatExp([]byte buf, float x, int n, bool upper) !string {
 	let view, spec = special(buf, x)!;
-	if spec {
-		return view;
-	}
+	return view if spec;
 
 	bool neg = math.signbit(x);
 	decimal.Decimal dec;

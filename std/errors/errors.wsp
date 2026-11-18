@@ -1,15 +1,11 @@
 import "std/errors/kind";
 
 public inline func ensure(bool condition, const kind.Kind k) ! {
-	if !condition {
-		return Error(k);
-	}
+	return Error(k) if !condition;
 }
 
 public inline func ensureMessage(bool condition, const kind.Kind k, const string message) ! {
-	if !condition {
-		return Error(k, message);
-	}
+	return Error(k, message) if !condition;
 }
 
 public inline func assert(bool condition, const string message) {

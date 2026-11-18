@@ -7,9 +7,7 @@ public func join([]byte buf, string ...parts) !string {
 	bool seen, firstPassed;
 
 	for _, p in parts {
-		if p == "" {
-			continue;
-		}
+		continue if p == "";
 		string rest = p;
 		if !seen {
 			seen = true;

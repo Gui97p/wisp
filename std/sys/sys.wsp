@@ -59,8 +59,6 @@ shared struct Entry {
 }
 
 shared func errno(int raw) int {
-	if raw < 0 && raw >= -4095 {
-		return -raw;
-	}
+	return -raw if raw < 0 && raw >= -4095;
 	return 0;
 }

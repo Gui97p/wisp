@@ -21,9 +21,7 @@ public func concat([]byte buf, string ...parts) !string {
 }
 
 public func join([]byte buf, []string parts, string sep) !string {
-	if len(parts) == 0 {
-		return "";
-	}
+	return "" if len(parts) == 0;
 	int total = len(parts[0]);
 	copy(buf, parts[0])!;
 	for _, p in parts[1:] {
@@ -37,9 +35,7 @@ public func join([]byte buf, []string parts, string sep) !string {
 }
 
 public func rep([]byte buf, string s, int n) !string {
-	if n <= 0 {
-		return "";
-	}
+	return "" if n <= 0;
 	errors.ensure(len(s) * n <= len(buf), errors.Kind.NoSpace)!;
 
 	int total;
@@ -98,18 +94,14 @@ public func toLower([]byte buf) {
 
 public func reverse([]byte buf) {
 	int n = len(buf);
-	if n < 2 {
-		return;
-	}
+	return if n < 2;
 	for i in 0..n/2-1 {
 		buf[i], buf[n-i-1] = buf[n-i-1], buf[i];
 	}
 }
 
 public func clone(string s) ![]byte {
-	if len(s) == 0 {
-		return [];
-	}
+	return [] if len(s) == 0;
 	[]byte buf = (*byte)(mem.alloc(sizeof(byte) * len(s))!)[:len(s)];
 	copy(buf, s)!;
 	return buf;

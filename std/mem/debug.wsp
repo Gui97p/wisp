@@ -155,9 +155,7 @@ public func (*Debug d) realloc(?*void p, int old, int n) !*void {
 	if h.size != old {
 		fail(h, "realloc with a size that is not the size of the block");
 	}
-	if n == old {
-		return block;
-	}
+	return block if n == old;
 	*void next = d.obtain(n, true)!;
 	mem.copy(next, block, old < n ? old : n);
 	d.free(block);

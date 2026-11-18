@@ -174,9 +174,7 @@ internal native rawMmap(int len) *void r {
 
 shared func mmap(int len) ?*void {
 	*void r = rawMmap(len);
-	if int(r) in -4095..-1 {
-		return null;
-	}
+	return null if int(r) in -4095..-1;
 	return r;
 }
 
@@ -303,9 +301,7 @@ shared native args() []string s {
 }
 
 internal func cpath(*byte buf, string p) int {
-	if len(p) >= PATH_MAX {
-		return -sys.ENAMETOOLONG;
-	}
+	return -sys.ENAMETOOLONG if len(p) >= PATH_MAX;
 	for i, c in p {
 		buf[i] = c;
 	}
@@ -316,63 +312,47 @@ internal func cpath(*byte buf, string p) int {
 shared func open(string path, int flags) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
-	if r < 0 {
-		return r;
-	}
+	return r if r < 0;
 	return rawOpen((*byte)(buf), flags | O_CLOEXEC, 0o644);
 }
 
 shared func remove(string path) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
-	if r < 0 {
-		return r;
-	}
+	return r if r < 0;
 	return rawRemove((*byte)(buf), 0);
 }
 
 shared func rmdir(string path) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
-	if r < 0 {
-		return r;
-	}
+	return r if r < 0;
 	return rawRemove((*byte)(buf), AT_REMOVEDIR);
 }
 
 shared func mkdir(string path) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
-	if r < 0 {
-		return r;
-	}
+	return r if r < 0;
 	return rawMkdir((*byte)(buf), 0o755);
 }
 
 shared func rename(string from, string to) int {
 	[4096]byte fromBuf, toBuf;
 	int r = cpath((*byte)(fromBuf), from);
-	if r < 0 {
-		return r;
-	}
+	return r if r < 0;
 	r = cpath((*byte)(toBuf), to);
-	if r < 0 {
-		return r;
-	}
+	return r if r < 0;
 	return rawRename((*byte)(fromBuf), (*byte)(toBuf));
 }
 
 shared func stat(string path, *sys.Stat out) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
-	if r < 0 {
-		return r;
-	}
+	return r if r < 0;
 	StatBuf s;
 	r = rawStat((*byte)(buf), &s);
-	if r < 0 {
-		return r;
-	}
+	return r if r < 0;
 	out.kind = switch int(s.st_mode) & S_IFMT {
 		case S_IFREG => sys.KIND_FILE;
 		case S_IFDIR => sys.KIND_DIR;
@@ -387,9 +367,7 @@ shared func stat(string path, *sys.Stat out) int {
 
 shared func dirOpen(string path, *Dir d) int {
 	int fd = open(path, sys.O_RDONLY | O_DIRECTORY);
-	if fd < 0 {
-		return fd;
-	}
+	return fd if fd < 0;
 	d.fd = fd;
 	d.pos = 0;
 	d.len = 0;
@@ -400,9 +378,7 @@ shared func dirNext(*Dir d, *sys.Entry e) int {
 	loop {
 		if d.pos >= d.len {
 			int r = getdents(d.fd, (*byte)(d.buf), len(d.buf));
-			if r <= 0 {
-				return r;
-			}
+			return r if r <= 0;
 			d.len = r;
 			d.pos = 0;
 		}
@@ -417,12 +393,8 @@ shared func dirNext(*Dir d, *sys.Entry e) int {
 		d.pos = pos + (int(d.buf[pos + 16]) | int(d.buf[pos + 17]) << 8);
 
 		int n = end - start;
-		if n == 1 && d.buf[start] == '.' {
-			continue;
-		}
-		if n == 2 && d.buf[start] == '.' && d.buf[start + 1] == '.' {
-			continue;
-		}
+		continue if n == 1 && d.buf[start] == '.';
+		continue if n == 2 && d.buf[start] == '.' && d.buf[start + 1] == '.';
 
 		for i in 0..n {
 			e.name[i] = d.buf[start + i];
@@ -456,9 +428,7 @@ shared func getenv(string name) ?string {
 					n++;
 				}
 				string line = string(entry[:n]);
-				if len(line) > len(name) && line[len(name)] == '=' && line[:len(name)] == name {
-					return line[len(name)+1:];
-				}
+				return line[len(name)+1:] if len(line) > len(name) && line[len(name)] == '=' && line[:len(name)] == name;
 			} else {
 				break;
 			}

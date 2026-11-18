@@ -5,9 +5,7 @@ import "std/mem";
 
 public func open(string p, int flags) !int {
 	int r = sys.open(p, flags);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 	return r;
 }
 
@@ -17,18 +15,14 @@ public func create(string p) !int {
 
 public func remove(string p) ! {
 	int r = sys.remove(p);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 }
 
 public func readFile(string p) ![]byte {
 	int fd = open(p, global.READ)!;
 	defer os.close(fd);
 	int size = os.size(fd)!;
-	if size == 0 {
-		return [];
-	}
+	return [] if size == 0;
 	*byte alloc = mem.alloc(size)!;
 	defer! mem.free(alloc);
 	[]byte buf = alloc[0:size];
@@ -42,17 +36,13 @@ public func readFile(string p) ![]byte {
 
 public func rename(string from, to) ! {
 	int r = sys.rename(from, to);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 }
 
 public func stat(string p) !global.Stat {
 	sys.Stat s;
 	int r = sys.stat(p, &s);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 	global.FileKind kind = switch s.kind {
 		case sys.KIND_FILE => .File;
 		case sys.KIND_LINK => .Link;
@@ -69,8 +59,6 @@ public inline func exists(string p) bool {
 
 public func cwd([]byte buf) !string {
 	int r = sys.getcwd(buf);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 	return string(buf[:r]);
 }

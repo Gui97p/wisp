@@ -5,12 +5,8 @@ func writeRaw(int fd, *byte buf, int n) !int {
 	int total;
 	loop total < n {
 		int r = sys.write(fd, buf + total, n - total);
-		if r == -4 {
-			continue;
-		}
-		if r <= 0 {
-			return global.errorIO(sys.errno(r));
-		}
+		continue if r == -4;
+		return global.errorIO(sys.errno(r)) if r <= 0;
 		total += r;
 	}
 	return total;
@@ -29,9 +25,7 @@ public func read(int fd, []byte buf) !int {
 	loop {
 		r = sys.read(fd, (*byte)(buf), len(buf));
 	} until r != -4;
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 	return r;
 }
 
@@ -41,25 +35,19 @@ public func close(int fd) {
 
 public func seek(int fd, offset, whence) !int {
 	int r = sys.seek(fd, offset, whence);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 	return r;
 }
 
 public func size(int fd) !int {
 	int r = sys.size(fd);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 	return r;
 }
 
 public func sync(int fd) ! {
 	int r = sys.sync(fd);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 }
 
 public func isatty(int fd) bool {

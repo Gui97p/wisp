@@ -55,9 +55,7 @@ public inline func abs(int x) int {
 }
 
 public func min(int ...args) int {
-	if len(args) == 0 {
-		return 0;
-	}
+	return 0 if len(args) == 0;
 	int m = args[0];
 
 	for _, n in args[1:] {
@@ -70,9 +68,7 @@ public func min(int ...args) int {
 }
 
 public func max(int ...args) int {
-	if len(args) == 0 {
-		return 0;
-	}
+	return 0 if len(args) == 0;
 	int m = args[0];
 
 	for _, n in args[1:] {
@@ -115,9 +111,7 @@ public func lcm(int a, b) ?int {
 }
 
 public func pow(int base, uint exp) ?int {
-	if exp == 0 {
-		return 1;
-	}
+	return 1 if exp == 0;
 
 	int r = 1;
 	loop exp > 0 {
@@ -134,9 +128,7 @@ public func pow(int base, uint exp) ?int {
 }
 
 public func sqrt(int n) int {
-	if n <= 1 {
-		return max(0, n);
-	}
+	return max(0, n) if n <= 1;
 
 	int lo, hi = 0, min(n, 3037000499);
 	for hi {
@@ -146,9 +138,7 @@ public func sqrt(int n) int {
 		} else {
 			hi = mid-1;
 		}
-		if hi == lo {
-			return hi;
-		}
+		return hi if hi == lo;
 	}
 	return 0;
 }
@@ -167,9 +157,7 @@ public func trailingZeros(uint x) uint {
 }
 
 public func leadingZeros(uint x) uint {
-	if x == 0 {
-		return 64;
-	}
+	return 64 if x == 0;
 
 	uint n;
 	loop (x & 0x8000000000000000) == 0 {

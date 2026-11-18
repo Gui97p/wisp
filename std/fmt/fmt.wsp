@@ -24,12 +24,8 @@ public func fprintf(int fd, string format, ...args) !int {
 
 	let r, p = w.format(format, args...);
 	let fp = w.flush();
-	if p != null {
-		return p;
-	}
-	if fp != null {
-		return fp;
-	}
+	return p if p != null;
+	return fp if fp != null;
 	return r;
 }
 
@@ -74,11 +70,7 @@ public func sprintf([]byte buf, string format, ...args) !int {
 
 	let r, p = w.format(format, args...);
 	let fp = w.flush();
-	if p != null {
-		return p;
-	}
-	if fp != null {
-		return fp;
-	}
+	return p if p != null;
+	return fp if fp != null;
 	return r;
 }

@@ -12,31 +12,23 @@ public inline func isDir(string p) bool {
 
 public func removeDir(string p) ! {
 	int r = sys.rmdir(p);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 }
 
 public func createDir(string p) ! {
 	int r = sys.mkdir(p);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 }
 
 public func createDirAll(string p) ! {
 	let s = os.stat(p) ?? |e| {
-		if e != errors.Kind.NotFound {
-			return e;
-		}
+		return e if e != errors.Kind.NotFound;
 		createDirAll(path.dir(p))!;
 		createDir(p) ?? |err| return isDir(p) ? null : err;
 		return;
 	};
 
-	if s.kind != .Dir {
-		return Error(global.IOError.NotDir);
-	}
+	return Error(global.IOError.NotDir) if s.kind != .Dir;
 }
 
 public struct Dir {
@@ -46,12 +38,8 @@ public struct Dir {
 
 public func (*Dir d) next() !(string, global.FileKind, bool) {
 	int r = sys.dirNext(&d.state, &d.entry);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
-	if r == 0 {
-		return "", .Other, false;
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
+	return "", .Other, false if r == 0;
 	global.FileKind kind = switch d.entry.kind {
 		case sys.KIND_FILE => .File;
 		case sys.KIND_DIR => .Dir;
@@ -68,8 +56,6 @@ public func (*Dir d) close() {
 public func openDir(string p) !Dir {
 	Dir d;
 	int r = sys.dirOpen(p, &d.state);
-	if r < 0 {
-		return global.errorIO(sys.errno(r));
-	}
+	return global.errorIO(sys.errno(r)) if r < 0;
 	return d;
 }

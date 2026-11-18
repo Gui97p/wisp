@@ -29,9 +29,7 @@ public struct Writer {
 }
 
 func (*Writer w) put(*byte c, int n) ! {
-	if n == 0 {
-		return;
-	}
+	return if n == 0;
 
 	if w.fd < 0 {
 		errors.ensure(len(w.buf) - w.len >= n, errors.Kind.NoSpace)!;
@@ -217,9 +215,7 @@ public func (*Writer w) format(string format, ...args) !int {
 		c.advanceUntil('{', '}');
 		w.write(c.since(start))!;
 
-		if c.done() {
-			break;
-		}
+		break if c.done();
 
 		if c.peekAt(1) == c.peek() {
 			w.writeByte(c.peek())!;
@@ -293,9 +289,7 @@ public func (*Writer w) format(string format, ...args) !int {
 		problem = Error(FormatError.ExtraArgument);
 	}
 
-	if problem != null {
-		return problem;
-	}
+	return problem if problem != null;
 
 	return w.total - start;
 }

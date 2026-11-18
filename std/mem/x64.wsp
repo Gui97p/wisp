@@ -25,9 +25,7 @@ func<debug> callerSite(*void f) string {
 	*void at = f;
 	loop true {
 		string s = siteOf(at);
-		if len(s) <= 0 {
-			return first;
-		}
+		return first if len(s) <= 0;
 		if len(s) < 4 || s[:4] != "std/" {
 			return s;
 		}

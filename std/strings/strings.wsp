@@ -8,9 +8,7 @@ public func trim(string s, charset) string {
 }
 #must_use
 public func trimLeft(string s, charset) string {
-    if s == "" {
-        return "";
-    }
+    return "" if s == "";
 
     loop s != "" && s[0] in charset {
         s = s[1:];
@@ -20,9 +18,7 @@ public func trimLeft(string s, charset) string {
 }
 #must_use
 public func trimRight(string s, charset) string {
-    if s == "" {
-        return "";
-    }
+    return "" if s == "";
 
     loop s != "" && s[len(s)-1] in charset {
         s = s[:len(s)-1];
@@ -32,24 +28,18 @@ public func trimRight(string s, charset) string {
 }
 #must_use
 public func trimSpace(string s) string {
-	if s == "" {
-		return "";
-	}
+	return "" if s == "";
 	return trim(s, spaceCharset);
 }
 #must_use
 public func trimPrefix(string s, prefix) string {
-    if !search.startsWith(s, prefix) {
-        return s;
-    }
+    return s if !search.startsWith(s, prefix);
 
     return s[len(prefix):];
 }
 #must_use
 public func trimSuffix(string s, suffix) string {
-    if !search.endsWith(s, suffix) {
-        return s;
-    }
+    return s if !search.endsWith(s, suffix);
 
     return s[:len(s)-len(suffix)];
 }

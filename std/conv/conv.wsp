@@ -43,9 +43,7 @@ func formatUnsigned([]byte buf, uint n, int base, bool upper) !string {
 
 public func formatInt([]byte buf, int n, base, bool upper) !string {
 	errors.ensure(base in 2..36, errors.Kind.Invalid)!;
-	if n >= 0 {
-		return formatUnsigned(buf, uint(n), base, upper)!;
-	}
+	return formatUnsigned(buf, uint(n), base, upper)! if n >= 0;
 	errors.ensure(len(buf) > 1, errors.Kind.NoSpace)!;
 
 	uint mag = uint(-(n+1)) + 1;
@@ -72,13 +70,9 @@ func digitValue(byte c) ?int {
         return c - '0';
     }
 
-    if c >= 'a' && c <= 'z' {
-        return c - 'a' + 10;
-    }
+    return c - 'a' + 10 if c >= 'a' && c <= 'z';
 
-    if c >= 'A' && c <= 'Z' {
-        return c - 'A' + 10;
-    }
+    return c - 'A' + 10 if c >= 'A' && c <= 'Z';
 
     return null;
 }
@@ -119,9 +113,7 @@ public func parseInt(string s, int base) !int {
 		uint limit = uint(-(math.MIN_INT + 1)) + 1;
 		errors.ensure(mag <= limit, errors.Kind.Overflow)!;
 		
-		if mag == limit {
-			return math.MIN_INT;
-		}
+		return math.MIN_INT if mag == limit;
 		return -int(mag);
 	}
 	

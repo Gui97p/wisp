@@ -152,16 +152,12 @@ internal func lastError() int {
 }
 
 internal func handleOf(int fd) *void {
-	if fd >= 0 && fd <= 2 {
-		return GetStdHandle(int32(-10 - fd));
-	}
+	return GetStdHandle(int32(-10 - fd)) if fd >= 0 && fd <= 2;
 	return (*void)(fd);
 }
 
 internal func buffers() int {
-	if wideAp != null {
-		return 0;
-	}
+	return 0 if wideAp != null;
 	int unit = WIDE_MAX * 2;
 	*void block = VirtualAlloc(null, int64(unit * 4 + ENV_BYTES * 2 + CONV_BYTES), MEM_COMMIT_RESERVE, PAGE_READWRITE) ?? return -sys.ENOMEM;
 	*byte base = (*byte)(block);
@@ -177,9 +173,7 @@ internal func buffers() int {
 
 internal func widePath(string path) int {
 	int fault = buffers();
-	if fault < 0 {
-		return fault;
-	}
+	return fault if fault < 0;
 	return towide(path, wideA());
 }
 
@@ -188,29 +182,19 @@ internal func isDevicePath(*uint16 p) bool {
 }
 
 internal func towide(string s, *uint16 dst) int {
-	if len(s) == 0 {
-		return -sys.ENOENT;
-	}
-	if len(s) >= WIDE_MAX - 16 {
-		return -sys.ENAMETOOLONG;
-	}
+	return -sys.ENOENT if len(s) == 0;
+	return -sys.ENAMETOOLONG if len(s) >= WIDE_MAX - 16;
 	int n = MultiByteToWideChar(CP_UTF8, 0, (*byte)(s), int32(len(s)), dst, int32(WIDE_MAX - 16));
-	if n <= 0 {
-		return -sys.EINVAL;
-	}
+	return -sys.EINVAL if n <= 0;
 	dst[n] = 0;
-	if isDevicePath(dst) {
-		return n;
-	}
+	return n if isDevicePath(dst);
 
 	int room = WIDE_MAX - 16;
 	int m = int(GetFullPathNameW(dst, uint32(room), wideScratch(), null));
 	if m == 0 || m < LONG_PATH {
 		return n;
 	}
-	if m >= room {
-		return -sys.ENAMETOOLONG;
-	}
+	return -sys.ENAMETOOLONG if m >= room;
 
 	int total;
 	if wideScratch()[0] == 92 && wideScratch()[1] == 92 {
@@ -246,19 +230,13 @@ internal func isDirectory(*uint16 path) bool {
 }
 
 internal func kindOf(uint32 attributes) int {
-	if (attributes & ATTRIBUTE_REPARSE_POINT) != 0 {
-		return sys.KIND_LINK;
-	}
-	if (attributes & ATTRIBUTE_DIRECTORY) != 0 {
-		return sys.KIND_DIR;
-	}
+	return sys.KIND_LINK if (attributes & ATTRIBUTE_REPARSE_POINT) != 0;
+	return sys.KIND_DIR if (attributes & ATTRIBUTE_DIRECTORY) != 0;
 	return sys.KIND_FILE;
 }
 
 internal func readConsole(*byte buf, int n) int {
-	if n == 0 {
-		return 0;
-	}
+	return 0 if n == 0;
 	if inLeft > 0 {
 		int k;
 		loop k < inLeft && k < n {
@@ -274,9 +252,7 @@ internal func readConsole(*byte buf, int n) int {
 		inLeft = rest;
 		return k;
 	}
-	if buffers() < 0 {
-		return -sys.ENOMEM;
-	}
+	return -sys.ENOMEM if buffers() < 0;
 
 	loop {
 		int want = n / 3;
@@ -294,15 +270,9 @@ internal func readConsole(*byte buf, int n) int {
 		}
 		uint32 got;
 		*uint16 into = (*uint16)((*byte)(wideScratch()) + off * 2);
-		if ReadConsoleW(handleOf(0), into, uint32(want), &got, null) == 0 {
-			return lastError();
-		}
-		if got == 0 {
-			return 0;
-		}
-		if off == 0 && wideScratch()[0] == 26 {
-			return 0;
-		}
+		return lastError() if ReadConsoleW(handleOf(0), into, uint32(want), &got, null) == 0;
+		return 0 if got == 0;
+		return 0 if off == 0 && wideScratch()[0] == 26;
 
 		int count = off + int(got);
 		int kept;
@@ -327,18 +297,11 @@ internal func readConsole(*byte buf, int n) int {
 				kept--;
 			}
 		}
-		if kept == 0 {
-			continue;
-		}
+		continue if kept == 0;
 
 		int m = WideCharToMultiByte(CP_UTF8, 0, wideScratch(), int32(kept), convBuffer(), int32(CONV_BYTES), null, null);
-		if m <= 0 {
-			return -sys.EINVAL;
-		}
-		int copied = m;
-		if copied > n {
-			copied = n;
-		}
+		return -sys.EINVAL if m <= 0;
+		int copied = m > n ? n : m;
 		for i in 0..copied-1 {
 			buf[i] = convBuffer()[i];
 		}
@@ -352,15 +315,11 @@ internal func readConsole(*byte buf, int n) int {
 }
 
 shared func read(int fd, *byte buf, int n) int {
-	if fd == 0 && isConsole(0) {
-		return readConsole(buf, n);
-	}
+	return readConsole(buf, n) if fd == 0 && isConsole(0);
 	uint32 got;
 	if ReadFile(handleOf(fd), buf, uint32(n), &got, null) == 0 {
 		int code = int(GetLastError());
-		if code == ERROR_BROKEN_PIPE {
-			return 0;
-		}
+		return 0 if code == ERROR_BROKEN_PIPE;
 		return -winerr(code);
 	}
 	return int(got);
@@ -372,33 +331,19 @@ internal func isConsole(int fd) bool {
 }
 
 internal func sequenceLength(byte lead) int {
-	if lead >= 0xF0 && lead < 0xF8 {
-		return 4;
-	}
-	if lead >= 0xE0 && lead < 0xF0 {
-		return 3;
-	}
-	if lead >= 0xC0 && lead < 0xE0 {
-		return 2;
-	}
+	return 4 if lead >= 0xF0 && lead < 0xF8;
+	return 3 if lead >= 0xE0 && lead < 0xF0;
+	return 2 if lead >= 0xC0 && lead < 0xE0;
 	return 1;
 }
 
 internal func emitWide(int fd, *byte p, int n) int {
-	if n == 0 {
-		return 0;
-	}
-	if buffers() < 0 {
-		return -sys.ENOMEM;
-	}
+	return 0 if n == 0;
+	return -sys.ENOMEM if buffers() < 0;
 	int m = MultiByteToWideChar(CP_UTF8, 0, p, int32(n), wideScratch(), int32(WIDE_MAX - 16));
-	if m <= 0 {
-		return -sys.EINVAL;
-	}
+	return -sys.EINVAL if m <= 0;
 	uint32 done;
-	if WriteConsoleW(handleOf(fd), wideScratch(), uint32(m), &done, null) == 0 {
-		return lastError();
-	}
+	return lastError() if WriteConsoleW(handleOf(fd), wideScratch(), uint32(m), &done, null) == 0;
 	return 0;
 }
 
@@ -425,9 +370,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 		}
 		pendingCount[fd] = 0;
 		int r = emitWide(fd, (*byte)(joined), held);
-		if r < 0 {
-			return r;
-		}
+		return r if r < 0;
 	}
 
 	int tail = n;
@@ -452,9 +395,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 			}
 		}
 		int r = emitWide(fd, buf + pos, end - pos);
-		if r < 0 {
-			return r;
-		}
+		return r if r < 0;
 		pos = end;
 	}
 
@@ -473,17 +414,13 @@ shared func write(int fd, *byte buf, int n) int {
 		return writeConsole(fd, buf, n);
 	}
 	uint32 done;
-	if WriteFile(handleOf(fd), buf, uint32(n), &done, null) == 0 {
-		return lastError();
-	}
+	return lastError() if WriteFile(handleOf(fd), buf, uint32(n), &done, null) == 0;
 	return int(done);
 }
 
 shared func open(string path, int flags) int {
 	int n = widePath(path);
-	if n < 0 {
-		return n;
-	}
+	return n if n < 0;
 
 	int mode = flags & 3;
 	int access = 0;
@@ -513,57 +450,41 @@ shared func open(string path, int flags) int {
 	*void h = CreateFileW(wideA(), uint32(access), SHARE_ALL, null, uint32(disposition), ATTRIBUTE_NORMAL, null);
 	if int(h) == -1 {
 		int code = int(GetLastError());
-		if code == 5 && isDirectory(wideA()) {
-			return -sys.EISDIR;
-		}
+		return -sys.EISDIR if code == 5 && isDirectory(wideA());
 		return -winerr(code);
 	}
 	return int(h);
 }
 
 shared func close(int fd) int {
-	if fd >= 0 && fd <= 2 {
-		return 0;
-	}
-	if CloseHandle((*void)(fd)) == 0 {
-		return lastError();
-	}
+	return 0 if fd >= 0 && fd <= 2;
+	return lastError() if CloseHandle((*void)(fd)) == 0;
 	return 0;
 }
 
 shared func seek(int fd, offset, whence) int {
 	int position;
-	if SetFilePointerEx(handleOf(fd), int64(offset), &position, uint32(whence)) == 0 {
-		return lastError();
-	}
+	return lastError() if SetFilePointerEx(handleOf(fd), int64(offset), &position, uint32(whence)) == 0;
 	return position;
 }
 
 shared func sync(int fd) int {
-	if FlushFileBuffers(handleOf(fd)) == 0 {
-		return lastError();
-	}
+	return lastError() if FlushFileBuffers(handleOf(fd)) == 0;
 	return 0;
 }
 
 shared func size(int fd) int {
 	int total;
-	if GetFileSizeEx(handleOf(fd), &total) == 0 {
-		return lastError();
-	}
+	return lastError() if GetFileSizeEx(handleOf(fd), &total) == 0;
 	return total;
 }
 
 shared func remove(string path) int {
 	int n = widePath(path);
-	if n < 0 {
-		return n;
-	}
+	return n if n < 0;
 	if DeleteFileW(wideA()) == 0 {
 		int code = int(GetLastError());
-		if code == 5 && isDirectory(wideA()) {
-			return -sys.EISDIR;
-		}
+		return -sys.EISDIR if code == 5 && isDirectory(wideA());
 		return -winerr(code);
 	}
 	return 0;
@@ -571,50 +492,32 @@ shared func remove(string path) int {
 
 shared func rmdir(string path) int {
 	int n = widePath(path);
-	if n < 0 {
-		return n;
-	}
-	if RemoveDirectoryW(wideA()) == 0 {
-		return lastError();
-	}
+	return n if n < 0;
+	return lastError() if RemoveDirectoryW(wideA()) == 0;
 	return 0;
 }
 
 shared func mkdir(string path) int {
 	int n = widePath(path);
-	if n < 0 {
-		return n;
-	}
-	if CreateDirectoryW(wideA(), null) == 0 {
-		return lastError();
-	}
+	return n if n < 0;
+	return lastError() if CreateDirectoryW(wideA(), null) == 0;
 	return 0;
 }
 
 shared func rename(string from, string to) int {
 	int n = widePath(from);
-	if n < 0 {
-		return n;
-	}
+	return n if n < 0;
 	n = towide(to, wideB());
-	if n < 0 {
-		return n;
-	}
-	if MoveFileExW(wideA(), wideB(), REPLACE_EXISTING) == 0 {
-		return lastError();
-	}
+	return n if n < 0;
+	return lastError() if MoveFileExW(wideA(), wideB(), REPLACE_EXISTING) == 0;
 	return 0;
 }
 
 shared func stat(string path, *sys.Stat out) int {
 	int n = widePath(path);
-	if n < 0 {
-		return n;
-	}
+	return n if n < 0;
 	AttributeData d;
-	if GetFileAttributesExW(wideA(), 0, &d) == 0 {
-		return lastError();
-	}
+	return lastError() if GetFileAttributesExW(wideA(), 0, &d) == 0;
 	out.kind = kindOf(d.attributes);
 	out.size = (int(d.sizeHigh) << 32) | int(d.sizeLow);
 	int written = ((int(d.writeHigh) << 32) | int(d.writeLow)) - EPOCH_DIFFERENCE;
@@ -631,19 +534,11 @@ shared func stat(string path, *sys.Stat out) int {
 
 shared func dirOpen(string path, *Dir d) int {
 	int n = widePath(path);
-	if n < 0 {
-		return n;
-	}
+	return n if n < 0;
 	uint32 attributes = GetFileAttributesW(wideA());
-	if attributes == INVALID_ATTRIBUTES {
-		return lastError();
-	}
-	if (attributes & ATTRIBUTE_DIRECTORY) == 0 {
-		return -sys.ENOTDIR;
-	}
-	if n + 2 >= WIDE_MAX {
-		return -sys.ENAMETOOLONG;
-	}
+	return lastError() if attributes == INVALID_ATTRIBUTES;
+	return -sys.ENOTDIR if (attributes & ATTRIBUTE_DIRECTORY) == 0;
+	return -sys.ENAMETOOLONG if n + 2 >= WIDE_MAX;
 	if wideA()[n - 1] != 92 && wideA()[n - 1] != 47 {
 		wideA()[n] = 92;
 		n++;
@@ -652,9 +547,7 @@ shared func dirOpen(string path, *Dir d) int {
 	wideA()[n + 1] = 0;
 
 	*void h = FindFirstFileW(wideA(), &d.data);
-	if int(h) == -1 {
-		return lastError();
-	}
+	return lastError() if int(h) == -1;
 	d.handle = int(h);
 	d.started = 0;
 	return 0;
@@ -670,16 +563,10 @@ shared func dirNext(*Dir d, *sys.Entry e) int {
 		}
 
 		int n = WideCharToMultiByte(CP_UTF8, 0, (*uint16)(d.data.name), -1, (*byte)(e.name), 1024, null, null);
-		if n <= 0 {
-			return -sys.EIO;
-		}
+		return -sys.EIO if n <= 0;
 		int size = n - 1;
-		if size == 1 && e.name[0] == '.' {
-			continue;
-		}
-		if size == 2 && e.name[0] == '.' && e.name[1] == '.' {
-			continue;
-		}
+		continue if size == 1 && e.name[0] == '.';
+		continue if size == 2 && e.name[0] == '.' && e.name[1] == '.';
 
 		e.len = size;
 		e.kind = kindOf(d.data.attributes);
@@ -693,20 +580,12 @@ shared func dirClose(*Dir d) {
 
 shared func getcwd([]byte buf) int {
 	int fault = buffers();
-	if fault < 0 {
-		return fault;
-	}
+	return fault if fault < 0;
 	int n = int(GetCurrentDirectoryW(uint32(WIDE_MAX), wideA()));
-	if n == 0 {
-		return lastError();
-	}
-	if n >= WIDE_MAX {
-		return -sys.ERANGE;
-	}
+	return lastError() if n == 0;
+	return -sys.ERANGE if n >= WIDE_MAX;
 	int r = WideCharToMultiByte(CP_UTF8, 0, wideA(), int32(n), (*byte)(buf), int32(len(buf)), null, null);
-	if r == 0 {
-		return -sys.ERANGE;
-	}
+	return -sys.ERANGE if r == 0;
 	return r;
 }
 
@@ -757,9 +636,7 @@ shared func sleep(int sec, nsec) int {
 }
 
 shared func random(*void buf, int n) int {
-	if BCryptGenRandom(null, buf, uint32(n), RANDOM_SYSTEM) != 0 {
-		return -sys.EIO;
-	}
+	return -sys.EIO if BCryptGenRandom(null, buf, uint32(n), RANDOM_SYSTEM) != 0;
 	return n;
 }
 
@@ -777,9 +654,7 @@ shared func mmap(int n) ?*void {
 }
 
 shared func munmap(*void addr, int _n) int {
-	if VirtualFree(addr, 0, MEM_RELEASE) == 0 {
-		return -sys.EINVAL;
-	}
+	return -sys.EINVAL if VirtualFree(addr, 0, MEM_RELEASE) == 0;
 	return 0;
 }
 
@@ -803,13 +678,9 @@ shared func envNext(*Env e) ?string {
 		*uint16 entry = cursor;
 		cursor = (*uint16)((*byte)(cursor) + (n + 1) * 2);
 		e.cursor = cursor;
-		if entry[0] == 61 {
-			continue;
-		}
+		continue if entry[0] == 61;
 		int r = WideCharToMultiByte(CP_UTF8, 0, entry, int32(n), iterBuffer(), ENV_BYTES, null, null);
-		if r == 0 {
-			continue;
-		}
+		continue if r == 0;
 		return string(iterBuffer()[:r]);
 	}
 }

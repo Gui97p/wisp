@@ -32,9 +32,7 @@ internal func (*Cursor c) advanceIf(byte ch) bool {
 
 internal func (*Cursor c) advanceUntil(byte ...chs) bool {
 	loop !(c.peek() in chs) {
-		if c.done() {
-			return false;
-		}
+		return false if c.done();
 		c.advance();
 	}
 	return true;

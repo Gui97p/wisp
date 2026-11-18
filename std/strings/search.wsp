@@ -15,9 +15,7 @@ public func indexOf(string s, sub) ?int {
     int limit = len(s) - subLen;
 
     for i in 0..limit {
-        if s[i:i + len(sub)] == sub {
-            return i;
-        }
+        return i if s[i:i + len(sub)] == sub;
     }
 
     return null;
@@ -25,9 +23,7 @@ public func indexOf(string s, sub) ?int {
 
 #must_use
 public func lastIndexOf(string s, sub) ?int {
-	if sub == "" {
-		return len(s);
-	}
+	return len(s) if sub == "";
 	
 	if len(sub) > len(s) {
         return null;
@@ -49,9 +45,7 @@ public func lastIndexOf(string s, sub) ?int {
 #must_use
 public func indexOfByte(string s, byte c) ?int {
 	for i, ch in s {
-		if c == ch {
-			return i;
-		}
+		return i if c == ch;
 	}
 	return null;
 }
@@ -68,9 +62,7 @@ public func lastIndexOfByte(string s, byte c) ?int {
 
 #must_use
 public func count(string s, sub) int {
-	if sub == "" {
-		return len(s) + 1;
-	}
+	return len(s) + 1 if sub == "";
 	
 	int total;
 	loop {
@@ -78,9 +70,7 @@ public func count(string s, sub) int {
 
 		total++;
 		int nIdx = idx + len(sub);
-		if nIdx >= len(s) {
-			break;
-		}
+		break if nIdx >= len(s);
 
 		s = s[nIdx:];
 	}
@@ -90,16 +80,12 @@ public func count(string s, sub) int {
 
 #must_use
 public func startsWith(string s, prefix) bool {
-	if len(prefix) > len(s) {
-		return false;
-	}
+	return false if len(prefix) > len(s);
     return s[:len(prefix)] == prefix;
 }
 #must_use
 public func endsWith(string s, suffix) bool {
-	if len(suffix) > len(s) {
-		return false;
-	}
+	return false if len(suffix) > len(s);
     return s[len(s)-len(suffix):] == suffix;
 }
 
@@ -110,35 +96,23 @@ public func compare(string a, b) int {
     int n = math.min(lenA, lenB);
 
     for i, c in a[:n] {
-        if c < b[i] {
-            return -1;
-        }
+        return -1 if c < b[i];
 
-        if c > b[i] {
-            return 1;
-        }
+        return 1 if c > b[i];
     }
 
-    if lenA < lenB {
-        return -1;
-    }
+    return -1 if lenA < lenB;
 
-    if lenA > lenB {
-        return 1;
-    }
+    return 1 if lenA > lenB;
 
     return 0;
 }
 
 public func equalFold(string a, b) bool {
-    if len(a) != len(b) {
-        return false;
-    }
+    return false if len(a) != len(b);
 
     for i, c in a {
-		if character.lowerByte(c) != character.lowerByte(b[i]) {
-			return false;
-		}
+		return false if character.lowerByte(c) != character.lowerByte(b[i]);
     }
 
     return true;

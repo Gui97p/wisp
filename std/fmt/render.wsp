@@ -39,9 +39,7 @@ internal func renderInt([]byte buf, int v, spec.Spec s) !Piece {
 		return piece;
 	}
 
-	if v >= 0 {
-		return number(buf, uint(v), false, s)!;
-	}
+	return number(buf, uint(v), false, s)! if v >= 0;
 	
 	return number(buf, uint(-(v+1)) + 1, true, s)!;
 }
