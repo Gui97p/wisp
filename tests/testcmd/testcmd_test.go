@@ -213,3 +213,34 @@ func TestOnlyWhatTheTestsNeedIsAnalysed(t *testing.T) {
 	expect(t, out, "No test matches")
 	refuse(t, out, "noisy", "warning")
 }
+
+func TestTestingModule(t *testing.T) {
+	out, code := run(t, "testing", "test")
+	if code != 1 {
+		t.Errorf("exit code %d, want 1", code)
+	}
+	expect(t, out,
+		"ok    t.test: expect passes",
+		"ok    t.test: expectKind",
+		"ok    t.test: expectApprox and strings",
+		"ok    t.test: freed memory is fine",
+		"FAIL  t.test: expect fails with a message",
+		"expected 4, got 5",
+		"at t.test.wsp:13:3: in t.test.failsWithMessage",
+		"strings differ at byte 6",
+		`want: "hello world"`,
+		"expected 1, got 2: the difference 1 is more than 0.5",
+		"FAIL  t.test: a leak is a failure",
+		"leak: 1 blocks, 64 bytes",
+		"memory leaked",
+		"skip  t.test: skipped on purpose",
+		"not for this system",
+		"ok    t.test: aborts as expected",
+		"stopped the program, as expected",
+		"FAIL  t.test: should abort but returns",
+		"was expected to stop the program, and returned",
+		"FAIL  t.test: aborts with other text",
+		`what it printed lacks "boom"`,
+		"Test result: FAILED. 5 passed, 6 failed, 1 skipped",
+	)
+}

@@ -1,0 +1,78 @@
+import "std/errors";
+import "std/testing";
+
+#test("expect passes")
+func passes() ! {
+  testing.expect(1 + 1 == 2)!;
+  testing.expect(true, "never shown {}", 1)!;
+}
+
+#test("expect fails with a message")
+func failsWithMessage() ! {
+  int got = 5;
+  testing.expect(got == 4, "expected {}, got {}", 4, got)!;
+}
+
+#test("expectKind")
+func kinds() ! {
+  errors.ensure(false, errors.Kind.Invalid) ?? |e| {
+    testing.expectKind(e, errors.Kind.Invalid)!;
+    return;
+  };
+  testing.fail("the call should have failed")!;
+}
+
+#test("expectApprox and strings")
+func approx() ! {
+  testing.expectApprox(0.1 + 0.2, 0.3, 0.0001)!;
+  testing.expectEqualStrings("abc", "abc")!;
+}
+
+#test("strings differ")
+func differ() ! {
+  testing.expectEqualStrings("hello world", "hello there")!;
+}
+
+#test("approx fails")
+func approxFails() ! {
+  testing.expectApprox(1.0, 2.0, 0.5)!;
+}
+
+#test("a leak is a failure")
+func leaks() {
+  []int xs = make(testing.allocator(), int, 8)!!;
+  xs[0] = 1;
+}
+
+#test("freed memory is fine")
+func noLeak() {
+  []int xs = make(testing.allocator(), int, 8)!!;
+  xs[0] = 1;
+  free(testing.allocator(), xs);
+}
+
+#test("skipped on purpose")
+func skipped() {
+  testing.skip("not for this system");
+}
+
+#test("aborts as expected")
+#expect_abort("index out of range")
+func aborts() {
+  [3]int a;
+  int i = 7;
+  a[i] = 1;
+}
+
+#test("should abort but returns")
+#expect_abort("boom")
+func returns() {
+}
+
+#test("aborts with other text")
+#expect_abort("boom")
+func otherText() {
+  [3]int a;
+  int i = 7;
+  a[i] = 1;
+}

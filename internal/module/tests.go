@@ -32,6 +32,9 @@ type TestFunc struct {
 	Name     string
 	Display  string
 	Fallible bool
+
+	ExpectAbort bool
+	AbortText   string
 }
 
 func (t TestFunc) ID() string {
@@ -67,6 +70,14 @@ func testFunctions(mods []*Module) []TestFunc {
 				if len(tag.Args) == 1 {
 					if text, isText := tag.Args[0].(*ast.StringLiteral); isText && strings.TrimSpace(text.Value) != "" {
 						test.Display = text.Value
+					}
+				}
+				if abort := fd.TagNamed("expect_abort"); abort != nil {
+					test.ExpectAbort = true
+					if len(abort.Args) == 1 {
+						if text, isText := abort.Args[0].(*ast.StringLiteral); isText {
+							test.AbortText = text.Value
+						}
 					}
 				}
 				tests = append(tests, test)

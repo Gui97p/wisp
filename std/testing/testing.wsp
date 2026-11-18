@@ -1,0 +1,133 @@
+import "std/fmt";
+import "std/math";
+import "std/mem";
+import "std/os";
+import "std/testing/trace" as trace;
+
+public enum Kind {
+	Failed = 1,
+	Leaked
+}
+
+public const SKIP_CODE = 77;
+
+mem.Arena store;
+mem.Debug tracker;
+bool tracking;
+
+func warn(string format, ...args) {
+	fmt.fprintf(2, format, args...) ?? return;
+}
+
+func where() {
+	string at = trace.site();
+	return if len(at) == 0;
+
+	warn("at {}", at);
+}
+
+func say(...args) {
+	return if len(args) == 0;
+
+	switch type args[0] {
+		case string format:
+			warn(format, args[1:]...);
+			warn("\n");
+	}
+}
+
+func holds(bool ok, ...args) bool {
+	return true if ok;
+
+	say(args...);
+	where();
+	return false;
+}
+
+func sameKind(Error e, int kind) bool {
+	if e == null {
+		warn("expected an error of kind {}, got no error\n", kind);
+		where();
+		return false;
+	}
+	return true if e.code == kind;
+
+	warn("expected an error of kind {}, got {}\n", kind, e.code);
+	where();
+	return false;
+}
+
+func close(float want, float got, float tolerance) bool {
+	float diff = want > got ? want - got : got - want;
+	return true if diff <= tolerance;
+
+	warn("expected {}, got {}: the difference {} is more than {}\n", want, got, diff, tolerance);
+	where();
+	return false;
+}
+
+func firstDifference(string a, string b) int {
+	int n = math.min(len(a), len(b));
+	for i in 0..n-1 {
+		return i if a[i] != b[i];
+	}
+	return n;
+}
+
+func sameText(string want, string got) bool {
+	return true if want == got;
+
+	warn("strings differ at byte {}\n  want: \"{}\"\n   got: \"{}\"\n", firstDifference(want, got), want, got);
+	where();
+	return false;
+}
+
+public func expect(bool ok, ...args) ! {
+	return Error(Kind.Failed, "expectation failed") if !holds(ok, args...);
+}
+
+public func fail(...args) ! {
+	say(args...);
+	where();
+	return Error(Kind.Failed, "test failed");
+}
+
+public func expectKind(Error e, int kind) ! {
+	return Error(Kind.Failed, "wrong kind of error") if !sameKind(e, kind);
+}
+
+public func expectApprox(float want, float got, float tolerance) ! {
+	return Error(Kind.Failed, "values are not close") if !close(want, got, tolerance);
+}
+
+public func expectEqualStrings(string want, string got) ! {
+	return Error(Kind.Failed, "strings differ") if !sameText(want, got);
+}
+
+public func skip(...args) {
+	say(args...);
+	os.exit(SKIP_CODE);
+}
+
+public func allocator() mem.Allocator {
+	if !tracking {
+		tracker.parent = store.allocator();
+		tracking = true;
+	}
+	return tracker.allocator();
+}
+
+public func finish() ! {
+	return if !tracking;
+
+	tracker.check();
+	int leaked = tracker.blocks();
+	if leaked > 0 {
+		tracker.report();
+	}
+	tracker.release();
+	store.release();
+	return if leaked == 0;
+
+	return Error(Kind.Leaked, "memory leaked");
+}

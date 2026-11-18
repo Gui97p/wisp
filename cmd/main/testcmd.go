@@ -81,7 +81,7 @@ func generateTestMain(tests []module.TestFunc) string {
 	}
 
 	var b strings.Builder
-	b.WriteString("import \"std/os\";\nimport \"std/fmt\";\n")
+	b.WriteString("import \"std/os\";\nimport \"std/fmt\";\nimport \"std/testing\";\n")
 	for _, path := range order {
 		fmt.Fprintf(&b, "import %q as %s;\n", path, aliases[path])
 	}
@@ -94,7 +94,7 @@ func generateTestMain(tests []module.TestFunc) string {
 		if test.Fallible {
 			bang = "!"
 		}
-		fmt.Fprintf(&b, "    case %q:\n      %s.%s()%s;\n", test.ID(), aliases[test.Module], test.Name, bang)
+		fmt.Fprintf(&b, "    case %q:\n      %s.%s()%s;\n      testing.finish()!;\n", test.ID(), aliases[test.Module], test.Name, bang)
 	}
 	b.WriteString("    default:\n      fmt.fprint(2, \"there is no test \");\n      fmt.fprintln(2, args[1]);\n      os.exit(64);\n  }\n}\n")
 	return b.String()
@@ -178,12 +178,16 @@ func sortTests(tests []module.TestFunc) {
 	})
 }
 
+const skipExitCode = 77
+
 type testOutcome struct {
-	test   module.TestFunc
-	passed bool
-	reason string
-	output string
-	took   time.Duration
+	test    module.TestFunc
+	passed  bool
+	skipped bool
+	note    string
+	reason  string
+	output  string
+	took    time.Duration
 }
 
 func runOneTest(bin string, env []module.EnvVar, test module.TestFunc) testOutcome {
@@ -202,25 +206,48 @@ func runOneTest(bin string, env []module.EnvVar, test module.TestFunc) testOutco
 
 	start := time.Now()
 	err := cmd.Run()
-	outcome := testOutcome{test: test, output: out.String(), took: time.Since(start), passed: err == nil}
-	if err == nil {
-		return outcome
+	outcome := testOutcome{test: test, output: out.String(), took: time.Since(start)}
+
+	timedOut := ctx.Err() == context.DeadlineExceeded
+	code, signal := 0, ""
+	if err != nil {
+		var exitErr *exec.ExitError
+		switch {
+		case timedOut:
+		case errors.As(err, &exitErr):
+			code = exitErr.ExitCode()
+			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() {
+				signal = status.Signal().String()
+			}
+		default:
+			outcome.reason = err.Error()
+			return outcome
+		}
 	}
 
 	switch {
-	case ctx.Err() == context.DeadlineExceeded:
+	case timedOut:
 		outcome.reason = fmt.Sprintf("timed out after %s", testTimeout)
-	default:
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok && status.Signaled() {
-				outcome.reason = "crashed with " + status.Signal().String()
-			} else {
-				outcome.reason = fmt.Sprintf("exit status %d", exitErr.ExitCode())
-			}
-		} else {
-			outcome.reason = err.Error()
+	case test.ExpectAbort:
+		aborted := err != nil && code != skipExitCode
+		switch {
+		case !aborted:
+			outcome.reason = "was expected to stop the program, and returned"
+		case test.AbortText != "" && !strings.Contains(outcome.output, test.AbortText):
+			outcome.reason = fmt.Sprintf("stopped the program, but what it printed lacks %q", test.AbortText)
+		default:
+			outcome.passed = true
+			outcome.note = "stopped the program, as expected"
 		}
+	case err == nil:
+		outcome.passed = true
+	case code == skipExitCode && signal == "":
+		outcome.skipped = true
+		outcome.passed = true
+	case signal != "":
+		outcome.reason = "crashed with " + signal
+	default:
+		outcome.reason = fmt.Sprintf("exit status %d", code)
 	}
 	return outcome
 }
@@ -313,24 +340,31 @@ func runTests(cmd *cobra.Command, args []string) error {
 		}()
 	}
 
-	passed, failed := 0, 0
+	passed, failed, skipped := 0, 0, 0
 	var failures []testOutcome
 	for i := range tests {
 		o := <-done[i]
 		label := "ok  "
-		if !o.passed {
+		switch {
+		case o.skipped:
+			label = "skip"
+			skipped++
+		case !o.passed:
 			label = "FAIL"
 			failed++
 			failures = append(failures, o)
-		} else {
+		default:
 			passed++
 		}
 		line := fmt.Sprintf("%s  %s  (%s, %s)", label, testName(o.test), testPlace(o.test), shortDuration(o.took))
-		if !o.passed {
+		switch {
+		case !o.passed:
 			line += ": " + o.reason
+		case o.note != "":
+			line += ": " + o.note
 		}
 		fmt.Println(line)
-		if !o.passed || testShowOutput {
+		if !o.passed || o.skipped || testShowOutput {
 			fmt.Print(indent(o.output, "      "))
 		}
 	}
@@ -343,7 +377,11 @@ func runTests(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Println()
 	}
-	summary := fmt.Sprintf("%d passed, %d failed in %s", passed, failed, elapsed(start))
+	summary := fmt.Sprintf("%d passed, %d failed", passed, failed)
+	if skipped > 0 {
+		summary += fmt.Sprintf(", %d skipped", skipped)
+	}
+	summary += " in " + elapsed(start)
 	if failed > 0 {
 		fmt.Println("Test result: FAILED. " + summary)
 		os.Exit(1)

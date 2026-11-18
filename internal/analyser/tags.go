@@ -45,6 +45,12 @@ var Tags = []TagSpec{
 		Args:    1,
 	},
 	{
+		Name: "expect_abort", Usage: "#expect_abort(\"text\")",
+		Doc:     "A test that must stop the program, as a panic or a failed bounds check does, instead of returning. It passes when the program stops and what it printed contains the text, and fails when it returns. Without a text any stop passes. It goes with #test, on the same function.",
+		Targets: []string{"function"},
+		Args:    1,
+	},
+	{
 		Name: "noreturn", Usage: "#noreturn",
 		Doc:     "A function that never returns, such as one that ends the program. Its body must not return, and the code after a call to it is unreachable.",
 		Targets: []string{"function", "method", "native function"},
@@ -168,6 +174,15 @@ func contains(list []string, item string) bool {
 
 func (a *Analyser) checkTagArgs(spec TagSpec, tag *ast.Tag, decl ast.Declaration) {
 	switch spec.Name {
+	case "expect_abort":
+		if fd, ok := decl.(*ast.FuncDecl); ok && fd.TagNamed("test") == nil {
+			a.errorRange(tag.At, "#expect_abort belongs to a test: mark %s with #test too", fd.Name)
+		}
+		if len(tag.Args) == 1 {
+			if _, isText := tag.Args[0].(*ast.StringLiteral); !isText {
+				a.errorf(tag.Args[0], "the text of #expect_abort is a text between quotes")
+			}
+		}
 	case "test":
 		if len(tag.Args) == 1 {
 			if text, isText := tag.Args[0].(*ast.StringLiteral); !isText {
