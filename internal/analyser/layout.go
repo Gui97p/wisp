@@ -60,6 +60,9 @@ func LayoutOf(st *StructType) *StructLayout {
 		tp := st.Fields[name]
 		align := AlignOf(tp)
 		size := SizeOf(tp)
+		if st.Packed {
+			align = 1
+		}
 		pos = alignUp(pos, align)
 		l.Fields[name] = FieldLayout{Offset: pos, Size: size, Type: tp}
 		pos += size

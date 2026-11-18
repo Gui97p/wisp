@@ -1,17 +1,20 @@
 import "std/math/constants";
 
+#must_use
 public func checkedAdd(int a, b) ?int {
 	int r = a +% b;
 	return null if ((a ^ r) & (b ^ r)) < 0;
 	return r;
 }
 
+#must_use
 public func checkedSub(int a, b) ?int {
 	int r = a -% b;
 	return null if ((a ^ b) & (a ^ r)) < 0;
 	return r;
 }
 
+#must_use
 public func checkedMul(int a, b) ?int {
 	return 0 if a == 0 || b == 0;
 	return null if (a == -1 && b == constants.MIN_INT) || (b == -1 && a == constants.MIN_INT);
@@ -20,22 +23,26 @@ public func checkedMul(int a, b) ?int {
 	return r;
 }
 
+#must_use
 public inline func checkedAbs(int x) ?int {
 	return null if x == constants.MIN_INT;
 	return x < 0 ? -x : x;
 }
 
+#must_use
 public func checkedAddUnsigned(uint a, b) ?uint {
 	uint r = a +% b;
 	return null if r < a;
 	return r;
 }
 
+#must_use
 public func checkedSubUnsigned(uint a, b) ?uint {
 	return null if b > a;
 	return a -% b;
 }
 
+#must_use
 public func checkedMulUnsigned(uint a, b) ?uint {
 	return 0 if a == 0 || b == 0;
 	uint r = a *% b;

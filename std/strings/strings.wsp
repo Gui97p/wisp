@@ -2,9 +2,11 @@ import "std/strings/search";
 
 const spaceCharset = " \t\n\r\v\f";
 
+#must_use
 public func trim(string s, charset) string {
     return trimLeft(trimRight(s, charset), charset);
 }
+#must_use
 public func trimLeft(string s, charset) string {
     if s == "" {
         return "";
@@ -16,6 +18,7 @@ public func trimLeft(string s, charset) string {
 
     return s;
 }
+#must_use
 public func trimRight(string s, charset) string {
     if s == "" {
         return "";
@@ -27,12 +30,14 @@ public func trimRight(string s, charset) string {
 
     return s;
 }
+#must_use
 public func trimSpace(string s) string {
 	if s == "" {
 		return "";
 	}
 	return trim(s, spaceCharset);
 }
+#must_use
 public func trimPrefix(string s, prefix) string {
     if !search.startsWith(s, prefix) {
         return s;
@@ -40,6 +45,7 @@ public func trimPrefix(string s, prefix) string {
 
     return s[len(prefix):];
 }
+#must_use
 public func trimSuffix(string s, suffix) string {
     if !search.endsWith(s, suffix) {
         return s;
@@ -48,6 +54,7 @@ public func trimSuffix(string s, suffix) string {
     return s[:len(s)-len(suffix)];
 }
 
+#must_use
 public func cut(string s, sep) (string, string, bool) {
 	if search.indexOf(s, sep) |idx| {
 		return s[:idx], s[idx+len(sep):], true;

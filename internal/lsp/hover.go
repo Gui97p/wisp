@@ -73,6 +73,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		return h
 	}
 
+	if h := tagHover(path, pos); h != nil {
+		return h
+	}
+
 	program, info := analyseEntry(path)
 	if program == nil || info == nil {
 		return nil

@@ -176,3 +176,31 @@ func (p *Param) Tree(indent string) string {
 
 	return b.String()
 }
+
+type Tag struct {
+	Name string
+	Args []Expression
+	At   Position
+}
+
+type Tagged struct {
+	Tags []Tag
+}
+
+func (t *Tagged) SetTags(tags []Tag) {
+	t.Tags = tags
+}
+
+func (t *Tagged) TagNamed(name string) *Tag {
+	for i := range t.Tags {
+		if t.Tags[i].Name == name {
+			return &t.Tags[i]
+		}
+	}
+	return nil
+}
+
+type Tags interface {
+	SetTags([]Tag)
+	TagNamed(name string) *Tag
+}

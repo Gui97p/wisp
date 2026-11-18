@@ -1,0 +1,87 @@
+// Tour - Tags: `#name` and `#name(arguments)` before a declaration.
+//
+// A tag says something about the declaration that follows it, and does not
+// change its syntax. Tags go on their own lines (or on one line) above the
+// declaration, and the compiler knows a short list of them: a name it does not
+// know is an error that lists the ones it does, and so is a tag on a
+// declaration it does not apply to. `#target` is not a tag: it is a directive
+// for the whole file, and stays at the top.
+//
+//     #naked          a native function with no frame (see the native page)
+//     #packed         a struct with no padding
+//     #deprecated     every use gets a warning, `#deprecated("use fresh")`
+//     #noreturn       a function that never returns
+//     #must_use       a function whose result a caller should not throw away
+
+import "std/fmt";
+
+// `#packed` puts the fields one after the other, with alignment 1. The layout
+// is the one a file format or a protocol asks for, at the price of fields that
+// are not aligned in memory.
+#packed
+struct Wire {
+  uint8 kind;
+  int value;
+  uint16 flags;
+}
+
+struct Padded {
+  uint8 kind;
+  int value;
+  uint16 flags;
+}
+
+// `#naked` leaves everything to the block: no frame, no copy of the
+// parameters. They arrive in the registers of the calling convention (`rdi`,
+// `rsi`, `rdx`, ... and `xmm0`..), a result is left in `rax` or `xmm0`, and
+// the block ends in `ret` or `jmp`. The results are written as types only,
+// because nothing here is a variable.
+#naked
+native<x64> triple(int x) int {
+	lea rax, [rdi + rdi * 2];
+	ret;
+}
+
+// `#noreturn` promises that the function does not come back, and the compiler
+// checks it: the body cannot `return`, and has to end in `panic`, in another
+// `#noreturn` call, or in a loop with no end. In exchange, the code after a
+// call is unreachable, and a function that ends with one needs no `return`.
+#noreturn
+func fail(string why) {
+  panic(why);
+}
+
+func positive(int n) int {
+  if n > 0 {
+    return n;
+  }
+  fail("not a positive number");
+}
+
+// `#deprecated` is for what is going away. A call to `oldTriple` prints a
+// warning with the message, and the program still works.
+#deprecated("use triple")
+public func oldTriple(int x) int {
+  return x * 3;
+}
+
+// `#must_use` is for a function that does nothing but give a result. A call
+// that throws the result away, such as `bigger(1, 2);` alone on a line, gets a
+// warning with the message. The result of such a call is used when it is
+// kept, even in a variable that starts with an underscore, which says that
+// ignoring it is on purpose.
+#must_use("the result is returned, nothing is stored in the arguments")
+func bigger(int a, int b) int {
+  return a > b ? a : b;
+}
+
+public func demo() {
+  fmt.printf("Wire is {} bytes and Padded is {}\n", sizeof(Wire), sizeof(Padded));
+  fmt.printf("the value of Wire starts at {} and its flags at {}\n", offsetof(Wire, value), offsetof(Wire, flags));
+  Wire w = Wire{kind: 1, value: 1000, flags: 7};
+  fmt.printf("a Wire still reads back: {} {} {}\n", w.kind, w.value, w.flags);
+  fmt.printf("triple(14) = {}\n", triple(14));
+  fmt.printf("positive(3) = {}\n", positive(3));
+  int _ignored = bigger(3, 9);
+  fmt.printf("bigger(3, 9) = {}\n", bigger(3, 9));
+}

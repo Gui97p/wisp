@@ -229,7 +229,8 @@ func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
 
 		if strings.EqualFold(instr.Mnemonic, "extern") {
 			for _, op := range instr.Operands {
-				line.WriteString(" " + op.Path[0])
+				line.WriteString(" ")
+				line.WriteString(op.Path[0])
 			}
 			t.text.printlnt(line.String() + t.nativeMark(instr.At))
 			continue

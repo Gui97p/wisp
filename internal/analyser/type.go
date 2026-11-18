@@ -272,6 +272,7 @@ type StructType struct {
 	Sum       *SumInfo
 	layout    *StructLayout
 	complete  bool
+	Packed    bool
 }
 
 type SumVariant struct {

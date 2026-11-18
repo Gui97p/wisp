@@ -327,7 +327,7 @@
                 },
                 {
                     "name": "keyword.control.directive.wisp",
-                    "match": "^\\s*#[A-Za-z_][A-Za-z0-9_]*"
+                    "match": "(?<![\\w\\\"'])#[A-Za-z_][A-Za-z0-9_]*"
                 },
                 {
                     "name": "keyword.control.import.wisp",

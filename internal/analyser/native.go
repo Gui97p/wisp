@@ -261,6 +261,10 @@ func (b *nativeBlock) variable(sym *Symbol, rest []string, at ast.Position, inMe
 	if len(rest) > 0 {
 		full += "." + strings.Join(rest, ".")
 	}
+	if reg, naked := a.nakedParams[sym.Name]; naked && sym.Kind == PARAM {
+		a.errorRange(at, "%s is a parameter of a naked function, so it is not a variable: it arrives in %s", sym.Name, reg)
+		return NativeRef{Kind: RefNumber, Text: "0"}
+	}
 	if inMemory {
 		a.errorRange(at, "the variable %s cannot be used inside [ ]: load it into a register first, as in mov rax, %s", full, full)
 	}

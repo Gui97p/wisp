@@ -28,6 +28,7 @@ func (a *Analyser) registerStructNames() {
 			Module:    a.module,
 			Dir:       filepath.Dir(a.currentFile),
 			Exported:  sd.Exported,
+			Packed:    sd.TagNamed("packed") != nil,
 		}
 
 		line, col := sd.Position()
@@ -113,6 +114,9 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 		}
 	}
 	symbol, ok := a.lookupType(a.scope, expr.Module, expr.Name)
+	if ok {
+		a.noteUse(expr, symbol)
+	}
 	if !ok {
 		d := a.errorf(expr, "unknown type %s", qualified(expr.Module, expr.Name))
 		if expr.Module == "" {

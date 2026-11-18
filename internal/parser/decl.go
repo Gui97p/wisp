@@ -7,13 +7,80 @@ import (
 	"github.com/Gui97p/wisp/internal/lexer"
 )
 
+func (p *Parser) parseTags() ([]ast.Tag, bool) {
+	var tags []ast.Tag
+	for p.current.Type == lexer.TOKEN_HASH {
+		line := p.current.Line
+		hash := p.currentPosition()
+		if p.peek.Type != lexer.TOKEN_IDENT || p.peek.Line != line {
+			p.errorAt(hash, "expected a tag name after #, such as #naked")
+			p.skipLine(line)
+			p.advance()
+			return nil, false
+		}
+		p.advance()
+		tag := ast.Tag{Name: p.current.Literal, At: hash}
+		tag.At.EndLine, tag.At.EndCol = p.currentEnd()
+		if tag.Name == "naked" {
+			p.nakedTag = true
+		}
+
+		if p.peek.Type == lexer.TOKEN_LPAREN && p.peek.Line == line {
+			p.advance()
+			if p.peek.Type != lexer.TOKEN_RPAREN {
+				for {
+					p.advance()
+					arg := p.parseExpression()
+					if arg == nil {
+						return nil, false
+					}
+					tag.Args = append(tag.Args, arg)
+					if p.peek.Type == lexer.TOKEN_COMMA {
+						p.advance()
+						continue
+					}
+					break
+				}
+			}
+			if !p.expect(lexer.TOKEN_RPAREN) {
+				return nil, false
+			}
+			tag.At.EndLine, tag.At.EndCol = p.currentEnd()
+		}
+		tags = append(tags, tag)
+		p.advance()
+	}
+	return tags, true
+}
+
 func (p *Parser) parseDeclaration() []ast.Declaration {
+	doc := p.docBefore(p.current.Line)
+
+	tags, ok := p.parseTags()
+	if !ok {
+		p.nakedTag = false
+		return nil
+	}
 	line, col := p.current.Line, p.current.Column
-	doc := p.docBefore(line)
+	if len(tags) > 0 && p.current.Type == lexer.TOKEN_EOF {
+		p.errorAt(tags[len(tags)-1].At, "a tag needs a declaration after it")
+		return nil
+	}
 
 	decls := p.parseDeclarationInner()
+	p.nakedTag = false
 	if decls == nil {
 		return nil
+	}
+	if len(tags) > 0 {
+		for _, decl := range decls {
+			tagged, can := decl.(ast.Tags)
+			if !can {
+				p.errorAt(tags[0].At, "this declaration cannot take tags")
+				return nil
+			}
+			tagged.SetTags(tags)
+		}
 	}
 	setDoc(decls[0], doc)
 	for _, decl := range decls {

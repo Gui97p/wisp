@@ -165,7 +165,7 @@ func (a *Analyser) expandInline(expr *ast.CallExpr, ft *FuncType) {
 	}
 
 	a.checkBlock(body)
-	if len(ft.Returns) > 0 && !blockTerminates(body) {
+	if len(ft.Returns) > 0 && !a.blockTerminates(body) {
 		a.errorAtEnd(expr, "the inline function %s can end without returning", decl.Name)
 	}
 	a.exitScope()

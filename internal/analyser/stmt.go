@@ -22,9 +22,13 @@ func (a *Analyser) checkStatements(stmts []ast.Statement) {
 			warned = true
 		}
 		a.checkStmt(stmt)
-		switch stmt.(type) {
+		switch s := stmt.(type) {
 		case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt, *ast.YieldStmt:
 			terminated = true
+		case *ast.ExpressionStmt:
+			if a.callNeverReturns(s.Expr) {
+				terminated = true
+			}
 		}
 	}
 }
@@ -43,6 +47,7 @@ func (a *Analyser) checkStmt(stmt ast.Statement) {
 		default:
 			a.checkExpr(s.Expr)
 		}
+		a.warnMustUse(s)
 	case *ast.ReturnStmt:
 		a.checkReturnStmt(s)
 	case *ast.YieldStmt:
@@ -480,30 +485,32 @@ func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
 	a.errorf(node, "unknown label: %s", label)
 }
 
-func stmtTerminates(stmt ast.Statement) bool {
+func (a *Analyser) stmtTerminates(stmt ast.Statement) bool {
 	switch s := stmt.(type) {
 	case *ast.ReturnStmt:
 		return true
+	case *ast.ExpressionStmt:
+		return a.callNeverReturns(s.Expr)
 	case *ast.IfStmt:
 		if s.Else == nil {
 			return false
 		}
-		return blockTerminates(s.Then) && stmtTerminates(s.Else)
+		return a.blockTerminates(s.Then) && a.stmtTerminates(s.Else)
 	case *ast.LoopStmt:
 		return s.Condition == nil && s.UntilCondition == nil
 	case *ast.BlockStmt:
-		return blockTerminates(s)
+		return a.blockTerminates(s)
 	default:
 		return false
 	}
 }
 
-func blockTerminates(block *ast.BlockStmt) bool {
+func (a *Analyser) blockTerminates(block *ast.BlockStmt) bool {
 	if len(block.Statements) == 0 {
 		return false
 	}
 	last := block.Statements[len(block.Statements)-1]
-	return stmtTerminates(last)
+	return a.stmtTerminates(last)
 }
 
 func (a *Analyser) importedConst(expr ast.Expression) (string, bool) {

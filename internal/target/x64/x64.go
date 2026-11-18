@@ -257,22 +257,26 @@ func mapAssemblerErrors(asmSource, asmPath, stderr string) (*AssembleError, stri
 	for _, text := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
 		m := nasmLine.FindStringSubmatch(text)
 		if m == nil || m[1] != asmPath || m[3] != "error" {
-			rest.WriteString(text + "\n")
+			rest.WriteString(text)
+			rest.WriteString("\n")
 			continue
 		}
 		n, _ := strconv.Atoi(m[2])
 		if n < 1 || n > len(lines) {
-			rest.WriteString(text + "\n")
+			rest.WriteString(text)
+			rest.WriteString("\n")
 			continue
 		}
 		at := strings.LastIndex(lines[n-1], nativeMarker)
 		if at < 0 {
-			rest.WriteString(text + "\n")
+			rest.WriteString(text)
+			rest.WriteString("\n")
 			continue
 		}
 		fields := strings.SplitN(lines[n-1][at+len(nativeMarker):], ":", 5)
 		if len(fields) != 5 {
-			rest.WriteString(text + "\n")
+			rest.WriteString(text)
+			rest.WriteString("\n")
 			continue
 		}
 		line, _ := strconv.Atoi(fields[0])

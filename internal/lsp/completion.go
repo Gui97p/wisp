@@ -11,7 +11,6 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
-	"github.com/Gui97p/wisp/internal/parser"
 	"github.com/Gui97p/wisp/internal/target"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
@@ -117,14 +116,7 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 	if line := lastLine(textBefore(path, int(pos.Line), int(pos.Character))); directiveTyping.MatchString(line) {
 		start := uint32(utf16Len(line[:strings.Index(line, "#")+1]))
 		rng := protocol.Range{Start: protocol.Position{Line: pos.Line, Character: start}, End: pos}
-		kind := protocol.CompletionItemKindKeyword
-		items := []protocol.CompletionItem{}
-		for _, d := range parser.Directives {
-			detail := "directive"
-			doc := protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: d.Doc}
-			items = append(items, protocol.CompletionItem{Label: d.Name, Kind: &kind, Detail: &detail, Documentation: doc, TextEdit: protocol.TextEdit{Range: rng, NewText: d.Name + " "}})
-		}
-		return items
+		return tagItems(path, pos, rng)
 	}
 	if selectorTyping.MatchString(lastLine(textBefore(path, int(pos.Line), int(pos.Character)))) {
 		items := []protocol.CompletionItem{}

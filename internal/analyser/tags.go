@@ -1,0 +1,401 @@
+package analyser
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/Gui97p/wisp/internal/ast"
+)
+
+type TagSpec struct {
+	Name    string
+	Usage   string
+	Doc     string
+	Targets []string
+	Args    int
+}
+
+var Tags = []TagSpec{
+	{
+		Name: "naked", Usage: "#naked",
+		Doc:     "A native function with no frame: the compiler emits the block and nothing else. The parameters stay in the registers of the calling convention (rdi, rsi, rdx, rcx, r8, r9, and xmm0 to xmm7 for floats), the results are written as types only, and the block ends in `ret` or `jmp`.",
+		Targets: []string{"native function"},
+	},
+	{
+		Name: "packed", Usage: "#packed",
+		Doc:     "A struct without padding: the fields follow each other and the alignment is 1.",
+		Targets: []string{"struct"},
+	},
+	{
+		Name: "deprecated", Usage: "#deprecated(\"message\")",
+		Doc:     "Every use of the declaration gets a warning with the message. The message is optional.",
+		Targets: []string{"function", "native function", "struct", "enum", "enum with data", "type", "constant", "variable"},
+		Args:    1,
+	},
+	{
+		Name: "must_use", Usage: "#must_use(\"message\")",
+		Doc:     "A function whose result matters, so a call that throws the result away gets a warning, with the message if there is one. It is for functions that do nothing but compute their result; to ignore a result on purpose, keep it in a variable whose name starts with an underscore.",
+		Targets: []string{"function", "method", "native function"},
+		Args:    1,
+	},
+	{
+		Name: "noreturn", Usage: "#noreturn",
+		Doc:     "A function that never returns, such as one that ends the program. Its body must not return, and the code after a call to it is unreachable.",
+		Targets: []string{"function", "method", "native function"},
+	},
+}
+
+func tagSpecOf(name string) (TagSpec, bool) {
+	for _, spec := range Tags {
+		if spec.Name == name {
+			return spec, true
+		}
+	}
+	return TagSpec{}, false
+}
+
+func tagNames() string {
+	names := make([]string, len(Tags))
+	for i, spec := range Tags {
+		names[i] = "#" + spec.Name
+	}
+	return strings.Join(names, ", ")
+}
+
+func declTarget(decl ast.Declaration) string {
+	switch d := decl.(type) {
+	case *ast.FuncDecl:
+		switch {
+		case d.Extern:
+			return "extern function"
+		case d.Native:
+			return "native function"
+		case d.Receiver != nil:
+			return "method"
+		}
+		return "function"
+	case *ast.StructDecl:
+		return "struct"
+	case *ast.TypeDecl:
+		switch {
+		case d.Data:
+			return "enum with data"
+		case d.IsEnum:
+			return "enum"
+		}
+		return "type"
+	case *ast.ConstDecl:
+		return "constant"
+	case *ast.VarDecl:
+		return "variable"
+	}
+	return ""
+}
+
+func (a *Analyser) checkTags() {
+	for _, d := range a.program.Declarations {
+		if _, ok := d.(ast.Tags); !ok {
+			continue
+		}
+		a.currentFile = a.declFiles[d]
+		target := declTarget(d)
+		seen := map[string]bool{}
+
+		var tags []ast.Tag
+		switch decl := d.(type) {
+		case *ast.FuncDecl:
+			tags = decl.Tags
+		case *ast.StructDecl:
+			tags = decl.Tags
+		case *ast.TypeDecl:
+			tags = decl.Tags
+		case *ast.ConstDecl:
+			tags = decl.Tags
+		case *ast.VarDecl:
+			tags = decl.Tags
+		}
+
+		for i := range tags {
+			tag := &tags[i]
+			spec, known := tagSpecOf(tag.Name)
+			if !known {
+				diag := a.errorRange(tag.At, "unknown tag #%s", tag.Name)
+				if tag.Name == "target" {
+					diag.WithHelp("#target is a directive: it goes at the top of the file")
+				} else {
+					diag.WithHelp("the known tags are %s", tagNames())
+				}
+				continue
+			}
+			if seen[tag.Name] {
+				a.errorRange(tag.At, "#%s is given twice", tag.Name)
+				continue
+			}
+			seen[tag.Name] = true
+
+			if !contains(spec.Targets, target) {
+				a.errorRange(tag.At, "#%s does not apply to a %s", tag.Name, target).
+					WithHelp("it applies to: %s", strings.Join(spec.Targets, ", "))
+				continue
+			}
+			if len(tag.Args) > spec.Args {
+				if spec.Args == 0 {
+					a.errorRange(tag.At, "#%s takes no arguments", tag.Name)
+				} else {
+					a.errorRange(tag.At, "#%s takes at most %d argument", tag.Name, spec.Args)
+				}
+				continue
+			}
+			a.checkTagArgs(spec, tag, d)
+		}
+	}
+}
+
+func contains(list []string, item string) bool {
+	for _, v := range list {
+		if v == item {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *Analyser) checkTagArgs(spec TagSpec, tag *ast.Tag, decl ast.Declaration) {
+	switch spec.Name {
+	case "deprecated", "must_use":
+		if len(tag.Args) == 1 {
+			if _, isText := tag.Args[0].(*ast.StringLiteral); !isText {
+				a.errorf(tag.Args[0], "the message of #%s is a text between quotes", spec.Name)
+			}
+		}
+		if fd, ok := decl.(*ast.FuncDecl); ok && spec.Name == "must_use" && len(fd.ReturnTypes) == 0 {
+			a.errorRange(tag.At, "#must_use is for a function that gives a result, and %s gives none", fd.Name)
+		}
+	}
+}
+
+func (a *Analyser) applyTagSymbols() {
+	for _, d := range a.program.Declarations {
+		var tags []ast.Tag
+		var names []string
+		switch decl := d.(type) {
+		case *ast.FuncDecl:
+			if decl.Receiver != nil {
+				continue
+			}
+			tags, names = decl.Tags, []string{decl.Name}
+		case *ast.StructDecl:
+			tags, names = decl.Tags, []string{decl.Name}
+		case *ast.TypeDecl:
+			tags, names = decl.Tags, []string{decl.Name}
+		case *ast.ConstDecl:
+			tags = decl.Tags
+			for _, v := range decl.Vars {
+				names = append(names, v.Name)
+			}
+		case *ast.VarDecl:
+			tags = decl.Tags
+			for _, v := range decl.Vars {
+				names = append(names, v.Name)
+			}
+		default:
+			continue
+		}
+		for i := range tags {
+			tag := &tags[i]
+			for _, name := range names {
+				sym, found := a.scope.symbols[name]
+				if !found {
+					continue
+				}
+				switch tag.Name {
+				case "deprecated":
+					message := ""
+					if len(tag.Args) == 1 {
+						if text, ok := tag.Args[0].(*ast.StringLiteral); ok {
+							message = text.Value
+						}
+					}
+					sym.Deprecated = &message
+				}
+			}
+		}
+	}
+}
+
+func (a *Analyser) deprecationWarning(sym *Symbol) (string, bool) {
+	if sym == nil || sym.Deprecated == nil {
+		return "", false
+	}
+	if *sym.Deprecated == "" {
+		return fmt.Sprintf("%s is deprecated", sym.Name), true
+	}
+	return fmt.Sprintf("%s is deprecated: %s", sym.Name, *sym.Deprecated), true
+}
+
+func (a *Analyser) noteUse(node ast.Node, sym *Symbol) {
+	if message, ok := a.deprecationWarning(sym); ok {
+		a.warnf(node, "%s", message)
+	}
+}
+
+func (a *Analyser) noteUseRef(ref ast.TypeRef, sym *Symbol) {
+	if message, ok := a.deprecationWarning(sym); ok && ref.Line > 0 {
+		a.errors.Warn(a.currentFile, ref.Line, ref.Col, ref.EndLine, ref.EndCol, "%s", message)
+	}
+}
+
+func (a *Analyser) calleeFunc(call *ast.CallExpr) *FuncType {
+	if mc, ok := a.info.MethodCalls[call]; ok && mc.Func != nil {
+		return mc.Func
+	}
+	var sym *Symbol
+	switch name := call.Name.(type) {
+	case *ast.IdentLiteral:
+		sym = a.info.Idents[name]
+		if sym == nil {
+			sym, _ = a.scope.Resolve(name.Value)
+		}
+	case *ast.MemberExpr:
+		if module, ok := name.Object.(*ast.IdentLiteral); ok {
+			if owner, found := a.scope.Resolve(module.Value); found {
+				if mt, isModule := owner.Type.(*ModuleType); isModule {
+					sym = mt.Exports[name.Field]
+				}
+			}
+		}
+	}
+	if sym == nil {
+		return nil
+	}
+	ft, _ := sym.Type.(*FuncType)
+	return ft
+}
+
+func (a *Analyser) calleeNoReturn(call *ast.CallExpr) bool {
+	ft := a.calleeFunc(call)
+	return ft != nil && ft.Decl != nil && ft.Decl.TagNamed("noreturn") != nil
+}
+
+func (a *Analyser) discardedCall(expr ast.Expression) *ast.CallExpr {
+	for {
+		switch e := expr.(type) {
+		case *ast.CallExpr:
+			return e
+		case *ast.PropagateExpr:
+			expr = e.Value
+		case *ast.CoalesceExpr:
+			expr = e.Left
+		default:
+			return nil
+		}
+	}
+}
+
+func (a *Analyser) warnMustUse(stmt *ast.ExpressionStmt) {
+	call := a.discardedCall(stmt.Expr)
+	if call == nil {
+		return
+	}
+	ft := a.calleeFunc(call)
+	if ft == nil || ft.Decl == nil {
+		return
+	}
+	tag := ft.Decl.TagNamed("must_use")
+	if tag == nil {
+		return
+	}
+	name := ft.Name
+	if path, ok := fieldPath(call.Name); ok {
+		name = joinPath(path)
+	}
+	d := a.warnf(call, "the result of %s is not used", name)
+	if len(tag.Args) == 1 {
+		if text, ok := tag.Args[0].(*ast.StringLiteral); ok && text.Value != "" {
+			d.Note(a.currentFile, tag.At.Line, tag.At.Col, tag.At.EndLine, tag.At.EndCol, "%s", text.Value)
+		}
+	}
+	d.WithHelp("use it, or keep it in a variable whose name starts with an underscore")
+}
+
+func (a *Analyser) callNeverReturns(expr ast.Expression) bool {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	return a.isPanicCall(expr) || a.calleeNoReturn(call)
+}
+
+func nakedRegisters(ft *FuncType, fd *ast.FuncDecl) map[string]string {
+	ints := []string{"rdi", "rsi", "rdx", "rcx", "r8", "r9"}
+	floats := []string{"xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"}
+	out := map[string]string{}
+	for i, p := range fd.Params {
+		if i >= len(ft.Params) {
+			break
+		}
+		var regs []string
+		take := func(pool *[]string) string {
+			if len(*pool) == 0 {
+				return "the stack"
+			}
+			r := (*pool)[0]
+			*pool = (*pool)[1:]
+			return r
+		}
+		switch t := underlying(ft.Params[i]).(type) {
+		case PrimitiveType:
+			switch {
+			case isFloatName(t.Name):
+				regs = append(regs, take(&floats))
+			case t.Name == "string":
+				regs = append(regs, take(&ints), take(&ints))
+			default:
+				regs = append(regs, take(&ints))
+			}
+		case SpanType:
+			regs = append(regs, take(&ints), take(&ints))
+		default:
+			regs = append(regs, take(&ints))
+		}
+		out[p.Name] = strings.Join(regs, " and ")
+	}
+	return out
+}
+
+func (a *Analyser) checkNaked(fd *ast.FuncDecl) {
+	var native *ast.NativeStmt
+	for _, stmt := range fd.Body.Statements {
+		if n, ok := stmt.(*ast.NativeStmt); ok {
+			native = n
+		}
+	}
+	if native == nil || len(native.Instrs) == 0 {
+		return
+	}
+	last := native.Instrs[len(native.Instrs)-1]
+	mnemonic := strings.ToLower(last.Mnemonic)
+	if mnemonic != "ret" && mnemonic != "jmp" {
+		a.errorRange(native.BodyAt, "a naked function must end with ret or jmp: nothing else returns for it")
+	}
+}
+
+func (a *Analyser) checkNoReturn(fd *ast.FuncDecl) {
+	returned := false
+	ast.Inspect(fd.Body, func(n ast.Node) bool {
+		switch v := n.(type) {
+		case *ast.FuncLiteral:
+			return false
+		case *ast.ReturnStmt:
+			if !returned {
+				a.errorf(v, "a #noreturn function cannot return")
+				returned = true
+			}
+		}
+		return true
+	})
+	if !returned && !a.blockTerminates(fd.Body) {
+		a.errorAtEnd(fd.Body, "the function %s is #noreturn but it can end", fd.Name).
+			WithHelp("end it with panic, a call to another #noreturn function, or a loop with no end")
+	}
+}

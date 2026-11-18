@@ -55,6 +55,8 @@ type Symbol struct {
 
 	MustUse bool
 	Used    bool
+
+	Deprecated *string
 }
 
 type Scope struct {

@@ -52,6 +52,7 @@ type Analyser struct {
 	currentFile string
 
 	staticVars    map[*Symbol]ConstValue
+	nakedParams   map[string]string
 	staticSteps   int
 	lateDecls     []ast.Declaration
 	lateNames     map[string]bool
@@ -100,6 +101,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.info.Module = a.scope
 		a.registerBuiltins()
 		a.registerImports()
+		a.checkTags()
 		a.registerStructNames()
 	}
 	publish(group, false)
@@ -118,6 +120,7 @@ func AnalyzeGroup(group []*Analyser) {
 	publish(group, false)
 	for _, a := range group {
 		a.registerGlobals()
+		a.applyTagSymbols()
 	}
 	publish(group, true)
 	for _, a := range group {
@@ -190,6 +193,9 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		result = VoidType{}
 	} else {
 		symbol, ok := a.lookupType(scope, ref.Module, ref.Name)
+		if ok {
+			a.noteUseRef(ref, symbol)
+		}
 		if !ok {
 			d := a.errorAtRef(node, ref, "unknown type %s", qualified(ref.Module, ref.Name))
 			if ref.Module == "" && a.unavailableHint(d, ref.Name) {

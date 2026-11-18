@@ -43,6 +43,7 @@
 // function and a native one share a name and signature, the native one of the
 // architecture being built replaces the plain one; every version has to have
 // the same signature. `inline native<x64>` expands the block at each call.
+// A function with the `#naked` tag has no frame at all: see the tags page.
 //
 // Calling functions written in C is a separate feature, `extern`; see the
 // _c folder.

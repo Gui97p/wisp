@@ -23,6 +23,7 @@ type Parser struct {
 	switchNameCount    int
 	cVariadic          bool
 	native             *nativeHeader
+	nakedTag           bool
 	spread             bool
 }
 

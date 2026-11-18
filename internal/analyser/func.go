@@ -147,12 +147,25 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 	if placeholders {
 		body = a.placeholderBody(fd, ft, body)
 	}
+
+	naked := fd.TagNamed("naked") != nil
+	if naked {
+		a.nakedParams = nakedRegisters(ft, fd)
+		defer func() { a.nakedParams = nil }()
+	}
 	a.checkBlock(body)
+	if naked {
+		a.checkNaked(fd)
+		return
+	}
 	a.warnUnusedParams(fd, declared)
 	a.warnInfiniteRecursion(fd)
 
-	if len(ft.Returns) > 0 && !blockTerminates(fd.Body) {
+	if len(ft.Returns) > 0 && !a.blockTerminates(fd.Body) {
 		a.errorAtEnd(fd.Body, "missing return at end of function %s", fd.Name)
+	}
+	if fd.TagNamed("noreturn") != nil {
+		a.checkNoReturn(fd)
 	}
 }
 

@@ -30,6 +30,7 @@
 //   files         os, path, the environment
 //   globals       global variables and constants
 //   interop       native blocks and functions (assembly)
+//   tags          `#packed`, `#naked`, `#noreturn`, `#deprecated`
 //   platform      #target, per-system files and declarations
 //   geometry/     modules: public, internal and imported names
 //   _c/           calling C with extern (a project of its own)
@@ -65,6 +66,7 @@ import "memory";
 import "files";
 import "globals";
 import "interop";
+import "tags";
 import "platform";
 import "std/fmt";
 import "geometry" as geo;
@@ -147,6 +149,9 @@ func main() !int {
 
   fmt.printf("\n== interop ==\n");
   interop.demo();
+
+  fmt.printf("\n== tags ==\n");
+  tags.demo();
 
   fmt.printf("\n== target ==\n");
   platform.demo();

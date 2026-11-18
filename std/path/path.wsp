@@ -83,6 +83,7 @@ internal func elementsAfterVolume(string s) Elements {
 	return Elements{rest: s};
 }
 
+#must_use
 public func base(string p) string {
 	if p == "" {
 		return ".";
@@ -102,6 +103,7 @@ public func base(string p) string {
 	return p[i+1:end];
 }
 
+#must_use
 public func dir(string p) string {
 	if p == "" {
 		return ".";
@@ -134,6 +136,7 @@ public func dir(string p) string {
 	return p[:head];
 }
 
+#must_use
 public func ext(string p) string {
 	p = base(p);
 
@@ -141,6 +144,7 @@ public func ext(string p) string {
 	return idx == 0 || idx == len(p)-1 ? "" : p[idx:];
 }
 
+#must_use
 public inline func stem(string p) string {
 	return strings.trimSuffix(base(p), ext(p));
 }

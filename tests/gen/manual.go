@@ -12158,6 +12158,201 @@ func main() {
 }
 `, expected: []string{"a break after a switch leaves the loop, not the switch", "a switch inside a loop with a capture", "a labeled break after a switch"}},
 
+	{dir: "tags_naked", src: `#naked
+native<x64> twice(int x) int {
+    lea rax, [rdi + rdi];
+    ret;
+}
+
+#naked
+native<x64> sum3(int a, int b, int c) int {
+    lea rax, [rdi + rsi];
+    add rax, rdx;
+    ret;
+}
+
+#naked
+native<x64> half(float x) float {
+    mov rax, 2;
+    cvtsi2sd xmm1, rax;
+    divsd xmm0, xmm1;
+    ret;
+}
+
+#naked
+native<x64> firstByte(*byte p) int {
+    movzx eax, byte [rdi];
+    ret;
+}
+
+#naked
+native<x64> length(string s) int {
+    mov rax, rsi;
+    ret;
+}
+
+#naked
+native<x64> nothing() {
+    ret;
+}
+
+#naked
+native<x64> forward(int x) int {
+    jmp twice;
+}
+
+func main() {
+    check(twice(21) == 42, "a naked function takes its argument in rdi");
+    check(sum3(1, 2, 3) == 6, "three arguments in rdi, rsi and rdx");
+    check(half(5.0) == 2.5, "a float argument in xmm0");
+    byte letter = 'w';
+    check(firstByte(&letter) == 119, "a pointer argument");
+    check(length("hello") == 5, "a string takes two registers");
+    nothing();
+    check(forward(4) == 8, "a naked function can end in jmp");
+    int total;
+    for i in 1..100 {
+        total += twice(i);
+    }
+    check(total == 10100, "it can be called in a loop");
+}
+`, expected: []string{"a naked function takes its argument in rdi", "three arguments in rdi, rsi and rdx", "a float argument in xmm0", "a pointer argument", "a string takes two registers", "a naked function can end in jmp", "it can be called in a loop"}},
+
+	{dir: "tags_packed", src: `#packed
+struct Wire {
+    uint8 kind;
+    int value;
+    uint16 flags;
+}
+
+struct Plain {
+    uint8 kind;
+    int value;
+    uint16 flags;
+}
+
+#packed
+struct Outer {
+    uint8 tag;
+    Wire inner;
+    int32 tail;
+}
+
+func main() {
+    check(sizeof(Wire) == 11 && alignof(Wire) == 1, "no padding and alignment 1");
+    check(offsetof(Wire, value) == 1 && offsetof(Wire, flags) == 9, "the fields follow each other");
+    check(sizeof(Plain) == 24, "an ordinary struct is still padded");
+    check(sizeof(Outer) == 16 && offsetof(Outer, tail) == 12, "a packed struct holds a packed struct");
+    Wire w = Wire{kind: 7, value: 123456789012, flags: 513};
+    check(w.kind == 7 && w.value == 123456789012 && w.flags == 513, "unaligned fields read back");
+    w.value = -5;
+    w.flags += 1;
+    check(w.value == -5 && w.kind == 7 && w.flags == 514, "unaligned fields can be written");
+    [3]Wire wires;
+    wires[1].value = 99;
+    wires[2].kind = 4;
+    check(wires[1].value == 99 && wires[2].kind == 4 && wires[0].value == 0, "arrays of packed structs");
+    *Wire p = &wires[2];
+    p.flags = 61000;
+    check(wires[2].flags == 61000, "through a pointer");
+}
+`, expected: []string{"no padding and alignment 1", "the fields follow each other", "an ordinary struct is still padded", "a packed struct holds a packed struct", "unaligned fields read back", "unaligned fields can be written", "arrays of packed structs", "through a pointer"}},
+
+	{dir: "tags_flow", src: `#noreturn
+func die(string why) {
+    panic(why);
+}
+
+#noreturn
+func spin() {
+    loop {
+    }
+}
+
+#deprecated("use fresh")
+func stale(int x) int {
+    return x + 1;
+}
+
+#deprecated
+const OLD = 3;
+
+func pick(int n) int {
+    if n > 0 {
+        return n;
+    }
+    die("negative");
+}
+
+func either(bool b) int {
+    if b {
+        return 1;
+    } else {
+        die("never");
+    }
+}
+
+func main() {
+    check(pick(4) == 4, "a function that ends in a noreturn call needs no return");
+    check(either(true) == 1, "both branches can end in a noreturn call");
+    check(stale(1) == 2 && OLD == 3, "deprecated things still work");
+}
+`, expected: []string{"a function that ends in a noreturn call needs no return", "both branches can end in a noreturn call", "deprecated things still work"}},
+
+	{dir: "tags_must_use", src: `import "std/errors";
+
+#must_use("the new total is only returned")
+func add(int a, int b) int {
+    return a + b;
+}
+
+#must_use
+func parse(string s) !int {
+    errors.ensure(len(s) > 0, errors.Kind.Invalid)!;
+    return len(s);
+}
+
+struct Counter {
+    int n;
+}
+
+#must_use("the new count is only returned")
+func (*Counter c) bump() int {
+    c.n++;
+    return c.n;
+}
+
+func main() ! {
+    int kept = add(1, 2);
+    int _ignored = add(3, 4);
+    Counter c;
+    int first = c.bump();
+    int _second = c.bump();
+    int length = parse("abc")!;
+    check(kept == 3 && first == 1 && c.n == 2 && length == 3, "the tagged functions keep working");
+    check((parse("") ?? -1) == -1, "an error is handled with ??");
+}
+`, expected: []string{"the tagged functions keep working", "an error is handled with ??"}},
+
+	{dir: "abort_tags_noreturn", src: `#noreturn
+func die(string why) {
+    panic(why);
+}
+
+func pick(int n) int {
+    if n > 0 {
+        return n;
+    }
+    die("stop here");
+}
+
+func main() {
+    check(pick(1) == 1, "the happy path");
+    int x = pick(-1);
+    check(x == 0, "never printed");
+}
+`, expected: []string{"the happy path"}, abort: "panic: stop here"},
+
 	{dir: "win64_variadic", system: "windows", files: map[string]string{"lib.asm": `default rel
 global vcheck
 global vfirst

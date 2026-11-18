@@ -28,8 +28,9 @@ func directiveNames() string {
 }
 
 type nativeHeader struct {
-	arch string
-	at   ast.Position
+	arch  string
+	at    ast.Position
+	naked bool
 }
 
 func (p *Parser) selectorWord() (string, bool) {
@@ -144,6 +145,11 @@ func (p *Parser) skipDeclaration() {
 func (p *Parser) parseDirectives(program *ast.Program) {
 	for p.current.Type == lexer.TOKEN_HASH {
 		line := p.current.Line
+		cp := p.checkpoint()
+		if p.peek.Type == lexer.TOKEN_IDENT && p.peek.Line == line && !isDirective(p.peek.Literal) {
+			p.restore(cp)
+			return
+		}
 		if p.peek.Type != lexer.TOKEN_IDENT || p.peek.Line != line {
 			p.errorAt(p.currentAt(), "expected a directive name after #, such as #target")
 			p.skipLine(line)
@@ -219,7 +225,7 @@ func (p *Parser) parseNativeDeclaration() *ast.FuncDecl {
 		}
 	}
 
-	p.native = &nativeHeader{arch: arch, at: at}
+	p.native = &nativeHeader{arch: arch, at: at, naked: p.nakedTag}
 	defer func() { p.native = nil }()
 
 	decl := p.parseFunc(false)
@@ -242,6 +248,9 @@ func (p *Parser) parseNativeResult() (nativeResult, bool) {
 		return nativeResult{}, false
 	}
 	if p.peek.Type != lexer.TOKEN_IDENT {
+		if p.native != nil && p.native.naked {
+			return nativeResult{typ: *ref}, true
+		}
 		p.error("a native function names its results, as in (uint high, uint low)")
 		return nativeResult{}, false
 	}
@@ -340,6 +349,9 @@ func (p *Parser) finishNative(decl *ast.FuncDecl) *ast.FuncDecl {
 
 	var returned []ast.Expression
 	for _, result := range results {
+		if result.name == "" {
+			continue
+		}
 		declared := &ast.VarStmt{Vars: []ast.Param{{
 			Name: result.name, Type: result.typ,
 			Line: result.at.Line, Col: result.at.Col, EndLine: result.at.EndLine, EndCol: result.at.EndCol,
@@ -361,5 +373,6 @@ func (p *Parser) finishNative(decl *ast.FuncDecl) *ast.FuncDecl {
 	}
 
 	decl.Body = body
+	decl.Native = true
 	return decl
 }

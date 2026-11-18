@@ -558,7 +558,38 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		t.text.printf("global %s\n", name)
 	}
 
+	if fd.TagNamed("naked") != nil {
+		return t.compileNakedFunc(fd, name)
+	}
+
 	return t.compileFuncBody(name, display+fd.Name, t.isEntry && fd.Name == "main", fd.CExport != "" && t.abi == "win64", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
+}
+
+func (t *X64Target) compileNakedFunc(fd *ast.FuncDecl, name string) error {
+	desc, err := newDesc(t.format, name, name, true, 32, false)
+	if err != nil {
+		return err
+	}
+	t.text.printf("\nsection .text%s\n", desc)
+	t.text.printf("%s:\n", name)
+
+	for _, stmt := range fd.Body.Statements {
+		if native, ok := stmt.(*ast.NativeStmt); ok {
+			if err := t.compileNativeStmt(native); err != nil {
+				return err
+			}
+		}
+	}
+
+	tText, err := textOf(t.format)
+	if err != nil {
+		return err
+	}
+	if tText != "" {
+		tText = " " + tText
+	}
+	t.text.printf("section .text%s\n", tText)
+	return nil
 }
 
 func (t *X64Target) synthetic(name string, tp analyser.Type, at ast.Node, order int) *analyser.Symbol {

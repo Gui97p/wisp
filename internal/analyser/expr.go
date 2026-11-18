@@ -47,6 +47,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		}
 		a.info.Idents[e] = symbol
 		symbol.Used = true
+		a.noteUse(expr, symbol)
 		t = symbol.Type
 		if (symbol.Kind == VAR || symbol.Kind == PARAM) && a.scope.captures(e.Value, a.moduleScope) {
 			a.errorf(expr, "a function literal cannot use %s, a variable of the function around it", e.Value).
@@ -167,7 +168,7 @@ func (a *Analyser) checkFuncLiteral(expr *ast.FuncLiteral) Type {
 	a.currentReturns, a.currentFallible, a.yieldFrames, a.currentInline = prevReturns, prevFallible, prevFrames, prevInline
 	a.exitScope()
 
-	if len(returns) > 0 && !blockTerminates(expr.Block) {
+	if len(returns) > 0 && !a.blockTerminates(expr.Block) {
 		a.errorAtEnd(expr.Block, "missing return at end of lambda")
 	}
 
@@ -724,6 +725,7 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 			return InvalidType{}
 		}
 		a.info.Members[expr] = &MemberInfo{Kind: MemberModule}
+		a.noteUse(expr, sym)
 		return sym.Type
 	}
 
@@ -1067,7 +1069,7 @@ func (a *Analyser) stmtDiverges(stmt ast.Statement, inSwitch bool) bool {
 	case *ast.ExpressionStmt:
 		return a.isPanicCall(s.Expr)
 	}
-	return stmtTerminates(stmt)
+	return a.stmtTerminates(stmt)
 }
 
 func (a *Analyser) rejectFallible(exprs []ast.Expression, types []Type) []Type {

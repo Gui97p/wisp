@@ -83,6 +83,7 @@ func digitValue(byte c) ?int {
     return null;
 }
 
+#must_use
 public func parseUint(string s, int base) !uint {
 	errors.ensure(base in 2..36 && len(s) > 0, errors.Kind.Invalid)!;
 
@@ -102,6 +103,7 @@ public func parseUint(string s, int base) !uint {
 	return n;
 }
 
+#must_use
 public func parseInt(string s, int base) !int {
 	errors.ensure(len(s) > 0, errors.Kind.Invalid)!;
 

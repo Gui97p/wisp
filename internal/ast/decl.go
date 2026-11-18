@@ -6,6 +6,7 @@ import (
 )
 
 type ConstDecl struct {
+	Tagged
 	Doc        string
 	Vars       []Param
 	Values     []Expression
@@ -44,6 +45,7 @@ func (c *ConstDecl) Tree(indent string) string {
 }
 
 type VarDecl struct {
+	Tagged
 	Doc        string
 	Vars       []Param
 	Values     []Expression
@@ -82,6 +84,7 @@ func (c *VarDecl) Tree(indent string) string {
 }
 
 type FuncDecl struct {
+	Tagged
 	Doc         string
 	Name        string
 	Receiver    *Param
@@ -97,6 +100,7 @@ type FuncDecl struct {
 	CVariadic   bool
 	Generated   bool
 	Inline      bool
+	Native      bool
 	Selector    string
 	SelectorAt  Position
 	NameAt      Position
@@ -163,6 +167,7 @@ func (f *FuncDecl) Tree(indent string) string {
 }
 
 type StructDecl struct {
+	Tagged
 	Doc        string
 	Name       string
 	Members    []Param
@@ -205,6 +210,7 @@ type EnumMember struct {
 }
 
 type TypeDecl struct {
+	Tagged
 	Doc        string
 	Name       string
 	Underlying TypeRef
