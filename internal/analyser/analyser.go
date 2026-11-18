@@ -383,3 +383,13 @@ func silencesUnused(name string) bool {
 func (a *Analyser) Info() *Info {
 	return a.info
 }
+
+func (a *Analyser) errorCount() int {
+	count := 0
+	for _, d := range a.errors {
+		if d.Severity == diag.SeverityError {
+			count++
+		}
+	}
+	return count
+}

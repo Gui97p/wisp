@@ -35,10 +35,7 @@ Thumbs.db
 
 # Development Files
 dev/
-tests/*
-!tests/gen
-!tests/run.sh
-!tests/shim/
+tests/numeric
 *.vsix
 std/wisp.toml
 tour/bin/

@@ -258,6 +258,9 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 	case *ast.BlockExpr:
 		child = exprInStmt(e.Block, line, col)
 		if child == nil {
+			if e.Static && onStaticKeyword(e, line, col) {
+				return e
+			}
 			return nil
 		}
 	case *ast.TupleExpr:
@@ -357,4 +360,9 @@ func switchArms(expr *ast.SwitchExpr) []*ast.SwitchArm {
 		arms = append(arms, expr.Default)
 	}
 	return arms
+}
+
+func onStaticKeyword(e *ast.BlockExpr, line, col int) bool {
+	startLine, startCol := e.Position()
+	return line == startLine && col >= startCol && col < startCol+len("static")
 }

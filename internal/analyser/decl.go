@@ -231,6 +231,7 @@ func (a *Analyser) checkConstDecl(decl *ast.ConstDecl) {
 func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []ast.Expression, kind SymbolKind) {
 	hasExplicitType := vars[0].Type.Name != "" || vars[0].Type.IsFunc
 	line, col := node.Position()
+	errorsBefore := a.errorCount()
 
 	if len(values) == 0 {
 		for _, v := range vars {
@@ -319,7 +320,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		symLine, symCol := identPos(v, line, col)
 		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node)}
 		if kind == CONST {
-			sym.Const = a.constantFor(node, values, len(vars), i, finalType)
+			sym.Const = a.constantFor(node, values, len(vars), i, finalType, a.errorCount() > errorsBefore)
 			if sym.Const != nil && sym.Const.aggregate() && a.scope == a.moduleScope {
 				sym.Module = a.module
 			}

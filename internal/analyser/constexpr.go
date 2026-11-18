@@ -396,16 +396,20 @@ func fitsBig(v *big.Int, bits int, signed bool) bool {
 	return v.Cmp(lo) >= 0 && v.Cmp(hi) <= 0
 }
 
-func (a *Analyser) constantFor(node ast.Node, values []ast.Expression, n, i int, target Type) *ConstValue {
+func (a *Analyser) constantFor(node ast.Node, values []ast.Expression, n, i int, target Type, reported bool) *ConstValue {
 	slot := a.valueSlot(values, n, i)
 	if slot == nil {
-		a.error(node, "const initializer must be a constant expression")
+		if !reported {
+			a.error(node, "const initializer must be a constant expression")
+		}
 		return nil
 	}
 
 	value, ok := a.evalConst(*slot)
 	if !ok {
-		a.error(*slot, "const initializer must be a constant expression")
+		if !reported {
+			a.error(*slot, "const initializer must be a constant expression")
+		}
 		return nil
 	}
 
@@ -416,7 +420,9 @@ func (a *Analyser) constantFor(node ast.Node, values []ast.Expression, n, i int,
 	if value.aggregate() {
 		fitted, ok := a.fitConst(value, target)
 		if !ok {
-			a.errorf(*slot, "this constant does not fit %s", target.String())
+			if !reported {
+				a.errorf(*slot, "this constant does not fit %s", target.String())
+			}
 			return nil
 		}
 		return &fitted
@@ -424,7 +430,7 @@ func (a *Analyser) constantFor(node ast.Node, values []ast.Expression, n, i int,
 
 	converted, ok := a.convertConst(value, target)
 	if !ok {
-		if _, _, literal := intLiteralValue(*slot); !literal {
+		if _, _, literal := intLiteralValue(*slot); !literal && !reported {
 			a.errorf(*slot, "constant %s overflows %s", value, target.String())
 		}
 		return nil

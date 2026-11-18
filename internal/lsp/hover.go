@@ -113,6 +113,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		}
 		text = hoverText(expr, program, info, line, col)
 		rng = exprRange(expr)
+		if block, isBlock := expr.(*ast.BlockExpr); isBlock && block.Static {
+			startLine, startCol := block.Position()
+			rng = positionRange(ast.Position{Line: startLine, Col: startCol, EndLine: startLine, EndCol: startCol + len("static") - 1})
+		}
 		if ref := exprTypeRef(expr); ref != nil && refContains(ref, line, col) {
 			if t := typeRefHover(ref, program, info, line, col); t != "" {
 				text, rng = t, refRange(ref)
@@ -273,7 +277,12 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 		if e.Synthetic {
 			return ""
 		}
-	case *ast.SwitchExpr, *ast.BlockExpr:
+	case *ast.BlockExpr:
+		if e.Static {
+			return staticHover(e, info, line, col)
+		}
+		return ""
+	case *ast.SwitchExpr:
 		return ""
 	}
 
@@ -308,6 +317,9 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 			if text := symbolHover(sym, program); text != "" {
 				return text
 			}
+		}
+		if doc, ok := primitiveDocs[e.Value]; ok && info.Idents[e] == nil {
+			return renderDoc(e.Value, doc)
 		}
 	}
 
@@ -666,4 +678,19 @@ func coalesceOperatorAt(src []byte, line, col int) (ast.Position, bool) {
 		}
 	}
 	return ast.Position{}, false
+}
+
+func staticHover(e *ast.BlockExpr, info *analyser.Info, line, col int) string {
+	if !onStaticKeyword(e, line, col) {
+		return ""
+	}
+	doc := "Runs ordinary code while the program compiles and gives the value of `yield`. It sees numbers, booleans, strings, arrays and structs, and it can call ordinary functions."
+	code := "static { ... }"
+	if value, ok := info.Statics[e]; ok {
+		code = "static { ... } = " + value.Preview(8)
+		if tp, typed := info.Types[e]; typed {
+			doc += fmt.Sprintf(" Its value here has type `%s`.", analyser.TypeText(tp))
+		}
+	}
+	return renderDoc(code, doc)
 }

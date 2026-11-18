@@ -592,6 +592,7 @@ func absentOnError(t Type) Type {
 }
 
 func (a *Analyser) checkBlockExpr(expr *ast.BlockExpr) Type {
+	errorsBefore := a.errorCount()
 	a.enterScope()
 	a.yieldFrames = append(a.yieldFrames, yieldFrame{infer: true, label: expr.Label})
 	a.checkBlock(expr.Block)
@@ -608,7 +609,7 @@ func (a *Analyser) checkBlockExpr(expr *ast.BlockExpr) Type {
 		a.error(expr, "the block must end with yield, return, break or continue")
 		return InvalidType{}
 	}
-	if expr.Static {
+	if expr.Static && a.errorCount() == errorsBefore {
 		a.runStatic(expr, frame.values[0])
 	}
 	return frame.values[0]
