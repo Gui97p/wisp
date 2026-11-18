@@ -709,10 +709,13 @@ func (p *Parser) parseJumpHandler(expr *ast.CoalesceExpr) ast.Expression {
 	line, col := p.current.Line, p.current.Column
 	isBreak := p.current.Type == lexer.TOKEN_BREAK
 
-	label := ""
-	if p.peek.Type == lexer.TOKEN_IDENT {
-		p.advance()
-		label = p.current.Literal
+	keyword := "continue"
+	if isBreak {
+		keyword = "break"
+	}
+	label, ok := p.parseJumpLabel(keyword)
+	if !ok {
+		return nil
 	}
 
 	var stmt ast.Statement
@@ -918,10 +921,13 @@ func (p *Parser) parseJumpArm() ast.Statement {
 	line, col := p.current.Line, p.current.Column
 	isBreak := p.current.Type == lexer.TOKEN_BREAK
 
-	label := ""
-	if p.peek.Type == lexer.TOKEN_IDENT {
-		p.advance()
-		label = p.current.Literal
+	keyword := "continue"
+	if isBreak {
+		keyword = "break"
+	}
+	label, ok := p.parseJumpLabel(keyword)
+	if !ok {
+		return nil
 	}
 
 	var stmt ast.Statement

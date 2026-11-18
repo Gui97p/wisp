@@ -113,17 +113,17 @@ public func demo() {
   };
   fmt.printf("{} rounded down to a multiple of five is {}\n", limit, rounded);
 
-  // A label before a block, `:name { ... }`, lets `break name` leave it from
+  // A label before a block, `:name { ... }`, lets `break :name` leave it from
   // anywhere inside, even from a loop in the middle, and the `defer`s of the
   // blocks it crosses run on the way out. On a block that gives a value,
-  // `break name value` leaves with that value, the way `yield` does at the
+  // `break :name value` leaves with that value, the way `yield` does at the
   // end. Inside a labeled block a `break` has to say which one it leaves: a bare
 // `break` there is an error, so the block and the loop around it are never
 // mixed up.
   int found = -1;
   :search {
     for i in 0..limit {
-      break search if i * i == 49;
+      break :search if i * i == 49;
       found = i;
     }
     found = -2;
@@ -132,7 +132,7 @@ public func demo() {
 
   int first = :pick {
     for i in 0..limit {
-      break pick i if i * i > 30;
+      break :pick i if i * i > 30;
     }
     yield -1;
   };

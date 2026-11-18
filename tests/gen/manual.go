@@ -2044,8 +2044,8 @@ func labeled() int {
     int count;
     :outer for i in 0..3 {
         for j in 0..3 {
-            continue outer if j > i;
-            break outer if i == 3;
+            continue :outer if j > i;
+            break :outer if i == 3;
             count++;
         }
     }
@@ -2184,7 +2184,7 @@ func main() {
     int found = -1;
     :search {
         for i in 0..9 {
-            break search if i * i == want;
+            break :search if i * i == want;
             found = i;
         }
         found = -2;
@@ -2202,7 +2202,7 @@ func main() {
         :inner {
             defer trace = trace * 10 + 8;
             trace = trace * 10 + 2;
-            break outer if trace > 0;
+            break :outer if trace > 0;
             trace = 77;
         }
         trace = 66;
@@ -2211,7 +2211,7 @@ func main() {
 
     int v = :pick {
         for i in 0..5 {
-            break pick i * 100 if i == 3;
+            break :pick i * 100 if i == 3;
         }
         yield -1;
     };
@@ -2220,7 +2220,7 @@ func main() {
     int n;
     :skip {
         for i in 0..3 {
-            break skip if i == 2;
+            break :skip if i == 2;
             n++;
         }
     }
@@ -2229,7 +2229,7 @@ func main() {
     int k;
     for i in 0..3 {
         :blk {
-            break blk if i == 1;
+            break :blk if i == 1;
             k++;
         }
     }
@@ -3204,7 +3204,7 @@ func main() {
     :outer loop {
         loop {
             inner++;
-            break outer;
+            break :outer;
         }
     }
     check(inner == 1, "label break outer");
@@ -3212,7 +3212,7 @@ func main() {
     :rows for i in 1..3 {
         for j in 1..3 {
             if j == 2 {
-                continue rows;
+                continue :rows;
             }
             total += i * 10 + j;
         }
@@ -7110,10 +7110,10 @@ func main() {
         :outer for i in 1..5 {
             for j in 1..5 {
                 if j > i {
-                    continue outer;
+                    continue :outer;
                 }
                 if i == 4 {
-                    break outer;
+                    break :outer;
                 }
                 cells++;
             }
@@ -8201,7 +8201,7 @@ func main() {
         for j in 1..3 {
             switch j {
                 case 2:
-                    continue rows;
+                    continue :rows;
                 default:
                     outer += 1;
             }
@@ -9974,7 +9974,7 @@ func firstGood(int a, int b, int c) int {
     :scan for i in 0..2 {
         int n = i == 0 ? a : (i == 1 ? b : c);
         int v = load(n) ?? |e| switch e {
-            case Kind.Denied => break scan;
+            case Kind.Denied => break :scan;
             default => continue;
         };
         total += v;
@@ -11387,7 +11387,7 @@ func labeled() {
         defer mark(5);
         for 2 {
             defer mark(6);
-            break outer;
+            break :outer;
         }
     }
 }

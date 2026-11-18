@@ -735,23 +735,40 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 	return stmt
 }
 
+func (p *Parser) parseJumpLabel(keyword string) (string, bool) {
+	switch p.peek.Type {
+	case lexer.TOKEN_COLON:
+		p.advance()
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return "", false
+		}
+		return p.current.Literal, true
+	case lexer.TOKEN_IDENT:
+		p.advance()
+		p.errorAt(p.currentPosition(), "a label is written with a colon, as in %s :%s", keyword, p.current.Literal)
+		return "", false
+	}
+	return "", true
+}
+
 func (p *Parser) parseBreakStatement() ast.Statement {
 	line, col := p.current.Line, p.current.Column
 	stmt := &ast.BreakStmt{}
 
-	if p.peek.Type == lexer.TOKEN_IDENT {
+	label, ok := p.parseJumpLabel("break")
+	if !ok {
+		return nil
+	}
+	stmt.Label = label
+	if label != "" && p.peek.Type != lexer.TOKEN_SEMICOLON && p.peek.Type != lexer.TOKEN_IF {
+		target := &ast.YieldStmt{Target: label}
 		p.advance()
-		stmt.Label = p.current.Literal
-		if p.peek.Type != lexer.TOKEN_SEMICOLON && p.peek.Type != lexer.TOKEN_IF {
-			target := &ast.YieldStmt{Target: stmt.Label}
-			p.advance()
-			value := p.parseExpression()
-			if value == nil {
-				return nil
-			}
-			target.Values = append(target.Values, value)
-			return p.endJump(target, line, col)
+		value := p.parseExpression()
+		if value == nil {
+			return nil
 		}
+		target.Values = append(target.Values, value)
+		return p.endJump(target, line, col)
 	}
 
 	return p.endJump(stmt, line, col)
@@ -761,10 +778,11 @@ func (p *Parser) parseContinueStatement() ast.Statement {
 	line, col := p.current.Line, p.current.Column
 	stmt := &ast.ContinueStmt{}
 
-	if p.peek.Type == lexer.TOKEN_IDENT {
-		p.advance()
-		stmt.Label = p.current.Literal
+	label, ok := p.parseJumpLabel("continue")
+	if !ok {
+		return nil
 	}
+	stmt.Label = label
 
 	return p.endJump(stmt, line, col)
 }

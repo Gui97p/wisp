@@ -83,12 +83,13 @@ public func demo() {
   }
   fmt.printf("skipping 2 and stopping after 4 kept {}\n", kept);
 
-  // Labels start with `:` and let `break` and `continue` target an outer loop.
+  // A label starts with `:`, both where it is declared and where it is used:
+  // `break :outer` and `continue :outer` target an outer loop.
   int visits;
   :outer loop {
     loop {
       visits++;
-      break outer;
+      break :outer;
     }
   }
   fmt.printf("break outer left both loops after {} visit\n", visits);

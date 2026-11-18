@@ -26,7 +26,7 @@ func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
 
 	if stmt.Target != "" && !slices.ContainsFunc(a.yieldFrames, func(f yieldFrame) bool { return f.label == stmt.Target }) {
 		if slices.ContainsFunc(a.loopFrames, func(f loopFrame) bool { return f.Label == stmt.Target }) {
-			a.errorf(stmt, "%s labels a block or loop that gives no value, so the break takes none: write `break %s;`", stmt.Target, stmt.Target)
+			a.errorf(stmt, "%s labels a block or loop that gives no value, so the break takes none: write `break :%s;`", stmt.Target, stmt.Target)
 		} else {
 			a.errorf(stmt, "unknown label: %s", stmt.Target)
 		}
@@ -49,7 +49,7 @@ func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
 			}
 		}
 		if top < 0 {
-			a.errorf(stmt, "break %s gives a value, but %s is not the label of a block that gives one", stmt.Target, stmt.Target)
+			a.errorf(stmt, "break :%s gives a value, but %s is not the label of a block that gives one", stmt.Target, stmt.Target)
 			return
 		}
 	}
