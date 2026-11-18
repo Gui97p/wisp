@@ -258,7 +258,7 @@ func (p *Parser) parseNativeResult() (nativeResult, bool) {
 func (p *Parser) parseNativeResults() ([]nativeResult, bool) {
 	var results []nativeResult
 
-	if p.peek.Type == lexer.TOKEN_ARROW {
+	if p.peek.Type == lexer.TOKEN_LBRACE {
 		return results, true
 	}
 
@@ -309,17 +309,14 @@ func (p *Parser) finishNative(decl *ast.FuncDecl) *ast.FuncDecl {
 		return nil
 	}
 
-	if !p.expect(lexer.TOKEN_ARROW) {
+	if p.peek.Type != lexer.TOKEN_LBRACE {
+		p.advance()
+		p.errorAt(p.currentPosition(), "a native function has a block body: native<arch> name(params) result { mov rax, x; }")
 		return nil
 	}
-	if !p.expect(lexer.TOKEN_STRING_LITERAL) {
-		return nil
-	}
-	code := p.current.Literal
-	raw := p.current.Raw
-	codeEndLine, codeEndCol := p.currentEnd()
-	codeAt := ast.Position{Line: p.current.Line, Col: p.current.Column, EndLine: codeEndLine, EndCol: codeEndCol}
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
+	bodyAt := p.peekPosition()
+	instrs, ok := p.parseNativeBlock()
+	if !ok {
 		return nil
 	}
 
@@ -341,16 +338,6 @@ func (p *Parser) finishNative(decl *ast.FuncDecl) *ast.FuncDecl {
 
 	body := &ast.BlockStmt{}
 
-	var bindings []ast.NativeBinding
-	if decl.Receiver != nil && decl.Receiver.Name != "" {
-		at := ast.Position{Line: decl.Receiver.Line, Col: decl.Receiver.Col, EndLine: decl.Receiver.EndLine, EndCol: decl.Receiver.EndCol}
-		bindings = append(bindings, ast.NativeBinding{In: true, Var: ident(decl.Receiver.Name, at)})
-	}
-	for _, param := range decl.Params {
-		at := ast.Position{Line: param.Line, Col: param.Col, EndLine: param.EndLine, EndCol: param.EndCol}
-		bindings = append(bindings, ast.NativeBinding{In: true, Var: ident(param.Name, at)})
-	}
-
 	var returned []ast.Expression
 	for _, result := range results {
 		declared := &ast.VarStmt{Vars: []ast.Param{{
@@ -360,20 +347,16 @@ func (p *Parser) finishNative(decl *ast.FuncDecl) *ast.FuncDecl {
 		place(declared, result.at)
 		body.Statements = append(body.Statements, declared)
 
-		bindings = append(bindings, ast.NativeBinding{Out: true, Var: ident(result.name, result.at)})
 		returned = append(returned, ident(result.name, result.at))
 	}
 
-	native := &ast.NativeStmt{
-		Backend: header.arch, BackendAt: header.at,
-		Bindings: bindings, Code: code, CodeAt: codeAt, Raw: raw,
-	}
-	place(native, codeAt)
+	native := &ast.NativeStmt{Backend: header.arch, BackendAt: header.at, Instrs: instrs, BodyAt: bodyAt}
+	place(native, bodyAt)
 	body.Statements = append(body.Statements, native)
 
 	if len(returned) > 0 {
 		ret := &ast.ReturnStmt{Values: returned}
-		place(ret, codeAt)
+		place(ret, bodyAt)
 		body.Statements = append(body.Statements, ret)
 	}
 

@@ -374,22 +374,6 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 	}
 }
 
-func (a *Analyser) checkNativeStmt(s *ast.NativeStmt) {
-	a.markNativeConstants(s)
-
-	for _, bd := range s.Bindings {
-		if _, ok := a.checkExpr(bd.Var).(InvalidType); ok {
-			continue
-		}
-		if !bd.Out {
-			continue
-		}
-		if sym, ok := a.scope.Resolve(bd.Var.Value); ok && sym.Kind == CONST {
-			a.errorConstAssign(bd.Var, bd.Var.Value)
-		}
-	}
-}
-
 func (a *Analyser) checkIncDecStmt(s *ast.IncDecStmt) {
 	if !isAddressable(s.Target) && !isDerefTarget(s.Target) {
 		a.error(s.Target, "expression not incrementable")

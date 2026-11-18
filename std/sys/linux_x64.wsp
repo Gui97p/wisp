@@ -87,36 +87,90 @@ shared struct Dir {
 	[4096]byte buf;
 }
 
-shared native read(int fd, *byte buf, int n) int r =>
-		"mov eax, {SYS_READ}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+shared native read(int fd, *byte buf, int n) int r {
+	mov eax, SYS_READ;
+	mov rdi, fd;
+	mov rsi, buf;
+	mov rdx, n;
+	syscall;
+	mov r, rax;
+}
 
-shared native write(int fd, *byte buf, int n) int r =>
-		"mov eax, {SYS_WRITE}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+shared native write(int fd, *byte buf, int n) int r {
+	mov eax, SYS_WRITE;
+	mov rdi, fd;
+	mov rsi, buf;
+	mov rdx, n;
+	syscall;
+	mov r, rax;
+}
 
-internal native rawOpen(*byte path, int flags, int mode) int fd =>
-		"mov eax, {SYS_OPENAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; mov r10, {mode}; syscall; mov {fd}, rax";
+internal native rawOpen(*byte path, int flags, int mode) int fd {
+	mov eax, SYS_OPENAT;
+	mov rdi, AT_FDCWD;
+	mov rsi, path;
+	mov rdx, flags;
+	mov r10, mode;
+	syscall;
+	mov fd, rax;
+}
 
-shared native close(int fd) int r =>
-		"mov eax, {SYS_CLOSE}; mov rdi, {fd}; syscall; mov {r}, rax";
+shared native close(int fd) int r {
+	mov eax, SYS_CLOSE;
+	mov rdi, fd;
+	syscall;
+	mov r, rax;
+}
 
-shared native seek(int fd, offset, whence) int off =>
-		"mov eax, {SYS_LSEEK}; mov rdi, {fd}; mov rsi, {offset}; mov rdx, {whence}; syscall; mov {off}, rax";
+shared native seek(int fd, offset, whence) int off {
+	mov eax, SYS_LSEEK;
+	mov rdi, fd;
+	mov rsi, offset;
+	mov rdx, whence;
+	syscall;
+	mov off, rax;
+}
 
-shared native sync(int fd) int r =>
-		"mov eax, {SYS_FSYNC}; mov rdi, {fd}; syscall; mov {r}, rax";
+shared native sync(int fd) int r {
+	mov eax, SYS_FSYNC;
+	mov rdi, fd;
+	syscall;
+	mov r, rax;
+}
 
 shared func size(int fd) int {
 	StatBuf stat;
 	int r;
-	native(in fd, stat, out r) "mov eax, {SYS_FSTAT}; mov rdi, {fd}; lea rsi, {&stat}; syscall; mov {r}, rax";
+	native {
+		mov eax, SYS_FSTAT;
+		mov rdi, fd;
+		lea rsi, &stat;
+		syscall;
+		mov r, rax;
+	}
 	return r < 0 ? r : stat.st_size;
 }
 
-internal native rawRemove(*byte path, int flags) int r =>
-		"mov eax, {SYS_UNLINKAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {flags}; syscall; mov {r}, rax";
+internal native rawRemove(*byte path, int flags) int r {
+	mov eax, SYS_UNLINKAT;
+	mov rdi, AT_FDCWD;
+	mov rsi, path;
+	mov rdx, flags;
+	syscall;
+	mov r, rax;
+}
 
-internal native rawMmap(int len) *void r =>
-		"mov eax, {SYS_MMAP}; xor edi, edi; mov rsi, {len}; mov rdx, {PROT_RW}; mov r10, {MAP_PRIVATE_ANON}; mov r8, {NO_FD}; xor r9d, r9d; syscall; mov {r}, rax";
+internal native rawMmap(int len) *void r {
+	mov eax, SYS_MMAP;
+	xor edi, edi;
+	mov rsi, len;
+	mov rdx, PROT_RW;
+	mov r10, MAP_PRIVATE_ANON;
+	mov r8, NO_FD;
+	xor r9d, r9d;
+	syscall;
+	mov r, rax;
+}
 
 shared func mmap(int len) ?*void {
 	*void r = rawMmap(len);
@@ -126,54 +180,127 @@ shared func mmap(int len) ?*void {
 	return r;
 }
 
-shared native munmap(*void addr, int len) int r =>
-		"mov eax, {SYS_MUNMAP}; mov rdi, {addr}; mov rsi, {len}; syscall; mov {r}, rax";
+shared native munmap(*void addr, int len) int r {
+	mov eax, SYS_MUNMAP;
+	mov rdi, addr;
+	mov rsi, len;
+	syscall;
+	mov r, rax;
+}
 
 shared func time(int clock) (int, int) {
 	sys.Timespec ts;
-	native(in clock, ts) "mov eax, {SYS_CLOCK_GETTIME}; mov rdi, {clock}; lea rsi, {&ts}; syscall";
+	native {
+		mov eax, SYS_CLOCK_GETTIME;
+		mov rdi, clock;
+		lea rsi, &ts;
+		syscall;
+	}
 	return ts.tv_sec, ts.tv_nsec;
 }
 
 shared func sleep(int sec, nsec) int {
 	sys.Timespec req = sys.Timespec{tv_sec: sec, tv_nsec: nsec};
 	int r;
-	native(in req, out r) "mov eax, {SYS_NANOSLEEP}; lea rdi, {&req}; xor esi, esi; syscall; mov {r}, rax";
+	native {
+		mov eax, SYS_NANOSLEEP;
+		lea rdi, &req;
+		xor esi, esi;
+		syscall;
+		mov r, rax;
+	}
 	return r;
 }
 
-shared native random(*void buf, int n) int r =>
-		"mov eax, {SYS_GETRANDOM}; mov rdi, {buf}; mov rsi, {n}; xor edx, edx; syscall; mov {r}, rax";
+shared native random(*void buf, int n) int r {
+	mov eax, SYS_GETRANDOM;
+	mov rdi, buf;
+	mov rsi, n;
+	xor edx, edx;
+	syscall;
+	mov r, rax;
+}
 
 shared func isatty(int fd) bool {
 	[64]byte termios;
 	int r;
-	native(in fd, termios, out r) "mov eax, {SYS_IOCTL}; mov rdi, {fd}; mov rsi, {TCGETS}; lea rdx, {&termios}; syscall; mov {r}, rax";
+	native {
+		mov eax, SYS_IOCTL;
+		mov rdi, fd;
+		mov rsi, TCGETS;
+		lea rdx, &termios;
+		syscall;
+		mov r, rax;
+	}
 	return r == 0;
 }
 
-shared native exit(int code) => "mov eax, {SYS_EXIT_GROUP}; mov rdi, {code}; syscall";
+shared native exit(int code) {
+	mov eax, SYS_EXIT_GROUP;
+	mov rdi, code;
+	syscall;
+}
 
-internal native rawMkdir(*byte path, int mode) int r =>
-		"mov eax, {SYS_MKDIRAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {mode}; syscall; mov {r}, rax";
+internal native rawMkdir(*byte path, int mode) int r {
+	mov eax, SYS_MKDIRAT;
+	mov rdi, AT_FDCWD;
+	mov rsi, path;
+	mov rdx, mode;
+	syscall;
+	mov r, rax;
+}
 
-internal native rawRename(*byte from, to) int r =>
-		"mov eax, {SYS_RENAMEAT}; mov rdi, {AT_FDCWD}; mov rsi, {from}; mov rdx, {AT_FDCWD}; mov r10, {to}; syscall; mov {r}, rax";
+internal native rawRename(*byte from, to) int r {
+	mov eax, SYS_RENAMEAT;
+	mov rdi, AT_FDCWD;
+	mov rsi, from;
+	mov rdx, AT_FDCWD;
+	mov r10, to;
+	syscall;
+	mov r, rax;
+}
 
-internal native rawStat(*byte path, *void buf) int r =>
-		"mov eax, {SYS_NEWFSTATAT}; mov rdi, {AT_FDCWD}; mov rsi, {path}; mov rdx, {buf}; xor r10, r10; syscall; mov {r}, rax";
+internal native rawStat(*byte path, *void buf) int r {
+	mov eax, SYS_NEWFSTATAT;
+	mov rdi, AT_FDCWD;
+	mov rsi, path;
+	mov rdx, buf;
+	xor r10, r10;
+	syscall;
+	mov r, rax;
+}
 
-internal native getdents(int fd, *byte buf, int n) int r =>
-		"mov eax, {SYS_GETDENTS64}; mov rdi, {fd}; mov rsi, {buf}; mov rdx, {n}; syscall; mov {r}, rax";
+internal native getdents(int fd, *byte buf, int n) int r {
+	mov eax, SYS_GETDENTS64;
+	mov rdi, fd;
+	mov rsi, buf;
+	mov rdx, n;
+	syscall;
+	mov r, rax;
+}
 
-internal native rawGetcwd(*byte buf, int n) int r =>
-		"mov eax, {SYS_GETCWD}; mov rdi, {buf}; mov rsi, {n}; syscall; mov {r}, rax";
+internal native rawGetcwd(*byte buf, int n) int r {
+	mov eax, SYS_GETCWD;
+	mov rdi, buf;
+	mov rsi, n;
+	syscall;
+	mov r, rax;
+}
 
-internal native environ() ?*?*byte r =>
-		"extern __wisp_envp; mov rax, [rel __wisp_envp]; mov {r}, rax";
+internal native environ() ?*?*byte r {
+	extern __wisp_envp;
+	mov rax, [rel __wisp_envp];
+	mov r, rax;
+}
 
-shared native args() []string s =>
-	"extern __wisp_args_ptr; extern __wisp_args_len; mov rax, [rel __wisp_args_ptr]; mov {s.ptr}, rax; mov rax, [rel __wisp_args_len]; mov {s.len}, rax";
+shared native args() []string s {
+	extern __wisp_args_ptr;
+	extern __wisp_args_len;
+	mov rax, [rel __wisp_args_ptr];
+	mov s.ptr, rax;
+	mov rax, [rel __wisp_args_len];
+	mov s.len, rax;
+}
 
 internal func cpath(*byte buf, string p) int {
 	if len(p) >= PATH_MAX {

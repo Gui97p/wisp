@@ -217,9 +217,16 @@ func inlineBindings(body *ast.BlockStmt) bindings {
 				target(n.Value)
 			}
 		case *ast.NativeStmt:
-			for _, binding := range n.Bindings {
-				if binding.Var != nil {
-					b.changed[binding.Var.Value] = true
+			for _, instr := range n.Instrs {
+				for _, op := range instr.Operands {
+					if len(op.Path) > 0 {
+						b.changed[op.Path[0]] = true
+					}
+					for _, term := range op.Terms {
+						if len(term.Path) > 0 {
+							b.changed[term.Path[0]] = true
+						}
+					}
 				}
 			}
 		case *ast.VarStmt:

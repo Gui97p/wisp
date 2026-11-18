@@ -375,19 +375,11 @@ func (d *DeferStmt) Tree(indent string) string {
 	return b.String()
 }
 
-type NativeBinding struct {
-	In  bool
-	Out bool
-	Var *IdentLiteral
-}
-
 type NativeStmt struct {
 	Backend   string
 	BackendAt Position
-	Bindings  []NativeBinding
-	Code      string
-	CodeAt    Position
-	Raw       bool
+	Instrs    []NativeInstr
+	BodyAt    Position
 
 	NodePos
 }
@@ -395,21 +387,10 @@ type NativeStmt struct {
 func (*NativeStmt) stmt() {}
 func (n *NativeStmt) Tree(indent string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%sNativeStmt(", indent)
-	if n.Backend != "" {
-		b.WriteString(n.Backend)
+	fmt.Fprintf(&b, "%sNativeStmt(%s) {\n", indent, n.Backend)
+	for _, in := range n.Instrs {
+		fmt.Fprintf(&b, "%s└─ %s\n", indent, in.String())
 	}
-	for _, bd := range n.Bindings {
-		mode := "in"
-		switch {
-		case bd.In && bd.Out:
-			mode = "inout"
-		case bd.Out:
-			mode = "out"
-		}
-		fmt.Fprintf(&b, " %s %s", mode, bd.Var.Value)
-	}
-	fmt.Fprintf(&b, ": %s)\n", n.Code)
 	return b.String()
 }
 

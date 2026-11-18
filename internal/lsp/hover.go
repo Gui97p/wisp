@@ -70,6 +70,9 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	if program == nil || info == nil {
 		return nil
 	}
+	if h := nativeHover(info, line, col); h != nil {
+		return h
+	}
 	local := declarationsOf(program, declarationFiles(path), path)
 
 	if param, owner, idx := paramAt(local, line, col); param != nil {

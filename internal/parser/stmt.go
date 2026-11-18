@@ -827,83 +827,18 @@ func (p *Parser) parseNativeStatement() ast.Statement {
 		stmt.Backend, stmt.BackendAt = selector, at
 	}
 
-	if p.peek.Type == lexer.TOKEN_LPAREN {
+	if p.peek.Type != lexer.TOKEN_LBRACE {
 		p.advance()
-		bindings, ok := p.parseNativeBindings()
-		if !ok {
-			return nil
-		}
-		stmt.Bindings = bindings
-	}
-
-	if !p.expect(lexer.TOKEN_STRING_LITERAL) {
+		p.errorAt(p.currentPosition(), "a native statement is a block: native<arch> { mov rax, x; }")
 		return nil
 	}
-	stmt.Code = p.current.Literal
-	stmt.Raw = p.current.Raw
-	codeEndLine, codeEndCol := p.currentEnd()
-	stmt.CodeAt = ast.Position{Line: p.current.Line, Col: p.current.Column, EndLine: codeEndLine, EndCol: codeEndCol}
-
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
+	stmt.BodyAt = p.peekPosition()
+	instrs, ok := p.parseNativeBlock()
+	if !ok {
 		return nil
 	}
-
+	stmt.Instrs = instrs
 	return stmt
-}
-
-func (p *Parser) parseNativeBindings() ([]ast.NativeBinding, bool) {
-	var bindings []ast.NativeBinding
-
-	if p.peek.Type == lexer.TOKEN_RPAREN {
-		p.advance()
-		return bindings, true
-	}
-
-	var in, out, haveMode bool
-	for {
-		p.advance()
-
-		if mIn, mOut, ok := p.nativeMode(); ok {
-			in, out, haveMode = mIn, mOut, true
-			p.advance()
-		} else if !haveMode {
-			p.error("expected in, out or inout")
-			return nil, false
-		}
-
-		if p.current.Type != lexer.TOKEN_IDENT {
-			p.errorExpected(lexer.TOKEN_IDENT, p.current.Type)
-			return nil, false
-		}
-		ident := &ast.IdentLiteral{Value: p.current.Literal}
-		ident.SetPos(p.current.Line, p.current.Column)
-		ident.SetEndPos(p.currentEnd())
-		bindings = append(bindings, ast.NativeBinding{In: in, Out: out, Var: ident})
-
-		if p.peek.Type == lexer.TOKEN_COMMA {
-			p.advance()
-			continue
-		}
-		if !p.expect(lexer.TOKEN_RPAREN) {
-			return nil, false
-		}
-		return bindings, true
-	}
-}
-
-func (p *Parser) nativeMode() (in, out, ok bool) {
-	switch {
-	case p.current.Type == lexer.TOKEN_IN:
-		return true, false, true
-	case p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_IDENT:
-		switch p.current.Literal {
-		case "out":
-			return false, true, true
-		case "inout":
-			return true, true, true
-		}
-	}
-	return false, false, false
 }
 
 func (p *Parser) parseLabeledStatement() ast.Statement {

@@ -74,36 +74,6 @@ func (t *X64Target) nativeOperand(ref string, path []string, addr bool, v native
 	return text, nil
 }
 
-func (t *X64Target) nativeConstant(parts []string, addr bool) (string, bool, error) {
-	if addr || t.info.Module == nil {
-		return "", false, nil
-	}
-	sym, rest := analyser.NativeConstantRef(t.info.Module, parts)
-	if sym == nil || sym.Kind != analyser.CONST || sym.Const == nil {
-		return "", false, nil
-	}
-
-	if sym.Const.Kind == analyser.ConstString {
-		if len(rest) != 1 || (rest[0] != "ptr" && rest[0] != "len") {
-			return "", false, fmt.Errorf("the string constant %s has the parts ptr and len: write {%s.ptr} or {%s.len}", sym.Name, sym.Name, sym.Name)
-		}
-		label, size, err := t.stringData(sym.Const.Str)
-		if err != nil {
-			return "", false, err
-		}
-		if rest[0] == "ptr" {
-			return label, true, nil
-		}
-		return fmt.Sprint(size), true, nil
-	}
-
-	if len(rest) != 0 {
-		return "", false, fmt.Errorf("the constant %s has no part %s", sym.Name, rest[0])
-	}
-	value, ok := analyser.NativeConstant(sym)
-	return value, ok, nil
-}
-
 func nativeError(at ast.Position, format string, args ...any) error {
 	return &diag.Error{Diagnostic: diag.Diagnostic{
 		Message: fmt.Sprintf(format, args...),
@@ -112,97 +82,176 @@ func nativeError(at ast.Position, format string, args ...any) error {
 	}}
 }
 
-func nativeRefAt(stmt *ast.NativeStmt, index, length int) ast.Position {
-	before := stmt.Code[:index]
-	line := stmt.CodeAt.Line + strings.Count(before, "\n")
-	col := stmt.CodeAt.Col + 1 + index
-	if nl := strings.LastIndex(before, "\n"); nl >= 0 {
-		col = index - nl
-	}
-	return ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + length - 1}
+func (t *X64Target) nativeActive(stmt *ast.NativeStmt) bool {
+	return stmt.Backend == "" || target.MatchesName(t.target, stmt.Backend)
 }
 
-func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
-	if stmt.Backend != "" {
-		if !target.MatchesName(t.target, stmt.Backend) {
-			return nil
+func (t *X64Target) nativeRegisters(root ast.Node) map[string]bool {
+	out := map[string]bool{}
+	var walk func(ast.Node)
+	walk = func(root ast.Node) {
+		ast.Inspect(root, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.NativeStmt:
+				if info, ok := t.info.Natives[n]; ok && t.nativeActive(n) {
+					for _, name := range info.Registers {
+						out[name] = true
+					}
+				}
+				return false
+			case *ast.CallExpr:
+				if call, ok := t.info.Inlines[n]; ok {
+					walk(call.Body)
+				}
+			case *ast.FuncLiteral:
+				return false
+			}
+			return true
+		})
+	}
+	walk(root)
+	return out
+}
+
+func (t *X64Target) nativeVariable(ref analyser.NativeRef, at ast.Position) (nativeVar, error) {
+	sym := ref.Sym
+	size := sizeOf(sym.Type)
+	if sym.Global {
+		return nativeVar{mem: t.globalMem(sym, size), tp: sym.Type}, nil
+	}
+	offset, ok := t.ctx.Get(sym)
+	if !ok {
+		return nativeVar{}, nativeError(at, "variable %s is not declared in this scope", sym.Name)
+	}
+	if _, inRegister := t.ctx.Register(sym); inRegister {
+		return nativeVar{}, nativeError(at, "variable %s lives in a register: the native block needs it in memory", sym.Name)
+	}
+	return nativeVar{mem: slot(offset, size), tp: sym.Type}, nil
+}
+
+func (t *X64Target) nativeRef(ref analyser.NativeRef, addr bool, prefix string, at ast.Position) (string, error) {
+	switch ref.Kind {
+	case analyser.RefRegister:
+		return ref.Reg.Name, nil
+	case analyser.RefNumber, analyser.RefExtern:
+		return ref.Text, nil
+	case analyser.RefLabel:
+		return fmt.Sprintf(".%s_%s", prefix, ref.Text), nil
+	case analyser.RefFunction:
+		return t.funcLabel(ref.Sym), nil
+	case analyser.RefConstPart:
+		label, size, err := t.stringData(ref.Sym.Const.Str)
+		if err != nil {
+			return "", nativeError(at, "%s", err)
 		}
+		if len(ref.Path) == 1 && ref.Path[0] == "len" {
+			return fmt.Sprint(size), nil
+		}
+		return label, nil
 	}
 
-	variables := map[string]nativeVar{}
-	for _, binding := range stmt.Bindings {
-		sym := t.info.Idents[binding.Var]
-		size := sizeOf(sym.Type)
-		if sym.Global {
-			variables[sym.Name] = nativeVar{mem: t.globalMem(sym, size), tp: sym.Type}
-			continue
+	variable, err := t.nativeVariable(ref, at)
+	if err != nil {
+		return "", err
+	}
+	text, err := t.nativeOperand(ref.Sym.Name, ref.Path, addr, variable)
+	if err != nil {
+		return "", nativeError(at, "%s", err)
+	}
+	return text, nil
+}
+
+func (t *X64Target) nativeOperandText(mnemonic string, op ast.NativeOperand, info analyser.NativeOperandInfo, prefix string) (string, error) {
+	if !info.Mem {
+		text, err := t.nativeRef(info.Ref, info.Addr, prefix, op.At)
+		if err == nil && info.Ref.Kind == analyser.RefFunction && strings.EqualFold(mnemonic, "lea") {
+			text = "[rel " + text + "]"
 		}
-		offset, ok := t.ctx.Get(sym)
-		if !ok {
-			line, col := binding.Var.Position()
-			endLine, endCol := binding.Var.EndPosition()
-			return nativeError(ast.Position{Line: line, Col: col, EndLine: endLine, EndCol: endCol}, "variable %s not declared on this scope", sym.Name)
-		}
-		variables[sym.Name] = nativeVar{mem: slot(offset, size), tp: sym.Type}
+		return text, err
 	}
 
 	var b strings.Builder
-	code := stmt.Code
+	if info.Size != "" {
+		b.WriteString(info.Size)
+		b.WriteString(" ")
+	}
+	b.WriteString("[")
+	if info.Rel {
+		b.WriteString("rel ")
+	}
+	for i, term := range info.Terms {
+		text, err := t.nativeRef(term.Ref, false, prefix, op.Terms[i].At)
+		if err != nil {
+			return "", err
+		}
+		switch {
+		case i == 0 && term.Negative:
+			b.WriteString("-")
+		case i > 0 && term.Negative:
+			b.WriteString(" - ")
+		case i > 0:
+			b.WriteString(" + ")
+		}
+		if term.Scale != "" {
+			b.WriteString(term.Scale)
+			b.WriteString("*")
+		}
+		b.WriteString(text)
+	}
+	b.WriteString("]")
+	return b.String(), nil
+}
 
-	for i := 0; i < len(code); {
-		if code[i] != '{' {
-			b.WriteByte(code[i])
-			i++
+func (t *X64Target) compileNativeStmt(stmt *ast.NativeStmt) error {
+	if !t.nativeActive(stmt) {
+		return nil
+	}
+	info, ok := t.info.Natives[stmt]
+	if !ok {
+		return nativeError(stmt.BodyAt, "the native block was not analysed")
+	}
+
+	prefix := strings.TrimPrefix(t.newLabel("native"), ".")
+	for i, instr := range stmt.Instrs {
+		if instr.Label != "" {
+			t.text.printlnt(fmt.Sprintf(".%s_%s:", prefix, instr.Label))
+		}
+		if instr.Mnemonic == "" {
 			continue
 		}
 
-		end := strings.IndexByte(code[i+1:], '}')
-		if end == -1 {
-			return nativeError(nativeRefAt(stmt, i, 1), "invalid binding definition: missing }")
+		var line strings.Builder
+		for _, p := range instr.Prefixes {
+			line.WriteString(p)
+			line.WriteString(" ")
+		}
+		line.WriteString(instr.Mnemonic)
+
+		if strings.EqualFold(instr.Mnemonic, "extern") {
+			for _, op := range instr.Operands {
+				line.WriteString(" " + op.Path[0])
+			}
+			t.text.printlnt(line.String() + t.nativeMark(instr.At))
+			continue
 		}
 
-		end += i + 1
-		ref := code[i+1 : end]
-		at := nativeRefAt(stmt, i, end-i+1)
-		addr := strings.HasPrefix(ref, "&")
-		ref = strings.TrimPrefix(ref, "&")
-		parts := strings.Split(ref, ".")
-		variable, ok := variables[parts[0]]
-		if !ok {
-			value, isConst, err := t.nativeConstant(parts, addr)
+		for n, op := range instr.Operands {
+			text, err := t.nativeOperandText(instr.Mnemonic, op, info.Instrs[i].Operands[n], prefix)
 			if err != nil {
-				return nativeError(at, "%s", err)
+				return err
 			}
-			if isConst {
-				b.WriteString(value)
-				i = end + 1
-				continue
+			if n == 0 {
+				line.WriteString(" ")
+			} else {
+				line.WriteString(", ")
 			}
-			return nativeError(at, "undeclared binding %s", ref)
+			line.WriteString(text)
 		}
-
-		operand, err := t.nativeOperand(ref, parts[1:], addr, variable)
-		if err != nil {
-			return nativeError(at, "%s", err)
-		}
-
-		b.WriteString(operand)
-		i = end + 1
+		t.text.printlnt(line.String() + t.nativeMark(instr.At))
 	}
-
-	separator := ";"
-	if stmt.Raw {
-		separator = "\n"
-	}
-	parts := strings.Split(b.String(), separator)
-
-	lines := parts[:0]
-	for _, part := range parts {
-		if part = strings.TrimSpace(part); part != "" || !stmt.Raw {
-			lines = append(lines, part)
-		}
-	}
-
-	t.text.printlnt(strings.Join(lines, "\n\t"))
 	return nil
+}
+
+func (t *X64Target) nativeMark(at ast.Position) string {
+	return fmt.Sprintf("%s%d:%d:%d:%d:%s", nativeMarker, at.Line, at.Col, at.EndLine, at.EndCol, t.curFile)
 }

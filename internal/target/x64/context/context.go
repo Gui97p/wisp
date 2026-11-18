@@ -81,6 +81,12 @@ func (c *Context) Bind(ident *analyser.Symbol, reg Register) {
 	}
 }
 
+func (c *Context) MarkSaved(reg Register) {
+	if slices.Contains(SavedOrder, reg) {
+		c.savedRegisters[reg] = true
+	}
+}
+
 func (c *Context) Unbind(ident *analyser.Symbol) {
 	reg, ok := c.symbolRegisters[ident]
 	if !ok {

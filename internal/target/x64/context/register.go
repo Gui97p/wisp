@@ -188,3 +188,7 @@ type ArgLoc struct {
 	Regs  []Register
 	Stack int
 }
+
+func (r Register) Name() string {
+	return registers[r][8]
+}

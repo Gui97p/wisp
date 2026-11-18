@@ -23,13 +23,25 @@ internal func fromWords(uint high, low) float {
 	return f;
 }
 
-public native<x64> floor(float x) float r => "roundsd xmm0, {x}, 1; movsd {r}, xmm0";
+public native<x64> floor(float x) float r {
+	roundsd xmm0, x, 1;
+	movsd r, xmm0;
+}
 
-public native<x64> ceil(float x) float r => "roundsd xmm0, {x}, 2; movsd {r}, xmm0";
+public native<x64> ceil(float x) float r {
+	roundsd xmm0, x, 2;
+	movsd r, xmm0;
+}
 
-public native<x64> trunc(float x) float r => "roundsd xmm0, {x}, 3; movsd {r}, xmm0";
+public native<x64> trunc(float x) float r {
+	roundsd xmm0, x, 3;
+	movsd r, xmm0;
+}
 
-public native<x64> fsqrt(float x) float r => "sqrtsd xmm0, {x}; movsd {r}, xmm0";
+public native<x64> fsqrt(float x) float r {
+	sqrtsd xmm0, x;
+	movsd r, xmm0;
+}
 
 public func fmin(float x, y) float {
     if (isNaN(x) || isNaN(y)) {

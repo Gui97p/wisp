@@ -1,9 +1,24 @@
 #target x64
 
-internal native<debug> setExitHook(() => () hook) => "extern __wisp_exit_hook; mov rax, {hook}; mov [rel __wisp_exit_hook], rax";
+internal native<debug> setExitHook(() => () hook) {
+	extern __wisp_exit_hook;
+	mov rax, hook;
+	mov [rel __wisp_exit_hook], rax;
+}
 
-native<debug> siteOf(*void f) string s => "extern __wisp_site; mov rdi, {f}; call __wisp_site; mov {s.ptr}, rax; mov {s.len}, rdx";
-native<debug> parent(*void f) *void g => "mov rax, {f}; mov rax, [rax]; mov {g}, rax";
+native<debug> siteOf(*void f) string s {
+	extern __wisp_site;
+	mov rdi, f;
+	call __wisp_site;
+	mov s.ptr, rax;
+	mov s.len, rdx;
+}
+
+native<debug> parent(*void f) *void g {
+	mov rax, f;
+	mov rax, [rax];
+	mov g, rax;
+}
 
 func<debug> callerSite(*void f) string {
 	string first = siteOf(f);
@@ -26,15 +41,36 @@ internal inline func site() string {
 }
 internal func<debug> site() string {
 	?*void f;
-	native(out f) "mov rax, [rbp]; mov {f}, rax";
+	native {
+		mov rax, [rbp];
+		mov f, rax;
+	}
 	return callerSite(f!!);
 }
 
-internal native rawCopy(*void dst, src, int n) =>
-		"mov rdi, {dst}; mov rsi, {src}; mov rcx, {n}; rep movsb";
+internal native rawCopy(*void dst, src, int n) {
+	mov rdi, dst;
+	mov rsi, src;
+	mov rcx, n;
+	rep movsb;
+}
 
-internal native rawCopyBackward(*void dst, src, int n) =>
-		"mov rdi, {dst}; add rdi, {n}; dec rdi; mov rsi, {src}; add rsi, {n}; dec rsi; mov rcx, {n}; std; rep movsb; cld";
+internal native rawCopyBackward(*void dst, src, int n) {
+	mov rdi, dst;
+	add rdi, n;
+	dec rdi;
+	mov rsi, src;
+	add rsi, n;
+	dec rsi;
+	mov rcx, n;
+	std;
+	rep movsb;
+	cld;
+}
 
-internal native rawSet(*void dst, byte value, int n) =>
-		"mov rdi, {dst}; mov al, {value}; mov rcx, {n}; rep stosb";
+internal native rawSet(*void dst, byte value, int n) {
+	mov rdi, dst;
+	mov al, value;
+	mov rcx, n;
+	rep stosb;
+}

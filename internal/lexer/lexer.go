@@ -292,6 +292,12 @@ func (l *Lexer) NextToken() Token {
 		}
 
 		t = l.token(TOKEN_STRING_LITERAL, str.String())
+	case '\\':
+		if l.peek() != '\\' {
+			t = l.token(TOKEN_ILLEGAL, "\\")
+			break
+		}
+		t = l.lineString()
 	case '`':
 		var str strings.Builder
 		for {
@@ -307,6 +313,11 @@ func (l *Lexer) NextToken() Token {
 				continue
 			}
 
+			if l.ch == '\\' {
+				str.WriteString("\\\\")
+				continue
+			}
+
 			if l.ch == '`' {
 				break
 			}
@@ -315,7 +326,6 @@ func (l *Lexer) NextToken() Token {
 		}
 
 		t = l.token(TOKEN_STRING_LITERAL, str.String())
-		t.Raw = true
 	case '\'':
 		l.advance()
 
@@ -433,6 +443,36 @@ func (l *Lexer) exponent(b *strings.Builder) bool {
 		b.WriteByte(c)
 	}
 	return true
+}
+
+func (l *Lexer) lineString() Token {
+	var str strings.Builder
+	l.advance()
+	for {
+		for l.peek() != '\n' && l.peek() != EOF {
+			l.advance()
+			switch l.ch {
+			case '\r':
+			case '\\':
+				str.WriteString("\\\\")
+			default:
+				str.WriteByte(l.ch)
+			}
+		}
+
+		next := l.pos + 1
+		for next < len(l.buf) && isSpace(l.buf[next]) {
+			next++
+		}
+		if next+1 >= len(l.buf) || l.buf[next] != '\\' || l.buf[next+1] != '\\' {
+			break
+		}
+		for l.pos < next+1 {
+			l.advance()
+		}
+		str.WriteByte('\n')
+	}
+	return l.token(TOKEN_STRING_LITERAL, str.String())
 }
 
 func (l *Lexer) token(t TokenType, lit string) Token {

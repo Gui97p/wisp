@@ -613,7 +613,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 					return err
 				}
 				defer os.RemoveAll(tmp)
-				return x64.Assemble(source, objPath, filepath.Join(tmp, "std.asm"), false, tgt.Format)
+				return c.reportFailure(x64.Assemble(source, objPath, filepath.Join(tmp, "std.asm"), false, tgt.Format))
 			})
 			if err != nil {
 				return nil, err
@@ -675,7 +675,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			}
 
 			if err := x64.Assemble(source, objPath, asmPath, keepAsm, tgt.Format); err != nil {
-				return nil, err
+				return nil, c.reportFailure(err)
 			}
 
 			if targets.wantObj {

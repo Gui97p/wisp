@@ -752,8 +752,14 @@ shared func getenv(string name) (string, bool) {
 	return string(envBuffer()[:r]), true;
 }
 
-shared native args() []string s =>
-	"extern __wisp_args_ptr; extern __wisp_args_len; mov rax, [rel __wisp_args_ptr]; mov {s.ptr}, rax; mov rax, [rel __wisp_args_len]; mov {s.len}, rax";
+shared native args() []string s {
+	extern __wisp_args_ptr;
+	extern __wisp_args_len;
+	mov rax, [rel __wisp_args_ptr];
+	mov s.ptr, rax;
+	mov rax, [rel __wisp_args_len];
+	mov s.len, rax;
+}
 
 shared func time(int clock) (int, int) {
 	if clock == sys.CLOCK_REALTIME {

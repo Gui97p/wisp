@@ -3890,20 +3890,31 @@ func check(bool ok, string name) {
 
 func main() {
     int sum;
-    native<x64>(out sum) "mov {sum}, {limits.Base}; add {sum}, {limits.Extra}";
+    native<x64> {
+    	mov sum, limits.Base;
+    	add sum, limits.Extra;
+    }
     check(sum == 42, "a constant of another module is an immediate");
 
     int bias;
-    native<x64>(out bias) "mov {bias}, {Bias}";
+    native<x64> {
+    	mov bias, Bias;
+    }
     check(bias == -1, "a negative constant keeps its sign");
 
     int on;
-    native<x64>(out on) "mov {on}, {Enabled}";
+    native<x64> {
+    	mov on, Enabled;
+    }
     check(on == 1, "a bool constant is 1 or 0");
 
     int n;
     ?*byte p;
-    native<x64>(out n, p) "mov {n}, {Greeting.len}; lea rax, [rel {Greeting.ptr}]; mov {p}, rax";
+    native<x64> {
+    	mov n, Greeting.len;
+    	lea rax, [rel Greeting.ptr];
+    	mov p, rax;
+    }
     check(n == 3, "the length of a string constant");
     *byte text = p!!;
     check(string(text[:n]) == "hey", "the address of a string constant");
@@ -7474,15 +7485,30 @@ func main() {
     return -1;
 }
 
-native<x64> add(int a, int b) int r => "mov rax, {a}; add rax, {b}; mov {r}, rax";
+native<x64> add(int a, int b) int r {
+	mov rax, a;
+	add rax, b;
+	mov r, rax;
+}
 
-native<x64> split(int a) (int lo, int hi) => "mov rax, {a}; mov {lo}, rax; add rax, 1; mov {hi}, rax";
+native<x64> split(int a) (int lo, int hi) {
+	mov rax, a;
+	mov lo, rax;
+	add rax, 1;
+	mov hi, rax;
+}
 
-native<x64> reset() => "nop";
+native<x64> reset() {
+	nop;
+}
 
 func mixed(int a) int {
     int r;
-    native<x64>(in a, out r) "mov rax, {a}; add rax, 5; mov {r}, rax";
+    native<x64> {
+    	mov rax, a;
+    	add rax, 5;
+    	mov r, rax;
+    }
     return r;
 }
 
@@ -7527,11 +7553,19 @@ internal func size() int {
     return SIZE;
 }
 
-internal native bump(int a) int r => "mov rax, {a}; add rax, 1; mov {r}, rax";
+internal native bump(int a) int r {
+	mov rax, a;
+	add rax, 1;
+	mov r, rax;
+}
 
 internal func bumpTwice(int a) int {
     int r;
-    native(in a, out r) "mov rax, {a}; add rax, 2; mov {r}, rax";
+    native {
+    	mov rax, a;
+    	add rax, 2;
+    	mov r, rax;
+    }
     return r;
 }
 
@@ -7550,9 +7584,15 @@ public func twice(int n) int {
 }
 `}, src: `import "platform";
 
-native<x64> level() int r => "mov {r}, 1";
-native<x64 && linux> level() int r => "mov {r}, 2";
-native<!x64> level() int r => "r = 2";
+native<x64> level() int r {
+	mov r, 1;
+}
+native<x64 && linux> level() int r {
+	mov r, 2;
+}
+native<!x64> level() int r {
+	mov r, 2;
+}
 
 func main() {
     check(platform.base() == 10, "the entry of a package is always there");
@@ -11653,57 +11693,268 @@ func main() {
     int a = 40;
     int b = 2;
     int r = 0;
-    native<x64>(in a, b, out r) "mov rax, {a}; add rax, {b}; mov {r}, rax";
+    native<x64> {
+    	mov rax, a;
+    	add rax, b;
+    	mov r, rax;
+    }
     check(r == 42, "bindings in sequence share their mode");
 
     int c = 41;
-    native<x64>(inout c) "add {c}, 1";
+    native<x64> {
+    	add c, 1;
+    }
     check(c == 42, "inout reads and writes");
 
     int out = 5;
     int d = 0;
-    native<x64>(in out, out d) "mov rax, {out}; mov {d}, rax";
+    native<x64> {
+    	mov rax, out;
+    	mov d, rax;
+    }
     check(d == 5, "a variable can be named out");
 
     P p = P{x: 10, y: 20};
     int sum = 0;
-    native<x64>(in p, out sum) "mov rax, {p.y}; add rax, {p.x}; mov {sum}, rax; mov {p.x}, 99";
+    native<x64> {
+    	mov rax, p.y;
+    	add rax, p.x;
+    	mov sum, rax;
+    	mov p.x, 99;
+    }
     check(sum == 30 && p.x == 99 && p.y == 20, "struct fields are operands");
 
     [4]int values = [1, 2, 3, 4];
     int third = 0;
-    native<x64>(in values, out third) "lea rax, {&values}; mov rax, [rax+16]; mov {third}, rax";
+    native<x64> {
+    	lea rax, &values;
+    	mov rax, [rax+16];
+    	mov third, rax;
+    }
     check(third == 3, "{&name} is the address of any variable");
 
     string s = "hey";
     int n = 0;
-    native<x64>(in s, out n) "mov rax, {s.len}; mov {n}, rax";
+    native<x64> {
+    	mov rax, s.len;
+    	mov n, rax;
+    }
     check(n == 3, "string parts are operands");
 
     int before = 0;
-    native<x64>(in counter, out before) "mov rax, {counter}; mov {before}, rax; add {counter}, 1";
+    native<x64> {
+    	mov rax, counter;
+    	mov before, rax;
+    	add counter, 1;
+    }
     check(before == 5 && counter == 6, "a global is an operand");
 
     int gy = 0;
-    native<x64>(in origin, out gy) "mov rax, {origin.y}; mov {gy}, rax; mov {origin.x}, 30";
+    native<x64> {
+    	mov rax, origin.y;
+    	mov gy, rax;
+    	mov origin.x, 30;
+    }
     check(gy == 4 && origin.x == 30, "a global struct has fields");
 }
 `, expected: []string{"bindings in sequence share their mode", "inout reads and writes", "a variable can be named out", "struct fields are operands", "{&name} is the address of any variable", "string parts are operands", "a global is an operand", "a global struct has fields"}},
 
-	{dir: "native_raw_block", src: "func main() {\n" +
-		"    int r = 0;\n" +
-		"    native<x64>(out r) `\n" +
-		"        ; the answer\n" +
-		"        mov rcx, 3\n" +
-		"        xor rax, rax\n" +
-		"    .again:\n" +
-		"        add rax, 14   ; a comment after code\n" +
-		"        dec rcx\n" +
-		"        jnz .again\n" +
-		"        mov {r}, rax\n" +
-		"    `;\n" +
-		"    check(r == 42, \"a backtick block goes to the assembler as written\");\n" +
-		"}\n", expected: []string{"a backtick block goes to the assembler as written"}},
+	{dir: "native_labels", src: `func main() {
+    int r = 0;
+    native<x64> {
+        // the answer
+        mov rcx, 3;
+        xor rax, rax;
+    again:
+        add rax, 14;
+        dec rcx;
+        jnz again;
+        mov r, rax;
+    }
+    int s = 0;
+    native<x64> {
+    again:
+        add s, 1;
+        cmp s, 5;
+        jl again;
+    }
+    check(r == 42, "a label is local to its block and a loop runs");
+    check(s == 5, "two blocks can use the same label name");
+}
+`, expected: []string{"a label is local to its block and a loop runs", "two blocks can use the same label name"}},
+
+	{dir: "native_registers", src: `func clobber() int {
+    int r = 0;
+    native<x64> {
+        mov rbx, 1000;
+        mov r12, 2000;
+        mov r13, 3000;
+        add rbx, r12;
+        add rbx, r13;
+        mov r, rbx;
+    }
+    return r;
+}
+
+func hot(int n) int {
+    int a = 1;
+    int b = 2;
+    int c = 3;
+    for i in 1..n {
+        a += i;
+        b += a;
+        c += b;
+        if i == 2 {
+            native<x64> {
+                mov rbx, 7;
+                mov r12, 9;
+                xor rbx, r12;
+            }
+        }
+    }
+    return a + b + c;
+}
+
+func keeper(int n) int {
+    int a = 0;
+    int b = 0;
+    for i in 1..n {
+        a += i;
+        b += clobber();
+    }
+    return a + b;
+}
+
+func divide(int x, int y) (int, int) {
+    int q = 0;
+    int m = 0;
+    native<x64> {
+        mov rax, x;
+        cqo;
+        idiv y;
+        mov q, rax;
+        mov m, rdx;
+    }
+    return q, m;
+}
+
+func copy() int {
+    [4]int src;
+    [4]int dst;
+    for i in 0..3 {
+        src[i] = i + 1;
+    }
+    native<x64> {
+        lea rsi, &src;
+        lea rdi, &dst;
+        mov rcx, 32;
+        rep movsb;
+    }
+    return dst[0] + dst[1] + dst[2] + dst[3];
+}
+
+func main() {
+    check(clobber() == 6000, "a block works with callee-saved registers");
+    check(hot(5) == 156, "locals survive a block that uses the registers they would live in");
+    check(keeper(4) == 24010, "the caller keeps its registers across a native that clobbers them");
+    let q, m = divide(47, 5);
+    check(q == 9 && m == 2, "div touches rax and rdx without breaking the surroundings");
+    check(copy() == 10, "rep movsb with the addresses of two arrays");
+}
+`, expected: []string{"a block works with callee-saved registers", "locals survive a block that uses the registers they would live in", "the caller keeps its registers across a native that clobbers them", "div touches rax and rdx without breaking the surroundings", "rep movsb with the addresses of two arrays"}},
+
+	{dir: "native_inline", src: `inline native<x64> twice(int x) int r {
+    mov rax, x;
+    add rax, rax;
+    mov r, rax;
+}
+
+func main() {
+    int k = 20;
+    int a = twice(k);
+    int b = twice(a + 1);
+    check(a == 40 && b == 82, "an inline native function expands at the call");
+    check(twice(7) == 14 && k == 20, "its arguments are copies");
+}
+`, expected: []string{"an inline native function expands at the call", "its arguments are copies"}},
+
+	{dir: "native_calls", src: `import "std/math";
+
+func hello(int a) int {
+    return a + 1;
+}
+
+func triple(int a, int b, int c) (int, int, int) {
+    return a * 3, b * 3, c * 3;
+}
+
+native<x64> viaCall(int n) int r {
+    mov rdi, n;
+    call hello;
+    mov r, rax;
+}
+
+native<x64> viaPointer(int n) int r {
+    lea rax, hello;
+    mov rdi, n;
+    call rax;
+    mov r, rax;
+}
+
+native<x64> viaModule(int a, int b) int r {
+    mov rdi, a;
+    mov rsi, b;
+    call math.gcd;
+    mov r, rax;
+}
+
+func main() {
+    int keep = 5;
+    int total = 0;
+    for i in 1..3 {
+        total += viaCall(i);
+        keep += i;
+    }
+    check(viaCall(41) == 42, "a native block calls a Wisp function");
+    check(viaPointer(9) == 10, "the name of a function is its address");
+    check(viaModule(12, 18) == 6, "a function of another module");
+    check(total == 9 && keep == 11, "locals survive the calls");
+}
+`, expected: []string{"a native block calls a Wisp function", "the name of a function is its address", "a function of another module", "locals survive the calls"}},
+
+	{dir: "string_raw", src: "func main() {\n" +
+		"    string a = `a\\tb`;\n" +
+		"    check(len(a) == 4 && a[1] == '\\\\' && a[2] == 't', \"a backslash is kept as it is\");\n" +
+		"    string b = `x\\\\y`;\n" +
+		"    check(len(b) == 4, \"two backslashes stay two\");\n" +
+		"    string c = `tick \\` tock`;\n" +
+		"    check(len(c) == 11 && c[5] == '`', \"an escaped backtick is a backtick\");\n" +
+		"    string d = `one\ntwo`;\n" +
+		"    check(len(d) == 7 && d[3] == '\\n', \"a raw string can span lines\");\n" +
+		"    check(len(\"a\\tb\") == 3, \"a plain string still has its escapes\");\n" +
+		"}\n", expected: []string{"a backslash is kept as it is", "two backslashes stay two", "an escaped backtick is a backtick", "a raw string can span lines", "a plain string still has its escapes"}},
+
+	{dir: "string_lines", src: "func main() {\n" +
+		"    string a =\n" +
+		"        \\\\one\n" +
+		"        \\\\  two\\n\n" +
+		"        \\\\\n" +
+		"        \\\\three\n" +
+		"    ;\n" +
+		"    check(len(a) == 18, \"the lines are joined with a newline and none follows the last\");\n" +
+		"    check(a[3] == '\\n' && a[11] == '\\n' && a[12] == '\\n', \"an empty line is kept\");\n" +
+		"    check(a[9] == '\\\\' && a[10] == 'n', \"there are no escapes\");\n" +
+		"    check(a[4] == ' ' && a[5] == ' ', \"nothing is removed after the marker\");\n" +
+		"    string b =\n" +
+		"        \\\\x\n" +
+		"        \\\\y\n" +
+		"    ;\n" +
+		"    check(b == \"x\\ny\", \"it is a plain string\");\n" +
+		"    check(len(\n" +
+		"        \\\\ab\n" +
+		"        \\\\cd\n" +
+		"    ) == 5, \"it can be an argument\");\n" +
+		"}\n", expected: []string{"the lines are joined with a newline and none follows the last", "an empty line is kept", "there are no escapes", "nothing is removed after the marker", "it is a plain string", "it can be an argument"}},
 
 	{dir: "win64_variadic", system: "windows", files: map[string]string{"lib.asm": `default rel
 global vcheck

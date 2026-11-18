@@ -38,6 +38,7 @@ type Info struct {
 	Variants         map[ast.Expression]*VariantInfo
 	SumTests         map[*ast.BinaryExpr]*SumTest
 	Makes            map[*ast.CallExpr]*MakeInfo
+	Natives          map[*ast.NativeStmt]*NativeInfo
 	Resizes          map[*ast.CallExpr]*ResizeInfo
 }
 
@@ -98,6 +99,7 @@ func NewInfo() *Info {
 		Narrowed:         make(map[*Symbol]*Symbol),
 		SwitchValues:     make(map[*ast.SwitchExpr][]Type),
 		Variants:         make(map[ast.Expression]*VariantInfo),
+		Natives:          make(map[*ast.NativeStmt]*NativeInfo),
 		SumTests:         make(map[*ast.BinaryExpr]*SumTest),
 		Makes:            make(map[*ast.CallExpr]*MakeInfo),
 		Resizes:          make(map[*ast.CallExpr]*ResizeInfo),

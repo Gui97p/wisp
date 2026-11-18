@@ -10,6 +10,16 @@ func (p *Parser) parseFuncDeclaration() *ast.FuncDecl {
 }
 
 func (p *Parser) parseInlineDeclaration() *ast.FuncDecl {
+	if p.peek.Type == lexer.TOKEN_NATIVE {
+		p.advance()
+		decl := p.parseNativeDeclaration()
+		if decl == nil {
+			return nil
+		}
+		decl.Inline = true
+		return decl
+	}
+
 	if !p.expect(lexer.TOKEN_FUNC) {
 		return nil
 	}

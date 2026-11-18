@@ -123,6 +123,15 @@
                             "name": "punctuation.definition.string.end.wisp"
                         }
                     }
+                },
+                {
+                    "name": "string.quoted.other.lines.wisp",
+                    "match": "(\\\\\\\\).*$",
+                    "captures": {
+                        "1": {
+                            "name": "punctuation.definition.string.begin.wisp"
+                        }
+                    }
                 }
             ]
         },
@@ -281,15 +290,23 @@
                 {
                     "match": "\\b(switch)\\s+(type)\\b",
                     "captures": {
-                        "1": { "name": "keyword.control.conditional.wisp" },
-                        "2": { "name": "keyword.control.conditional.wisp" }
+                        "1": {
+                            "name": "keyword.control.conditional.wisp"
+                        },
+                        "2": {
+                            "name": "keyword.control.conditional.wisp"
+                        }
                     }
                 },
                 {
                     "match": "\\b(case)\\s+(signed|unsigned)\\b(?=\\s*[A-Za-z_:,=])",
                     "captures": {
-                        "1": { "name": "keyword.control.conditional.wisp" },
-                        "2": { "name": "storage.type.primitive.wisp" }
+                        "1": {
+                            "name": "keyword.control.conditional.wisp"
+                        },
+                        "2": {
+                            "name": "storage.type.primitive.wisp"
+                        }
                     }
                 },
                 {
@@ -317,26 +334,68 @@
                     "match": "\\b(import|public|internal|shared|extern|inline|var|as)\\b"
                 },
                 {
-                    "begin": "\\b(native)(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*(\\()",
+                    "begin": "(\\bnative\\b)((?:\\s*<[^<>]*>)?[^{};]*)(\\{)",
                     "beginCaptures": {
                         "1": {
                             "name": "keyword.other.native.wisp"
                         },
                         "2": {
-                            "name": "entity.name.function.wisp"
+                            "patterns": [
+                                {
+                                    "include": "#types"
+                                },
+                                {
+                                    "name": "entity.name.function.wisp",
+                                    "match": "[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\()"
+                                }
+                            ]
+                        },
+                        "3": {
+                            "name": "punctuation.definition.block.begin.wisp"
                         }
                     },
-                    "end": "\\)",
+                    "end": "\\}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.block.end.wisp"
+                        }
+                    },
+                    "name": "meta.native.block.wisp",
                     "patterns": [
                         {
-                            "name": "keyword.other.native.mode.wisp",
-                            "match": "\\b(in|out|inout)\\b(?=\\s+[A-Za-z_])"
+                            "include": "#comments"
+                        },
+                        {
+                            "match": "^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*:",
+                            "captures": {
+                                "1": {
+                                    "name": "entity.name.label.wisp"
+                                }
+                            }
+                        },
+                        {
+                            "match": "(?:^|(?<=;)|(?<=:))\\s*(?:(rep|repe|repne|repz|repnz|lock)\\s+)?([A-Za-z_][A-Za-z0-9_]*)(?=\\s*(?:;|\\s|$))",
+                            "captures": {
+                                "1": {
+                                    "name": "keyword.other.instruction.prefix.wisp"
+                                },
+                                "2": {
+                                    "name": "keyword.other.instruction.wisp"
+                                }
+                            }
+                        },
+                        {
+                            "name": "variable.language.register.wisp",
+                            "match": "\\b(?:[re]?[abcd]x|[abcd][lh]|[re]?(?:si|di|bp|sp)|[sd]il|[bs]pl|r(?:8|9|1[0-5])[dwb]?|[xy]mm(?:1[0-5]|[0-9])|rip|fs|gs)\\b"
+                        },
+                        {
+                            "name": "storage.type.size.wisp",
+                            "match": "\\b(?:byte|word|dword|qword|tword|oword|yword|zword|rel)\\b"
+                        },
+                        {
+                            "include": "#numbers"
                         }
                     ]
-                },
-                {
-                    "name": "keyword.other.native.wisp",
-                    "match": "\\bnative\\b"
                 }
             ]
         },

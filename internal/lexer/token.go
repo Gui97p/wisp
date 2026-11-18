@@ -202,5 +202,4 @@ type Token struct {
 	Column    int
 	EndLine   int
 	EndColumn int
-	Raw       bool
 }

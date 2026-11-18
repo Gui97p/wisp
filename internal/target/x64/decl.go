@@ -313,6 +313,7 @@ func (t *X64Target) compileFuncBody(name, display string, entry, cabi bool, para
 	}
 
 	t.collectVariables(body)
+	taken := t.nativeRegisters(body)
 	if t.optimize {
 		weight := map[*analyser.Symbol]int{}
 		barred := map[*analyser.Symbol]bool{}
@@ -336,16 +337,27 @@ func (t *X64Target) compileFuncBody(name, display string, entry, cabi bool, para
 		for _, cand := range t.candidates {
 			switch cand.class {
 			case x64context.Int:
+				for ni < len(x64context.SavedOrder) && taken[x64context.SavedOrder[ni].Name()] {
+					ni++
+				}
 				if ni < len(x64context.SavedOrder) {
 					t.ctx.Bind(cand.sym, x64context.SavedOrder[ni])
 					ni++
 				}
 			case x64context.SSE:
+				for nx < len(x64context.XMMSavedOrder) && taken[x64context.XMMSavedOrder[nx].Name()] {
+					nx++
+				}
 				if nx < len(x64context.XMMSavedOrder) {
 					t.ctx.Bind(cand.sym, x64context.XMMSavedOrder[nx])
 					nx++
 				}
 			}
+		}
+	}
+	for _, reg := range x64context.SavedOrder {
+		if taken[reg.Name()] {
+			t.ctx.MarkSaved(reg)
 		}
 	}
 	t.text.printlnt("sub rsp, .frame\n")
@@ -624,9 +636,9 @@ func (t *X64Target) weigh(root ast.Node, depth int, weight map[*analyser.Symbol]
 			}
 			return true
 		case *ast.NativeStmt:
-			for _, bind := range n.Bindings {
-				if bind.Var != nil {
-					barred[t.info.Idents[bind.Var]] = true
+			if info, ok := t.info.Natives[n]; ok && t.nativeActive(n) {
+				for _, sym := range info.Vars {
+					barred[sym] = true
 				}
 			}
 			return false

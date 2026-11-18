@@ -50,6 +50,23 @@ public func demo() {
   fmt.printf("'\\0' == '\\x00': {}\n", '\0' == '\x00');
   fmt.printf("'\\n' is the byte {}\n", int('\n'));
 
+  // Text between backticks is a raw string: it can span lines, and a
+  // backslash is just a backslash (only \` stands for a backtick).
+  string path = `C:\temp\new
+second line`;
+  fmt.printf("{} has {} bytes\n", path, len(path));
+
+  // Lines that start with `\\` make a multi-line string too, one that does not
+  // care how the code around it is indented. The text of a line is whatever
+  // follows the two backslashes, as it is written (the `;` goes on a line of
+  // its own), and the lines are joined with a newline, none after the last.
+  string usage =
+      \\usage: tour [flags]
+      \\
+      \\  --verbose  say more
+  ;
+  fmt.printf("{}\n", usage);
+
   // Integers have a width, and `+%` wraps at it (the overflow page has the
   // other ways to handle going past it).
   int8 small = 127;

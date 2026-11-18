@@ -1,10 +1,13 @@
 package x64
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -98,6 +101,7 @@ type X64Target struct {
 	inlineFrames []inlineFrame
 	candidates   []candidate
 	savedRegs    []savedReg
+	curFile      string
 	savedXmms    []savedReg
 
 	deferScopes []*deferScope
@@ -219,6 +223,7 @@ func (t *X64Target) fail(message string, args ...any) {
 
 func (t *X64Target) Compile() (string, error) {
 	for _, decl := range t.program.Declarations {
+		t.curFile = t.files[decl]
 		if err := t.compileDeclaration(decl); err != nil {
 			return "", diag.InFile(err, t.files[decl])
 		}
@@ -227,6 +232,61 @@ func (t *X64Target) Compile() (string, error) {
 	code := fmt.Sprintf("%s\n%s\n%s\n%s\n%s", t.prelude.b.String(), t.rodata.b.String(), t.data.b.String(), t.text.b.String(), t.postlude.b.String())
 
 	return code, nil
+}
+
+type AssembleError struct {
+	Diagnostic diag.Error
+}
+
+func (e *AssembleError) Error() string {
+	return e.Diagnostic.Message
+}
+
+func (e *AssembleError) Unwrap() error {
+	return &e.Diagnostic
+}
+
+var nasmLine = regexp.MustCompile(`^(.*?):(\d+): (error|warning): (.*)$`)
+
+const nativeMarker = " ; wisp:"
+
+func mapAssemblerErrors(asmSource, asmPath, stderr string) (*AssembleError, string) {
+	lines := strings.Split(asmSource, "\n")
+	var mapped *AssembleError
+	var rest strings.Builder
+	for _, text := range strings.Split(strings.TrimRight(stderr, "\n"), "\n") {
+		m := nasmLine.FindStringSubmatch(text)
+		if m == nil || m[1] != asmPath || m[3] != "error" {
+			rest.WriteString(text + "\n")
+			continue
+		}
+		n, _ := strconv.Atoi(m[2])
+		if n < 1 || n > len(lines) {
+			rest.WriteString(text + "\n")
+			continue
+		}
+		at := strings.LastIndex(lines[n-1], nativeMarker)
+		if at < 0 {
+			rest.WriteString(text + "\n")
+			continue
+		}
+		fields := strings.SplitN(lines[n-1][at+len(nativeMarker):], ":", 5)
+		if len(fields) != 5 {
+			rest.WriteString(text + "\n")
+			continue
+		}
+		line, _ := strconv.Atoi(fields[0])
+		col, _ := strconv.Atoi(fields[1])
+		endLine, _ := strconv.Atoi(fields[2])
+		endCol, _ := strconv.Atoi(fields[3])
+		if mapped == nil {
+			mapped = &AssembleError{Diagnostic: diag.Error{Diagnostic: diag.Diagnostic{
+				File: fields[4], Message: m[4], Origin: "nasm",
+				Line: line, Col: col, EndLine: endLine, EndCol: endCol,
+			}}}
+		}
+	}
+	return mapped, rest.String()
 }
 
 func Assemble(asmSource, objPath, asmPath string, keepAsm bool, format string, defines ...string) error {
@@ -244,8 +304,14 @@ func Assemble(asmSource, objPath, asmPath string, keepAsm bool, format string, d
 	}
 	trace(nasm, args)
 	nasmCmd := exec.Command(nasm, args...)
-	nasmCmd.Stderr = os.Stderr
+	var stderr bytes.Buffer
+	nasmCmd.Stderr = &stderr
 	if err := nasmCmd.Run(); err != nil {
+		mapped, rest := mapAssemblerErrors(asmSource, asmPath, stderr.String())
+		os.Stderr.WriteString(rest)
+		if mapped != nil {
+			return mapped
+		}
 		return fmt.Errorf("nasm failed (%s)", diag.Reason(err))
 	}
 
