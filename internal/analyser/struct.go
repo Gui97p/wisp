@@ -40,39 +40,58 @@ func (a *Analyser) registerStructNames() {
 }
 
 func (a *Analyser) registerStructFields() {
+	a.structDecls = map[string]*ast.StructDecl{}
+	a.fieldsStarted = map[*ast.StructDecl]bool{}
+	for _, d := range a.program.Declarations {
+		if sd, ok := d.(*ast.StructDecl); ok {
+			a.structDecls[sd.Name] = sd
+		}
+	}
+
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		if td, isEnum := d.(*ast.TypeDecl); isEnum && td.Data {
 			a.registerSumFields(td)
 			continue
 		}
-		sd, ok := d.(*ast.StructDecl)
-		if !ok {
+		if sd, ok := d.(*ast.StructDecl); ok {
+			a.registerFieldsOf(sd)
+		}
+	}
+}
+
+func (a *Analyser) registerFieldsOf(sd *ast.StructDecl) {
+	if a.fieldsStarted[sd] {
+		return
+	}
+	a.fieldsStarted[sd] = true
+
+	savedFile := a.currentFile
+	a.currentFile = a.declFiles[sd]
+	defer func() { a.currentFile = savedFile }()
+
+	symbol, _ := a.scope.Resolve(sd.Name)
+	st := symbol.Type.(*StructType)
+
+	for _, member := range sd.Members {
+		fieldType := a.resolveTypeRef(sd, a.scope, member.Type)
+		if fieldType == nil {
 			continue
 		}
 
-		symbol, _ := a.scope.Resolve(sd.Name)
-		st := symbol.Type.(*StructType)
-
-		for _, member := range sd.Members {
-			fieldType := a.resolveTypeRef(sd, a.scope, member.Type)
-			if fieldType == nil {
-				continue
-			}
-
-			if _, ok := st.Fields[member.Name]; ok {
-				a.errorf(sd, "duplicated field %s in struct %s", member.Name, sd.Name)
-				continue
-			}
-
-			st.Fields[member.Name] = fieldType
-			st.FieldDocs[member.Name] = member.Doc
-			if dir := reachDir(member.Reach, a.currentFile); dir != "" {
-				st.FieldDirs[member.Name] = dir
-			}
-			st.Order = append(st.Order, member.Name)
+		if _, ok := st.Fields[member.Name]; ok {
+			a.errorf(sd, "duplicated field %s in struct %s", member.Name, sd.Name)
+			continue
 		}
+
+		st.Fields[member.Name] = fieldType
+		st.FieldDocs[member.Name] = member.Doc
+		if dir := reachDir(member.Reach, a.currentFile); dir != "" {
+			st.FieldDirs[member.Name] = dir
+		}
+		st.Order = append(st.Order, member.Name)
 	}
+	st.complete = true
 }
 
 func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {

@@ -9,6 +9,8 @@ func walkProgram(program *ast.Program, fn func(ast.Expression)) {
 			if d.Body != nil {
 				walkStmt(d.Body, fn)
 			}
+		case *ast.StaticAssertDecl:
+			walkExpr(d.Call, fn)
 		case *ast.ConstDecl:
 			walkExprs(d.Values, fn)
 		case *ast.VarDecl:

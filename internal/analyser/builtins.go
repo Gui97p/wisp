@@ -18,6 +18,16 @@ func (a *Analyser) registerBuiltins() {
 		Name: "sizeof", Params: []Type{AnyType{}}, Returns: []Type{intType},
 	}})
 
+	a.universe.Define(&Symbol{Name: "alignof", Kind: FUNC, Type: &FuncType{
+		Name: "alignof", Params: []Type{AnyType{}}, Returns: []Type{intType},
+	}})
+	a.universe.Define(&Symbol{Name: "offsetof", Kind: FUNC, Type: &FuncType{
+		Name: "offsetof", Params: []Type{AnyType{}, AnyType{}}, Returns: []Type{intType},
+	}})
+	a.universe.Define(&Symbol{Name: "staticAssert", Kind: FUNC, Type: &FuncType{
+		Name: "staticAssert", Params: []Type{PrimitiveType{Name: "bool"}, strType}, Returns: nil,
+	}})
+
 	for _, name := range []string{"make", "makeDirty", "create", "free", "resize"} {
 		a.universe.Define(&Symbol{Name: name, Kind: FUNC, Type: &FuncType{
 			Name: name, Params: []Type{AnyType{}}, Returns: nil, Variadic: true,

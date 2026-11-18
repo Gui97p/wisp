@@ -7,7 +7,9 @@ import (
 )
 
 func (a *Analyser) checkBlock(block *ast.BlockStmt) {
-	a.info.Scopes[block] = a.scope
+	if a.currentInline == nil {
+		a.info.Scopes[block] = a.scope
+	}
 
 	a.checkStatements(block.Statements)
 }

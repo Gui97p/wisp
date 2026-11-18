@@ -51,6 +51,15 @@ type Analyser struct {
 	arraySizes  map[ast.Expression]arraySizeResult
 	currentFile string
 
+	staticVars    map[*Symbol]ConstValue
+	staticSteps   int
+	lateDecls     []ast.Declaration
+	lateNames     map[string]bool
+	lateDone      map[ast.Declaration]bool
+	lateBusy      map[string]bool
+	structDecls   map[string]*ast.StructDecl
+	fieldsStarted map[*ast.StructDecl]bool
+
 	errors diag.List
 }
 
@@ -104,6 +113,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.registerMethods()
 		a.registerStructFields()
 		a.registerFuncSignatures()
+		a.registerLateDecls()
 	}
 	publish(group, false)
 	for _, a := range group {

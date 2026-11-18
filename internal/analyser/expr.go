@@ -30,9 +30,14 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = PrimitiveType{Name: "bool"}
 	case *ast.IdentLiteral:
 		symbol, ok := a.scope.Resolve(e.Value)
+		if !ok && a.lateNames[e.Value] && a.forceLate(e.Value) {
+			symbol, ok = a.scope.Resolve(e.Value)
+		}
 		if !ok {
 			d := a.errorf(expr, "identifier %s not declared in this scope", e.Value)
-			if !a.unavailableHint(d, e.Value) {
+			if a.lateNames[e.Value] {
+				d.WithHelp("%s measures a type, so it is only known after the structs are declared: use it inside a function, or write the size without it", e.Value)
+			} else if !a.unavailableHint(d, e.Value) {
 				a.suggest(d, e.Value, a.scope.names(func(sym *Symbol) bool {
 					return sym.Kind == VAR || sym.Kind == CONST || sym.Kind == PARAM || sym.Kind == FUNC || sym.Kind == MODULE
 				}))
@@ -387,6 +392,24 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 		returns := []Type{a.checkSizeof(expr)}
 		a.info.CallReturns[expr] = returns
 		return returns
+	}
+
+	if a.isBuiltinCall(expr, "alignof") {
+		returns := []Type{a.checkAlignof(expr)}
+		a.info.CallReturns[expr] = returns
+		return returns
+	}
+
+	if a.isBuiltinCall(expr, "offsetof") {
+		returns := []Type{a.checkOffsetof(expr)}
+		a.info.CallReturns[expr] = returns
+		return returns
+	}
+
+	if a.isBuiltinCall(expr, "staticAssert") {
+		a.checkStaticAssert(expr)
+		a.info.CallReturns[expr] = nil
+		return nil
 	}
 
 	for _, name := range []string{"make", "makeDirty", "create", "free", "resize"} {
@@ -1311,51 +1334,6 @@ func (a *Analyser) isBuiltinCall(expr *ast.CallExpr, name string) bool {
 	}
 	a.info.Idents[id] = sym
 	return true
-}
-
-func (a *Analyser) checkSizeof(expr *ast.CallExpr) Type {
-	intType := PrimitiveType{Name: "int"}
-
-	if len(expr.Args) != 1 {
-		a.errorf(expr, "sizeof expects 1 argument, got %d", len(expr.Args))
-		a.evalArgTypes(expr)
-		return intType
-	}
-
-	arg := expr.Args[0]
-	var measured Type
-
-	switch e := arg.(type) {
-	case *ast.IdentLiteral:
-		if sym, found := a.scope.Resolve(e.Value); found {
-			if sym.Kind == STRUCT || sym.Kind == TYPE {
-				measured = sym.Type
-			}
-		} else if primitives[e.Value] {
-			measured = PrimitiveType{Name: e.Value}
-		}
-	case *ast.MemberExpr:
-		if module, isIdent := e.Object.(*ast.IdentLiteral); isIdent {
-			if sym, found := a.lookupType(a.scope, module.Value, e.Field); found && (sym.Kind == STRUCT || sym.Kind == TYPE) {
-				measured = sym.Type
-			}
-		}
-	}
-
-	if measured == nil {
-		measured = a.checkExpr(arg)
-	}
-
-	switch measured.(type) {
-	case InvalidType:
-		return intType
-	case VoidType, ImplicitEnumType:
-		a.errorf(expr, "sizeof cannot measure %s", measured.String())
-		return intType
-	}
-
-	a.info.SizeOf[expr] = measured
-	return intType
 }
 
 func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes []Type) {

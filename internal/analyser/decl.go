@@ -48,10 +48,21 @@ func (a *Analyser) registerTypeAliases() {
 }
 
 func (a *Analyser) registerConsts() {
+	a.lateNames = map[string]bool{}
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
-		if decl, ok := d.(*ast.ConstDecl); ok {
+		switch decl := d.(type) {
+		case *ast.ConstDecl:
+			if a.usesLayout(decl) {
+				for _, v := range decl.Vars {
+					a.lateNames[v.Name] = true
+				}
+				a.lateDecls = append(a.lateDecls, d)
+				continue
+			}
 			a.checkConstDecl(decl)
+		case *ast.StaticAssertDecl:
+			a.lateDecls = append(a.lateDecls, d)
 		}
 	}
 }

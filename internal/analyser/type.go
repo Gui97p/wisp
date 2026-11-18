@@ -270,6 +270,8 @@ type StructType struct {
 	Exported  bool
 	Optional  Type
 	Sum       *SumInfo
+	layout    *StructLayout
+	complete  bool
 }
 
 type SumVariant struct {

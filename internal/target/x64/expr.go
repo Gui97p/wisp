@@ -168,6 +168,9 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 
 		return ops[0], nil
 	case *ast.BlockExpr:
+		if value, ok := t.info.Statics[e]; ok {
+			return t.constOperand(&analyser.Symbol{Kind: analyser.CONST, Const: &value}, t.info.Types[e])
+		}
 		return t.compileBlockExpr(e)
 	default:
 		return nil, fmt.Errorf("%s is not supported yet", ast.Describe(expr))

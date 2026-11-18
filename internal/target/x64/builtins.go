@@ -185,6 +185,14 @@ func (t *X64Target) compileBuiltin(name string, expr *ast.CallExpr) ([]Operand, 
 	case "sizeof":
 		tp := t.info.SizeOf[expr]
 		return []Operand{Imm(sizeOf(tp))}, nil
+	case "alignof", "offsetof":
+		value, ok := t.info.LayoutValues[expr]
+		if !ok {
+			return nil, fmt.Errorf("x86-64: %s without a value", name)
+		}
+		return []Operand{Imm(value)}, nil
+	case "staticAssert":
+		return nil, nil
 	default:
 		return nil, fmt.Errorf("x86-64: builtin %s not supported", name)
 	}

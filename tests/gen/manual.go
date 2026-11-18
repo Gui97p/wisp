@@ -11956,6 +11956,179 @@ func main() {
 		"    ) == 5, \"it can be an argument\");\n" +
 		"}\n", expected: []string{"the lines are joined with a newline and none follows the last", "an empty line is kept", "there are no escapes", "nothing is removed after the marker", "it is a plain string", "it can be an argument"}},
 
+	{dir: "static_layout", src: `struct Header {
+    uint8 kind;
+    int length;
+    uint16 flags;
+}
+
+struct Pair {
+    int32 a;
+    int32 b;
+}
+
+struct Wrapper {
+    uint8 tag;
+    Header inner;
+}
+
+const SIZE = sizeof(Header);
+const ALIGN = alignof(Header);
+const LENGTH_AT = offsetof(Header, length);
+const FLAGS_AT = offsetof(Header, flags);
+const INNER_FLAGS = offsetof(Wrapper, inner.flags);
+const WORD = sizeof(int);
+const TWO_WORDS = WORD * 2;
+
+staticAssert(SIZE == 24, "Header is 24 bytes");
+staticAssert(sizeof(Pair) == 8 && alignof(Pair) == 4, "Pair is two int32");
+staticAssert(offsetof(Header, kind) == 0, "kind comes first");
+
+struct Buffer {
+    [TWO_WORDS]byte data;
+}
+
+struct Late {
+    [AFTER]byte data;
+}
+
+const AFTER = sizeof(Header) / 3;
+
+func main() {
+    [SIZE]byte raw;
+    check(len(raw) == 24, "an array takes its size from sizeof");
+    check(SIZE == 24 && ALIGN == 8, "sizeof and alignof of a struct");
+    check(LENGTH_AT == 8 && FLAGS_AT == 16, "offsetof gives the padded offsets");
+    check(INNER_FLAGS == 24, "offsetof follows a path through a struct field");
+    check(sizeof(Buffer) == 16, "a field array sized by a constant");
+    check(sizeof(Late) == 8, "a field array sized by a constant declared later");
+    check(sizeof(Wrapper) == 32 && alignof(Wrapper) == 8, "nested structs");
+    check(sizeof(int8) == 1 && sizeof(int32) == 4 && alignof(int16) == 2, "primitives");
+    staticAssert(sizeof(Pair) * 2 == 16, "an assertion inside a function");
+    int runtime = sizeof(Pair) + offsetof(Pair, b);
+    check(runtime == 12, "the values can be used in expressions");
+}
+`, expected: []string{"an array takes its size from sizeof", "sizeof and alignof of a struct", "offsetof gives the padded offsets", "offsetof follows a path through a struct field", "a field array sized by a constant", "a field array sized by a constant declared later", "nested structs", "primitives", "the values can be used in expressions"}},
+
+	{dir: "static_blocks", src: `inline func square(int x) int {
+    return x * x;
+}
+
+inline func clamp(int x, int low, int high) int {
+    if x < low {
+        return low;
+    }
+    if x > high {
+        return high;
+    }
+    return x;
+}
+
+const FACTORIAL = static {
+    int result = 1;
+    for i in 1..5 {
+        result *= i;
+    }
+    yield result;
+};
+
+const ODD_SUM = static {
+    int total = 0;
+    for i in 0..9 {
+        if i % 2 == 0 {
+            continue;
+        }
+        total += i;
+    }
+    yield total;
+};
+
+const COLLATZ = static {
+    int n = 27;
+    int steps = 0;
+    loop n != 1 {
+        if n % 2 == 0 {
+            n /= 2;
+        } else {
+            n = 3 * n + 1;
+        }
+        steps++;
+    }
+    yield steps;
+};
+
+const CALLED = static { yield square(12) + clamp(50, 0, 10); };
+const LABEL = static {
+    int n = 5;
+    yield n > 3 ? "big" : "small";
+};
+const BIG = static { yield 1 << 20 > 1000000; };
+const RATIO = static {
+    float r = 1.0;
+    for i in 1..3 {
+        r *= 1.5;
+    }
+    yield r;
+};
+
+staticAssert(FACTORIAL == 120, "5! is 120");
+
+func main() {
+    check(FACTORIAL == 120, "a loop with a product");
+    check(ODD_SUM == 25, "continue inside a static loop");
+    check(COLLATZ == 111, "a loop with a condition");
+    check(CALLED == 154, "inline functions can be called");
+    check(LABEL == "big", "strings");
+    check(BIG, "booleans");
+    check(RATIO > 3.37 && RATIO < 3.38, "floats");
+    int local = static {
+        int found = 0;
+        :search for i in 2..50 {
+            for j in 2..50 {
+                if i * j == 91 {
+                    found = i;
+                    break :search;
+                }
+            }
+        }
+        yield found;
+    };
+    check(local == 7, "a static block inside a function, with a labeled break");
+    int sum = static { yield 3; } + static { yield 4; };
+    check(sum == 7, "static blocks are operands");
+}
+`, expected: []string{"a loop with a product", "continue inside a static loop", "a loop with a condition", "inline functions can be called", "strings", "booleans", "floats", "a static block inside a function, with a labeled break", "static blocks are operands"}},
+
+	{dir: "static_modules", files: map[string]string{"shapes/shapes.wsp": `public struct Packet {
+    uint8 kind;
+    int length;
+}
+
+public const PACKET_SIZE = sizeof(Packet);
+public const PAYLOAD = PACKET_SIZE * 2;
+
+public inline func twice(int x) int {
+    return x * 2;
+}
+`}, src: `import "shapes";
+
+struct Frame {
+    [shapes.PAYLOAD]byte data;
+}
+
+const FRAME = sizeof(Frame);
+const FROM_MODULE = static { yield shapes.twice(21); };
+
+staticAssert(FRAME == shapes.PAYLOAD, "a frame is its payload");
+
+func main() {
+    check(shapes.PACKET_SIZE == 16 && shapes.PAYLOAD == 32, "constants from another module");
+    check(FRAME == 32, "a struct sized by an imported constant");
+    check(FROM_MODULE == 42, "an inline function of another module");
+    check(offsetof(shapes.Packet, length) == 8, "offsetof of a type of another module");
+}
+`, expected: []string{"constants from another module", "a struct sized by an imported constant", "an inline function of another module", "offsetof of a type of another module"}},
+
 	{dir: "win64_variadic", system: "windows", files: map[string]string{"lib.asm": `default rel
 global vcheck
 global vfirst

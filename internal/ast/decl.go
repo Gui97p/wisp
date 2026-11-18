@@ -248,3 +248,14 @@ const (
 	ReachInternal
 	ReachShared
 )
+
+type StaticAssertDecl struct {
+	Call *CallExpr
+
+	NodePos
+}
+
+func (*StaticAssertDecl) decl() {}
+func (d *StaticAssertDecl) Tree(indent string) string {
+	return indent + "StaticAssertDecl\n" + d.Call.Tree(indent+"└─ ")
+}

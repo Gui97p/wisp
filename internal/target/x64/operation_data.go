@@ -140,70 +140,20 @@ func alignUp(n, a int) int {
 	return (n + a - 1) / a * a
 }
 
-type fieldLayout struct {
-	Offset int
-	Size   int
-	Type   analyser.Type
-}
+type fieldLayout = analyser.FieldLayout
 
-type structLayout struct {
-	Size   int
-	Align  int
-	Fields map[string]fieldLayout
-}
-
-var layouts = map[*analyser.StructType]*structLayout{}
+type structLayout = analyser.StructLayout
 
 func layoutOf(st *analyser.StructType) *structLayout {
-	if l, ok := layouts[st]; ok {
-		return l
-	}
+	return analyser.LayoutOf(st)
+}
 
-	l := &structLayout{Align: 1, Fields: make(map[string]fieldLayout, len(st.Order))}
-	pos := 0
-	if st.Sum != nil {
-		for i, name := range st.Order {
-			tp := st.Fields[name]
-			l.Align = max(l.Align, alignOf(tp))
-			if i == 0 {
-				l.Fields[name] = fieldLayout{Offset: 0, Size: sizeOf(tp), Type: tp}
-				pos = sizeOf(tp)
-			}
-		}
-		base, widest := pos, 0
-		for i, name := range st.Order {
-			if i == 0 {
-				continue
-			}
-			tp := st.Fields[name]
-			base = max(base, alignUp(pos, alignOf(tp)))
-			widest = max(widest, sizeOf(tp))
-		}
-		for i, name := range st.Order {
-			if i == 0 {
-				continue
-			}
-			tp := st.Fields[name]
-			l.Fields[name] = fieldLayout{Offset: base, Size: sizeOf(tp), Type: tp}
-		}
-		pos = base + widest
-		l.Size = alignUp(pos, l.Align)
-		layouts[st] = l
-		return l
-	}
-	for _, name := range st.Order {
-		tp := st.Fields[name]
-		align := alignOf(tp)
-		size := sizeOf(tp)
-		pos = alignUp(pos, align)
-		l.Fields[name] = fieldLayout{Offset: pos, Size: size, Type: tp}
-		pos += size
-		l.Align = max(l.Align, align)
-	}
-	l.Size = alignUp(pos, l.Align)
+func alignOf(at analyser.Type) int {
+	return analyser.AlignOf(at)
+}
 
-	layouts[st] = l
-	return l
+func sizeOf(at analyser.Type) int {
+	return analyser.SizeOf(at)
 }
 
 func structOf(tp analyser.Type) *analyser.StructType {
@@ -226,67 +176,6 @@ func arrayOf(tp analyser.Type) (analyser.ArrayType, bool) {
 		return arrayOf(t.Underlying)
 	}
 	return analyser.ArrayType{}, false
-}
-
-func alignOf(at analyser.Type) int {
-	switch tp := at.(type) {
-	case analyser.PrimitiveType:
-		switch tp.Name {
-		case "int8", "uint8", "bool":
-			return 1
-		case "int16", "uint16":
-			return 2
-		case "int32", "uint32", "float32":
-			return 4
-		case "int", "int64", "uint", "uint64", "float", "float64", "string":
-			return 8
-		}
-	case analyser.UntypedIntType, analyser.UntypedFloatType:
-		return 8
-	case analyser.PointerType, analyser.SpanType:
-		return 8
-	case analyser.ArrayType:
-		return alignOf(tp.Element)
-	case *analyser.StructType:
-		return layoutOf(tp).Align
-	case analyser.BoxedType:
-		return 8
-	case analyser.NamedType:
-		return alignOf(tp.Underlying)
-	}
-	return 1
-}
-
-func sizeOf(at analyser.Type) int {
-	switch tp := at.(type) {
-	case analyser.PrimitiveType:
-		switch tp.Name {
-		case "int8", "uint8", "bool":
-			return 1
-		case "int16", "uint16":
-			return 2
-		case "int32", "uint32", "float32":
-			return 4
-		case "int", "int64", "uint", "uint64", "float", "float64":
-			return 8
-		case "string":
-			return 16
-		}
-	case analyser.UntypedIntType, analyser.UntypedFloatType, analyser.PointerType, analyser.ErrorType, *analyser.FuncType:
-		return 8
-	case analyser.ArrayType:
-		return int(tp.Size) * sizeOf(tp.Element)
-	case *analyser.StructType:
-		return layoutOf(tp).Size
-	case analyser.SpanType:
-		return 16
-	case analyser.BoxedType:
-		return 24
-	case analyser.NamedType:
-		return sizeOf(tp.Underlying)
-	}
-
-	return 0
 }
 
 func (t *X64Target) newLabel(key string) string {

@@ -86,6 +86,14 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 	case lexer.TOKEN_ENUM:
 		return p.parseEnumDeclaration()
 	default:
+		if p.current.Type == lexer.TOKEN_IDENT && p.current.Literal == "staticAssert" && p.peek.Type == lexer.TOKEN_LPAREN {
+			call, ok := p.parseExpression().(*ast.CallExpr)
+			if !ok || !p.expect(lexer.TOKEN_SEMICOLON) {
+				return nil
+			}
+			decls = append(decls, &ast.StaticAssertDecl{Call: call})
+			break
+		}
 		if p.startsVarDeclaration() {
 			decl := p.parseVarDeclaration()
 			if decl == nil {

@@ -89,6 +89,15 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		return &ast.FloatLiteral{Value: f}
 	case lexer.TOKEN_TRUE, lexer.TOKEN_FALSE:
 		return &ast.BoolLiteral{Value: p.current.Type == lexer.TOKEN_TRUE}
+	case lexer.TOKEN_STATIC:
+		if !p.expect(lexer.TOKEN_LBRACE) {
+			return nil
+		}
+		block := p.parseBlockStatement()
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
+		return &ast.BlockExpr{Block: block, Static: true}
 	case lexer.TOKEN_IDENT:
 		return &ast.IdentLiteral{Value: p.current.Literal}
 	case lexer.TOKEN_INT, lexer.TOKEN_UINT,

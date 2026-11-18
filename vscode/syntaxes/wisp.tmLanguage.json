@@ -396,6 +396,10 @@
                             "include": "#numbers"
                         }
                     ]
+                },
+                {
+                    "name": "keyword.control.static.wisp",
+                    "match": "\\bstatic\\b"
                 }
             ]
         },
@@ -419,7 +423,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.wisp",
-                    "match": "\\b(emit|len|malloc|realloc|free)\\b(?=\\s*\\()"
+                    "match": "\\b(emit|len|panic|sizeof|alignof|offsetof|staticAssert|make|makeDirty|create|free|resize|truncate|saturate)\\b(?=\\s*\\()"
                 }
             ]
         },

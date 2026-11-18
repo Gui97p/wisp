@@ -19,10 +19,13 @@ type builtinHelp struct {
 }
 
 var builtinHelps = map[string]builtinHelp{
-	"emit":   {"func emit(string text)", "Writes a string and a newline to standard output.", []string{"string text"}, ""},
-	"len":    {"func len(x) int", "The length of an array, slice, string or variadic parameter.", []string{"x"}, "int"},
-	"panic":  {"func panic(string message)", "Stops the program with the message and the source position, and exits with code 1.", []string{"string message"}, ""},
-	"sizeof": {"func sizeof(x) int", "The size in bytes of a type or of an expression.", []string{"x"}, "int"},
+	"emit":         {"func emit(string text)", "Writes a string and a newline to standard output.", []string{"string text"}, ""},
+	"len":          {"func len(x) int", "The length of an array, slice, string or variadic parameter.", []string{"x"}, "int"},
+	"panic":        {"func panic(string message)", "Stops the program with the message and the source position, and exits with code 1.", []string{"string message"}, ""},
+	"sizeof":       {"func sizeof(x) int", "The size in bytes of a type or of an expression. It is a constant known at compile time, so it can size an array or feed a `staticAssert`.", []string{"x"}, "int"},
+	"alignof":      {"func alignof(Type) int", "The alignment in bytes of a type, known at compile time.", []string{"Type"}, "int"},
+	"offsetof":     {"func offsetof(Type, field) int", "The offset in bytes of a field inside its struct, known at compile time. A path such as `offsetof(Outer, inner.x)` follows nested structs.", []string{"Type", "field"}, "int"},
+	"staticAssert": {"func staticAssert(condition, message)", "Stops the compilation with the message when the condition is false. The condition and the message must be known at compile time. It can be written at the top of a file or inside a function.", []string{"condition", "message"}, ""},
 	"make": {"func make(allocator, Type, count) ![]Type", "A slice of `count` zeroed elements, asked from the allocator's `alloc` method as `count` times the size of the type. The allocator is any value with the methods `alloc` and `free`, and the type is written as a name. It fails like the allocator does.",
 		[]string{"allocator", "Type", "count"}, "![]Type"},
 	"makeDirty": {"func makeDirty(allocator, Type, count) ![]Type", "Like `make`, but the elements are not cleared: it asks the allocator's `allocDirty` method, for memory you are about to overwrite.",

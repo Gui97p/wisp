@@ -139,6 +139,7 @@ const (
 	TOKEN_INLINE
 	TOKEN_HASH // #
 	TOKEN_VAR
+	TOKEN_STATIC
 )
 
 var keywords = map[string]TokenType{
@@ -171,6 +172,7 @@ var keywords = map[string]TokenType{
 	"defer":    TOKEN_DEFER,
 	"yield":    TOKEN_YIELD,
 	"inline":   TOKEN_INLINE,
+	"static":   TOKEN_STATIC,
 
 	"int":    TOKEN_INT,
 	"uint":   TOKEN_UINT,

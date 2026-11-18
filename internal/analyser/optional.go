@@ -246,8 +246,14 @@ func (a *Analyser) checkOptionalComparison(expr *ast.BinaryExpr, left, right Typ
 
 	switch {
 	case leftIsOpt && rightNull:
+		if !a.requireStored(expr, expr.Left) {
+			return InvalidType{}, true
+		}
 		a.presenceTest(expr, expr.Left)
 	case rightIsOpt && leftNull:
+		if !a.requireStored(expr, expr.Right) {
+			return InvalidType{}, true
+		}
 		a.presenceTest(expr, expr.Right)
 	case leftIsOpt && rightIsOpt:
 		if !leftOpt.Equals(rightOpt) {
@@ -293,6 +299,15 @@ func (a *Analyser) requireStable(expr *ast.BinaryExpr, operand ast.Expression) b
 	}
 	a.error(expr, "comparing an optional with a value reads it twice: store the optional in a variable first").
 		WithHelp("or compare with null, or unwrap it with ??")
+	return false
+}
+
+func (a *Analyser) requireStored(expr *ast.BinaryExpr, operand ast.Expression) bool {
+	if isAddressable(operand) {
+		return true
+	}
+	a.error(expr, "a null test needs the optional in memory: store the result in a variable first").
+		WithHelp("or use `if f() |v| { ... }` or `f() ?? default`")
 	return false
 }
 
@@ -592,6 +607,9 @@ func (a *Analyser) checkBlockExpr(expr *ast.BlockExpr) Type {
 	if !a.blockDiverges(expr.Block) {
 		a.error(expr, "the block must end with yield, return, break or continue")
 		return InvalidType{}
+	}
+	if expr.Static {
+		a.runStatic(expr, frame.values[0])
 	}
 	return frame.values[0]
 }

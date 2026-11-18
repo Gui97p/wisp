@@ -80,6 +80,7 @@ func (a *Analyser) registerSumFields(td *ast.TypeDecl) {
 		st.Fields[variant.Field] = variant.Payload
 		st.Order = append(st.Order, variant.Field)
 	}
+	st.complete = true
 }
 
 func sumOf(t Type) (*StructType, bool) {

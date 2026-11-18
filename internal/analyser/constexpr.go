@@ -77,8 +77,13 @@ func (a *Analyser) evalConst(expr ast.Expression) (ConstValue, bool) {
 	case *ast.StringLiteral:
 		return ConstValue{Kind: ConstString, Str: e.Value}, true
 	case *ast.IdentLiteral:
-		if sym, ok := a.info.Idents[e]; ok && sym.Kind == CONST && sym.Const != nil {
-			return *sym.Const, true
+		if sym, ok := a.info.Idents[e]; ok {
+			if value, found := a.staticVars[sym]; found {
+				return value, true
+			}
+			if sym.Kind == CONST && sym.Const != nil {
+				return *sym.Const, true
+			}
 		}
 	case *ast.CastExpr:
 		return a.evalConversion(e)
@@ -87,8 +92,27 @@ func (a *Analyser) evalConst(expr ast.Expression) (ConstValue, bool) {
 			return ref.Value, true
 		}
 	case *ast.CallExpr:
+		if value, ok := a.info.LayoutValues[e]; ok {
+			return layoutConst(value), true
+		}
 		if e.Cast != nil {
 			return a.evalConversion(e.Cast)
+		}
+		if a.staticVars != nil {
+			return a.staticCall(e)
+		}
+	case *ast.TernaryExpr:
+		condition, ok := a.evalConst(e.Condition)
+		if !ok || condition.Kind != ConstBool {
+			return ConstValue{}, false
+		}
+		if condition.Bool {
+			return a.evalConst(e.Then)
+		}
+		return a.evalConst(e.Else)
+	case *ast.BlockExpr:
+		if value, ok := a.info.Statics[e]; ok {
+			return value, true
 		}
 	case *ast.MemberExpr, *ast.DotIdent:
 		if value, ok := a.info.EnumValues[e]; ok {

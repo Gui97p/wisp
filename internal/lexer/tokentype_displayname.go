@@ -217,6 +217,8 @@ func (t TokenType) DisplayName() string {
 		return "defer"
 	case TOKEN_HASH:
 		return "#"
+	case TOKEN_STATIC:
+		return "static"
 	case TOKEN_VAR:
 		return "var"
 	case TOKEN_INLINE:

@@ -467,8 +467,9 @@ func (a *SwitchArm) tree(head, pad string) string {
 }
 
 type BlockExpr struct {
-	Block *BlockStmt
-	Label string
+	Block  *BlockStmt
+	Label  string
+	Static bool
 
 	NodePos
 }
@@ -477,7 +478,11 @@ func (*BlockExpr) expr() {}
 func (b *BlockExpr) Tree(indent string) string {
 	var out strings.Builder
 
-	fmt.Fprintf(&out, "%sBlockExpr\n", indent)
+	name := "BlockExpr"
+	if b.Static {
+		name = "StaticExpr"
+	}
+	fmt.Fprintf(&out, "%s%s\n", indent, name)
 	out.WriteString(b.Block.Tree(indent + "└─ "))
 
 	return out.String()

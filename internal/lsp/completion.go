@@ -22,7 +22,7 @@ var selectorTyping = regexp.MustCompile(`(\b(native|func|struct|type|enum|const|
 
 var keywords = []string{
 	"let", "const", "func", "struct", "enum", "type", "if", "else", "switch", "case", "default",
-	"for", "in", "loop", "until", "return", "break", "continue", "import", "public", "internal", "shared", "extern", "as", "native", "var",
+	"for", "in", "loop", "until", "return", "break", "continue", "import", "public", "internal", "shared", "extern", "as", "native", "var", "static",
 	"true", "false", "null", "defer", "yield", "inline",
 }
 

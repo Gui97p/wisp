@@ -124,19 +124,72 @@ func exprInProgram(program *ast.Program, line, col int) ast.Expression {
 
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
+			if r := exprInParams(d.Params, line, col); r != nil {
+				return r
+			}
+			for i := range d.ReturnTypes {
+				if r := exprInTypeRef(&d.ReturnTypes[i], line, col); r != nil {
+					return r
+				}
+			}
 			if d.Body != nil {
 				if r := exprInStmt(d.Body, line, col); r != nil {
 					return r
 				}
 			}
+		case *ast.StructDecl:
+			if r := exprInParams(d.Members, line, col); r != nil {
+				return r
+			}
+		case *ast.StaticAssertDecl:
+			if r := exprAt(d.Call, line, col); r != nil {
+				return r
+			}
 		case *ast.ConstDecl:
+			if r := exprInParams(d.Vars, line, col); r != nil {
+				return r
+			}
 			if r := firstExpr(line, col, d.Values...); r != nil {
 				return r
 			}
 		case *ast.VarDecl:
+			if r := exprInParams(d.Vars, line, col); r != nil {
+				return r
+			}
 			if r := firstExpr(line, col, d.Values...); r != nil {
 				return r
 			}
+		}
+	}
+	return nil
+}
+
+func exprInTypeRef(ref *ast.TypeRef, line, col int) ast.Expression {
+	if ref == nil {
+		return nil
+	}
+	for i := range ref.Layers {
+		if r := exprAt(ref.Layers[i].Expr, line, col); r != nil {
+			return r
+		}
+	}
+	for i := range ref.FuncParams {
+		if r := exprInTypeRef(&ref.FuncParams[i], line, col); r != nil {
+			return r
+		}
+	}
+	for i := range ref.FuncReturns {
+		if r := exprInTypeRef(&ref.FuncReturns[i], line, col); r != nil {
+			return r
+		}
+	}
+	return nil
+}
+
+func exprInParams(params []ast.Param, line, col int) ast.Expression {
+	for i := range params {
+		if r := exprInTypeRef(&params[i].Type, line, col); r != nil {
+			return r
 		}
 	}
 	return nil
@@ -242,8 +295,14 @@ func exprInStmt(stmt ast.Statement, line, col int) ast.Expression {
 	case *ast.BlockStmt:
 		return exprInStmtList(s.Statements, line, col)
 	case *ast.VarStmt:
+		if r := exprInParams(s.Vars, line, col); r != nil {
+			return r
+		}
 		return firstExpr(line, col, s.Values...)
 	case *ast.ConstStmt:
+		if r := exprInParams(s.Vars, line, col); r != nil {
+			return r
+		}
 		return firstExpr(line, col, s.Values...)
 	case *ast.ReturnStmt:
 		return firstExpr(line, col, s.Values...)
