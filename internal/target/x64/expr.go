@@ -204,6 +204,11 @@ func (t *X64Target) constOperand(sym *analyser.Symbol, tp analyser.Type) (Operan
 		return nil, fmt.Errorf("x86-64: null constant")
 	}
 	switch sym.Const.Kind {
+	case analyser.ConstArray, analyser.ConstStruct:
+		if sym.Name == "" {
+			return t.anonymousConst(*sym.Const, tp)
+		}
+		return t.constMem(sym, tp)
 	case analyser.ConstInt:
 		if isFloat(tp) {
 			return t.resolveFloatLiteral(float64(sym.Const.Bits()), sizeOf(tp))
@@ -251,12 +256,18 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 		if sym.Global {
 			return t.globalMem(sym, size), nil
 		}
+		if sym.Kind == analyser.CONST {
+			return t.constMem(sym, t.info.Types[e])
+		}
 		return t.localMem(sym), nil
 	case *ast.MemberExpr:
 		if t.info.Members[e].Kind == analyser.MemberModule {
 			sym, err := t.resolveCallee(e)
 			if err != nil {
 				return Mem{}, err
+			}
+			if sym.Kind == analyser.CONST {
+				return t.constMem(sym, sym.Type)
 			}
 			return t.globalMem(sym, sizeOf(t.info.Types[e])), nil
 		}
@@ -288,6 +299,17 @@ func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
 		return base.at(f.Offset, f.Size), nil
 	case *ast.IndexExpr:
 		return t.compileIndex(e)
+	case *ast.BlockExpr:
+		if value, ok := t.info.Statics[e]; ok && value.Kind.IsAggregate() {
+			op, err := t.constOperand(&analyser.Symbol{Kind: analyser.CONST, Const: &value}, t.info.Types[e])
+			if err != nil {
+				return Mem{}, err
+			}
+			if mem, isMem := op.(Mem); isMem {
+				return mem, nil
+			}
+		}
+		return Mem{}, fmt.Errorf("x86-64: unsupported assignment target %T", expr)
 	case *ast.DerefExpr:
 		value, err := t.compileExpr(e.Value)
 		if err != nil {

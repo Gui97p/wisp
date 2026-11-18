@@ -68,17 +68,15 @@ public func demo() {
   } until doubled >= 100;
   fmt.printf("doubling stopped at {}\n", guess);
 
-  // A bare `loop` runs until something breaks out of it.
+  // A bare `loop` runs until something breaks out of it. `continue` and
+  // `break` take a guard like `return` does: `continue if n == 2;` is the
+  // short form of an `if` whose body is just the `continue`.
   int n = 0;
   int kept;
   loop {
     n++;
-    if n == 2 {
-      continue;
-    }
-    if n > 4 {
-      break;
-    }
+    continue if n == 2;
+    break if n > 4;
     kept += n;
   }
   fmt.printf("skipping 2 and stopping after 4 kept {}\n", kept);

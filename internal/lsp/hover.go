@@ -3,7 +3,6 @@ package lsp
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
@@ -557,9 +556,9 @@ func variableHover(sym *analyser.Symbol) string {
 	}
 
 	if sym.Kind == analyser.CONST && sym.Const != nil {
-		value := sym.Const.String()
-		if sym.Const.Kind == analyser.ConstString {
-			value = strconv.Quote(sym.Const.Str)
+		value := sym.Const.Preview(8)
+		if sym.Const.Kind.IsAggregate() {
+			return renderDoc(fmt.Sprintf("const %s %s = %s", analyser.TypeText(sym.Type), sym.Name, value), joinDocs(sym.Doc, "Constant stored in read-only data."))
 		}
 		return renderDoc(fmt.Sprintf("const %s = %s", sym.Name, value), joinDocs(sym.Doc, fmt.Sprintf("Constant of type `%s`.", analyser.TypeText(sym.Type))))
 	}

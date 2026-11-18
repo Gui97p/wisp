@@ -71,11 +71,18 @@ func (a *Analyser) constantArgument(arg ast.Expression, at ast.Position) (func()
 }
 
 func (a *Analyser) expandInline(expr *ast.CallExpr, ft *FuncType) {
-	if !ft.Inline || ft.Decl == nil || ft.Decl.Body == nil || a.info.Inlines[expr] != nil {
+	a.expandInlineWith(expr, ft, false)
+}
+
+func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool) {
+	if ft.Decl == nil || ft.Decl.Body == nil {
+		return
+	}
+	if !force && (!ft.Inline || a.info.Inlines[expr] != nil) {
 		return
 	}
 	decl := ft.Decl
-	if slices.Contains(a.inlineStack, decl) {
+	if !force && slices.Contains(a.inlineStack, decl) {
 		return
 	}
 	if len(expr.Args) != len(decl.Params) || len(ft.Params) != len(decl.Params) {
@@ -91,7 +98,7 @@ func (a *Analyser) expandInline(expr *ast.CallExpr, ft *FuncType) {
 	fixed := inlineBindings(decl.Body)
 	for i, p := range decl.Params {
 		if !p.Const {
-			if produce, ok := a.propagatedArgument(expr.Args[i], ft.Params[i], p.Name, fixed, at); ok {
+			if produce, ok := a.propagatedArgument(expr.Args[i], ft.Params[i], p.Name, fixed, at); ok && !force {
 				substitutions[p.Name] = produce
 				continue
 			}
@@ -105,6 +112,10 @@ func (a *Analyser) expandInline(expr *ast.CallExpr, ft *FuncType) {
 		}
 		substitutions[p.Name] = produce
 	}
+
+	savedStatic := a.staticVars
+	a.staticVars = nil
+	defer func() { a.staticVars = savedStatic }()
 
 	var options ast.CloneOptions
 	options = ast.CloneOptions{

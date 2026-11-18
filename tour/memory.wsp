@@ -46,6 +46,15 @@ public func demo() ! {
   *Pair pair = create(&fixed, Pair)!;
   pair.second = 8;
   fmt.printf("a slice of {} ints, slots[5] = {}, slots[0] = {}\n", len(slots), slots[5], slots[0]);
+
+  // `makeDirty` is `make` for memory you are about to overwrite: it does not
+  // clear the elements, so it is a little cheaper, and what it holds before
+  // you write is not defined.
+  []byte dirty = makeDirty(&fixed, byte, 8)!;
+  for i in 0..7 {
+    dirty[i] = byte(i * 3);
+  }
+  fmt.printf("a dirty slice that was written: {}, {}, {}\n", dirty[0], dirty[3], dirty[7]);
   fmt.printf("a pair: {} and {}\n", pair.first, pair.second);
   fixed.reset();
 

@@ -9,12 +9,18 @@
 //
 // A `static { }` block computes a constant with ordinary code. It is a block
 // that gives a value, and the compiler runs it while it compiles. It sees
-// numbers, booleans, floats and strings, and its own variables and constants,
-// and it can use `if`, `for i in a..b`, `loop`, labeled breaks and `inline`
-// functions. It cannot reach a variable of the function around it, a pointer,
-// memory, or a call to a function that is not `inline`: the compiler says so
-// where it happens. A loop that never ends is stopped after a few million
-// steps.
+// numbers, booleans, floats, strings, arrays and structs, and its own
+// variables and constants, and it can use `if`, `switch`, `for i in a..b`,
+// `for x in array`, `loop`, labeled breaks, `len`, indexing, string slices and
+// calls to ordinary functions, recursive ones included. It cannot reach a
+// variable of the function around it, a pointer, memory or a type used as a
+// value: the compiler says so where it happens. A loop that never ends is
+// stopped after a few million steps.
+//
+// A constant can hold an array or a struct. It lives in the read-only data of
+// the program, costs nothing at run time, and can be indexed in a `staticAssert`.
+// When a `static` block yields an array, that is a table computed by the
+// compiler, like the CRC-32 table below.
 //
 // A constant that measures a struct can size a field of another struct, in
 // any order, as long as the structs do not need each other's size.
@@ -60,6 +66,54 @@ const FIRST_BIG_SQUARE = static {
   yield n;
 };
 
+const [3]int PRIMES = [2, 3, 5];
+const Header DEFAULT = Header{kind: 1, length: 8, flags: 0};
+
+func fib(int n) int {
+  if n < 2 {
+    return n;
+  }
+  return fib(n - 1) + fib(n - 2);
+}
+
+const FIB_20 = static { yield fib(20); };
+
+const [256]uint32 CRC = static {
+  [256]uint32 table;
+  for i in 0..255 {
+    uint32 c = uint32(i);
+    for _step in 0..7 {
+      if (c & 1) != 0 {
+        c = 0xEDB88320 ^ (c >> 1);
+      } else {
+        c = c >> 1;
+      }
+    }
+    table[i] = c;
+  }
+  yield table;
+};
+
+staticAssert(CRC[1] == 0x77073096, "this is the CRC-32 table");
+
+func crc(string text) uint32 {
+  uint32 c = 0xFFFFFFFF;
+  for _i, b in text {
+    c = CRC[(c ^ uint32(b)) & 255] ^ (c >> 8);
+  }
+  return c ^ 0xFFFFFFFF;
+}
+
+const KIND_NAME = static {
+  string name = "";
+  switch DEFAULT.kind {
+    case 0: name = "none";
+    case 1: name = "data";
+    default: name = "other";
+  }
+  yield name;
+};
+
 public func demo() {
   fmt.printf("Header: size {}, alignment {}\n", HEADER_SIZE, alignof(Header));
   fmt.printf("length is at {}, flags at {}\n", offsetof(Header, length), FLAGS_AT);
@@ -87,4 +141,8 @@ public func demo() {
     yield found;
   };
   fmt.printf("a factor of 91: {}\n", factor);
+
+  fmt.printf("constants: {} primes, {} bytes by default, fib(20) = {}\n", len(PRIMES), DEFAULT.length, FIB_20);
+  fmt.printf("a default Header is {}\n", KIND_NAME);
+  fmt.printf("crc(\"123456789\") = {x}\n", crc("123456789"));
 }

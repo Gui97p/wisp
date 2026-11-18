@@ -338,6 +338,11 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 			}
 			return InvalidType{}
 		}
+		if name, isConst := a.constantRoot(expr.Value); isConst {
+			a.errorf(expr, "cannot take the address of the constant %s", name).
+				WithHelp("a constant is read-only data: copy it into a variable first")
+			return InvalidType{}
+		}
 		return PointerType{Element: value}
 	default:
 		a.errorf(expr, "invalid unary operator: %s", expr.Operator)
@@ -836,6 +841,11 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 
 	switch t := arrType.(type) {
 	case ArrayType:
+		if name, isConst := a.constantRoot(expr.Array); isConst {
+			a.errorf(expr, "cannot slice the constant %s", name).
+				WithHelp("a constant is read-only data: copy it into a variable first, or index it")
+			return InvalidType{}
+		}
 		a.checkConstSlice(expr, t.Size)
 		return SpanType{Element: t.Element}
 	case SpanType:

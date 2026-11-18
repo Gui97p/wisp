@@ -16,11 +16,11 @@ public func floatToUint(float x) !uint {
 	return uint(x);
 }
 
-func special([]byte buf, float x) !(string, bool) {
-	return strings.copy(buf, "NaN")!, true if math.isNaN(x);
-	return strings.copy(buf, "inf")!, true if math.isInf(x, 1);
-	return strings.copy(buf, "-inf")!, true if math.isInf(x, -1);
-	return "", false;
+func special([]byte buf, float x) !?string {
+	return strings.copy(buf, "NaN")! if math.isNaN(x);
+	return strings.copy(buf, "inf")! if math.isInf(x, 1);
+	return strings.copy(buf, "-inf")! if math.isInf(x, -1);
+	return null;
 }
 
 func layoutFixed([]byte buf, bool neg, *decimal.Decimal dec, int decimals) !string {
@@ -100,8 +100,9 @@ func layoutExp([]byte buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 }
 
 func shortestText([]byte buf, float x, bool single) !string {
-	let view, spec = special(buf, x)!;
-	return view if spec;
+	if special(buf, x)! |view| {
+		return view;
+	}
 
 	bool neg = math.signbit(x);
 	decimal.Decimal dec;
@@ -124,8 +125,9 @@ public func ftoa32 ([]byte buf, float32 x) !string {
 }
 
 public func formatFixed([]byte buf, float x, int n) !string {
-	let view, spec = special(buf, x)!;
-	return view if spec;
+	if special(buf, x)! |view| {
+		return view;
+	}
 
 	bool neg = math.signbit(x);
 	decimal.Decimal dec;
@@ -135,8 +137,9 @@ public func formatFixed([]byte buf, float x, int n) !string {
 }
 
 public func formatExp([]byte buf, float x, int n, bool upper) !string {
-	let view, spec = special(buf, x)!;
-	return view if spec;
+	if special(buf, x)! |view| {
+		return view;
+	}
 
 	bool neg = math.signbit(x);
 	decimal.Decimal dec;

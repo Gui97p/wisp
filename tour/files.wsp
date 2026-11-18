@@ -38,11 +38,7 @@ public func demo() ! {
 
   os.Environ env = os.environ();
   int variables;
-  loop {
-    let _name, _text, more = env.next();
-    if !more {
-      break;
-    }
+  loop env.next() |_variable| {
     variables++;
   }
   env.close();
@@ -85,11 +81,7 @@ public func demo() ! {
 
   os.Dir folder = os.openDir(root)!;
   int entries;
-  loop {
-    let _name, _kind, more = folder.next()!;
-    if !more {
-      break;
-    }
+  loop folder.next()! |_entry| {
     entries++;
   }
   folder.close();

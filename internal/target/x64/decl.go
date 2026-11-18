@@ -60,7 +60,13 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		key := analyser.TypeKey(t.module, d.Name)
 		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
 		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
-	case *ast.ImportDecl, *ast.ConstDecl, *ast.StaticAssertDecl:
+	case *ast.ConstDecl:
+		for _, sym := range t.info.VarSymbols[d] {
+			if err := t.emitConstSymbol(sym, d.Exported); err != nil {
+				return err
+			}
+		}
+	case *ast.ImportDecl, *ast.StaticAssertDecl:
 	default:
 		return fmt.Errorf("x86-64: unsupported declaration %T", d)
 	}

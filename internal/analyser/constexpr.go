@@ -3,6 +3,8 @@ package analyser
 import (
 	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -14,6 +16,8 @@ const (
 	ConstFloat
 	ConstBool
 	ConstString
+	ConstArray
+	ConstStruct
 )
 
 type ConstValue struct {
@@ -22,6 +26,29 @@ type ConstValue struct {
 	Float float64
 	Bool  bool
 	Str   string
+
+	Elems []ConstValue
+	Type  Type
+}
+
+func (c ConstValue) clone() ConstValue {
+	if c.Kind != ConstArray && c.Kind != ConstStruct {
+		return c
+	}
+	out := c
+	out.Elems = make([]ConstValue, len(c.Elems))
+	for i, e := range c.Elems {
+		out.Elems[i] = e.clone()
+	}
+	return out
+}
+
+func (c ConstValue) aggregate() bool {
+	return c.Kind.IsAggregate()
+}
+
+func (k ConstKind) IsAggregate() bool {
+	return k == ConstArray || k == ConstStruct
 }
 
 func (c ConstValue) Bits() int64 {
@@ -45,6 +72,10 @@ func (c ConstValue) String() string {
 		return fmt.Sprint(c.Float)
 	case ConstBool:
 		return fmt.Sprint(c.Bool)
+	case ConstArray:
+		return fmt.Sprintf("an array of %d elements", len(c.Elems))
+	case ConstStruct:
+		return "a struct value"
 	}
 	return c.Str
 }
@@ -91,9 +122,24 @@ func (a *Analyser) evalConst(expr ast.Expression) (ConstValue, bool) {
 		if ref, ok := a.info.ConstRefs[e]; ok {
 			return ref.Value, true
 		}
+	case *ast.ArrayLiteral:
+		return a.evalArrayLiteral(e)
+	case *ast.StructLiteral:
+		return a.evalStructLiteral(e)
+	case *ast.IndexExpr:
+		return a.evalIndex(e)
+	case *ast.SliceExpr:
+		return a.evalStringSlice(e)
+	case *ast.SwitchExpr:
+		if a.staticVars != nil {
+			return a.evalSwitchExpr(e)
+		}
 	case *ast.CallExpr:
 		if value, ok := a.info.LayoutValues[e]; ok {
 			return layoutConst(value), true
+		}
+		if value, ok := a.evalLen(e); ok {
+			return value, true
 		}
 		if e.Cast != nil {
 			return a.evalConversion(e.Cast)
@@ -119,7 +165,10 @@ func (a *Analyser) evalConst(expr ast.Expression) (ConstValue, bool) {
 			return constInt(big.NewInt(value.Value)), true
 		}
 		if member, isMember := e.(*ast.MemberExpr); isMember {
-			return a.moduleConst(member)
+			if value, ok := a.moduleConst(member); ok {
+				return value, true
+			}
+			return a.evalField(member)
 		}
 	case *ast.UnaryExpr:
 		return a.evalUnary(e)
@@ -364,6 +413,15 @@ func (a *Analyser) constantFor(node ast.Node, values []ast.Expression, n, i int,
 		return &value
 	}
 
+	if value.aggregate() {
+		fitted, ok := a.fitConst(value, target)
+		if !ok {
+			a.errorf(*slot, "this constant does not fit %s", target.String())
+			return nil
+		}
+		return &fitted
+	}
+
 	converted, ok := a.convertConst(value, target)
 	if !ok {
 		if _, _, literal := intLiteralValue(*slot); !literal {
@@ -465,4 +523,263 @@ func clampBig(v *big.Int, bits int, signed bool) *big.Int {
 		return lo
 	}
 	return v
+}
+
+func zeroValue(tp Type) (ConstValue, bool) {
+	switch v := underlying(tp).(type) {
+	case PrimitiveType:
+		switch {
+		case v.Name == "bool":
+			return ConstValue{Kind: ConstBool}, true
+		case v.Name == "string":
+			return ConstValue{Kind: ConstString}, true
+		case isFloatName(v.Name):
+			return ConstValue{Kind: ConstFloat}, true
+		case isInteger(v):
+			return constInt(big.NewInt(0)), true
+		}
+	case ArrayType:
+		elem, ok := zeroValue(v.Element)
+		if !ok {
+			return ConstValue{}, false
+		}
+		out := ConstValue{Kind: ConstArray, Type: tp, Elems: make([]ConstValue, v.Size)}
+		for i := range out.Elems {
+			out.Elems[i] = elem.clone()
+		}
+		return out, true
+	case *StructType:
+		if v.Sum != nil || v.Optional != nil {
+			return ConstValue{}, false
+		}
+		out := ConstValue{Kind: ConstStruct, Type: tp, Elems: make([]ConstValue, len(v.Order))}
+		for i, name := range v.Order {
+			field, ok := zeroValue(v.Fields[name])
+			if !ok {
+				return ConstValue{}, false
+			}
+			out.Elems[i] = field
+		}
+		return out, true
+	}
+	return ConstValue{}, false
+}
+
+func (a *Analyser) fitConst(value ConstValue, target Type) (ConstValue, bool) {
+	switch t := underlying(target).(type) {
+	case ArrayType:
+		if value.Kind != ConstArray || int64(len(value.Elems)) > t.Size {
+			return value, false
+		}
+		out := ConstValue{Kind: ConstArray, Type: target, Elems: make([]ConstValue, t.Size)}
+		for i := range out.Elems {
+			if i < len(value.Elems) {
+				elem, ok := a.fitConst(value.Elems[i], t.Element)
+				if !ok {
+					return value, false
+				}
+				out.Elems[i] = elem
+				continue
+			}
+			zero, ok := zeroValue(t.Element)
+			if !ok {
+				return value, false
+			}
+			out.Elems[i] = zero
+		}
+		return out, true
+	case *StructType:
+		if value.Kind != ConstStruct || len(value.Elems) != len(t.Order) {
+			return value, false
+		}
+		out := ConstValue{Kind: ConstStruct, Type: target, Elems: make([]ConstValue, len(t.Order))}
+		for i, name := range t.Order {
+			field, ok := a.fitConst(value.Elems[i], t.Fields[name])
+			if !ok {
+				return value, false
+			}
+			out.Elems[i] = field
+		}
+		return out, true
+	}
+	return a.convertConst(value, target)
+}
+
+func (a *Analyser) evalArrayLiteral(e *ast.ArrayLiteral) (ConstValue, bool) {
+	out := ConstValue{Kind: ConstArray, Type: a.info.Types[e], Elems: make([]ConstValue, len(e.Elements))}
+	var element Type
+	if at, ok := underlying(out.Type).(ArrayType); ok {
+		element = at.Element
+	}
+	for i, el := range e.Elements {
+		value, ok := a.evalConst(el)
+		if !ok {
+			return ConstValue{}, false
+		}
+		if element != nil {
+			if converted, can := a.fitConst(value, element); can {
+				value = converted
+			}
+		}
+		out.Elems[i] = value
+	}
+	return out, true
+}
+
+func (a *Analyser) evalStructLiteral(e *ast.StructLiteral) (ConstValue, bool) {
+	tp := a.info.Types[e]
+	st, ok := underlying(tp).(*StructType)
+	if !ok || st.Sum != nil || st.Optional != nil {
+		return ConstValue{}, false
+	}
+	out := ConstValue{Kind: ConstStruct, Type: tp, Elems: make([]ConstValue, len(st.Order))}
+	given := map[string]ast.Expression{}
+	for i, key := range e.Keys {
+		given[key] = e.Values[i]
+	}
+	for i, name := range st.Order {
+		expr, present := given[name]
+		if !present {
+			zero, ok := zeroValue(st.Fields[name])
+			if !ok {
+				return ConstValue{}, false
+			}
+			out.Elems[i] = zero
+			continue
+		}
+		value, ok := a.evalConst(expr)
+		if !ok {
+			return ConstValue{}, false
+		}
+		if converted, can := a.fitConst(value, st.Fields[name]); can {
+			value = converted
+		}
+		out.Elems[i] = value
+	}
+	return out, true
+}
+
+func (a *Analyser) evalIndex(e *ast.IndexExpr) (ConstValue, bool) {
+	base, ok := a.evalConst(e.Array)
+	if !ok {
+		return ConstValue{}, false
+	}
+	index, ok := a.evalConst(e.Index)
+	if !ok || index.Kind != ConstInt || !index.Int.IsInt64() {
+		return ConstValue{}, false
+	}
+	i := index.Int.Int64()
+	switch base.Kind {
+	case ConstArray:
+		if i < 0 || i >= int64(len(base.Elems)) {
+			if !a.quiet && a.staticVars != nil {
+				a.errorf(e, "index %d is out of range: the array has %d elements", i, len(base.Elems))
+			}
+			return ConstValue{}, false
+		}
+		return base.Elems[i], true
+	case ConstString:
+		if i < 0 || i >= int64(len(base.Str)) {
+			if !a.quiet && a.staticVars != nil {
+				a.errorf(e, "index %d is out of range: the string has %d bytes", i, len(base.Str))
+			}
+			return ConstValue{}, false
+		}
+		return constInt(big.NewInt(int64(base.Str[i]))), true
+	}
+	return ConstValue{}, false
+}
+
+func (a *Analyser) evalField(e *ast.MemberExpr) (ConstValue, bool) {
+	object, ok := a.evalConst(e.Object)
+	if !ok || object.Kind != ConstStruct {
+		return ConstValue{}, false
+	}
+	st, ok := underlying(object.Type).(*StructType)
+	if !ok {
+		return ConstValue{}, false
+	}
+	for i, name := range st.Order {
+		if name == e.Field {
+			return object.Elems[i], true
+		}
+	}
+	return ConstValue{}, false
+}
+
+func (a *Analyser) evalLen(e *ast.CallExpr) (ConstValue, bool) {
+	id, ok := e.Name.(*ast.IdentLiteral)
+	if !ok || id.Value != "len" || len(e.Args) != 1 || a.info.Idents[id] != a.universe.symbols["len"] {
+		return ConstValue{}, false
+	}
+	value, ok := a.evalConst(e.Args[0])
+	if !ok {
+		return ConstValue{}, false
+	}
+	switch value.Kind {
+	case ConstString:
+		return constInt(big.NewInt(int64(len(value.Str)))), true
+	case ConstArray:
+		return constInt(big.NewInt(int64(len(value.Elems)))), true
+	}
+	return ConstValue{}, false
+}
+
+func (a *Analyser) evalStringSlice(e *ast.SliceExpr) (ConstValue, bool) {
+	base, ok := a.evalConst(e.Array)
+	if !ok || base.Kind != ConstString {
+		return ConstValue{}, false
+	}
+	start, end := int64(0), int64(len(base.Str))
+	if e.Start != nil {
+		value, ok := a.evalConst(e.Start)
+		if !ok || value.Kind != ConstInt || !value.Int.IsInt64() {
+			return ConstValue{}, false
+		}
+		start = value.Int.Int64()
+	}
+	if e.End != nil {
+		value, ok := a.evalConst(e.End)
+		if !ok || value.Kind != ConstInt || !value.Int.IsInt64() {
+			return ConstValue{}, false
+		}
+		end = value.Int.Int64()
+	}
+	if start < 0 || end > int64(len(base.Str)) || start > end {
+		if !a.quiet && a.staticVars != nil {
+			a.errorf(e, "the slice %d:%d is out of range: the string has %d bytes", start, end, len(base.Str))
+		}
+		return ConstValue{}, false
+	}
+	return ConstValue{Kind: ConstString, Str: base.Str[start:end]}, true
+}
+
+func (c ConstValue) Preview(limit int) string {
+	switch c.Kind {
+	case ConstString:
+		return strconv.Quote(c.Str)
+	case ConstArray:
+		var parts []string
+		for i, e := range c.Elems {
+			if i == limit {
+				parts = append(parts, fmt.Sprintf("... %d more", len(c.Elems)-limit))
+				break
+			}
+			parts = append(parts, e.Preview(limit))
+		}
+		return "[" + strings.Join(parts, ", ") + "]"
+	case ConstStruct:
+		st, ok := underlying(c.Type).(*StructType)
+		if !ok {
+			return c.String()
+		}
+		var parts []string
+		for i, name := range st.Order {
+			if i < len(c.Elems) {
+				parts = append(parts, name+": "+c.Elems[i].Preview(limit))
+			}
+		}
+		return TypeText(c.Type) + "{" + strings.Join(parts, ", ") + "}"
+	}
+	return c.String()
 }

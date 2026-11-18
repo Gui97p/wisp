@@ -15,9 +15,9 @@ func TypeText(t Type) string {
 	case PointerType:
 		return "*" + TypeText(v.Element)
 	case ArrayType:
-		return fmt.Sprintf("%s[%d]", TypeText(v.Element), v.Size)
+		return fmt.Sprintf("[%d]%s", v.Size, TypeText(v.Element))
 	case SpanType:
-		return TypeText(v.Element) + "[]"
+		return "[]" + TypeText(v.Element)
 	case UntypedIntType:
 		return "int"
 	case UntypedFloatType:

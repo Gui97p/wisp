@@ -31,7 +31,7 @@ func (r *staticRun) fail(node ast.Node, format string, args ...any) staticFlow {
 	if !r.failed {
 		r.failed = true
 		r.a.errorf(node, "%s", fmt.Sprintf(format, args...)).
-			WithHelp("a static block can only use numbers, booleans, strings, if, loops and inline functions")
+			WithHelp("a static block can use numbers, booleans, strings, arrays, structs, control flow and ordinary functions, but not pointers, memory or types as values")
 	}
 	return flowReturn
 }
@@ -59,7 +59,7 @@ func (a *Analyser) runStatic(expr *ast.BlockExpr, tp Type) {
 		r.fail(expr, "this static block ended without a value")
 	}
 	if r.failed {
-		if zero, ok := zeroConst(tp); ok {
+		if zero, ok := zeroValue(tp); ok {
 			a.info.Statics[expr] = zero
 		}
 		return
@@ -121,23 +121,6 @@ func (r *staticRun) fits(node ast.Node, tp Type, value ConstValue) bool {
 	return true
 }
 
-func zeroConst(tp Type) (ConstValue, bool) {
-	switch v := underlying(tp).(type) {
-	case PrimitiveType:
-		switch {
-		case v.Name == "bool":
-			return ConstValue{Kind: ConstBool}, true
-		case v.Name == "string":
-			return ConstValue{Kind: ConstString}, true
-		case isFloatName(v.Name):
-			return ConstValue{Kind: ConstFloat}, true
-		case isInteger(v):
-			return constInt(big.NewInt(0)), true
-		}
-	}
-	return ConstValue{}, false
-}
-
 func (r *staticRun) declare(stmt ast.Statement, symbols []*Symbol, types []Type, values []ast.Expression) staticFlow {
 	for i, sym := range symbols {
 		var value ConstValue
@@ -156,27 +139,99 @@ func (r *staticRun) declare(stmt ast.Statement, symbols []*Symbol, types []Type,
 				}
 			}
 		} else if i < len(types) {
-			value, ok = zeroConst(types[i])
+			value, ok = zeroValue(types[i])
 			if !ok {
 				return r.fail(stmt, "a variable of type %s cannot be used at compile time", types[i].String())
 			}
 		}
-		r.a.staticVars[sym] = value
+		r.a.staticVars[sym] = value.clone()
 	}
 	return flowNext
 }
 
+type staticSlot struct {
+	get func() ConstValue
+	set func(ConstValue)
+	tp  Type
+}
+
+func (r *staticRun) slot(target ast.Expression) (staticSlot, bool) {
+	a := r.a
+	switch e := target.(type) {
+	case *ast.IdentLiteral:
+		sym := a.info.Idents[e]
+		if sym == nil {
+			r.fail(target, "this name is not a variable of the static block")
+			return staticSlot{}, false
+		}
+		if _, exists := a.staticVars[sym]; !exists {
+			r.fail(target, "%s is not a variable of this static block", sym.Name)
+			return staticSlot{}, false
+		}
+		return staticSlot{
+			get: func() ConstValue { return a.staticVars[sym] },
+			set: func(v ConstValue) { a.staticVars[sym] = v },
+			tp:  sym.Type,
+		}, true
+	case *ast.IndexExpr:
+		base, ok := r.slot(e.Array)
+		if !ok {
+			return staticSlot{}, false
+		}
+		index, ok := r.value(e.Index)
+		if !ok {
+			return staticSlot{}, false
+		}
+		if index.Kind != ConstInt || !index.Int.IsInt64() {
+			r.fail(e.Index, "the index must be an integer")
+			return staticSlot{}, false
+		}
+		i := index.Int.Int64()
+		current := base.get()
+		if current.Kind != ConstArray {
+			r.fail(e, "only an element of an array can be assigned in a static block")
+			return staticSlot{}, false
+		}
+		if i < 0 || i >= int64(len(current.Elems)) {
+			r.fail(e, "index %d is out of range: the array has %d elements", i, len(current.Elems))
+			return staticSlot{}, false
+		}
+		return staticSlot{
+			get: func() ConstValue { return base.get().Elems[i] },
+			set: func(v ConstValue) { base.get().Elems[i] = v },
+			tp:  a.info.Types[e],
+		}, true
+	case *ast.MemberExpr:
+		base, ok := r.slot(e.Object)
+		if !ok {
+			return staticSlot{}, false
+		}
+		current := base.get()
+		st, isStruct := underlying(current.Type).(*StructType)
+		if current.Kind != ConstStruct || !isStruct {
+			r.fail(e, "only a field of a struct can be assigned in a static block")
+			return staticSlot{}, false
+		}
+		for i, name := range st.Order {
+			if name == e.Field {
+				return staticSlot{
+					get: func() ConstValue { return base.get().Elems[i] },
+					set: func(v ConstValue) { base.get().Elems[i] = v },
+					tp:  st.Fields[name],
+				}, true
+			}
+		}
+		r.fail(e, "%s has no field %s", st.Name, e.Field)
+		return staticSlot{}, false
+	}
+	r.fail(target, "only a variable, an element or a field can be assigned in a static block")
+	return staticSlot{}, false
+}
+
 func (r *staticRun) assign(stmt ast.Statement, target ast.Expression, op string, valueExpr ast.Expression) staticFlow {
-	id, ok := target.(*ast.IdentLiteral)
+	slot, ok := r.slot(target)
 	if !ok {
-		return r.fail(target, "only a variable can be assigned in a static block")
-	}
-	sym := r.a.info.Idents[id]
-	if sym == nil {
-		return r.fail(target, "this name is not a variable of the static block")
-	}
-	if _, exists := r.a.staticVars[sym]; !exists {
-		return r.fail(target, "%s is not a variable of this static block", sym.Name)
+		return flowReturn
 	}
 
 	var value ConstValue
@@ -187,21 +242,21 @@ func (r *staticRun) assign(stmt ast.Statement, target ast.Expression, op string,
 		}
 	} else {
 		bin := &ast.BinaryExpr{Left: target, Operator: op[:len(op)-1], Right: valueExpr}
-		bin.SetPos(id.Position())
+		bin.SetPos(target.Position())
 		bin.SetEndPos(valueExpr.EndPosition())
-		r.a.info.Types[bin] = sym.Type
+		r.a.info.Types[bin] = slot.tp
 		value, ok = r.value(bin)
 		if !ok {
 			return flowReturn
 		}
 	}
-	if converted, can := r.a.convertConst(value, sym.Type); can {
+	if converted, can := r.a.fitConst(value, slot.tp); can {
 		value = converted
 	}
-	if !r.fits(stmt, sym.Type, value) {
+	if !r.fits(stmt, slot.tp, value) {
 		return flowReturn
 	}
-	r.a.staticVars[sym] = value
+	slot.set(value.clone())
 	return flowNext
 }
 
@@ -269,28 +324,24 @@ func (r *staticRun) stmt(stmt ast.Statement) staticFlow {
 			}
 			return flowNext
 		}
+		if a.isPanicCall(call) {
+			a.staticPanic(call)
+			r.failed = true
+			return flowReturn
+		}
 		if _, ok := r.value(call); !ok {
 			return flowReturn
 		}
 		return flowNext
 	case *ast.IfStmt:
-		if s.Capture != "" || s.IsSwitch || s.SwitchLink {
-			return r.fail(s, "this kind of if cannot be evaluated at compile time")
+		if s.Capture != "" {
+			return r.fail(s, "an if with a capture cannot be evaluated at compile time")
 		}
-		condition, ok := r.value(s.Condition)
-		if !ok {
-			return flowReturn
+		flow := r.ifChain(s)
+		if s.IsSwitch && flow == flowBreak && r.label == "" {
+			return flowNext
 		}
-		if condition.Kind != ConstBool {
-			return r.fail(s.Condition, "the condition must be a boolean")
-		}
-		if condition.Bool {
-			return r.block(s.Then)
-		}
-		if s.Else != nil {
-			return r.stmt(s.Else)
-		}
-		return flowNext
+		return flow
 	case *ast.ForStmt:
 		return r.forLoop(s)
 	case *ast.LoopStmt:
@@ -328,9 +379,29 @@ func (r *staticRun) stmt(stmt ast.Statement) staticFlow {
 	return r.fail(stmt, "%s cannot be evaluated at compile time", ast.Describe(stmt))
 }
 
+func (r *staticRun) ifChain(s *ast.IfStmt) staticFlow {
+	condition, ok := r.value(s.Condition)
+	if !ok {
+		return flowReturn
+	}
+	if condition.Kind != ConstBool {
+		return r.fail(s.Condition, "the condition must be a boolean")
+	}
+	if condition.Bool {
+		return r.block(s.Then)
+	}
+	if s.Else != nil {
+		return r.stmt(s.Else)
+	}
+	return flowNext
+}
+
 func (r *staticRun) forLoop(s *ast.ForStmt) staticFlow {
-	if s.Range != nil || s.Start == nil || s.End == nil || s.Var2 != "" {
-		return r.fail(s, "only a counting loop, as in for i in 0..9, can be evaluated at compile time")
+	if s.Range != nil {
+		return r.forRange(s)
+	}
+	if s.Start == nil || s.End == nil || s.Var2 != "" {
+		return r.fail(s, "only a counting loop, as in for i in 0..9, or a walk over an array or a string can be evaluated at compile time")
 	}
 	start, ok := r.value(s.Start)
 	if !ok {
@@ -375,6 +446,44 @@ func (r *staticRun) forLoop(s *ast.ForStmt) staticFlow {
 	}
 }
 
+func (r *staticRun) forRange(s *ast.ForStmt) staticFlow {
+	whole, ok := r.value(s.Range)
+	if !ok {
+		return flowReturn
+	}
+	var count int
+	switch whole.Kind {
+	case ConstArray:
+		count = len(whole.Elems)
+	case ConstString:
+		count = len(whole.Str)
+	default:
+		return r.fail(s.Range, "only an array or a string can be walked at compile time")
+	}
+	whole = whole.clone()
+	symbols := r.a.info.VarSymbols[s]
+	for i := 0; i < count; i++ {
+		if !r.step(s) {
+			return flowReturn
+		}
+		if s.Var != "" && len(symbols) > 0 {
+			r.a.staticVars[symbols[0]] = constInt(big.NewInt(int64(i)))
+		}
+		if s.Var2 != "" && len(symbols) > 1 {
+			if whole.Kind == ConstArray {
+				r.a.staticVars[symbols[1]] = whole.Elems[i].clone()
+			} else {
+				r.a.staticVars[symbols[1]] = constInt(big.NewInt(int64(whole.Str[i])))
+			}
+		}
+		stop, flow := r.loopBody(s.Body, s.Label)
+		if stop {
+			return flow
+		}
+	}
+	return flowNext
+}
+
 func (r *staticRun) loop(s *ast.LoopStmt) staticFlow {
 	for {
 		if !r.step(s) {
@@ -408,14 +517,52 @@ func (r *staticRun) loop(s *ast.LoopStmt) staticFlow {
 	}
 }
 
+const staticDepthLimit = 200
+
+func (a *Analyser) staticPanic(call *ast.CallExpr) {
+	message := "no message"
+	if len(call.Args) == 1 {
+		if value, ok := a.evalConst(call.Args[0]); ok && value.Kind == ConstString {
+			message = value.Str
+		}
+	}
+	a.errorf(call, "the static block stopped: %s", message)
+}
+
 func (a *Analyser) staticCall(call *ast.CallExpr) (ConstValue, bool) {
-	inline := a.info.Inlines[call]
-	if inline == nil {
-		a.errorf(call, "only inline functions can be called at compile time: mark the function inline")
+	if a.isPanicCall(call) {
+		a.staticPanic(call)
 		return ConstValue{}, false
 	}
-	if len(inline.Returns) != 1 || inline.Fallible {
+
+	ft := a.calleeFunc(call)
+	if ft == nil || ft.Decl == nil || ft.Decl.Body == nil || ft.Decl.Extern || ft.Decl.Native {
+		a.errorf(call, "only a function written in Wisp, with a body, can be called at compile time")
+		return ConstValue{}, false
+	}
+	if ft.Decl.Receiver != nil {
+		a.errorf(call, "a method cannot be called at compile time yet")
+		return ConstValue{}, false
+	}
+	if len(ft.Returns) != 1 || ft.Fallible {
 		a.errorf(call, "a function used at compile time returns exactly one value and cannot fail")
+		return ConstValue{}, false
+	}
+
+	a.staticDepth++
+	defer func() { a.staticDepth-- }()
+	if a.staticDepth > staticDepthLimit {
+		a.errorf(call, "the recursion of %s is too deep for compile time: more than %d calls inside each other", ft.Name, staticDepthLimit)
+		return ConstValue{}, false
+	}
+
+	inline := a.info.Inlines[call]
+	if inline == nil {
+		a.expandInlineWith(call, ft, true)
+		inline = a.info.Inlines[call]
+	}
+	if inline == nil {
+		a.errorf(call, "this call cannot be expanded at compile time")
 		return ConstValue{}, false
 	}
 
@@ -425,7 +572,7 @@ func (a *Analyser) staticCall(call *ast.CallExpr) (ConstValue, bool) {
 			a.errorf(call.Args[inline.ArgIndex[k]], "this argument is not known at compile time")
 			return ConstValue{}, false
 		}
-		a.staticVars[param] = value
+		a.staticVars[param] = value.clone()
 	}
 
 	r := &staticRun{a: a}
@@ -438,6 +585,41 @@ func (a *Analyser) staticCall(call *ast.CallExpr) (ConstValue, bool) {
 		return ConstValue{}, false
 	}
 	return *r.result, true
+}
+
+func (a *Analyser) evalSwitchExpr(e *ast.SwitchExpr) (ConstValue, bool) {
+	r := &staticRun{a: a}
+	for _, stmt := range e.Prelude {
+		if flow := r.stmt(stmt); r.failed || flow != flowNext {
+			return ConstValue{}, false
+		}
+	}
+	arm := func(arm *ast.SwitchArm) (ConstValue, bool) {
+		if arm.Exit != nil {
+			a.errorf(arm, "a switch arm that leaves cannot be evaluated at compile time")
+			return ConstValue{}, false
+		}
+		if len(arm.Values) != 1 {
+			a.errorf(arm, "a switch arm gives exactly one value at compile time")
+			return ConstValue{}, false
+		}
+		return a.evalConst(arm.Values[0])
+	}
+	for i := range e.Arms {
+		condition, ok := a.evalConst(e.Arms[i].Condition)
+		if !ok || condition.Kind != ConstBool {
+			a.errorf(e.Arms[i].Condition, "this case cannot be tested at compile time")
+			return ConstValue{}, false
+		}
+		if condition.Bool {
+			return arm(&e.Arms[i])
+		}
+	}
+	if e.Default != nil {
+		return arm(e.Default)
+	}
+	a.errorf(e, "no case of this switch matches at compile time")
+	return ConstValue{}, false
 }
 
 func (r *staticRun) outerVariable(expr ast.Expression) *ast.IdentLiteral {

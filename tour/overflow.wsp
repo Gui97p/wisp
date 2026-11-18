@@ -17,6 +17,7 @@
 // `saturate(type, value)`, which also takes a floating point number.
 
 import "std/fmt";
+import "std/math";
 
 public func demo() {
   // Unsigned numbers go from the top back to zero, and the other way around.
@@ -56,4 +57,20 @@ public func demo() {
   fmt.printf("1000 saturated to a byte is {}, to an int8 is {}\n", saturate(uint8, wide), saturate(int8, wide));
   float level = -3.7;
   fmt.printf("-3.7 saturated to a byte is {}, to an int8 is {}\n", saturate(uint8, level), saturate(int8, level));
+
+  // When going past the limit is something to find out and not to hide, the
+  // `checked` functions of `std/math` give the result, or `null` when it does
+  // not fit. They are optionals, so `??` and `if x |v|` take them from there.
+  ?int fits = math.checkedAdd(math.MAX_INT - 1, 1);
+  ?int overflows = math.checkedAdd(math.MAX_INT, 1);
+  fmt.printf("MAX_INT - 1 + 1 fits: {}, MAX_INT + 1 fits: {}\n", fits != null, overflows != null);
+  fmt.printf("MAX_INT + 1, or -1 when it does not fit: {}\n", math.checkedAdd(math.MAX_INT, 1) ?? -1);
+  if math.checkedMul(1 << 40, 1 << 20) |product| {
+    fmt.printf("2^40 * 2^20 = {}\n", product);
+  }
+  if math.checkedMul(1 << 40, 1 << 30) |product| {
+    fmt.printf("2^40 * 2^30 = {}\n", product);
+  } else {
+    fmt.printf("2^40 * 2^30 does not fit in an int\n");
+  }
 }

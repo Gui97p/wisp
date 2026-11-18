@@ -45,12 +45,14 @@ public func trimSuffix(string s, suffix) string {
 }
 
 #must_use
-public func cut(string s, sep) (string, string, bool) {
-	if search.indexOf(s, sep) |idx| {
-		return s[:idx], s[idx+len(sep):], true;
-	}
+public func cut(string s, sep) ?Cut {
+	int idx = search.indexOf(s, sep) ?? return null;
 
-	return s, "", false;
+	return Cut{before: s[:idx], after: s[idx+len(sep):]};
+}
+
+public struct Cut {
+	string before, after;
 }
 
 public struct Splitter {
@@ -72,13 +74,12 @@ internal func (*Splitter s) nextStep() ?string {
 		return r;
 	}
 	
-	let left, right, found = cut(s.s, s.sep);
-	if found {
-		s.s = right;
-	} else {
-		s.done = true;
+	if cut(s.s, s.sep) |c| {
+		s.s = c.after;
+		return c.before;
 	}
-	return left;
+	s.done = true;
+	return s.s;
 }
 
 public func (*Splitter s) next() ?string {

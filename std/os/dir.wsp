@@ -36,17 +36,22 @@ public struct Dir {
 	internal sys.Entry entry;
 }
 
-public func (*Dir d) next() !(string, global.FileKind, bool) {
+public struct Entry {
+	string name;
+	global.FileKind kind;
+}
+
+public func (*Dir d) next() !?Entry {
 	int r = sys.dirNext(&d.state, &d.entry);
 	return global.errorIO(sys.errno(r)) if r < 0;
-	return "", .Other, false if r == 0;
+	return null if r == 0;
 	global.FileKind kind = switch d.entry.kind {
 		case sys.KIND_FILE => .File;
 		case sys.KIND_DIR => .Dir;
 		case sys.KIND_LINK => .Link;
 		default => .Other;
 	};
-	return string(d.entry.name[:d.entry.len]), kind, true;
+	return Entry{name: string(d.entry.name[:d.entry.len]), kind: kind};
 }
 
 public func (*Dir d) close() {

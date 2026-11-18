@@ -9205,10 +9205,13 @@ func main() ! {
     check(strings.trim("xxhixx", "x") == "hi", "trim with a charset");
     check(strings.trimPrefix("prefix-name", "prefix-") == "name", "trimPrefix");
     check(strings.trimSuffix("name.wsp", ".wsp") == "name", "trimSuffix");
-    let left, right, found = strings.cut("key=value", "=");
-    check(found && left == "key" && right == "value", "cut finds the separator");
-    let whole, rest, missing = strings.cut("novalue", "=");
-    check(!missing && whole == "novalue" && rest == "", "cut without a separator");
+    if strings.cut("key=value", "=") |c| {
+        check(c.before == "key" && c.after == "value", "cut finds the separator");
+    } else {
+        check(false, "cut finds the separator");
+    }
+    let missing = strings.cut("novalue", "=") ?? strings.Cut{before: "novalue"};
+    check(missing.before == "novalue" && missing.after == "", "cut without a separator");
 
     strings.Splitter sp = strings.splitter("a,b,c", ",");
     int pieces;
@@ -9318,17 +9321,13 @@ func main() {
     int count;
     bool pathSeen;
     bool consistent = true;
-    loop {
-        let name, value, ok = env.next();
-        if !ok {
-            break;
-        }
+    loop env.next() |variable| {
         count++;
-        if strings.equalFold(name, "PATH") {
+        if strings.equalFold(variable.name, "PATH") {
             pathSeen = true;
         }
-        ?string got = os.env(name);
-        if got != value {
+        ?string got = os.env(variable.name);
+        if got != variable.value {
             consistent = false;
         }
     }
@@ -9339,11 +9338,7 @@ func main() {
 
     os.Environ again = os.environ();
     int second;
-    loop {
-        let name, value, ok = again.next();
-        if !ok {
-            break;
-        }
+    loop again.next() |_variable| {
         second++;
     }
     again.close();
@@ -9488,17 +9483,13 @@ func main() ! {
     os.Dir d = os.openDir(root)!;
     int files, dirs, other;
     bool dots;
-    loop {
-        let name, kind, ok = d.next()!;
-        if !ok {
-            break;
-        }
-        if name == "." || name == ".." {
+    loop d.next()! |entry| {
+        if entry.name == "." || entry.name == ".." {
             dots = true;
         }
-        if kind == .File {
+        if entry.kind == .File {
             files++;
-        } else if kind == .Dir {
+        } else if entry.kind == .Dir {
             dirs++;
         } else {
             other++;
@@ -9509,8 +9500,8 @@ func main() ! {
     check(!dots, "the entries . and .. are not listed");
 
     os.Dir empty = os.openDir(path.join(buf, root, "sub")!!)!;
-    let nothing, kindNone, more = empty.next()!;
-    check(!more && nothing == "", "an empty directory lists nothing");
+    ?os.Entry nothing = empty.next()!;
+    check(nothing == null, "an empty directory lists nothing");
     empty.close();
 
     let notDir, problem = os.openDir(path.join(buf, root, "aa")!!);
@@ -9524,11 +9515,7 @@ func main() ! {
     }
     os.Dir many = os.openDir(path.join(buf, root, "many")!!)!;
     int seen;
-    loop {
-        let name, kind, ok = many.next()!;
-        if !ok {
-            break;
-        }
+    loop many.next()! |_entry| {
         seen++;
     }
     many.close();
@@ -9699,8 +9686,8 @@ func main() ! {
     check(string(data) == "long", "a file inside a long path reads back");
 
     os.Dir d = os.openDir(deep)!;
-    let name, kind, found = d.next()!;
-    check(found && name == "file.txt" && kind == .File, "a directory inside a long path lists its entries");
+    os.Entry first = d.next()! ?? os.Entry{name: "", kind: .Other};
+    check(first.name == "file.txt" && first.kind == .File, "a directory inside a long path lists its entries");
     d.close();
 
     string moved = path.join(c, deep, "moved.txt")!!;
@@ -12106,6 +12093,31 @@ func main() {
 }
 `, expected: []string{"constants from another module", "a struct sized by an imported constant", "an inline function of another module", "offsetof of a type of another module"}},
 
+	{dir: "static_local_const", src: `const string NAME = "wisp";
+
+func first() int {
+    const [3]int T = [1, 2, 3];
+    return T[2];
+}
+
+func second() int {
+    const [3]int T = [10, 20, 30];
+    return T[2];
+}
+
+func main() {
+    int i = 2;
+    check(NAME[i] == 's', "a constant string can be indexed at run time");
+    check(first() == 3 && second() == 30, "local constants of the same name in two functions");
+    const [2]int L = [7, 8];
+    int sum;
+    for k in 0..1 {
+        sum += L[k];
+    }
+    check(sum == 15, "a local constant array read in a loop");
+}
+`, expected: []string{"a constant string can be indexed at run time", "local constants of the same name in two functions", "a local constant array read in a loop"}},
+
 	{dir: "switch_then_break", src: `func next(int k) ?int {
     return null if k > 3;
     return k;
@@ -12352,6 +12364,162 @@ func main() {
     check(x == 0, "never printed");
 }
 `, expected: []string{"the happy path"}, abort: "panic: stop here"},
+
+	{dir: "static_data", files: map[string]string{"palette/palette.wsp": `public struct Color {
+    uint8 r;
+    uint8 g;
+    uint8 b;
+}
+
+public const [3]Color PALETTE = [Color{r: 255}, Color{g: 255}, Color{b: 255, r: 1}];
+public const [4]uint16 STEPS = [100, 200, 300, 400];
+public const NAMES = ["red", "green", "blue"];
+`}, src: `import "palette";
+
+struct Range {
+    int low;
+    int high;
+}
+
+enum Level {
+    Low,
+    Mid,
+    High
+}
+
+const [3]int TABLE = [10, 20, 30];
+const Range BOUNDS = Range{low: 2, high: 9};
+const [2]float WEIGHTS = [0.5, 1.5];
+const [2]string WORDS = ["ab", "cde"];
+
+const [256]uint32 CRC = static {
+    [256]uint32 table;
+    for i in 0..255 {
+        uint32 c = uint32(i);
+        for _k in 0..7 {
+            if (c & 1) != 0 {
+                c = 0xEDB88320 ^ (c >> 1);
+            } else {
+                c = c >> 1;
+            }
+        }
+        table[i] = c;
+    }
+    yield table;
+};
+
+const [8]int POWERS = static {
+    [8]int powers;
+    int p = 1;
+    for i in 0..7 {
+        powers[i] = p;
+        p *= 2;
+    }
+    yield powers;
+};
+
+const Range SPAN = static {
+    Range r;
+    r.low = 3;
+    r.high = r.low * 4;
+    yield r;
+};
+
+func fib(int n) int {
+    if n < 2 {
+        return n;
+    }
+    return fib(n - 1) + fib(n - 2);
+}
+
+func gcd(int a, int b) int {
+    return a if b == 0;
+    return gcd(b, a % b);
+}
+
+func weight(Level l) int {
+    return switch l {
+        case .Low => 1;
+        case .Mid => 10;
+        case .High => 100;
+    };
+}
+
+const FIB20 = static { yield fib(20); };
+const GCD = static { yield gcd(84, 36); };
+const WEIGHT = static { yield weight(.Mid) + weight(.High); };
+const VOWELS = static {
+    int n;
+    for _i, c in "education" {
+        switch c {
+            case 'a':
+                n++;
+            case 'e':
+                n++;
+            case 'i':
+                n++;
+            case 'o':
+                n++;
+            case 'u':
+                n++;
+            default:
+                continue;
+        }
+    }
+    yield n;
+};
+const TAIL = static { yield "hello, world"[7:]; };
+const SUM = static {
+    int total;
+    for _i, v in TABLE {
+        total += v;
+    }
+    yield total;
+};
+
+staticAssert(CRC[1] == 0x77073096 && CRC[255] == 0x2D02EF8D, "the table is the CRC-32 table");
+staticAssert(POWERS[7] == 128 && len(POWERS) == 8, "powers of two");
+staticAssert(SPAN.high == 12 && BOUNDS.low == 2, "struct constants");
+
+func crc(string text) uint32 {
+    uint32 c = 0xFFFFFFFF;
+    for _i, b in text {
+        c = CRC[(c ^ uint32(b)) & 255] ^ (c >> 8);
+    }
+    return c ^ 0xFFFFFFFF;
+}
+
+func main() {
+    check(TABLE[1] == 20 && len(TABLE) == 3, "a constant array");
+    int i = 2;
+    check(TABLE[i] == 30 && WEIGHTS[i - 1] == 1.5, "a constant array indexed at run time");
+    check(BOUNDS.high == 9 && SPAN.low == 3, "a constant struct");
+    check(WORDS[1] == "cde" && len(WORDS) == 2, "a constant array of strings");
+    check(crc("123456789") == 0xCBF43926, "a table computed at compile time works at run time");
+    check(POWERS[i + 3] == 32, "a computed table indexed at run time");
+    check(FIB20 == 6765, "a recursive function");
+    check(GCD == 12, "a recursive function with a guard");
+    check(WEIGHT == 110, "a switch expression");
+    check(VOWELS == 5, "a switch statement inside a loop, with continue");
+    check(TAIL == "world", "a slice of a string");
+    check(SUM == 60, "a walk over a constant array");
+    check(palette.PALETTE[1].g == 255 && palette.PALETTE[2].r == 1 && palette.PALETTE[0].b == 0, "a constant array of structs from another module");
+    check(palette.STEPS[3] == 400 && palette.NAMES[2] == "blue", "constant data from another module");
+    int j = 2;
+    check(palette.PALETTE[j].b == 255 && palette.STEPS[j] == 300, "another module's data indexed at run time");
+    [3]int copy = TABLE;
+    copy[0] = 99;
+    check(copy[0] == 99 && TABLE[0] == 10, "a copy of a constant can change");
+    int local = static {
+        [4]int squares;
+        for k in 0..3 {
+            squares[k] = k * k;
+        }
+        yield squares;
+    }[3];
+    check(local == 9, "an array from a static block inside a function, indexed");
+}
+`, expected: []string{"a constant array", "a constant array indexed at run time", "a constant struct", "a constant array of strings", "a table computed at compile time works at run time", "a computed table indexed at run time", "a recursive function", "a recursive function with a guard", "a switch expression", "a switch statement inside a loop, with continue", "a slice of a string", "a walk over a constant array", "a constant array of structs from another module", "constant data from another module", "another module's data indexed at run time", "a copy of a constant can change", "an array from a static block inside a function, indexed"}},
 
 	{dir: "win64_variadic", system: "windows", files: map[string]string{"lib.asm": `default rel
 global vcheck

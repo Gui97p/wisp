@@ -102,6 +102,8 @@ type X64Target struct {
 	candidates   []candidate
 	savedRegs    []savedReg
 	curFile      string
+	constCount   int
+	localConsts  map[*analyser.Symbol]Mem
 	savedXmms    []savedReg
 
 	deferScopes []*deferScope

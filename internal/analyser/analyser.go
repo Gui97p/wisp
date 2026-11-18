@@ -54,6 +54,7 @@ type Analyser struct {
 	staticVars    map[*Symbol]ConstValue
 	nakedParams   map[string]string
 	staticSteps   int
+	staticDepth   int
 	lateDecls     []ast.Declaration
 	lateNames     map[string]bool
 	lateDone      map[ast.Declaration]bool

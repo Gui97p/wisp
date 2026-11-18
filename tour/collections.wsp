@@ -1,6 +1,7 @@
 // Tour - Arrays, slices and strings.
 
 import "std/fmt";
+import "std/strings";
 
 // The size of an array is a number or a constant expression, so a constant
 // can name it, even one that comes from another module.
@@ -63,6 +64,26 @@ public func demo() {
   // an element.
   fmt.printf("\"ell\" in greeting: {}\n", "ell" in greeting);
   fmt.printf("512 in nums: {}\n", 512 in nums);
+
+  // `std/strings` has the usual searches and cuts. `indexOf` gives the place of
+  // the first match, or `null`, so a capture or `??` takes it from there.
+  if strings.indexOf(greeting, "wor") |at| {
+    fmt.printf("\"wor\" starts at {}\n", at);
+  }
+  fmt.printf("\"xyz\" is at {}\n", strings.indexOf(greeting, "xyz") ?? -1);
+
+  // `cut` splits at the first separator, and `tokens` walks the pieces, one
+  // at a time, skipping the empty ones (`splitter` keeps them).
+  if strings.cut("name=wisp", "=") |c| {
+    fmt.printf("cut: {} / {}\n", c.before, c.after);
+  }
+  strings.Splitter pieces = strings.tokens("a,,b,c", ",");
+  int tokens;
+  loop pieces.next() |piece| {
+    tokens++;
+    fmt.printf("piece {}: {}\n", tokens, piece);
+  }
+  fmt.printf("trimmed: [{}]\n", strings.trimSpace("  padded  "));
 
   // `[]` is an empty slice, or an array of zeros. It has no element type of its
   // own: it takes the one of whatever receives it, a declaration, an argument,

@@ -346,6 +346,9 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node)}
 		if kind == CONST {
 			sym.Const = a.constantFor(node, values, len(vars), i, finalType)
+			if sym.Const != nil && sym.Const.aggregate() && a.scope == a.moduleScope {
+				sym.Module = a.module
+			}
 		}
 		if v.Name == "_" {
 			sym.Used = true

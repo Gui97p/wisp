@@ -211,6 +211,8 @@ func (a *Analyser) usesLayout(node ast.Node) bool {
 			if v.Static {
 				found = true
 			}
+		case *ast.StructLiteral:
+			found = true
 		case *ast.IdentLiteral:
 			if a.lateNames[v.Value] {
 				found = true
@@ -299,4 +301,22 @@ func layoutConst(value int) ConstValue {
 
 func joinPath(path []string) string {
 	return strings.Join(path, ".")
+}
+
+func (a *Analyser) constantRoot(expr ast.Expression) (string, bool) {
+	if name, ok := a.importedConst(expr); ok {
+		return name, true
+	}
+	root := rootIdentifier(expr)
+	if root == nil {
+		return "", false
+	}
+	if _, isDeref := expr.(*ast.DerefExpr); isDeref {
+		return "", false
+	}
+	sym, ok := a.info.Idents[root]
+	if !ok || sym.Kind != CONST || sym.Const == nil || !sym.Const.aggregate() {
+		return "", false
+	}
+	return sym.Name, true
 }

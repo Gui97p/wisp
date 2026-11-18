@@ -68,18 +68,15 @@ internal func parse(string text) !Spec {
 		spec.zero = true;
 	}
 
-	let n, digits, fits = c.number();
-	return Error(SpecError.BadNumber) if !fits;
-	if digits > 0 {
-		spec.width = n;
+	if c.number() |width| {
+		return Error(SpecError.BadNumber) if !width.fits;
+		spec.width = width.value;
 	}
 
 	if c.advanceIf('.') {
-		n, digits, fits = c.number();
-		if digits == 0 || !fits {
-			return Error(SpecError.BadNumber);
-		}
-		spec.precision = n;
+		cursor.Number precision = c.number() ?? return Error(SpecError.BadNumber);
+		return Error(SpecError.BadNumber) if !precision.fits;
+		spec.precision = precision.value;
 	}
 
 	if !c.done() {

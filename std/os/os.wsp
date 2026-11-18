@@ -68,17 +68,20 @@ public func environ() Environ {
 	return e;
 }
 
-public func (*Environ e) next() (string, string, bool) {
+public struct Variable {
+	string name;
+	string value;
+}
+
+public func (*Environ e) next() ?Variable {
 	loop {
-		string entry = sys.envNext(&e.state) ?? return "", "", false;
+		string entry = sys.envNext(&e.state) ?? return null;
 		int eq;
 		loop eq < len(entry) && entry[eq] != '=' {
 			eq++;
 		}
-		if eq == 0 || eq == len(entry) {
-			continue;
-		}
-		return entry[:eq], entry[eq+1:], true;
+		continue if eq == 0 || eq == len(entry);
+		return Variable{name: entry[:eq], value: entry[eq+1:]};
 	}
 }
 
