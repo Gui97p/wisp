@@ -163,7 +163,7 @@ func encodeTokens(tokens []semanticToken) []uint32 {
 		deltaCol := t.col
 		if deltaLine == 0 {
 			deltaCol = t.col - prevCol
-			if deltaCol < 0 {
+			if deltaCol <= 0 && len(data) > 0 {
 				continue
 			}
 		}

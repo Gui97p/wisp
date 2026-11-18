@@ -125,6 +125,9 @@ func VariantText(sum *StructType, variant SumVariant) string {
 
 func StructText(st *StructType) string {
 	var b strings.Builder
+	if st.Optional != nil {
+		return st.Name
+	}
 	if st.Sum != nil {
 		fmt.Fprintf(&b, "enum %s {\n", st.Name)
 		for i, variant := range st.Sum.Variants {

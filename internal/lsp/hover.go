@@ -66,6 +66,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		return h
 	}
 
+	if h := labelHover(path, pos); h != nil {
+		return h
+	}
+
 	program, info := analyseEntry(path)
 	if program == nil || info == nil {
 		return nil
@@ -91,8 +95,15 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	}
 
 	if expr := exprInProgram(local, line, col); expr != nil {
-		if _, isCoalesce := expr.(*ast.CoalesceExpr); isCoalesce && isHandlerKeyword(wordUnderCursor(fileBuffer[path], line, col)) {
-			return nil
+		if coalesce, isCoalesce := expr.(*ast.CoalesceExpr); isCoalesce {
+			switch at, onOperator := coalesceOperatorAt(fileBuffer[path], line, col); {
+			case coalesce.ErrorBind != "" && positionContains(coalesce.ErrorBindAt, line, col):
+				return markdownHover(renderDoc("Error "+coalesce.ErrorBind, "The error that made the call fail."), positionRange(coalesce.ErrorBindAt))
+			case onOperator:
+				return markdownHover(hoverText(expr, program, info, line, col), positionRange(at))
+			default:
+				return nil
+			}
 		}
 		text = hoverText(expr, program, info, line, col)
 		rng = exprRange(expr)
@@ -142,7 +153,23 @@ var primitiveDocs = map[string]string{
 	"string":  "Text: a pointer to bytes and a length, compared by content.",
 }
 
+func layerDoc(ref *ast.TypeRef) string {
+	inner := ast.TypeRef{Module: ref.Module, Name: ref.Name, Layers: ref.Layers[1:]}
+	switch layer := ref.Layers[0]; {
+	case layer.Optional:
+		return fmt.Sprintf("`%s` or `null`. Read it with `??`, `!!`, or `if x |v|`.", inner.String())
+	case layer.Pointer:
+		return fmt.Sprintf("A pointer to a `%s`. It is never null: `?*%s` is the pointer that can be.", inner.String(), inner.String())
+	case layer.IsSpan:
+		return fmt.Sprintf("A slice of `%s`: a pointer and a length.", inner.String())
+	}
+	return fmt.Sprintf("An array of `%s`, with its size fixed in the type.", inner.String())
+}
+
 func typeRefHover(ref *ast.TypeRef, program *ast.Program, info *analyser.Info, line, col int) string {
+	if len(ref.Layers) > 0 && !ref.IsFunc {
+		return renderDoc(ref.String(), layerDoc(ref))
+	}
 	if ref.Module == "" {
 		if doc, ok := primitiveDocs[ref.Name]; ok {
 			return renderDoc(ref.Name, doc)
@@ -600,10 +627,6 @@ func declMemberHover(program *ast.Program, line, col int) (string, *protocol.Ran
 	return "", nil
 }
 
-func isHandlerKeyword(word string) bool {
-	return word == "return" || word == "break" || word == "continue"
-}
-
 func wordUnderCursor(src []byte, line, col int) string {
 	lines := splitLines(src)
 	if line < 1 || line > len(lines) {
@@ -622,4 +645,19 @@ func wordUnderCursor(src []byte, line, col int) string {
 		end++
 	}
 	return text[start:end]
+}
+
+func coalesceOperatorAt(src []byte, line, col int) (ast.Position, bool) {
+	lines := splitLines(src)
+	if line < 1 || line > len(lines) {
+		return ast.Position{}, false
+	}
+	text := lines[line-1]
+	i := col - 1
+	for _, start := range []int{i, i - 1} {
+		if start >= 0 && start+1 < len(text) && text[start] == '?' && text[start+1] == '?' {
+			return ast.Position{Line: line, Col: start + 1, EndLine: line, EndCol: start + 2}, true
+		}
+	}
+	return ast.Position{}, false
 }

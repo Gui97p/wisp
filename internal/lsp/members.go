@@ -288,10 +288,12 @@ func moduleExports(file string, byPath map[string]string, seen map[string]bool, 
 		}
 	}
 
+	seenFuncs := map[string]bool{}
 	for _, d := range program.Declarations {
 		switch decl := d.(type) {
 		case *ast.FuncDecl:
-			if decl.Exported && decl.Receiver == nil {
+			if decl.Exported && decl.Receiver == nil && !seenFuncs[decl.Name] {
+				seenFuncs[decl.Name] = true
 				entries = append(entries, exportEntry{name: decl.Name, kind: protocol.CompletionItemKindFunction, detail: funcDeclText(decl), callable: true, params: len(decl.Params), internalDir: reachFolder(decl.Reach, file)})
 			}
 		case *ast.StructDecl:

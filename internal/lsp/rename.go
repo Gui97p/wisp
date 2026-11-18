@@ -135,6 +135,9 @@ func symbolAt(program *ast.Program, info *analyser.Info, src []byte, line, col i
 			}
 		}
 	}
+	if sym := nativeSymbolAt(info, line, col); sym != nil {
+		return sym
+	}
 	for sym := range allSymbols(info) {
 		if strings.HasPrefix(sym.Name, "__wisp_") {
 			continue
@@ -261,6 +264,11 @@ func rename(uri protocol.DocumentUri, pos protocol.Position, newName string) (*p
 		if s == sym {
 			l, c := id.Position()
 			add(l, c)
+		}
+	}
+	for _, s := range nativeSites(info) {
+		if s.sym == sym {
+			add(s.line, s.col)
 		}
 	}
 

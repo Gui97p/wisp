@@ -357,3 +357,57 @@ func nativeContextAt(text string, open int) nativeContext {
 	}
 	return ctx
 }
+
+type nativeSite struct {
+	line, col int
+	sym       *analyser.Symbol
+}
+
+func nativeSites(info *analyser.Info) []nativeSite {
+	var sites []nativeSite
+	add := func(ref analyser.NativeRef, path []string, at ast.Position, addr bool) {
+		if ref.Sym == nil || (ref.Kind != analyser.RefVariable && ref.Kind != analyser.RefFunction) {
+			return
+		}
+		col := at.Col
+		if addr {
+			col++
+		}
+		if ref.Kind == analyser.RefFunction && len(path) > 1 {
+			col += len(strings.Join(path[:len(path)-1], ".")) + 1
+		}
+		sites = append(sites, nativeSite{at.Line, col, ref.Sym})
+	}
+	for stmt, native := range info.Natives {
+		for i, instr := range stmt.Instrs {
+			if i >= len(native.Instrs) {
+				break
+			}
+			for j, op := range instr.Operands {
+				if j >= len(native.Instrs[i].Operands) {
+					break
+				}
+				resolved := native.Instrs[i].Operands[j]
+				if resolved.Mem {
+					for k, term := range op.Terms {
+						if k < len(resolved.Terms) {
+							add(resolved.Terms[k].Ref, term.Path, term.At, false)
+						}
+					}
+					continue
+				}
+				add(resolved.Ref, op.Path, op.At, resolved.Addr)
+			}
+		}
+	}
+	return sites
+}
+
+func nativeSymbolAt(info *analyser.Info, line, col int) *analyser.Symbol {
+	for _, s := range nativeSites(info) {
+		if s.line == line && col >= s.col && col < s.col+len(s.sym.Name) {
+			return s.sym
+		}
+	}
+	return nil
+}

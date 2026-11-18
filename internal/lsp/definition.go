@@ -13,6 +13,10 @@ func definition(uri protocol.DocumentUri, pos protocol.Position) []protocol.Loca
 	line := int(pos.Line) + 1
 	col := int(pos.Character) + 1
 
+	if locations := labelDefinition(path, pos, uri); len(locations) > 0 {
+		return locations
+	}
+
 	pa, err := analyseProject(path)
 	if err != nil || pa == nil {
 		return nil
@@ -29,6 +33,12 @@ func definition(uri protocol.DocumentUri, pos protocol.Position) []protocol.Loca
 	}
 
 	own := declarationsOf(m.merged, m.declFiles, path)
+
+	if sym := nativeSymbolAt(m.info, line, col); sym != nil {
+		if loc := symbolLocation(sym); loc != nil {
+			return []protocol.Location{*loc}
+		}
+	}
 
 	if expr := exprInProgram(own, line, col); expr != nil {
 		if locations := exprDefinition(pa, m, expr, line, col); len(locations) > 0 {
@@ -93,8 +103,33 @@ func (pa *projectAnalysis) moduleLocations(m *moduleAnalysis, scope *analyser.Sc
 	return locations
 }
 
+func (pa *projectAnalysis) variant(v *analyser.VariantInfo) []protocol.Location {
+	target := pa.moduleByPath(v.Sum.Module)
+	if target == nil {
+		return nil
+	}
+	for _, d := range target.merged.Declarations {
+		decl, ok := d.(*ast.TypeDecl)
+		if !ok || decl.Name != v.Sum.Name {
+			continue
+		}
+		for _, member := range decl.Members {
+			if member.Name == v.Variant.Name && member.Line > 0 {
+				return []protocol.Location{pointLocation(target.declFiles[d], member.Line, member.Col)}
+			}
+		}
+	}
+	return nil
+}
+
 func exprDefinition(pa *projectAnalysis, m *moduleAnalysis, expr ast.Expression, line, col int) []protocol.Location {
 	info := m.info
+
+	if v, ok := info.Variants[expr]; ok {
+		if locations := pa.variant(v); len(locations) > 0 {
+			return locations
+		}
+	}
 
 	switch e := expr.(type) {
 	case *ast.IdentLiteral:

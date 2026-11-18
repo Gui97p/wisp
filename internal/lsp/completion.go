@@ -67,6 +67,10 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 		return nil
 	}
 
+	if items, ok := labelItems(path, pos); ok {
+		return items
+	}
+
 	candidates := infoCandidates(path, pos)
 	var info *analyser.Info
 	if len(candidates) > 0 {
@@ -650,10 +654,23 @@ func literalType(text string, brace int, scope *analyser.Scope) (*analyser.Struc
 
 	var sym *analyser.Symbol
 	var found bool
-	if module, name, qualified := strings.Cut(chain, "."); qualified {
+	if variant, dotted := strings.CutPrefix(chain, "."); dotted {
+		tp := contextType(text[:start], text[:start], scope, "", 0)
+		if pointer, isPointer := tp.(analyser.PointerType); isPointer {
+			tp = pointer.Element
+		}
+		sum, isSum := tp.(*analyser.StructType)
+		if !isSum || sum.Sum == nil {
+			return nil, false
+		}
+		return variantPayload(sum, variant)
+	} else if module, name, qualified := strings.Cut(chain, "."); qualified {
 		owner, ok := scope.Resolve(module)
 		if !ok {
 			return nil, false
+		}
+		if sum, isSum := owner.Type.(*analyser.StructType); isSum && sum.Sum != nil {
+			return variantPayload(sum, name)
 		}
 		mt, isModule := owner.Type.(*analyser.ModuleType)
 		if !isModule {
@@ -669,6 +686,14 @@ func literalType(text string, brace int, scope *analyser.Scope) (*analyser.Struc
 
 	st, ok := sym.Type.(*analyser.StructType)
 	return st, ok
+}
+
+func variantPayload(sum *analyser.StructType, name string) (*analyser.StructType, bool) {
+	variant, ok := sum.Sum.Find(name)
+	if !ok || variant.Payload == nil {
+		return nil, false
+	}
+	return variant.Payload, true
 }
 
 func structLiteralItems(text string, scope *analyser.Scope) ([]protocol.CompletionItem, bool) {

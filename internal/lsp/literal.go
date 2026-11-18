@@ -7,6 +7,7 @@ const (
 	stateQuoted
 	stateRaw
 	stateChar
+	stateLines
 )
 
 func insideLiteralOrComment(text string) bool {
@@ -30,6 +31,7 @@ func scanState(text string) (int, int) {
 		quoted       = stateQuoted
 		raw          = stateRaw
 		char         = stateChar
+		lines        = stateLines
 	)
 
 	state := code
@@ -58,6 +60,14 @@ func scanState(text string) (int, int) {
 				start = i
 			case c == '\'':
 				state = char
+			case c == '\\' && next == '\\':
+				state = lines
+				start = i
+				i++
+			}
+		case lines:
+			if c == '\n' {
+				state = code
 			}
 		case lineComment:
 			if c == '\n' {
@@ -127,6 +137,14 @@ func maskLiterals(text string) string {
 				state, start = stateRaw, i
 			case c == '\'':
 				state, start = stateChar, i
+			case c == '\\' && next == '\\':
+				state, start = stateLines, i
+				i++
+			}
+		case stateLines:
+			if c == '\n' {
+				blank(start, i)
+				state = stateCode
 			}
 		case stateLineComment:
 			if c == '\n' {
