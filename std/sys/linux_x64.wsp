@@ -447,7 +447,7 @@ shared func getcwd([]byte buf) int {
 	return r < 0 ? r : r - 1;
 }
 
-shared func getenv(string name) (string, bool) {
+shared func getenv(string name) ?string {
 	if environ() |env| {
 		for i in 0..1000000 {
 			if env[i] |entry| {
@@ -457,21 +457,21 @@ shared func getenv(string name) (string, bool) {
 				}
 				string line = string(entry[:n]);
 				if len(line) > len(name) && line[len(name)] == '=' && line[:len(name)] == name {
-					return line[len(name)+1:], true;
+					return line[len(name)+1:];
 				}
 			} else {
 				break;
 			}
 		}
 	}
-	return "", false;
+	return null;
 }
 
 shared func envOpen(*Env e) {
 	e.index = 0;
 }
 
-shared func envNext(*Env e) (string, bool) {
+shared func envNext(*Env e) ?string {
 	if environ() |env| {
 		if env[e.index] |entry| {
 			e.index++;
@@ -479,10 +479,10 @@ shared func envNext(*Env e) (string, bool) {
 			loop entry[n] != '\0' {
 				n++;
 			}
-			return string(entry[:n]), true;
+			return string(entry[:n]);
 		}
 	}
-	return "", false;
+	return null;
 }
 
 shared func envClose(*Env _e) {

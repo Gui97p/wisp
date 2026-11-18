@@ -58,21 +58,21 @@ public struct Elements {
 	internal string rest;
 }
 
-public func (*Elements e) next() (string, bool) {
+public func (*Elements e) next() ?string {
 	string s = e.rest;
 	loop s != "" && isSep(s[0]) {
 		s = s[1:];
 	}
 	if s == "" {
 		e.rest = "";
-		return "", false;
+		return null;
 	}
 	int i;
 	loop i < len(s) && !isSep(s[i]) {
 		i++;
 	}
 	e.rest = s[i:];
-	return s[:i], true;
+	return s[:i];
 }
 
 public func elements(string p) Elements {
@@ -137,8 +137,8 @@ public func dir(string p) string {
 public func ext(string p) string {
 	p = base(p);
 
-	int idx = strings.lastIndexOfByte(p, '.');
-	return idx <= 0 || idx == len(p)-1 ? "" : p[idx:];
+	int idx = strings.lastIndexOfByte(p, '.') ?? return "";
+	return idx == 0 || idx == len(p)-1 ? "" : p[idx:];
 }
 
 public inline func stem(string p) string {

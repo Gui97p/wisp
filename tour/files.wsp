@@ -33,8 +33,8 @@ public func demo() ! {
 
   // `env` looks one variable up, `environ` walks all of them. The strings
   // point into memory the system owns, and are valid until the next call.
-  let value, found = os.env("PATH");
-  fmt.printf("PATH is set: {}, and not empty: {}\n", found, len(value) > 0);
+  ?string search = os.env("PATH");
+  fmt.printf("PATH is set: {}, and not empty: {}\n", search != null, len(search ?? "") > 0);
 
   os.Environ env = os.environ();
   int variables;

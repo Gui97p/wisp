@@ -730,26 +730,19 @@ shared func getcwd([]byte buf) int {
 	return r;
 }
 
-shared func getenv(string name) (string, bool) {
-	if buffers() < 0 {
-		return "", false;
-	}
-	if towide(name, (*uint16)(wideA())) < 0 {
-		return "", false;
-	}
+shared func getenv(string name) ?string {
+	return null if buffers() < 0;
+	return null if towide(name, (*uint16)(wideA())) < 0;
 	SetLastError(0);
 	int n = int(GetEnvironmentVariableW((*uint16)(wideA()), (*uint16)(wideValue()), uint32(WIDE_MAX)));
 	if n == 0 {
-		return "", int(GetLastError()) != ERROR_ENVVAR_NOT_FOUND;
+		return "" if int(GetLastError()) != ERROR_ENVVAR_NOT_FOUND;
+		return null;
 	}
-	if n >= WIDE_MAX {
-		return "", false;
-	}
+	return null if n >= WIDE_MAX;
 	int r = WideCharToMultiByte(CP_UTF8, 0, (*uint16)(wideValue()), int32(n), envBuffer(), ENV_BYTES, null, null);
-	if r == 0 {
-		return "", false;
-	}
-	return string(envBuffer()[:r]), true;
+	return null if r == 0;
+	return string(envBuffer()[:r]);
 }
 
 shared native args() []string s {
@@ -816,15 +809,13 @@ shared func envOpen(*Env e) {
 	e.cursor = (?*uint16)(e.block);
 }
 
-shared func envNext(*Env e) (string, bool) {
-	*uint16 cursor = e.cursor ?? return "", false;
-	if buffers() < 0 {
-		return "", false;
-	}
+shared func envNext(*Env e) ?string {
+	*uint16 cursor = e.cursor ?? return null;
+	return null if buffers() < 0;
 	loop {
 		if cursor[0] == 0 {
 			e.cursor = cursor;
-			return "", false;
+			return null;
 		}
 		int n;
 		loop cursor[n] != 0 {
@@ -840,7 +831,7 @@ shared func envNext(*Env e) (string, bool) {
 		if r == 0 {
 			continue;
 		}
-		return string(iterBuffer()[:r]), true;
+		return string(iterBuffer()[:r]);
 	}
 }
 

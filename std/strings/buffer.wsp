@@ -59,12 +59,7 @@ public func replace([]byte buf, string s, old, new, int n) !string {
 
 	strings.Splitter sp = strings.splitter(s, old);
 	int total, count;
-	loop {
-		let next, found = sp.next();
-		if !found {
-			break;
-		}
-		
+	loop sp.next() |next| {
 		if count > 0 {
 			string chosen = count > n && n >= 0 ? old : new;
 			copy(buf[total:], chosen)!;

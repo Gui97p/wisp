@@ -1,13 +1,13 @@
 import "std/math";
 import "std/strings/character";
 
-public func indexOf(string s, sub) int {
+public func indexOf(string s, sub) ?int {
     if sub == "" {
 		return 0;
 	}
 	
 	if len(sub) > len(s) {
-        return -1;
+        return null;
     }
 
     int subLen = len(sub);
@@ -19,22 +19,22 @@ public func indexOf(string s, sub) int {
         }
     }
 
-    return -1;
+    return null;
 }
 
-public func lastIndexOf(string s, sub) int {
+public func lastIndexOf(string s, sub) ?int {
 	if sub == "" {
 		return len(s);
 	}
 	
 	if len(sub) > len(s) {
-        return -1;
+        return null;
     }
 
 	int subLen = len(sub);
     int limit = len(s) - subLen;
 
-	int last = -1;
+	?int last = null;
     for i in 0..limit {
         if s[i:i + len(sub)] == sub {
             last = i;
@@ -44,16 +44,16 @@ public func lastIndexOf(string s, sub) int {
     return last;
 }
 
-public func indexOfByte(string s, byte c) int {
+public func indexOfByte(string s, byte c) ?int {
 	for i, ch in s {
 		if c == ch {
 			return i;
 		}
 	}
-	return -1;
+	return null;
 }
-public func lastIndexOfByte(string s, byte c) int {
-	int last = -1;
+public func lastIndexOfByte(string s, byte c) ?int {
+	?int last = null;
 	for i, ch in s {
 		if c == ch {
 			last = i;
@@ -69,10 +69,7 @@ public func count(string s, sub) int {
 	
 	int total;
 	loop {
-		int idx = indexOf(s, sub);
-		if idx == -1 {
-			break;
-		}
+		int idx = indexOf(s, sub) ?? break;
 
 		total++;
 		int nIdx = idx + len(sub);

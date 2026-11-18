@@ -365,6 +365,7 @@ func (t *X64Target) compileIfStmt(stmt *ast.IfStmt) error {
 			SupportsContinue: false,
 		}
 		t.pushLoop(ctx)
+		defer t.ctx.PopLoop()
 	}
 
 	c, ok := t.info.Folded(stmt.Condition)

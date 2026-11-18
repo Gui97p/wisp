@@ -9189,11 +9189,12 @@ import "std/strings";
 func main() ! {
     [64]byte buf;
 
-    check(strings.indexOf("hello", "ll") == 2, "indexOf finds the first match");
-    check(strings.indexOf("hello", "") == 0, "indexOf of an empty sub is 0");
-    check(strings.indexOf("abc", "c") == 2, "indexOf finds a match at the end");
-    check(strings.indexOf("abc", "d") == -1, "indexOf misses");
-    check(strings.lastIndexOf("a-b-c", "-") == 3, "lastIndexOf finds the last match");
+    check((strings.indexOf("hello", "ll") ?? -1) == 2, "indexOf finds the first match");
+    check((strings.indexOf("hello", "") ?? -1) == 0, "indexOf of an empty sub is 0");
+    check((strings.indexOf("abc", "c") ?? -1) == 2, "indexOf finds a match at the end");
+    ?int missed = strings.indexOf("abc", "d");
+    check(missed == null, "indexOf misses");
+    check((strings.lastIndexOf("a-b-c", "-") ?? -1) == 3, "lastIndexOf finds the last match");
     check(strings.count("aaaa", "aa") == 2, "count counts separate matches");
     check(!strings.startsWith("ab", "abc"), "startsWith longer than the string is false");
     check(strings.endsWith("hello", "llo"), "endsWith matches the tail");
@@ -9211,11 +9212,7 @@ func main() ! {
 
     strings.Splitter sp = strings.splitter("a,b,c", ",");
     int pieces;
-    loop {
-        let piece, ok = sp.next();
-        if !ok {
-            break;
-        }
+    loop sp.next() |piece| {
         pieces++;
     }
     check(pieces == 3, "splitter yields every piece");
@@ -9223,28 +9220,20 @@ func main() ! {
     strings.Splitter tail = strings.splitter("a,b,", ",");
     int tailPieces;
     string last = "x";
-    loop {
-        let piece, ok = tail.next();
-        if !ok {
-            break;
-        }
+    loop tail.next() |piece| {
         tailPieces++;
         last = piece;
     }
     check(tailPieces == 3 && last == "", "splitter keeps the trailing empty piece");
 
     strings.Splitter none = strings.splitter("", ",");
-    let first, firstOk = none.next();
-    let second, secondOk = none.next();
-    check(firstOk && first == "" && !secondOk, "splitter of an empty string yields one piece");
+    ?string first = none.next();
+    ?string second = none.next();
+    check(first == "" && second == null, "splitter of an empty string yields one piece");
 
     strings.Splitter bytes = strings.splitter("abc", "");
     int byteCount;
-    loop {
-        let piece, ok = bytes.next();
-        if !ok {
-            break;
-        }
+    loop bytes.next() |piece| {
         byteCount++;
     }
     check(byteCount == 3, "splitter with an empty separator yields bytes");
@@ -9338,8 +9327,8 @@ func main() {
         if strings.equalFold(name, "PATH") {
             pathSeen = true;
         }
-        let got, found = os.env(name);
-        if !found || got != value {
+        ?string got = os.env(name);
+        if got != value {
             consistent = false;
         }
     }
@@ -9365,14 +9354,14 @@ func main() {
 	{dir: "os_getenv", src: `import "std/os";
 
 func main() {
-    let path, found = os.env("PATH");
-    check(found && len(path) > 0, "getenv finds a variable that is always set");
-    let none, missing = os.env("WISP_SURELY_UNSET_VARIABLE");
-    check(!missing && none == "", "getenv of a missing variable is false");
-    let part, partial = os.env("PAT");
-    check(!partial && part == "", "getenv does not match a prefix of a name");
+    string path = os.env("PATH") ?? "";
+    check(len(path) > 0, "getenv finds a variable that is always set");
+    ?string none = os.env("WISP_SURELY_UNSET_VARIABLE");
+    check(none == null, "getenv of a missing variable is null");
+    ?string partial = os.env("PAT");
+    check(partial == null, "getenv does not match a prefix of a name");
 }
-`, expected: []string{"getenv finds a variable that is always set", "getenv of a missing variable is false", "getenv does not match a prefix of a name"}},
+`, expected: []string{"getenv finds a variable that is always set", "getenv of a missing variable is null", "getenv does not match a prefix of a name"}},
 
 	{dir: "path_core", system: "linux", src: `import "std/path";
 import "std/strings";
@@ -9415,27 +9404,19 @@ func main() ! {
     path.Elements el = path.elements("/a//b/");
     int count;
     string joined = "";
-    loop {
-        let piece, ok = el.next();
-        if !ok {
-            break;
-        }
+    loop el.next() |piece| {
         count++;
         joined = piece;
     }
     check(count == 2 && joined == "b", "elements skips empty pieces");
     path.Elements rootEl = path.elements("/");
-    let none, rootOk = rootEl.next();
+    ?string none = rootEl.next();
     path.Elements emptyEl = path.elements("");
-    let nothing, emptyOk = emptyEl.next();
-    check(!rootOk && !emptyOk && none == "" && nothing == "", "elements of a root or an empty path is nothing");
+    ?string nothing = emptyEl.next();
+    check(none == null && nothing == null, "elements of a root or an empty path is nothing");
     strings.Splitter toks = strings.tokens("a,b,", ",");
     int tokCount;
-    loop {
-        let piece, ok = toks.next();
-        if !ok {
-            break;
-        }
+    loop toks.next() |piece| {
         tokCount++;
     }
     check(tokCount == 2, "tokens skips the empty piece at the end");
@@ -9484,11 +9465,7 @@ func main() ! {
     path.Elements el = path.elements("C:\\a\\\\b/c");
     int count;
     string last = "";
-    loop {
-        let piece, ok = el.next();
-        if !ok {
-            break;
-        }
+    loop el.next() |piece| {
         count++;
         last = piece;
     }
@@ -12128,6 +12105,58 @@ func main() {
     check(offsetof(shapes.Packet, length) == 8, "offsetof of a type of another module");
 }
 `, expected: []string{"constants from another module", "a struct sized by an imported constant", "an inline function of another module", "offsetof of a type of another module"}},
+
+	{dir: "switch_then_break", src: `func next(int k) ?int {
+    return null if k > 3;
+    return k;
+}
+
+func main() {
+    int i;
+    int hits;
+    loop {
+        i++;
+        switch i {
+            case 1:
+                hits += 10;
+            default:
+                hits++;
+        }
+        if i > 5 {
+            break;
+        }
+    }
+    check(i == 6 && hits == 15, "a break after a switch leaves the loop, not the switch");
+
+    int k;
+    int total;
+    loop next(k) |n| {
+        k++;
+        switch n {
+            case 1:
+                total += 10;
+            default:
+                total++;
+        }
+    }
+    check(k == 4 && total == 13, "a switch inside a loop with a capture");
+
+    int rounds;
+    :outer loop {
+        rounds++;
+        switch rounds {
+            case 2:
+                break;
+            default:
+                rounds += 0;
+        }
+        if rounds >= 4 {
+            break :outer;
+        }
+    }
+    check(rounds == 4, "a labeled break after a switch");
+}
+`, expected: []string{"a break after a switch leaves the loop, not the switch", "a switch inside a loop with a capture", "a labeled break after a switch"}},
 
 	{dir: "win64_variadic", system: "windows", files: map[string]string{"lib.asm": `default rel
 global vcheck

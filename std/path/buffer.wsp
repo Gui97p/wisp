@@ -23,11 +23,7 @@ public func join([]byte buf, string ...parts) !string {
 			rest = p[v:];
 		}
 		let elems = path.elementsAfterVolume(rest);
-		loop {
-			let n, found = elems.next();
-			if !found {
-				break;
-			}
+		loop elems.next() |n| {
 			if firstPassed {
 				total += len(strings.copy(buf[total:], path.sep)!);
 			}
@@ -49,18 +45,13 @@ public func clean([]byte buf, string p) !string {
 	int rootLen = total;
 
 	let elems = path.elementsAfterVolume(p[v:]);
-	loop {
-		let n, found = elems.next();
-		if !found {
-			break;
-		}
-
+	loop elems.next() |n| {
 		switch n {
 			case ".":
 				continue;
 			case "..":
 				if depth > 0 {
-					total = math.max(strings.lastIndexOf(string(buf[:total]), path.sep), rootLen);
+					total = math.max(strings.lastIndexOf(string(buf[:total]), path.sep) ?? rootLen, rootLen);
 					depth--;
 					continue;
 				} else if rooted {

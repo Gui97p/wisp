@@ -49,12 +49,11 @@ public func trimSuffix(string s, suffix) string {
 }
 
 public func cut(string s, sep) (string, string, bool) {
-	int idx = search.indexOf(s, sep);
-	if idx == -1 {
-		return s, "", false;
+	if search.indexOf(s, sep) |idx| {
+		return s[:idx], s[idx+len(sep):], true;
 	}
 
-	return s[:idx], s[idx+len(sep):], true;
+	return s, "", false;
 }
 
 public struct Splitter {
@@ -62,20 +61,18 @@ public struct Splitter {
 	internal bool done, skipEmpty;
 }
 
-internal func (*Splitter s) nextStep() (string, bool) {
-	if s.done {
-		return "", false;
-	}
+internal func (*Splitter s) nextStep() ?string {
+	return null if s.done;
 
 	if s.sep == "" {
 		if s.s == "" {
 			s.done = true;
-			return "", false;
+			return null;
 		}
 
 		string r = string(s.s[0]);
 		s.s = s.s[1:];
-		return r, true;
+		return r;
 	}
 	
 	let left, right, found = cut(s.s, s.sep);
@@ -84,16 +81,14 @@ internal func (*Splitter s) nextStep() (string, bool) {
 	} else {
 		s.done = true;
 	}
-	return left, true;
+	return left;
 }
 
-public func (*Splitter s) next() (string, bool) {
-	string str;
-	bool found;
+public func (*Splitter s) next() ?string {
 	loop {
-		str, found = s.nextStep();
-	} until !s.skipEmpty || str != "" || !found;
-	return str, found;
+		string str = s.nextStep() ?? return null;
+		return str if !s.skipEmpty || str != "";
+	}
 }
 
 public func (*Splitter s) rest() string {

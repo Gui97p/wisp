@@ -20,11 +20,6 @@ public func checkedMul(int a, b) ?int {
 	return r;
 }
 
-public func addOverflow(int a, b) (int, bool) {
-	int r = a +% b;
-	return r, ((a ^ r) & (b ^ r)) < 0;
-}
-
 public inline func checkedAbs(int x) ?int {
 	return null if x == constants.MIN_INT;
 	return x < 0 ? -x : x;
@@ -46,11 +41,6 @@ public func checkedMulUnsigned(uint a, b) ?uint {
 	uint r = a *% b;
 	return null if r / b != a;
 	return r;
-}
-
-public func addOverflowUnsigned(uint a, b) (uint, bool) {
-	uint r = a +% b;
-	return r, r < a;
 }
 
 public inline func abs(int x) int {

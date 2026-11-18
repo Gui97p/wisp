@@ -38,19 +38,13 @@ public inline func lowerByte(byte c) byte {
 	return c in 'A'..'Z' ? c+32 : c;
 }
 
-public func digitValue(byte c, int base) (int, bool) {
-	if !(base in 2..36) {
-		return 0, false;
-	}
+public func digitValue(byte c, int base) ?int {
+	return null if !(base in 2..36);
 
 	if c in '0'..'9' {
 		int v = c - '0';
-
-		if v < base {
-			return v, true;
-		}
-
-		return 0, false;
+		return v if v < base;
+		return null;
 	}
 
 	if c in 'a'..'z' {
@@ -59,11 +53,8 @@ public func digitValue(byte c, int base) (int, bool) {
 
 	if c in 'A'..'Z' {
 		int v = c - 'A' + 10;
-
-		if v < base {
-			return v, true;
-		}
+		return v if v < base;
 	}
 
-	return 0, false;
+	return null;
 }

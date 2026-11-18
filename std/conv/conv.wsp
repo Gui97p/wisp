@@ -67,7 +67,7 @@ public func utoa([]byte buf, uint n) !string {
 	return formatUint(buf, n, 10, false)!;
 }
 
-func digitValue(byte c) int {
+func digitValue(byte c) ?int {
 	if c >= '0' && c <= '9' {
         return c - '0';
     }
@@ -80,7 +80,7 @@ func digitValue(byte c) int {
         return c - 'A' + 10;
     }
 
-    return -1;
+    return null;
 }
 
 public func parseUint(string s, int base) !uint {
@@ -90,8 +90,8 @@ public func parseUint(string s, int base) !uint {
 	uint b = uint(base);
 
 	for i in 0..len(s)-1 {
-		int d = digitValue(s[i]);
-		errors.ensure(d in 0..base-1, errors.Kind.Invalid)!;
+		int d = digitValue(s[i]) ?? return Error(errors.Kind.Invalid);
+		errors.ensure(d < base, errors.Kind.Invalid)!;
 
 		uint digit = uint(d);
 		errors.ensure(n <= (math.MAX_UINT - digit) / b, errors.Kind.Overflow)!;
