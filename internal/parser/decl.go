@@ -138,6 +138,12 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 			return nil
 		}
 		decls = append(decls, decl)
+	case lexer.TOKEN_INTERFACE:
+		decl := p.parseInterfaceDeclaration()
+		if decl == nil {
+			return nil
+		}
+		decls = append(decls, decl)
 	case lexer.TOKEN_IMPORT:
 		decl := p.parseImportDeclaration()
 		if decl == nil {
@@ -285,6 +291,8 @@ func (p *Parser) parseExportDeclaration(reach int) []ast.Declaration {
 			d.Reach = reach
 		case *ast.TypeDecl:
 			d.Reach = reach
+		case *ast.InterfaceDecl:
+			d.Reach = reach
 		}
 	}
 	return decls
@@ -370,6 +378,14 @@ func (p *Parser) parseExported() []ast.Declaration {
 
 	case lexer.TOKEN_TYPE:
 		decl := p.parseTypeDeclaration()
+		if decl == nil {
+			return nil
+		}
+		decl.Exported = true
+		decls = append(decls, decl)
+
+	case lexer.TOKEN_INTERFACE:
+		decl := p.parseInterfaceDeclaration()
 		if decl == nil {
 			return nil
 		}
@@ -465,6 +481,12 @@ func (p *Parser) parseTypeDeclaration() *ast.TypeDecl {
 	}
 	decl.Underlying = *ref
 
+	implements, ok := p.optionalImplements()
+	if !ok {
+		return nil
+	}
+	decl.Implements = implements
+
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
 	}
@@ -494,7 +516,12 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 		return nil
 	}
 
-	enum := &ast.TypeDecl{Name: name, TypeParams: typeParams, Underlying: ast.TypeRef{Name: "int"}, IsEnum: true, Selector: selector, SelectorAt: selectorAt}
+	implements, ok := p.optionalImplements()
+	if !ok {
+		return nil
+	}
+
+	enum := &ast.TypeDecl{Name: name, TypeParams: typeParams, Implements: implements, Underlying: ast.TypeRef{Name: "int"}, IsEnum: true, Selector: selector, SelectorAt: selectorAt}
 	decls = append(decls, enum)
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
@@ -598,6 +625,8 @@ func setDoc(decl ast.Declaration, doc string) {
 	case *ast.StructDecl:
 		d.Doc = doc
 	case *ast.TypeDecl:
+		d.Doc = doc
+	case *ast.InterfaceDecl:
 		d.Doc = doc
 	case *ast.ConstDecl:
 		d.Doc = doc

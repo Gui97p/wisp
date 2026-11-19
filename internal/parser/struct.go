@@ -30,6 +30,12 @@ func (p *Parser) parseStructDeclaration() *ast.StructDecl {
 	}
 	decl.TypeParams = typeParams
 
+	implements, ok := p.optionalImplements()
+	if !ok {
+		return nil
+	}
+	decl.Implements = implements
+
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
 	}

@@ -64,7 +64,8 @@ func (p *Parser) parseTypeParams() ([]ast.TypeParam, bool) {
 		p.advance()
 
 		param := ast.TypeParam{}
-		if p.current.Type == lexer.TOKEN_CONST {
+		switch {
+		case p.current.Type == lexer.TOKEN_CONST:
 			p.advance()
 			ref := p.parseTypeDefinitionPrefix()
 			if ref == nil {
@@ -74,7 +75,24 @@ func (p *Parser) parseTypeParams() ([]ast.TypeParam, bool) {
 			if !p.expect(lexer.TOKEN_IDENT) {
 				return nil, false
 			}
-		} else if p.current.Type != lexer.TOKEN_IDENT {
+		case p.current.Type == lexer.TOKEN_LPAREN:
+			constraint := p.constraintNot()
+			if constraint == nil || !p.expect(lexer.TOKEN_IDENT) {
+				return nil, false
+			}
+			param.Constraint = constraint
+		case p.current.Type == lexer.TOKEN_IDENT:
+			switch p.peek.Type {
+			case lexer.TOKEN_COMMA, lexer.TOKEN_GT, lexer.TOKEN_SHIFT_RIGHT, lexer.TOKEN_COLON:
+			default:
+				start := p.currentPosition()
+				ref := p.parseTypeDefinitionPrefix()
+				if ref == nil || !p.expect(lexer.TOKEN_IDENT) {
+					return nil, false
+				}
+				param.Constraint = &ast.Constraint{Kind: ast.ConstraintType, Type: ref, At: ast.Position{Line: start.Line, Col: start.Col, EndLine: ref.EndLine, EndCol: ref.EndCol}}
+			}
+		default:
 			p.errorf("expected the name of a type parameter, got %s", p.current.Type.DisplayName())
 			return nil, false
 		}
@@ -87,7 +105,7 @@ func (p *Parser) parseTypeParams() ([]ast.TypeParam, bool) {
 		params = append(params, param)
 
 		if p.peek.Type == lexer.TOKEN_COLON {
-			p.error("a type parameter has no bound yet: it takes any type")
+			p.error("the constraint of a type parameter goes before its name: write <Writer T>")
 			return nil, false
 		}
 		if p.peek.Type == lexer.TOKEN_COMMA {

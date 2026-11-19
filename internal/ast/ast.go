@@ -85,10 +85,51 @@ type TypeLayer struct {
 }
 
 type TypeParam struct {
-	Name  string
-	Const bool
-	Type  TypeRef
+	Name       string
+	Const      bool
+	Type       TypeRef
+	Constraint *Constraint
+	At         Position
+}
+
+type ConstraintKind int
+
+const (
+	ConstraintType ConstraintKind = iota
+	ConstraintOr
+	ConstraintAnd
+	ConstraintNot
+)
+
+type Constraint struct {
+	Kind  ConstraintKind
+	Type  *TypeRef
+	Left  *Constraint
+	Right *Constraint
 	At    Position
+}
+
+func (c *Constraint) String() string {
+	switch c.Kind {
+	case ConstraintOr:
+		return c.Left.operand(ConstraintOr) + " | " + c.Right.operand(ConstraintOr)
+	case ConstraintAnd:
+		return c.Left.operand(ConstraintAnd) + " & " + c.Right.operand(ConstraintAnd)
+	case ConstraintNot:
+		return "!" + c.Left.operand(ConstraintNot)
+	}
+	return c.Type.String()
+}
+
+func (c *Constraint) operand(parent ConstraintKind) string {
+	text := c.String()
+	switch {
+	case c.Kind == ConstraintType:
+		return text
+	case parent == ConstraintNot, c.Kind == ConstraintOr && parent == ConstraintAnd:
+		return "(" + text + ")"
+	}
+	return text
 }
 
 type TypeArg struct {

@@ -125,6 +125,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.registerBuiltins()
 		a.registerImports()
 		a.checkTags()
+		a.rejectInterfaces()
 		a.registerStructNames()
 		a.attachGenericMethods()
 	}

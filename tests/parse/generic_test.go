@@ -153,7 +153,7 @@ func TestGenericFunctionAsValue(t *testing.T) {
 
 func TestBoundsAreReserved(t *testing.T) {
 	_, errors := parse(t, "func f<T: Number>(T a) {}\n")
-	if len(errors) == 0 || !strings.Contains(errors[0], "no bound yet") {
+	if len(errors) == 0 || !strings.Contains(errors[0], "goes before its name") {
 		t.Errorf("errors: %v", errors)
 	}
 }

@@ -47,7 +47,7 @@ func isKeyword(k lexer.TokenType) bool {
 		lexer.TOKEN_FOR, lexer.TOKEN_IN, lexer.TOKEN_LOOP, lexer.TOKEN_UNTIL, lexer.TOKEN_RETURN, lexer.TOKEN_BREAK,
 		lexer.TOKEN_CONTINUE, lexer.TOKEN_IMPORT, lexer.TOKEN_PUBLIC, lexer.TOKEN_INTERNAL, lexer.TOKEN_SHARED,
 		lexer.TOKEN_AS, lexer.TOKEN_NATIVE, lexer.TOKEN_DEFER, lexer.TOKEN_YIELD, lexer.TOKEN_INLINE, lexer.TOKEN_VAR,
-		lexer.TOKEN_STATIC:
+		lexer.TOKEN_STATIC, lexer.TOKEN_INTERFACE, lexer.TOKEN_IMPLEMENTS:
 		return true
 	}
 	return false
@@ -103,7 +103,8 @@ type stmtState struct {
 func headerKeyword(k lexer.TokenType) bool {
 	switch k {
 	case lexer.TOKEN_IF, lexer.TOKEN_ELSE, lexer.TOKEN_FOR, lexer.TOKEN_LOOP, lexer.TOKEN_UNTIL, lexer.TOKEN_SWITCH,
-		lexer.TOKEN_FUNC, lexer.TOKEN_STRUCT, lexer.TOKEN_ENUM, lexer.TOKEN_TYPE, lexer.TOKEN_STATIC, lexer.TOKEN_NATIVE:
+		lexer.TOKEN_FUNC, lexer.TOKEN_STRUCT, lexer.TOKEN_ENUM, lexer.TOKEN_TYPE, lexer.TOKEN_STATIC, lexer.TOKEN_NATIVE,
+		lexer.TOKEN_INTERFACE:
 		return true
 	}
 	return false
@@ -112,7 +113,7 @@ func headerKeyword(k lexer.TokenType) bool {
 func selectorKeyword(k lexer.TokenType) bool {
 	switch k {
 	case lexer.TOKEN_FUNC, lexer.TOKEN_LET, lexer.TOKEN_CONST, lexer.TOKEN_VAR, lexer.TOKEN_NATIVE, lexer.TOKEN_IMPORT,
-		lexer.TOKEN_STRUCT, lexer.TOKEN_ENUM, lexer.TOKEN_TYPE:
+		lexer.TOKEN_STRUCT, lexer.TOKEN_ENUM, lexer.TOKEN_TYPE, lexer.TOKEN_INTERFACE:
 		return true
 	}
 	return false
@@ -363,7 +364,7 @@ func genericOpens(tokens []token, open int, closers map[int]bool) bool {
 				switch tokens[j+1].kind {
 				case lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACE, lexer.TOKEN_IDENT, lexer.TOKEN_LBRACKET, lexer.TOKEN_STAR,
 					lexer.TOKEN_QUESTION_MARK, lexer.TOKEN_RPAREN, lexer.TOKEN_COMMA, lexer.TOKEN_GT, lexer.TOKEN_SHIFT_RIGHT,
-					lexer.TOKEN_RBRACKET, lexer.TOKEN_SEMICOLON, lexer.TOKEN_ARROW:
+					lexer.TOKEN_RBRACKET, lexer.TOKEN_SEMICOLON, lexer.TOKEN_ARROW, lexer.TOKEN_IMPLEMENTS:
 					closers[j] = true
 					return true
 				}
@@ -371,7 +372,8 @@ func genericOpens(tokens []token, open int, closers map[int]bool) bool {
 			}
 		case lexer.TOKEN_IDENT, lexer.TOKEN_DOT, lexer.TOKEN_COMMA, lexer.TOKEN_STAR, lexer.TOKEN_QUESTION_MARK,
 			lexer.TOKEN_LBRACKET, lexer.TOKEN_RBRACKET, lexer.TOKEN_INT_LITERAL, lexer.TOKEN_CHAR_LITERAL,
-			lexer.TOKEN_MINUS, lexer.TOKEN_CONST, lexer.TOKEN_LPAREN, lexer.TOKEN_RPAREN, lexer.TOKEN_ARROW:
+			lexer.TOKEN_MINUS, lexer.TOKEN_CONST, lexer.TOKEN_LPAREN, lexer.TOKEN_RPAREN, lexer.TOKEN_ARROW,
+			lexer.TOKEN_PIPE, lexer.TOKEN_AMP, lexer.TOKEN_NOT:
 		default:
 			if !isTypeKeyword(tokens[j].kind) {
 				return false

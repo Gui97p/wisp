@@ -211,7 +211,7 @@ func TestDiagnostics(t *testing.T) {
 		{"a generic struct without arguments", "struct Box<T> { T value; }\nfunc main() {\n  Box b;\n}\n", 1, "Box is generic"},
 		{"a type that cannot be inferred", "func make<T>() T { T v; return v; }\nfunc main() {\n  int x = make();\n}\n", 1, "cannot infer T"},
 		{"conflicting types in one call", "func same<T>(T a, T b) T { return a; }\nfunc main() {\n  int x = same(1, \"a\");\n}\n", 1, "T is both int and string"},
-		{"a bound is not accepted yet", "func f<T: Number>(T a) {}\nfunc main() {}\n", 1, "no bound yet"},
+		{"a bound is not accepted yet", "func f<T: Number>(T a) {}\nfunc main() {}\n", 1, "goes before its name"},
 		{"a generic function used as a value", "func id<T>(T a) T { return a; }\nfunc main() {\n  let f = id;\n}\n", 1, "id is generic"},
 		{"an error in the body of an instance", "func bad<T>(T a) T { return a.missing; }\nfunc main() {\n  int x = bad(1);\n}\n", 1, "with T = int, instantiated here"},
 		{"a value parameter that is not constant", "struct Ring<T, const int N> { [N]T slots; }\nfunc main() {\n  int n = 3;\n  Ring<int, n> r;\n}\n", 1, "value parameter"},
@@ -723,5 +723,25 @@ func TestCompletionOfCapturedVariable(t *testing.T) {
 				break
 			}
 		}
+	}
+}
+
+func TestInterfaceSyntaxInLSP(t *testing.T) {
+	c := start(t)
+	src := "interface Writer {\n\tfunc write([]byte data) !int;\n}\n\ninterface Number { int | float }\n\nstruct Buffer implements Writer {\n\tint length;\n}\n\nfunc sum<Number T>([]T items) T {\n\treturn items[0];\n}\n\nfunc main() {\n}\n"
+	p := c.open(map[string]string{"main.wsp": src})
+	var messages []string
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			messages = append(messages, d.Message)
+		}
+	}
+	for _, want := range []string{"interfaces are parsed but not analysed yet", "implements is parsed but not checked yet", "the constraint of a type parameter is parsed but not checked yet"} {
+		if !slices.Contains(messages, want) {
+			t.Errorf("no error %q in %q", want, messages)
+		}
+	}
+	if text, changed := p.formatted(); changed {
+		t.Errorf("formatting changed an already formatted file:\n%s", text)
 	}
 }

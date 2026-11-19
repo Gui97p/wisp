@@ -6,8 +6,9 @@ var safeTokens = map[lexer.TokenType]bool{
 	lexer.TOKEN_SEMICOLON: true,
 	lexer.TOKEN_RBRACE:    true,
 
-	lexer.TOKEN_FUNC:   true,
-	lexer.TOKEN_STRUCT: true,
+	lexer.TOKEN_FUNC:      true,
+	lexer.TOKEN_STRUCT:    true,
+	lexer.TOKEN_INTERFACE: true,
 
 	lexer.TOKEN_LET:    true,
 	lexer.TOKEN_IF:     true,

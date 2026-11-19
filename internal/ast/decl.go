@@ -173,6 +173,7 @@ type StructDecl struct {
 	Doc        string
 	Name       string
 	TypeParams []TypeParam
+	Implements []TypeRef
 	Members    []Param
 	Exported   bool
 	Reach      int
@@ -217,6 +218,7 @@ type TypeDecl struct {
 	Doc        string
 	Name       string
 	TypeParams []TypeParam
+	Implements []TypeRef
 	Underlying TypeRef
 	Exported   bool
 	Reach      int
@@ -268,4 +270,44 @@ type StaticAssertDecl struct {
 func (*StaticAssertDecl) decl() {}
 func (d *StaticAssertDecl) Tree(indent string) string {
 	return indent + "StaticAssertDecl\n" + d.Call.Tree(indent+"└─ ")
+}
+
+type InterfaceMethod struct {
+	Name        string
+	Doc         string
+	Params      []Param
+	ReturnTypes []TypeRef
+	Fallible    bool
+	At          Position
+	NameAt      Position
+}
+
+type InterfaceDecl struct {
+	Tagged
+	Doc        string
+	Name       string
+	TypeParams []TypeParam
+	Methods    []InterfaceMethod
+	Constraint *Constraint
+	Exported   bool
+	Reach      int
+	Selector   string
+	SelectorAt Position
+
+	NodePos
+}
+
+func (*InterfaceDecl) decl() {}
+func (i *InterfaceDecl) Tree(indent string) string {
+	var b strings.Builder
+
+	fmt.Fprintf(&b, "%sInterfaceDecl(%s)\n", indent, i.Name)
+	for _, m := range i.Methods {
+		fmt.Fprintf(&b, "%s├─ Method(%s)\n", indent, m.Name)
+	}
+	if i.Constraint != nil {
+		fmt.Fprintf(&b, "%s└─ Constraint(%s)\n", indent, i.Constraint.String())
+	}
+
+	return b.String()
 }
