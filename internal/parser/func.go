@@ -288,7 +288,7 @@ func (p *Parser) parseFuncParamList() []ast.Param {
 			p.advance()
 
 			if p.current.Type == lexer.TOKEN_LPAREN || p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_QUESTION_MARK || p.current.Type == lexer.TOKEN_LBRACKET || p.current.Type == lexer.TOKEN_CONST ||
-				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC || p.peek.Type == lexer.TOKEN_DOT)) {
+				(p.isStartType() && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_STAR || p.peek.Type == lexer.TOKEN_VARIADIC || p.peek.Type == lexer.TOKEN_DOT || p.peek.Type == lexer.TOKEN_LT)) {
 				break
 			}
 

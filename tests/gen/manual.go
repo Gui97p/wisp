@@ -12601,6 +12601,175 @@ func main() {
 }
 `, expected: []string{"a generic from another module, with a private helper", "a value parameter", "a value parameter is inferred from the argument"}},
 
+	{dir: "generic_function_values", src: `func first<T>(T a, T _b) T {
+    return a;
+}
+
+func twice<T>(T x) (T, T) {
+    return x, x;
+}
+
+func apply(int x, int y, (int, int) => int f) int {
+    return f(x, y);
+}
+
+func chooser<T>() (T, T) => T {
+    return first<T>;
+}
+
+func main() {
+    let f = first<int>;
+    (string, string) => string g = first<string>;
+    check(f(1, 2) == 1 && g("a", "b") == "a", "a generic function as a value");
+    check(apply(5, 6, first<int>) == 5, "as an argument");
+    let h = chooser<float>();
+    check(h(1.5, 2.5) == 1.5, "returned by another generic function");
+    int a = 3;
+    int b = 4;
+    check(a < b && !(b < a), "comparisons are still comparisons");
+}
+`, expected: []string{"a generic function as a value", "as an argument", "returned by another generic function", "comparisons are still comparisons"}},
+
+	{dir: "generic_boxed_instances", src: `struct Box<T> {
+    T value;
+}
+
+type Id<T> T;
+type UserID int;
+type Op<T> (T, T) => T;
+
+func describe(...args) string {
+    switch type args[0] {
+        case *Box<int> b => return "box of int";
+        case *Box<string> b => return "box of string";
+        case Id<int> i => return "id of int";
+        case Id<int64> j => return "id of int64";
+        case UserID u => return "user id";
+        case int n => return "plain int";
+        default => return "other";
+    }
+}
+
+func first(int a, int _b) int {
+    return a;
+}
+
+func main() {
+    Box<int> a = Box<int>{value: 1};
+    Box<string> b = Box<string>{value: "x"};
+    Box<float> c = Box<float>{value: 1.5};
+    Id<int> i = 3;
+    Id<int64> j = 5;
+    UserID u = 4;
+    Op<int> f = first;
+    check(describe(&a) == "box of int" && describe(&b) == "box of string", "a pointer to an instance keeps the identity of its type arguments");
+    check(describe(&c) == "other", "an instance no case names is other");
+    check(describe(i) == "id of int" && describe(j) == "id of int64", "generic type declarations are distinct per argument");
+    check(describe(u) == "user id" && describe(7) == "plain int", "plain types are unaffected");
+    check(f(8, 9) == 8, "a function type declared with a type parameter");
+}
+`, expected: []string{"a pointer to an instance keeps the identity of its type arguments", "an instance no case names is other", "generic type declarations are distinct per argument", "plain types are unaffected", "a function type declared with a type parameter"}},
+
+	{dir: "generic_inline_static", src: `struct Box<T> {
+    T value;
+}
+
+inline func (*Box<T> b) get() T {
+    return b.value;
+}
+
+inline func twice<T>(T x) (T, T) {
+    return x, x;
+}
+
+inline func pick<T>(const bool first, T a, T b) T {
+    if first {
+        return a;
+    }
+    return b;
+}
+
+const SIZE = sizeof(Box<int>);
+
+staticAssert(sizeof(Box<byte>) == 1, "a byte box is a byte");
+staticAssert(alignof(Box<int64>) == 8, "a box of int64 is aligned to 8");
+
+const BOXES = static {
+    [2]int sizes;
+    sizes[0] = sizeof(Box<int>);
+    sizes[1] = sizeof(Box<string>);
+    yield sizes;
+};
+
+func main() {
+    Box<int> a = Box<int>{value: 5};
+    let x, y = twice(a.get());
+    check(x == 5 && y == 5, "an inline generic method and function");
+    check(pick(true, 1, 2) == 1 && pick(false, "a", "b") == "b", "an inline generic function with a const parameter");
+    check(SIZE == 8 && BOXES[0] == 8 && BOXES[1] == 16, "sizeof of an instance at compile time");
+}
+`, expected: []string{"an inline generic method and function", "an inline generic function with a const parameter", "sizeof of an instance at compile time"}},
+
+	{dir: "generic_enums", src: `enum Maybe<T> {
+    Nothing,
+    Just { T value; }
+}
+
+enum Result<T, E> {
+    Ok { T value; },
+    Fail { E reason; }
+}
+
+struct Holder<T> {
+    Maybe<T> slot;
+}
+
+func (*Maybe<T> m) isJust() bool {
+    return m == .Just;
+}
+
+func (*Maybe<T> m) orElse(T fallback) T {
+    switch m {
+        case .Just j => return j.value;
+        default => return fallback;
+    }
+}
+
+func divide(int a, int b) Result<int, string> {
+    if b == 0 {
+        return .Fail{reason: "division by zero"};
+    }
+    return Result<int, string>.Ok{value: a / b};
+}
+
+func text(Result<int, string> r) string {
+    return switch r {
+        case .Ok o => "ok";
+        case .Fail f => f.reason;
+    };
+}
+
+func which(...args) string {
+    switch type args[0] {
+        case *Maybe<int> m => return "maybe of int";
+        case *Maybe<string> m => return "maybe of string";
+        default => return "other";
+    }
+}
+
+func main() {
+    Maybe<int> a = Maybe<int>.Just{value: 5};
+    Maybe<int> b = Maybe<int>.Nothing;
+    Maybe<string> c = .Just{value: "text"};
+    check(a.isJust() && !b.isJust() && c.isJust(), "a method of a generic enum");
+    check(a.orElse(9) == 5 && b.orElse(9) == 9 && c.orElse("none") == "text", "a switch on the variants of an instance");
+    check(text(divide(8, 2)) == "ok" && text(divide(1, 0)) == "division by zero", "two type parameters and a switch expression");
+    Holder<string> h = Holder<string>{slot: .Just{value: "x"}};
+    check(h.slot.name() == "Just" && b.name() == "Nothing", "name() of an instance");
+    check(which(&a) == "maybe of int" && which(&c) == "maybe of string" && which(5) == "other", "an instance of an enum in an any value");
+}
+`, expected: []string{"a method of a generic enum", "a switch on the variants of an instance", "two type parameters and a switch expression", "name() of an instance", "an instance of an enum in an any value"}},
+
 	{dir: "generic_type_switch", src: `struct Wrapper<T> {
     T value;
 }
@@ -12632,15 +12801,34 @@ func kind<T>(T x) string {
     return name;
 }
 
+func bytesOf<T>() int {
+    return switch type T {
+        case int, uint => 8;
+        case byte => 1;
+        case string => 16;
+        default => 0;
+    };
+}
+
+func label<T>(T x) string {
+    return switch type x {
+        case string s => s;
+        case int n => "number";
+        default => "other";
+    };
+}
+
 func main() {
     Wrapper<int> a = Wrapper<int>{value: 1};
     Wrapper<string> b = Wrapper<string>{value: "text"};
     Wrapper<bool> d = Wrapper<bool>{value: true};
+    check(bytesOf<int>() == 8 && bytesOf<byte>() == 1 && bytesOf<string>() == 16 && bytesOf<bool>() == 0, "a switch expression on a type parameter");
+    check(label("abc") == "abc" && label(3) == "number" && label(true) == "other", "a switch expression on a value of the parameter type");
     check(a.describe() == "int" && b.describe() == "text" && d.describe() == "other", "the branch of the type is the only one that exists");
     check(twice(21) == 42 && twice("hi") == "hi" && twice(1.5) == 1.5, "a group case and a default");
     check(kind(1) == "integer" && kind(true) == "bool" && kind("x") == "other", "a case with several types");
 }
-`, expected: []string{"the branch of the type is the only one that exists", "a group case and a default", "a case with several types"}},
+`, expected: []string{"a switch expression on a type parameter", "a switch expression on a value of the parameter type", "the branch of the type is the only one that exists", "a group case and a default", "a case with several types"}},
 
 	{dir: "inline_private_names", files: map[string]string{"meter/meter.wsp": `var int total;
 

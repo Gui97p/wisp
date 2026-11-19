@@ -8,6 +8,7 @@ import (
 type IdentLiteral struct {
 	Value     string
 	Synthetic bool
+	TypeArgs  []TypeArg
 
 	NodePos
 }

@@ -2,7 +2,6 @@ package analyser
 
 import (
 	"path/filepath"
-	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -11,8 +10,11 @@ func (a *Analyser) registerStructNames() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		if td, isType := d.(*ast.TypeDecl); isType && len(td.TypeParams) > 0 {
-			a.errorf(td, "a type declaration cannot take type parameters yet, only a struct can").
-				WithHelp("write it as a struct: struct %s<%s> { ... }", td.Name, strings.Join(paramNames(td.TypeParams), ", "))
+			if td.Data {
+				a.registerGenericSum(td)
+				continue
+			}
+			a.registerGenericAlias(td)
 			continue
 		}
 		if td, isEnum := d.(*ast.TypeDecl); isEnum && td.Data {
@@ -112,6 +114,19 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 	if expr.Dot {
 		a.pendingDotLits[expr] = true
 		return ImplicitEnumType{Name: expr.Name}
+	}
+	if expr.Variant != "" && len(expr.TypeArgs) > 0 {
+		symbol, ok := a.lookupType(a.scope, expr.Module, expr.Name)
+		if !ok || symbol.Generic == nil || symbol.Generic.Sum == nil {
+			a.errorf(expr, "%s is not a generic enum with data", qualified(expr.Module, expr.Name))
+			return InvalidType{}
+		}
+		a.noteUse(expr, symbol)
+		sum, isSum := a.instantiateStructRef(expr, symbol.Generic, expr.TypeArgs, a.scope).(*StructType)
+		if !isSum {
+			return InvalidType{}
+		}
+		return a.checkVariantLiteral(expr, sum, expr.Variant)
 	}
 	if expr.Variant != "" {
 		sum, ok := a.sumTypeExpr(&ast.MemberExpr{Object: &ast.IdentLiteral{Value: expr.Module}, Field: expr.Name})

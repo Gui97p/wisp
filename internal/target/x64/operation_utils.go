@@ -553,6 +553,14 @@ func (t *X64Target) withFreeRegisters(fn func() error) error {
 	return err
 }
 
+func (t *X64Target) descriptorOperand(tp analyser.Type) Operand {
+	if tag, ok := analyser.InstanceTag(tp); ok {
+		return Imm(tag)
+	}
+	mod, key, _ := analyser.DescriptorOf(tp)
+	return Addr{Of: t.typeLabel(mod, key)}
+}
+
 func (t *X64Target) typeLabel(module, key string) Mem {
 	sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
 	if module != t.module {

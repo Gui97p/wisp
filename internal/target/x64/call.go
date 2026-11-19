@@ -426,8 +426,7 @@ func (t *X64Target) boxArg(dst Mem, arg analyser.Type, op Operand) {
 
 	var tag Operand = Imm(analyser.BoxCode(layout.Code))
 	if layout.Named() {
-		mod, key, _ := analyser.DescriptorOf(arg)
-		tag = Addr{Of: t.typeLabel(mod, key)}
+		tag = t.descriptorOperand(arg)
 	}
 	t.storeWord(dst, tag)
 
@@ -461,8 +460,7 @@ func (t *X64Target) boxArg(dst Mem, arg analyser.Type, op Operand) {
 				break
 			}
 
-			mod, key, _ := analyser.DescriptorOf(arg)
-			w1 = Addr{Of: t.typeLabel(mod, key)}
+			w1 = t.descriptorOperand(arg)
 		}
 		t.storeWord(dst.at(16, 8), w1)
 	}

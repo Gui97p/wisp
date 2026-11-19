@@ -220,6 +220,7 @@ type NamedType struct {
 	MemberOrder []string
 	MemberDocs  map[string]string
 	Nullable    bool
+	Instance    *InstanceInfo
 }
 
 type ImplicitEnumType struct {

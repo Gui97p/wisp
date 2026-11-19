@@ -17,6 +17,10 @@ func (a *Analyser) checkSwitchExprValue(expr *ast.SwitchExpr) Type {
 }
 
 func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type {
+	if failed := a.pruneTypeSwitchExpr(expr); failed != nil {
+		return []Type{failed}
+	}
+
 	a.enterScope()
 	defer a.exitScope()
 

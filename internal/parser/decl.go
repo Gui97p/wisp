@@ -489,7 +489,12 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 		return nil
 	}
 
-	enum := &ast.TypeDecl{Name: name, Underlying: ast.TypeRef{Name: "int"}, IsEnum: true, Selector: selector, SelectorAt: selectorAt}
+	typeParams, ok := p.optionalTypeParams()
+	if !ok {
+		return nil
+	}
+
+	enum := &ast.TypeDecl{Name: name, TypeParams: typeParams, Underlying: ast.TypeRef{Name: "int"}, IsEnum: true, Selector: selector, SelectorAt: selectorAt}
 	decls = append(decls, enum)
 
 	if !p.expect(lexer.TOKEN_LBRACE) {
@@ -566,6 +571,11 @@ func (p *Parser) parseEnumDeclaration() []ast.Declaration {
 	}
 
 	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+
+	if len(enum.TypeParams) > 0 && !enum.Data {
+		p.errorf("%s takes type parameters, so some variant has to carry data that uses them", name)
 		return nil
 	}
 

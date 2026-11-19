@@ -1,6 +1,7 @@
 package parse
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -129,6 +130,27 @@ func TestComparisonsStayComparisons(t *testing.T) {
 	}
 }
 
+func TestGenericFunctionAsValue(t *testing.T) {
+	program, errors := parse(t, `func f(int a, b) {
+	let g = first<int>;
+	h(first<int>, second<string>);
+	bool x = a < b;
+}
+`)
+	if len(errors) > 0 {
+		t.Fatalf("errors: %v", errors)
+	}
+	var withArgs []string
+	for _, id := range collect[*ast.IdentLiteral](program) {
+		if len(id.TypeArgs) > 0 {
+			withArgs = append(withArgs, id.Value+ast.TypeArgsText(id.TypeArgs))
+		}
+	}
+	if len(withArgs) != 3 || withArgs[0] != "first<int>" || withArgs[2] != "second<string>" {
+		t.Errorf("names with type arguments: %v", withArgs)
+	}
+}
+
 func TestBoundsAreReserved(t *testing.T) {
 	_, errors := parse(t, "func f<T: Number>(T a) {}\n")
 	if len(errors) == 0 || !strings.Contains(errors[0], "no bound yet") {
@@ -141,5 +163,58 @@ func TestBadTypeArguments(t *testing.T) {
 		if _, errors := parse(t, src); len(errors) == 0 {
 			t.Errorf("no error for %q", src)
 		}
+	}
+}
+
+func TestGenericTypeAfterAComma(t *testing.T) {
+	program, errors := parse(t, "func fold<T>(T a, T b, Op<T> f, List<T> items, int n) T { return a; }\n")
+	if len(errors) > 0 {
+		t.Fatalf("errors: %v", errors)
+	}
+	var got []string
+	for _, p := range program.Declarations[0].(*ast.FuncDecl).Params {
+		got = append(got, p.Type.String()+" "+p.Name)
+	}
+	want := []string{"T a", "T b", "Op<T> f", "List<T> items", "int n"}
+	if !slices.Equal(got, want) {
+		t.Errorf("params %v, want %v", got, want)
+	}
+}
+
+func TestGenericEnumsAndVariantLiterals(t *testing.T) {
+	program, errors := parse(t, `enum Maybe<T> {
+	Nothing,
+	Just { T value; }
+}
+
+func f() {
+	Maybe<int> a = Maybe<int>.Just{value: 1};
+	Maybe<int> b = Maybe<int>.Nothing;
+	switch type x {
+		case Id<int> i => return;
+		case *Maybe<int> m => return;
+	}
+}
+`)
+	if len(errors) > 0 {
+		t.Fatalf("errors: %v", errors)
+	}
+	enum := program.Declarations[0].(*ast.TypeDecl)
+	if len(enum.TypeParams) != 1 || enum.TypeParams[0].Name != "T" || !enum.Data {
+		t.Errorf("enum: %+v", enum)
+	}
+	literals := collect[*ast.StructLiteral](program)
+	if len(literals) != 1 || literals[0].Name != "Maybe" || literals[0].Variant != "Just" || ast.TypeArgsText(literals[0].TypeArgs) != "<int>" {
+		t.Errorf("variant literals: %+v", literals)
+	}
+	if n := len(collect[*ast.TypeLabel](program)); n != 2 {
+		t.Errorf("%d type labels, want 2", n)
+	}
+}
+
+func TestGenericEnumNeedsData(t *testing.T) {
+	_, errors := parse(t, "enum Plain<T> { A, B }\n")
+	if len(errors) == 0 || !strings.Contains(errors[0], "carry data") {
+		t.Errorf("errors: %v", errors)
 	}
 }

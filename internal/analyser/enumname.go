@@ -33,6 +33,9 @@ func (a *Analyser) generateEnumNames() {
 	}
 
 	a.program.Declarations = append(a.program.Declarations, generated...)
+	for _, fd := range generated {
+		a.attachGenericMethod(fd)
+	}
 }
 
 func enumNameMethod(td *ast.TypeDecl) *ast.FuncDecl {
@@ -40,9 +43,16 @@ func enumNameMethod(td *ast.TypeDecl) *ast.FuncDecl {
 	if td.Exported {
 		src.WriteString("public ")
 	}
-	fmt.Fprintf(&src, "func (%s v) name() string {\n", td.Name)
-	for _, m := range td.Members {
-		fmt.Fprintf(&src, "if v == %s.%s { return %q; }\n", td.Name, m.Name, m.Name)
+	if len(td.TypeParams) > 0 {
+		fmt.Fprintf(&src, "func (%s<%s> v) name() string {\n", td.Name, strings.Join(paramNames(td.TypeParams), ", "))
+		for _, m := range td.Members {
+			fmt.Fprintf(&src, "if v == .%s { return %q; }\n", m.Name, m.Name)
+		}
+	} else {
+		fmt.Fprintf(&src, "func (%s v) name() string {\n", td.Name)
+		for _, m := range td.Members {
+			fmt.Fprintf(&src, "if v == %s.%s { return %q; }\n", td.Name, m.Name, m.Name)
+		}
 	}
 	src.WriteString("return \"?\";\n}\n")
 

@@ -199,6 +199,8 @@ func (a *Analyser) checkTagArgs(spec TagSpec, tag *ast.Tag, decl ast.Declaration
 				a.errorRange(tag.At, "a test gives no result, and %s gives one: it passes or fails", fd.Name)
 			case fd.Inline:
 				a.errorRange(tag.At, "a test cannot be inline")
+			case isGenericDecl(fd):
+				a.errorRange(tag.At, "a test cannot be generic: %s would have no type arguments to run with", fd.Name)
 			}
 		}
 	case "deprecated", "must_use":

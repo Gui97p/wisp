@@ -4,7 +4,7 @@ import "std/fmt";
 
 // The parameter type comes first. `a, b` share the type written before them.
 func add(int a, b) int {
-  return a + b;
+	return a + b;
 }
 
 // A function made of a single expression can use `=>`.
@@ -12,10 +12,10 @@ func square(int x) int => x * x;
 
 // Multiple return values.
 func minmax(int a, b) (int, int) {
-  if a < b {
-    return a, b;
-  }
-  return b, a;
+	if a < b {
+		return a, b;
+	}
+	return b, a;
 }
 
 // `return call();` gives back whatever the call gives, however many values
@@ -23,32 +23,32 @@ func minmax(int a, b) (int, int) {
 // `return other();` when `other` returns nothing too, and the guard form works:
 // `return log("x") if quiet;`.
 func announce(string text) {
-  fmt.printf("{}\n", text);
+	fmt.printf("{}\n", text);
 }
 
 func announceTwice(string text) {
-  announce(text);
-  return announce(text);
+	announce(text);
+	return announce(text);
 }
 
 func swapped(int a, b) (int, int) {
-  return minmax(b, a);
+	return minmax(b, a);
 }
 
 // A function can be declared after the code that calls it.
 func later() int => 7;
 
 public func demo() {
-  fmt.printf("add(2, 3) = {}\n", add(2, 3));
-  fmt.printf("square(7) = {}\n", square(7));
+	fmt.printf("add(2, 3) = {}\n", add(2, 3));
+	fmt.printf("square(7) = {}\n", square(7));
 
-  let low, high = minmax(9, 4);
-  fmt.printf("minmax(9, 4) = {}, {}\n", low, high);
-  let first, second = swapped(1, 5);
-  fmt.printf("swapped(1, 5) = {}, {}\n", first, second);
-  announceTwice("twice");
+	let low, high = minmax(9, 4);
+	fmt.printf("minmax(9, 4) = {}, {}\n", low, high);
+	let first, second = swapped(1, 5);
+	fmt.printf("swapped(1, 5) = {}, {}\n", first, second);
+	announceTwice("twice");
 
-  fmt.printf("later() = {}\n", later());
+	fmt.printf("later() = {}\n", later());
 
-  // Variadic parameters are in variadics.wsp, function values in lambdas.wsp.
+// Variadic parameters are in variadics.wsp, function values in lambdas.wsp.
 }

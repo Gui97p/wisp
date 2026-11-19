@@ -1,0 +1,22 @@
+import "box";
+
+#test("an instance of a generic struct and of a generic function")
+func instances() {
+  box.Box<int> b = box.Box<int>{value: 4};
+  [2]int slots;
+  slots[0] = box.first(b.get(), 9);
+  slots[1] = slots[0];
+  string s = box.first("a", "b");
+  int bad = 5;
+  if s != "a" || slots[1] != 4 {
+    slots[bad] = 1;
+  }
+}
+
+#expect_abort("index out of range")
+#test("an abort inside code that uses an instance")
+func aborts() {
+  [2]int a;
+  int i = box.first(5, 6);
+  a[i] = 1;
+}

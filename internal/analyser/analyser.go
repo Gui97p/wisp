@@ -65,6 +65,7 @@ type Analyser struct {
 	fieldsStarted map[*ast.StructDecl]bool
 
 	instances       map[string]*StructType
+	aliases         map[string]Type
 	funcInstances   map[string]*Symbol
 	methodInstances map[string]*FuncType
 	pending         []pendingBody
@@ -101,6 +102,7 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 		declFiles:       declFiles,
 		module:          module,
 		instances:       map[string]*StructType{},
+		aliases:         map[string]Type{},
 		funcInstances:   map[string]*Symbol{},
 		methodInstances: map[string]*FuncType{},
 		pendingDots:     map[*ast.DotIdent]bool{},
@@ -230,7 +232,7 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		switch symbol.Kind {
 		case STRUCT, TYPE:
 			result = symbol.Type
-			if symbol.Generic != nil && symbol.Generic.Struct != nil {
+			if symbol.Generic != nil && (symbol.Generic.Struct != nil || symbol.Generic.Alias != nil || symbol.Generic.Sum != nil) {
 				if len(ref.Args) == 0 {
 					a.errorAtRef(node, ref, "%s is generic: write %s<...>", qualified(ref.Module, ref.Name), qualified(ref.Module, ref.Name)).
 						WithHelp("%s takes %d type arguments: %s", ref.Name, len(symbol.Generic.Params), symbol.Type.String())

@@ -1,6 +1,7 @@
 package analyser
 
 import (
+	"hash/fnv"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -298,6 +299,25 @@ func DescriptorOf(t Type) (module, key string, ok bool) {
 		}
 	}
 	return "", "", false
+}
+
+func InstanceTag(t Type) (int64, bool) {
+	if p, isPointer := t.(PointerType); isPointer {
+		t = p.Element
+	}
+	var info *InstanceInfo
+	switch v := t.(type) {
+	case NamedType:
+		info = v.Instance
+	case *StructType:
+		info = v.Instance
+	}
+	if info == nil {
+		return 0, false
+	}
+	h := fnv.New64a()
+	h.Write([]byte(info.Decl.key(info.Args)))
+	return int64(1<<62 | h.Sum64()&(1<<62-1)), true
 }
 
 func TypeKey(module, name string) string {

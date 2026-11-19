@@ -120,7 +120,7 @@ func isNameExpr(e ast.Expression) bool {
 	return false
 }
 
-func (p *Parser) tryGenericRef(left ast.Expression) *ast.GenericExpr {
+func (p *Parser) tryGenericRef(left ast.Expression) ast.Expression {
 	cp := p.checkpoint()
 	p.advance()
 	args, ok := p.parseTypeArgs()
@@ -128,6 +128,24 @@ func (p *Parser) tryGenericRef(left ast.Expression) *ast.GenericExpr {
 		(p.typeOperands && (p.peek.Type == lexer.TOKEN_RPAREN || p.peek.Type == lexer.TOKEN_COMMA))) {
 		return &ast.GenericExpr{Base: left, Args: args}
 	}
+	if ok && p.peek.Type == lexer.TOKEN_DOT {
+		return &ast.GenericExpr{Base: left, Args: args}
+	}
+	if ok && p.endsValue() {
+		if ident, isIdent := left.(*ast.IdentLiteral); isIdent {
+			ident.TypeArgs = args
+			return ident
+		}
+		return &ast.GenericExpr{Base: left, Args: args}
+	}
 	p.restore(cp)
 	return nil
+}
+
+func (p *Parser) endsValue() bool {
+	switch p.peek.Type {
+	case lexer.TOKEN_RPAREN, lexer.TOKEN_COMMA, lexer.TOKEN_SEMICOLON, lexer.TOKEN_RBRACE, lexer.TOKEN_RBRACKET:
+		return true
+	}
+	return false
 }

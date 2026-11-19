@@ -52,6 +52,18 @@ func (t *X64Target) loadWord(dst x64context.Register, w Operand) {
 func (t *X64Target) storeWord(dst Mem, w Operand) {
 	switch o := w.(type) {
 	case Imm:
+		if int64(o) != int64(int32(o)) {
+			reg := t.ctx.AllocFreeRegister()
+			if reg == x64context.NoReg {
+				t.fail("x86-64: no available registers")
+				return
+			}
+			regStr := t.ctx.GetRegister(reg, 8)
+			t.text.printft("mov %s, %d\n", regStr, o)
+			t.text.printft("mov %s, %s\n", t.memText(dst), regStr)
+			t.ctx.FreeRegister(reg)
+			return
+		}
 		t.text.printft("mov %s, %d\n", t.memText(dst), o)
 	case Reg:
 		t.text.printft("%s %s, %s\n", mov(o.Reg, o.Size), t.memText(dst), t.ctx.GetRegister(o.Reg, dst.Size))

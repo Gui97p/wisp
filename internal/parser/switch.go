@@ -76,6 +76,9 @@ func (p *Parser) startsTypeLabel(typed bool) bool {
 	if p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_QUESTION_MARK {
 		return true
 	}
+	if typed && p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_LT {
+		return true
+	}
 	if !p.isPrimitiveType() {
 		return false
 	}

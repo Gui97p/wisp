@@ -19,58 +19,64 @@
 // A parameter can also be a value that is known at compile time, written with
 // `const`: `struct Ring<T, const int N>`. It works as a constant in the
 // declaration, it can size an array, and it can be inferred from an array.
+//
+// A generic function can be a value too, as long as every type is named:
+// `let f = biggest<int>`. A `type` and an enum with data take parameters the
+// same way, and a generic type keeps its own identity per argument, also inside
+// an `any`: a `*Maybe<int>` and a `*Maybe<string>` are different cases of a
+// `switch type`.
 
 import "std/fmt";
 
 struct List<T> {
-  [8]T items;
-  int count;
+	[8]T items;
+	int count;
 }
 
 func (*List<T> l) push(T value) {
-  l.items[l.count] = value;
-  l.count++;
+	l.items[l.count] = value;
+	l.count++;
 }
 
 func (*List<T> l) sum() T {
-  T total;
-  for i in 0..l.count - 1 {
-    total += l.items[i];
-  }
-  return total;
+	T total;
+	for i in 0..l.count - 1 {
+		total += l.items[i];
+	}
+	return total;
 }
 
 struct Pair<A, B> {
-  A first;
-  B second;
+	A first;
+	B second;
 }
 
 func swap<A, B>(Pair<A, B> p) Pair<B, A> {
-  return Pair<B, A>{first: p.second, second: p.first};
+	return Pair<B, A>{first: p.second, second: p.first};
 }
 
 func biggest<T>(T a, T b) T {
-  return a > b ? a : b;
+	return a > b ? a : b;
 }
 
 func apply<T, U>(T value, (T) => U f) U {
-  return f(value);
+	return f(value);
 }
 
 func square(int x) int => x * x;
 
 struct Ring<T, const int N> {
-  [N]T slots;
-  int head;
+	[N]T slots;
+	int head;
 }
 
 func (*Ring<T, N> r) put(T value) {
-  r.slots[r.head % N] = value;
-  r.head++;
+	r.slots[r.head % N] = value;
+	r.head++;
 }
 
 func capacity<T, const int N>(Ring<T, N> _ring) int {
-  return N;
+	return N;
 }
 
 // `switch type` on a value that is not an `any` is decided by the compiler:
@@ -78,33 +84,80 @@ func capacity<T, const int N>(Ring<T, N> _ring) int {
 // even analysed, so a case may do what only its type can do. `case signed v`
 // and `case unsigned v` stand for every integer of that kind.
 func describe<T>(T value) string {
-  switch type value {
-    case string text => return text;
-    case signed _number => return "an integer";
-    case bool => return "a bool";
-    default => return "something else";
-  }
+	switch type value {
+		case string text => return text;
+		case signed _number => return "an integer";
+		case bool => return "a bool";
+		default => return "something else";
+	}
+}
+
+// The subject of a `switch type` can be the type parameter itself, and the
+// switch can be an expression: only the case of the chosen type survives.
+func bytesOf<T>() int {
+	return switch type T {
+		case byte => 1;
+		case int, uint => 8;
+		case string => 16;
+		default => 0;
+	};
+}
+
+// A `type` gives a name to another type for each argument. As for any `type`,
+// the new type is distinct from the one it is made of.
+type Step<T> (T) => T;
+
+func twice<T>(T value, Step<T> step) T {
+	return step(step(value));
+}
+
+func increment(int x) int => x + 1;
+
+// An enum with data takes parameters when its variants use them. The variants
+// are written after the type with its arguments, or with just a dot where the
+// type is known from the context.
+enum Maybe<T> {
+	Nothing,
+	Just { T value; }
+}
+
+func (*Maybe<T> m) orElse(T fallback) T {
+	switch m {
+		case .Just j => return j.value;
+		default => return fallback;
+	}
 }
 
 public func demo() {
-  List<int> numbers;
-  numbers.push(3);
-  numbers.push(4);
-  List<float> weights;
-  weights.push(1.5);
-  weights.push(2.5);
-  fmt.printf("sum of the numbers {}, of the weights {}\n", numbers.sum(), weights.sum());
+	List<int> numbers;
+	numbers.push(3);
+	numbers.push(4);
+	List<float> weights;
+	weights.push(1.5);
+	weights.push(2.5);
+	fmt.printf("sum of the numbers {}, of the weights {}\n", numbers.sum(), weights.sum());
 
-  Pair<int, string> pair = Pair<int, string>{first: 1, second: "one"};
-  Pair<string, int> flipped = swap(pair);
-  fmt.printf("swapped: {} and {}\n", flipped.first, flipped.second);
+	Pair<int, string> pair = Pair<int, string>{first: 1, second: "one"};
+	Pair<string, int> flipped = swap(pair);
+	fmt.printf("swapped: {} and {}\n", flipped.first, flipped.second);
 
-  fmt.printf("biggest(3, 9) = {}, biggest<float>(1.5, 0.5) = {}\n", biggest(3, 9), biggest<float>(1.5, 0.5));
-  fmt.printf("apply(7, square) = {}\n", apply(7, square));
+	fmt.printf("biggest(3, 9) = {}, biggest<float>(1.5, 0.5) = {}\n", biggest(3, 9), biggest<float>(1.5, 0.5));
+	fmt.printf("apply(7, square) = {}\n", apply(7, square));
 
-  Ring<byte, 4> ring;
-  ring.put(1);
-  fmt.printf("a ring of {} slots, {} bytes in all\n", capacity(ring), sizeof(ring));
+	Ring<byte, 4> ring;
+	ring.put(1);
+	fmt.printf("a ring of {} slots, {} bytes in all\n", capacity(ring), sizeof(ring));
 
-  fmt.printf("{}, {}, {}, {}\n", describe("text"), describe(42), describe(true), describe(1.5));
+	fmt.printf("{}, {}, {}, {}\n", describe("text"), describe(42), describe(true), describe(1.5));
+
+	fmt.printf("sizes: {} {} {}\n", bytesOf<byte>(), bytesOf<int>(), bytesOf<string>());
+
+	let step = increment;
+	fmt.printf("twice(5) = {}\n", twice(5, step));
+	let pick = biggest<int>;
+	fmt.printf("pick(2, 8) = {}\n", pick(2, 8));
+
+	Maybe<int> found = Maybe<int>.Just{value: 7};
+	Maybe<int> missing = .Nothing;
+	fmt.printf("{} and {}\n", found.orElse(0), missing.orElse(-1));
 }

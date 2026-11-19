@@ -393,8 +393,7 @@ func (t *X64Target) compileTypeCase(expr *ast.BinaryExpr, tc *analyser.TypeCase)
 		var expected Operand
 
 		if layout.Named() {
-			mod, key, _ := analyser.DescriptorOf(tc.Type)
-			t.loadWord(w, Addr{Of: t.typeLabel(mod, key)})
+			t.loadWord(w, t.descriptorOperand(tc.Type))
 			expected = Reg{w, 8}
 		} else {
 			expected = Imm(analyser.BoxCode(layout.Code))
@@ -407,8 +406,7 @@ func (t *X64Target) compileTypeCase(expr *ast.BinaryExpr, tc *analyser.TypeCase)
 			if c := analyser.BoxCode(layout.Identity); c != 0 {
 				expected = Imm(c)
 			} else {
-				mod, key, _ := analyser.DescriptorOf(tc.Type)
-				t.loadWord(w, Addr{Of: t.typeLabel(mod, key)})
+				t.loadWord(w, t.descriptorOperand(tc.Type))
 				expected = Reg{w, 8}
 			}
 			t.text.printft("cmp %s, %s\n", tmpStr, t.opText(expected, 8))

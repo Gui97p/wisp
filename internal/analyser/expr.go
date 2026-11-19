@@ -49,6 +49,10 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		symbol.Used = true
 		a.noteUse(expr, symbol)
 		t = symbol.Type
+		if len(e.TypeArgs) > 0 {
+			t = a.genericFuncValue(e, symbol)
+			break
+		}
 		if (symbol.Kind == VAR || symbol.Kind == PARAM) && a.scope.captures(e.Value, a.moduleScope) {
 			a.errorf(expr, "a function literal cannot use %s, a variable of the function around it", e.Value).
 				WithHelp("a function value is only code and carries no variables: pass %s as a parameter", e.Value)

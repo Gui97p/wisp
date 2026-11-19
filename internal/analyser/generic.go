@@ -23,6 +23,8 @@ type GenericDecl struct {
 	Params   []ast.TypeParam
 	Struct   *ast.StructDecl
 	Func     *ast.FuncDecl
+	Alias    *ast.TypeDecl
+	Sum      *ast.TypeDecl
 	Methods  []*ast.FuncDecl
 	Exported bool
 	Symbol   *Symbol
@@ -180,6 +182,26 @@ func (a *Analyser) registerGenericStruct(sd *ast.StructDecl) {
 	}
 }
 
+func (a *Analyser) registerGenericAlias(td *ast.TypeDecl) {
+	g := &GenericDecl{Name: td.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: td.TypeParams, Alias: td, Exported: td.Exported}
+	line, col := td.Position()
+	symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: td.Doc, Generic: g}
+	g.Symbol = symbol
+	if !a.scope.Define(symbol) {
+		a.errorAlreadyDeclared(td, TYPE, td.Name)
+	}
+}
+
+func (a *Analyser) registerGenericSum(td *ast.TypeDecl) {
+	g := &GenericDecl{Name: td.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: td.TypeParams, Sum: td, Exported: td.Exported}
+	line, col := td.Position()
+	symbol := &Symbol{Name: td.Name, Kind: STRUCT, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: td.Doc, Generic: g}
+	g.Symbol = symbol
+	if !a.scope.Define(symbol) {
+		a.errorAlreadyDeclared(td, STRUCT, td.Name)
+	}
+}
+
 func (a *Analyser) registerGenericFunc(fd *ast.FuncDecl) {
 	g := &GenericDecl{Name: fd.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: fd.TypeParams, Func: fd, Exported: fd.Exported}
 	line, col := fd.Position()
@@ -192,34 +214,34 @@ func (a *Analyser) registerGenericFunc(fd *ast.FuncDecl) {
 
 func (a *Analyser) attachGenericMethods() {
 	for _, d := range a.program.Declarations {
-		fd, ok := d.(*ast.FuncDecl)
-		if !ok || !isGenericMethod(fd) {
-			continue
-		}
-		a.currentFile = a.declFiles[d]
-		ref := fd.Receiver.Type
-		symbol, found := a.scope.Resolve(ref.Name)
-		if ref.Module != "" || !found || symbol.Generic == nil || symbol.Generic.Struct == nil {
-			a.errorAtRef(fd, ref, "%s is not a generic struct of this module", ref.String())
-			continue
-		}
-		g := symbol.Generic
-		if len(ref.Args) != len(g.Params) {
-			a.errorAtRef(fd, ref, "%s takes %d type arguments, and the receiver gives %d", g.Name, len(g.Params), len(ref.Args))
-			continue
-		}
-		valid := true
-		for _, arg := range ref.Args {
-			if arg.Type == nil || arg.Type.Module != "" || len(arg.Type.Args) > 0 || len(arg.Type.Layers) > 0 {
-				a.errorAtRef(fd, ref, "the names between <> in a receiver declare the type parameters: write func (*%s<T> value) ...", g.Name)
-				valid = false
-				break
-			}
-		}
-		if valid {
-			g.Methods = append(g.Methods, fd)
+		a.attachGenericMethod(d)
+	}
+}
+
+func (a *Analyser) attachGenericMethod(d ast.Declaration) {
+	fd, ok := d.(*ast.FuncDecl)
+	if !ok || !isGenericMethod(fd) {
+		return
+	}
+	a.currentFile = a.declFiles[d]
+	ref := fd.Receiver.Type
+	symbol, found := a.scope.Resolve(ref.Name)
+	if ref.Module != "" || !found || symbol.Generic == nil || (symbol.Generic.Struct == nil && symbol.Generic.Sum == nil) {
+		a.errorAtRef(fd, ref, "%s is not a generic struct of this module", ref.String())
+		return
+	}
+	g := symbol.Generic
+	if len(ref.Args) != len(g.Params) {
+		a.errorAtRef(fd, ref, "%s takes %d type arguments, and the receiver gives %d", g.Name, len(g.Params), len(ref.Args))
+		return
+	}
+	for _, arg := range ref.Args {
+		if arg.Type == nil || arg.Type.Module != "" || len(arg.Type.Args) > 0 || len(arg.Type.Layers) > 0 {
+			a.errorAtRef(fd, ref, "the names between <> in a receiver declare the type parameters: write func (*%s<T> value) ...", g.Name)
+			return
 		}
 	}
+	g.Methods = append(g.Methods, fd)
 }
 
 func (a *Analyser) bindScope(parent *Scope, names []string, params []ast.TypeParam, args []TypeValue, line int) *Scope {
@@ -339,7 +361,79 @@ func (a *Analyser) instantiateStructRef(node ast.Node, g *GenericDecl, args []as
 	if !ok {
 		return InvalidType{}
 	}
+	switch {
+	case g.Alias != nil:
+		return a.instantiateAlias(node, g, values)
+	case g.Sum != nil:
+		return a.instantiateSum(node, g, values)
+	}
 	return a.instantiateStruct(node, g, values)
+}
+
+func (a *Analyser) instantiateSum(node ast.Node, g *GenericDecl, args []TypeValue) Type {
+	key := g.key(args)
+	if st, ok := a.instances[key]; ok {
+		return st
+	}
+	if a.instanceDepth >= maxInstanceDepth {
+		a.errorf(node, "the instantiation of %s is nested too deep", shortName(g.display(args))).
+			WithHelp("a generic type that contains itself with a bigger type never ends")
+		return InvalidType{}
+	}
+
+	st := a.buildSum(g.Sum, g.display(args), g.Module, filepath.Dir(g.File))
+	st.key = key
+	st.Instance = &InstanceInfo{Decl: g, Args: args}
+	a.instances[key] = st
+
+	scope := a.bindScope(g.Scope, paramNames(g.Params), g.Params, args, 0)
+	a.instanceDepth++
+	savedFile := a.currentFile
+	a.currentFile = g.File
+	a.fillSum(g.Sum, st, scope)
+	a.currentFile = savedFile
+	a.instanceDepth--
+
+	st.methodInit = func() { a.registerInstanceMethods(g, st, args) }
+	return st
+}
+
+func (a *Analyser) instantiateAlias(node ast.Node, g *GenericDecl, args []TypeValue) Type {
+	key := g.key(args)
+	if t, ok := a.aliases[key]; ok {
+		return t
+	}
+	if a.instanceDepth >= maxInstanceDepth {
+		a.errorf(node, "the instantiation of %s is nested too deep", shortName(g.display(args))).
+			WithHelp("a generic type that contains itself with a bigger type never ends")
+		return InvalidType{}
+	}
+
+	scope := a.bindScope(g.Scope, paramNames(g.Params), g.Params, args, 0)
+	a.instanceDepth++
+	savedFile := a.currentFile
+	a.currentFile = g.File
+	underlying := a.resolveTypeRef(g.Alias, scope, g.Alias.Underlying)
+	a.currentFile = savedFile
+	a.instanceDepth--
+	if underlying == nil {
+		return InvalidType{}
+	}
+	if _, invalid := underlying.(InvalidType); invalid {
+		return InvalidType{}
+	}
+
+	named := NamedType{
+		Name:       g.display(args),
+		Underlying: underlying,
+		Methods:    make(map[string]*FuncType),
+		Module:     g.Module,
+		Dir:        filepath.Dir(g.File),
+		Exported:   g.Exported,
+		Instance:   &InstanceInfo{Decl: g, Args: args},
+	}
+	a.aliases[key] = named
+	return named
 }
 
 func (a *Analyser) instantiateStruct(node ast.Node, g *GenericDecl, args []TypeValue) Type {
@@ -725,19 +819,19 @@ func (a *Analyser) unify(g *GenericDecl, ref ast.TypeRef, t Type, bound []*TypeV
 	}
 
 	if len(ref.Args) > 0 {
-		st, ok := t.(*StructType)
-		if !ok || st.Instance == nil {
+		instance := instanceOf(t)
+		if instance == nil {
 			return ""
 		}
 		symbol, found := a.lookupType(g.Scope, ref.Module, ref.Name)
-		if !found || symbol.Generic != st.Instance.Decl {
+		if !found || symbol.Generic != instance.Decl {
 			return ""
 		}
 		for i, arg := range ref.Args {
-			if i >= len(st.Instance.Args) {
+			if i >= len(instance.Args) {
 				break
 			}
-			given := st.Instance.Args[i]
+			given := instance.Args[i]
 			switch {
 			case arg.Type != nil && given.Value == nil:
 				if msg := a.unify(g, *arg.Type, given.Type, bound); msg != "" {
@@ -761,6 +855,16 @@ func (a *Analyser) unify(g *GenericDecl, ref ast.TypeRef, t Type, bound []*TypeV
 		}
 	}
 	return ""
+}
+
+func instanceOf(t Type) *InstanceInfo {
+	switch v := t.(type) {
+	case *StructType:
+		return v.Instance
+	case NamedType:
+		return v.Instance
+	}
+	return nil
 }
 
 func bindValue(g *GenericDecl, bound []*TypeValue, idx int, value ConstValue, tp Type) string {
@@ -1070,6 +1174,74 @@ func (a *Analyser) pruneTypeSwitch(stmt *ast.IfStmt) bool {
 	return true
 }
 
+func (a *Analyser) pruneTypeSwitchExpr(expr *ast.SwitchExpr) Type {
+	if len(expr.Arms) == 0 {
+		return nil
+	}
+	first, ok := typeTests(expr.Arms[0].Condition)
+	if !ok {
+		return nil
+	}
+	temp, ok := first[0].Left.(*ast.IdentLiteral)
+	if !ok {
+		return nil
+	}
+	source := ast.Expression(temp)
+	tempAt := -1
+	for i, stmt := range expr.Prelude {
+		if decl, isVar := stmt.(*ast.VarStmt); isVar && len(decl.Vars) == 1 && len(decl.Values) == 1 && decl.Vars[0].Name == temp.Value {
+			source, tempAt = decl.Values[0], i
+		}
+	}
+	subject := a.checkExpr(source)
+	switch subject.(type) {
+	case BoxedType, InvalidType:
+		return nil
+	}
+	subject = defaultType(subject)
+
+	var chosen *ast.SwitchArm
+	var bind *ast.TypeBind
+	for i := range expr.Arms {
+		tests, isTest := typeTests(expr.Arms[i].Condition)
+		if !isTest {
+			return nil
+		}
+		for _, test := range tests {
+			if a.staticTypeMatch(test, subject) {
+				chosen, bind = &expr.Arms[i], test.Bind
+				break
+			}
+		}
+		if chosen != nil {
+			break
+		}
+	}
+	if chosen == nil {
+		chosen = expr.Default
+	}
+	if chosen == nil {
+		a.errorf(expr, "no case of this switch matches %s, and there is no default", subject.String())
+		return InvalidType{}
+	}
+
+	arm := *chosen
+	arm.Condition = nil
+	if _, plain := source.(*ast.IdentLiteral); plain && tempAt >= 0 {
+		expr.Prelude = append(expr.Prelude[:tempAt:tempAt], expr.Prelude[tempAt+1:]...)
+	}
+	if bind != nil {
+		value := ast.Clone(source, ast.CloneOptions{})
+		decl := &ast.VarStmt{Vars: []ast.Param{{Name: bind.Name, Line: bind.Line, Col: bind.Col, EndLine: bind.EndLine, EndCol: bind.EndCol}}, Values: []ast.Expression{value}}
+		decl.SetPos(bind.Line, bind.Col)
+		decl.SetEndPos(bind.EndLine, bind.EndCol)
+		expr.Prelude = append(expr.Prelude, decl)
+	}
+	expr.Arms = nil
+	expr.Default = &arm
+	return nil
+}
+
 func isSwitchLink(s ast.Statement) bool {
 	link, ok := s.(*ast.IfStmt)
 	return ok && link.SwitchLink
@@ -1097,46 +1269,59 @@ func (a *Analyser) instantiatePhantoms() {
 			if len(decl.TypeParams) == 0 || decl.Receiver != nil {
 				continue
 			}
-			if g := a.genericOf(decl.Name, decl, nil); g != nil {
+			if g := a.genericOf(decl.Name, decl); g != nil {
 				if args, ok := a.phantomArgs(g); ok {
 					a.instantiateFunc(decl, g, args)
 				}
 			}
 		case *ast.StructDecl:
-			if len(decl.TypeParams) == 0 {
-				continue
+			if len(decl.TypeParams) > 0 {
+				a.phantomType(decl, decl.Name)
 			}
-			g := a.genericOf(decl.Name, nil, decl)
-			if g == nil {
-				continue
-			}
-			args, ok := a.phantomArgs(g)
-			if !ok {
-				continue
-			}
-			st, isStruct := a.instantiateStruct(decl, g, args).(*StructType)
-			if !isStruct {
-				continue
-			}
-			methods := MethodsOf(st)
-			names := make([]string, 0, len(methods))
-			for name := range methods {
-				names = append(names, name)
-			}
-			sort.Strings(names)
-			for _, name := range names {
-				a.instanceOfMethod(decl, methods[name])
+		case *ast.TypeDecl:
+			if len(decl.TypeParams) > 0 && decl.Data {
+				a.phantomType(decl, decl.Name)
 			}
 		}
 	}
 }
 
-func (a *Analyser) genericOf(name string, fd *ast.FuncDecl, sd *ast.StructDecl) *GenericDecl {
+func (a *Analyser) phantomType(decl ast.Node, name string) {
+	g := a.genericOf(name, decl)
+	if g == nil {
+		return
+	}
+	args, ok := a.phantomArgs(g)
+	if !ok {
+		return
+	}
+	var created Type
+	if g.Sum != nil {
+		created = a.instantiateSum(decl, g, args)
+	} else {
+		created = a.instantiateStruct(decl, g, args)
+	}
+	st, isStruct := created.(*StructType)
+	if !isStruct {
+		return
+	}
+	methods := MethodsOf(st)
+	names := make([]string, 0, len(methods))
+	for name := range methods {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		a.instanceOfMethod(decl, methods[name])
+	}
+}
+
+func (a *Analyser) genericOf(name string, node ast.Node) *GenericDecl {
 	symbol, ok := a.moduleScope.Resolve(name)
 	if !ok || symbol.Generic == nil {
 		return nil
 	}
-	if g := symbol.Generic; g.Func == fd && g.Struct == sd {
+	if g := symbol.Generic; g.node() == node {
 		return g
 	}
 	return nil
@@ -1163,8 +1348,40 @@ func (a *Analyser) phantomArgs(g *GenericDecl) ([]TypeValue, bool) {
 }
 
 func (g *GenericDecl) node() ast.Node {
-	if g.Func != nil {
+	switch {
+	case g.Func != nil:
 		return g.Func
+	case g.Alias != nil:
+		return g.Alias
+	case g.Sum != nil:
+		return g.Sum
 	}
 	return g.Struct
+}
+
+func (a *Analyser) genericFuncValue(e *ast.IdentLiteral, symbol *Symbol) Type {
+	g := symbol.Generic
+	if g == nil || g.Func == nil {
+		a.errorf(e, "%s is not a generic function", e.Value)
+		return InvalidType{}
+	}
+	if len(e.TypeArgs) != len(g.Params) {
+		a.errorf(e, "a generic function used as a value needs all its type arguments: %s takes %d, got %d", g.Name, len(g.Params), len(e.TypeArgs)).
+			WithHelp("there are no arguments to infer them from: write %s<%s>", g.Name, strings.Join(paramNames(g.Params), ", "))
+		return InvalidType{}
+	}
+	values, ok := a.evalArgList(e, g, e.TypeArgs, a.scope)
+	if !ok {
+		return InvalidType{}
+	}
+	sym, ft := a.instantiateFunc(e, g, values)
+	if ft == nil {
+		return InvalidType{}
+	}
+	if ft.Inline {
+		a.errorf(e, "%s is inline, so it has no address to use as a value", g.Name)
+		return InvalidType{}
+	}
+	a.info.Idents[e] = sym
+	return ft
 }

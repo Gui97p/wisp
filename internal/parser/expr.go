@@ -26,8 +26,13 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 
 		if p.peek.Type == lexer.TOKEN_LT && isNameExpr(left) {
 			if generic := p.tryGenericRef(left); generic != nil {
-				generic.SetPos(line, col)
-				generic.SetEndPos(p.currentEnd())
+				if g, isGeneric := generic.(*ast.GenericExpr); isGeneric {
+					g.SetPos(line, col)
+					g.SetEndPos(p.currentEnd())
+				} else {
+					id := generic.(*ast.IdentLiteral)
+					id.SetEndPos(p.currentEnd())
+				}
 				left = generic
 				continue
 			}
@@ -636,6 +641,23 @@ func (p *Parser) parseStructLiteral(left ast.Expression) ast.Expression {
 	case *ast.DotIdent:
 		lit = &ast.StructLiteral{Name: l.Name, Dot: true}
 	case *ast.MemberExpr:
+		if generic, isGeneric := l.Object.(*ast.GenericExpr); isGeneric {
+			switch base := generic.Base.(type) {
+			case *ast.IdentLiteral:
+				lit = &ast.StructLiteral{Name: base.Value, TypeArgs: generic.Args, Variant: l.Field}
+			case *ast.MemberExpr:
+				module, ok := base.Object.(*ast.IdentLiteral)
+				if !ok {
+					p.error("expected identifier before {")
+					return nil
+				}
+				lit = &ast.StructLiteral{Module: module.Value, Name: base.Field, TypeArgs: generic.Args, Variant: l.Field}
+			default:
+				p.error("expected a type name before {")
+				return nil
+			}
+			break
+		}
 		if inner, nested := l.Object.(*ast.MemberExpr); nested {
 			module, ok := inner.Object.(*ast.IdentLiteral)
 			if !ok {

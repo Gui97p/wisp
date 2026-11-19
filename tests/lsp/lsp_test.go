@@ -609,3 +609,28 @@ func main() {
 		}
 	}
 }
+
+func TestGenericTypeDeclarationsInLSP(t *testing.T) {
+	c := start(t)
+	src := "enum Maybe<T> {\n\tNothing,\n\tJust { T value; }\n}\n\ntype Op<T> (T, T) => T;\n\nfunc (*Maybe<T> m) get(T fallback) T {\n\treturn fallback;\n}\n\nfunc add(int a, int b) int {\n\treturn a + b;\n}\n\nfunc main() {\n\tMaybe<int> a = Maybe<int>.Just{value: 1};\n\tOp<int> f = add;\n}\n"
+	cases := []struct{ probe, want string }{
+		{"Just { ¦T value; }", "type parameter T"},
+		{"type Op<T> (¦T, T) => T;", "type parameter T"},
+		{"func (*Maybe<¦T> m)", "type parameter T"},
+		{"get(T fallback) ¦T {", "type parameter T"},
+		{"Maybe<int> a = Maybe<int>.J¦ust{value: 1};", "Just"},
+	}
+	for _, tc := range cases {
+		plain := strings.Replace(tc.probe, "¦", "", 1)
+		p := c.open(map[string]string{"main.wsp": strings.Replace(src, plain, tc.probe, 1)})
+		if got := p.hover(); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: hover %q does not contain %q", tc.probe, got, tc.want)
+		}
+	}
+	p := c.open(map[string]string{"main.wsp": src})
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("unexpected error: %s", d.Message)
+		}
+	}
+}

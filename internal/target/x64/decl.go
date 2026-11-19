@@ -59,6 +59,9 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
 		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
 	case *ast.TypeDecl:
+		if len(d.TypeParams) > 0 {
+			return nil
+		}
 		key := analyser.TypeKey(t.module, d.Name)
 		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
 		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)

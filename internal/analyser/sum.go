@@ -10,14 +10,24 @@ import (
 const sumTag = "$tag"
 
 func (a *Analyser) registerSumName(td *ast.TypeDecl) {
+	st := a.buildSum(td, td.Name, a.module, filepath.Dir(a.currentFile))
+
+	line, col := td.Position()
+	symbol := &Symbol{Name: td.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: td.Doc}
+	if !a.scope.Define(symbol) {
+		a.errorAlreadyDeclared(td, STRUCT, td.Name)
+	}
+}
+
+func (a *Analyser) buildSum(td *ast.TypeDecl, name, module, dir string) *StructType {
 	st := &StructType{
-		Name:      td.Name,
+		Name:      name,
 		Fields:    make(map[string]Type),
 		Methods:   make(map[string]*FuncType),
 		FieldDocs: make(map[string]string),
 		FieldDirs: make(map[string]string),
-		Module:    a.module,
-		Dir:       filepath.Dir(a.currentFile),
+		Module:    module,
+		Dir:       dir,
 		Exported:  td.Exported,
 		Sum:       &SumInfo{ByName: make(map[string]int, len(td.Members))},
 	}
@@ -26,25 +36,20 @@ func (a *Analyser) registerSumName(td *ast.TypeDecl) {
 		if m.Payload {
 			variant.Field = "$" + m.Name
 			variant.Payload = &StructType{
-				Name:      td.Name + "." + m.Name,
+				Name:      name + "." + m.Name,
 				Fields:    make(map[string]Type),
 				Methods:   make(map[string]*FuncType),
 				FieldDocs: make(map[string]string),
 				FieldDirs: make(map[string]string),
-				Module:    a.module,
-				Dir:       filepath.Dir(a.currentFile),
+				Module:    module,
+				Dir:       dir,
 				Exported:  td.Exported,
 			}
 		}
 		st.Sum.ByName[m.Name] = len(st.Sum.Variants)
 		st.Sum.Variants = append(st.Sum.Variants, variant)
 	}
-
-	line, col := td.Position()
-	symbol := &Symbol{Name: td.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: td.Doc}
-	if !a.scope.Define(symbol) {
-		a.errorAlreadyDeclared(td, STRUCT, td.Name)
-	}
+	return st
 }
 
 func (a *Analyser) registerSumFields(td *ast.TypeDecl) {
@@ -56,7 +61,10 @@ func (a *Analyser) registerSumFields(td *ast.TypeDecl) {
 	if !ok || st.Sum == nil {
 		return
 	}
+	a.fillSum(td, st, a.scope)
+}
 
+func (a *Analyser) fillSum(td *ast.TypeDecl, st *StructType, scope *Scope) {
 	st.Fields[sumTag] = PrimitiveType{Name: "int"}
 	st.Order = append(st.Order, sumTag)
 	for i, m := range td.Members {
@@ -65,7 +73,7 @@ func (a *Analyser) registerSumFields(td *ast.TypeDecl) {
 			continue
 		}
 		for _, field := range m.Fields {
-			fieldType := a.resolveTypeRef(td, a.scope, field.Type)
+			fieldType := a.resolveTypeRef(td, scope, field.Type)
 			if fieldType == nil {
 				continue
 			}
@@ -98,6 +106,22 @@ func (a *Analyser) sumTypeExpr(expr ast.Expression) (*StructType, bool) {
 	var sym *Symbol
 	var found bool
 	switch e := expr.(type) {
+	case *ast.GenericExpr:
+		var base *Symbol
+		var ok bool
+		switch b := e.Base.(type) {
+		case *ast.IdentLiteral:
+			base, ok = a.scope.Resolve(b.Value)
+		case *ast.MemberExpr:
+			if module, isIdent := b.Object.(*ast.IdentLiteral); isIdent {
+				base, ok = a.lookupType(a.scope, module.Value, b.Field)
+			}
+		}
+		if !ok || base.Generic == nil || base.Generic.Sum == nil {
+			return nil, false
+		}
+		st, isSum := a.instantiateStructRef(e, base.Generic, e.Args, a.scope).(*StructType)
+		return st, isSum
 	case *ast.IdentLiteral:
 		sym, found = a.scope.Resolve(e.Value)
 	case *ast.MemberExpr:

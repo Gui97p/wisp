@@ -244,3 +244,19 @@ func TestTestingModule(t *testing.T) {
 		"Test result: FAILED. 5 passed, 6 failed, 1 skipped",
 	)
 }
+
+func TestGenericCodeInTests(t *testing.T) {
+	out, code := run(t, "generics", "test")
+	if code != 0 {
+		t.Fatalf("exit code %d:\n%s", code, out)
+	}
+	expect(t, out, "ok    box.test: an instance of a generic struct and of a generic function", "ok    box.test: an abort inside code that uses an instance", "2 passed")
+}
+
+func TestGenericTestIsRejected(t *testing.T) {
+	out, code := run(t, "genericbad", "test")
+	if code == 0 {
+		t.Fatalf("a generic test was accepted:\n%s", out)
+	}
+	expect(t, out, "a test cannot be generic")
+}

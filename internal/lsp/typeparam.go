@@ -31,6 +31,12 @@ func typeParamScopes(program *ast.Program) []typeParamScope {
 		case *ast.StructDecl:
 			params = d.TypeParams
 			owner = "struct " + d.Name
+		case *ast.TypeDecl:
+			params = d.TypeParams
+			owner = "type " + d.Name
+			if d.Data {
+				owner = "enum " + d.Name
+			}
 		}
 		if len(params) == 0 {
 			continue
@@ -133,8 +139,17 @@ func receiverTypeParams(program *ast.Program, fd *ast.FuncDecl) []ast.TypeParam 
 	ref := fd.Receiver.Type
 	var declared []ast.TypeParam
 	for _, d := range program.Declarations {
-		if sd, ok := d.(*ast.StructDecl); ok && sd.Name == ref.Name {
-			declared = sd.TypeParams
+		switch decl := d.(type) {
+		case *ast.StructDecl:
+			if decl.Name == ref.Name {
+				declared = decl.TypeParams
+			}
+		case *ast.TypeDecl:
+			if decl.Name == ref.Name {
+				declared = decl.TypeParams
+			}
+		}
+		if declared != nil {
 			break
 		}
 	}

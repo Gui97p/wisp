@@ -1,0 +1,12 @@
+public struct Box<T> {
+	T value;
+}
+
+public func (*Box<T> b) get() T {
+	return b.value;
+}
+
+public func first<T>(T a, T _b) T {
+	return a;
+}
+
