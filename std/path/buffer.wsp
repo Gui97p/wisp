@@ -1,6 +1,6 @@
-import "std/strings";
-import "std/path";
 import "std/math";
+import "std/path";
+import "std/strings";
 
 public func join([]byte buf, string ...parts) !string {
 	int total;
@@ -32,7 +32,7 @@ public func join([]byte buf, string ...parts) !string {
 	return string(buf[:total]);
 }
 
-public func clean([]byte buf, string p) !string {	
+public func clean([]byte buf, string p) !string {
 	int total, depth;
 	int v = path.volumeLen(p);
 	total += len(strings.copy(buf, p[:v])!);
@@ -57,7 +57,7 @@ public func clean([]byte buf, string p) !string {
 			}
 			default => depth++;
 		}
-		
+
 		if total > rootLen {
 			total += len(strings.copy(buf[total:], path.sep)!);
 		}

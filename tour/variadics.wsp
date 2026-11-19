@@ -16,23 +16,23 @@
 import "std/fmt";
 
 func sum(int ...values) int {
-  int total;
-  for _, v in values {
-    total += v;
-  }
-  return total;
+	int total;
+	for _, v in values {
+		total += v;
+	}
+	return total;
 }
 
 func twiceTheSum(int ...values) int {
-  return sum(values...) * 2;
+	return sum(values...) * 2;
 }
 
 public func demo() {
-  fmt.printf("sum(1, 2, 3, 4) = {}\n", sum(1, 2, 3, 4));
-  fmt.printf("sum() = {}\n", sum());
+	fmt.printf("sum(1, 2, 3, 4) = {}\n", sum(1, 2, 3, 4));
+	fmt.printf("sum() = {}\n", sum());
 
-  []int numbers = .{10, 20, 30};
-  fmt.printf("sum(numbers...) = {}\n", sum(numbers...));
-  fmt.printf("sum(1, 2, numbers...) = {}\n", sum(1, 2, numbers...));
-  fmt.printf("twiceTheSum(5, 6) = {}\n", twiceTheSum(5, 6));
+	[]int numbers = .{10, 20, 30};
+	fmt.printf("sum(numbers...) = {}\n", sum(numbers...));
+	fmt.printf("sum(1, 2, numbers...) = {}\n", sum(1, 2, numbers...));
+	fmt.printf("twiceTheSum(5, 6) = {}\n", twiceTheSum(5, 6));
 }

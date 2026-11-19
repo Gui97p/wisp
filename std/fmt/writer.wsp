@@ -1,11 +1,11 @@
+import "std/conv";
+import "std/errors";
 import "std/fmt/cursor";
 import "std/fmt/render";
 import "std/fmt/spec";
-import "std/conv";
-import "std/os";
-import "std/mem";
 import "std/math";
-import "std/errors";
+import "std/mem";
+import "std/os";
 
 public enum FormatError {
 	Unmatched = 1,
@@ -126,11 +126,11 @@ func (*Writer w) writePiece(render.Piece p, spec.Spec s, bool numeric) ! {
 				w.write(p.body)!;
 			}
 			case .Center => {
-				w.fill(s.fill, pad/2)!;
+				w.fill(s.fill, pad / 2)!;
 				w.write(p.sign)!;
 				w.write(p.radix)!;
 				w.write(p.body)!;
-				w.fill(s.fill, pad-pad/2)!;
+				w.fill(s.fill, pad - pad / 2)!;
 			}
 			case .Default => {}
 		}
@@ -272,16 +272,16 @@ public func (*Writer w) format(string format, ...args) !int {
 		bool ok;
 		Error bad = Error(FormatError.WrongType);
 		switch type args[argIndex] {
-			case signed v =>   ok = w.putInt(buf, v, s)!;
+			case signed v => ok = w.putInt(buf, v, s)!;
 			case unsigned v => ok = w.putUint(buf, v, s)!;
-			case bool v =>     ok = w.putBool(v, s)!;
-			case string v =>   ok = w.putString(v, s)!;
-			case *void v =>    ok = w.putPointer(buf, v, s)!;
+			case bool v => ok = w.putBool(v, s)!;
+			case string v => ok = w.putString(v, s)!;
+			case *void v => ok = w.putPointer(buf, v, s)!;
 			case float64 v => { [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, false)!; }
 			case float32 v => { [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, true)!; }
-			case Error v =>    ok = w.putError(buf, v, s)!;
-			case null =>       ok = w.putString("null", s)!;
-			default =>         bad = Error(FormatError.UnsupportedType);
+			case Error v => ok = w.putError(buf, v, s)!;
+			case null => ok = w.putString("null", s)!;
+			default => bad = Error(FormatError.UnsupportedType);
 		}
 		argIndex++;
 		if !ok {

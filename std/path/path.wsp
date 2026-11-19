@@ -80,7 +80,7 @@ public func base(string p) string {
 	return "." if p == "";
 	int v = volumeLen(p);
 	int end = len(p);
-	loop end > 0 && isSep(p[end-1]) {
+	loop end > 0 && isSep(p[end - 1]) {
 		end--;
 	}
 	return sep if end <= v;
@@ -88,7 +88,7 @@ public func base(string p) string {
 	loop i >= v && !isSep(p[i]) {
 		i--;
 	}
-	return p[i+1:end];
+	return p[i + 1:end];
 }
 
 #must_use
@@ -97,20 +97,20 @@ public func dir(string p) string {
 	int v = volumeLen(p);
 	return p if v > 2 && len(p) == v;
 	int end = len(p);
-	loop end > v && isSep(p[end-1]) {
+	loop end > v && isSep(p[end - 1]) {
 		end--;
 	}
-	return len(p) > v ? p[:v+1] : (v == 0 ? "." : p[:v]) if end == v;
+	return len(p) > v ? p[:v + 1] : (v == 0 ? "." : p[:v]) if end == v;
 	int i = end - 1;
 	loop i >= v && !isSep(p[i]) {
 		i--;
 	}
 	return v == 0 ? "." : p[:v] if i < v;
 	int head = i;
-	loop head > v && isSep(p[head-1]) {
+	loop head > v && isSep(p[head - 1]) {
 		head--;
 	}
-	return p[:v+1] if head == v;
+	return p[:v + 1] if head == v;
 	return p[:head];
 }
 
@@ -119,7 +119,7 @@ public func ext(string p) string {
 	p = base(p);
 
 	int idx = strings.lastIndexOfByte(p, '.') ?? return "";
-	return idx == 0 || idx == len(p)-1 ? "" : p[idx:];
+	return idx == 0 || idx == len(p) - 1 ? "" : p[idx:];
 }
 
 #must_use

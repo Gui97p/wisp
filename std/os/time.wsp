@@ -1,5 +1,5 @@
-import "std/sys";
 import "std/os/global";
+import "std/sys";
 
 internal inline func toNs(int s, ns) int => s * 1_000_000_000 + ns;
 
@@ -14,7 +14,7 @@ public func ticks() int {
 }
 
 public func sleep(int ms) ! {
-	int r = sys.sleep(ms/1000, (ms % 1000) * 1_000_000);
+	int r = sys.sleep(ms / 1000, (ms % 1000) * 1_000_000);
 	return global.errorIO(sys.errno(r)) if r < 0;
 }
 

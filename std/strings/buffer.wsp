@@ -1,7 +1,7 @@
+import "std/errors";
+import "std/mem";
 import "std/strings";
 import "std/strings/character";
-import "std/mem";
-import "std/errors";
 
 public func copy([]byte buf, string s) !string {
 	errors.ensure(len(s) <= len(buf), errors.Kind.NoSpace)!;
@@ -61,7 +61,7 @@ public func replace([]byte buf, string s, old, new, int n) !string {
 			copy(buf[total:], chosen)!;
 			total += len(chosen);
 		}
-		
+
 		copy(buf[total:], next)!;
 		total += len(next);
 		count++;
@@ -95,8 +95,8 @@ public func toLower([]byte buf) {
 public func reverse([]byte buf) {
 	int n = len(buf);
 	return if n < 2;
-	for i in 0..n/2-1 {
-		buf[i], buf[n-i-1] = buf[n-i-1], buf[i];
+	for i in 0..n / 2 - 1 {
+		buf[i], buf[n - i - 1] = buf[n - i - 1], buf[i];
 	}
 }
 

@@ -3,47 +3,47 @@
 import "std/fmt";
 
 struct Point {
-  int x, y;
+	int x, y;
 }
 
 // A method puts its receiver before the name. The receiver is a pointer,
 // written with the same `*Type` syntax used everywhere else.
 func (*Point p) pos() (int, int) {
-  return p.x, p.y;
+	return p.x, p.y;
 }
 
 func (*Point p) scale(int factor) {
-  p.x = p.x * factor;
-  p.y = p.y * factor;
+	p.x = p.x * factor;
+	p.y = p.y * factor;
 }
 
 public func demo() {
-  // A struct literal names its fields.
-  Point p = Point{x: 3, y: 4};
-  let origin = Point{x: 0, y: 0};
+	// A struct literal names its fields.
+	Point p = Point{x: 3, y: 4};
+	let origin = Point{x: 0, y: 0};
 
-  let px, py = p.pos();
-  fmt.printf("p is at {}, {}\n", px, py);
-  fmt.printf("origin is at {}, {}\n", origin.x, origin.y);
+	let px, py = p.pos();
+	fmt.printf("p is at {}, {}\n", px, py);
+	fmt.printf("origin is at {}, {}\n", origin.x, origin.y);
 
-  // The method changes `p` itself because the receiver is a pointer.
-  p.scale(2);
-  fmt.printf("after scale(2), p is at {}, {}\n", p.x, p.y);
+	// The method changes `p` itself because the receiver is a pointer.
+	p.scale(2);
+	fmt.printf("after scale(2), p is at {}, {}\n", p.x, p.y);
 
-  // Fields can be assigned, including with compound operators.
-  p.x += 5;
-  fmt.printf("after p.x += 5, p.x is {}\n", p.x);
+	// Fields can be assigned, including with compound operators.
+	p.x += 5;
+	fmt.printf("after p.x += 5, p.x is {}\n", p.x);
 
-  // A struct that is not initialised starts with every field zeroed.
-  Point blank;
-  fmt.printf("blank is at {}, {}\n", blank.x, blank.y);
+	// A struct that is not initialised starts with every field zeroed.
+	Point blank;
+	fmt.printf("blank is at {}, {}\n", blank.x, blank.y);
 
-  // A field left out of a literal is zero too.
-  Point partial = Point{y: 9};
-  fmt.printf("partial is at {}, {}\n", partial.x, partial.y);
+	// A field left out of a literal is zero too.
+	Point partial = Point{y: 9};
+	fmt.printf("partial is at {}, {}\n", partial.x, partial.y);
 
-  // Structs can sit in arrays.
-  [2]Point corners;
-  corners[1].x = 7;
-  fmt.printf("corners[0].x = {}, corners[1].x = {}\n", corners[0].x, corners[1].x);
+	// Structs can sit in arrays.
+	[2]Point corners;
+	corners[1].x = 7;
+	fmt.printf("corners[0].x = {}, corners[1].x = {}\n", corners[0].x, corners[1].x);
 }

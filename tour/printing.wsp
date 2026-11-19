@@ -21,55 +21,55 @@ import "std/fmt";
 import "std/os";
 
 enum Color {
-  Red,
-  Green,
-  Blue,
+	Red,
+	Green,
+	Blue,
 }
 
 public func demo() {
-  fmt.print("print writes a string, ");
-  fmt.println("println adds a newline");
+	fmt.print("print writes a string, ");
+	fmt.println("println adds a newline");
 
-  fmt.printf("an int {}, a string {}, a byte {}, a bool {}\n", 42, "text", 'x', true);
-  fmt.printf("a byte is a number, and the c spec writes it as a character: {c}\n", 'x');
-  fmt.printf("braces: {{ and }}\n");
+	fmt.printf("an int {}, a string {}, a byte {}, a bool {}\n", 42, "text", 'x', true);
+	fmt.printf("a byte is a number, and the c spec writes it as a character: {c}\n", 'x');
+	fmt.printf("braces: {{ and }}\n");
 
-  // An enum prints its number. Its name() method gives the name.
-  Color favorite = .Green;
-  fmt.printf("{} is {}\n", favorite.name(), favorite);
+	// An enum prints its number. Its name() method gives the name.
+	Color favorite = .Green;
+	fmt.printf("{} is {}\n", favorite.name(), favorite);
 
-  // Number types.
-  fmt.printf("255 in hex {x}, upper case {X}, with a prefix {#x}\n", 255, 255, 255);
-  fmt.printf("5 in binary {b}, with a prefix {#b}; 8 in octal {#o}\n", 5, 5, 8);
-  fmt.printf("65 as a character: {c}\n", 65);
+	// Number types.
+	fmt.printf("255 in hex {x}, upper case {X}, with a prefix {#x}\n", 255, 255, 255);
+	fmt.printf("5 in binary {b}, with a prefix {#b}; 8 in octal {#o}\n", 5, 5, 8);
+	fmt.printf("65 as a character: {c}\n", 65);
 
-  // Width, alignment and fill.
-  fmt.printf("[{6}] [{<6}] [{^6}] [{>6}]\n", 42, 42, 42, 42);
-  fmt.printf("[{-<6}] [{*^7}]\n", 7, "ab");
-  fmt.printf("[{06}] [{06}] [{#06x}]\n", 42, -42, 255);
+	// Width, alignment and fill.
+	fmt.printf("[{6}] [{<6}] [{^6}] [{>6}]\n", 42, 42, 42, 42);
+	fmt.printf("[{-<6}] [{*^7}]\n", 7, "ab");
+	fmt.printf("[{06}] [{06}] [{#06x}]\n", 42, -42, 255);
 
-  // For text, the precision cuts.
-  fmt.printf("[{.3}] [{6.3}]\n", "abcdef", "abcdef");
+	// For text, the precision cuts.
+	fmt.printf("[{.3}] [{6.3}]\n", "abcdef", "abcdef");
 
-  // Floats print with `{}` as the shortest text that reads back as the same
-  // number. For a float the precision is the number of digits after the
-  // point: `f` is fixed notation (six digits unless you say), `e` and `E`
-  // are scientific. See floats.wsp for more.
-  fmt.printf("[{}] [{.2}] [{f}] [{.3f}] [{e}] [{.2E}]\n", 0.1, 2.0 / 3.0, 2.5, 2.5, 1234.5, 1234.5);
-  fmt.printf("[{8.2f}] [{<8.2f}] [{08.2f}]\n", 3.14159, 3.14159, -3.14159);
+	// Floats print with `{}` as the shortest text that reads back as the same
+	// number. For a float the precision is the number of digits after the
+	// point: `f` is fixed notation (six digits unless you say), `e` and `E`
+	// are scientific. See floats.wsp for more.
+	fmt.printf("[{}] [{.2}] [{f}] [{.3f}] [{e}] [{.2E}]\n", 0.1, 2.0 / 3.0, 2.5, 2.5, 1234.5, 1234.5);
+	fmt.printf("[{8.2f}] [{<8.2f}] [{08.2f}]\n", 3.14159, 3.14159, -3.14159);
 
-  // `fprintf` writes to a file descriptor. `os.STDOUT` is the terminal, and
-  // `os.STDERR` is where errors go.
-  fmt.fprintf(os.STDERR, "this line goes to standard error: {}\n", 7) ?? return;
+	// `fprintf` writes to a file descriptor. `os.STDOUT` is the terminal, and
+	// `os.STDERR` is where errors go.
+	fmt.fprintf(os.STDERR, "this line goes to standard error: {}\n", 7) ?? return;
 
-  // `sprintf` writes into a buffer you provide (an array passes as a slice,
-  // see collections.wsp) and returns how many bytes it wrote. It fails with NoSpace if the buffer is too small.
-  [32]byte buffer;
-  let size, problem = fmt.sprintf(buffer, "{} + {} = {}", 2, 3, 5);
-  fmt.printf("sprintf wrote {} bytes: {}\n", size, string(buffer[:size]));
-  fmt.printf("a fitting format reports a problem: {}\n", problem != null);
+	// `sprintf` writes into a buffer you provide (an array passes as a slice,
+	// see collections.wsp) and returns how many bytes it wrote. It fails with NoSpace if the buffer is too small.
+	[32]byte buffer;
+	let size, problem = fmt.sprintf(buffer, "{} + {} = {}", 2, 3, 5);
+	fmt.printf("sprintf wrote {} bytes: {}\n", size, string(buffer[:size]));
+	fmt.printf("a fitting format reports a problem: {}\n", problem != null);
 
-  // A bad format is written back as it was and reported, not fatal.
-  let _, wrong = fmt.sprintf(buffer, "{z}", 1);
-  fmt.printf("a spec that does not exist reports a problem: {}\n", wrong == fmt.FormatError.BadSpec);
+	// A bad format is written back as it was and reported, not fatal.
+	let _, wrong = fmt.sprintf(buffer, "{z}", 1);
+	fmt.printf("a spec that does not exist reports a problem: {}\n", wrong == fmt.FormatError.BadSpec);
 }

@@ -11,53 +11,53 @@
 import "std/fmt";
 
 enum Fail {
-  Ok,
-  Boom,
+	Ok,
+	Boom,
 }
 
 func order() {
-  defer fmt.printf("  deferred first, runs last\n");
-  defer fmt.printf("  deferred second, runs first\n");
-  fmt.printf("  the body runs before both\n");
+	defer fmt.printf("  deferred first, runs last\n");
+	defer fmt.printf("  deferred second, runs first\n");
+	fmt.printf("  the body runs before both\n");
 }
 
 // The returned value is computed before the deferred statements run, and a
 // deferred statement sees the variables as they are when the block is left.
 func early(bool leave) int {
-  int value = 5;
-  defer fmt.printf("  early is over, value is {}\n", value);
-  if leave {
-    defer value = 99;
-    return value;
-  }
-  return 6;
+	int value = 5;
+	defer fmt.printf("  early is over, value is {}\n", value);
+	if leave {
+		defer value = 99;
+		return value;
+	}
+	return 6;
 }
 
 func build(bool fail) !int {
-  defer! |e| fmt.printf("  build failed ({}), cleaning up\n", e.message);
-  defer fmt.printf("  build is over\n");
-  if fail {
-    return Error(Fail.Boom);
-  }
-  return 10;
+	defer !|e| fmt.printf("  build failed ({}), cleaning up\n", e.message);
+	defer fmt.printf("  build is over\n");
+	if fail {
+		return Error(Fail.Boom);
+	}
+	return 10;
 }
 
 public func demo() {
-  fmt.printf("order():\n");
-  order();
+	fmt.printf("order():\n");
+	order();
 
-  fmt.printf("early(true):\n");
-  int got = early(true);
-  fmt.printf("  it returned {}\n", got);
+	fmt.printf("early(true):\n");
+	int got = early(true);
+	fmt.printf("  it returned {}\n", got);
 
-  fmt.printf("build(false):\n");
-  let value, _ = build(false);
-  fmt.printf("  it returned {}\n", value);
+	fmt.printf("build(false):\n");
+	let value, _ = build(false);
+	fmt.printf("  it returned {}\n", value);
 
-  fmt.printf("build(true):\n");
-  let _, _ = build(true);
+	fmt.printf("build(true):\n");
+	let _, _ = build(true);
 
-  // A deferred statement cannot leave its block: no return, no break out of
-  // it, and no `!`. A failure has to be handled where it happens, for
-  // instance with `??`.
+// A deferred statement cannot leave its block: no return, no break out of
+// it, and no `!`. A failure has to be handled where it happens, for
+// instance with `??`.
 }

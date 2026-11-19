@@ -1,9 +1,9 @@
-import "std/os/global";
-import "std/os/files";
-import "std/sys";
-import "std/os";
-import "std/path";
 import "std/errors";
+import "std/os";
+import "std/os/files";
+import "std/os/global";
+import "std/path";
+import "std/sys";
 
 public inline func isDir(string p) bool {
 	let s = files.stat(p) ?? return false;

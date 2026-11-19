@@ -43,136 +43,136 @@
 // imports the same way. Two modules may import each other, since every
 // declaration is known before any body is checked.
 
-import "basics";
-import "printing";
-import "branching";
-import "loops";
-import "functions";
-import "lambdas";
-import "inlining";
-import "variadics";
-import "anyargs";
-import "cleanup";
-import "types";
-import "variants";
-import "overflow";
-import "compiletime";
-import "floats";
-import "structs";
-import "literals";
-import "generics";
-import "collections";
-import "errors";
-import "optionals";
-import "assertions";
-import "pointers";
-import "memory";
-import "files";
-import "globals";
-import "interop";
-import "tags";
-import "platform";
 import "std/fmt";
+import "anyargs";
+import "assertions";
+import "basics";
+import "branching";
+import "cleanup";
+import "collections";
+import "compiletime";
+import "errors";
+import "files";
+import "floats";
+import "functions";
+import "generics";
 import "geometry" as geo;
+import "globals";
+import "inlining";
+import "interop";
+import "lambdas";
+import "literals";
+import "loops";
+import "memory";
+import "optionals";
+import "overflow";
+import "platform";
+import "pointers";
+import "printing";
+import "structs";
+import "tags";
+import "types";
+import "variadics";
+import "variants";
 
 // `!` marks `main` as fallible: `pointers.demo()!` passes any error up, and if
 // `main` ends in an error the program prints it and exits with its code.
 func main() !int {
-  fmt.printf("== basics ==\n");
-  basics.demo();
+	fmt.printf("== basics ==\n");
+	basics.demo();
 
-  fmt.printf("\n== printing ==\n");
-  printing.demo();
+	fmt.printf("\n== printing ==\n");
+	printing.demo();
 
-  fmt.printf("\n== branching ==\n");
-  branching.demo();
+	fmt.printf("\n== branching ==\n");
+	branching.demo();
 
-  fmt.printf("\n== loops ==\n");
-  loops.demo();
+	fmt.printf("\n== loops ==\n");
+	loops.demo();
 
-  fmt.printf("\n== functions ==\n");
-  functions.demo();
+	fmt.printf("\n== functions ==\n");
+	functions.demo();
 
-  fmt.printf("\n== function values ==\n");
-  lambdas.demo();
+	fmt.printf("\n== function values ==\n");
+	lambdas.demo();
 
-  fmt.printf("\n== inline functions ==\n");
-  inlining.demo();
+	fmt.printf("\n== inline functions ==\n");
+	inlining.demo();
 
-  fmt.printf("\n== variadics ==\n");
-  variadics.demo();
+	fmt.printf("\n== variadics ==\n");
+	variadics.demo();
 
-  fmt.printf("\n== any arguments ==\n");
-  anyargs.demo();
+	fmt.printf("\n== any arguments ==\n");
+	anyargs.demo();
 
-  fmt.printf("\n== defer ==\n");
-  cleanup.demo();
+	fmt.printf("\n== defer ==\n");
+	cleanup.demo();
 
-  fmt.printf("\n== types ==\n");
-  types.demo();
+	fmt.printf("\n== types ==\n");
+	types.demo();
 
-  fmt.printf("\n== enums with data ==\n");
-  variants.demo();
+	fmt.printf("\n== enums with data ==\n");
+	variants.demo();
 
-  fmt.printf("\n== integer overflow ==\n");
-  overflow.demo();
+	fmt.printf("\n== integer overflow ==\n");
+	overflow.demo();
 
-  fmt.printf("\n== compile time ==\n");
-  compiletime.demo();
+	fmt.printf("\n== compile time ==\n");
+	compiletime.demo();
 
-  fmt.printf("\n== floats ==\n");
-  floats.demo();
+	fmt.printf("\n== floats ==\n");
+	floats.demo();
 
-  fmt.printf("\n== structs ==\n");
-  structs.demo();
+	fmt.printf("\n== structs ==\n");
+	structs.demo();
 
-  fmt.printf("\n== literals ==\n");
-  literals.demo();
+	fmt.printf("\n== literals ==\n");
+	literals.demo();
 
-  fmt.printf("\n== generics ==\n");
-  generics.demo();
+	fmt.printf("\n== generics ==\n");
+	generics.demo();
 
-  fmt.printf("\n== collections ==\n");
-  collections.demo();
+	fmt.printf("\n== collections ==\n");
+	collections.demo();
 
-  fmt.printf("\n== errors ==\n");
-  errors.demo();
+	fmt.printf("\n== errors ==\n");
+	errors.demo();
 
-  fmt.printf("\n== optionals ==\n");
-  optionals.demo();
+	fmt.printf("\n== optionals ==\n");
+	optionals.demo();
 
-  fmt.printf("\n== assertions ==\n");
-  assertions.demo();
+	fmt.printf("\n== assertions ==\n");
+	assertions.demo();
 
-  fmt.printf("\n== pointers ==\n");
-  pointers.demo()!;
+	fmt.printf("\n== pointers ==\n");
+	pointers.demo()!;
 
-  fmt.printf("\n== allocators ==\n");
-  memory.demo()!;
+	fmt.printf("\n== allocators ==\n");
+	memory.demo()!;
 
-  fmt.printf("\n== files and paths ==\n");
-  files.demo()!;
+	fmt.printf("\n== files and paths ==\n");
+	files.demo()!;
 
-  fmt.printf("\n== globals ==\n");
-  globals.demo();
-  fmt.printf("another module reads the public global: {}\n", globals.total);
+	fmt.printf("\n== globals ==\n");
+	globals.demo();
+	fmt.printf("another module reads the public global: {}\n", globals.total);
 
-  fmt.printf("\n== interop ==\n");
-  interop.demo();
+	fmt.printf("\n== interop ==\n");
+	interop.demo();
 
-  fmt.printf("\n== tags ==\n");
-  tags.demo();
+	fmt.printf("\n== tags ==\n");
+	tags.demo();
 
-  fmt.printf("\n== target ==\n");
-  platform.demo();
+	fmt.printf("\n== target ==\n");
+	platform.demo();
 
-  fmt.printf("\n== modules ==\n");
-  fmt.printf("geo.area(3, 4) = {}\n", geo.area(3, 4));
-  fmt.printf("geo.Sides = {}\n", geo.Sides);
-  fmt.printf("geo.perimeter(5) = {}\n", geo.perimeter(5));
+	fmt.printf("\n== modules ==\n");
+	fmt.printf("geo.area(3, 4) = {}\n", geo.area(3, 4));
+	fmt.printf("geo.Sides = {}\n", geo.Sides);
+	fmt.printf("geo.perimeter(5) = {}\n", geo.perimeter(5));
 
-  geo.Rect rect = geo.newRect(3, 4);
-  fmt.printf("rect is {} by {}, its area is {}\n", rect.width, rect.height, rect.area());
+	geo.Rect rect = geo.newRect(3, 4);
+	fmt.printf("rect is {} by {}, its area is {}\n", rect.width, rect.height, rect.area());
 
-  return 0;
+	return 0;
 }

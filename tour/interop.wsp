@@ -51,16 +51,16 @@
 import "std/fmt";
 
 public func abs(int x) int {
-  int r;
-  native<x64> {
-  	mov rax, x;
-  	mov rcx, rax;
-  	sar rcx, 63;
-  	xor rax, rcx;
-  	sub rax, rcx;
-  	mov r, rax;
-  }
-  return r;
+	int r;
+	native<x64> {
+		mov rax, x;
+		mov rcx, rax;
+		sar rcx, 63;
+		xor rax, rcx;
+		sub rax, rcx;
+		mov r, rax;
+	}
+	return r;
 }
 
 native<x64> sum(int a, int b) int total {
@@ -79,7 +79,7 @@ native<x64> halves(int n) (int low, int high) {
 }
 
 func twice(int x) int {
-  return x * 2;
+	return x * 2;
 }
 
 native<x64> quadruple(int n) int r {
@@ -91,9 +91,9 @@ native<x64> quadruple(int n) int r {
 }
 
 public func demo() {
-  fmt.printf("abs(-5) = {}, abs(5) = {}\n", abs(-5), abs(5));
-  fmt.printf("sum(2, 3) = {}\n", sum(2, 3));
-  fmt.printf("quadruple(5) = {}\n", quadruple(5));
-  int low, high = halves(7);
-  fmt.printf("halves(7) = {} and {}\n", low, high);
+	fmt.printf("abs(-5) = {}, abs(5) = {}\n", abs(-5), abs(5));
+	fmt.printf("sum(2, 3) = {}\n", sum(2, 3));
+	fmt.printf("quadruple(5) = {}\n", quadruple(5));
+	int low, high = halves(7);
+	fmt.printf("halves(7) = {} and {}\n", low, high);
 }

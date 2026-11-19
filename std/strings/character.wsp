@@ -31,11 +31,11 @@ public inline func isPrint(byte c) bool {
 }
 
 public inline func upperByte(byte c) byte {
-	return c in 'a'..'z' ? c-32 : c;
+	return c in 'a'..'z' ? c - 32 : c;
 }
 
 public inline func lowerByte(byte c) byte {
-	return c in 'A'..'Z' ? c+32 : c;
+	return c in 'A'..'Z' ? c + 32 : c;
 }
 
 public func digitValue(byte c, int base) ?int {

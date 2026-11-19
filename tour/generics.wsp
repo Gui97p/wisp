@@ -105,7 +105,7 @@ func bytesOf<T>() int {
 
 // A `type` gives a name to another type for each argument. As for any `type`,
 // the new type is distinct from the one it is made of.
-type Step<T> (T) => T;
+type Step<T>(T) => T;
 
 func twice<T>(T value, Step<T> step) T {
 	return step(step(value));
@@ -118,7 +118,7 @@ func increment(int x) int => x + 1;
 // type is known from the context.
 enum Maybe<T> {
 	Nothing,
-	Just { T value; }
+	Just{T value;}
 }
 
 func (*Maybe<T> m) orElse(T fallback) T {
@@ -157,7 +157,7 @@ public func demo() {
 	let pick = biggest<int>;
 	fmt.printf("pick(2, 8) = {}\n", pick(2, 8));
 
-	Maybe<int> found = Maybe<int>.Just{value: 7};
+	Maybe<int> found = Maybe < int > .Just{value: 7};
 	Maybe<int> missing = .Nothing;
 	fmt.printf("{} and {}\n", found.orElse(0), missing.orElse(-1));
 }

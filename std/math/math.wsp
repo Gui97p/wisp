@@ -51,7 +51,7 @@ public func checkedMulUnsigned(uint a, b) ?uint {
 }
 
 public inline func abs(int x) int {
-    return x < 0 ? -x : x;
+	return x < 0 ? -x : x;
 }
 
 public func min(int ...args) int {
@@ -76,7 +76,7 @@ public func max(int ...args) int {
 			m = n;
 		}
 	}
-	
+
 	return m;
 }
 
@@ -87,15 +87,15 @@ public inline func clamp(int x, low, high) int {
 public func mod(int a, b) int {
 	int r = a % b;
 
-    if r < 0 {
-        if b < 0 {
-            r -= b;
-        } else {
-            r += b;
-        }
-    }
+	if r < 0 {
+		if b < 0 {
+			r -= b;
+		} else {
+			r += b;
+		}
+	}
 
-    return r;
+	return r;
 }
 
 public func gcd(int a, b) int {
@@ -136,7 +136,7 @@ public func sqrt(int n) int {
 		if mid * mid <= n {
 			lo = mid;
 		} else {
-			hi = mid-1;
+			hi = mid - 1;
 		}
 		return hi if hi == lo;
 	}

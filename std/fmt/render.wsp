@@ -1,6 +1,6 @@
 import "std/conv";
-import "std/fmt/spec";
 import "std/errors";
+import "std/fmt/spec";
 
 internal struct Piece {
 	string sign;
@@ -40,8 +40,8 @@ internal func renderInt([]byte buf, int v, spec.Spec s) !Piece {
 	}
 
 	return number(buf, uint(v), false, s)! if v >= 0;
-	
-	return number(buf, uint(-(v+1)) + 1, true, s)!;
+
+	return number(buf, uint(-(v + 1)) + 1, true, s)!;
 }
 
 internal func renderUint([]byte buf, uint v, spec.Spec s) !Piece {
@@ -83,7 +83,7 @@ internal func renderFloat([]byte buf, float x, spec.Spec s, bool single) !Piece 
 		case 'e', 'E' => conv.formatExp(buf, x, prec, s.kind == 'E')!;
 		default => "";
 	};
-	
+
 	int start;
 	if view[0] == '-' {
 		piece.sign = "-";

@@ -39,7 +39,7 @@ internal func parse(string text) !Spec {
 	return spec if len(text) == 0;
 	[3]byte aligns = .{'<', '>', '^'};
 	const kinds = "dxXbocpeEfv";
-	
+
 	cursor.Cursor c = cursor.Cursor{text: text};
 
 	bool align = switch {
@@ -95,9 +95,9 @@ internal func validate(Spec s, Value v) ! {
 	switch v {
 		case .Int, .Uint => {
 			if s.kind in "pv" ||
-			(s.zero && s.kind == 'c') ||
-			(s.alt && !(s.kind in "xXbop")) ||
-			s.precision >= 0 {
+				(s.zero && s.kind == 'c') ||
+				(s.alt && !(s.kind in "xXbop")) ||
+				s.precision >= 0 {
 				return Error(SpecError.NotForType);
 			}
 		}

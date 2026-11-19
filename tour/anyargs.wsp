@@ -28,42 +28,42 @@
 import "std/fmt";
 
 enum Color {
-  Red,
-  Green,
+	Red,
+	Green,
 }
 
 func describe(...args) int {
-  int total;
-  for _, arg in args {
-    switch type arg {
-      case Color => {
-        fmt.printf("a Color adds 100\n");
-        total += 100;
-      }
-      case signed v => {
-        fmt.printf("the integer {} adds {}\n", v, v);
-        total += v;
-      }
-      case string v => {
-        fmt.printf("the string \"{}\" adds its length, {}\n", v, len(v));
-        total += len(v);
-      }
-      case bool v => {
-        fmt.printf("the bool {} adds {}\n", v, v ? 1 : 0);
-        total += v ? 1 : 0;
-      }
-    }
-  }
-  return total;
+	int total;
+	for _, arg in args {
+		switch type arg {
+			case Color => {
+				fmt.printf("a Color adds 100\n");
+				total += 100;
+			}
+			case signed v => {
+				fmt.printf("the integer {} adds {}\n", v, v);
+				total += v;
+			}
+			case string v => {
+				fmt.printf("the string \"{}\" adds its length, {}\n", v, len(v));
+				total += len(v);
+			}
+			case bool v => {
+				fmt.printf("the bool {} adds {}\n", v, v ? 1 : 0);
+				total += v ? 1 : 0;
+			}
+		}
+	}
+	return total;
 }
 
 func twice(...args) int {
-  return describe(args...) * 2;
+	return describe(args...) * 2;
 }
 
 public func demo() {
-  fmt.printf("describe(10, \"abc\", true) = {}\n", describe(10, "abc", true));
-  fmt.printf("describe(Color.Green, 1) = {}\n", describe(Color.Green, 1));
-  fmt.printf("twice(1, \"ab\") = {}\n", twice(1, "ab"));
-  fmt.printf("describe() = {}\n", describe());
+	fmt.printf("describe(10, \"abc\", true) = {}\n", describe(10, "abc", true));
+	fmt.printf("describe(Color.Green, 1) = {}\n", describe(Color.Green, 1));
+	fmt.printf("twice(1, \"ab\") = {}\n", twice(1, "ab"));
+	fmt.printf("describe() = {}\n", describe());
 }

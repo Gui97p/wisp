@@ -4,10 +4,10 @@ internal struct Cursor {
 }
 
 internal inline func (*Cursor c) peekAt(int k) byte {
-	if c.pos+k >= len(c.text) || k < 0 {
+	if c.pos + k >= len(c.text) || k < 0 {
 		return '\0';
 	}
-	return c.text[c.pos+k];
+	return c.text[c.pos + k];
 }
 
 internal inline func (*Cursor c) peek() byte {
@@ -65,7 +65,7 @@ internal func (*Cursor c) number() ?Number {
 		c.advance();
 		count++;
 	}
-	
+
 	return null if count == 0;
 	return Number{value: n, fits: fits};
 }

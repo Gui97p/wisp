@@ -21,15 +21,15 @@ import "std/fmt";
 // are not aligned in memory.
 #packed
 struct Wire {
-  uint8 kind;
-  int value;
-  uint16 flags;
+	uint8 kind;
+	int value;
+	uint16 flags;
 }
 
 struct Padded {
-  uint8 kind;
-  int value;
-  uint16 flags;
+	uint8 kind;
+	int value;
+	uint16 flags;
 }
 
 // `#naked` leaves everything to the block: no frame, no copy of the
@@ -49,21 +49,21 @@ native<x64> triple(int x) int {
 // call is unreachable, and a function that ends with one needs no `return`.
 #noreturn
 func fail(string why) {
-  panic(why);
+	panic(why);
 }
 
 func positive(int n) int {
-  if n > 0 {
-    return n;
-  }
-  fail("not a positive number");
+	if n > 0 {
+		return n;
+	}
+	fail("not a positive number");
 }
 
 // `#deprecated` is for what is going away. A call to `oldTriple` prints a
 // warning with the message, and the program still works.
 #deprecated("use triple")
 public func oldTriple(int x) int {
-  return x * 3;
+	return x * 3;
 }
 
 // `#must_use` is for a function that does nothing but give a result. A call
@@ -73,7 +73,7 @@ public func oldTriple(int x) int {
 // ignoring it is on purpose.
 #must_use("the result is returned, nothing is stored in the arguments")
 func bigger(int a, int b) int {
-  return a > b ? a : b;
+	return a > b ? a : b;
 }
 
 // `#test` marks a test. It takes no parameters and gives no result, or only an
@@ -88,19 +88,19 @@ func bigger(int a, int b) int {
 // tour runs.
 #test("a Wire holds what it was given")
 func wireRoundTrip() {
-  Wire w = Wire{kind: 2, value: 40, flags: 1};
-  if w.value != 40 {
-    panic("the value was lost");
-  }
+	Wire w = Wire{kind: 2, value: 40, flags: 1};
+	if w.value != 40 {
+		panic("the value was lost");
+	}
 }
 
 public func demo() {
-  fmt.printf("Wire is {} bytes and Padded is {}\n", sizeof(Wire), sizeof(Padded));
-  fmt.printf("the value of Wire starts at {} and its flags at {}\n", offsetof(Wire, value), offsetof(Wire, flags));
-  Wire w = Wire{kind: 1, value: 1000, flags: 7};
-  fmt.printf("a Wire still reads back: {} {} {}\n", w.kind, w.value, w.flags);
-  fmt.printf("triple(14) = {}\n", triple(14));
-  fmt.printf("positive(3) = {}\n", positive(3));
-  int _ignored = bigger(3, 9);
-  fmt.printf("bigger(3, 9) = {}\n", bigger(3, 9));
+	fmt.printf("Wire is {} bytes and Padded is {}\n", sizeof(Wire), sizeof(Padded));
+	fmt.printf("the value of Wire starts at {} and its flags at {}\n", offsetof(Wire, value), offsetof(Wire, flags));
+	Wire w = Wire{kind: 1, value: 1000, flags: 7};
+	fmt.printf("a Wire still reads back: {} {} {}\n", w.kind, w.value, w.flags);
+	fmt.printf("triple(14) = {}\n", triple(14));
+	fmt.printf("positive(3) = {}\n", positive(3));
+	int _ignored = bigger(3, 9);
+	fmt.printf("bigger(3, 9) = {}\n", bigger(3, 9));
 }

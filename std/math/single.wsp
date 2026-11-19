@@ -1,11 +1,11 @@
-import "std/math/exp";
-import "std/math/log";
-import "std/math/trig";
 import "std/math/atan";
+import "std/math/exp";
 import "std/math/hyper";
-import "std/math/root";
-import "std/math/pow";
 import "std/math/ieee";
+import "std/math/log";
+import "std/math/pow";
+import "std/math/root";
+import "std/math/trig";
 
 public func expf(float32 x) float32 {
 	return float32(exp.exp(x));

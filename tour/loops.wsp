@@ -3,110 +3,110 @@
 import "std/fmt";
 
 public func demo() {
-  // A range includes both ends: this visits 1, 2, 3.
-  int sum;
-  for i in 1..3 {
-    fmt.printf("i = {}\n", i);
-    sum += i;
-  }
-  fmt.printf("the sum of 1..3 is {}\n", sum);
+	// A range includes both ends: this visits 1, 2, 3.
+	int sum;
+	for i in 1..3 {
+		fmt.printf("i = {}\n", i);
+		sum += i;
+	}
+	fmt.printf("the sum of 1..3 is {}\n", sum);
 
-  // `:4` after the range is the step. This visits 1, 5, 9.
-  int stepped;
-  for i in 1..10:4 {
-    fmt.printf("stepping: {}\n", i);
-    stepped += i;
-  }
-  fmt.printf("the sum of 1..10:4 is {}\n", stepped);
+	// `:4` after the range is the step. This visits 1, 5, 9.
+	int stepped;
+	for i in 1..10:4 {
+		fmt.printf("stepping: {}\n", i);
+		stepped += i;
+	}
+	fmt.printf("the sum of 1..10:4 is {}\n", stepped);
 
-  // A range only counts up, so one that starts above its end is empty and
-  // `0..n-1` is safe when `n` is 0. To count down, give a negative step:
-  // this visits 3, 2, 1. The sign of the step is the direction.
-  int countdown;
-  for i in 3..1:-1 {
-    countdown = countdown * 10 + i;
-  }
-  fmt.printf("counting down from 3 to 1 gives {}\n", countdown);
+	// A range only counts up, so one that starts above its end is empty and
+	// `0..n-1` is safe when `n` is 0. To count down, give a negative step:
+	// this visits 3, 2, 1. The sign of the step is the direction.
+	int countdown;
+	for i in 3..1:-1 {
+		countdown = countdown * 10 + i;
+	}
+	fmt.printf("counting down from 3 to 1 gives {}\n", countdown);
 
-  int none = 0;
-  int count = 0;
-  for _ in 0..count-1 {
-    none++;
-  }
-  fmt.printf("0..count-1 with count = 0 ran {} times\n", none);
+	int none = 0;
+	int count = 0;
+	for _ in 0..count - 1 {
+		none++;
+	}
+	fmt.printf("0..count-1 with count = 0 ran {} times\n", none);
 
-  // Without a variable, `for` just repeats.
-  int repeats;
-  for 2 {
-    repeats++;
-  }
-  fmt.printf("for 2 ran {} times\n", repeats);
+	// Without a variable, `for` just repeats.
+	int repeats;
+	for 2 {
+		repeats++;
+	}
+	fmt.printf("for 2 ran {} times\n", repeats);
 
-  // `loop <condition>` is a while loop.
-  int left = 3;
-  int passes;
-  loop left != 0 {
-    passes++;
-    left--;
-  }
-  fmt.printf("the while loop ran {} times\n", passes);
+	// `loop <condition>` is a while loop.
+	int left = 3;
+	int passes;
+	loop left != 0 {
+		passes++;
+		left--;
+	}
+	fmt.printf("the while loop ran {} times\n", passes);
 
-  // A `loop` with `until` at the end is a do-while: the body runs first.
-  int tries = 0;
-  loop {
-    tries++;
-  } until tries == 3;
-  fmt.printf("the do-while stopped at {}\n", tries);
+	// A `loop` with `until` at the end is a do-while: the body runs first.
+	int tries = 0;
+	loop {
+		tries++;
+	} until tries == 3;
+	fmt.printf("the do-while stopped at {}\n", tries);
 
-  // The condition after `until` sees what the body declared, so it can test a
-  // value the body just computed. That only holds when the body has no
-  // `continue`, which could skip the declaration.
-  int guess = 1;
-  loop {
-    int doubled = guess * 2;
-    guess = doubled;
-  } until doubled >= 100;
-  fmt.printf("doubling stopped at {}\n", guess);
+	// The condition after `until` sees what the body declared, so it can test a
+	// value the body just computed. That only holds when the body has no
+	// `continue`, which could skip the declaration.
+	int guess = 1;
+	loop {
+		int doubled = guess * 2;
+		guess = doubled;
+	} until doubled >= 100;
+	fmt.printf("doubling stopped at {}\n", guess);
 
-  // A bare `loop` runs until something breaks out of it. `continue` and
-  // `break` take a guard like `return` does: `continue if n == 2;` is the
-  // short form of an `if` whose body is just the `continue`.
-  int n = 0;
-  int kept;
-  loop {
-    n++;
-    continue if n == 2;
-    break if n > 4;
-    kept += n;
-  }
-  fmt.printf("skipping 2 and stopping after 4 kept {}\n", kept);
+	// A bare `loop` runs until something breaks out of it. `continue` and
+	// `break` take a guard like `return` does: `continue if n == 2;` is the
+	// short form of an `if` whose body is just the `continue`.
+	int n = 0;
+	int kept;
+	loop {
+		n++;
+		continue if n == 2;
+		break if n > 4;
+		kept += n;
+	}
+	fmt.printf("skipping 2 and stopping after 4 kept {}\n", kept);
 
-  // A label starts with `:`, both where it is declared and where it is used:
-  // `break :outer` and `continue :outer` target an outer loop.
-  int visits;
-  :outer loop {
-    loop {
-      visits++;
-      break :outer;
-    }
-  }
-  fmt.printf("break outer left both loops after {} visit\n", visits);
+	// A label starts with `:`, both where it is declared and where it is used:
+	// `break :outer` and `continue :outer` target an outer loop.
+	int visits;
+	:outer loop {
+		loop {
+			visits++;
+			break :outer;
+		}
+	}
+	fmt.printf("break outer left both loops after {} visit\n", visits);
 
-  // `for ... in` walks any collection. With two names you get the index
-  // and the element; with a single name you get
-  // just the index. A variable you never use is reported, and a name that is
-  // just `_` (or starts with one) says you meant to leave it out.
-  [3]int values = .{10, 20, 30};
-  int total;
-  for index, v in values {
-    fmt.printf("values[{}] = {}\n", index, v);
-    total += v;
-  }
-  fmt.printf("the elements add up to {}\n", total);
+	// `for ... in` walks any collection. With two names you get the index
+	// and the element; with a single name you get
+	// just the index. A variable you never use is reported, and a name that is
+	// just `_` (or starts with one) says you meant to leave it out.
+	[3]int values = .{10, 20, 30};
+	int total;
+	for index, v in values {
+		fmt.printf("values[{}] = {}\n", index, v);
+		total += v;
+	}
+	fmt.printf("the elements add up to {}\n", total);
 
-  int indexes;
-  for i in values {
-    indexes += i;
-  }
-  fmt.printf("the indexes add up to {}\n", indexes);
+	int indexes;
+	for i in values {
+		indexes += i;
+	}
+	fmt.printf("the indexes add up to {}\n", indexes);
 }

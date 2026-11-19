@@ -3,9 +3,9 @@
 import "std/fmt";
 
 enum Light {
-  Red,
-  Yellow,
-  Green
+	Red,
+	Yellow,
+	Green
 }
 
 // A `switch` on an enum has to name every member, or end with a `default`. A
@@ -13,123 +13,123 @@ enum Light {
 // is how you find the places to update. Writing `default` opts out of that
 // check on purpose.
 func advice(Light light) string {
-  return switch light {
-    case .Red => "stop";
-    case .Yellow, .Green => "go, carefully";
-  };
+	return switch light {
+		case .Red => "stop";
+		case .Yellow, .Green => "go, carefully";
+	};
 }
 
 // A guard puts the condition after a jump, so a check that leaves the
 // function takes one line: `return`, `break`, `continue` and `yield` accept
 // `if` after them.
 func clamp(int n) int {
-  return 0 if n < 0;
-  return 100 if n > 100;
-  return n;
+	return 0 if n < 0;
+	return 100 if n > 100;
+	return n;
 }
 
 public func demo() {
-  int limit = 12;
+	int limit = 12;
 
-  // `if` needs no parentheses around the condition.
-  if limit >= 10 {
-    fmt.printf("{} is at least ten\n", limit);
-  } else {
-    fmt.printf("{} is below ten\n", limit);
-  }
+	// `if` needs no parentheses around the condition.
+	if limit >= 10 {
+		fmt.printf("{} is at least ten\n", limit);
+	} else {
+		fmt.printf("{} is below ten\n", limit);
+	}
 
-  // `switch` as a statement. A case is `value => statement;`, or a block
-  // `value => { ... }` when it takes several statements. There is no
-  // fallthrough, and a range like `11..20` includes both ends.
-  switch limit {
-    case 10 => fmt.printf("ten\n");
-    case 11..20 => {
-      fmt.printf("{} is between eleven and twenty\n", limit);
-      fmt.printf("so it is a block of two statements\n");
-    }
-    default => fmt.printf("something else\n");
-  }
+	// `switch` as a statement. A case is `value => statement;`, or a block
+	// `value => { ... }` when it takes several statements. There is no
+	// fallthrough, and a range like `11..20` includes both ends.
+	switch limit {
+		case 10 => fmt.printf("ten\n");
+		case 11..20 => {
+			fmt.printf("{} is between eleven and twenty\n", limit);
+			fmt.printf("so it is a block of two statements\n");
+		}
+		default => fmt.printf("something else\n");
+	}
 
-  // `switch` as an expression. Cases also use `=>`, and what follows is a value
-  // that ends with `;`, not a statement. `default` is mandatory, because the expression must always produce a
-  // value. It can be written wherever an expression can.
-  let label = switch limit {
-    case 10 => "ten";
-    default => "other";
-  };
-  fmt.printf("the label of {} is {}\n", limit, label);
+	// `switch` as an expression. Cases also use `=>`, and what follows is a value
+	// that ends with `;`, not a statement. `default` is mandatory, because the expression must always produce a
+	// value. It can be written wherever an expression can.
+	let label = switch limit {
+		case 10 => "ten";
+		default => "other";
+	};
+	fmt.printf("the label of {} is {}\n", limit, label);
 
-  int doubled;
-  doubled = switch limit {
-    case 12 => 24;
-    default => 0;
-  };
-  fmt.printf("doubled is {}\n", doubled);
+	int doubled;
+	doubled = switch limit {
+		case 12 => 24;
+		default => 0;
+	};
+	fmt.printf("doubled is {}\n", doubled);
 
-  // A case can give several values, which `let a, b = switch ...` receives, or
-  // leave with `return`, `break` or `continue` instead of giving a value.
-  let low, high = switch limit {
-    case 10 => 0, 10;
-    case 11..20 => 11, 20;
-    default => return;
-  };
-  fmt.printf("the range of {} is {}..{}\n", limit, low, high);
+	// A case can give several values, which `let a, b = switch ...` receives, or
+	// leave with `return`, `break` or `continue` instead of giving a value.
+	let low, high = switch limit {
+		case 10 => 0, 10;
+		case 11..20 => 11, 20;
+		default => return;
+	};
+	fmt.printf("the range of {} is {}..{}\n", limit, low, high);
 
-  // A `switch` with no value puts a condition in each case, and the first one
-  // that is true wins. A comma between conditions means "or". It works as a
-  // statement and as an expression, and the expression still needs `default`.
-  switch {
-    case limit < 10 => fmt.printf("under ten\n");
-    case limit < 20, limit == 100 => fmt.printf("under twenty, or exactly one hundred\n");
-    default => fmt.printf("twenty or more\n");
-  }
+	// A `switch` with no value puts a condition in each case, and the first one
+	// that is true wins. A comma between conditions means "or". It works as a
+	// statement and as an expression, and the expression still needs `default`.
+	switch {
+		case limit < 10 => fmt.printf("under ten\n");
+		case limit < 20, limit == 100 => fmt.printf("under twenty, or exactly one hundred\n");
+		default => fmt.printf("twenty or more\n");
+	}
 
-  string size = switch {
-    case limit < 10 => "small";
-    case limit < 100 => "medium";
-    default => "large";
-  };
-  fmt.printf("{} is {}\n", limit, size);
+	string size = switch {
+		case limit < 10 => "small";
+		case limit < 100 => "medium";
+		default => "large";
+	};
+	fmt.printf("{} is {}\n", limit, size);
 
-  fmt.printf("advice: {} / {}\n", advice(.Red), advice(.Green));
-  fmt.printf("clamp: {} {} {}\n", clamp(-4), clamp(40), clamp(400));
+	fmt.printf("advice: {} / {}\n", advice(.Red), advice(.Green));
+	fmt.printf("clamp: {} {} {}\n", clamp(-4), clamp(40), clamp(400));
 
-  // A block is a statement of its own: it opens a scope, and a `defer` in it
-  // runs when it ends. With a value after `=`, it is an expression: it runs its
-  // statements and gives what `yield` says, so a value that needs a few steps
-  // does not need a helper function.
-  {
-    int limit = 1;
-    fmt.printf("inside the block limit is {}\n", limit);
-  }
-  int rounded = {
-    int step = 5;
-    yield limit / step * step;
-  };
-  fmt.printf("{} rounded down to a multiple of five is {}\n", limit, rounded);
+	// A block is a statement of its own: it opens a scope, and a `defer` in it
+	// runs when it ends. With a value after `=`, it is an expression: it runs its
+	// statements and gives what `yield` says, so a value that needs a few steps
+	// does not need a helper function.
+	{
+		int limit = 1;
+		fmt.printf("inside the block limit is {}\n", limit);
+	}
+	int rounded = {
+		int step = 5;
+		yield limit / step * step;
+	};
+	fmt.printf("{} rounded down to a multiple of five is {}\n", limit, rounded);
 
-  // A label before a block, `:name { ... }`, lets `break :name` leave it from
-  // anywhere inside, even from a loop in the middle, and the `defer`s of the
-  // blocks it crosses run on the way out. On a block that gives a value,
-  // `break :name value` leaves with that value, the way `yield` does at the
-  // end. Inside a labeled block a `break` has to say which one it leaves: a bare
-// `break` there is an error, so the block and the loop around it are never
-// mixed up.
-  int found = -1;
-  :search {
-    for i in 0..limit {
-      break :search if i * i == 49;
-      found = i;
-    }
-    found = -2;
-  }
-  fmt.printf("the search stopped after {}\n", found);
+	// A label before a block, `:name { ... }`, lets `break :name` leave it from
+	// anywhere inside, even from a loop in the middle, and the `defer`s of the
+	// blocks it crosses run on the way out. On a block that gives a value,
+	// `break :name value` leaves with that value, the way `yield` does at the
+	// end. Inside a labeled block a `break` has to say which one it leaves: a bare
+	// `break` there is an error, so the block and the loop around it are never
+	// mixed up.
+	int found = -1;
+	:search{
+		for i in 0..limit{
+			break :search if i * i == 49;
+			found = i;
+		}
+		found = -2;
+	}
+	fmt.printf("the search stopped after {}\n", found);
 
-  int first = :pick {
-    for i in 0..limit {
-      break :pick i if i * i > 30;
-    }
-    yield -1;
-  };
-  fmt.printf("the first square above thirty is the square of {}\n", first);
+	int first = :pick{
+		for i in 0..limit{
+			break :pick i if i * i > 30;
+		}
+		yield -1;
+	};
+	fmt.printf("the first square above thirty is the square of {}\n", first);
 }

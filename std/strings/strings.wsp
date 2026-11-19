@@ -4,27 +4,27 @@ const spaceCharset = " \t\n\r\v\f";
 
 #must_use
 public func trim(string s, charset) string {
-    return trimLeft(trimRight(s, charset), charset);
+	return trimLeft(trimRight(s, charset), charset);
 }
 #must_use
 public func trimLeft(string s, charset) string {
-    return "" if s == "";
+	return "" if s == "";
 
-    loop s != "" && s[0] in charset {
-        s = s[1:];
-    }
+	loop s != "" && s[0] in charset {
+		s = s[1:];
+	}
 
-    return s;
+	return s;
 }
 #must_use
 public func trimRight(string s, charset) string {
-    return "" if s == "";
+	return "" if s == "";
 
-    loop s != "" && s[len(s)-1] in charset {
-        s = s[:len(s)-1];
-    }
+	loop s != "" && s[len(s) - 1] in charset {
+		s = s[:len(s) - 1];
+	}
 
-    return s;
+	return s;
 }
 #must_use
 public func trimSpace(string s) string {
@@ -33,22 +33,22 @@ public func trimSpace(string s) string {
 }
 #must_use
 public func trimPrefix(string s, prefix) string {
-    return s if !search.startsWith(s, prefix);
+	return s if !search.startsWith(s, prefix);
 
-    return s[len(prefix):];
+	return s[len(prefix):];
 }
 #must_use
 public func trimSuffix(string s, suffix) string {
-    return s if !search.endsWith(s, suffix);
+	return s if !search.endsWith(s, suffix);
 
-    return s[:len(s)-len(suffix)];
+	return s[:len(s) - len(suffix)];
 }
 
 #must_use
 public func cut(string s, sep) ?Cut {
 	int idx = search.indexOf(s, sep) ?? return null;
 
-	return Cut{before: s[:idx], after: s[idx+len(sep):]};
+	return Cut{before: s[:idx], after: s[idx + len(sep):]};
 }
 
 public struct Cut {
@@ -73,7 +73,7 @@ internal func (*Splitter s) nextStep() ?string {
 		s.s = s.s[1:];
 		return r;
 	}
-	
+
 	if cut(s.s, s.sep) |c| {
 		s.s = c.after;
 		return c.before;

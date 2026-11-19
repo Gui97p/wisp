@@ -1,5 +1,5 @@
-import "std/os";
 import "std/fmt/writer";
+import "std/os";
 
 public func fprint(int fd, string text) {
 	[512]byte buf;

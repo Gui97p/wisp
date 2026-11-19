@@ -15,75 +15,75 @@ type UserID int;
 // value, or "?" when it holds none. Writing your own `name` method on the enum
 // replaces it.
 enum Color {
-  Red,
-  Green,
-  Blue,
-  Alpha = 10,
-  Beta
+	Red,
+	Green,
+	Blue,
+	Alpha = 10,
+	Beta
 }
 
 public func demo() {
-  // An untyped literal adapts to the alias directly...
-  UserID uid = 42;
+	// An untyped literal adapts to the alias directly...
+	UserID uid = 42;
 
-  // ...but going back to int needs a conversion: the type name used as a function.
-  int raw = int(uid);
-  fmt.printf("the UserID as an int: {}\n", raw);
+	// ...but going back to int needs a conversion: the type name used as a function.
+	int raw = int(uid);
+	fmt.printf("the UserID as an int: {}\n", raw);
 
-  Color favorite = .Green;
-  fmt.printf("favorite is {}, number {}\n", favorite.name(), int(favorite));
-  fmt.printf("Color.Blue is {}\n", int(Color.Blue));
-  fmt.printf("Color.Alpha is {} and Color.Beta is {}\n", int(Color.Alpha), int(Color.Beta));
-  fmt.printf("favorite == Color.Green: {}\n", favorite == Color.Green);
+	Color favorite = .Green;
+	fmt.printf("favorite is {}, number {}\n", favorite.name(), int(favorite));
+	fmt.printf("Color.Blue is {}\n", int(Color.Blue));
+	fmt.printf("Color.Alpha is {} and Color.Beta is {}\n", int(Color.Alpha), int(Color.Beta));
+	fmt.printf("favorite == Color.Green: {}\n", favorite == Color.Green);
 
-  // Primitive types: int, uint, int8..int64, uint8..uint64, float, float32,
-  // float64, bool, byte and string. `int` and `uint` are 64 bits wide, and
-  // `float` is another name for float64, the way `int` is for int64. `byte` is
-  // another name for uint8: a string is made of bytes, and so are buffers.
-  // A character literal such as 'w' is a byte.
-  bool ready = true;
-  byte letter = 'w';
-  fmt.printf("ready is {} and letter is {c}\n", ready, letter);
+	// Primitive types: int, uint, int8..int64, uint8..uint64, float, float32,
+	// float64, bool, byte and string. `int` and `uint` are 64 bits wide, and
+	// `float` is another name for float64, the way `int` is for int64. `byte` is
+	// another name for uint8: a string is made of bytes, and so are buffers.
+	// A character literal such as 'w' is a byte.
+	bool ready = true;
+	byte letter = 'w';
+	fmt.printf("ready is {} and letter is {c}\n", ready, letter);
 
-  // A character literal takes the same escapes as a string: \n, \r, \t, \\, \', \", \0 and
-  // \xHH for a byte in hexadecimal. `'\0'` is the zero byte that ends a C string.
-  fmt.printf("'\\0' == '\\x00': {}\n", '\0' == '\x00');
-  fmt.printf("'\\n' is the byte {}\n", int('\n'));
+	// A character literal takes the same escapes as a string: \n, \r, \t, \\, \', \", \0 and
+	// \xHH for a byte in hexadecimal. `'\0'` is the zero byte that ends a C string.
+	fmt.printf("'\\0' == '\\x00': {}\n", '\0' == '\x00');
+	fmt.printf("'\\n' is the byte {}\n", int('\n'));
 
-  // Text between backticks is a raw string: it can span lines, and a
-  // backslash is just a backslash (only \` stands for a backtick).
-  string path = `C:\temp\new
+	// Text between backticks is a raw string: it can span lines, and a
+	// backslash is just a backslash (only \` stands for a backtick).
+	string path = `C:\temp\new
 second line`;
-  fmt.printf("{} has {} bytes\n", path, len(path));
+	fmt.printf("{} has {} bytes\n", path, len(path));
 
-  // Lines that start with `\\` make a multi-line string too, one that does not
-  // care how the code around it is indented. The text of a line is whatever
-  // follows the two backslashes, as it is written (the `;` goes on a line of
-  // its own), and the lines are joined with a newline, none after the last.
-  string usage =
-      \\usage: tour [flags]
+	// Lines that start with `\\` make a multi-line string too, one that does not
+	// care how the code around it is indented. The text of a line is whatever
+	// follows the two backslashes, as it is written (the `;` goes on a line of
+	// its own), and the lines are joined with a newline, none after the last.
+	string usage =
+		\\usage: tour [flags]
       \\
       \\  --verbose  say more
-  ;
-  fmt.printf("{}\n", usage);
+	;
+	fmt.printf("{}\n", usage);
 
-  // Integers have a width, and `+%` wraps at it (the overflow page has the
-  // other ways to handle going past it).
-  int8 small = 127;
-  small +%= 1;
-  fmt.printf("int8 127 + 1 wraps to {}\n", small);
+	// Integers have a width, and `+%` wraps at it (the overflow page has the
+	// other ways to handle going past it).
+	int8 small = 127;
+	small +%= 1;
+	fmt.printf("int8 127 + 1 wraps to {}\n", small);
 
-  uint8 top = 255;
-  top +%= 1;
-  fmt.printf("uint8 255 + 1 wraps to {}\n", top);
+	uint8 top = 255;
+	top +%= 1;
+	fmt.printf("uint8 255 + 1 wraps to {}\n", top);
 
-  // A widening conversion is implicit; any other conversion names the type.
-  int8 narrow = 5;
-  int64 wide = narrow;
-  fmt.printf("int8 {} widens to int64 {}\n", narrow, wide);
-  int big = 300;
-  fmt.printf("int8(100) fits: {}, and truncate(int8, 300) keeps the low bits: {}\n", int8(100), truncate(int8, big));
+	// A widening conversion is implicit; any other conversion names the type.
+	int8 narrow = 5;
+	int64 wide = narrow;
+	fmt.printf("int8 {} widens to int64 {}\n", narrow, wide);
+	int big = 300;
+	fmt.printf("int8(100) fits: {}, and truncate(int8, 300) keeps the low bits: {}\n", int8(100), truncate(int8, big));
 
-  // `sizeof` takes a type or an expression and gives its size in bytes.
-  fmt.printf("sizeof int8, int32, int: {}, {}, {}\n", sizeof(int8), sizeof(int32), sizeof(int));
+	// `sizeof` takes a type or an expression and gives its size in bytes.
+	fmt.printf("sizeof int8, int32, int: {}, {}, {}\n", sizeof(int8), sizeof(int32), sizeof(int));
 }

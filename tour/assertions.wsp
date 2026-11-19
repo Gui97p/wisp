@@ -14,27 +14,27 @@
 import "std/fmt";
 
 enum Fail {
-  Ok,
-  Bad
+	Ok,
+	Bad
 }
 
 func risky(int n) !int {
-  if n < 0 {
-    return Error(Fail.Bad, "negative input");
-  }
-  return n * 2;
+	if n < 0 {
+		return Error(Fail.Bad, "negative input");
+	}
+	return n * 2;
 }
 
 func settle(int n) ! {
-  if n < 0 {
-    return Error(Fail.Bad, "cannot settle");
-  }
+	if n < 0 {
+		return Error(Fail.Bad, "cannot settle");
+	}
 }
 
 public func demo() {
-  int a = risky(3)!!;
-  fmt.printf("risky(3)!! = {}\n", a);
-  fmt.printf("risky(4)!! + risky(5)!! = {}\n", risky(4)!! + risky(5)!!);
-  settle(1)!!;
-  fmt.printf("settle(1)!! passed\n");
+	int a = risky(3)!!;
+	fmt.printf("risky(3)!! = {}\n", a);
+	fmt.printf("risky(4)!! + risky(5)!! = {}\n", risky(4)!! + risky(5)!!);
+	settle(1)!!;
+	fmt.printf("settle(1)!! passed\n");
 }

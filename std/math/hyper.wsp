@@ -9,8 +9,8 @@
  * ====================================================
  */
 
-import "std/math/ieee";
 import "std/math/exp";
+import "std/math/ieee";
 
 const {
 	one = 1.0;

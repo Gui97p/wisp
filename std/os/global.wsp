@@ -1,5 +1,5 @@
-import "std/sys";
 import "std/errors";
+import "std/sys";
 
 public const STDIN = 0;
 public const STDOUT = 1;

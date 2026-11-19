@@ -1,7 +1,7 @@
-import "std/sys";
-import "std/os/global";
-import "std/os";
 import "std/mem";
+import "std/os";
+import "std/os/global";
+import "std/sys";
 
 public func open(string p, int flags) !int {
 	int r = sys.open(p, flags);
@@ -24,7 +24,7 @@ public func readFile(string p) ![]byte {
 	int size = os.size(fd)!;
 	return .{} if size == 0;
 	*byte alloc = mem.alloc(size)!;
-	defer! mem.free(alloc);
+	defer !mem.free(alloc);
 	[]byte buf = alloc[0:size];
 	int total;
 	loop {

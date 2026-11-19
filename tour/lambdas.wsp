@@ -21,39 +21,39 @@
 
 import "std/fmt";
 
-type Step (int) => int;
+type Step(int) => int;
 
 struct Op {
-  string name;
-  (int, int) => int apply;
+	string name;
+	(int, int) => int apply;
 }
 
 func inc(int x) int => x + 1;
 func dec(int x) int => x - 1;
 
 func twice(Step f, int value) int {
-  return f(f(value));
+	return f(f(value));
 }
 
 func pick(bool up) (int) => int {
-  return up ? inc : dec;
+	return up ? inc : dec;
 }
 
 public func demo() {
-  let triple = (int x) int => x * 3;
-  fmt.printf("triple(5) = {}\n", triple(5));
+	let triple = (int x) int => x * 3;
+	fmt.printf("triple(5) = {}\n", triple(5));
 
-  fmt.printf("twice(inc, 1) = {}\n", twice(inc, 1));
-  fmt.printf("twice with a literal = {}\n", twice((int x) int => x * 2, 3));
-  fmt.printf("pick(true)(10) = {}, pick(false)(10) = {}\n", pick(true)(10), pick(false)(10));
+	fmt.printf("twice(inc, 1) = {}\n", twice(inc, 1));
+	fmt.printf("twice with a literal = {}\n", twice((int x) int => x * 2, 3));
+	fmt.printf("pick(true)(10) = {}, pick(false)(10) = {}\n", pick(true)(10), pick(false)(10));
 
-  Op add = Op{name: "add", apply: (int a, int b) int => a + b};
-  fmt.printf("{}(2, 3) = {}\n", add.name, add.apply(2, 3));
+	Op add = Op{name: "add", apply: (int a, int b) int => a + b};
+	fmt.printf("{}(2, 3) = {}\n", add.name, add.apply(2, 3));
 
-  [2]Step table = .{inc, dec};
-  fmt.printf("table[0](5) = {}, table[1](5) = {}\n", table[0](5), table[1](5));
+	[2]Step table = .{inc, dec};
+	fmt.printf("table[0](5) = {}, table[1](5) = {}\n", table[0](5), table[1](5));
 
-  ?Step none = null;
-  ?Step some = triple;
-  fmt.printf("none is null: {}, some is null: {}\n", none == null, some == null);
+	?Step none = null;
+	?Step some = triple;
+	fmt.printf("none is null: {}, some is null: {}\n", none == null, some == null);
 }

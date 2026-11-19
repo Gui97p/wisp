@@ -27,44 +27,44 @@ import "std/fmt";
 inline func add(int a, int b) int => a + b;
 
 inline func abs(int x) int {
-  if x < 0 {
-    return -x;
-  }
-  return x;
+	if x < 0 {
+		return -x;
+	}
+	return x;
 }
 
 inline func scale(const int factor, int x) int {
-  return x * factor;
+	return x * factor;
 }
 
 inline func clamp(int x, int low, int high) int {
-  if x < low {
-    return low;
-  }
-  if x > high {
-    return high;
-  }
-  return x;
+	if x < low {
+		return low;
+	}
+	if x > high {
+		return high;
+	}
+	return x;
 }
 
 func countAll(...args) int {
-  return len(args);
+	return len(args);
 }
 
 inline func sumWith(int start, ...args) int {
-  return start + countAll(args...) * 10;
+	return start + countAll(args...) * 10;
 }
 
 public func demo() {
-  fmt.printf("add(2, 3) = {}\n", add(2, 3));
-  fmt.printf("abs(-7) = {}, abs(4) = {}\n", abs(-7), abs(4));
-  fmt.printf("scale(10, 4) = {}\n", scale(10, 4));
+	fmt.printf("add(2, 3) = {}\n", add(2, 3));
+	fmt.printf("abs(-7) = {}, abs(4) = {}\n", abs(-7), abs(4));
+	fmt.printf("scale(10, 4) = {}\n", scale(10, 4));
 
-  int total = 0;
-  for i in 0..5 {
-    total += clamp(i * 3, 2, 9);
-  }
-  fmt.printf("sum of clamp(i * 3, 2, 9) = {}\n", total);
+	int total = 0;
+	for i in 0..5 {
+		total += clamp(i * 3, 2, 9);
+	}
+	fmt.printf("sum of clamp(i * 3, 2, 9) = {}\n", total);
 
-  fmt.printf("sumWith(1) = {}, sumWith(1, 2, 3) = {}\n", sumWith(1), sumWith(1, 2, 3));
+	fmt.printf("sumWith(1) = {}, sumWith(1, 2, 3) = {}\n", sumWith(1), sumWith(1, 2, 3));
 }

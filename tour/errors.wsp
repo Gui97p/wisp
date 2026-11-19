@@ -7,7 +7,7 @@ import "std/fmt";
 // member's number is the exit code if the error ends the program, so the
 // first member is written `= 1`: code 0 would read as success.
 enum DivError {
-  DivByZero = 1
+	DivByZero = 1
 }
 
 // A `!` before the return list marks a function that can fail. Inside it,
@@ -15,58 +15,58 @@ enum DivError {
 // its enum, the member, a message (the member's name unless you give one) and
 // the file and line where it was raised.
 func divide(int a, b) !int {
-  if b == 0 {
-    return Error(DivError.DivByZero, "cannot divide by zero");
-  }
-  return a / b;
+	if b == 0 {
+		return Error(DivError.DivByZero, "cannot divide by zero");
+	}
+	return a / b;
 }
 
 // A postfix `!` passes the error up: if the call fails, this function fails
 // with the very same error. It is only legal inside a fallible function.
 func halveThenDouble(int a, b) !int {
-  let half = divide(a, b)!;
-  return half * 2;
+	let half = divide(a, b)!;
+	return half * 2;
 }
 
 // A handler block runs on failure and has to leave: `return` here returns
 // from describe itself. (`yield`, further down, leaves the block with a value
 // instead.)
 func describe(int a, b) string {
-  let n = divide(a, b) ?? |e| {
-    return e.message;
-  };
-  if n > 0 {
-    return "positive";
-  }
-  return "zero";
+	let n = divide(a, b) ?? |e| {
+		return e.message;
+	};
+	if n > 0 {
+		return "positive";
+	}
+	return "zero";
 }
 
 // A handler does not have to name the error. `?? { ... }` runs a block, and
 // the short forms `?? return value`, `?? break` and `?? continue` leave the
 // function or the loop on a failure.
 func halfOr(int a, b) int {
-  int n = divide(a, b) ?? return -1;
-  return n;
+	int n = divide(a, b) ?? return -1;
+	return n;
 }
 
 func sumGood(int a, int b) int {
-  int total = 0;
-  for i in 0..1 {
-    int n = divide(10, i == 0 ? a : b) ?? continue;
-    total += n;
-  }
-  return total;
+	int total = 0;
+	for i in 0..1 {
+		int n = divide(10, i == 0 ? a : b) ?? continue;
+		total += n;
+	}
+	return total;
 }
 
 // `yield value` leaves the handler block with a value, and that value is what
 // the `??` gives. It lets a handler do some work and carry on. `return` leaves
 // the function, `yield` only the handler.
 func divideOr(int a, b, fallback) int {
-  int n = divide(a, b) ?? |e| {
-    fmt.printf("divide failed: {}\n", e.message);
-    yield fallback;
-  };
-  return n;
+	int n = divide(a, b) ?? |e| {
+		fmt.printf("divide failed: {}\n", e.message);
+		yield fallback;
+	};
+	return n;
 }
 
 // A handler can also be a `switch` expression. It picks what to do by the
@@ -74,11 +74,11 @@ func divideOr(int a, b, fallback) int {
 // `default` catches the rest. To run statements, write a block and put a
 // `switch` statement inside it.
 func codeOf(int a, int b) int {
-  int n = divide(a, b) ?? |e| switch e {
-    case DivError.DivByZero => -1;
-    default => return -2;
-  };
-  return n;
+	int n = divide(a, b) ?? |e| switch e {
+		case DivError.DivByZero => -1;
+		default => return -2;
+	};
+	return n;
 }
 
 // std/errors has the failures that every program shares, as the enum
@@ -89,78 +89,78 @@ func codeOf(int a, int b) int {
 // a message. The kind has to be written out, because an Error is a constant
 // record made at the place it is raised.
 func store(int used, int size) ! {
-  errors.ensure(used <= size, errors.Kind.NoSpace)!;
+	errors.ensure(used <= size, errors.Kind.NoSpace)!;
 }
 
 func storeNamed(int used, int size) ! {
-  errors.ensureMessage(used <= size, errors.Kind.NoSpace, "the buffer is full")!;
+	errors.ensureMessage(used <= size, errors.Kind.NoSpace, "the buffer is full")!;
 }
 
 public func demo() {
-  // `??` unwraps the result, falling back to a default value on failure.
-  int ok = divide(10, 2) ?? -1;
-  int fallback = divide(10, 0) ?? -1;
-  fmt.printf("divide(10, 2) ?? -1 = {}\n", ok);
-  fmt.printf("divide(10, 0) ?? -1 = {}\n", fallback);
+	// `??` unwraps the result, falling back to a default value on failure.
+	int ok = divide(10, 2) ?? -1;
+	int fallback = divide(10, 0) ?? -1;
+	fmt.printf("divide(10, 2) ?? -1 = {}\n", ok);
+	fmt.printf("divide(10, 0) ?? -1 = {}\n", fallback);
 
-  fmt.printf("divideOr(10, 0, 99) = {}\n", divideOr(10, 0, 99));
-  fmt.printf("codeOf(10, 0) = {}, codeOf(10, 2) = {}\n", codeOf(10, 0), codeOf(10, 2));
+	fmt.printf("divideOr(10, 0, 99) = {}\n", divideOr(10, 0, 99));
+	fmt.printf("codeOf(10, 0) = {}, codeOf(10, 2) = {}\n", codeOf(10, 0), codeOf(10, 2));
 
-  // `?? |e| value` computes the fallback from the error.
-  int code = divide(10, 0) ?? |e| e.line;
-  fmt.printf("the failure was raised at line {}\n", code);
+	// `?? |e| value` computes the fallback from the error.
+	int code = divide(10, 0) ?? |e| e.line;
+	fmt.printf("the failure was raised at line {}\n", code);
 
-  fmt.printf("halfOr(10, 2) = {}, halfOr(10, 0) = {}\n", halfOr(10, 2), halfOr(10, 0));
-  fmt.printf("sumGood(2, 0) = {}, sumGood(0, 5) = {}\n", sumGood(2, 0), sumGood(0, 5));
+	fmt.printf("halfOr(10, 2) = {}, halfOr(10, 0) = {}\n", halfOr(10, 2), halfOr(10, 0));
+	fmt.printf("sumGood(2, 0) = {}, sumGood(0, 5) = {}\n", sumGood(2, 0), sumGood(0, 5));
 
-  int propagated = halveThenDouble(10, 0) ?? -1;
-  fmt.printf("halveThenDouble(10, 0) ?? -1 = {}\n", propagated);
-  fmt.printf("describe(10, 0) = {}\n", describe(10, 0));
-  fmt.printf("describe(10, 5) = {}\n", describe(10, 5));
+	int propagated = halveThenDouble(10, 0) ?? -1;
+	fmt.printf("halveThenDouble(10, 0) ?? -1 = {}\n", propagated);
+	fmt.printf("describe(10, 0) = {}\n", describe(10, 0));
+	fmt.printf("describe(10, 5) = {}\n", describe(10, 5));
 
-  // Destructuring gives the value and the error. The value is zero on
-  // failure, and an error you never read is a compile error (bind it to `_`
-  // to drop it on purpose).
-  let value, e = divide(10, 0);
-  fmt.printf("destructured: value {}, failed {}\n", value, e != null);
+	// Destructuring gives the value and the error. The value is zero on
+	// failure, and an error you never read is a compile error (bind it to `_`
+	// to drop it on purpose).
+	let value, e = divide(10, 0);
+	fmt.printf("destructured: value {}, failed {}\n", value, e != null);
 
-  // An error compares with null and with enum members, so a switch can sort
-  // failures out. The member is written in full here: an Error does not know
-  // which enum to look in, so `.DivByZero` would be ambiguous.
-  let _, err = divide(7, 0);
-  string what = switch err {
-    case null => "no error";
-    case DivError.DivByZero => "divided by zero";
-    default => err.message;
-  };
-  fmt.printf("the switch says: {}\n", what);
+	// An error compares with null and with enum members, so a switch can sort
+	// failures out. The member is written in full here: an Error does not know
+	// which enum to look in, so `.DivByZero` would be ambiguous.
+	let _, err = divide(7, 0);
+	string what = switch err {
+		case null => "no error";
+		case DivError.DivByZero => "divided by zero";
+		default => err.message;
+	};
+	fmt.printf("the switch says: {}\n", what);
 
-  // An error prints with `{}` as its message, and `{v}` adds the enum and
-  // where it was raised. An error that is null prints as <null error>.
-  fmt.printf("{} | {v}\n", err, err);
+	// An error prints with `{}` as its message, and `{v}` adds the enum and
+	// where it was raised. An error that is null prints as <null error>.
+	fmt.printf("{} | {v}\n", err, err);
 
-  // A function with no result hands its error to `let`, which holds null when
-  // it worked. `temporary` and `missing` tell families of kinds apart: a
-  // temporary failure (Busy, Interrupted, WouldBlock) is worth trying again,
-  // and a missing one is NotFound. Both answer false for null.
-  let fits = store(2, 4);
-  let tight = store(9, 4);
-  let named = storeNamed(9, 4);
-  fmt.printf("fits: {}, tight: {}, named: {}\n", fits == null, tight == errors.Kind.NoSpace, named.message);
-  fmt.printf("temporary: {}, missing: {}\n", errors.temporary(tight), errors.missing(fits));
-  // errors.assert(condition, message) is for a mistake in the program itself:
-  // it does not return an error, it stops the program with the message, and so
-  // do errors.unreachable(message) for a place that must never run and
-  // errors.todo(message) for code that is not written yet.
+	// A function with no result hands its error to `let`, which holds null when
+	// it worked. `temporary` and `missing` tell families of kinds apart: a
+	// temporary failure (Busy, Interrupted, WouldBlock) is worth trying again,
+	// and a missing one is NotFound. Both answer false for null.
+	let fits = store(2, 4);
+	let tight = store(9, 4);
+	let named = storeNamed(9, 4);
+	fmt.printf("fits: {}, tight: {}, named: {}\n", fits == null, tight == errors.Kind.NoSpace, named.message);
+	fmt.printf("temporary: {}, missing: {}\n", errors.temporary(tight), errors.missing(fits));
+// errors.assert(condition, message) is for a mistake in the program itself:
+// it does not return an error, it stops the program with the message, and so
+// do errors.unreachable(message) for a place that must never run and
+// errors.todo(message) for code that is not written yet.
 
-  // A call that returns no value has nothing to fall back to, so its handler
-  // may simply end. This is how a failure that nobody can act on is dropped on
-  // purpose, and the only way to handle a call inside a `defer`, which cannot
-  // return from the function:
-  //
-  //     defer close(fd) ?? {};
-  //     defer close(fd) ?? |e| { fmt.printf("close failed: {}\n", e.message); };
+// A call that returns no value has nothing to fall back to, so its handler
+// may simply end. This is how a failure that nobody can act on is dropped on
+// purpose, and the only way to handle a call inside a `defer`, which cannot
+// return from the function:
+//
+//     defer close(fd) ?? {};
+//     defer close(fd) ?? |e| { fmt.printf("close failed: {}\n", e.message); };
 
-  // `main` can be fallible too: `func main() !int`. If it ends in an error,
-  // the program prints it and exits with the error's code.
+// `main` can be fallible too: `func main() !int`. If it ends in an error,
+// the program prints it and exits with the error's code.
 }

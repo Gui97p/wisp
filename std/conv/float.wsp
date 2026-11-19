@@ -1,8 +1,7 @@
-
+import "std/conv/decimal";
 import "std/errors";
 import "std/math";
 import "std/strings";
-import "std/conv/decimal";
 
 public func floatToInt(float x) !int {
 	errors.ensure(!math.isNaN(x), errors.Kind.Invalid)!;
@@ -35,7 +34,7 @@ func layoutFixed([]byte buf, bool neg, *decimal.Decimal dec, int decimals) !stri
 		buf[i] = '0';
 		i++;
 	} else {
-		for k in 0..dec.dp-1 {
+		for k in 0..dec.dp - 1 {
 			buf[i] = byte(dec.digitAt(k) + '0');
 			i++;
 		}
@@ -44,8 +43,8 @@ func layoutFixed([]byte buf, bool neg, *decimal.Decimal dec, int decimals) !stri
 	if decimals > 0 {
 		buf[i] = '.';
 		i++;
-	
-		for k in 0..decimals-1 {
+
+		for k in 0..decimals - 1 {
 			buf[i] = byte(dec.digitAt(dec.dp + k) + '0');
 			i++;
 		}
@@ -60,7 +59,7 @@ func layoutExp([]byte buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 		exp = dec.dp - 1;
 	}
 	int mag = exp < 0 ? -exp : exp;
-	
+
 	int size = (neg ? 1 : 0) + 1 + (decimals > 0 ? 1 + decimals : 0) + 2 + (mag >= 100 ? 3 : 2);
 	errors.ensure(len(buf) >= size, errors.Kind.NoSpace)!;
 	int i;
@@ -74,7 +73,7 @@ func layoutExp([]byte buf, bool neg, *decimal.Decimal dec, int decimals, bool up
 	if decimals > 0 {
 		buf[i] = '.';
 		i++;
-	
+
 		for k in 1..decimals {
 			buf[i] = byte(dec.digitAt(k) + '0');
 			i++;
@@ -111,16 +110,16 @@ func shortestText([]byte buf, float x, bool single) !string {
 	} else {
 		dec.setShortest(math.fabs(x));
 	}
-	
-	return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))! if dec.dp-1 in -5..20;
-	return layoutExp(buf, neg, &dec, dec.n-1, false)!;
+
+	return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))! if dec.dp - 1 in -5..20;
+	return layoutExp(buf, neg, &dec, dec.n - 1, false)!;
 }
 
 public func ftoa([]byte buf, float x) !string {
 	return shortestText(buf, x, false)!;
 }
 
-public func ftoa32 ([]byte buf, float32 x) !string {
+public func ftoa32([]byte buf, float32 x) !string {
 	return shortestText(buf, x, true)!;
 }
 
@@ -144,6 +143,6 @@ public func formatExp([]byte buf, float x, int n, bool upper) !string {
 	bool neg = math.signbit(x);
 	decimal.Decimal dec;
 	dec.setSignificant(math.fabs(x), n + 1);
-	
+
 	return layoutExp(buf, neg, &dec, n, upper)!;
 }

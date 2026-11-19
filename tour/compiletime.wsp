@@ -28,14 +28,14 @@
 import "std/fmt";
 
 struct Header {
-  uint8 kind;
-  int length;
-  uint16 flags;
+	uint8 kind;
+	int length;
+	uint16 flags;
 }
 
 struct Wrapper {
-  uint8 tag;
-  Header inner;
+	uint8 tag;
+	Header inner;
 }
 
 const HEADER_SIZE = sizeof(Header);
@@ -45,102 +45,102 @@ staticAssert(HEADER_SIZE == 24, "Header is padded to 24 bytes");
 staticAssert(offsetof(Header, kind) == 0, "kind comes first");
 
 struct Frame {
-  [HEADER_SIZE * 2]byte payload;
+	[HEADER_SIZE * 2]byte payload;
 }
 
 inline func triangle(int n) int {
-  int total = 0;
-  for i in 1..n {
-    total += i;
-  }
-  return total;
+	int total = 0;
+	for i in 1..n {
+		total += i;
+	}
+	return total;
 }
 
 const TRIANGLE_10 = static { yield triangle(10); };
 
 const FIRST_BIG_SQUARE = static {
-  int n = 1;
-  loop n * n < 500 {
-    n++;
-  }
-  yield n;
+	int n = 1;
+	loop n * n < 500 {
+		n++;
+	}
+	yield n;
 };
 
 const [3]int PRIMES = .{2, 3, 5};
 const Header DEFAULT = Header{kind: 1, length: 8, flags: 0};
 
 func fib(int n) int {
-  if n < 2 {
-    return n;
-  }
-  return fib(n - 1) + fib(n - 2);
+	if n < 2 {
+		return n;
+	}
+	return fib(n - 1) + fib(n - 2);
 }
 
 const FIB_20 = static { yield fib(20); };
 
 const [256]uint32 CRC = static {
-  [256]uint32 table;
-  for i in 0..255 {
-    uint32 c = uint32(i);
-    for _step in 0..7 {
-      if (c & 1) != 0 {
-        c = 0xEDB88320 ^ (c >> 1);
-      } else {
-        c = c >> 1;
-      }
-    }
-    table[i] = c;
-  }
-  yield table;
+	[256]uint32 table;
+	for i in 0..255 {
+		uint32 c = uint32(i);
+		for _step in 0..7 {
+			if (c & 1) != 0 {
+				c = 0xEDB88320 ^ (c >> 1);
+			} else {
+				c = c >> 1;
+			}
+		}
+		table[i] = c;
+	}
+	yield table;
 };
 
 staticAssert(CRC[1] == 0x77073096, "this is the CRC-32 table");
 
 func crc(string text) uint32 {
-  uint32 c = 0xFFFFFFFF;
-  for _i, b in text {
-    c = CRC[(c ^ uint32(b)) & 255] ^ (c >> 8);
-  }
-  return c ^ 0xFFFFFFFF;
+	uint32 c = 0xFFFFFFFF;
+	for _i, b in text {
+		c = CRC[(c ^ uint32(b)) & 255] ^ (c >> 8);
+	}
+	return c ^ 0xFFFFFFFF;
 }
 
 const KIND_NAME = static {
-  yield switch DEFAULT.kind {
-    case 0 => "none";
-    case 1 => "data";
-    default => "other";
-  };
+	yield switch DEFAULT.kind {
+		case 0 => "none";
+		case 1 => "data";
+		default => "other";
+	};
 };
 
 public func demo() {
-  fmt.printf("Header: size {}, alignment {}\n", HEADER_SIZE, alignof(Header));
-  fmt.printf("length is at {}, flags at {}\n", offsetof(Header, length), FLAGS_AT);
-  fmt.printf("a path works too: {}\n", offsetof(Wrapper, inner.flags));
-  fmt.printf("a Frame has {} bytes\n", sizeof(Frame));
+	fmt.printf("Header: size {}, alignment {}\n", HEADER_SIZE, alignof(Header));
+	fmt.printf("length is at {}, flags at {}\n", offsetof(Header, length), FLAGS_AT);
+	fmt.printf("a path works too: {}\n", offsetof(Wrapper, inner.flags));
+	fmt.printf("a Frame has {} bytes\n", sizeof(Frame));
 
-  [HEADER_SIZE]byte raw;
-  fmt.printf("an array sized by sizeof has {} bytes\n", len(raw));
+	[HEADER_SIZE]byte raw;
+	fmt.printf("an array sized by sizeof has {} bytes\n", len(raw));
 
-  fmt.printf("1 + 2 + ... + 10 = {}\n", TRIANGLE_10);
-  fmt.printf("the first n with n * n >= 500 is {}\n", FIRST_BIG_SQUARE);
+	fmt.printf("1 + 2 + ... + 10 = {}\n", TRIANGLE_10);
+	fmt.printf("the first n with n * n >= 500 is {}\n", FIRST_BIG_SQUARE);
 
-  // A static block can also sit in the middle of a function. Here it looks
-  // for a factor of 91.
-  int factor = static {
-    int found = 0;
-    :search for i in 2..50 {
-      for j in 2..50 {
-        if i * j == 91 {
-          found = i;
-          break :search;
-        }
-      }
-    }
-    yield found;
-  };
-  fmt.printf("a factor of 91: {}\n", factor);
+	// A static block can also sit in the middle of a function. Here it looks
+	// for a factor of 91.
+	int factor = static {
+		int found = 0;
+		:search for i in 2..50 {
+			for j in 2..50 {
+				if i * j == 91 {
+					found = i;
+					break :search;
+				}
+			}
+		}
+		yield found;
+	};
+	fmt.printf("a factor of 91: {}\n", factor);
 
-  fmt.printf("constants: {} primes, {} bytes by default, fib(20) = {}\n", len(PRIMES), DEFAULT.length, FIB_20);
-  fmt.printf("a default Header is {}\n", KIND_NAME);
-  fmt.printf("crc(\"123456789\") = {x}\n", crc("123456789"));
+	fmt.printf("constants: {} primes, {} bytes by default, fib(20) = {}\n", len(PRIMES), DEFAULT.length, FIB_20);
+	fmt.printf("a default Header is {}\n", KIND_NAME);
+	fmt.printf("crc(\"123456789\") = {x}\n", crc("123456789"));
 }

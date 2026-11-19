@@ -29,81 +29,81 @@ const MaxScore = 100;
 // Several constants can share one declaration. A visibility or a type written
 // before the braces applies to every member, and a member can use the ones
 // above it.
-const int {
-  MinScore = 0;
-  Range = MaxScore - MinScore;
+const int{
+	MinScore = 0;
+	Range = MaxScore - MinScore;
 }
 
 // Without a type before the braces, each member can carry its own, written
 // first as everywhere else. Members that do not name one are inferred.
 const {
-  uint Mask = 0xFF;
-  float Ratio = 0.5;
-  Label = "score";
+	uint Mask = 0xFF;
+	float Ratio = 0.5;
+	Label = "score";
 }
 
 public func demo() {
-  // `let` infers the type from the value; an explicit type works too. The
-  // type always comes first, as in `int limit`.
-  let total = 2 + 3;
-  int limit = 10;
+	// `let` infers the type from the value; an explicit type works too. The
+	// type always comes first, as in `int limit`.
+	let total = 2 + 3;
+	int limit = 10;
 
-  // Compound assignment and increment.
-  limit += 2;
-  limit *= 2;
-  total++;
-  fmt.printf("total = {}\n", total);
-  fmt.printf("limit = {}\n", limit);
-  fmt.printf("MaxScore = {}\n", MaxScore);
-  fmt.printf("Range = {}\n", Range);
-  fmt.printf("{} mask {}, ratio {}\n", Label, Mask, Ratio);
+	// Compound assignment and increment.
+	limit += 2;
+	limit *= 2;
+	total++;
+	fmt.printf("total = {}\n", total);
+	fmt.printf("limit = {}\n", limit);
+	fmt.printf("MaxScore = {}\n", MaxScore);
+	fmt.printf("Range = {}\n", Range);
+	fmt.printf("{} mask {}, ratio {}\n", Label, Mask, Ratio);
 
-  // A variable declared without a value starts zeroed.
-  int zeroed;
-  fmt.printf("zeroed = {}\n", zeroed);
+	// A variable declared without a value starts zeroed.
+	int zeroed;
+	fmt.printf("zeroed = {}\n", zeroed);
 
-  // Several variables can be declared together.
-  int first, second = 4, 5;
-  fmt.printf("first + second = {}\n", first + second);
+	// Several variables can be declared together.
+	int first, second = 4, 5;
+	fmt.printf("first + second = {}\n", first + second);
 
-  // `const` also works inside a function.
-  const Greeting = "hi";
-  fmt.printf("Greeting = {}\n", Greeting);
+	// `const` also works inside a function.
+	const Greeting = "hi";
+	fmt.printf("Greeting = {}\n", Greeting);
 
-  // Integer division truncates toward zero, and `%` keeps the sign of the
-  // dividend, so (a / b) * b + a % b is always a. Dividing by zero is not a
-  // compile error when the divisor is only known at run time: it panics.
-  fmt.printf("17 / 5 = {}\n", 17 / 5);
-  fmt.printf("-17 / 5 = {}\n", -17 / 5);
-  fmt.printf("17 % 5 = {}\n", 17 % 5);
-  fmt.printf("-17 % 5 = {}\n", -17 % 5);
+	// Integer division truncates toward zero, and `%` keeps the sign of the
+	// dividend, so (a / b) * b + a % b is always a. Dividing by zero is not a
+	// compile error when the divisor is only known at run time: it panics.
+	fmt.printf("17 / 5 = {}\n", 17 / 5);
+	fmt.printf("-17 / 5 = {}\n", -17 / 5);
+	fmt.printf("17 % 5 = {}\n", 17 % 5);
+	fmt.printf("-17 % 5 = {}\n", -17 % 5);
 
-  // Bitwise operators: & | ^ ~ << >>. They only work on integers.
-  // `~` is unary (bitwise not), so there is no `~=`.
-  int a = 6;
-  int b = 3;
-  fmt.printf("a = {}, b = {}\n", a, b);
-  fmt.printf("a & b = {}\n", a & b);
-  fmt.printf("a | b = {}\n", a | b);
-  fmt.printf("a ^ b = {}\n", a ^ b);
-  fmt.printf("~a = {}\n", ~a);
-  fmt.printf("a << 1 = {}\n", a << 1);
-  fmt.printf("a >> 1 = {}\n", a >> 1);
+	// Bitwise operators: & | ^ ~ << >>. They only work on integers.
+	// `~` is unary (bitwise not), so there is no `~=`.
+	int a = 6;
+	int b = 3;
+	fmt.printf("a = {}, b = {}\n", a, b);
+	fmt.printf("a & b = {}\n", a & b);
+	fmt.printf("a | b = {}\n", a | b);
+	fmt.printf("a ^ b = {}\n", a ^ b);
+	fmt.printf("~a = {}\n", ~a);
+	fmt.printf("a << 1 = {}\n", a << 1);
+	fmt.printf("a >> 1 = {}\n", a >> 1);
 
-  // Every binary bitwise operator has a compound form.
-  int flags = 6;
-  flags &= 2;
-  flags |= 8;
-  flags ^= 1;
-  flags <<= 1;
-  flags >>= 1;
-  fmt.printf("flags after &= 2, |= 8, ^= 1, <<= 1, >>= 1: {}\n", flags);
+	// Every binary bitwise operator has a compound form.
+	int flags = 6;
+	flags &= 2;
+	flags |= 8;
+	flags ^= 1;
+	flags <<= 1;
+	flags >>= 1;
+	fmt.printf("flags after &= 2, |= 8, ^= 1, <<= 1, >>= 1: {}\n", flags);
 
-  // Comparisons give a bool, and `&&`, `||` and `!` combine them. The
-  // right side of `&&` and `||` is only evaluated when it has to be.
-  fmt.printf("a > b && !(a == b) = {}\n", a > b && !(a == b));
+	// Comparisons give a bool, and `&&`, `||` and `!` combine them. The
+	// right side of `&&` and `||` is only evaluated when it has to be.
+	fmt.printf("a > b && !(a == b) = {}\n", a > b && !(a == b));
 
-  // The ternary operator.
-  int bigger = 1 > 2 ? 42 : 21;
-  fmt.printf("1 > 2 ? 42 : 21 = {}\n", bigger);
+	// The ternary operator.
+	int bigger = 1 > 2 ? 42 : 21;
+	fmt.printf("1 > 2 ? 42 : 21 = {}\n", bigger);
 }

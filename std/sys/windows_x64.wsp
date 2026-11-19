@@ -206,7 +206,7 @@ internal func towide(string s, *uint16 dst) int {
 		dst[5] = 78;
 		dst[6] = 67;
 		dst[7] = 92;
-		for i in 2..m-1 {
+		for i in 2..m - 1 {
 			dst[8 + i - 2] = wideScratch()[i];
 		}
 		total = 8 + m - 2;
@@ -215,7 +215,7 @@ internal func towide(string s, *uint16 dst) int {
 		dst[1] = 92;
 		dst[2] = 63;
 		dst[3] = 92;
-		for i in 0..m-1 {
+		for i in 0..m - 1 {
 			dst[4 + i] = wideScratch()[i];
 		}
 		total = 4 + m;
@@ -245,7 +245,7 @@ internal func readConsole(*byte buf, int n) int {
 		}
 		int rest = inLeft - k;
 		if rest > 0 {
-			for i in 0..rest-1 {
+			for i in 0..rest - 1 {
 				inBytes[i] = inBytes[k + i];
 			}
 		}
@@ -276,7 +276,7 @@ internal func readConsole(*byte buf, int n) int {
 
 		int count = off + int(got);
 		int kept;
-		for i in 0..count-1 {
+		for i in 0..count - 1 {
 			int u = wideScratch()[i];
 			if u == 13 {
 				wideScratch()[kept] = 10;
@@ -302,11 +302,11 @@ internal func readConsole(*byte buf, int n) int {
 		int m = WideCharToMultiByte(CP_UTF8, 0, wideScratch(), int32(kept), convBuffer(), int32(CONV_BYTES), null, null);
 		return -sys.EINVAL if m <= 0;
 		int copied = m > n ? n : m;
-		for i in 0..copied-1 {
+		for i in 0..copied - 1 {
 			buf[i] = convBuffer()[i];
 		}
 		int rest = m - copied;
-		for i in 0..rest-1 {
+		for i in 0..rest - 1 {
 			inBytes[i] = convBuffer()[copied + i];
 		}
 		inLeft = rest > 0 ? rest : 0;
@@ -352,7 +352,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 	int held = pendingCount[fd];
 	if held > 0 {
 		[4]byte joined;
-		for k in 0..held-1 {
+		for k in 0..held - 1 {
 			joined[k] = pendingBytes[fd * 4 + k];
 		}
 		int need = sequenceLength(joined[0]);
@@ -362,7 +362,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 			i++;
 		}
 		if held < need {
-			for k in 0..held-1 {
+			for k in 0..held - 1 {
 				pendingBytes[fd * 4 + k] = joined[k];
 			}
 			pendingCount[fd] = held;
@@ -401,7 +401,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 
 	int rest = n - tail;
 	if rest > 0 {
-		for k in 0..rest-1 {
+		for k in 0..rest - 1 {
 			pendingBytes[fd * 4 + k] = buf[tail + k];
 		}
 	}

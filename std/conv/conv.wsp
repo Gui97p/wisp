@@ -7,38 +7,38 @@ public const {
 }
 
 func formatUnsigned([]byte buf, uint n, int base, bool upper) !string {
-    int i = 0;
-    string digits = upper
-        ? "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        : "0123456789abcdefghijklmnopqrstuvwxyz";
+	int i = 0;
+	string digits = upper
+		? "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		: "0123456789abcdefghijklmnopqrstuvwxyz";
 
-    loop n != 0 {
-        uint rem = n % uint(base);
+	loop n != 0 {
+		uint rem = n % uint(base);
 		errors.ensure(i < len(buf), errors.Kind.NoSpace)!;
-        buf[i] = digits[rem];
-        i += 1;
-        n /= uint(base);
-    }
+		buf[i] = digits[rem];
+		i += 1;
+		n /= uint(base);
+	}
 
-    if i == 0 {
+	if i == 0 {
 		errors.ensure(len(buf) > 0, errors.Kind.NoSpace)!;
-        buf[i] = '0';
-        i += 1;
-    }
+		buf[i] = '0';
+		i += 1;
+	}
 
-    int left = 0;
-    int right = i - 1;
+	int left = 0;
+	int right = i - 1;
 
-    loop left < right {
-        byte tmp = buf[left];
-        buf[left] = buf[right];
-        buf[right] = tmp;
+	loop left < right {
+		byte tmp = buf[left];
+		buf[left] = buf[right];
+		buf[right] = tmp;
 
-        left += 1;
-        right -= 1;
-    }
+		left += 1;
+		right -= 1;
+	}
 
-    return string(buf[0:i]);
+	return string(buf[0:i]);
 }
 
 public func formatInt([]byte buf, int n, base, bool upper) !string {
@@ -46,10 +46,10 @@ public func formatInt([]byte buf, int n, base, bool upper) !string {
 	return formatUnsigned(buf, uint(n), base, upper)! if n >= 0;
 	errors.ensure(len(buf) > 1, errors.Kind.NoSpace)!;
 
-	uint mag = uint(-(n+1)) + 1;
+	uint mag = uint(-(n + 1)) + 1;
 	string digits = formatUnsigned(buf[1:], mag, base, upper)!;
 	buf[0] = '-';
-	return string(buf[0:len(digits)+1]);
+	return string(buf[0:len(digits) + 1]);
 }
 
 public func formatUint([]byte buf, uint n, int base, bool upper) !string {
@@ -67,14 +67,14 @@ public func utoa([]byte buf, uint n) !string {
 
 func digitValue(byte c) ?int {
 	if c >= '0' && c <= '9' {
-        return c - '0';
-    }
+		return c - '0';
+	}
 
-    return c - 'a' + 10 if c >= 'a' && c <= 'z';
+	return c - 'a' + 10 if c >= 'a' && c <= 'z';
 
-    return c - 'A' + 10 if c >= 'A' && c <= 'Z';
+	return c - 'A' + 10 if c >= 'A' && c <= 'Z';
 
-    return null;
+	return null;
 }
 
 #must_use
@@ -84,7 +84,7 @@ public func parseUint(string s, int base) !uint {
 	uint n = 0;
 	uint b = uint(base);
 
-	for i in 0..len(s)-1 {
+	for i in 0..len(s) - 1 {
 		int d = digitValue(s[i]) ?? return Error(errors.Kind.Invalid);
 		errors.ensure(d < base, errors.Kind.Invalid)!;
 
@@ -112,11 +112,11 @@ public func parseInt(string s, int base) !int {
 	if neg {
 		uint limit = uint(-(math.MIN_INT + 1)) + 1;
 		errors.ensure(mag <= limit, errors.Kind.Overflow)!;
-		
+
 		return math.MIN_INT if mag == limit;
 		return -int(mag);
 	}
-	
+
 	errors.ensure(mag <= uint(math.MAX_INT), errors.Kind.Overflow)!;
 	return int(mag);
 }

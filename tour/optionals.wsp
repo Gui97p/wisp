@@ -17,84 +17,84 @@
 import "std/fmt";
 
 struct Node {
-  int value;
-  ?*Node next;
+	int value;
+	?*Node next;
 }
 
 func half(int n) ?int {
-  if n % 2 != 0 {
-    return null;
-  }
-  return n / 2;
+	if n % 2 != 0 {
+		return null;
+	}
+	return n / 2;
 }
 
 func firstWord(string text) ?string {
-  for i, c in text {
-    if c == ' ' {
-      return text[:i];
-    }
-  }
-  return null;
+	for i, c in text {
+		if c == ' ' {
+			return text[:i];
+		}
+	}
+	return null;
 }
 
 func total(?*Node head) int {
-  int sum;
-  ?*Node at = head;
-  loop at |node| {
-    sum += node.value;
-    at = node.next;
-  }
-  return sum;
+	int sum;
+	?*Node at = head;
+	loop at |node| {
+		sum += node.value;
+		at = node.next;
+	}
+	return sum;
 }
 
 public func demo() {
-  // A function that may have no result returns `?T`. `return value` and
-  // `return null` both fit.
-  ?int a = half(10);
-  ?int b = half(7);
-  fmt.printf("half(10) = {}, half(7) = {}\n", a, b);
-  fmt.printf("a is null: {}, b is null: {}\n", a == null, b == null);
-  fmt.printf("a is 5: {}\n", a == 5);
+	// A function that may have no result returns `?T`. `return value` and
+	// `return null` both fit.
+	?int a = half(10);
+	?int b = half(7);
+	fmt.printf("half(10) = {}, half(7) = {}\n", a, b);
+	fmt.printf("a is null: {}, b is null: {}\n", a == null, b == null);
+	fmt.printf("a is 5: {}\n", a == 5);
 
-  // `??` gives a default when the value is missing. It also takes a block that
-  // ends in `yield`, or leaves the function with `return`, `break` or
-  // `continue`, the same handlers as for errors. `?? panic("...")` stops the
-  // program with your own message.
-  int x = a ?? 0;
-  int y = b ?? -1;
-  fmt.printf("a ?? 0 = {}, b ?? -1 = {}\n", x, y);
+	// `??` gives a default when the value is missing. It also takes a block that
+	// ends in `yield`, or leaves the function with `return`, `break` or
+	// `continue`, the same handlers as for errors. `?? panic("...")` stops the
+	// program with your own message.
+	int x = a ?? 0;
+	int y = b ?? -1;
+	fmt.printf("a ?? 0 = {}, b ?? -1 = {}\n", x, y);
 
-  // `!!` says the value cannot be missing here: it gives the value, and stops
-  // the program, naming the place, if it is null.
-  fmt.printf("a!! = {}\n", a!!);
+	// `!!` says the value cannot be missing here: it gives the value, and stops
+	// the program, naming the place, if it is null.
+	fmt.printf("a!! = {}\n", a!!);
 
-  // A capture opens a block only when there is a value, and names it there.
-  // `v` has the plain type inside, and `else` is for the missing case.
-  if firstWord("hello world") |word| {
-    fmt.printf("the first word is {}\n", word);
-  } else {
-    fmt.printf("there is only one word\n");
-  }
-  if firstWord("single") |word| {
-    fmt.printf("the first word is {}\n", word);
-  } else {
-    fmt.printf("there is only one word\n");
-  }
+	// A capture opens a block only when there is a value, and names it there.
+	// `v` has the plain type inside, and `else` is for the missing case.
+	if firstWord("hello world") |word| {
+		fmt.printf("the first word is {}\n", word);
+	} else {
+		fmt.printf("there is only one word\n");
+	}
+	if firstWord("single") |word| {
+		fmt.printf("the first word is {}\n", word);
+	} else {
+		fmt.printf("there is only one word\n");
+	}
 
-  // `loop` takes a capture too: it asks again before every turn and stops at
-  // the first null. A list ends where the pointer is null.
-  Node last = Node{value: 3};
-  Node middle = Node{value: 2, next: &last};
-  Node first = Node{value: 1, next: &middle};
-  fmt.printf("the list adds up to {}\n", total(&first));
-  fmt.printf("an empty list adds up to {}\n", total(null));
+	// `loop` takes a capture too: it asks again before every turn and stops at
+	// the first null. A list ends where the pointer is null.
+	Node last = Node{value: 3};
+	Node middle = Node{value: 2, next: &last};
+	Node first = Node{value: 1, next: &middle};
+	fmt.printf("the list adds up to {}\n", total(&first));
+	fmt.printf("an empty list adds up to {}\n", total(null));
 
-  // Function values follow the same rule: a plain one is always callable, and
-  // a `?` one has to be unwrapped before the call.
-  ?(int) => int step = null;
-  fmt.printf("step is null: {}\n", step == null);
-  ?(int) => int doubler = (int n) int => n * 2;
-  if doubler |apply| {
-    fmt.printf("doubler(21) = {}\n", apply(21));
-  }
+	// Function values follow the same rule: a plain one is always callable, and
+	// a `?` one has to be unwrapped before the call.
+	?(int) => int step = null;
+	fmt.printf("step is null: {}\n", step == null);
+	?(int) => int doubler = (int n) int => n * 2;
+	if doubler |apply| {
+		fmt.printf("doubler(21) = {}\n", apply(21));
+	}
 }

@@ -44,39 +44,39 @@ public native<x64> fsqrt(float x) float r {
 }
 
 public func fmin(float x, y) float {
-    if (isNaN(x) || isNaN(y)) {
-        return nan();
-    }
+	if (isNaN(x) || isNaN(y)) {
+		return nan();
+	}
 
-    if (x == 0.0 && y == 0.0) {
-        if (signbit(x) || signbit(y)) {
-            return -0.0;
-        }
-        return 0.0;
-    }
+	if (x == 0.0 && y == 0.0) {
+		if (signbit(x) || signbit(y)) {
+			return -0.0;
+		}
+		return 0.0;
+	}
 
-    if (x < y) {
-        return x;
-    }
-    return y;
+	if (x < y) {
+		return x;
+	}
+	return y;
 }
 
 public func fmax(float x, y) float {
-    if (isNaN(x) || isNaN(y)) {
-        return nan();
-    }
+	if (isNaN(x) || isNaN(y)) {
+		return nan();
+	}
 
-    if (x == 0.0 && y == 0.0) {
-        if (!signbit(x) || !signbit(y)) {
-            return 0.0;
-        }
-        return -0.0;
-    }
+	if (x == 0.0 && y == 0.0) {
+		if (!signbit(x) || !signbit(y)) {
+			return 0.0;
+		}
+		return -0.0;
+	}
 
-    if (x > y) {
-        return x;
-    }
-    return y;
+	if (x > y) {
+		return x;
+	}
+	return y;
 }
 
 public func round(float x) float {
@@ -89,87 +89,87 @@ public func round(float x) float {
 public func roundEven(float x) float {
 	float t = floor(x);
 	float d = x - t;
-	return d < .5 ? t : (d == .5 && fmod(t, 2) == 0 ? t : t+1);
+	return d < .5 ? t : (d == .5 && fmod(t, 2) == 0 ? t : t + 1);
 }
 public inline func fclamp(float x, low, high) float {
-    return fmin(fmax(x, low), high);
+	return fmin(fmax(x, low), high);
 }
 
 const FLOAT64_SIGN_MASK = 0x80000000;
-const FLOAT64_EXP_MASK  = 0x7FF00000;
+const FLOAT64_EXP_MASK = 0x7FF00000;
 const FLOAT64_FRAC_MASK = 0x000FFFFF;
 
 public inline func isNaN(float x) bool {
 	uint high, low = words(x);
-    return (high & FLOAT64_EXP_MASK) == FLOAT64_EXP_MASK &&
-        ((high & FLOAT64_FRAC_MASK) != 0 || low != 0);
+	return (high & FLOAT64_EXP_MASK) == FLOAT64_EXP_MASK &&
+		((high & FLOAT64_FRAC_MASK) != 0 || low != 0);
 }
 
 public func isInf(float x, int sign) bool {
-    uint high, low = words(x);
+	uint high, low = words(x);
 
-    if ((high & 0x7FFFFFFF) != FLOAT64_EXP_MASK || low != 0) {
-        return false;
-    }
+	if ((high & 0x7FFFFFFF) != FLOAT64_EXP_MASK || low != 0) {
+		return false;
+	}
 
-    if (sign > 0) {
-        return (high & FLOAT64_SIGN_MASK) == 0;
-    }
-    if (sign < 0) {
-        return (high & FLOAT64_SIGN_MASK) != 0;
-    }
-    return true;
+	if (sign > 0) {
+		return (high & FLOAT64_SIGN_MASK) == 0;
+	}
+	if (sign < 0) {
+		return (high & FLOAT64_SIGN_MASK) != 0;
+	}
+	return true;
 }
 
 public inline func isFinite(float x) bool {
-    uint high, _ = words(x);
-    return (high & FLOAT64_EXP_MASK) != FLOAT64_EXP_MASK;
+	uint high, _ = words(x);
+	return (high & FLOAT64_EXP_MASK) != FLOAT64_EXP_MASK;
 }
 
 public inline func signbit(float x) bool {
-    uint high, _ = words(x);
-    return (high & FLOAT64_SIGN_MASK) != 0;
+	uint high, _ = words(x);
+	return (high & FLOAT64_SIGN_MASK) != 0;
 }
 
 public inline func isInteger(float x) bool {
-    return isFinite(x) && x == trunc(x);
+	return isFinite(x) && x == trunc(x);
 }
 
 public func inf(int sign) float {
-    uint high = FLOAT64_EXP_MASK;
-    if (sign < 0) {
-        high |= FLOAT64_SIGN_MASK;
-    }
-    return fromWords(high, 0);
+	uint high = FLOAT64_EXP_MASK;
+	if (sign < 0) {
+		high |= FLOAT64_SIGN_MASK;
+	}
+	return fromWords(high, 0);
 }
 
 public inline func nan() float {
-    return fromWords(0x7FF80000, 0);
+	return fromWords(0x7FF80000, 0);
 }
 
 public inline func fabs(float x) float {
-    uint high, low = words(x);
-    high &= 0x7FFFFFFF;
-    return fromWords(high, low);
+	uint high, low = words(x);
+	high &= 0x7FFFFFFF;
+	return fromWords(high, low);
 }
 
 public inline func copysign(float x, y) float {
-    uint xhigh, xlow = words(x);
-    uint yhigh, _ = words(y);
+	uint xhigh, xlow = words(x);
+	uint yhigh, _ = words(y);
 
-    xhigh = (xhigh & 0x7FFFFFFF) | (yhigh & FLOAT64_SIGN_MASK);
-    return fromWords(xhigh, xlow);
+	xhigh = (xhigh & 0x7FFFFFFF) | (yhigh & FLOAT64_SIGN_MASK);
+	return fromWords(xhigh, xlow);
 }
 
 public func modf(float x) (float, float) {
-    float integer = trunc(x);
-    float fraction = x - integer;
+	float integer = trunc(x);
+	float fraction = x - integer;
 
-    if (fraction == 0.0) {
-        fraction = copysign(0.0, x);
-    }
+	if (fraction == 0.0) {
+		fraction = copysign(0.0, x);
+	}
 
-    return integer, fraction;
+	return integer, fraction;
 }
 
 const {
