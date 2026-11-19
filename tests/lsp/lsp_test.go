@@ -224,3 +224,33 @@ func TestDiagnostics(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatting(t *testing.T) {
+	c := start(t)
+	cases := []struct {
+		name    string
+		src     string
+		want    string
+		changed bool
+	}{
+		{"a messy file", "func f() {\n    int a=1;\n}\n", "func f() {\n\tint a = 1;\n}\n", true},
+		{"a formatted file", "func f() {\n\tint a = 1;\n}\n", "func f() {\n\tint a = 1;\n}\n", false},
+		{"a file with a syntax error", "func f( {\n", "func f( {\n", false},
+		{"comments survive", "func f() {   // here\n// alone\n    int a=1;\n}\n", "func f() {  // here\n\t// alone\n\tint a = 1;\n}\n", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, changed := c.open(map[string]string{"main.wsp": tc.src}).formatted()
+			if changed != tc.changed || got != tc.want {
+				t.Errorf("changed=%v, text:\n%s\nwant changed=%v:\n%s", changed, got, tc.changed, tc.want)
+			}
+		})
+	}
+
+	t.Run("excluded files", func(t *testing.T) {
+		p := c.open(map[string]string{"main.wsp": "func f() {\n    int a=1;\n}\n", "wisp.toml": "[fmt]\nexclude = [\"main.wsp\"]\n"})
+		if _, changed := p.formatted(); changed {
+			t.Errorf("an excluded file was formatted")
+		}
+	})
+}

@@ -1,13 +1,13 @@
 #target x64
 
+import "std/errors";
 import "std/math";
 import "std/mem";
-import "std/errors";
 
 const {
 	HEADER = 32;
 	ARENA_CHUNK_SIZE = 64 * 1024;
-} 
+}
 
 struct Chunk {
 	?*Chunk next;

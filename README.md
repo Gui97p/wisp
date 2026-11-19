@@ -39,7 +39,7 @@ make toolchain     # fetch nasm, lld and the Windows import libraries into depen
 make prod          # package for Linux into dist/ (a .tar.gz)
 make prod-windows  # package for Windows into dist/ (a .zip with wisp.exe)
 make install       # package into dist/ and install to /usr/local/wisp (asks for sudo)
-make test          # both backends; FILTER=name narrows it
+make test          # both backends, the language server and the tools; FILTER=name narrows the first
 make test-windows  # the Windows executables, run through WSL
 make ext           # package the VS Code extension into dist/vscode
 ```
@@ -53,6 +53,8 @@ wisp init target <name>    # add a target of your own, for instance a kernel use
 wisp build                 # compile
 wisp run                   # compile and run
 wisp check                 # parse and analyse only
+wisp test                  # run the #test functions, each one in its own process
+wisp fmt                   # format the project (--check only lists what would change)
 wisp clean                 # remove what a build writes (-n lists only)
 wisp env [key]             # what the compiler resolved for this project
 wisp targets               # built-in and project targets

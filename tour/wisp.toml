@@ -132,3 +132,10 @@ bin = "bin"
 # what is written here. A program started by hand does not get them.
 # [run.env]
 # LOG_LEVEL = "debug"
+
+# `wisp fmt` formats every .wsp file of the project with one style that has no
+# options. The only thing written here is what it leaves alone: folders and
+# files relative to the project root. A name without a slash matches at any
+# depth, so "generated" skips every folder of that name.
+# [fmt]
+# exclude = ["generated", "third_party/api.wsp"]

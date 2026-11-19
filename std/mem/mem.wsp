@@ -1,11 +1,11 @@
+import "std/errors";
 import<debug> "std/mem/debug" as dbg;
 import "std/mem/heap" as raw;
 import "std/mem/x64" as impl;
-import "std/errors";
 
-public type AllocFn (?*void, int) => !*void;
-public type ReallocFn (?*void, ?*void, int, int) => !*void;
-public type FreeFn (?*void, ?*void) => ();
+public type AllocFn(?*void, int) => !*void;
+public type ReallocFn(?*void, ?*void, int, int) => !*void;
+public type FreeFn(?*void, ?*void) => ();
 
 public struct Allocator {
 	internal ?*void state;

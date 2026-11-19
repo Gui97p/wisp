@@ -33,6 +33,7 @@ func NewHandler() *protocol.Handler {
 			Legend: protocol.SemanticTokensLegend{TokenTypes: semanticTokenTypes, TokenModifiers: []string{}},
 			Full:   true,
 		}
+		capabilities.DocumentFormattingProvider = true
 		capabilities.RenameProvider = protocol.RenameOptions{PrepareProvider: boolPtr(true)}
 		capabilities.CodeActionProvider = protocol.CodeActionOptions{CodeActionKinds: []protocol.CodeActionKind{protocol.CodeActionKindQuickFix}}
 
@@ -81,6 +82,10 @@ func NewHandler() *protocol.Handler {
 		delete(fileBuffer, uriToPath(params.TextDocument.URI))
 		invalidateAnalysis()
 		return nil
+	}
+
+	handler.TextDocumentFormatting = func(context *glsp.Context, params *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
+		return formatting(params.TextDocument.URI), nil
 	}
 
 	handler.TextDocumentHover = func(context *glsp.Context, params *protocol.HoverParams) (*protocol.Hover, error) {

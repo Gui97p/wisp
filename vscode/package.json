@@ -2,7 +2,7 @@
     "name": "wisp",
     "displayName": "Wisp Language Support",
     "description": "Language support for Wisp: highlighting, diagnostics, completion, hover, rename, snippets and a file icon.",
-    "version": "0.9.0",
+    "version": "0.9.1",
     "publisher": "gui97p",
     "license": "MIT",
     "repository": {
@@ -109,6 +109,7 @@
         "configurationDefaults": {
             "[wisp]": {
                 "editor.insertSpaces": false,
+                "editor.formatOnSave": true,
                 "editor.tabSize": 4,
                 "editor.detectIndentation": false,
                 "editor.stickyTabStops": true,

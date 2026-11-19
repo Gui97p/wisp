@@ -316,3 +316,22 @@ func (p *project) diagnostics() []diagnostic {
 		}
 	}
 }
+
+func (p *project) formatted() (string, bool) {
+	p.c.t.Helper()
+	raw := p.c.call("textDocument/formatting", map[string]any{
+		"textDocument": map[string]any{"uri": p.uri()},
+		"options":      map[string]any{"tabSize": 4, "insertSpaces": false},
+	})
+	var edits []struct {
+		Range struct {
+			Start position `json:"start"`
+			End   position `json:"end"`
+		} `json:"range"`
+		NewText string `json:"newText"`
+	}
+	if json.Unmarshal(raw, &edits) != nil || len(edits) == 0 {
+		return p.text, false
+	}
+	return edits[0].NewText, true
+}

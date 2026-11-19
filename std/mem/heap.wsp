@@ -31,7 +31,7 @@ inline func header(*void p) int {
 }
 
 inline func setHeader(*void p, int v) {
-	(*int)((*byte)(p)-16)@ = v;
+	(*int)((*byte)(p) - 16)@ = v;
 }
 
 inline func state(*void p) uint {
@@ -39,7 +39,7 @@ inline func state(*void p) uint {
 }
 
 inline func setState(*void p, uint v) {
-	(*uint)((*byte)(p)-8)@ = v;
+	(*uint)((*byte)(p) - 8)@ = v;
 }
 
 inline func classOf(int total) int {
@@ -77,7 +77,7 @@ internal func allocate(int n, bool zero) ?*void {
 		return head;
 	}
 
-	int mapped = (total + (PAGE_SIZE-1)) / PAGE_SIZE  * PAGE_SIZE;
+	int mapped = (total + (PAGE_SIZE - 1)) / PAGE_SIZE * PAGE_SIZE;
 	*void p = sys.mmap(mapped) ?? return null;
 	*void head = (*byte)(p) + 16;
 	setHeader(head, mapped);
@@ -101,7 +101,7 @@ internal func release(*void p) {
 	if h < 11 {
 		recycle(p, h);
 	} else {
-		sys.munmap((*byte)(p)-16, h);
+		sys.munmap((*byte)(p) - 16, h);
 	}
 }
 

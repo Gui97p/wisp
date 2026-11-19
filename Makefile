@@ -1,4 +1,4 @@
-.PHONY: build prod prod-windows toolchain install test-windows test-lsp test-cli ext install-ext run clean version testgen test test-x64 bench
+.PHONY: build prod prod-windows toolchain install test-windows test-lsp test-cli test-fmt ext install-ext run clean version testgen test test-x64 bench
 APP=wisp
 DIST=dist/wisp
 STAGE=dist/wisp-tmp
@@ -69,7 +69,10 @@ test-lsp:
 test-cli:
 	go test -count=1 ./tests/testcmd
 
-test: test-x64 test-lsp test-cli
+test-fmt:
+	go test -count=1 ./tests/fmt
+
+test: test-x64 test-lsp test-cli test-fmt
 
 bench:
 	python3 benchmark/bench.py $(ARGS)

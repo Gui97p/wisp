@@ -26,6 +26,7 @@ type Config struct {
 	Libc      bool                     `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
 	Output    OutputConfig             `toml:"output" doc:"Where build artifacts are written."`
 	Run       RunConfig                `toml:"run" doc:"How wisp run starts the program."`
+	Fmt       FmtConfig                `toml:"fmt" doc:"What wisp fmt leaves alone."`
 	Programs  map[string]ProgramConfig `toml:"program" doc:"The programs of the project, declared as [program.<name>]. Without any, the project is one program named after its folder."`
 	Libraries map[string]LibraryConfig `toml:"library" doc:"The libraries of the project, declared as [library.<name>]. A library has no entry: it is the modules it lists and everything they import."`
 	Targets   map[string]TargetConfig  `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
@@ -38,6 +39,10 @@ type Config struct {
 	ProgramLink   []string     `toml:"-"`
 	ProgramLibc   *bool        `toml:"-"`
 	ProgramOutput OutputConfig `toml:"-"`
+}
+
+type FmtConfig struct {
+	Exclude []string `toml:"exclude" doc:"Folders and files that wisp fmt leaves alone, relative to the project root, such as [\"generated\", \"third_party/api.wsp\"]. A name without a slash matches at any depth."`
 }
 
 type ProfileConfig struct {
@@ -150,6 +155,8 @@ func ConfigFields(section string) []ConfigField {
 		t = reflect.TypeFor[Config]()
 	case "output":
 		t = reflect.TypeFor[OutputConfig]()
+	case "fmt":
+		t = reflect.TypeFor[FmtConfig]()
 	case "run", "program.run", "program.system.run":
 		t = reflect.TypeFor[RunConfig]()
 	case "library":

@@ -44,11 +44,11 @@ func (*Debug d) source() mem.Allocator {
 func fail(*Header h, string what) {
 	[2048]byte buf;
 	if len(h.freed) > 0 {
-		string both = strings.concat(buf, what, "\nthe block was allocated at ", h.site, "the block was freed at ", h.freed[:len(h.freed)-1]) ?? what;
+		string both = strings.concat(buf, what, "\nthe block was allocated at ", h.site, "the block was freed at ", h.freed[:len(h.freed) - 1]) ?? what;
 		panic(both);
 	}
 	if len(h.site) > 0 {
-		string text = strings.concat(buf, what, "\nthe block was allocated at ", h.site[:len(h.site)-1]) ?? what;
+		string text = strings.concat(buf, what, "\nthe block was allocated at ", h.site[:len(h.site) - 1]) ?? what;
 		panic(text);
 	}
 	panic(what);
@@ -56,7 +56,7 @@ func fail(*Header h, string what) {
 
 func verifyCanary(*Header h) {
 	*uint8 p = (*uint8)(dataOf(h));
-	for i in 0..CANARY-1 {
+	for i in 0..CANARY - 1 {
 		if p[h.size + i] != 0xFD {
 			fail(h, "buffer overflow: a block was written past its end");
 		}
@@ -65,7 +65,7 @@ func verifyCanary(*Header h) {
 
 func verifyPoison(*Header h) {
 	*uint8 p = (*uint8)(dataOf(h));
-	for i in 0..h.size-1 {
+	for i in 0..h.size - 1 {
 		if p[i] != 0xDD {
 			fail(h, "use after free: a freed block was written to");
 		}
@@ -163,7 +163,7 @@ public func (*Debug d) realloc(?*void p, int old, int n) !*void {
 }
 
 public func (*Debug d) check() {
-	for i in 0..d.ringCount-1 {
+	for i in 0..d.ringCount - 1 {
 		verifyPoison(d.ring[(d.ringStart + i) % len(d.ring)]!!);
 	}
 	?*Header c = d.head;
