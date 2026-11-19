@@ -10,6 +10,7 @@ const (
 	STRUCT
 	TYPE
 	MODULE
+	INTERFACE
 )
 
 func (s SymbolKind) String() string {
@@ -28,6 +29,8 @@ func (s SymbolKind) String() string {
 		return "type"
 	case MODULE:
 		return "module"
+	case INTERFACE:
+		return "interface"
 	default:
 		return "unknown"
 	}

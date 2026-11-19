@@ -38,6 +38,8 @@ func (a *Analyser) registerTypeAliases() {
 			}
 		}
 
+		nt.Impl = a.newImplSet(td.Implements, nt, td, a.moduleScope, nil)
+
 		line, col := td.Position()
 		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col, File: a.currentFile, Doc: td.Doc}
 

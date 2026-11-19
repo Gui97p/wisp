@@ -71,7 +71,7 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 				return err
 			}
 		}
-	case *ast.ImportDecl, *ast.StaticAssertDecl:
+	case *ast.ImportDecl, *ast.StaticAssertDecl, *ast.InterfaceDecl:
 	default:
 		return fmt.Errorf("x86-64: unsupported declaration %T", d)
 	}

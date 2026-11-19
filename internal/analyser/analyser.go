@@ -65,15 +65,22 @@ type Analyser struct {
 	structDecls      map[string]*ast.StructDecl
 	fieldsStarted    map[*ast.StructDecl]bool
 
-	instances       map[string]*StructType
-	aliases         map[string]Type
-	funcInstances   map[string]*Symbol
-	methodInstances map[string]*FuncType
-	pending         []pendingBody
-	instanceDepth   int
-	bodyDepth       int
-	phantoms        bool
-	phantomBuilding bool
+	instances            map[string]*StructType
+	aliases              map[string]Type
+	ifaceInstances       map[string]*InterfaceType
+	pendingImpls         []*ImplSet
+	funcInstances        map[string]*Symbol
+	methodInstances      map[string]*FuncType
+	checkFuncInstances   map[string]*Symbol
+	checkMethodInstances map[string]*FuncType
+	phantomNote          string
+	comparisonNode       ast.Node
+	instanceContext      *instanceContext
+	pending              []pendingBody
+	instanceDepth        int
+	bodyDepth            int
+	phantoms             bool
+	phantomBuilding      bool
 
 	errors diag.List
 }
@@ -94,22 +101,25 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 	universe := NewScope(nil)
 	moduleScope := NewScope(universe)
 	return &Analyser{
-		program:          program,
-		info:             NewInfo(),
-		universe:         universe,
-		scope:            moduleScope,
-		moduleScope:      moduleScope,
-		modules:          modules,
-		declFiles:        declFiles,
-		module:           module,
-		instances:        map[string]*StructType{},
-		aliases:          map[string]Type{},
-		staticExpansions: map[*ast.FuncDecl]*InlineCall{},
-		funcInstances:    map[string]*Symbol{},
-		methodInstances:  map[string]*FuncType{},
-		pendingDots:      map[*ast.DotIdent]bool{},
-		pendingDotLits:   map[*ast.StructLiteral]bool{},
-		pendingAnon:      map[*ast.AnonLiteral]bool{},
+		program:              program,
+		info:                 NewInfo(),
+		universe:             universe,
+		scope:                moduleScope,
+		moduleScope:          moduleScope,
+		modules:              modules,
+		declFiles:            declFiles,
+		module:               module,
+		instances:            map[string]*StructType{},
+		aliases:              map[string]Type{},
+		ifaceInstances:       map[string]*InterfaceType{},
+		staticExpansions:     map[*ast.FuncDecl]*InlineCall{},
+		funcInstances:        map[string]*Symbol{},
+		methodInstances:      map[string]*FuncType{},
+		checkFuncInstances:   map[string]*Symbol{},
+		checkMethodInstances: map[string]*FuncType{},
+		pendingDots:          map[*ast.DotIdent]bool{},
+		pendingDotLits:       map[*ast.StructLiteral]bool{},
+		pendingAnon:          map[*ast.AnonLiteral]bool{},
 	}
 }
 
@@ -125,7 +135,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.registerBuiltins()
 		a.registerImports()
 		a.checkTags()
-		a.rejectInterfaces()
+		a.registerInterfaceNames()
 		a.registerStructNames()
 		a.attachGenericMethods()
 	}
@@ -134,6 +144,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.registerTypeAliases()
 		a.registerConsts()
 		a.generateEnumNames()
+		a.fillInterfaces()
 	}
 	publish(group, false)
 	for _, a := range group {
@@ -141,6 +152,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.registerStructFields()
 		a.registerFuncSignatures()
 		a.registerLateDecls()
+		a.checkImplements()
 	}
 	publish(group, false)
 	for _, a := range group {
@@ -249,6 +261,9 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 				a.errorAtRef(node, ref, "%s takes no type arguments", qualified(ref.Module, ref.Name))
 				return InvalidType{}
 			}
+		case INTERFACE:
+			a.errorAtRef(node, ref, "%s is an interface: for now it constrains a type parameter, as in <%s T>, and cannot be the type of a value", qualified(ref.Module, ref.Name), qualified(ref.Module, ref.Name))
+			return InvalidType{}
 		default:
 			a.errorAtRef(node, ref, "%s is not a type", qualified(ref.Module, ref.Name))
 			return InvalidType{}

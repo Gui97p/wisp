@@ -221,6 +221,7 @@ type NamedType struct {
 	MemberDocs  map[string]string
 	Nullable    bool
 	Instance    *InstanceInfo
+	Impl        *ImplSet
 }
 
 type ImplicitEnumType struct {
@@ -282,6 +283,7 @@ type StructType struct {
 
 	key        string
 	Instance   *InstanceInfo
+	Impl       *ImplSet
 	methodInit func()
 }
 

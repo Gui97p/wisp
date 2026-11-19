@@ -6,7 +6,6 @@ import (
 	"math/big"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -16,18 +15,19 @@ import (
 const maxInstanceDepth = 64
 
 type GenericDecl struct {
-	Name     string
-	Module   string
-	File     string
-	Scope    *Scope
-	Params   []ast.TypeParam
-	Struct   *ast.StructDecl
-	Func     *ast.FuncDecl
-	Alias    *ast.TypeDecl
-	Sum      *ast.TypeDecl
-	Methods  []*ast.FuncDecl
-	Exported bool
-	Symbol   *Symbol
+	Name      string
+	Module    string
+	File      string
+	Scope     *Scope
+	Params    []ast.TypeParam
+	Struct    *ast.StructDecl
+	Func      *ast.FuncDecl
+	Alias     *ast.TypeDecl
+	Sum       *ast.TypeDecl
+	Interface *ast.InterfaceDecl
+	Methods   []*ast.FuncDecl
+	Exported  bool
+	Symbol    *Symbol
 }
 
 type TypeValue struct {
@@ -90,7 +90,9 @@ type pendingBody struct {
 	depth int
 	args  string
 
-	phantom bool
+	phantom   bool
+	checkNote string
+	argValues []TypeValue
 }
 
 func typeKey(t Type) string {
@@ -362,6 +364,8 @@ func (a *Analyser) instantiateStructRef(node ast.Node, g *GenericDecl, args []as
 		return InvalidType{}
 	}
 	switch {
+	case g.Interface != nil:
+		return a.instantiateInterface(node, g, values)
 	case g.Alias != nil:
 		return a.instantiateAlias(node, g, values)
 	case g.Sum != nil:
@@ -381,12 +385,23 @@ func (a *Analyser) instantiateSum(node ast.Node, g *GenericDecl, args []TypeValu
 		return InvalidType{}
 	}
 
+	if !a.checkBounds(node, g, args) {
+		return InvalidType{}
+	}
+
 	st := a.buildSum(g.Sum, g.display(args), g.Module, filepath.Dir(g.File))
 	st.key = key
 	st.Instance = &InstanceInfo{Decl: g, Args: args}
 	a.instances[key] = st
 
 	scope := a.bindScope(g.Scope, paramNames(g.Params), g.Params, args, 0)
+	savedImplFile := a.currentFile
+	a.currentFile = g.File
+	st.Impl = a.newImplSet(g.Sum.Implements, st, g.Sum, scope, args)
+	a.currentFile = savedImplFile
+	if st.Impl != nil {
+		a.pendingImpls = append(a.pendingImpls, st.Impl)
+	}
 	a.instanceDepth++
 	savedFile := a.currentFile
 	a.currentFile = g.File
@@ -406,6 +421,10 @@ func (a *Analyser) instantiateAlias(node ast.Node, g *GenericDecl, args []TypeVa
 	if a.instanceDepth >= maxInstanceDepth {
 		a.errorf(node, "the instantiation of %s is nested too deep", shortName(g.display(args))).
 			WithHelp("a generic type that contains itself with a bigger type never ends")
+		return InvalidType{}
+	}
+
+	if !a.checkBounds(node, g, args) {
 		return InvalidType{}
 	}
 
@@ -432,6 +451,13 @@ func (a *Analyser) instantiateAlias(node ast.Node, g *GenericDecl, args []TypeVa
 		Exported:   g.Exported,
 		Instance:   &InstanceInfo{Decl: g, Args: args},
 	}
+	savedImplFile := a.currentFile
+	a.currentFile = g.File
+	named.Impl = a.newImplSet(g.Alias.Implements, named, g.Alias, scope, args)
+	a.currentFile = savedImplFile
+	if named.Impl != nil {
+		a.pendingImpls = append(a.pendingImpls, named.Impl)
+	}
 	a.aliases[key] = named
 	return named
 }
@@ -444,6 +470,10 @@ func (a *Analyser) instantiateStruct(node ast.Node, g *GenericDecl, args []TypeV
 	if a.instanceDepth >= maxInstanceDepth {
 		a.errorf(node, "the instantiation of %s is nested too deep", shortName(g.display(args))).
 			WithHelp("a generic type that contains itself with a bigger type never ends")
+		return InvalidType{}
+	}
+
+	if !a.checkBounds(node, g, args) {
 		return InvalidType{}
 	}
 
@@ -464,6 +494,14 @@ func (a *Analyser) instantiateStruct(node ast.Node, g *GenericDecl, args []TypeV
 	a.instances[key] = st
 
 	scope := a.bindScope(g.Scope, paramNames(g.Params), g.Params, args, 0)
+
+	savedImplFile := a.currentFile
+	a.currentFile = g.File
+	st.Impl = a.newImplSet(g.Struct.Implements, st, g.Struct, scope, args)
+	a.currentFile = savedImplFile
+	if st.Impl != nil {
+		a.pendingImpls = append(a.pendingImpls, st.Impl)
+	}
 
 	a.instanceDepth++
 	savedFile := a.currentFile
@@ -560,7 +598,8 @@ func (a *Analyser) instanceOfMethod(node ast.Node, tmpl *FuncType) *FuncType {
 		return tmpl
 	}
 	key := tmpl.Template.Owner + "." + tmpl.Name
-	if ft, ok := a.methodInstances[key]; ok {
+	cache := a.methodCache()
+	if ft, ok := cache[key]; ok {
 		return ft
 	}
 
@@ -575,14 +614,23 @@ func (a *Analyser) instanceOfMethod(node ast.Node, tmpl *FuncType) *FuncType {
 	ft.Module = a.module
 	ft.Decl = clone
 	ft.Template = t
-	a.methodInstances[key] = &ft
+	cache[key] = &ft
 
 	a.info.FuncReturns[clone] = ft.Returns
 	a.info.VarTypes[clone] = ft.Params
-	a.program.Declarations = append(a.program.Declarations, clone)
-	a.declFiles[clone] = t.Gen.File
-	a.pending = append(a.pending, pendingBody{decl: clone, ft: &ft, recv: tmpl.Receiver, scope: t.Scope, gen: t.Gen, at: node, file: a.currentFile, depth: a.bodyDepth + 1, args: instanceArgs(t.Struct), phantom: a.phantomBuilding})
+	if !a.phantomBuilding || a.phantoms {
+		a.program.Declarations = append(a.program.Declarations, clone)
+		a.declFiles[clone] = t.Gen.File
+	}
+	a.pending = append(a.pending, pendingBody{decl: clone, ft: &ft, recv: tmpl.Receiver, scope: t.Scope, gen: t.Gen, at: node, file: a.currentFile, depth: a.bodyDepth + 1, args: instanceArgs(t.Struct), phantom: a.phantomBuilding, checkNote: a.phantomNote, argValues: structArgs(t.Struct)})
 	return &ft
+}
+
+func structArgs(st *StructType) []TypeValue {
+	if st.Instance == nil {
+		return nil
+	}
+	return st.Instance.Args
 }
 
 func instanceArgs(st *StructType) string {
@@ -598,10 +646,15 @@ func instanceArgs(st *StructType) string {
 }
 
 func (a *Analyser) drainInstances() {
-	for len(a.pending) > 0 {
-		next := a.pending[0]
-		a.pending = a.pending[1:]
-		a.checkInstanceBody(next)
+	for {
+		for len(a.pending) > 0 {
+			next := a.pending[0]
+			a.pending = a.pending[1:]
+			a.checkInstanceBody(next)
+		}
+		if !a.verifyPendingImpls() && len(a.pending) == 0 {
+			return
+		}
 	}
 }
 
@@ -617,19 +670,28 @@ func (a *Analyser) checkInstanceBody(p pendingBody) {
 
 	savedScope, savedModuleScope, savedModule, savedFile := a.scope, a.moduleScope, a.module, a.currentFile
 	savedDepth := a.bodyDepth
+	savedBuilding, savedNote, savedContext := a.phantomBuilding, a.phantomNote, a.instanceContext
+	a.instanceContext = &instanceContext{gen: p.gen, args: p.argValues}
 	a.scope, a.moduleScope, a.module, a.currentFile = p.scope, p.gen.Scope, p.gen.Module, p.gen.File
 	a.bodyDepth = p.depth
+	a.phantomBuilding, a.phantomNote = p.phantom, p.checkNote
 	start := len(a.errors)
 
 	a.checkFuncBodyOf(p.decl, p.ft, p.recv)
 
-	for i := start; i < len(a.errors) && !p.phantom; i++ {
+	for i := start; i < len(a.errors); i++ {
 		callLine, callCol := p.at.Position()
 		endLine, endCol := p.at.EndPosition()
-		a.errors[i].Note(p.file, callLine, callCol, endLine, endCol, "with %s, instantiated here", p.args)
+		switch {
+		case !p.phantom:
+			a.errors[i].Note(p.file, callLine, callCol, endLine, endCol, "with %s, instantiated here", p.args)
+		case p.checkNote != "":
+			a.errors[i].Note(p.file, callLine, callCol, endLine, endCol, "checking the body with %s", p.checkNote)
+		}
 	}
 	a.scope, a.moduleScope, a.module, a.currentFile = savedScope, savedModuleScope, savedModule, savedFile
 	a.bodyDepth = savedDepth
+	a.phantomBuilding, a.phantomNote, a.instanceContext = savedBuilding, savedNote, savedContext
 }
 
 func (g *GenericDecl) paramIndex(name string) int {
@@ -881,12 +943,17 @@ func bindValue(g *GenericDecl, bound []*TypeValue, idx int, value ConstValue, tp
 
 func (a *Analyser) instantiateFunc(node ast.Node, g *GenericDecl, args []TypeValue) (*Symbol, *FuncType) {
 	key := g.key(args)
-	if sym, ok := a.funcInstances[key]; ok {
+	cache := a.funcCache()
+	if sym, ok := cache[key]; ok {
 		return sym, sym.Type.(*FuncType)
 	}
 	if a.bodyDepth >= maxInstanceDepth {
 		a.errorf(node, "the instantiation of %s is nested too deep", shortName(g.display(args))).
 			WithHelp("a generic function that calls itself with a bigger type never ends")
+		return nil, nil
+	}
+
+	if !a.checkBounds(node, g, args) {
 		return nil, nil
 	}
 
@@ -921,18 +988,20 @@ func (a *Analyser) instantiateFunc(node ast.Node, g *GenericDecl, args []TypeVal
 	}
 	line, col := fd.Position()
 	sym := &Symbol{Name: name, Kind: FUNC, Type: ft, Line: line, Col: col, File: g.File, Module: module, Doc: fd.Doc, Used: true}
-	a.funcInstances[key] = sym
+	cache[key] = sym
 
 	a.info.FuncReturns[clone] = returns
 	a.info.VarTypes[clone] = params
 	if !fd.Inline {
-		a.program.Declarations = append(a.program.Declarations, clone)
-		a.declFiles[clone] = g.File
+		if !a.phantomBuilding || a.phantoms {
+			a.program.Declarations = append(a.program.Declarations, clone)
+			a.declFiles[clone] = g.File
+		}
 		argText := make([]string, len(g.Params))
 		for i, p := range g.Params {
 			argText[i] = p.Name + " = " + args[i].String()
 		}
-		a.pending = append(a.pending, pendingBody{decl: clone, ft: ft, scope: scope, gen: g, at: node, file: a.currentFile, depth: a.bodyDepth + 1, args: strings.Join(argText, ", "), phantom: a.phantomBuilding})
+		a.pending = append(a.pending, pendingBody{decl: clone, ft: ft, scope: scope, gen: g, at: node, file: a.currentFile, depth: a.bodyDepth + 1, args: strings.Join(argText, ", "), phantom: a.phantomBuilding, checkNote: a.phantomNote, argValues: args})
 	}
 	return sym, ft
 }
@@ -1001,7 +1070,7 @@ func (a *Analyser) markGenericUses() {
 }
 
 func (a *Analyser) dedupeDiagnostics() {
-	if len(a.methodInstances) == 0 && len(a.funcInstances) == 0 && len(a.instances) == 0 {
+	if len(a.methodInstances) == 0 && len(a.funcInstances) == 0 && len(a.checkFuncInstances) == 0 && len(a.checkMethodInstances) == 0 && len(a.instances) == 0 {
 		return
 	}
 	type key struct {
@@ -1254,68 +1323,6 @@ func shortName(s string) string {
 	return s
 }
 
-func (a *Analyser) instantiatePhantoms() {
-	if !a.phantoms {
-		return
-	}
-	a.phantomBuilding = true
-	defer func() { a.phantomBuilding = false }()
-
-	declarations := append([]ast.Declaration(nil), a.program.Declarations...)
-	for _, d := range declarations {
-		a.currentFile = a.declFiles[d]
-		switch decl := d.(type) {
-		case *ast.FuncDecl:
-			if len(decl.TypeParams) == 0 || decl.Receiver != nil {
-				continue
-			}
-			if g := a.genericOf(decl.Name, decl); g != nil {
-				if args, ok := a.phantomArgs(g); ok {
-					a.instantiateFunc(decl, g, args)
-				}
-			}
-		case *ast.StructDecl:
-			if len(decl.TypeParams) > 0 {
-				a.phantomType(decl, decl.Name)
-			}
-		case *ast.TypeDecl:
-			if len(decl.TypeParams) > 0 && decl.Data {
-				a.phantomType(decl, decl.Name)
-			}
-		}
-	}
-}
-
-func (a *Analyser) phantomType(decl ast.Node, name string) {
-	g := a.genericOf(name, decl)
-	if g == nil {
-		return
-	}
-	args, ok := a.phantomArgs(g)
-	if !ok {
-		return
-	}
-	var created Type
-	if g.Sum != nil {
-		created = a.instantiateSum(decl, g, args)
-	} else {
-		created = a.instantiateStruct(decl, g, args)
-	}
-	st, isStruct := created.(*StructType)
-	if !isStruct {
-		return
-	}
-	methods := MethodsOf(st)
-	names := make([]string, 0, len(methods))
-	for name := range methods {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		a.instanceOfMethod(decl, methods[name])
-	}
-}
-
 func (a *Analyser) genericOf(name string, node ast.Node) *GenericDecl {
 	symbol, ok := a.moduleScope.Resolve(name)
 	if !ok || symbol.Generic == nil {
@@ -1327,26 +1334,6 @@ func (a *Analyser) genericOf(name string, node ast.Node) *GenericDecl {
 	return nil
 }
 
-func (a *Analyser) phantomArgs(g *GenericDecl) ([]TypeValue, bool) {
-	args := make([]TypeValue, len(g.Params))
-	for i, param := range g.Params {
-		if !param.Const {
-			args[i] = TypeValue{Type: InvalidType{Name: param.Name}}
-			continue
-		}
-		paramType := a.resolveTypeRef(g.node(), g.Scope, param.Type)
-		if paramType == nil {
-			return nil, false
-		}
-		value := ConstValue{Kind: ConstInt, Int: big.NewInt(1), Type: paramType}
-		if prim, isPrim := paramType.(PrimitiveType); isPrim && prim.Name == "bool" {
-			value = ConstValue{Kind: ConstBool, Bool: true, Type: paramType}
-		}
-		args[i] = TypeValue{Type: paramType, Value: &value, Label: param.Name}
-	}
-	return args, true
-}
-
 func (g *GenericDecl) node() ast.Node {
 	switch {
 	case g.Func != nil:
@@ -1355,6 +1342,8 @@ func (g *GenericDecl) node() ast.Node {
 		return g.Alias
 	case g.Sum != nil:
 		return g.Sum
+	case g.Interface != nil:
+		return g.Interface
 	}
 	return g.Struct
 }

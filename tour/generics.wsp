@@ -4,10 +4,14 @@
 // `struct List<T>`. Inside, `T` is a type like any other, and the compiler
 // writes a copy of the declaration for every type it is used with: `List<int>`
 // and `List<string>` are two different structs, as if each had been written by
-// hand. A copy is only analysed when something asks for it, so a generic that
-// nobody uses is not checked, and the body of a generic function is checked for
-// each type it is given: what `T` has to support is whatever the body does with
-// it.
+// hand.
+//
+// The body of a generic is checked once, against what its type parameter is
+// promised to have, so an error shows up where the generic is written and not
+// in some use of it. A bare `T` can only be copied, passed on and returned. To
+// add, compare or call something, say so with a constraint written before the
+// name: `Number T` is a `T` that is one of the types of `Number`, and `Writer W`
+// is a `W` that declares `implements Writer` (see the interfaces page).
 //
 // Calls infer the type from the arguments, and `f<int>(x)` names it when it
 // cannot be inferred. A struct always names its types: `List<int> numbers`.
@@ -28,7 +32,10 @@
 
 import "std/fmt";
 
-struct List<T> {
+interface Number { int | int64 | float | float32 | byte }
+interface Ordered { int | int64 | float | string }
+
+struct List<Number T> {
 	[8]T items;
 	int count;
 }
@@ -55,7 +62,7 @@ func swap<A, B>(Pair<A, B> p) Pair<B, A> {
 	return Pair<B, A>{first: p.second, second: p.first};
 }
 
-func biggest<T>(T a, T b) T {
+func biggest<Ordered T>(T a, T b) T {
 	return a > b ? a : b;
 }
 

@@ -12425,7 +12425,10 @@ func main() {
 }
 `, expected: []string{"a call that gives two values can be returned", "returning a call that gives nothing runs the call and leaves", "the code after the return still runs when the condition is false", "returning nothing with a guard", "returning nothing from an inline function", "returning a fallible call that gives nothing"}},
 
-	{dir: "generic_functions", src: `struct Pair<A, B> {
+	{dir: "generic_functions", src: `interface Ordered { int | float | string }
+interface Number { int | int64 | float }
+
+struct Pair<A, B> {
     A first;
     B second;
 }
@@ -12434,7 +12437,7 @@ func swap<A, B>(Pair<A, B> p) Pair<B, A> {
     return Pair<B, A>{first: p.second, second: p.first};
 }
 
-func biggest<T>(T a, T b) T {
+func biggest<Ordered T>(T a, T b) T {
     return a > b ? a : b;
 }
 
@@ -12443,7 +12446,7 @@ func countDown<T>(T tag, int n) int {
     return countDown(tag, n - 1) + 1;
 }
 
-func sumAll<T>(T ...values) T {
+func sumAll<Number T>(T ...values) T {
     T total;
     for _i, v in values {
         total += v;
@@ -12477,7 +12480,9 @@ func main() {
 }
 `, expected: []string{"a generic function infers its type from the arguments", "strings compare in a generic function", "a generic function takes and gives generic structs", "a generic function can call itself", "a generic variadic", "the result type comes from a function argument", "a type that cannot be inferred is named"}},
 
-	{dir: "generic_structs", src: `struct List<T> {
+	{dir: "generic_structs", src: `interface Number { int | int64 | float | byte }
+
+struct List<Number T> {
     [8]T items;
     int count;
 }
@@ -12909,6 +12914,116 @@ func main() {
     check(grid[1] == 2.5 && len(grid) == 2, "a generic defined array is indexable");
 }
 `, expected: []string{"a defined integer type keeps the arithmetic and the comparisons", "a defined float type keeps the arithmetic", "a defined unsigned type keeps the bit operators", "a defined array keeps indexing, len and range", "a defined string keeps indexing and len", "slicing a defined string or slice gives the same defined type, an array gives a slice", "a defined pointer keeps the dereference", "a generic defined array is indexable"}},
+
+	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
+interface Closer { func close(); }
+interface WriteCloser { Writer & Closer }
+interface Number { int | int64 | float }
+interface Integer { int | int8 | int16 | int32 | int64 }
+interface Signed { Integer & !int8 }
+interface Source<T> { func next() T; }
+
+struct Buffer implements WriteCloser {
+    int total;
+}
+
+func (*Buffer b) write(int n) int {
+    b.total += n;
+    return b.total;
+}
+
+func (*Buffer b) close() {
+    b.total = 0;
+}
+
+struct Counter<T> implements Source<T> {
+    T value;
+}
+
+func (*Counter<T> c) next() T {
+    return c.value;
+}
+
+type Meters int;
+
+func send<Writer W>(W w, int n) int {
+    return w.write(n);
+}
+
+func both<WriteCloser W>(W w) int {
+    int r = w.write(2);
+    w.close();
+    return r;
+}
+
+func fetch<Source<int> S>(S s) int {
+    return s.next();
+}
+
+func add<Number T>(T a, T b) T {
+    return a + b;
+}
+
+func negate<Signed T>(T a) T {
+    return -a;
+}
+
+func same<Comparable T>(T a, T b) bool {
+    return a == b;
+}
+
+func main() {
+    Buffer b;
+    check(send(&b, 3) == 3 && both(&b) == 5, "a type that declares implements satisfies the constraint");
+    check(send(&b, 1) == 1, "close() of WriteCloser was called through the constraint");
+    Counter<int> c = Counter<int>{value: 7};
+    check(fetch(&c) == 7, "an instance of a generic struct implements an instance of a generic interface");
+    check(add(1, 2) == 3 && add(1.5, 2.5) == 4.0 && add(int64(4), int64(5)) == 9, "a type set with several types");
+    check(add(Meters(4), Meters(5)) == Meters(9), "a type defined from a member of the set satisfies it");
+    check(negate(5) == -5 && negate(int16(3)) == int16(-3), "a type set that excludes a type");
+    check(same(3, 3) && !same("a", "b") && same(true, true), "Comparable");
+}
+`, expected: []string{"a type that declares implements satisfies the constraint", "close() of WriteCloser was called through the constraint", "an instance of a generic struct implements an instance of a generic interface", "a type set with several types", "a type defined from a member of the set satisfies it", "a type set that excludes a type", "Comparable"}},
+
+	{dir: "interfaces_modules", files: map[string]string{"shapes/shapes.wsp": `public interface Shape {
+    func area() int;
+}
+
+public interface Number { int | float }
+
+public func total<Shape S>(S s, int times) int {
+    return s.area() * times;
+}
+
+public func double<Number T>(T x) T {
+    return x + x;
+}
+`}, src: `import "shapes";
+
+struct Square implements shapes.Shape {
+    int side;
+}
+
+func (*Square s) area() int {
+    return s.side * s.side;
+}
+
+public struct Open implements shapes.Shape {
+    int side;
+}
+
+public func (*Open o) area() int {
+    return o.side;
+}
+
+func main() {
+    Square s = Square{side: 3};
+    Open o = Open{side: 5};
+    check(shapes.total(&s, 2) == 18, "a private type implements a public interface of another module");
+    check(shapes.total(&o, 3) == 15, "a public type with public methods does too");
+    check(shapes.double(21) == 42 && shapes.double(1.5) == 3.0, "a public type set of another module");
+}
+`, expected: []string{"a private type implements a public interface of another module", "a public type with public methods does too", "a public type set of another module"}},
 
 	{dir: "generic_type_switch", src: `struct Wrapper<T> {
     T value;

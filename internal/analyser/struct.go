@@ -42,6 +42,7 @@ func (a *Analyser) registerStructNames() {
 			Exported:  sd.Exported,
 			Packed:    sd.TagNamed("packed") != nil,
 		}
+		st.Impl = a.newImplSet(sd.Implements, st, sd, a.moduleScope, nil)
 
 		line, col := sd.Position()
 		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: sd.Doc}

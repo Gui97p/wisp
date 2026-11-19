@@ -148,6 +148,13 @@ func (a *Analyser) buildExports(quiet bool) map[string]*Symbol {
 			if sym, ok := a.scope.Resolve(decl.Name); ok {
 				add(decl, decl.Name, sym)
 			}
+		case *ast.InterfaceDecl:
+			if !decl.Exported {
+				continue
+			}
+			if sym, ok := a.scope.Resolve(decl.Name); ok {
+				add(decl, decl.Name, sym)
+			}
 		case *ast.ConstDecl:
 			if !decl.Exported {
 				continue
@@ -179,6 +186,8 @@ func declReach(d ast.Declaration) int {
 	case *ast.StructDecl:
 		return decl.Reach
 	case *ast.TypeDecl:
+		return decl.Reach
+	case *ast.InterfaceDecl:
 		return decl.Reach
 	case *ast.ConstDecl:
 		return decl.Reach

@@ -1,6 +1,11 @@
 package analyser
 
-import "github.com/Gui97p/wisp/internal/ast"
+import (
+	"strings"
+
+	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/diag"
+)
 
 func (a *Analyser) checkArithmetic(node ast.Node, op string, left, right Type) Type {
 	if _, ok := left.(InvalidType); ok {
@@ -65,6 +70,7 @@ func typedSide(left, right Type) Type {
 }
 
 func (a *Analyser) checkComparison(node ast.Node, op string, left, right Type) Type {
+	a.comparisonNode = node
 	if _, ok := left.(InvalidType); ok {
 		return InvalidType{}
 	}
@@ -77,7 +83,39 @@ func (a *Analyser) checkComparison(node ast.Node, op string, left, right Type) T
 		return InvalidType{}
 	}
 
+	if reason := a.uncomparable(op, left); reason != nil {
+		reason.WithHelp("%s", a.comparisonHelp(op, left))
+		return InvalidType{}
+	}
+
 	return PrimitiveType{Name: "bool"}
+}
+
+func (a *Analyser) uncomparable(op string, t Type) *diag.Diagnostic {
+	ordering := op != "==" && op != "!="
+	switch v := definedBase(t).(type) {
+	case *StructType:
+		if v.Optional == nil && v.Sum == nil {
+			return a.errorf(a.comparisonNode, "operator %s is not defined for %s", op, t)
+		}
+	case ArrayType, SpanType:
+		return a.errorf(a.comparisonNode, "operator %s is not defined for %s", op, t)
+	case *FuncType:
+		if ordering {
+			return a.errorf(a.comparisonNode, "operator %s is not defined for %s", op, t)
+		}
+	}
+	return nil
+}
+
+func (a *Analyser) comparisonHelp(op string, t Type) string {
+	if st, ok := t.(*StructType); ok && strings.HasPrefix(st.key, "opaque:") {
+		if op == "==" || op == "!=" {
+			return "constrain the type parameter with Comparable to compare its values"
+		}
+		return "constrain the type parameter with an interface that lists the types that can be ordered"
+	}
+	return "compare the fields, or the elements, one by one"
 }
 
 func (a *Analyser) checkLogical(node ast.Node, op string, left, right Type) Type {

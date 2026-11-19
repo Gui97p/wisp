@@ -11,6 +11,7 @@ const sumTag = "$tag"
 
 func (a *Analyser) registerSumName(td *ast.TypeDecl) {
 	st := a.buildSum(td, td.Name, a.module, filepath.Dir(a.currentFile))
+	st.Impl = a.newImplSet(td.Implements, st, td, a.moduleScope, nil)
 
 	line, col := td.Position()
 	symbol := &Symbol{Name: td.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: td.Doc}

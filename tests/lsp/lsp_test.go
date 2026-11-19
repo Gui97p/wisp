@@ -213,7 +213,9 @@ func TestDiagnostics(t *testing.T) {
 		{"conflicting types in one call", "func same<T>(T a, T b) T { return a; }\nfunc main() {\n  int x = same(1, \"a\");\n}\n", 1, "T is both int and string"},
 		{"a bound is not accepted yet", "func f<T: Number>(T a) {}\nfunc main() {}\n", 1, "goes before its name"},
 		{"a generic function used as a value", "func id<T>(T a) T { return a; }\nfunc main() {\n  let f = id;\n}\n", 1, "id is generic"},
-		{"an error in the body of an instance", "func bad<T>(T a) T { return a.missing; }\nfunc main() {\n  int x = bad(1);\n}\n", 1, "with T = int, instantiated here"},
+		{"an error in the body of an instance", "func bad<T>(T a) T { return a.missing; }\nfunc main() {\n  int x = bad(1);\n}\n", 2, "with T = int, instantiated here"},
+		{"an operation a bare type parameter does not have", "func add<T>(T a, T b) T { return a + b; }\nfunc main() {}\n", 1, "invalid operator + for T and T"},
+		{"an interface used as the type of a value", "interface Writer { func write(int n) int; }\nfunc main() {\n  Writer w;\n}\n", 1, "constrains a type parameter"},
 		{"a value parameter that is not constant", "struct Ring<T, const int N> { [N]T slots; }\nfunc main() {\n  int n = 3;\n  Ring<int, n> r;\n}\n", 1, "value parameter"},
 		{"a generic method on a type that is not generic", "struct P { int x; }\nfunc (*P<T> p) f() {}\nfunc main() {}\n", 1, "not a generic struct"},
 		{"a slice literal with elements", "func main() {\n  []int s = []int{1, 2};\n}\n", 1, "a slice literal has no elements"},
@@ -726,22 +728,46 @@ func TestCompletionOfCapturedVariable(t *testing.T) {
 	}
 }
 
-func TestInterfaceSyntaxInLSP(t *testing.T) {
+func TestInterfacesInLSP(t *testing.T) {
 	c := start(t)
-	src := "interface Writer {\n\tfunc write([]byte data) !int;\n}\n\ninterface Number { int | float }\n\nstruct Buffer implements Writer {\n\tint length;\n}\n\nfunc sum<Number T>([]T items) T {\n\treturn items[0];\n}\n\nfunc main() {\n}\n"
-	p := c.open(map[string]string{"main.wsp": src})
+	good := "interface Writer {\n\tfunc write([]byte data) !int;\n}\n\ninterface Number { int | float }\n\nstruct Buffer implements Writer {\n\tint length;\n}\n\nfunc (*Buffer b) write([]byte data) !int {\n\treturn len(data);\n}\n\nfunc sum<Number T>([]T items) T {\n\tT total;\n\tfor i in 0..len(items) - 1 {\n\t\ttotal += items[i];\n\t}\n\treturn total;\n}\n\nfunc send<Writer W>(W w, []byte data) !int {\n\treturn w.write(data)!;\n}\n\nfunc main() {\n\tBuffer b;\n\t[]byte data;\n\tint n = send(&b, data) ?? 0;\n\t[]int xs;\n\tint total = sum(xs);\n}\n"
+	p := c.open(map[string]string{"main.wsp": good})
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("unexpected error: %s", d.Message)
+		}
+	}
+	if text, changed := p.formatted(); changed {
+		t.Errorf("formatting changed an already formatted file:\n%s", text)
+	}
+
+	bad := "interface Writer { func write(int n) int; }\ninterface Number { int | float }\nstruct Plain { int x; }\nfunc (*Plain p) write(int n) int { return n; }\nstruct Wrong implements Writer { int x; }\nfunc send<Writer W>(W w) {}\nfunc add<Number T>(T a, T b) T { return a + b; }\nfunc main() {\n\tPlain p;\n\tsend(&p);\n\tadd(\"a\", \"b\");\n}\n"
+	p = c.open(map[string]string{"main.wsp": bad})
 	var messages []string
 	for _, d := range p.diagnostics() {
 		if d.Severity == 1 {
 			messages = append(messages, d.Message)
 		}
 	}
-	for _, want := range []string{"interfaces are parsed but not analysed yet", "implements is parsed but not checked yet", "the constraint of a type parameter is parsed but not checked yet"} {
-		if !slices.Contains(messages, want) {
-			t.Errorf("no error %q in %q", want, messages)
+	for _, want := range []string{"Wrong declares implements Writer, but it does not", "does not satisfy Writer", "string does not satisfy Number"} {
+		if !slices.ContainsFunc(messages, func(m string) bool { return strings.Contains(m, want) }) {
+			t.Errorf("no error with %q in %q", want, messages)
 		}
 	}
-	if text, changed := p.formatted(); changed {
-		t.Errorf("formatting changed an already formatted file:\n%s", text)
+}
+
+func TestInterfaceVisibilityAcrossModules(t *testing.T) {
+	c := start(t)
+	shapes := "public interface Shape {\n\tfunc area() int;\n}\n"
+	main := "import \"shapes\";\n\npublic struct Open implements shapes.Shape {\n\tint side;\n}\n\nfunc (*Open o) area() int {\n\treturn o.side;\n}\n\nstruct Closed implements shapes.Shape {\n\tint side;\n}\n\nfunc (*Closed o) area() int {\n\treturn o.side;\n}\n\nfunc main() {\n}\n"
+	p := c.open(map[string]string{"main.wsp": main, "shapes.wsp": shapes})
+	var messages []string
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			messages = append(messages, d.Message)
+		}
+	}
+	if len(messages) != 1 || !strings.Contains(messages[0], "Open declares implements Shape") {
+		t.Errorf("errors %q, want only the one about the public Open with a private method", messages)
 	}
 }
