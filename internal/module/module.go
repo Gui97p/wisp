@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -172,6 +173,7 @@ func BuildGraphWithOverrides(entryFile string, overrides map[string][]byte) ([]*
 func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []*Module {
 	visiting := map[string]bool{}
 	visited := map[string]bool{}
+	foreign := map[string]bool{}
 	var order []*Module
 
 	var visit func(path, dir string, files []string)
@@ -211,7 +213,7 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 			visit(key, depDir, depFiles)
 		}
 
-		for _, sibling := range methodSiblings(root, mod, overrides) {
+		for _, sibling := range methodSiblings(root, mod, overrides, foreign) {
 			visit(sibling.path, sibling.dir, sibling.files)
 		}
 
@@ -497,7 +499,7 @@ func packageParts(root string, mod *Module) []moduleRoot {
 	return parts
 }
 
-func methodSiblings(root string, mod *Module, overrides map[string][]byte) []moduleRoot {
+func methodSiblings(root string, mod *Module, overrides map[string][]byte, foreign map[string]bool) []moduleRoot {
 	if len(mod.FilePaths) == 0 || mod.Dir == "" {
 		return nil
 	}
@@ -510,6 +512,15 @@ func methodSiblings(root string, mod *Module, overrides map[string][]byte) []mod
 	for _, entry := range entries {
 		file := filepath.Join(mod.Dir, entry.Name())
 		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || slices.Contains(mod.FilePaths, file) || skipFile(entry.Name()) {
+			continue
+		}
+
+		may, known := foreign[file]
+		if !known {
+			may = mayDeclareForeignMethods(file, overrides)
+			foreign[file] = may
+		}
+		if !may {
 			continue
 		}
 
@@ -540,6 +551,19 @@ func methodSiblings(root string, mod *Module, overrides map[string][]byte) []mod
 		found = append(found, moduleRoot{path: key, dir: mod.Dir, files: []string{file}})
 	}
 	return found
+}
+
+var foreignReceiver = regexp.MustCompile(`func\s*\(\s*[*?]*\s*[A-Za-z_]\w*\.[A-Za-z_]`)
+
+func mayDeclareForeignMethods(file string, overrides map[string][]byte) bool {
+	buffer, ok := overrides[file]
+	if !ok {
+		var err error
+		if buffer, err = os.ReadFile(file); err != nil {
+			return false
+		}
+	}
+	return foreignReceiver.Match(buffer)
 }
 
 func Groups(modules []*Module) [][]*Module {

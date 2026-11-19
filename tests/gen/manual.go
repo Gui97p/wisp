@@ -12770,6 +12770,46 @@ func main() {
 }
 `, expected: []string{"a method of a generic enum", "a switch on the variants of an instance", "two type parameters and a switch expression", "name() of an instance", "an instance of an enum in an any value"}},
 
+	{dir: "static_recursion_frames", src: `func fibLocals(int n) int {
+    if n < 2 {
+        return n;
+    }
+    int a = fibLocals(n - 1);
+    int b = fibLocals(n - 2);
+    return a + b;
+}
+
+func sumTo(int n) int {
+    if n == 0 {
+        return 0;
+    }
+    int rest = sumTo(n - 1);
+    return n + rest;
+}
+
+func pow(int base, int exponent) int {
+    if exponent == 0 {
+        return 1;
+    }
+    int half = pow(base, exponent / 2);
+    if exponent % 2 == 0 {
+        return half * half;
+    }
+    return half * half * base;
+}
+
+const FIB = static { yield fibLocals(15); };
+const SUM = static { yield sumTo(100); };
+const POW = static { yield pow(3, 13); };
+const MIXED = static { yield fibLocals(10) + sumTo(10) * pow(2, 5); };
+
+func main() {
+    check(FIB == 610, "locals survive the recursive calls that come after them");
+    check(SUM == 5050 && POW == 1594323, "a recursion that reads a local after the call");
+    check(MIXED == 55 + 55 * 32, "calls to different recursive functions in one expression");
+}
+`, expected: []string{"locals survive the recursive calls that come after them", "a recursion that reads a local after the call", "calls to different recursive functions in one expression"}},
+
 	{dir: "generic_type_switch", src: `struct Wrapper<T> {
     T value;
 }

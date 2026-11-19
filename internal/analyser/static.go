@@ -3,6 +3,7 @@ package analyser
 import (
 	"fmt"
 	"math/big"
+	"slices"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -558,21 +559,39 @@ func (a *Analyser) staticCall(call *ast.CallExpr) (ConstValue, bool) {
 
 	inline := a.info.Inlines[call]
 	if inline == nil {
-		a.expandInlineWith(call, ft, true)
-		inline = a.info.Inlines[call]
+		decl := ft.Decl
+		reusable := !call.Spread && len(call.Args) == len(decl.Params) && !slices.ContainsFunc(decl.Params, func(p ast.Param) bool { return p.Const || p.Variadic })
+		if reusable {
+			inline = a.staticExpansions[decl]
+		}
+		if inline == nil {
+			a.expandInlineWith(call, ft, true)
+			inline = a.info.Inlines[call]
+			if reusable && inline != nil {
+				a.staticExpansions[decl] = inline
+			}
+		}
 	}
 	if inline == nil {
 		a.errorf(call, "this call cannot be expanded at compile time")
 		return ConstValue{}, false
 	}
 
-	for k, param := range inline.Params {
+	values := make([]ConstValue, len(inline.Params))
+	for k := range inline.Params {
 		value, ok := a.evalConst(call.Args[inline.ArgIndex[k]])
 		if !ok {
 			a.errorf(call.Args[inline.ArgIndex[k]], "this argument is not known at compile time")
 			return ConstValue{}, false
 		}
-		a.staticVars[param] = value.clone()
+		values[k] = value.clone()
+	}
+
+	callerVars := a.staticVars
+	a.staticVars = make(map[*Symbol]ConstValue, len(values)+4)
+	defer func() { a.staticVars = callerVars }()
+	for k, param := range inline.Params {
+		a.staticVars[param] = values[k]
 	}
 
 	r := &staticRun{a: a}

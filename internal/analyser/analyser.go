@@ -53,16 +53,17 @@ type Analyser struct {
 	arraySizes  map[ast.Expression]arraySizeResult
 	currentFile string
 
-	staticVars    map[*Symbol]ConstValue
-	nakedParams   map[string]string
-	staticSteps   int
-	staticDepth   int
-	lateDecls     []ast.Declaration
-	lateNames     map[string]bool
-	lateDone      map[ast.Declaration]bool
-	lateBusy      map[string]bool
-	structDecls   map[string]*ast.StructDecl
-	fieldsStarted map[*ast.StructDecl]bool
+	staticVars       map[*Symbol]ConstValue
+	staticExpansions map[*ast.FuncDecl]*InlineCall
+	nakedParams      map[string]string
+	staticSteps      int
+	staticDepth      int
+	lateDecls        []ast.Declaration
+	lateNames        map[string]bool
+	lateDone         map[ast.Declaration]bool
+	lateBusy         map[string]bool
+	structDecls      map[string]*ast.StructDecl
+	fieldsStarted    map[*ast.StructDecl]bool
 
 	instances       map[string]*StructType
 	aliases         map[string]Type
@@ -93,21 +94,22 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 	universe := NewScope(nil)
 	moduleScope := NewScope(universe)
 	return &Analyser{
-		program:         program,
-		info:            NewInfo(),
-		universe:        universe,
-		scope:           moduleScope,
-		moduleScope:     moduleScope,
-		modules:         modules,
-		declFiles:       declFiles,
-		module:          module,
-		instances:       map[string]*StructType{},
-		aliases:         map[string]Type{},
-		funcInstances:   map[string]*Symbol{},
-		methodInstances: map[string]*FuncType{},
-		pendingDots:     map[*ast.DotIdent]bool{},
-		pendingDotLits:  map[*ast.StructLiteral]bool{},
-		pendingAnon:     map[*ast.AnonLiteral]bool{},
+		program:          program,
+		info:             NewInfo(),
+		universe:         universe,
+		scope:            moduleScope,
+		moduleScope:      moduleScope,
+		modules:          modules,
+		declFiles:        declFiles,
+		module:           module,
+		instances:        map[string]*StructType{},
+		aliases:          map[string]Type{},
+		staticExpansions: map[*ast.FuncDecl]*InlineCall{},
+		funcInstances:    map[string]*Symbol{},
+		methodInstances:  map[string]*FuncType{},
+		pendingDots:      map[*ast.DotIdent]bool{},
+		pendingDotLits:   map[*ast.StructLiteral]bool{},
+		pendingAnon:      map[*ast.AnonLiteral]bool{},
 	}
 }
 
