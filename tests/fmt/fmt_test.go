@@ -60,6 +60,8 @@ func TestRules(t *testing.T) {
 		{"captures", "func f() {\n\tif g()|v|{ h(v); }\n\tloop it.next()|p|{ }\n\tx=y??|e|{ yield 1; };\n}\n", "func f() {\n\tif g() |v| { h(v); }\n\tloop it.next() |p| {}\n\tx = y ?? |e| { yield 1; };\n}\n"},
 		{"bit or is not a capture", "func f() {\n\tint a=b|c|d;\n}\n", "func f() {\n\tint a = b | c | d;\n}\n"},
 		{"switch arms", "func f() {\nswitch v{\ncase 1=>a();\ncase 2,3=>{\nb();\nc();\n}\ndefault=>d();\n}\n}\n", "func f() {\n\tswitch v {\n\t\tcase 1 => a();\n\t\tcase 2, 3 => {\n\t\t\tb();\n\t\t\tc();\n\t\t}\n\t\tdefault => d();\n\t}\n}\n"},
+		{"selector operators", "func<x64&linux>f(){}\nfunc<release|fast>g(){}\nfunc<!windows&(x64|debug)>h(){}\n", "func<x64 & linux> f() {}\nfunc<release | fast> g() {}\nfunc<!windows & (x64 | debug)> h() {}\n"},
+		{"target directive operators", "#target linux&x64\nfunc f(){}\n", "#target linux & x64\nfunc f() {}\n"},
 		{"selectors and tags", "#test( \"x\" )\nfunc<debug>f(){}\nlet<  debug >x=1;\n", "#test(\"x\")\nfunc<debug> f() {}\nlet<debug> x = 1;\n"},
 		{"variadics", "func f(int ...rest) {\n\tg(rest...);\n}\nfunc h(...args) {}\n", "func f(int ...rest) {\n\tg(rest...);\n}\nfunc h(...args) {}\n"},
 		{"member chains and dots", "func f() {\n\tx = a . b . c ( );\n\ty = .Red;\n\tz = p@ . x;\n}\n", "func f() {\n\tx = a.b.c();\n\ty = .Red;\n\tz = p@.x;\n}\n"},

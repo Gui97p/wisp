@@ -1,4 +1,4 @@
-#target windows && x64
+#target windows & x64
 
 import "std/sys";
 

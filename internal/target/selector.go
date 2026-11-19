@@ -60,7 +60,7 @@ func (p *selectorParser) or() (*Selector, error) {
 	if err != nil {
 		return nil, err
 	}
-	for p.accept("||") {
+	for p.accept("|") {
 		right, err := p.and()
 		if err != nil {
 			return nil, err
@@ -75,7 +75,7 @@ func (p *selectorParser) and() (*Selector, error) {
 	if err != nil {
 		return nil, err
 	}
-	for p.accept("&&") {
+	for p.accept("&") {
 		right, err := p.not()
 		if err != nil {
 			return nil, err

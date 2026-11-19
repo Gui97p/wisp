@@ -7530,12 +7530,12 @@ internal func bumpTwice(int a) int {
 public func twice(int n) int {
     return n * 2;
 }
-`, "platform/everything.wsp": `#target x64 || windows
+`, "platform/everything.wsp": `#target x64 | windows
 
 public func always() int {
     return 5;
 }
-`, "platform/neither.wsp": `#target !x64 && !windows
+`, "platform/neither.wsp": `#target !x64 & !windows
 
 public func twice(int n) int {
     return -1;
@@ -7545,7 +7545,7 @@ public func twice(int n) int {
 native<x64> level() int r {
 	mov r, 1;
 }
-native<x64 && linux> level() int r {
+native<x64 & linux> level() int r {
 	mov r, 2;
 }
 native<!x64> level() int r {
@@ -7583,7 +7583,7 @@ func<x64> level() int {
     return 1;
 }
 
-func<x64 && linux> level() int {
+func<x64 & linux> level() int {
     return 2;
 }
 
@@ -8313,7 +8313,7 @@ func main() {
 	{dir: "profile_fast", profile: "fast", src: `var<debug> int level = 10;
 var<release> int level = 20;
 var<fast> int level = 30;
-var<release||fast> int common = 7;
+var<release | fast> int common = 7;
 
 func<debug> mode() string {
     return "debug";
@@ -10189,7 +10189,7 @@ public func name() int {
 public func pieces() int {
     return arch.both();
 }
-`, "where/x64.wsp": `#target linux && x64
+`, "where/x64.wsp": `#target linux & x64
 
 import "std/math";
 

@@ -4,8 +4,8 @@
 // file and says which targets the file is for. In any other target the file
 // simply does not exist: its declarations are not even looked at. The words
 // are architectures (`x64`), systems (`linux`, `windows`) or profiles (`debug`,
-// `release`, `fast`), joined with `&&`, `||`, `!` and parentheses:
-// `#target x64 && linux`, or `#target x64 && !windows`.
+// `release`, `fast`), joined with `&`, `|`, `!` and parentheses:
+// `#target x64 & linux`, or `#target x64 & !windows`.
 //
 // `#target` only filters. The file is still a module of its own, with its own
 // names. Here linux.wsp and windows.wsp are two such modules, and this file picks

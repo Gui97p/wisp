@@ -16,7 +16,7 @@ type Directive struct {
 }
 
 var Directives = []Directive{
-	{Name: "target", Doc: "Restricts the file to the targets that match the expression that follows, such as #target x64 && linux."},
+	{Name: "target", Doc: "Restricts the file to the targets that match the expression that follows, such as #target x64 & linux."},
 }
 
 func directiveNames() string {
@@ -37,10 +37,10 @@ func (p *Parser) selectorWord() (string, bool) {
 	switch p.current.Type {
 	case lexer.TOKEN_IDENT:
 		return p.current.Literal, true
-	case lexer.TOKEN_AND:
-		return "&&", true
-	case lexer.TOKEN_OR:
-		return "||", true
+	case lexer.TOKEN_AMP:
+		return "&", true
+	case lexer.TOKEN_PIPE:
+		return "|", true
 	case lexer.TOKEN_NOT:
 		return "!", true
 	case lexer.TOKEN_LPAREN:
@@ -49,6 +49,13 @@ func (p *Parser) selectorWord() (string, bool) {
 		return ")", true
 	}
 	return "", false
+}
+
+func (p *Parser) unexpectedInSelector() {
+	d := p.errorAt(p.currentAt(), "unexpected %s in the target expression", p.current.Type.DisplayName())
+	if d != nil && (p.current.Type == lexer.TOKEN_AND || p.current.Type == lexer.TOKEN_OR) {
+		d.WithHelp("a target expression joins names with & and |, as in x64 & linux or release | fast")
+	}
 }
 
 func (p *Parser) finishSelector(parts []string, at ast.Position) (string, bool) {
@@ -95,7 +102,7 @@ func (p *Parser) parseSelector() (string, ast.Position, bool) {
 		p.advance()
 		word, ok := p.selectorWord()
 		if !ok {
-			p.errorf("unexpected %s in the target expression", p.current.Type.DisplayName())
+			p.unexpectedInSelector()
 			return "", ast.Position{}, false
 		}
 		here := p.currentAt()
@@ -174,7 +181,7 @@ func (p *Parser) parseDirectives(program *ast.Program) {
 			p.advance()
 			word, ok := p.selectorWord()
 			if !ok {
-				p.errorAt(p.currentAt(), "unexpected %s in the target expression", p.current.Type.DisplayName())
+				p.unexpectedInSelector()
 				p.skipLine(line)
 				parts = nil
 				break

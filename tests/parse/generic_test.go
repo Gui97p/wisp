@@ -218,3 +218,27 @@ func TestGenericEnumNeedsData(t *testing.T) {
 		t.Errorf("errors: %v", errors)
 	}
 }
+
+func TestSelectorOperators(t *testing.T) {
+	program, errors := parse(t, "func<x64 & linux> a() {}\nfunc<release | fast> b() {}\nfunc<!windows & (x64 | linux)> c() {}\n")
+	if len(errors) > 0 {
+		t.Fatalf("errors: %v", errors)
+	}
+	var selectors []string
+	for _, d := range program.Declarations {
+		selectors = append(selectors, d.(*ast.FuncDecl).Selector)
+	}
+	want := []string{"x64 & linux", "release | fast", "! windows & ( x64 | linux )"}
+	if !slices.Equal(selectors, want) {
+		t.Errorf("selectors %q, want %q", selectors, want)
+	}
+}
+
+func TestOldSelectorOperatorsAreRejected(t *testing.T) {
+	for _, src := range []string{"func<x64 && linux> a() {}\n", "func<release || fast> a() {}\n", "#target linux && x64\n"} {
+		_, errors := parse(t, src)
+		if len(errors) == 0 || !strings.Contains(errors[0], "in the target expression") {
+			t.Errorf("%q: errors %v", src, errors)
+		}
+	}
+}

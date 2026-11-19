@@ -1,4 +1,4 @@
-#target linux && x64
+#target linux & x64
 
 import "std/sys";
 
