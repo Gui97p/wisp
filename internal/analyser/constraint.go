@@ -14,6 +14,9 @@ type MethodSig struct {
 	Returns    []Type
 	Fallible   bool
 	Doc        string
+	File       string
+	Line       int
+	Col        int
 }
 
 func (m MethodSig) String() string {
@@ -422,4 +425,12 @@ func sameMethodSig(a, b MethodSig) bool {
 		}
 	}
 	return true
+}
+
+func Implements(t Type, i *InterfaceType) bool {
+	return implSetOf(t).Has(i)
+}
+
+func (i *InterfaceType) Declared(t Type) bool {
+	return Implements(t, i)
 }

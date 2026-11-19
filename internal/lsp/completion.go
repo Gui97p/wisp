@@ -21,7 +21,7 @@ var directiveTyping = regexp.MustCompile(`^\s*#[A-Za-z_]*$`)
 var selectorTyping = regexp.MustCompile(`(\b(native|func|struct|type|enum|const|import)<[^<>;]*|^\s*#target\b.*)$`)
 
 var keywords = []string{
-	"let", "const", "func", "struct", "enum", "type", "if", "else", "switch", "case", "default",
+	"let", "const", "func", "struct", "enum", "type", "interface", "implements", "if", "else", "switch", "case", "default",
 	"for", "in", "loop", "until", "return", "break", "continue", "import", "public", "internal", "shared", "extern", "as", "native", "var", "static",
 	"true", "false", "null", "defer", "yield", "inline",
 }
@@ -521,6 +521,8 @@ func symbolItem(sym *analyser.Symbol, suffix string) protocol.CompletionItem {
 		kind = protocol.CompletionItemKindStruct
 	case analyser.TYPE:
 		kind = protocol.CompletionItemKindClass
+	case analyser.INTERFACE:
+		kind = protocol.CompletionItemKindInterface
 	case analyser.MODULE:
 		kind = protocol.CompletionItemKindModule
 	}
@@ -571,7 +573,7 @@ func rankOf(kind protocol.CompletionItemKind) string {
 		return "4"
 	case protocol.CompletionItemKindConstant:
 		return "5"
-	case protocol.CompletionItemKindStruct, protocol.CompletionItemKindClass, protocol.CompletionItemKindEnum:
+	case protocol.CompletionItemKindStruct, protocol.CompletionItemKindClass, protocol.CompletionItemKindEnum, protocol.CompletionItemKindInterface:
 		return "6"
 	case protocol.CompletionItemKindModule:
 		return "7"

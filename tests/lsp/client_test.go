@@ -470,3 +470,38 @@ func (p *project) renamed(newName string) string {
 	}
 	return action.apply(p, p.text)
 }
+
+func (p *project) implementations() []location {
+	p.c.t.Helper()
+	raw := p.c.call("textDocument/implementation", p.at())
+	var locations []location
+	if json.Unmarshal(raw, &locations) != nil {
+		var one location
+		if json.Unmarshal(raw, &one) == nil && one.URI != "" {
+			locations = []location{one}
+		}
+	}
+	return locations
+}
+
+func (p *project) symbols() []string {
+	p.c.t.Helper()
+	raw := p.c.call("textDocument/documentSymbol", map[string]any{"textDocument": map[string]any{"uri": p.uri()}})
+	var list []struct {
+		Name     string `json:"name"`
+		Kind     int    `json:"kind"`
+		Children []struct {
+			Name string `json:"name"`
+		} `json:"children"`
+	}
+	json.Unmarshal(raw, &list)
+	var out []string
+	for _, s := range list {
+		names := make([]string, len(s.Children))
+		for i, c := range s.Children {
+			names[i] = c.Name
+		}
+		out = append(out, fmt.Sprintf("%s:%d[%s]", s.Name, s.Kind, strings.Join(names, ",")))
+	}
+	return out
+}

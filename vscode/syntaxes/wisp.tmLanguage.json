@@ -166,7 +166,7 @@
         "declarations": {
             "patterns": [
                 {
-                    "match": "\\b(struct|enum|type)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+                    "match": "\\b(struct|enum|type|interface)\\s+([A-Za-z_][A-Za-z0-9_]*)",
                     "captures": {
                         "1": {
                             "name": "storage.type.struct.wisp"
@@ -285,7 +285,11 @@
                 },
                 {
                     "name": "storage.type.struct.wisp",
-                    "match": "\\b(struct|type|enum)\\b"
+                    "match": "\\b(struct|type|enum|interface)\\b"
+                },
+                {
+                    "name": "keyword.other.implements.wisp",
+                    "match": "\\bimplements\\b"
                 },
                 {
                     "match": "\\b(switch)\\s+(type)\\b",

@@ -39,6 +39,9 @@ func typeParamScopes(program *ast.Program) []typeParamScope {
 			if d.Data {
 				owner = "enum " + d.Name
 			}
+		case *ast.InterfaceDecl:
+			params = d.TypeParams
+			owner = "interface " + d.Name
 		}
 		if len(params) == 0 {
 			continue
@@ -249,6 +252,8 @@ func genericHover(sym *analyser.Symbol) string {
 		}
 		b.WriteString("\n}")
 		return renderDoc(b.String(), joinDocs(sym.Doc, "Generic enum: each use picks its types."))
+	case g.Interface != nil:
+		return renderDoc(interfaceDeclText(g.Interface), joinDocs(sym.Doc, "Generic interface: each use picks its types."))
 	case g.Alias != nil:
 		td := g.Alias
 		return renderDoc(fmt.Sprintf("type %s%s %s", td.Name, typeParamsText(td.TypeParams), refText(td.Underlying)), joinDocs(sym.Doc, "Generic type: each use picks its types."))
@@ -288,4 +293,59 @@ func methodDeclHover(program *ast.Program, src []byte, line, col int) (string, b
 		return renderDoc(text, joinDocs(fd.Doc, "Method.")), true
 	}
 	return "", false
+}
+
+func interfaceDeclText(decl *ast.InterfaceDecl) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "interface %s", decl.Name)
+	if len(decl.TypeParams) > 0 {
+		b.WriteString(typeParamsText(decl.TypeParams))
+	}
+	if len(decl.Methods) == 0 && decl.Constraint != nil {
+		fmt.Fprintf(&b, " { %s }", decl.Constraint.String())
+		return b.String()
+	}
+	b.WriteString(" {")
+	if decl.Constraint != nil {
+		fmt.Fprintf(&b, "\n  %s", decl.Constraint.String())
+	}
+	for _, m := range decl.Methods {
+		fmt.Fprintf(&b, "\n  %s", interfaceMethodText(m))
+	}
+	b.WriteString("\n}")
+	return b.String()
+}
+
+func interfaceMethodText(m ast.InterfaceMethod) string {
+	text := fmt.Sprintf("func %s(%s)", m.Name, paramsText(m.Params))
+	results := make([]string, len(m.ReturnTypes))
+	for i := range m.ReturnTypes {
+		results[i] = refText(m.ReturnTypes[i])
+	}
+	switch len(results) {
+	case 0:
+	case 1:
+		text += " " + results[0]
+	default:
+		text += " (" + strings.Join(results, ", ") + ")"
+	}
+	if m.Fallible {
+		text += " !"
+	}
+	return text
+}
+
+func interfaceMethodDeclHover(program *ast.Program, line, col int) (string, *protocol.Range) {
+	for _, decl := range program.Declarations {
+		d, ok := decl.(*ast.InterfaceDecl)
+		if !ok {
+			continue
+		}
+		for _, m := range d.Methods {
+			if positionContains(m.NameAt, line, col) {
+				return renderDoc(interfaceMethodText(m), joinDocs(m.Doc, "Method of the interface `"+d.Name+"`.")), positionRange(m.NameAt)
+			}
+		}
+	}
+	return "", nil
 }

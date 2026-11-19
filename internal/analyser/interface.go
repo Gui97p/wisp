@@ -94,7 +94,7 @@ func (a *Analyser) fillInterface(it *InterfaceType, decl *ast.InterfaceDecl, sco
 		}
 		seen[m.Name] = true
 
-		sig := MethodSig{Name: m.Name, Doc: m.Doc, Fallible: m.Fallible}
+		sig := MethodSig{Name: m.Name, Doc: m.Doc, Fallible: m.Fallible, File: file, Line: m.NameAt.Line, Col: m.NameAt.Col}
 		valid := true
 		for _, p := range m.Params {
 			at := ast.Position{Line: p.Line, Col: p.Col, EndLine: p.EndLine, EndCol: p.EndCol}

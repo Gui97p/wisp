@@ -175,6 +175,9 @@ func exprDefinition(pa *projectAnalysis, m *moduleAnalysis, expr ast.Expression,
 		}
 		for _, call := range info.MethodCalls {
 			if name, ok := methodName(call, info, e); ok {
+				if call.Iface != nil {
+					return interfaceMethodLocation(call.Iface, name)
+				}
 				return pa.method(call, name)
 			}
 		}
@@ -332,4 +335,13 @@ func literalNameLocation(e *ast.StructLiteral, info *analyser.Info, line, col in
 		return nil
 	}
 	return symbolLocation(sym)
+}
+
+func interfaceMethodLocation(it *analyser.InterfaceType, name string) []protocol.Location {
+	for _, m := range it.AllMethods() {
+		if m.Name == name && m.File != "" && m.Line > 0 {
+			return []protocol.Location{pointLocation(m.File, m.Line, m.Col)}
+		}
+	}
+	return nil
 }

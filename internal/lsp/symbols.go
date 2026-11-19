@@ -48,6 +48,12 @@ func documentSymbols(uri protocol.DocumentUri) []protocol.DocumentSymbol {
 				s.Children = append(s.Children, symbol(m.Name, protocol.SymbolKindField, m.Line, m.Col, m.EndLine, m.EndCol))
 			}
 			symbols = append(symbols, s)
+		case *ast.InterfaceDecl:
+			s := symbol(d.Name, protocol.SymbolKindInterface, line, col, endLine, endCol)
+			for _, m := range d.Methods {
+				s.Children = append(s.Children, symbol(m.Name, protocol.SymbolKindMethod, m.At.Line, m.At.Col, m.At.EndLine, m.At.EndCol))
+			}
+			symbols = append(symbols, s)
 		case *ast.TypeDecl:
 			kind := protocol.SymbolKindClass
 			if d.IsEnum {

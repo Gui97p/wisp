@@ -530,7 +530,8 @@ func TestGenericsCompletion(t *testing.T) {
 		{"second argument", "func main() {\n\tBox<Box<int>, ¦> b;\n}\n", []string{"Item", "int"}, []string{"if"}},
 		{"type parameter in a generic body", "func first<T>(Box<T> b) T {\n\tBox<¦> c;\n\treturn b.v;\n}\nfunc main() {}\n", []string{"T", "Item"}, nil},
 		{"comparison is not a type context", "func main() {\n\tint n = 3 <¦ 4;\n}\n", []string{"if"}, nil},
-		{"declaring parameters offers nothing", "struct Pair<¦> { int a; }\nfunc main() {}\n", nil, []string{"Item", "int", "if"}},
+		{"declaring a parameter offers the types of a constraint", "struct Pair<¦> { int a; }\nfunc main() {}\n", []string{"Item", "int"}, []string{"if"}},
+		{"naming a parameter offers nothing", "struct Pair<Item ¦> { int a; }\nfunc main() {}\n", nil, []string{"Item", "int", "if"}},
 	}
 	for _, tc := range cases {
 		p := c.open(map[string]string{"main.wsp": base + tc.body})
@@ -804,6 +805,200 @@ func TestInterfaceValuesInLSP(t *testing.T) {
 	for _, d := range p.diagnostics() {
 		if d.Severity == 1 {
 			t.Errorf("unexpected error in the valid program: %s", d.Message)
+		}
+	}
+}
+
+const interfaceProject = `/// Writes bytes somewhere.
+interface Writer {
+	func write(int n) int;
+	func flush();
+}
+
+interface Number { int | float }
+
+interface Closer { func close(); }
+
+interface WriteCloser { Writer & Closer }
+
+interface Source<T> { func next() T; }
+
+struct Buffer implements Writer, Closer {
+	int total;
+}
+
+func (*Buffer b) write(int n) int { return n; }
+func (*Buffer b) flush() {}
+func (*Buffer b) close() {}
+
+struct Files implements Writer {
+	int open;
+}
+
+func (Files f) write(int n) int { return n + f.open; }
+func (Files f) flush() {}
+
+func sum<Number T>(T a) T { return a; }
+
+func send<Writer W>(W w) int { return w.write(1); }
+
+func use(Writer w) int {
+	return w.write(2);
+}
+
+func main() {
+	Buffer b;
+	Writer w = &b;
+	w.flush();
+}
+`
+
+func TestInterfaceHoverAndDefinition(t *testing.T) {
+	c := start(t)
+	cases := []struct {
+		probe string
+		hover string
+		line  int
+	}{
+		{"interface Wri¦ter {", "interface Writer {\n  func write(int n) int\n  func flush()\n}", -1},
+		{"func wri¦te(int n) int;", "Method of the interface `Writer`", -1},
+		{"struct Buffer implements Wri¦ter,", "interface Writer {", 1},
+		{"func sum<Num¦ber T>", "interface Number { int | float }", 6},
+		{"func use(Wri¦ter w)", "interface Writer {", 1},
+		{"return w.wri¦te(2);", "func (Writer) write(int n) int", 2},
+		{"w.flu¦sh();", "func (Writer) flush()", 3},
+		{"interface WriteCloser { Wri¦ter & Closer }", "interface Writer {", 1},
+		{"interface WriteCloser { Writer & Clo¦ser }", "interface Closer {\n  func close()\n}", 8},
+		{"func send<Wri¦ter W>", "interface Writer {", 1},
+	}
+	for _, tc := range cases {
+		plain := strings.Replace(tc.probe, "¦", "", 1)
+		p := c.open(map[string]string{"main.wsp": strings.Replace(interfaceProject, plain, tc.probe, 1)})
+		if got := p.hover(); !strings.Contains(got, tc.hover) {
+			t.Errorf("%s: hover %q does not contain %q", tc.probe, got, tc.hover)
+		}
+		if tc.line >= 0 {
+			defs := p.definition()
+			if len(defs) == 0 || int(defs[0].Range.Start.Line) != tc.line {
+				t.Errorf("%s: definition %v, want line %d", tc.probe, defs, tc.line)
+			}
+		}
+	}
+
+	p := c.open(map[string]string{"main.wsp": interfaceProject})
+	if got := p.hover(); got != "" {
+		t.Errorf("hover without a cursor: %q", got)
+	}
+}
+
+func TestInterfaceImplementations(t *testing.T) {
+	c := start(t)
+	cases := []struct {
+		probe string
+		lines []int
+	}{
+		{"interface Wri¦ter {", []int{14, 22}},
+		{"func use(Wri¦ter w)", []int{14, 22}},
+		{"func wri¦te(int n) int;", []int{18, 26}},
+		{"return w.wri¦te(2);", []int{18, 26}},
+		{"w.flu¦sh();", []int{19, 27}},
+		{"interface Closer { func clo¦se(); }", []int{20}},
+	}
+	for _, tc := range cases {
+		plain := strings.Replace(tc.probe, "¦", "", 1)
+		p := c.open(map[string]string{"main.wsp": strings.Replace(interfaceProject, plain, tc.probe, 1)})
+		var got []int
+		for _, loc := range p.implementations() {
+			got = append(got, int(loc.Range.Start.Line))
+		}
+		slices.Sort(got)
+		if !slices.Equal(got, tc.lines) {
+			t.Errorf("%s: implementations at lines %v, want %v", tc.probe, got, tc.lines)
+		}
+	}
+}
+
+func TestInterfaceOutline(t *testing.T) {
+	c := start(t)
+	p := c.open(map[string]string{"main.wsp": interfaceProject})
+	symbols := p.symbols()
+	if !slices.Contains(symbols, "Writer:11[write,flush]") || !slices.Contains(symbols, "Number:11[]") {
+		t.Errorf("outline %q lacks the interfaces and their methods", symbols)
+	}
+}
+
+func TestInterfaceCompletion(t *testing.T) {
+	c := start(t)
+	cases := []struct {
+		name string
+		src  string
+		want []string
+		deny []string
+	}{
+		{"methods of an interface value", "interface Writer { func write(int n) int; func flush(); }\nfunc use(Writer w) {\n\tw.¦\n}\nfunc main() {}\n", []string{"write", "flush"}, []string{"close"}},
+		{"methods of a composed interface", "interface Writer { func write(int n) int; }\ninterface Closer { func close(); }\ninterface Both { Writer & Closer }\nfunc use(Both b) {\n\tb.¦\n}\nfunc main() {}\n", []string{"write", "close"}, nil},
+		{"interfaces after implements", "interface Writer { func write(int n) int; }\nstruct Plain { int x; }\nstruct Buffer implements ¦", []string{"Writer"}, []string{"Plain", "int", "if"}},
+		{"interfaces after a comma", "interface Writer { func write(int n) int; }\ninterface Closer { func close(); }\nstruct Buffer implements Writer, ¦", []string{"Writer", "Closer"}, []string{"int"}},
+		{"interfaces in a constraint", "interface Writer { func write(int n) int; }\nfunc send<W¦>(int x) {}\nfunc main() {}\n", []string{"Writer", "int"}, []string{"if"}},
+		{"an interface as the type of a value", "interface Writer { func write(int n) int; }\nfunc use(Wr¦) {}\nfunc main() {}\n", []string{"Writer"}, nil},
+		{"the keywords", "func main() {\n\timpl¦\n}\n", []string{"implements"}, nil},
+	}
+	for _, tc := range cases {
+		p := c.open(map[string]string{"main.wsp": tc.src})
+		got := p.completion()
+		for _, w := range tc.want {
+			if !slices.Contains(got, w) {
+				t.Errorf("%s: %q missing from %v", tc.name, w, got[:min(len(got), 12)])
+			}
+		}
+		for _, d := range tc.deny {
+			if slices.Contains(got, d) {
+				t.Errorf("%s: %q should not be offered", tc.name, d)
+			}
+		}
+	}
+}
+
+func TestInterfaceSemanticTokens(t *testing.T) {
+	c := start(t)
+	src := "interface Source<T> {\n\tfunc next() T;\n}\n\nfunc main() {\n}\n"
+	p := c.open(map[string]string{"main.wsp": src})
+	got := map[string]string{}
+	for _, tok := range p.semanticTokens() {
+		got[strconv.Itoa(tok.line)+":"+strconv.Itoa(tok.col)] = tok.kind
+	}
+	for at, kind := range map[string]string{"0:17": "typeParameter", "1:13": "typeParameter"} {
+		if got[at] != kind {
+			t.Errorf("token at %s: want %s, got %q (%v)", at, kind, got[at], got)
+		}
+	}
+}
+
+func TestQuickFixDeclaresImplements(t *testing.T) {
+	c := start(t)
+	cases := []struct{ name, src, want string }{
+		{"a struct with no implements", "interface Writer { func write(int n) int; }\nstruct Plain {\n\tint x;\n}\nfunc (*Plain p) write(int n) int { return n; }\nfunc send<Writer W>(W w) {}\nfunc main() {\n\tPlain p;\n\tsend(&p);\n}\n", "struct Plain implements Writer {"},
+		{"a struct that already implements another", "interface Writer { func write(int n) int; }\ninterface Closer { func close(); }\nstruct Plain implements Closer {\n\tint x;\n}\nfunc (*Plain p) write(int n) int { return n; }\nfunc (*Plain p) close() {}\nfunc send<Writer W>(W w) {}\nfunc main() {\n\tPlain p;\n\tsend(&p);\n}\n", "struct Plain implements Closer, Writer {"},
+		{"a type", "interface Writer { func write(int n) int; }\ntype Meters int;\nfunc (Meters m) write(int n) int { return n; }\nfunc use(Writer w) {}\nfunc main() {\n\tMeters m = 3;\n\tuse(&m);\n}\n", "type Meters int implements Writer;"},
+	}
+	for _, tc := range cases {
+		p := c.open(map[string]string{"main.wsp": tc.src})
+		actions := p.codeActions()
+		var fixed string
+		for _, a := range actions {
+			if strings.HasPrefix(a.Title, "Declare that") {
+				fixed = a.apply(p, tc.src)
+			}
+		}
+		if !strings.Contains(fixed, tc.want) {
+			t.Errorf("%s: the fixed source lacks %q:\n%s", tc.name, tc.want, fixed)
+			continue
+		}
+		again := c.open(map[string]string{"main.wsp": fixed})
+		for _, d := range again.diagnostics() {
+			if d.Severity == 1 {
+				t.Errorf("%s: still an error after the fix: %s", tc.name, d.Message)
+			}
 		}
 	}
 }

@@ -660,6 +660,10 @@ func (p *Parser) docBefore(line int) string {
 }
 
 func commentText(raw string) string {
+	if text, ok := strings.CutPrefix(raw, "///"); ok {
+		text = strings.TrimPrefix(text, " ")
+		return strings.TrimRight(text, " \r")
+	}
 	if text, ok := strings.CutPrefix(raw, "//"); ok {
 		text = strings.TrimPrefix(text, " ")
 		return strings.TrimRight(text, " \r")

@@ -161,6 +161,16 @@
         ],
         "description": "Infinite Loop"
     },
+    "interface": {
+        "prefix": "interface",
+        "body": [
+            "interface ${1:Name} {",
+            "\tfunc ${2:method}(${3}) ${4};",
+            "\t$0",
+            "}"
+        ],
+        "description": "Declares an interface"
+    },
     "struct": {
         "prefix": "struct",
         "body": [

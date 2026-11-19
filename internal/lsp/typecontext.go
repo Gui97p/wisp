@@ -28,13 +28,14 @@ var (
 	declarationHead = regexp.MustCompile(`^(?:(?:public|extern)\s+)*`)
 )
 
-var topLevelKeywords = []string{"func", "struct", "enum", "type", "const", "import", "public", "internal", "shared", "extern", "var"}
+var topLevelKeywords = []string{"func", "struct", "enum", "type", "interface", "const", "import", "public", "internal", "shared", "extern", "var"}
 
 type typeContext struct {
-	typing   bool
-	topLevel bool
-	own      string
-	module   string
+	typing     bool
+	interfaces bool
+	topLevel   bool
+	own        string
+	module     string
 }
 
 func typingType(segment string) (typeContext, bool) {
@@ -53,7 +54,15 @@ func afterLast(text, separators string) string {
 	return text[strings.LastIndexAny(text, separators)+1:]
 }
 
+var implementsTyping = regexp.MustCompile(`\bimplements\s+(?:[A-Za-z_][\w.]*(?:<[^<>{};]*>)?\s*,\s*)*([A-Za-z_][\w.]*)?$`)
+
 func typeContextAt(text string) (typeContext, bool) {
+	if m := implementsTyping.FindStringSubmatch(afterLast(text, ";{}")); m != nil {
+		ctx, _ := typingType(m[1])
+		ctx.typing, ctx.interfaces = true, true
+		return ctx, true
+	}
+
 	if m := mapTail.FindString(text); m != "" {
 		if ctx, ok := typingType(m[strings.LastIndex(m, "]")+1:]); ok {
 			return ctx, true
@@ -122,7 +131,7 @@ func topLevelContext(segment string) (typeContext, bool) {
 }
 
 func isTypeSymbol(sym *analyser.Symbol) bool {
-	return sym.Kind == analyser.STRUCT || sym.Kind == analyser.TYPE
+	return sym.Kind == analyser.STRUCT || sym.Kind == analyser.TYPE || sym.Kind == analyser.INTERFACE
 }
 
 func typeItems(info *analyser.Info, line, col int, ctx typeContext) []protocol.CompletionItem {
@@ -138,8 +147,19 @@ func typeItems(info *analyser.Info, line, col int, ctx typeContext) []protocol.C
 		}
 		if mt, isModule := owner.Type.(*analyser.ModuleType); isModule {
 			for _, ex := range mt.Exports {
-				if isTypeSymbol(ex) {
+				if isTypeSymbol(ex) && (!ctx.interfaces || ex.Kind == analyser.INTERFACE) {
 					items = append(items, symbolItem(ex, ""))
+				}
+			}
+		}
+		return items
+	}
+
+	if ctx.interfaces {
+		if info != nil {
+			for _, sym := range scopeAt(info, line, col).Visible() {
+				if sym.Kind == analyser.INTERFACE || sym.Kind == analyser.MODULE {
+					items = append(items, symbolItem(sym, ""))
 				}
 			}
 		}
@@ -232,7 +252,13 @@ scan:
 	}
 	before := head[:len(head)-len(m[1])]
 	if genericDeclHeader.MatchString(before) {
-		return typeContext{}, true
+		segment := afterLast(text[open+1:], ",")
+		if strings.ContainsAny(strings.TrimLeft(segment, " \t"), " \t") {
+			return typeContext{}, true
+		}
+		ctx, _ := typingType(segment)
+		ctx.typing = true
+		return ctx, true
 	}
 	if info == nil {
 		return typeContext{}, false

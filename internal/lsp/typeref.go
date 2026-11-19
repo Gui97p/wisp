@@ -71,6 +71,9 @@ func typeRefAt(program *ast.Program, line, col int) *ast.TypeRef {
 
 		switch d := decl.(type) {
 		case *ast.FuncDecl:
+			if r := refInTypeParams(d.TypeParams, line, col); r != nil {
+				return r
+			}
 			if d.Receiver != nil {
 				if r := refIn(&d.Receiver.Type, line, col); r != nil {
 					return r
@@ -93,8 +96,37 @@ func typeRefAt(program *ast.Program, line, col int) *ast.TypeRef {
 			if r := refInParams(d.Members, line, col); r != nil {
 				return r
 			}
+			if r := refInRefs(d.Implements, line, col); r != nil {
+				return r
+			}
+			if r := refInTypeParams(d.TypeParams, line, col); r != nil {
+				return r
+			}
 		case *ast.TypeDecl:
 			if r := refIn(&d.Underlying, line, col); r != nil {
+				return r
+			}
+			if r := refInRefs(d.Implements, line, col); r != nil {
+				return r
+			}
+			if r := refInTypeParams(d.TypeParams, line, col); r != nil {
+				return r
+			}
+		case *ast.InterfaceDecl:
+			if r := refInTypeParams(d.TypeParams, line, col); r != nil {
+				return r
+			}
+			for i := range d.Methods {
+				if r := refInParams(d.Methods[i].Params, line, col); r != nil {
+					return r
+				}
+				for j := range d.Methods[i].ReturnTypes {
+					if r := refIn(&d.Methods[i].ReturnTypes[j], line, col); r != nil {
+						return r
+					}
+				}
+			}
+			if r := refInConstraint(d.Constraint, line, col); r != nil {
 				return r
 			}
 		case *ast.ConstDecl:
@@ -185,7 +217,7 @@ func typeRefSymbol(ref *ast.TypeRef, info *analyser.Info, line, col int) *analys
 	}
 
 	sym, ok := scope.Resolve(ref.Name)
-	if !ok || (sym.Kind != analyser.STRUCT && sym.Kind != analyser.TYPE) {
+	if !ok || (sym.Kind != analyser.STRUCT && sym.Kind != analyser.TYPE && sym.Kind != analyser.INTERFACE) {
 		return nil
 	}
 	return sym
@@ -206,4 +238,35 @@ func exprTypeRef(expr ast.Expression) *ast.TypeRef {
 		return e.Type
 	}
 	return nil
+}
+
+func refInRefs(refs []ast.TypeRef, line, col int) *ast.TypeRef {
+	for i := range refs {
+		if r := refIn(&refs[i], line, col); r != nil {
+			return r
+		}
+	}
+	return nil
+}
+
+func refInTypeParams(params []ast.TypeParam, line, col int) *ast.TypeRef {
+	for i := range params {
+		if r := refInConstraint(params[i].Constraint, line, col); r != nil {
+			return r
+		}
+	}
+	return nil
+}
+
+func refInConstraint(c *ast.Constraint, line, col int) *ast.TypeRef {
+	if c == nil {
+		return nil
+	}
+	if c.Kind == ast.ConstraintType {
+		return refIn(c.Type, line, col)
+	}
+	if r := refInConstraint(c.Left, line, col); r != nil {
+		return r
+	}
+	return refInConstraint(c.Right, line, col)
 }

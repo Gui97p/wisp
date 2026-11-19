@@ -300,6 +300,10 @@ func moduleExports(file string, byPath map[string]string, seen map[string]bool, 
 			if decl.Exported {
 				entries = append(entries, exportEntry{name: decl.Name, kind: protocol.CompletionItemKindStruct, detail: "struct", internalDir: reachFolder(decl.Reach, file)})
 			}
+		case *ast.InterfaceDecl:
+			if decl.Exported {
+				entries = append(entries, exportEntry{name: decl.Name, kind: protocol.CompletionItemKindInterface, detail: "interface", internalDir: reachFolder(decl.Reach, file)})
+			}
 		case *ast.TypeDecl:
 			if decl.Exported {
 				kind, detail := protocol.CompletionItemKindClass, "type"
@@ -482,7 +486,7 @@ func packagePartExports(file string, byPath map[string]string, seen map[string]b
 
 func isTypeEntry(e exportEntry) bool {
 	switch e.kind {
-	case protocol.CompletionItemKindStruct, protocol.CompletionItemKindClass, protocol.CompletionItemKindEnum:
+	case protocol.CompletionItemKindStruct, protocol.CompletionItemKindClass, protocol.CompletionItemKindEnum, protocol.CompletionItemKindInterface:
 		return true
 	}
 	return false

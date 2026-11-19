@@ -90,6 +90,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		return markdownHover(typeParamHover(hit), positionRange(hit.rng))
 	}
 
+	if text, rng := interfaceMethodDeclHover(local, line, col); text != "" {
+		return markdownHover(text, rng)
+	}
+
 	if text, ok := methodDeclHover(local, fileBuffer[path], line, col); ok {
 		return markdownHover(text, wordRange(fileBuffer[path], line, col))
 	}
@@ -463,6 +467,10 @@ func symbolHover(sym *analyser.Symbol, program *ast.Program) string {
 		}
 	case analyser.TYPE:
 		return typeHover(sym)
+	case analyser.INTERFACE:
+		if it, ok := sym.Type.(*analyser.InterfaceType); ok {
+			return interfaceHover(it, sym.Doc, program)
+		}
 	case analyser.MODULE:
 		if mt, ok := sym.Type.(*analyser.ModuleType); ok {
 			return moduleHover(sym.Name, mt)
@@ -764,4 +772,27 @@ func wordRange(src []byte, line, col int) *protocol.Range {
 	}
 	r := rangeOf(line, start+1, line, end)
 	return &r
+}
+
+func interfaceHover(it *analyser.InterfaceType, doc string, program *ast.Program) string {
+	for _, d := range program.Declarations {
+		if decl, ok := d.(*ast.InterfaceDecl); ok && decl.Name == it.Name {
+			return renderDoc(interfaceDeclText(decl), joinDocs(doc, interfaceKindDoc(it)))
+		}
+	}
+	methods := it.AllMethods()
+	var b strings.Builder
+	fmt.Fprintf(&b, "interface %s {", it.Name)
+	for _, m := range methods {
+		fmt.Fprintf(&b, "\n  func %s", m.String())
+	}
+	b.WriteString("\n}")
+	return renderDoc(b.String(), joinDocs(doc, interfaceKindDoc(it)))
+}
+
+func interfaceKindDoc(it *analyser.InterfaceType) string {
+	if it.ConstraintOnly() {
+		return "A constraint: it names types, so it limits a type parameter and is not the type of a value."
+	}
+	return "A contract. A type declares it with `implements`, a pointer to it becomes a value of the interface (`Writer w = &x;`), and `<" + it.Name + " T>` limits a type parameter to the types that implement it."
 }
