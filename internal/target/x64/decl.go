@@ -207,6 +207,8 @@ func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
 				return err
 			}
 			t.data.printft("dq %s\n", t.funcLabel(sym))
+		case *ast.GenericExpr:
+			t.data.printft("dq %s\n", t.funcLabel(t.info.GenericFuncs[e]))
 		default:
 			return fmt.Errorf("x86-64: unsupported global initializer")
 		}

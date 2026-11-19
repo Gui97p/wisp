@@ -126,6 +126,10 @@ func (a *Analyser) constantInitializer(expr ast.Expression) bool {
 		if sym, ok := a.scope.Resolve(e.Value); ok && sym.Kind == FUNC {
 			return true
 		}
+	case *ast.GenericExpr:
+		if _, isFunc := a.info.Types[e].(*FuncType); isFunc && a.info.GenericFuncs[e] != nil {
+			return true
+		}
 	case *ast.MemberExpr:
 		if _, isFunc := a.info.Types[e].(*FuncType); isFunc && a.info.Members[e].Kind == MemberModule {
 			return true

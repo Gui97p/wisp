@@ -3,8 +3,15 @@
 import "std/fmt";
 
 // `type` creates a new nominal type. UserID and int are different types, so
-// mixing them needs an explicit conversion.
+// mixing them needs an explicit conversion. The new type keeps what the type it
+// is made of can do: a `type Meters int` adds, compares and shifts like an int,
+// a `type Row [3]int` is indexed, measured with `len` and walked with `for`,
+// and a `type Name string` is indexed too. Two different defined types still do
+// not mix, so `meters + seconds` is an error, and the methods of the original
+// type are not inherited.
 type UserID int;
+type Meters int;
+type Row [3]int;
 
 // An enum is a nominal type with named members, written Color.Green. Numbering
 // starts at 0 and continues from the last explicit value. Where the enum is
@@ -29,6 +36,12 @@ public func demo() {
 	// ...but going back to int needs a conversion: the type name used as a function.
 	int raw = int(uid);
 	fmt.printf("the UserID as an int: {}\n", raw);
+
+	Meters walked = 5;
+	walked += 3;
+	Row marks;
+	marks[1] = int(walked) * 2;
+	fmt.printf("walked {} meters, marks {} of {}\n", int(walked), marks[1], len(marks));
 
 	Color favorite = .Green;
 	fmt.printf("favorite is {}, number {}\n", favorite.name(), int(favorite));

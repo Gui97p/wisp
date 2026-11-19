@@ -85,7 +85,7 @@ func (a *Analyser) checkFuncBodies() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		fd, ok := d.(*ast.FuncDecl)
-		if !ok || isGenericDecl(fd) {
+		if !ok || isGenericDecl(fd) || fd.Instance != "" {
 			continue
 		}
 		if fd.Body != nil {

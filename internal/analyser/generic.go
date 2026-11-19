@@ -1360,28 +1360,59 @@ func (g *GenericDecl) node() ast.Node {
 }
 
 func (a *Analyser) genericFuncValue(e *ast.IdentLiteral, symbol *Symbol) Type {
-	g := symbol.Generic
-	if g == nil || g.Func == nil {
+	if symbol.Generic == nil {
 		a.errorf(e, "%s is not a generic function", e.Value)
 		return InvalidType{}
 	}
-	if len(e.TypeArgs) != len(g.Params) {
-		a.errorf(e, "a generic function used as a value needs all its type arguments: %s takes %d, got %d", g.Name, len(g.Params), len(e.TypeArgs)).
-			WithHelp("there are no arguments to infer them from: write %s<%s>", g.Name, strings.Join(paramNames(g.Params), ", "))
-		return InvalidType{}
-	}
-	values, ok := a.evalArgList(e, g, e.TypeArgs, a.scope)
-	if !ok {
-		return InvalidType{}
-	}
-	sym, ft := a.instantiateFunc(e, g, values)
+	sym, ft := a.instantiateValue(e, symbol.Generic, e.TypeArgs)
 	if ft == nil {
-		return InvalidType{}
-	}
-	if ft.Inline {
-		a.errorf(e, "%s is inline, so it has no address to use as a value", g.Name)
 		return InvalidType{}
 	}
 	a.info.Idents[e] = sym
 	return ft
+}
+
+func (a *Analyser) genericExprValue(e *ast.GenericExpr) Type {
+	savedCallee := a.callee
+	a.callee = e.Base
+	baseType := a.checkExpr(e.Base)
+	a.callee = savedCallee
+	switch bt := baseType.(type) {
+	case InvalidType:
+		return InvalidType{}
+	case GenericType:
+		sym, ft := a.instantiateValue(e, bt.Decl, e.Args)
+		if ft == nil {
+			return InvalidType{}
+		}
+		a.info.GenericFuncs[e] = sym
+		return ft
+	}
+	a.errorf(e, "%s is not generic", ast.ExprText(e.Base))
+	return InvalidType{}
+}
+
+func (a *Analyser) instantiateValue(node ast.Node, g *GenericDecl, args []ast.TypeArg) (*Symbol, *FuncType) {
+	if g.Func == nil {
+		a.errorf(node, "%s is not a generic function", g.Name)
+		return nil, nil
+	}
+	if len(args) != len(g.Params) {
+		a.errorf(node, "a generic function used as a value needs all its type arguments: %s takes %d, got %d", g.Name, len(g.Params), len(args)).
+			WithHelp("there are no arguments to infer them from: write %s<%s>", g.Name, strings.Join(paramNames(g.Params), ", "))
+		return nil, nil
+	}
+	values, ok := a.evalArgList(node, g, args, a.scope)
+	if !ok {
+		return nil, nil
+	}
+	sym, ft := a.instantiateFunc(node, g, values)
+	if ft == nil {
+		return nil, nil
+	}
+	if ft.Inline {
+		a.errorf(node, "%s is inline, so it has no address to use as a value", g.Name)
+		return nil, nil
+	}
+	return sym, ft
 }

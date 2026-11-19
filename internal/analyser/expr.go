@@ -73,8 +73,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	case *ast.AnonLiteral:
 		t = a.checkAnonLiteral(e)
 	case *ast.GenericExpr:
-		a.errorf(e, "type arguments go before a call or a literal: write %s(...) or %s{...}", ast.ExprText(e.Base)+ast.TypeArgsText(e.Args), ast.ExprText(e.Base)+ast.TypeArgsText(e.Args))
-		t = InvalidType{}
+		t = a.genericExprValue(e)
 	case *ast.BinaryExpr:
 		t = a.checkBinaryExpr(e)
 	case *ast.UnaryExpr:
@@ -328,7 +327,7 @@ func (a *Analyser) checkUnaryExpr(expr *ast.UnaryExpr) Type {
 }
 
 func (a *Analyser) checkDerefExpr(expr *ast.DerefExpr) Type {
-	value := a.checkExpr(expr.Value)
+	value := a.viewAsBase(expr.Value, a.checkExpr(expr.Value))
 
 	if _, ok := value.(InvalidType); ok {
 		return InvalidType{}
@@ -550,6 +549,9 @@ func (a *Analyser) checkCallArgsWith(expr *ast.CallExpr, ft *FuncType, argTypes 
 		if len(argTypes) != 1 {
 			a.errorf(expr, "len expects 1 argument, got %d", len(argTypes))
 			return
+		}
+		if len(expr.Args) == 1 {
+			argTypes[0] = a.viewAsBase(expr.Args[0], argTypes[0])
 		}
 		switch t := argTypes[0].(type) {
 		case ArrayType, SpanType, InvalidType:
@@ -800,8 +802,18 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 	return fieldType
 }
 
+func (a *Analyser) viewAsBase(expr ast.Expression, t Type) Type {
+	base := definedBase(t)
+	if _, named := t.(NamedType); named {
+		if _, same := base.(NamedType); !same {
+			a.info.Types[expr] = base
+		}
+	}
+	return base
+}
+
 func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
-	arrType := a.checkExpr(expr.Array)
+	arrType := a.viewAsBase(expr.Array, a.checkExpr(expr.Array))
 	idxType := a.checkExpr(expr.Index)
 
 	if _, ok := arrType.(InvalidType); ok {
@@ -844,7 +856,8 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 }
 
 func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
-	arrType := a.checkExpr(expr.Array)
+	original := a.checkExpr(expr.Array)
+	arrType := a.viewAsBase(expr.Array, original)
 	if expr.Start != nil {
 		a.requireNumeric(expr.Start, a.checkExpr(expr.Start), "slice start")
 	}
@@ -863,6 +876,9 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 		return SpanType{Element: t.Element}
 	case SpanType:
 		a.checkConstSlice(expr, -1)
+		if _, named := original.(NamedType); named {
+			return original
+		}
 		return t
 	case PointerType:
 		if a.rejectOptionalUse(expr, t, "a slice") {
@@ -880,6 +896,9 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 		return SpanType{Element: t.Element}
 	case PrimitiveType:
 		if t.Name == "string" {
+			if _, named := original.(NamedType); named {
+				return original
+			}
 			return t
 		}
 	case InvalidType:

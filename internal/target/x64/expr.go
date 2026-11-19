@@ -82,6 +82,13 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 
 		return t.local(sym), nil
 
+	case *ast.GenericExpr:
+		sym := t.info.GenericFuncs[e]
+		if sym == nil {
+			return nil, fmt.Errorf("x86-64: generic function value without an instance")
+		}
+		return Addr{Of: label(t.funcLabel(sym), 8)}, nil
+
 	case *ast.BinaryExpr:
 		return t.compileBinaryExpr(e)
 	case *ast.UnaryExpr:
@@ -799,7 +806,7 @@ func (t *X64Target) compileSliceExpr(expr *ast.SliceExpr) (Operand, error) {
 	t.checkIndexOk(start, end, "jbe", "slice out of range")
 
 	elemSize := 1
-	switch tp := t.info.Types[expr].(type) {
+	switch tp := underlying(t.info.Types[expr]).(type) {
 	case analyser.SpanType:
 		elemSize = sizeOf(tp.Element)
 	case analyser.PrimitiveType:

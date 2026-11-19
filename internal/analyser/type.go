@@ -534,7 +534,15 @@ func isNumeric(t Type) bool {
 	return isInteger(t) || isFloat(t)
 }
 
+func definedBase(t Type) Type {
+	if nt, ok := t.(NamedType); ok && !nt.Enum {
+		return underlyingOf(nt)
+	}
+	return t
+}
+
 func isInteger(t Type) bool {
+	t = definedBase(t)
 	if _, ok := t.(UntypedIntType); ok {
 		return true
 	}
@@ -551,6 +559,7 @@ func isInteger(t Type) bool {
 }
 
 func isFloat(t Type) bool {
+	t = definedBase(t)
 	if _, ok := t.(UntypedFloatType); ok {
 		return true
 	}

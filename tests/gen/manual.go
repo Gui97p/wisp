@@ -12830,6 +12830,86 @@ func main() {
 }
 `, expected: []string{"locals survive the recursive calls that come after them", "a recursion that reads a local after the call", "calls to different recursive functions in one expression"}},
 
+	{dir: "generic_value_across_modules", files: map[string]string{"pick/pick.wsp": `public func first<T>(T a, T _b) T {
+    return a;
+}
+
+public func twice<T>(T x) (T, T) {
+    return x, x;
+}
+`}, src: `import "pick";
+
+func first<T>(T a, T _b) T {
+    return a;
+}
+
+(int, int) => int fromModule = pick.first<int>;
+(int, int) => int fromHere = first<int>;
+
+func apply(int x, int y, (int, int) => int f) int {
+    return f(x, y);
+}
+
+func main() {
+    let f = pick.first<string>;
+    check(f("a", "b") == "a", "a generic function of another module as a value");
+    check(apply(5, 6, pick.first<int>) == 5, "as an argument");
+    let both = pick.twice<int>;
+    let a, b = both(4);
+    check(a == 4 && b == 4, "with several results");
+    check(fromModule(8, 9) == 8 && fromHere(8, 9) == 8, "as the initializer of a global");
+}
+`, expected: []string{"a generic function of another module as a value", "as an argument", "with several results", "as the initializer of a global"}},
+
+	{dir: "named_type_operations", src: `type Meters int;
+type Ratio float;
+type Mask uint8;
+type Row [3]int;
+type Name string;
+type Handle *int;
+type Grid<T> [2]T;
+type Items []int;
+
+func length(Name n) int {
+    return len(n);
+}
+
+func main() {
+    Meters m = 5;
+    Meters n = m * 2 + 1;
+    n += 4;
+    n++;
+    check(int(n) == 16 && n > m && -m == Meters(-5), "a defined integer type keeps the arithmetic and the comparisons");
+    Ratio r = 1.5;
+    check(float(r * 2.0 + r) == 4.5, "a defined float type keeps the arithmetic");
+    Mask a = 12;
+    Mask b = (a & 4 | 1) << 1;
+    check(int(b) == 10, "a defined unsigned type keeps the bit operators");
+    Row row;
+    row[0] = 4;
+    row[1] = row[0] + 1;
+    int sum = 0;
+    for i, v in row {
+        sum += v + i;
+    }
+    check(len(row) == 3 && row[1] == 5 && sum == 12, "a defined array keeps indexing, len and range");
+    Name name = Name("abc");
+    check(len(name) == 3 && name[1] == 'b', "a defined string keeps indexing and len");
+    Name part = name[1:3];
+    Items items = Items(row[0:3]);
+    Items rest = items[1:];
+    []int tail = row[1:3];
+    check(length(part) == 2 && len(rest) == 2 && rest[0] == 5 && len(tail) == 2, "slicing a defined string or slice gives the same defined type, an array gives a slice");
+    int x = 9;
+    Handle h = Handle(&x);
+    h@ = h@ + 1;
+    check(x == 10, "a defined pointer keeps the dereference");
+    Grid<float> grid;
+    grid[1] = 2.5;
+    check(grid[1] == 2.5 && len(grid) == 2, "a generic defined array is indexable");
+}
+`, expected: []string{"a defined integer type keeps the arithmetic and the comparisons", "a defined float type keeps the arithmetic", "a defined unsigned type keeps the bit operators", "a defined array keeps indexing, len and range", "a defined string keeps indexing and len", "slicing a defined string or slice gives the same defined type, an array gives a slice", "a defined pointer keeps the dereference", "a generic defined array is indexable"}},
+
 	{dir: "generic_type_switch", src: `struct Wrapper<T> {
     T value;
 }

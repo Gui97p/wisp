@@ -18,6 +18,7 @@ type Info struct {
 	ErrorLiterals    map[*ast.CallExpr]*ErrorLiteral
 	Idents           map[*ast.IdentLiteral]*Symbol
 	Members          map[*ast.MemberExpr]*MemberInfo
+	GenericFuncs     map[*ast.GenericExpr]*Symbol
 	MethodCalls      map[*ast.CallExpr]*MethodCall
 	MethodVisible    map[*ast.FuncDecl]bool
 	UntilSeesBody    map[*ast.LoopStmt]bool
@@ -101,6 +102,7 @@ func NewInfo() *Info {
 		TypeCases:        make(map[*ast.BinaryExpr]*TypeCase),
 		Narrowed:         make(map[*Symbol]*Symbol),
 		SwitchValues:     make(map[*ast.SwitchExpr][]Type),
+		GenericFuncs:     make(map[*ast.GenericExpr]*Symbol),
 		Variants:         make(map[ast.Expression]*VariantInfo),
 		Natives:          make(map[*ast.NativeStmt]*NativeInfo),
 		LayoutValues:     make(map[*ast.CallExpr]int),

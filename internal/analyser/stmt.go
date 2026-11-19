@@ -152,7 +152,7 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 	line, col := stmt.Position()
 
 	if stmt.Range != nil {
-		rangeType := a.checkExpr(stmt.Range)
+		rangeType := a.viewAsBase(stmt.Range, a.checkExpr(stmt.Range))
 
 		a.pushLoop(stmt.Label)
 		a.enterScope()
