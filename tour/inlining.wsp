@@ -11,8 +11,9 @@
 // value that must be known at compile time. Because it has no single
 // compiled copy, a function with `const` parameters cannot be used as a value.
 //
-// An inline function can take an untyped `...args`, which works as it does in
-// any function: `args` is a sequence you can measure, index and pass on with
+// An inline function can take a variadic, typed (`int ...values`) or untyped
+// (`...args`), and it works as it does in any function: the name is a sequence
+// you can measure, index, loop over and, for an untyped one, pass on with
 // `args...`. The arguments are packed at the call the way a normal call would
 // pack them. That makes an inline function a good thin wrapper, and an error
 // it raises is reported at the line of the call.

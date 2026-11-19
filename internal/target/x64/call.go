@@ -1048,8 +1048,9 @@ func (t *X64Target) bindInlineRest(expr *ast.CallExpr, call *analyser.InlineCall
 		return nil
 	}
 
-	const boxSize = 24
-	block := slot(t.ctx.Reserve((extra*boxSize+7)/8*8), extra*boxSize)
+	span, _ := call.Rest.Type.(analyser.SpanType)
+	esize := sizeOf(span.Element)
+	block := slot(t.ctx.Reserve((extra*esize+7)/8*8), extra*esize)
 	for i := range extra {
 		arg := expr.Args[call.RestFrom+i]
 		op, err := t.compileExpr(arg)
@@ -1057,7 +1058,9 @@ func (t *X64Target) bindInlineRest(expr *ast.CallExpr, call *analyser.InlineCall
 			return err
 		}
 		if boxed, ok := t.info.Boxes[arg]; ok {
-			t.boxArg(block.at(i*boxSize, boxSize), boxed, op)
+			t.boxArg(block.at(i*esize, esize), boxed, op)
+		} else {
+			t.store(op, block.at(i*esize, esize))
 		}
 	}
 

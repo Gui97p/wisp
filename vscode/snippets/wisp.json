@@ -11,7 +11,7 @@
     "Function": {
         "prefix": "func",
         "body": [
-            "func ${1:nome}(${2}) {",
+            "func ${1:name}(${2}) {",
             "\t$0",
             "}"
         ],
@@ -136,9 +136,9 @@
     "native": {
         "prefix": "native",
         "body": [
-            "native \"${0}\";"
+            "native {${0}}};"
         ],
-        "description": "Inline backend-native statement"
+        "description": "Backend-native statement"
     },
     "function without body": {
         "prefix": "funcdecl",

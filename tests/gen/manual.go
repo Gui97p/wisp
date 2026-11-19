@@ -12294,6 +12294,22 @@ inline func describe(string tag, ...args) string {
     }
 }
 
+inline func typedTotal(int base, int ...rest) int {
+    int sum = base;
+    for _i, v in rest {
+        sum += v;
+    }
+    return sum + len(rest) * 1000;
+}
+
+inline func joinedLength(string sep, string ...parts) int {
+    int n;
+    for _i, p in parts {
+        n += len(p) + len(sep);
+    }
+    return n;
+}
+
 func forward(...args) int {
     return tally(100, args...);
 }
@@ -12306,10 +12322,54 @@ func main() {
     check(howMany() == 0 && howMany(1, "a", true) == 6, "len and passing on in the same body");
     check(describe("none") == "none" && describe("tag", 3) == "tag" && describe("tag", "first") == "first", "switch type on an element of the variadic");
     check(forward(1, 2, 3) == 106 && forward() == 100, "a variadic passed on to an inline function");
+    check(typedTotal(1) == 1 && typedTotal(1, 2, 3) == 2006, "a typed variadic");
+    int8 small = 3;
+    check(typedTotal(1, small, 2) == 2006, "typed variadic arguments are converted to the element type");
+    check(joinedLength(",", "ab", "cde") == 7 && joinedLength(",") == 0, "a variadic of strings");
     sink = tally(2, 3);
     check(sink == 5, "the result of an inline function with a variadic goes anywhere");
 }
-`, expected: []string{"an inline function with no variadic arguments", "an inline function with several", "variables and expressions as variadic arguments", "len and passing on in the same body", "switch type on an element of the variadic", "a variadic passed on to an inline function", "the result of an inline function with a variadic goes anywhere"}},
+`, expected: []string{"an inline function with no variadic arguments", "an inline function with several", "variables and expressions as variadic arguments", "len and passing on in the same body", "switch type on an element of the variadic", "a variadic passed on to an inline function", "a typed variadic", "typed variadic arguments are converted to the element type", "a variadic of strings", "the result of an inline function with a variadic goes anywhere"}},
+
+	{dir: "variadic_spread", src: `func total(int base, int ...rest) int {
+    int sum = base;
+    for _i, v in rest {
+        sum += v;
+    }
+    return sum + len(rest) * 1000;
+}
+
+inline func inlined(int ...rest) int {
+    return total(0, rest...);
+}
+
+func pass(int ...xs) int {
+    return total(0, xs...);
+}
+
+func mixed(int ...xs) int {
+    return total(0, 7, 8, xs...);
+}
+
+func text(string ...parts) int {
+    return len(parts);
+}
+
+func again(string ...parts) int {
+    return text(parts...);
+}
+
+func main() {
+    check(pass(4, 5, 6) == 3015 && pass() == 0, "a typed variadic passed on");
+    check(inlined(1, 2) == 2003 && inlined() == 0, "a typed variadic passed on by an inline function");
+    check(mixed(1, 2) == 4018, "loose values followed by a variadic passed on");
+    []int nums = .{10, 20, 30};
+    check(total(5, nums...) == 3065, "a slice spread into a variadic");
+    [4]int fixed = .{1, 2, 3, 4};
+    check(total(0, fixed[1:]...) == 3009, "a part of an array spread into a variadic");
+    check(again("a", "b", "c") == 3, "strings passed on");
+}
+`, expected: []string{"a typed variadic passed on", "a typed variadic passed on by an inline function", "loose values followed by a variadic passed on", "a slice spread into a variadic", "a part of an array spread into a variadic", "strings passed on"}},
 
 	{dir: "switch_then_break", src: `func next(int k) ?int {
     return null if k > 3;

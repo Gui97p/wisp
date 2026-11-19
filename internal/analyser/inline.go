@@ -30,9 +30,6 @@ func (a *Analyser) checkInlineDecl(fd *ast.FuncDecl) {
 		if p.Const && !fd.Inline {
 			a.errorf(fd, "parameter %s is const, and only an inline function can take const parameters", p.Name)
 		}
-		if fd.Inline && p.Variadic && !p.Any {
-			a.errorf(fd, "an inline function cannot take a typed ...%s yet, only an untyped one", p.Name)
-		}
 	}
 	if fd.Inline && fd.Name == "main" && fd.Receiver == nil {
 		a.error(fd, "main cannot be inline")
@@ -87,7 +84,7 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 	if !force && slices.Contains(a.inlineStack, decl) {
 		return
 	}
-	variadic := len(decl.Params) > 0 && decl.Params[len(decl.Params)-1].Any
+	variadic := len(decl.Params) > 0 && decl.Params[len(decl.Params)-1].Variadic
 	fixedCount := len(decl.Params)
 	if variadic {
 		fixedCount--

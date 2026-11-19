@@ -512,8 +512,8 @@ func (a *Analyser) receiverArgument(object ast.Expression, objType Type, pointer
 func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 	argTypes := a.evalArgTypes(expr)
 
-	if expr.Spread && !ft.acceptsBoxes() {
-		a.error(expr, "... can only be used to pass an untyped variadic on")
+	if expr.Spread && (!ft.Variadic || ft.CVariadic) {
+		a.errorf(expr, "... passes a slice on to a variadic parameter, and %s has none", ft.Name)
 		return
 	}
 
@@ -561,7 +561,23 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 			a.checkBoxedArgs(expr, argTypes, fixedCount)
 			return
 		}
-		for i := fixedCount; i < len(argTypes); i++ {
+		end := len(argTypes)
+		if expr.Spread {
+			end--
+			span, isSpan := argTypes[end].(SpanType)
+			switch {
+			case end < fixedCount:
+				a.error(expr, "... passes a slice on to the variadic of the function, and has to come after its other arguments")
+				return
+			case !isSpan:
+				a.errorf(expr, "... passes a slice on, got %s", argTypes[end].String()).WithHelp("%s", signatureHelp(ft))
+				return
+			case !span.Element.Equals(variadicType):
+				a.errorf(expr, "... passes a slice of %s on, and %s takes %s", span.Element.String(), ft.Name, variadicType.String()).WithHelp("%s", signatureHelp(ft))
+				return
+			}
+		}
+		for i := fixedCount; i < end; i++ {
 			if _, ok := argTypes[i].(InvalidType); ok {
 				continue
 			}

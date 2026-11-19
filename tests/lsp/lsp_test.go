@@ -197,6 +197,10 @@ func TestDiagnostics(t *testing.T) {
 		{"division by zero inside static", "const C = static { int z = 0; yield 5 / z; };\nfunc main() { int n = C; }\n", 1, "division by zero"},
 		{"the address of a constant", "const [3]int T = .{1, 2, 3};\nfunc main() {\n  *int p = &T[0];\n}\n", 1, "cannot take the address of the constant T"},
 		{"a slice of a constant", "const [3]int T = .{1, 2, 3};\nfunc main() {\n  []int s = T[:];\n}\n", 1, "cannot slice the constant T"},
+		{"a spread of the wrong element type", "func take(int ...xs) int { return len(xs); }\nfunc main() {\n  []string words = .{\"a\"};\n  int n = take(words...);\n}\n", 1, "passes a slice of string on"},
+		{"a spread that is not a slice", "func take(int ...xs) int { return len(xs); }\nfunc main() {\n  int one = 1;\n  int n = take(one...);\n}\n", 1, "passes a slice on"},
+		{"a spread into a function without a variadic", "func take(int x) int { return x; }\nfunc main() {\n  []int xs = .{1};\n  int n = take(xs...);\n}\n", 1, "has none"},
+		{"a spread that matches", "func take(int ...xs) int { return len(xs); }\nfunc main() {\n  []int xs = .{1};\n  int n = take(0, xs...);\n}\n", 0, ""},
 		{"a slice literal with elements", "func main() {\n  []int s = []int{1, 2};\n}\n", 1, "a slice literal has no elements"},
 	}
 	for _, tc := range cases {
