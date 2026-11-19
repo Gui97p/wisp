@@ -14,6 +14,14 @@ func (a *Analyser) typeOperand(arg ast.Expression) Type {
 			if sym.Kind == STRUCT || sym.Kind == TYPE {
 				return sym.Type
 			}
+			if sym.Kind == INTERFACE {
+				if it, isInterface := sym.Type.(*InterfaceType); isInterface {
+					it.ensure()
+					if !it.ConstraintOnly() {
+						return it
+					}
+				}
+			}
 		} else if primitives[e.Value] {
 			return PrimitiveType{Name: e.Value}
 		}

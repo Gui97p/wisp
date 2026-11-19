@@ -261,6 +261,12 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 		return true
 	}
 
+	if it, isInterface := to.(*InterfaceType); isInterface {
+		if handled, ok := a.coerceToInterface(slot, from, it); handled {
+			return ok
+		}
+	}
+
 	if from.Equals(to) {
 		if isUntyped(from) {
 			a.fixUntyped(*slot, to)
@@ -715,4 +721,57 @@ func voidPointerConversion(from, to Type) bool {
 	_, fromVoid := fp.Element.(VoidType)
 	_, toVoid := tp.Element.(VoidType)
 	return fromVoid != toVoid && !(fp.Nullable && !tp.Nullable)
+}
+
+func (a *Analyser) coerceToInterface(slot *ast.Expression, from Type, it *InterfaceType) (bool, bool) {
+	if held, ok := from.(*InterfaceType); ok {
+		if held.Equals(it) {
+			return false, false
+		}
+		a.errorf(*slot, "a value of %s cannot become a %s yet", held.Name, it.Name).
+			WithHelp("an interface value keeps its own methods: use a switch on types to reach the value behind it")
+		return true, true
+	}
+
+	pointer, isPointer := from.(PointerType)
+	if !isPointer || pointer.Nullable || isVoidPointer(from) {
+		if _, isNull := from.(NullType); isNull {
+			return false, false
+		}
+		if _, isValue := from.(*StructType); isValue || isNamedConcrete(from) {
+			if a.satisfiesInterface(PointerType{Element: from}, it) == "" {
+				a.errorf(*slot, "%s is a value, and an interface holds a pointer to one: write &value", from).
+					WithHelp("the interface %s keeps the object where it is, nothing is copied into it", it.Name)
+				return true, true
+			}
+		}
+		return false, false
+	}
+
+	if reason := a.satisfiesInterface(pointer, it); reason != "" {
+		a.errorf(*slot, "%s cannot be used as %s", from, it.Name).WithHelp("%s", reason)
+		return true, true
+	}
+
+	a.insertInterfaceConversion(slot, pointer, it)
+	return true, true
+}
+
+func isNamedConcrete(t Type) bool {
+	_, ok := t.(NamedType)
+	return ok
+}
+
+func (a *Analyser) insertInterfaceConversion(slot *ast.Expression, from PointerType, to *InterfaceType) {
+	inner := *slot
+	cast := &ast.CastExpr{Value: inner, Implicit: true}
+
+	line, col := inner.Position()
+	cast.SetPos(line, col)
+	endLine, endCol := inner.EndPosition()
+	cast.SetEndPos(endLine, endCol)
+
+	a.info.Types[cast] = to
+	a.info.IfaceConversions[cast] = &IfaceConversion{Iface: to, From: from}
+	*slot = cast
 }

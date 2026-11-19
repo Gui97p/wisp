@@ -215,7 +215,8 @@ func TestDiagnostics(t *testing.T) {
 		{"a generic function used as a value", "func id<T>(T a) T { return a; }\nfunc main() {\n  let f = id;\n}\n", 1, "id is generic"},
 		{"an error in the body of an instance", "func bad<T>(T a) T { return a.missing; }\nfunc main() {\n  int x = bad(1);\n}\n", 2, "with T = int, instantiated here"},
 		{"an operation a bare type parameter does not have", "func add<T>(T a, T b) T { return a + b; }\nfunc main() {}\n", 1, "invalid operator + for T and T"},
-		{"an interface used as the type of a value", "interface Writer { func write(int n) int; }\nfunc main() {\n  Writer w;\n}\n", 1, "constrains a type parameter"},
+		{"an interface value has no zero value", "interface Writer { func write(int n) int; }\nfunc main() {\n  Writer w;\n}\n", 1, "always holds something"},
+		{"a type set is not a value", "interface Number { int | float }\nfunc main() {\n  Number n;\n}\n", 1, "cannot be the type of a value"},
 		{"a value parameter that is not constant", "struct Ring<T, const int N> { [N]T slots; }\nfunc main() {\n  int n = 3;\n  Ring<int, n> r;\n}\n", 1, "value parameter"},
 		{"a generic method on a type that is not generic", "struct P { int x; }\nfunc (*P<T> p) f() {}\nfunc main() {}\n", 1, "not a generic struct"},
 		{"a slice literal with elements", "func main() {\n  []int s = []int{1, 2};\n}\n", 1, "a slice literal has no elements"},
@@ -769,5 +770,40 @@ func TestInterfaceVisibilityAcrossModules(t *testing.T) {
 	}
 	if len(messages) != 1 || !strings.Contains(messages[0], "Open declares implements Shape") {
 		t.Errorf("errors %q, want only the one about the public Open with a private method", messages)
+	}
+}
+
+func TestInterfaceValuesInLSP(t *testing.T) {
+	c := start(t)
+	cases := []struct{ name, src, want string }{
+		{"a value instead of a pointer", "interface Writer { func write(int n) int; }\nstruct B implements Writer { int t; }\nfunc (*B b) write(int n) int { return n; }\nfunc main() {\n  B b;\n  Writer w = b;\n}\n", "an interface holds a pointer to one: write &value"},
+		{"a pointer to a type that does not implement it", "interface Writer { func write(int n) int; }\nstruct P { int x; }\nfunc main() {\n  P p;\n  Writer w = &p;\n}\n", "cannot be used as Writer"},
+		{"a pointer to a type that has the methods but does not declare", "interface Writer { func write(int n) int; }\nstruct P { int x; }\nfunc (*P p) write(int n) int { return n; }\nfunc main() {\n  P p;\n  Writer w = &p;\n}\n", "add `implements Writer`"},
+		{"an interface for another interface", "interface Writer { func write(int n) int; }\ninterface Closer { func close(); }\nstruct B implements Writer, Closer { int t; }\nfunc (*B b) write(int n) int { return n; }\nfunc (*B b) close() {}\nfunc main() {\n  B b;\n  Writer w = &b;\n  Closer c = w;\n}\n", "cannot become a Closer yet"},
+		{"a method that does not exist", "interface Writer { func write(int n) int; }\nfunc use(Writer w) {\n  w.missing();\n}\nfunc main() {}\n", "interface Writer has no method missing"},
+		{"a field of an interface", "interface Writer { func write(int n) int; }\nfunc use(Writer w) int {\n  return w.total;\n}\nfunc main() {}\n", "has methods and no fields"},
+		{"comparing interface values", "interface Writer { func write(int n) int; }\nfunc same(Writer a, Writer b) bool {\n  return a == b;\n}\nfunc main() {}\n", "is not defined for Writer"},
+		{"a case that can never match", "interface Writer { func write(int n) int; }\nstruct P { int x; }\nfunc use(Writer w) int {\n  switch type w {\n    case *P p => return p.x;\n    default => return 0;\n  }\n}\nfunc main() {}\n", "can never be what Writer holds"},
+		{"a case that is not a pointer", "interface Writer { func write(int n) int; }\nstruct B implements Writer { int t; }\nfunc (*B b) write(int n) int { return n; }\nfunc use(Writer w) int {\n  switch type w {\n    case B b => return b.t;\n    default => return 0;\n  }\n}\nfunc main() {}\n", "names a pointer to a type"},
+	}
+	for _, tc := range cases {
+		p := c.open(map[string]string{"main.wsp": tc.src})
+		var messages []string
+		for _, d := range p.diagnostics() {
+			if d.Severity == 1 {
+				messages = append(messages, d.Message)
+			}
+		}
+		if !slices.ContainsFunc(messages, func(m string) bool { return strings.Contains(m, tc.want) }) {
+			t.Errorf("%s: errors %q, want one with %q", tc.name, messages, tc.want)
+		}
+	}
+
+	good := "interface Writer { func write(int n) int; }\ninterface Closer { func close(); }\ninterface WriteCloser { Writer & Closer }\nstruct B implements WriteCloser { int total; }\nfunc (*B b) write(int n) int { b.total += n; return b.total; }\nfunc (*B b) close() { b.total = 0; }\nstruct Log { Writer out; ?Writer backup; }\nfunc emit(Writer w, int n) int { return w.write(n); }\nfunc pick(bool first, Writer a, Writer b) Writer { return a if first; return b; }\nfunc total(Writer w) int {\n  switch type w {\n    case *B b => return b.total;\n    default => return -1;\n  }\n}\nfunc main() {\n  B b;\n  Writer w = &b;\n  WriteCloser wc = &b;\n  wc.close();\n  Log log = Log{out: &b, backup: &b};\n  int r = w.write(1) + emit(&b, 2) + log.out.write(3);\n  Writer chosen = pick(true, &b, &b);\n  int t = total(chosen);\n  [2]Writer pair = .{&b, &b};\n  if log.backup |x| {\n    x.write(1);\n  }\n}\n"
+	p := c.open(map[string]string{"main.wsp": good})
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("unexpected error in the valid program: %s", d.Message)
+		}
 	}
 }

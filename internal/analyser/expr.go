@@ -201,6 +201,9 @@ func singleReturn(block *ast.BlockStmt) (*ast.ReturnStmt, bool) {
 
 func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	left := a.checkExpr(expr.Left)
+	if held, isInterface := left.(*InterfaceType); isInterface && expr.TypeTest {
+		return a.checkInterfaceTypeCase(expr, held)
+	}
 	_, boxed := left.(BoxedType)
 	_, invalid := left.(InvalidType)
 	if boxed || (invalid && expr.TypeTest) {
@@ -444,6 +447,19 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 			a.evalArgTypes(expr)
 			return []Type{InvalidType{}}
 		}
+		if it, isInterface := objType.(*InterfaceType); isInterface {
+			methods := MethodsOf(it)
+			if _, found := methods[member.Field]; !found {
+				names := make([]string, 0, len(methods))
+				for name := range methods {
+					names = append(names, name)
+				}
+				sort.Strings(names)
+				a.suggest(a.errorf(member, "interface %s has no method %s", it.Name, member.Field), member.Field, names)
+				a.evalArgTypes(expr)
+				return []Type{InvalidType{}}
+			}
+		}
 		if methods := MethodsOf(objType); methods != nil {
 			if ft, ok := methods[member.Field]; ok {
 				_, pointerRecv := ft.Receiver.(PointerType)
@@ -463,6 +479,8 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 					ft = a.instanceOfMethod(expr, ft)
 				}
 				a.info.MethodCalls[expr] = &MethodCall{
+					Iface:           ft.Iface,
+					Slot:            ft.Slot,
 					Owner:           owner,
 					Module:          ft.Module,
 					Func:            ft,
@@ -777,6 +795,12 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 		}
 		objType = ptr.Element
 		byPointer = true
+	}
+
+	if it, isInterface := objType.(*InterfaceType); isInterface {
+		a.errorf(expr, "%s is an interface: it has methods and no fields", it.Name).
+			WithHelp("call a method, or use a switch on types to reach the value behind it")
+		return InvalidType{}
 	}
 
 	st, ok := objType.(*StructType)

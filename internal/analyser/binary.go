@@ -98,7 +98,7 @@ func (a *Analyser) uncomparable(op string, t Type) *diag.Diagnostic {
 		if v.Optional == nil && v.Sum == nil {
 			return a.errorf(a.comparisonNode, "operator %s is not defined for %s", op, t)
 		}
-	case ArrayType, SpanType:
+	case ArrayType, SpanType, *InterfaceType:
 		return a.errorf(a.comparisonNode, "operator %s is not defined for %s", op, t)
 	case *FuncType:
 		if ordering {

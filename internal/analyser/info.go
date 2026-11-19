@@ -19,6 +19,7 @@ type Info struct {
 	Idents           map[*ast.IdentLiteral]*Symbol
 	Members          map[*ast.MemberExpr]*MemberInfo
 	GenericFuncs     map[*ast.GenericExpr]*Symbol
+	IfaceConversions map[*ast.CastExpr]*IfaceConversion
 	MethodCalls      map[*ast.CallExpr]*MethodCall
 	MethodVisible    map[*ast.FuncDecl]bool
 	UntilSeesBody    map[*ast.LoopStmt]bool
@@ -72,6 +73,12 @@ type SumTest struct {
 type TypeCase struct {
 	Type  Type
 	Group bool
+	Iface *InterfaceType
+}
+
+type IfaceConversion struct {
+	Iface *InterfaceType
+	From  PointerType
 }
 
 func NewInfo() *Info {
@@ -103,6 +110,7 @@ func NewInfo() *Info {
 		Narrowed:         make(map[*Symbol]*Symbol),
 		SwitchValues:     make(map[*ast.SwitchExpr][]Type),
 		GenericFuncs:     make(map[*ast.GenericExpr]*Symbol),
+		IfaceConversions: make(map[*ast.CastExpr]*IfaceConversion),
 		Variants:         make(map[ast.Expression]*VariantInfo),
 		Natives:          make(map[*ast.NativeStmt]*NativeInfo),
 		LayoutValues:     make(map[*ast.CallExpr]int),
@@ -121,6 +129,8 @@ type EnumValue struct {
 }
 
 type MethodCall struct {
+	Iface           *InterfaceType
+	Slot            int
 	Owner           string
 	Module          string
 	Func            *FuncType

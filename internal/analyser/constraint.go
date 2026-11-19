@@ -54,6 +54,7 @@ type InterfaceType struct {
 	builtin string
 	fill    func()
 	filling bool
+	table   map[string]*FuncType
 }
 
 func (i *InterfaceType) String() string {
@@ -99,6 +100,20 @@ func (i *InterfaceType) AllMethods() []MethodSig {
 		}
 	}
 	return methods
+}
+
+func (i *InterfaceType) methodTable() map[string]*FuncType {
+	if i.table != nil {
+		return i.table
+	}
+	i.table = map[string]*FuncType{}
+	for slot, m := range i.AllMethods() {
+		i.table[m.Name] = &FuncType{
+			Name: m.Name, Params: m.Params, ParamNames: m.ParamNames, Returns: m.Returns, Fallible: m.Fallible,
+			Receiver: i, Exported: true, Module: i.Module, Iface: i, Slot: slot,
+		}
+	}
+	return i.table
 }
 
 func hasMethodNamed(methods []MethodSig, name string) bool {
@@ -342,6 +357,9 @@ func (a *Analyser) satisfiesInterface(t Type, i *InterfaceType) string {
 		}
 		return fmt.Sprintf("%s cannot be compared with ==", t)
 	}
+	if held, isInterface := t.(*InterfaceType); isInterface {
+		return coverProblem(held, i)
+	}
 	if len(i.Methods) > 0 && !implSetOf(t).Has(i) {
 		problems := a.methodProblems(t, i)
 		if len(problems) == 0 {
@@ -360,4 +378,44 @@ func elementName(t Type) string {
 		return p.Element.String()
 	}
 	return t.String()
+}
+
+func coverProblem(held, want *InterfaceType) string {
+	if held.Equals(want) {
+		return ""
+	}
+	have := held.AllMethods()
+	for _, m := range want.AllMethods() {
+		found := false
+		for _, h := range have {
+			if h.Name == m.Name && sameMethodSig(h, m) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Sprintf("%s does not have %s", held.Name, m.String())
+		}
+	}
+	if want.Expr != nil && want.Expr.constraintOnly() {
+		return fmt.Sprintf("%s is a constraint on types, and %s holds any type", want.Name, held.Name)
+	}
+	return ""
+}
+
+func sameMethodSig(a, b MethodSig) bool {
+	if len(a.Params) != len(b.Params) || len(a.Returns) != len(b.Returns) || a.Fallible != b.Fallible {
+		return false
+	}
+	for i := range a.Params {
+		if !a.Params[i].Equals(b.Params[i]) {
+			return false
+		}
+	}
+	for i := range a.Returns {
+		if !a.Returns[i].Equals(b.Returns[i]) {
+			return false
+		}
+	}
+	return true
 }

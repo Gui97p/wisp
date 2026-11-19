@@ -429,3 +429,30 @@ func unwrapPointer(t Type) Type {
 	}
 	return t
 }
+
+func (a *Analyser) checkInterfaceTypeCase(expr *ast.BinaryExpr, held *InterfaceType) Type {
+	boolType := PrimitiveType{Name: "bool"}
+
+	if _, isGroup := a.typeGroup(expr.Right); isGroup {
+		a.errorf(expr.Right, "signed and unsigned name integers, and %s holds a pointer to a type of its own", held.Name)
+		return boolType
+	}
+
+	t, ok := a.labelType(expr.Right)
+	if !ok {
+		return InvalidType{}
+	}
+
+	pointer, isPointer := t.(PointerType)
+	if !isPointer || pointer.Nullable {
+		a.errorf(expr.Right, "a case on %s names a pointer to a type, as in case *Buffer b: it holds a pointer", held.Name)
+		return InvalidType{}
+	}
+	if reason := a.satisfiesInterface(pointer, held); reason != "" {
+		a.errorf(expr.Right, "%s can never be what %s holds", t, held.Name).WithHelp("%s", reason)
+		return InvalidType{}
+	}
+
+	a.info.TypeCases[expr] = &TypeCase{Type: t, Iface: held}
+	return boolType
+}

@@ -262,8 +262,28 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 				return InvalidType{}
 			}
 		case INTERFACE:
-			a.errorAtRef(node, ref, "%s is an interface: for now it constrains a type parameter, as in <%s T>, and cannot be the type of a value", qualified(ref.Module, ref.Name), qualified(ref.Module, ref.Name))
-			return InvalidType{}
+			result = symbol.Type
+			if g := symbol.Generic; g != nil {
+				if len(ref.Args) == 0 {
+					a.errorAtRef(node, ref, "%s is generic: write %s<...>", qualified(ref.Module, ref.Name), qualified(ref.Module, ref.Name))
+					return InvalidType{}
+				}
+				result = a.instantiateStructRef(node, g, ref.Args, scope)
+				if _, invalid := result.(InvalidType); invalid {
+					return InvalidType{}
+				}
+			} else if len(ref.Args) > 0 {
+				a.errorAtRef(node, ref, "%s takes no type arguments", qualified(ref.Module, ref.Name))
+				return InvalidType{}
+			}
+			if it, isInterface := result.(*InterfaceType); isInterface {
+				it.ensure()
+				if it.ConstraintOnly() {
+					a.errorAtRef(node, ref, "%s is a constraint, not a contract: it cannot be the type of a value", it.Name).
+						WithHelp("it constrains a type parameter, as in <%s T>", it.Name)
+					return InvalidType{}
+				}
+			}
 		default:
 			a.errorAtRef(node, ref, "%s is not a type", qualified(ref.Module, ref.Name))
 			return InvalidType{}

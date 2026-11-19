@@ -468,6 +468,8 @@ func (a *Analyser) isPanicCall(expr ast.Expression) bool {
 
 func zeroProblem(t Type) string {
 	switch o := t.(type) {
+	case *InterfaceType:
+		return "an interface value always holds something"
 	case PointerType:
 		if !o.Nullable {
 			return t.String() + " cannot be null"

@@ -1182,7 +1182,7 @@ func (a *Analyser) pruneTypeSwitch(stmt *ast.IfStmt) bool {
 	}
 	subject := a.checkExpr(subjectExpr)
 	switch subject.(type) {
-	case BoxedType, InvalidType:
+	case BoxedType, InvalidType, *InterfaceType:
 		return false
 	}
 	subject = defaultType(subject)
@@ -1264,7 +1264,7 @@ func (a *Analyser) pruneTypeSwitchExpr(expr *ast.SwitchExpr) Type {
 	}
 	subject := a.checkExpr(source)
 	switch subject.(type) {
-	case BoxedType, InvalidType:
+	case BoxedType, InvalidType, *InterfaceType:
 		return nil
 	}
 	subject = defaultType(subject)

@@ -342,6 +342,8 @@ type FuncType struct {
 	Inline       bool
 	Nullable     bool
 	Template     *MethodTemplate
+	Iface        *InterfaceType
+	Slot         int
 }
 
 func (f *FuncType) String() string {
@@ -485,6 +487,8 @@ func MethodsOf(t Type) map[string]*FuncType {
 		return tt.Methods
 	case NamedType:
 		return tt.Methods
+	case *InterfaceType:
+		return tt.methodTable()
 	default:
 		return nil
 	}
@@ -512,6 +516,8 @@ func methodOwner(t Type) (name, module string, exported bool) {
 		return tt.Name, tt.Module, tt.Exported
 	case NamedType:
 		return tt.Name, tt.Module, tt.Exported
+	case *InterfaceType:
+		return tt.Name, tt.Module, true
 	}
 	return "", "", false
 }

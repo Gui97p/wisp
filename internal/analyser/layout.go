@@ -95,7 +95,7 @@ func AlignOf(at Type) int {
 		return AlignOf(tp.Element)
 	case *StructType:
 		return LayoutOf(tp).Align
-	case BoxedType:
+	case BoxedType, *InterfaceType:
 		return 8
 	case NamedType:
 		return AlignOf(tp.Underlying)
@@ -124,7 +124,7 @@ func SizeOf(at Type) int {
 		return int(tp.Size) * SizeOf(tp.Element)
 	case *StructType:
 		return LayoutOf(tp).Size
-	case SpanType:
+	case SpanType, *InterfaceType:
 		return 16
 	case BoxedType:
 		return 24
