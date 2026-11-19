@@ -151,6 +151,9 @@ func classify(tokens []token) []role {
 				literal = true
 			case pk == lexer.TOKEN_IDENT || isTypeKeyword(pk):
 				literal = !(atTop() && stmt.header)
+				if !literal && !stmt.fn && arrayTypeBefore(tokens, roles, i) {
+					literal = true
+				}
 			}
 			if literal {
 				r = roleLiteralOpen
@@ -324,4 +327,12 @@ func captureCloses(tokens []token, roles []role, i int) bool {
 		j -= 2
 	}
 	return j-1 >= 0 && roles[j-1] == roleCapOpen
+}
+
+func arrayTypeBefore(tokens []token, roles []role, brace int) bool {
+	j := brace - 1
+	for j-2 >= 0 && tokens[j-1].kind == lexer.TOKEN_DOT && tokens[j-2].kind == lexer.TOKEN_IDENT {
+		j -= 2
+	}
+	return j-1 >= 0 && roles[j-1] == roleTypeBracketClose
 }

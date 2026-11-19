@@ -47,6 +47,7 @@ func TestRules(t *testing.T) {
 		{"literals", "func f() {\n\tP p=P{ x:1,y:2 };\n\tP q=.{ x:1 };\n\t[3]int a=.{ 1,2,3 };\n}\n", "func f() {\n\tP p = P{x: 1, y: 2};\n\tP q = .{x: 1};\n\t[3]int a = .{1, 2, 3};\n}\n"},
 		{"multi-line literals keep their lines", "const [3]int T = .{\n1,\n  2,\n3\n};\n", "const [3]int T = .{\n\t1,\n\t2,\n\t3\n};\n"},
 		{"blocks", "func f() {\nif a{b();}else{c();}\nloop{ d(); }\n}\n", "func f() {\n\tif a { b(); } else { c(); }\n\tloop { d(); }\n}\n"},
+		{"an array literal in a header", "func f() {\n\tfor x in [3]int{1,2,3}{ g(x); }\n\tfor y in [2]geo.P{a,b}{ g(y); }\n\tif ok {}\n}\nfunc h() []int {}\n", "func f() {\n\tfor x in [3]int{1, 2, 3} { g(x); }\n\tfor y in [2]geo.P{a, b} { g(y); }\n\tif ok {}\n}\nfunc h() []int {}\n"},
 		{"empty braces", "func f() { }\nstruct S {}\n", "func f() {}\nstruct S {}\n"},
 		{"ternary and optional", "func f() {\n\tint a=c?1:2;\n\t?int b=null;\n\t?*P p=null;\n}\n", "func f() {\n\tint a = c ? 1 : 2;\n\t?int b = null;\n\t?*P p = null;\n}\n"},
 		{"types", "func f([]int a,[3]*int b,*[2]int c) []int {\n\t[2][2]int g;\n}\n", "func f([]int a, [3]*int b, *[2]int c) []int {\n\t[2][2]int g;\n}\n"},
