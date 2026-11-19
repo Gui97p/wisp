@@ -143,15 +143,18 @@ func typeRefInStmt(stmt ast.Statement, line, col int) *ast.TypeRef {
 
 func innermostScope(info *analyser.Info, line, col int) *analyser.Scope {
 	var best *analyser.Scope
-	var bestSize int
+	var bestLine, bestCol, bestEndLine, bestEndCol int
 	for node, scope := range info.Scopes {
 		if !contains(node, line, col) {
 			continue
 		}
-		sl, _ := node.Position()
-		el, _ := node.EndPosition()
-		if best == nil || el-sl < bestSize {
-			best, bestSize = scope, el-sl
+		sl, sc := node.Position()
+		el, ec := node.EndPosition()
+		inner := best == nil ||
+			sl > bestLine || (sl == bestLine && sc > bestCol) ||
+			(sl == bestLine && sc == bestCol && (el < bestEndLine || (el == bestEndLine && ec < bestEndCol)))
+		if inner {
+			best, bestLine, bestCol, bestEndLine, bestEndCol = scope, sl, sc, el, ec
 		}
 	}
 	return best

@@ -706,3 +706,22 @@ func TestGenericTypeArgumentsHoverAndLiteralDefinition(t *testing.T) {
 		}
 	}
 }
+
+func TestCompletionOfCapturedVariable(t *testing.T) {
+	c := start(t)
+	cases := []struct{ name, src string }{
+		{"if with a half typed name", "func get() ?int {\n\treturn 1;\n}\n\nfunc main() {\n\tif get() |v| {\n\t\tv¦\n\t}\n}\n"},
+		{"loop with a half typed name", "func get() ?int {\n\treturn 1;\n}\n\nfunc main() {\n\tloop get() |v| {\n\t\tv¦\n\t}\n}\n"},
+		{"loop on an empty line", "func get() ?int {\n\treturn 1;\n}\n\nfunc main() {\n\tloop get() |v| {\n\t\t¦\n\t}\n}\n"},
+		{"after other statements", "func get() ?int {\n\treturn 1;\n}\n\nfunc main() {\n\tif get() |v| {\n\t\tint x = v;\n\t\tv¦\n\t}\n}\n"},
+	}
+	for round := 0; round < 20; round++ {
+		for _, tc := range cases {
+			p := c.open(map[string]string{"main.wsp": tc.src})
+			if got := p.completion(); !slices.Contains(got, "v") {
+				t.Errorf("%s (round %d): v is not offered", tc.name, round)
+				break
+			}
+		}
+	}
+}
