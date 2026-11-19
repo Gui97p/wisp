@@ -35,7 +35,7 @@ func NewHandler() *protocol.Handler {
 		}
 		capabilities.DocumentFormattingProvider = true
 		capabilities.RenameProvider = protocol.RenameOptions{PrepareProvider: boolPtr(true)}
-		capabilities.CodeActionProvider = protocol.CodeActionOptions{CodeActionKinds: []protocol.CodeActionKind{protocol.CodeActionKindQuickFix}}
+		capabilities.CodeActionProvider = protocol.CodeActionOptions{CodeActionKinds: []protocol.CodeActionKind{protocol.CodeActionKindQuickFix, protocol.CodeActionKindSourceOrganizeImports}}
 
 		return protocol.InitializeResult{
 			Capabilities: capabilities,
@@ -137,7 +137,7 @@ func NewHandler() *protocol.Handler {
 	}
 
 	handler.TextDocumentCodeAction = func(context *glsp.Context, params *protocol.CodeActionParams) (any, error) {
-		return codeActions(params.TextDocument.URI, params.Context.Diagnostics), nil
+		return codeActions(params.TextDocument.URI, params.Context.Diagnostics, params.Context.Only), nil
 	}
 
 	handler.Shutdown = func(context *glsp.Context) error {

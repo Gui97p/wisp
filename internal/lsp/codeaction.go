@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/module"
 
@@ -16,27 +17,43 @@ var (
 	unknownTypeModule = regexp.MustCompile(`unknown type (\w+)\.\w+`)
 )
 
-func importActions(uri protocol.DocumentUri, d protocol.Diagnostic) []protocol.CodeAction {
-	m := undeclaredPattern.FindStringSubmatch(d.Message)
+func importCandidatesFor(path, alias string) []module.ImportCandidate {
+	root := module.FindProjectRoot(filepath.Dir(path))
+	imported := importedPaths(path)
+	cyclic := dependentFiles(path)
+	candidates := module.ImportablePaths(root)
+	byPath := pathIndex(candidates)
+
+	var found []module.ImportCandidate
+	for _, c := range candidates {
+		if moduleAlias(c.Path) != alias || c.File == path || imported[c.Path] || cyclic[c.File] || !module.CanImport(path, c.File) || exportsNothing(path, c, byPath) {
+			continue
+		}
+		found = append(found, c)
+	}
+	return found
+}
+
+func missingAlias(message string) (string, bool) {
+	m := undeclaredPattern.FindStringSubmatch(message)
 	if m == nil {
-		m = unknownTypeModule.FindStringSubmatch(d.Message)
+		m = unknownTypeModule.FindStringSubmatch(message)
 	}
 	if m == nil {
+		return "", false
+	}
+	return m[1], true
+}
+
+func importActions(uri protocol.DocumentUri, d protocol.Diagnostic) []protocol.CodeAction {
+	alias, ok := missingAlias(d.Message)
+	if !ok {
 		return nil
 	}
 
 	path := uriToPath(uri)
-	root := module.FindProjectRoot(filepath.Dir(path))
-	imported := importedPaths(path)
-	cyclic := dependentFiles(path)
-
 	var actions []protocol.CodeAction
-	candidates := module.ImportablePaths(root)
-	byPath := pathIndex(candidates)
-	for _, c := range candidates {
-		if moduleAlias(c.Path) != m[1] || c.File == path || imported[c.Path] || cyclic[c.File] || !module.CanImport(path, c.File) || exportsNothing(path, c, byPath) {
-			continue
-		}
+	for _, c := range importCandidatesFor(path, alias) {
 		edit, ok := importEdit(path, c.Path)
 		if !ok {
 			continue
@@ -52,10 +69,33 @@ func importActions(uri protocol.DocumentUri, d protocol.Diagnostic) []protocol.C
 	return actions
 }
 
-func codeActions(uri protocol.DocumentUri, diagnostics []protocol.Diagnostic) []protocol.CodeAction {
+func wantsKind(only []protocol.CodeActionKind, kind protocol.CodeActionKind) bool {
+	if len(only) == 0 {
+		return true
+	}
+	for _, o := range only {
+		if kind == o || strings.HasPrefix(string(kind), string(o)+".") {
+			return true
+		}
+	}
+	return false
+}
+
+func codeActions(uri protocol.DocumentUri, diagnostics []protocol.Diagnostic, only []protocol.CodeActionKind) []protocol.CodeAction {
 	var actions []protocol.CodeAction
+	if wantsKind(only, protocol.CodeActionKindSourceOrganizeImports) {
+		if action := organizeImportsAction(uri); action != nil {
+			actions = append(actions, *action)
+		}
+	}
+	if !wantsKind(only, protocol.CodeActionKindQuickFix) {
+		return actions
+	}
 	for _, d := range diagnostics {
 		actions = append(actions, importActions(uri, d)...)
+		if action := removeImportAction(uri, d); action != nil {
+			actions = append(actions, *action)
+		}
 
 		m := suggestionPattern.FindStringSubmatch(d.Message)
 		if m == nil {

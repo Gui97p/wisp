@@ -110,6 +110,9 @@
             "[wisp]": {
                 "editor.insertSpaces": false,
                 "editor.formatOnSave": true,
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": "explicit"
+                },
                 "editor.tabSize": 4,
                 "editor.detectIndentation": false,
                 "editor.stickyTabStops": true,

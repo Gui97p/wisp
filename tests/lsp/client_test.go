@@ -335,3 +335,97 @@ func (p *project) formatted() (string, bool) {
 	}
 	return edits[0].NewText, true
 }
+
+type textEdit struct {
+	Range struct {
+		Start position `json:"start"`
+		End   position `json:"end"`
+	} `json:"range"`
+	NewText string `json:"newText"`
+}
+
+type completionItem struct {
+	Label               string     `json:"label"`
+	Detail              string     `json:"detail"`
+	AdditionalTextEdits []textEdit `json:"additionalTextEdits"`
+}
+
+func (p *project) completionItems() []completionItem {
+	p.c.t.Helper()
+	params := p.at()
+	params["context"] = map[string]any{"triggerKind": 1}
+	raw := p.c.call("textDocument/completion", params)
+	var items []completionItem
+	if json.Unmarshal(raw, &items) != nil {
+		var list struct {
+			Items []completionItem `json:"items"`
+		}
+		json.Unmarshal(raw, &list)
+		items = list.Items
+	}
+	return items
+}
+
+type codeAction struct {
+	Title string `json:"title"`
+	Kind  string `json:"kind"`
+	Edit  struct {
+		Changes map[string][]textEdit `json:"changes"`
+	} `json:"edit"`
+}
+
+func (p *project) codeActions(only ...string) []codeAction {
+	p.c.t.Helper()
+	diagnostics := []diagnostic{}
+	if len(only) == 0 {
+		diagnostics = p.diagnostics()
+	}
+	raw := p.c.call("textDocument/codeAction", map[string]any{
+		"textDocument": map[string]any{"uri": p.uri()},
+		"range":        map[string]any{"start": position{0, 0}, "end": position{0, 0}},
+		"context":      map[string]any{"diagnostics": p.rawDiagnostics(diagnostics), "only": only},
+	})
+	var actions []codeAction
+	json.Unmarshal(raw, &actions)
+	return actions
+}
+
+func (p *project) rawDiagnostics(list []diagnostic) []map[string]any {
+	out := []map[string]any{}
+	for _, d := range list {
+		out = append(out, map[string]any{
+			"message":  d.Message,
+			"severity": d.Severity,
+			"range": map[string]any{
+				"start": position{d.Range.Start.Line, d.Range.Start.Character},
+				"end":   position{d.Range.Start.Line, d.Range.Start.Character + 1},
+			},
+		})
+	}
+	return out
+}
+
+func (a codeAction) apply(p *project, text string) string {
+	edits := a.Edit.Changes[p.uri()]
+	lines := strings.Split(text, "\n")
+	offset := func(pos position) int {
+		n := 0
+		for i := 0; i < pos.Line && i < len(lines); i++ {
+			n += len(lines[i]) + 1
+		}
+		return n + pos.Character
+	}
+	sorted := append([]textEdit(nil), edits...)
+	for i := range sorted {
+		for j := i + 1; j < len(sorted); j++ {
+			if offset(sorted[j].Range.Start) > offset(sorted[i].Range.Start) {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+	for _, e := range sorted {
+		start, end := offset(e.Range.Start), offset(e.Range.End)
+		text = text[:start] + e.NewText + text[end:]
+	}
+	return text
+}

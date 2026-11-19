@@ -254,3 +254,125 @@ func TestFormatting(t *testing.T) {
 		}
 	})
 }
+
+func TestOrganizeImports(t *testing.T) {
+	c := start(t)
+	cases := []struct {
+		name string
+		src  string
+		want string
+	}{
+		{"an unused import is removed", "import \"std/math\";\n\nfunc main() {}\n", "\nfunc main() {}\n"},
+		{"a used import stays", "import \"std/math\";\n\nfunc main() {\n  int n = math.max(1, 2);\n}\n", ""},
+		{"a missing import is added", "func main() {\n  int n = math.max(1, 2);\n}\n", "import \"std/math\";\n\nfunc main() {\n  int n = math.max(1, 2);\n}\n"},
+		{"one is removed and one is added", "import \"std/fmt\";\n\nfunc main() {\n  int n = math.max(1, 2);\n}\n", "import \"std/math\";\n\nfunc main() {\n  int n = math.max(1, 2);\n}\n"},
+		{"two missing imports go in as a block", "func main() {\n  int n = math.max(1, 2);\n  string s = strings.trimSpace(\" x \");\n}\n", "import \"std/math\";\nimport \"std/strings\";\n\nfunc main() {\n  int n = math.max(1, 2);\n  string s = strings.trimSpace(\" x \");\n}\n"},
+		{"nothing to do", "func main() {}\n", ""},
+		{"a file with a syntax error", "import \"std/math\";\nfunc main( {\n", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := c.open(map[string]string{"main.wsp": tc.src})
+			actions := p.codeActions("source.organizeImports")
+			if tc.want == "" {
+				if len(actions) != 0 {
+					t.Fatalf("an action was offered: %+v", actions)
+				}
+				return
+			}
+			if len(actions) != 1 || actions[0].Kind != "source.organizeImports" {
+				t.Fatalf("actions: %+v", actions)
+			}
+			if got := actions[0].apply(p, tc.src); got != tc.want {
+				t.Errorf("organized wrongly\n--- got ---\n%s\n--- want ---\n%s", got, tc.want)
+			}
+		})
+	}
+
+	t.Run("it is also offered without a filter", func(t *testing.T) {
+		p := c.open(map[string]string{"main.wsp": "import \"std/math\";\n\nfunc main() {}\n"})
+		found := false
+		for _, a := range p.codeActions() {
+			if a.Kind == "source.organizeImports" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("no organize imports action in the menu")
+		}
+	})
+}
+
+func TestImportQuickFixes(t *testing.T) {
+	c := start(t)
+	t.Run("remove an unused import", func(t *testing.T) {
+		src := "import \"std/fmt\";\nimport \"std/math\";\n\nfunc main() {\n  int n = math.max(1, 2);\n}\n"
+		p := c.open(map[string]string{"main.wsp": src})
+		var fix *codeAction
+		for _, a := range p.codeActions() {
+			if strings.HasPrefix(a.Title, "Remove unused import") {
+				a := a
+				fix = &a
+			}
+		}
+		if fix == nil {
+			t.Fatal("no quick fix to remove the import")
+		}
+		want := "import \"std/math\";\n\nfunc main() {\n  int n = math.max(1, 2);\n}\n"
+		if got := fix.apply(p, src); got != want {
+			t.Errorf("got:\n%s\nwant:\n%s", got, want)
+		}
+		if !strings.Contains(fix.Title, "fmt") {
+			t.Errorf("the title does not name the import: %s", fix.Title)
+		}
+	})
+	t.Run("add a missing import", func(t *testing.T) {
+		src := "func main() {\n  int n = math.max(1, 2);\n}\n"
+		p := c.open(map[string]string{"main.wsp": src})
+		found := false
+		for _, a := range p.codeActions() {
+			if a.Title == `Add import "std/math"` {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("no quick fix to add the import")
+		}
+	})
+}
+
+func TestAutoImportCompletion(t *testing.T) {
+	c := start(t)
+	t.Run("a module name brings its import", func(t *testing.T) {
+		p := c.open(map[string]string{"main.wsp": "func main() {\n  int n = mat¦;\n}\n"})
+		for _, it := range p.completionItems() {
+			if it.Label == "math" {
+				if len(it.AdditionalTextEdits) != 1 || !strings.Contains(it.AdditionalTextEdits[0].NewText, `import "std/math";`) {
+					t.Errorf("the item does not carry the import: %+v", it.AdditionalTextEdits)
+				}
+				return
+			}
+		}
+		t.Error("math is not offered")
+	})
+	t.Run("a member of a module brings its import", func(t *testing.T) {
+		p := c.open(map[string]string{"main.wsp": "func main() {\n  int n = max¦;\n}\n"})
+		for _, it := range p.completionItems() {
+			if it.Label == "math.max" {
+				if len(it.AdditionalTextEdits) != 1 || !strings.Contains(it.AdditionalTextEdits[0].NewText, `import "std/math";`) {
+					t.Errorf("the item does not carry the import: %+v", it.AdditionalTextEdits)
+				}
+				return
+			}
+		}
+		t.Error("math.max is not offered")
+	})
+	t.Run("an imported module is not offered again", func(t *testing.T) {
+		p := c.open(map[string]string{"main.wsp": "import \"std/math\";\n\nfunc main() {\n  int n = mat¦;\n}\n"})
+		for _, it := range p.completionItems() {
+			if it.Label == "math" && len(it.AdditionalTextEdits) > 0 {
+				t.Errorf("an import was offered for a module that is already imported")
+			}
+		}
+	})
+}

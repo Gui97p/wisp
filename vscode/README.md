@@ -5,7 +5,7 @@ Language support for [Wisp](https://github.com/Gui97p/wisp), a personal compiled
 ## Features
 
 - Syntax highlighting for keywords, types, numbers, strings, characters, comments, operators, functions, struct and enum names, and enum values.
-- A language server (`wisp lsp`) with diagnostics as you type, completion (members, struct fields, `import` paths), hover with doc comments, signature help, outline, go to definition, rename and quick fixes. It needs the `wisp` binary on the `PATH`, or the `wisp.serverPath` setting.
+- A language server (`wisp lsp`) with diagnostics as you type, completion (members, struct fields, `import` paths), hover with doc comments, signature help, outline, go to definition, rename and quick fixes. Picking a module name or one of its members from the completion adds the `import` by itself, and saving removes the imports that nothing uses, adds the missing ones when only one module fits, and formats the file with the same style as `wisp fmt`. It needs the `wisp` binary on the `PATH`, or the `wisp.serverPath` setting.
 - `wisp.toml` support: key and value completion, hover and diagnostics, with the same icon as `.wsp` files. Highlighting there comes from any installed TOML extension.
 - Snippets for `main`, `func`, `if`, `ifelse`, `switch`, `for`, `loop`, `struct` and `enum`.
 - Bracket matching, auto-closing pairs, comment toggling and `// region` folding.
