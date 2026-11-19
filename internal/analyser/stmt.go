@@ -92,7 +92,9 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 		a.info.InlineReturns[stmt] = a.currentInline
 	}
 	a.warnReturnedFree(stmt)
+	a.voidCallOK = len(a.currentReturns) == 0 && len(stmt.Values) == 1
 	types := a.rejectFallible(stmt.Values, a.checkExprList(stmt.Values))
+	a.voidCallOK = false
 
 	if a.currentFallible && len(types) == 1 {
 		if _, isError := types[0].(ErrorType); isError {

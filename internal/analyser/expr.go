@@ -609,6 +609,8 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 
 func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 	var types []Type
+	voidCallOK := a.voidCallOK
+	a.voidCallOK = false
 
 	for _, e := range exprs {
 		if pe, ok := e.(*ast.PropagateExpr); ok {
@@ -641,6 +643,9 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 		if call, ok := e.(*ast.CallExpr); ok {
 			returns := a.checkCallExpr(call)
 			if len(returns) == 0 {
+				if voidCallOK {
+					continue
+				}
 				a.error(e, "function doesn't expect any return")
 				types = append(types, InvalidType{})
 				continue

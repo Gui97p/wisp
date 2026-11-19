@@ -72,29 +72,6 @@ func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expressio
 	return block, ident, typed
 }
 
-func (p *Parser) parseSwitchBlock() []ast.Statement {
-	stmts := []ast.Statement{}
-
-	for {
-		if p.peek.Type == lexer.TOKEN_CASE || p.peek.Type == lexer.TOKEN_DEFAULT {
-			break
-		}
-		if p.peek.Type == lexer.TOKEN_RBRACE || p.peek.Type == lexer.TOKEN_EOF {
-			break
-		}
-
-		p.advance()
-
-		stmt := p.parseStatement()
-
-		if stmt != nil {
-			stmts = append(stmts, stmt)
-		}
-	}
-
-	return stmts
-}
-
 func (p *Parser) startsTypeLabel(typed bool) bool {
 	if p.current.Type == lexer.TOKEN_STAR || p.current.Type == lexer.TOKEN_QUESTION_MARK {
 		return true
@@ -102,10 +79,10 @@ func (p *Parser) startsTypeLabel(typed bool) bool {
 	if !p.isPrimitiveType() {
 		return false
 	}
-	if p.peek.Type == lexer.TOKEN_COLON || p.peek.Type == lexer.TOKEN_COMMA {
+	if p.peek.Type == lexer.TOKEN_ARROW || p.peek.Type == lexer.TOKEN_COMMA {
 		return true
 	}
-	return typed && (p.peek.Type == lexer.TOKEN_IDENT || p.peek.Type == lexer.TOKEN_ARROW)
+	return typed && p.peek.Type == lexer.TOKEN_IDENT
 }
 
 func (p *Parser) parseTypeBind(typed bool) (*ast.TypeBind, bool) {

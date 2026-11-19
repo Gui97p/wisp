@@ -18,8 +18,10 @@ func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
 	if len(a.yieldFrames) > 0 && len(stmt.Values) == 1 {
 		if sw, ok := stmt.Values[0].(*ast.SwitchExpr); ok {
 			frame := a.yieldFrames[len(a.yieldFrames)-1]
-			a.checkYieldSwitch(stmt, sw, frame)
-			return
+			if len(frame.values) > 0 || !frame.infer {
+				a.checkYieldSwitch(stmt, sw, frame)
+				return
+			}
 		}
 	}
 	types = a.rejectFallible(stmt.Values, a.checkExprList(stmt.Values))

@@ -105,13 +105,11 @@ func crc(string text) uint32 {
 }
 
 const KIND_NAME = static {
-  string name = "";
-  switch DEFAULT.kind {
-    case 0: name = "none";
-    case 1: name = "data";
-    default: name = "other";
-  }
-  yield name;
+  yield switch DEFAULT.kind {
+    case 0 => "none";
+    case 1 => "data";
+    default => "other";
+  };
 };
 
 public func demo() {

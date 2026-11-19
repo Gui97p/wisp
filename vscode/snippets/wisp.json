@@ -41,8 +41,8 @@
         "prefix": "switchexpr",
         "body": [
             "let ${1:name} = switch ${2:value} {",
-            "\tcase ${3:A} => ${4:x},",
-            "\tdefault => ${5:y},",
+            "\tcase ${3:A} => ${4:x};",
+            "\tdefault => ${5:y};",
             "};"
         ],
         "description": "Switch as expression, attributed to a variable"
@@ -51,10 +51,8 @@
         "prefix": "switch",
         "body": [
             "switch ${1:value} {",
-            "\tcase ${2:A}:",
-            "\t\t$3",
-            "\tdefault:",
-            "\t\t$0",
+            "\tcase ${2:A} => $3;",
+            "\tdefault => $0;",
             "}"
         ],
         "description": "Switch as a statement"
@@ -63,10 +61,8 @@
         "prefix": "switchtype",
         "body": [
             "switch type ${1:value} {",
-            "\tcase ${2:int} ${3:v}:",
-            "\t\t$4",
-            "\tdefault:",
-            "\t\t$0",
+            "\tcase ${2:int} ${3:v} => $4;",
+            "\tdefault => $0;",
             "}"
         ],
         "description": "Switch on the type of an any value"

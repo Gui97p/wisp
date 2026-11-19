@@ -59,15 +59,17 @@ func (*Writer w) put(*byte c, int n) ! {
 	w.len += n;
 
 	switch w.mode {
-		case .Line:
+		case .Line => {
 			if '\n' in c[0:n] {
 				w.flush()!;
 			}
-		case .Full:
+		}
+		case .Full => {
 			if w.len == len(w.buf) {
 				w.flush()!;
 			}
-		case .None:
+		}
+		case .None => {}
 	}
 }
 
@@ -111,23 +113,26 @@ func (*Writer w) writePiece(render.Piece p, spec.Spec s, bool numeric) ! {
 			s.align = numeric ? spec.Align.Right : spec.Align.Left;
 		}
 		switch s.align {
-			case .Left:
+			case .Left => {
 				w.write(p.sign)!;
 				w.write(p.radix)!;
 				w.write(p.body)!;
 				w.fill(s.fill, pad)!;
-			case .Right:
+			}
+			case .Right => {
 				w.fill(s.fill, pad)!;
 				w.write(p.sign)!;
 				w.write(p.radix)!;
 				w.write(p.body)!;
-			case .Center:
+			}
+			case .Center => {
 				w.fill(s.fill, pad/2)!;
 				w.write(p.sign)!;
 				w.write(p.radix)!;
 				w.write(p.body)!;
 				w.fill(s.fill, pad-pad/2)!;
-			case .Default:
+			}
+			case .Default => {}
 		}
 	}
 }
@@ -185,10 +190,11 @@ func (*Writer w) putError([]byte buf, Error e, spec.Spec s) !bool {
 		return true;
 	}
 	switch s.kind {
-		case 0:
+		case 0 => {
 			render.Piece piece = render.renderString(e.message, s);
 			w.writePiece(piece, s, false)!;
-		default:
+		}
+		default => {
 			w.write("error[")!;
 			w.write(e.domain)!;
 			w.write("]: ")!;
@@ -199,6 +205,7 @@ func (*Writer w) putError([]byte buf, Error e, spec.Spec s) !bool {
 			render.Piece piece = render.renderInt(buf, e.line, spec.Spec{fill: ' ', precision: -1})!;
 			w.writePiece(piece, s, false)!;
 			w.writeByte(')')!;
+		}
 	}
 	return true;
 }
@@ -265,16 +272,16 @@ public func (*Writer w) format(string format, ...args) !int {
 		bool ok;
 		Error bad = Error(FormatError.WrongType);
 		switch type args[argIndex] {
-			case signed v:   ok = w.putInt(buf, v, s)!;
-			case unsigned v: ok = w.putUint(buf, v, s)!;
-			case bool v:     ok = w.putBool(v, s)!;
-			case string v:   ok = w.putString(v, s)!;
-			case *void v:    ok = w.putPointer(buf, v, s)!;
-			case float64 v:  [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, false)!;
-			case float32 v:  [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, true)!;
-			case Error v:    ok = w.putError(buf, v, s)!;
-			case null:       ok = w.putString("null", s)!;
-			default:         bad = Error(FormatError.UnsupportedType);
+			case signed v =>   ok = w.putInt(buf, v, s)!;
+			case unsigned v => ok = w.putUint(buf, v, s)!;
+			case bool v =>     ok = w.putBool(v, s)!;
+			case string v =>   ok = w.putString(v, s)!;
+			case *void v =>    ok = w.putPointer(buf, v, s)!;
+			case float64 v => { [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, false)!; }
+			case float32 v => { [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, true)!; }
+			case Error v =>    ok = w.putError(buf, v, s)!;
+			case null =>       ok = w.putString("null", s)!;
+			default =>         bad = Error(FormatError.UnsupportedType);
 		}
 		argIndex++;
 		if !ok {

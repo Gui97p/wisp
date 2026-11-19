@@ -94,9 +94,9 @@ func generateTestMain(tests []module.TestFunc) string {
 		if test.Fallible {
 			bang = "!"
 		}
-		fmt.Fprintf(&b, "    case %q:\n      %s.%s()%s;\n      testing.finish()!;\n", test.ID(), aliases[test.Module], test.Name, bang)
+		fmt.Fprintf(&b, "    case %q => {\n      %s.%s()%s;\n      testing.finish()!;\n    }\n", test.ID(), aliases[test.Module], test.Name, bang)
 	}
-	b.WriteString("    default:\n      fmt.fprint(2, \"there is no test \");\n      fmt.fprintln(2, args[1]);\n      os.exit(64);\n  }\n}\n")
+	b.WriteString("    default => {\n      fmt.fprint(2, \"there is no test \");\n      fmt.fprintln(2, args[1]);\n      os.exit(64);\n    }\n  }\n}\n")
 	return b.String()
 }
 

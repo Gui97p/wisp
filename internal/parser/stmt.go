@@ -476,31 +476,29 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 		}
 
 		expr := p.parseCaseExpression(value, line, col, typed)
-
-		currentIf.Condition = expr
-
-		if !p.expect(lexer.TOKEN_COLON) {
+		if expr == nil {
 			return nil
 		}
 
-		stmts := p.parseSwitchBlock()
-		if stmts != nil {
-			currentIf.Then.Statements = stmts
+		currentIf.Condition = expr
+
+		stmts, ok := p.parseSwitchArmBody()
+		if !ok {
+			return nil
 		}
+		currentIf.Then.Statements = stmts
 		currentIf.SetEndPos(p.currentEnd())
 	}
 
 	if p.peek.Type == lexer.TOKEN_DEFAULT {
 		p.advance()
 		stmt.SwitchDefault = true
-		if !p.expect(lexer.TOKEN_COLON) {
+
+		stmts, ok := p.parseSwitchArmBody()
+		if !ok {
 			return nil
 		}
-
-		stmts := p.parseSwitchBlock()
-		if stmts != nil {
-			currentIf.Else = &ast.BlockStmt{Statements: stmts}
-		}
+		currentIf.Else = &ast.BlockStmt{Statements: stmts}
 		currentIf.SetEndPos(p.currentEnd())
 	}
 
@@ -513,6 +511,32 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 	block.Statements = append(block.Statements, stmt)
 
 	return block
+}
+
+func (p *Parser) parseSwitchArmBody() ([]ast.Statement, bool) {
+	if p.peek.Type == lexer.TOKEN_COLON {
+		p.errorf("a case ends with =>, not with a colon: write case value => statement; or case value => { ... }")
+		return nil, false
+	}
+	if !p.expect(lexer.TOKEN_ARROW) {
+		return nil, false
+	}
+
+	if p.peek.Type == lexer.TOKEN_LBRACE {
+		p.advance()
+		block := p.parseBlockStatement()
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil, false
+		}
+		return block.Statements, true
+	}
+
+	p.advance()
+	stmt := p.parseStatement()
+	if stmt == nil {
+		return nil, false
+	}
+	return []ast.Statement{stmt}, true
 }
 
 func (p *Parser) parseIfStatement() ast.Statement {

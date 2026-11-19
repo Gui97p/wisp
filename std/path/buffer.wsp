@@ -45,9 +45,8 @@ public func clean([]byte buf, string p) !string {
 	let elems = path.elementsAfterVolume(p[v:]);
 	loop elems.next() |n| {
 		switch n {
-			case ".":
-				continue;
-			case "..":
+			case "." => continue;
+			case ".." => {
 				if depth > 0 {
 					total = math.max(strings.lastIndexOf(string(buf[:total]), path.sep) ?? rootLen, rootLen);
 					depth--;
@@ -55,8 +54,8 @@ public func clean([]byte buf, string p) !string {
 				} else if rooted {
 					continue;
 				}
-			default:
-				depth++;
+			}
+			default => depth++;
 		}
 		
 		if total > rootLen {

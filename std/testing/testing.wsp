@@ -22,9 +22,10 @@ public func report(...args) {
 	return if len(args) == 0;
 
 	switch type args[0] {
-		case string format:
+		case string format => {
 			warn(format, args[1:]...);
 			warn("\n");
+		}
 	}
 }
 

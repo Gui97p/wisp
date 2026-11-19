@@ -18,6 +18,23 @@ func minmax(int a, b) (int, int) {
   return b, a;
 }
 
+// `return call();` gives back whatever the call gives, however many values
+// that is: two, one, or none. So a function that returns nothing can end with
+// `return other();` when `other` returns nothing too, and the guard form works:
+// `return log("x") if quiet;`.
+func announce(string text) {
+  fmt.printf("{}\n", text);
+}
+
+func announceTwice(string text) {
+  announce(text);
+  return announce(text);
+}
+
+func swapped(int a, b) (int, int) {
+  return minmax(b, a);
+}
+
 // A function can be declared after the code that calls it.
 func later() int => 7;
 
@@ -27,6 +44,9 @@ public func demo() {
 
   let low, high = minmax(9, 4);
   fmt.printf("minmax(9, 4) = {}, {}\n", low, high);
+  let first, second = swapped(1, 5);
+  fmt.printf("swapped(1, 5) = {}, {}\n", first, second);
+  announceTwice("twice");
 
   fmt.printf("later() = {}\n", later());
 

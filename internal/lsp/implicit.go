@@ -13,7 +13,7 @@ var (
 	declaredBefore = regexp.MustCompile(`([A-Za-z_][\w.]*)\s+[A-Za-z_]\w*\s*=\s*$`)
 	comparedBefore = regexp.MustCompile(`([A-Za-z_][\w.]*)\s*(==|!=)\s*$`)
 	assignedBefore = regexp.MustCompile(`(^|[^=!<>])\b([A-Za-z_][\w.]*)\s*=\s*$`)
-	caseBefore     = regexp.MustCompile(`\bcase\b[^:]*$`)
+	caseWord       = regexp.MustCompile(`\bcase\b`)
 	armBefore      = regexp.MustCompile(`=>\s*$`)
 	switchWord     = regexp.MustCompile(`\bswitch\b`)
 	returnBefore   = regexp.MustCompile(`\breturn\b[^;]*$`)
@@ -75,7 +75,7 @@ func expectedEnum(before, text string, scope *analyser.Scope, path string, line 
 		if _, prefix, ok := switchHeader(text); ok {
 			tp = contextType(prefix, text, scope, path, line)
 		}
-	case caseBefore.MatchString(before):
+	case inCaseHeader(before):
 		if subject, _, ok := switchHeader(text); ok && subject != "" {
 			tp = exprType(scope, subject)
 		} else if ok {
@@ -316,4 +316,12 @@ func switchHeader(text string) (subject, prefix string, ok bool) {
 	}
 	top := stack[len(stack)-1]
 	return top.subject, top.prefix, true
+}
+
+func inCaseHeader(before string) bool {
+	found := caseWord.FindAllStringIndex(before, -1)
+	if len(found) == 0 {
+		return false
+	}
+	return !strings.Contains(before[found[len(found)-1][0]:], "=>")
 }

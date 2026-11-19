@@ -39,27 +39,24 @@ enum Shape {
 // The name is a copy when the switch is on a value, and a pointer to the data
 // inside when it is on a pointer. The demo below shows both.
 func area(Shape shape) float {
-  switch shape {
-    case .Circle c:
-      return 3.14 * c.radius * c.radius;
-    case .Rect r:
-      return r.w * r.h;
-    case .Empty:
-      return 0;
-  }
-  return -1;
+  return switch shape {
+    case .Circle c => 3.14 * c.radius * c.radius;
+    case .Rect r => r.w * r.h;
+    case .Empty => 0;
+	default => -1;
+  };
 }
 
 // Methods work as on a struct. A `switch` can also be an expression, one value
 // per case, and with every variant covered it needs no `default`.
 func (*Shape shape) grow(float factor) {
   switch shape {
-    case .Circle c:
-      c.radius *= factor;
-    case .Rect r:
+    case .Circle c => c.radius *= factor;
+    case .Rect r => {
       r.w *= factor;
       r.h *= factor;
-    case .Empty:
+    }
+    case .Empty => {}
   }
 }
 
@@ -96,18 +93,16 @@ public func demo() {
   // Switching on a value gives the case a copy: this changes nothing.
   Shape box = .Rect{w: 2, h: 5};
   switch box {
-    case .Rect r:
-      r.w = 100;
-    default:
+    case .Rect r => r.w = 100;
+    default => {}
   }
   fmt.printf("after changing a copy the area is still {}\n", area(box));
 
   // Switching on a pointer gives the case a pointer to the data inside: this
   // changes the box itself.
   switch &box {
-    case .Rect r:
-      r.w = 100;
-    default:
+    case .Rect r => r.w = 100;
+    default => {}
   }
   fmt.printf("after changing through a pointer the area is {}\n", area(box));
 }

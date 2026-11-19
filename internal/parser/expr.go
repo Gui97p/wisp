@@ -964,6 +964,11 @@ func (p *Parser) parseSwitchArm() (ast.SwitchArm, bool) {
 	}
 
 	arm.SetEndPos(p.currentEnd())
+	if len(arm.Values) == 1 && p.peek.Type != lexer.TOKEN_SEMICOLON {
+		if _, isBlock := arm.Values[0].(*ast.BlockExpr); isBlock {
+			return arm, true
+		}
+	}
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return arm, false
 	}

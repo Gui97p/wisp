@@ -201,6 +201,10 @@ func TestDiagnostics(t *testing.T) {
 		{"a spread that is not a slice", "func take(int ...xs) int { return len(xs); }\nfunc main() {\n  int one = 1;\n  int n = take(one...);\n}\n", 1, "passes a slice on"},
 		{"a spread into a function without a variadic", "func take(int x) int { return x; }\nfunc main() {\n  []int xs = .{1};\n  int n = take(xs...);\n}\n", 1, "has none"},
 		{"a spread that matches", "func take(int ...xs) int { return len(xs); }\nfunc main() {\n  []int xs = .{1};\n  int n = take(0, xs...);\n}\n", 0, ""},
+		{"returning a call that gives nothing", "func nothing() {}\nfunc f(int a) {\n  return nothing() if a > 0;\n}\nfunc main() { f(1); }\n", 0, ""},
+		{"returning a call that gives a value from a function with none", "func one() int { return 1; }\nfunc f() {\n  return one();\n}\nfunc main() { f(); }\n", 1, "expected 0 return values, got 1"},
+		{"a call that gives nothing used as a value", "func nothing() {}\nfunc main() {\n  int x = nothing();\n}\n", 1, "function doesn't expect any return"},
+		{"returning a call that gives nothing from a function that gives a value", "func nothing() {}\nfunc f() int {\n  return nothing();\n}\nfunc main() { int x = f(); }\n", 1, ""},
 		{"a slice literal with elements", "func main() {\n  []int s = []int{1, 2};\n}\n", 1, "a slice literal has no elements"},
 	}
 	for _, tc := range cases {

@@ -1468,12 +1468,9 @@ func main() {
     check(raw == "bob", "string from a nominal string");
     int hits = 0;
     switch a {
-        case Name("ana"):
-            hits = 1;
-        case Name("bob"):
-            hits = 2;
-        default:
-            hits = 3;
+        case Name("ana") => hits = 1;
+        case Name("bob") => hits = 2;
+        default => hits = 3;
     }
     check(hits == 1, "switch on a nominal string");
     [2]Name names = .{Name("x"), Name("y")};
@@ -1504,23 +1501,17 @@ func pick(bool b) Color {
 
 func code(Color c) int {
     switch c {
-        case .Red:
-            return 1;
-        case .Green:
-            return 2;
-        default:
-            return 3;
+        case .Red => return 1;
+        case .Green => return 2;
+        default => return 3;
     }
 }
 
 func band(Color c) int {
     switch c {
-        case Color.Red..Color.Green:
-            return 1;
-        case .Blue..Color.Alpha:
-            return 2;
-        default:
-            return 3;
+        case Color.Red..Color.Green => return 1;
+        case .Blue..Color.Alpha => return 2;
+        default => return 3;
     }
 }
 
@@ -2137,32 +2128,25 @@ func main() {
 
 func name(Color c) string {
     switch c {
-        case .Red:
-            return "red";
-        case .Green, .Blue:
-            return "cool";
+        case .Red => return "red";
+        case .Green, .Blue => return "cool";
     }
     return "";
 }
 
 func code(Color c) int {
     switch c {
-        case Color.Red:
-            return 1;
-        case Color.Green:
-            return 2;
-        case Color.Blue:
-            return 3;
+        case Color.Red => return 1;
+        case Color.Green => return 2;
+        case Color.Blue => return 3;
     }
     return 0;
 }
 
 func other(Color c) string {
     switch c {
-        case .Red:
-            return "red";
-        default:
-            return "not red";
+        case .Red => return "red";
+        default => return "not red";
     }
 }
 
@@ -2172,10 +2156,8 @@ func main() {
     check(other(.Red) == "red" && other(.Blue) == "not red", "a default stands for the members left out");
     int n = 3;
     switch n {
-        case 1:
-            emit("one");
-        case 3:
-            check(true, "an integer switch does not need a default");
+        case 1 => emit("one");
+        case 3 => check(true, "an integer switch does not need a default");
     }
 }
 `, expected: []string{"a switch that covers every member needs no default", "members written with the enum name", "a default stands for the members left out", "an integer switch does not need a default"}},
@@ -2258,12 +2240,12 @@ enum Level {
 
 func (*Shape s) scale(float k) {
     switch s {
-        case .Circle c:
-            c.radius *= k;
-        case .Rect r:
+        case .Circle c => c.radius *= k;
+        case .Rect r => {
             r.w *= k;
             r.h *= k;
-        case .Empty:
+        }
+        case .Empty => {}
     }
 }
 
@@ -2271,12 +2253,9 @@ func (Shape s) isEmpty() bool => s == .Empty;
 
 func area(Shape s) float {
     switch s {
-        case .Circle c:
-            return 3.0 * c.radius * c.radius;
-        case .Rect r:
-            return r.w * r.h;
-        case .Empty:
-            return 0;
+        case .Circle c => return 3.0 * c.radius * c.radius;
+        case .Rect r => return r.w * r.h;
+        case .Empty => return 0;
     }
     return -1;
 }
@@ -2299,14 +2278,10 @@ func rect(float w, float h) Shape {
 
 func show(Token t) int {
     switch t {
-        case .Number n:
-            return n.value;
-        case .Word w:
-            return len(w.text);
-        case .Pair p:
-            return p.a + p.b;
-        case .End:
-            return -1;
+        case .Number n => return n.value;
+        case .Word w => return len(w.text);
+        case .Pair p => return p.a + p.b;
+        case .End => return -1;
     }
     return -2;
 }
@@ -2349,17 +2324,15 @@ func main() {
 
     Shape p = rect(1, 1);
     switch &p {
-        case .Rect r:
-            r.w = 100;
-        default:
+        case .Rect r => r.w = 100;
+        default => {}
     }
     check(width(p) == 100, "switching on a pointer binds a pointer to the data");
 
     Shape q = rect(1, 1);
     switch q {
-        case .Rect r:
-            r.w = 100;
-        default:
+        case .Rect r => r.w = 100;
+        default => {}
     }
     check(width(q) == 1, "switching on a value binds a copy");
 
@@ -2912,14 +2885,10 @@ func main() {
 	{dir: "switch_string", src: `func name(string s) int {
     int r = 0;
     switch s {
-        case "a":
-            r = 1;
-        case "bc":
-            r = 2;
-        case "":
-            r = 3;
-        default:
-            r = 4;
+        case "a" => r = 1;
+        case "bc" => r = 2;
+        case "" => r = 3;
+        default => r = 4;
     }
     return r;
 }
@@ -3231,12 +3200,9 @@ func main() {
 	{dir: "flow_switch_stmt", src: `func classify(int v) int {
     int r = 0;
     switch v {
-        case 1:
-            r = 10;
-        case 2..5:
-            r = 20;
-        default:
-            r = 30;
+        case 1 => r = 10;
+        case 2..5 => r = 20;
+        default => r = 30;
     }
     return r;
 }
@@ -3250,10 +3216,8 @@ func main() {
     int8 small = 4;
     int r = 0;
     switch small {
-        case 4:
-            r = 1;
-        default:
-            r = 2;
+        case 4 => r = 1;
+        default => r = 2;
     }
     check(r == 1, "switch on int8");
 }
@@ -3747,12 +3711,9 @@ func main() ! {
     int total;
     for _, arg in args {
         switch type arg {
-            case float32 v:
-                total += int(v * 10.0);
-            case float64 v:
-                total += int(v);
-            case signed v:
-                total += v;
+            case float32 v => total += int(v * 10.0);
+            case float64 v => total += int(v);
+            case signed v => total += v;
         }
     }
     return total;
@@ -4333,12 +4294,9 @@ func label(int x) int {
     let v, e = pick(x);
     int out = 0;
     switch e {
-        case null:
-            out = 1;
-        case Kind.B:
-            out = 2;
-        default:
-            out = 3;
+        case null => out = 1;
+        case Kind.B => out = 2;
+        default => out = 3;
     }
     return out;
 }
@@ -8186,12 +8144,9 @@ func main() {
     int hits = 0;
     for i in 1..5 {
         switch i {
-            case 2:
-                continue;
-            case 4:
-                break;
-            default:
-                hits += 10;
+            case 2 => continue;
+            case 4 => break;
+            default => hits += 10;
         }
         hits += 1;
     }
@@ -8200,10 +8155,8 @@ func main() {
     :rows for i in 1..3 {
         for j in 1..3 {
             switch j {
-                case 2:
-                    continue :rows;
-                default:
-                    outer += 1;
+                case 2 => continue :rows;
+                default => outer += 1;
             }
         }
     }
@@ -9858,10 +9811,8 @@ func main() {
 
 func sign(int n) int {
     switch {
-        case n > 0:
-            return 1;
-        case n < 0:
-            return -1;
+        case n > 0 => return 1;
+        case n < 0 => return -1;
     }
     return 0;
 }
@@ -9874,10 +9825,8 @@ func main() {
     int y = 0;
     bool either;
     switch {
-        case x > 5, y == 1:
-            either = true;
-        default:
-            either = false;
+        case x > 5, y == 1 => either = true;
+        default => either = false;
     }
     check(either, "a comma between conditions is an or");
     string size = switch {
@@ -9902,12 +9851,9 @@ func main() {
 
 func load(int n) !int {
     switch n {
-        case 0:
-            return Error(Kind.NotFound);
-        case 1:
-            return Error(Kind.Denied);
-        case 2:
-            return Error(Kind.Other);
+        case 0 => return Error(Kind.NotFound);
+        case 1 => return Error(Kind.Denied);
+        case 2 => return Error(Kind.Other);
     }
     return n * 10;
 }
@@ -9972,12 +9918,9 @@ int trace;
 
 func load(int n) !int {
     switch n {
-        case 0:
-            return Error(Kind.NotFound);
-        case 1:
-            return Error(Kind.Denied);
-        case 2:
-            return Error(Kind.Other);
+        case 0 => return Error(Kind.NotFound);
+        case 1 => return Error(Kind.Denied);
+        case 2 => return Error(Kind.Other);
     }
     return n * 10;
 }
@@ -10069,10 +10012,8 @@ func load(int n) !int {
 
 func pair(int n) !(int, int) {
     switch n {
-        case 0:
-            return Error(Kind.NotFound);
-        case 1:
-            return Error(Kind.Other);
+        case 0 => return Error(Kind.NotFound);
+        case 1 => return Error(Kind.Other);
     }
     return n, n * 2;
 }
@@ -10931,10 +10872,8 @@ func (*Counter c) sum(string label, ...args) int {
     int total = 0;
     for _, a in args {
         switch type a {
-            case signed v:
-                total += v;
-            case string v:
-                total += len(v);
+            case signed v => total += v;
+            case string v => total += len(v);
         }
     }
     return total + len(label);
@@ -11464,12 +11403,9 @@ func main() {
 
 	{dir: "any_variadic_float", src: `func kind(...args) int {
     switch type args[0] {
-        case float:
-            return 99;
-        case signed:
-            return 1;
-        default:
-            return -1;
+        case float => return 99;
+        case signed => return 1;
+        default => return -1;
     }
 }
 
@@ -11490,43 +11426,27 @@ type Meters int;
 
 func kind(int index, ...args) int {
     switch type args[index] {
-        case int8:
-            return 8;
-        case Color:
-            return 77;
-        case Meters:
-            return 88;
-        case signed v:
-            return v + 1000;
-        case byte:
-            return 55;
-        case unsigned:
-            return 2000;
-        case string v:
-            return len(v);
-        case bool v:
-            return v ? 1 : 0;
-        case float:
-            return 99;
-        default:
-            return -1;
+        case int8 => return 8;
+        case Color => return 77;
+        case Meters => return 88;
+        case signed v => return v + 1000;
+        case byte => return 55;
+        case unsigned => return 2000;
+        case string v => return len(v);
+        case bool v => return v ? 1 : 0;
+        case float => return 99;
+        default => return -1;
     }
 }
 
 func exact(...args) int {
     switch type args[0] {
-        case int v:
-            return 1;
-        case int16 v:
-            return 2;
-        case signed v:
-            return 3;
-        case uint v:
-            return 4;
-        case unsigned v:
-            return 5;
-        default:
-            return 0;
+        case int v => return 1;
+        case int16 v => return 2;
+        case signed v => return 3;
+        case uint v => return 4;
+        case unsigned v => return 5;
+        default => return 0;
     }
 }
 
@@ -11542,10 +11462,8 @@ func sumInts(string label, ...xs) int {
     int total = 0;
     for _, x in xs {
         switch type x {
-            case signed v:
-                total += v;
-            case string v:
-                total += len(v);
+            case signed v => total += v;
+            case string v => total += len(v);
         }
     }
     return total;
@@ -12266,9 +12184,8 @@ func sumInts(...args) int {
     int total;
     for _i, a in args {
         switch type a {
-            case signed v:
-                total += v;
-            default:
+            case signed v => total += v;
+            default => {}
         }
     }
     return total;
@@ -12287,10 +12204,8 @@ inline func describe(string tag, ...args) string {
         return tag;
     }
     switch type args[0] {
-        case string first:
-            return first;
-        default:
-            return tag;
+        case string first => return first;
+        default => return tag;
     }
 }
 
@@ -12371,6 +12286,145 @@ func main() {
 }
 `, expected: []string{"a typed variadic passed on", "a typed variadic passed on by an inline function", "loose values followed by a variadic passed on", "a slice spread into a variadic", "a part of an array spread into a variadic", "strings passed on"}},
 
+	{dir: "yield_switch_infer", src: `struct Header {
+    uint8 kind;
+    int length;
+}
+
+const Header DEFAULT = Header{kind: 1, length: 8};
+
+const KIND_NAME = static {
+    yield switch DEFAULT.kind {
+        case 0 => "none";
+        case 1 => "data";
+        default => "other";
+    };
+};
+
+const SIZE = static {
+    int n = 3;
+    yield switch {
+        case n < 2 => 10;
+        case n < 5 => 20;
+        default => 30;
+    };
+};
+
+func pick(int k) string {
+    string name = {
+        yield switch k {
+            case 0 => "zero";
+            default => "many";
+        };
+    };
+    return name;
+}
+
+func twice(int k) int {
+    int value = {
+        if k > 100 {
+            yield 0;
+        }
+        yield switch k {
+            case 1 => 10;
+            default => 20;
+        };
+    };
+    return value;
+}
+
+func main() {
+    check(KIND_NAME == "data", "a static block that yields a switch");
+    check(SIZE == 20, "a tagless switch yielded from a static block");
+    check(pick(0) == "zero" && pick(4) == "many", "a block that yields a switch and has to infer its type");
+    check(twice(1) == 10 && twice(7) == 20 && twice(500) == 0, "a switch yielded after another yield");
+}
+`, expected: []string{"a static block that yields a switch", "a tagless switch yielded from a static block", "a block that yields a switch and has to infer its type", "a switch yielded after another yield"}},
+
+	{dir: "switch_block_arm", src: `func withSemicolon(int k) int {
+    return switch k {
+        case 1 => {
+            int base = 40;
+            yield base + 2;
+        };
+        default => 0;
+    };
+}
+
+func withoutSemicolon(int k) int {
+    return switch k {
+        case 1 => {
+            int base = 40;
+            yield base + 2;
+        }
+        case 2 => {
+            yield 7;
+        }
+        default => 0;
+    };
+}
+
+func main() {
+    check(withSemicolon(1) == 42 && withSemicolon(5) == 0, "a block arm ended with a semicolon");
+    check(withoutSemicolon(1) == 42 && withoutSemicolon(2) == 7 && withoutSemicolon(9) == 0, "a block arm without a semicolon");
+}
+`, expected: []string{"a block arm ended with a semicolon", "a block arm without a semicolon"}},
+
+	{dir: "return_nothing", src: `var int calls;
+
+func nothing() {
+    calls++;
+}
+
+func pair() (int, int) {
+    return 1, 2;
+}
+
+func forwardsPair() (int, int) {
+    return pair();
+}
+
+func plain(int a, int b) {
+    if a == b {
+        return nothing();
+    }
+    calls += 100;
+}
+
+func guarded(int a) {
+    return nothing() if a > 0;
+    calls += 1000;
+}
+
+inline func wrapper() {
+    return nothing();
+}
+
+func fallible() ! {
+    calls += 10000;
+}
+
+func forwardsFallible() ! {
+    return fallible()!;
+}
+
+func main() {
+    let x, y = forwardsPair();
+    check(x == 1 && y == 2, "a call that gives two values can be returned");
+    plain(1, 1);
+    check(calls == 1, "returning a call that gives nothing runs the call and leaves");
+    plain(1, 2);
+    check(calls == 101, "the code after the return still runs when the condition is false");
+    guarded(1);
+    guarded(0);
+    check(calls == 1102, "returning nothing with a guard");
+    wrapper();
+    check(calls == 1103, "returning nothing from an inline function");
+    forwardsFallible()!!;
+    check(calls == 11103, "returning a fallible call that gives nothing");
+}
+`, expected: []string{"a call that gives two values can be returned", "returning a call that gives nothing runs the call and leaves", "the code after the return still runs when the condition is false", "returning nothing with a guard", "returning nothing from an inline function", "returning a fallible call that gives nothing"}},
+
 	{dir: "switch_then_break", src: `func next(int k) ?int {
     return null if k > 3;
     return k;
@@ -12382,10 +12436,8 @@ func main() {
     loop {
         i++;
         switch i {
-            case 1:
-                hits += 10;
-            default:
-                hits++;
+            case 1 => hits += 10;
+            default => hits++;
         }
         if i > 5 {
             break;
@@ -12398,10 +12450,8 @@ func main() {
     loop next(k) |n| {
         k++;
         switch n {
-            case 1:
-                total += 10;
-            default:
-                total++;
+            case 1 => total += 10;
+            default => total++;
         }
     }
     check(k == 4 && total == 13, "a switch inside a loop with a capture");
@@ -12410,10 +12460,8 @@ func main() {
     :outer loop {
         rounds++;
         switch rounds {
-            case 2:
-                break;
-            default:
-                rounds += 0;
+            case 2 => break;
+            default => rounds += 0;
         }
         if rounds >= 4 {
             break :outer;
@@ -12705,18 +12753,12 @@ const VOWELS = static {
     int n;
     for _i, c in "education" {
         switch c {
-            case 'a':
-                n++;
-            case 'e':
-                n++;
-            case 'i':
-                n++;
-            case 'o':
-                n++;
-            case 'u':
-                n++;
-            default:
-                continue;
+            case 'a' => n++;
+            case 'e' => n++;
+            case 'i' => n++;
+            case 'o' => n++;
+            case 'u' => n++;
+            default => continue;
         }
     }
     yield n;
@@ -14483,9 +14525,8 @@ func describe(...args) int {
     int seen = 0;
     for _, arg in args {
         switch type arg {
-            case signed v:
-                seen += v;
-            case Error v:
+            case signed v => seen += v;
+            case Error v => {
                 if v == null {
                     check(true, "a null error is held as null");
                 } else {
@@ -14493,8 +14534,8 @@ func describe(...args) int {
                     check(v == Kind.Bad || v == Kind.Worse, "an error keeps its member in an any");
                 }
                 seen += 100;
-            default:
-                seen += 1000;
+            }
+            default => seen += 1000;
         }
     }
     return seen;

@@ -13,13 +13,10 @@ enum Light {
 // is how you find the places to update. Writing `default` opts out of that
 // check on purpose.
 func advice(Light light) string {
-  switch light {
-    case .Red:
-      return "stop";
-    case .Yellow, .Green:
-      return "go, carefully";
-  }
-  return "";
+  return switch light {
+    case .Red => "stop";
+    case .Yellow, .Green => "go, carefully";
+  };
 }
 
 // A guard puts the condition after a jump, so a check that leaves the
@@ -41,19 +38,20 @@ public func demo() {
     fmt.printf("{} is below ten\n", limit);
   }
 
-  // `switch` as a statement. Cases end with `:`, there is no fallthrough,
-  // and a range like `11..20` includes both ends.
+  // `switch` as a statement. A case is `value => statement;`, or a block
+  // `value => { ... }` when it takes several statements. There is no
+  // fallthrough, and a range like `11..20` includes both ends.
   switch limit {
-    case 10:
-      fmt.printf("ten\n");
-    case 11..20:
+    case 10 => fmt.printf("ten\n");
+    case 11..20 => {
       fmt.printf("{} is between eleven and twenty\n", limit);
-    default:
-      fmt.printf("something else\n");
+      fmt.printf("so it is a block of two statements\n");
+    }
+    default => fmt.printf("something else\n");
   }
 
-  // `switch` as an expression. Cases use `=>` and each one ends with `;`.
-  // `default` is mandatory, because the expression must always produce a
+  // `switch` as an expression. Cases also use `=>`, and what follows is a value
+  // that ends with `;`, not a statement. `default` is mandatory, because the expression must always produce a
   // value. It can be written wherever an expression can.
   let label = switch limit {
     case 10 => "ten";
@@ -81,12 +79,9 @@ public func demo() {
   // that is true wins. A comma between conditions means "or". It works as a
   // statement and as an expression, and the expression still needs `default`.
   switch {
-    case limit < 10:
-      fmt.printf("under ten\n");
-    case limit < 20, limit == 100:
-      fmt.printf("under twenty, or exactly one hundred\n");
-    default:
-      fmt.printf("twenty or more\n");
+    case limit < 10 => fmt.printf("under ten\n");
+    case limit < 20, limit == 100 => fmt.printf("under twenty, or exactly one hundred\n");
+    default => fmt.printf("twenty or more\n");
   }
 
   string size = switch {

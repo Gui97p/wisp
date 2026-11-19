@@ -76,16 +76,13 @@ internal func renderString(string t, spec.Spec s) Piece {
 
 internal func renderFloat([]byte buf, float x, spec.Spec s, bool single) !Piece {
 	Piece piece;
-	string view;
 	int prec = s.precision == -1 ? 6 : s.precision;
-	switch s.kind {
-		case 0:
-			view = s.precision == -1 ? (single ? conv.ftoa32(buf, float32(x))! : conv.ftoa(buf, x)!) : conv.formatFixed(buf, x, s.precision)!;
-		case 'f':
-			view = conv.formatFixed(buf, x, prec)!;
-		case 'e', 'E':
-			view = conv.formatExp(buf, x, prec, s.kind == 'E')!;
-	}
+	string view = switch s.kind {
+		case 0 => s.precision == -1 ? (single ? conv.ftoa32(buf, float32(x))! : conv.ftoa(buf, x)!) : conv.formatFixed(buf, x, s.precision)!;
+		case 'f' => conv.formatFixed(buf, x, prec)!;
+		case 'e', 'E' => conv.formatExp(buf, x, prec, s.kind == 'E')!;
+		default => "";
+	};
 	
 	int start;
 	if view[0] == '-' {

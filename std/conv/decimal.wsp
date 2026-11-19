@@ -171,23 +171,24 @@ internal func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive
 
 		bool okdown = l != m || (inclusive && li + 1 == lower.n);
 		switch {
-			case upperDelta == 0 && m+1 < u, upperDelta == 1 && (m != 9 || u != 0):
-				upperDelta = 2;
-			case upperDelta == 0 && m != u:
-				upperDelta = 1;
+			case upperDelta == 0 && m+1 < u, upperDelta == 1 && (m != 9 || u != 0) => upperDelta = 2;
+			case upperDelta == 0 && m != u => upperDelta = 1;
 		}
 		bool okup = upperDelta > 0 && (inclusive || upperDelta > 1 || ui + 1 < upper.n);
 
 		switch {
-			case okdown && okup:
+			case okdown && okup => {
 				dec.round(mi + 1);
 				return;
-			case okdown:
+			}
+			case okdown => {
 				dec.roundDown(mi + 1);
 				return;
-			case okup:
+			}
+			case okup => {
 				dec.roundUp(mi+1);
 				return;
+			}
 		}
 	}
 }

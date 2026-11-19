@@ -36,18 +36,22 @@ func describe(...args) int {
   int total;
   for _, arg in args {
     switch type arg {
-      case Color:
+      case Color => {
         fmt.printf("a Color adds 100\n");
         total += 100;
-      case signed v:
+      }
+      case signed v => {
         fmt.printf("the integer {} adds {}\n", v, v);
         total += v;
-      case string v:
+      }
+      case string v => {
         fmt.printf("the string \"{}\" adds its length, {}\n", v, len(v));
         total += len(v);
-      case bool v:
+      }
+      case bool v => {
         fmt.printf("the bool {} adds {}\n", v, v ? 1 : 0);
         total += v ? 1 : 0;
+      }
     }
   }
   return total;

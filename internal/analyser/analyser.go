@@ -29,6 +29,7 @@ type Analyser struct {
 	pendingDotLits map[*ast.StructLiteral]bool
 	pendingAnon    map[*ast.AnonLiteral]bool
 	inferSize      bool
+	voidCallOK     bool
 	quiet          bool
 
 	inlineStack   []*ast.FuncDecl
