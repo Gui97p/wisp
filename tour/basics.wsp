@@ -19,11 +19,19 @@
 // `panic` stops the program with a message, and `sizeof` measures a type.
 // Memory comes from the `std/mem` module (see pointers.wsp). Declaring a function with
 // one of these names in your own module shadows the builtin.
+//
+// A comment starts with `//` and is for whoever reads the code, as this whole
+// tour is. A comment that starts with `///` is documentation instead: written
+// right above a declaration, a struct field, an enum member or an interface
+// method, it is what the editor shows when you hover over that name and what
+// `wisp doc` prints. A plain `//` line between the two does not break the
+// link, but a blank line does.
 
 import "std/fmt";
 
 // A top-level constant. It is visible to the whole file and can never be
 // assigned again.
+/// The best score there is. Hover over `MaxScore` to read this line.
 const MaxScore = 100;
 
 // Several constants can share one declaration. A visibility or a type written

@@ -1002,3 +1002,16 @@ func TestQuickFixDeclaresImplements(t *testing.T) {
 		}
 	}
 }
+
+func TestOnlyTripleSlashIsDocumentation(t *testing.T) {
+	c := start(t)
+	src := "/// The documented one.\nfunc docu¦mented() {}\n\n// Only a comment.\nfunc plain() {}\n\nfunc main() {\n\tdocumented();\n\tplain();\n}\n"
+	p := c.open(map[string]string{"main.wsp": src})
+	if got := p.hover(); !strings.Contains(got, "The documented one.") || strings.Contains(got, "/ The") {
+		t.Errorf("hover %q lacks the doc comment", got)
+	}
+	q := c.open(map[string]string{"main.wsp": strings.Replace(strings.Replace(src, "docu¦mented", "documented", 1), "func plain", "func pl¦ain", 1)})
+	if got := q.hover(); strings.Contains(got, "Only a comment") {
+		t.Errorf("hover %q shows a plain comment as documentation", got)
+	}
+}

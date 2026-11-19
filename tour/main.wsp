@@ -23,6 +23,7 @@
 //   structs       structs, methods, literals
 //   literals      `T{...}`, `.{...}`, `[_]`: how every value is written
 //   generics      `<T>` on functions, structs and methods, value parameters, `switch type` on `T`
+//   interfaces    `interface`, `implements`, interface values, `<Shape S>`, type sets, `Comparable`
 //   collections   arrays, slices, strings
 //   errors        `!` functions, Error, `!`, `??`, `|e|`, handlers
 //   optionals     `?T`, null, `??`, `!!`, `if x |v|`, `loop x |v|`
@@ -59,6 +60,7 @@ import "generics";
 import "geometry" as geo;
 import "globals";
 import "inlining";
+import "interfaces";
 import "interop";
 import "lambdas";
 import "literals";
@@ -131,6 +133,9 @@ func main() !int {
 
 	fmt.printf("\n== generics ==\n");
 	generics.demo();
+
+	fmt.printf("\n== interfaces ==\n");
+	interfaces.demo();
 
 	fmt.printf("\n== collections ==\n");
 	collections.demo();

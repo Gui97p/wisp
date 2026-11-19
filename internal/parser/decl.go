@@ -648,7 +648,9 @@ func (p *Parser) docBefore(line int) string {
 		if !c.Standalone || c.EndLine != want {
 			break
 		}
-		block = append(block, c)
+		if strings.HasPrefix(c.Text, "///") {
+			block = append(block, c)
+		}
 		want = c.Line - 1
 	}
 
@@ -660,21 +662,7 @@ func (p *Parser) docBefore(line int) string {
 }
 
 func commentText(raw string) string {
-	if text, ok := strings.CutPrefix(raw, "///"); ok {
-		text = strings.TrimPrefix(text, " ")
-		return strings.TrimRight(text, " \r")
-	}
-	if text, ok := strings.CutPrefix(raw, "//"); ok {
-		text = strings.TrimPrefix(text, " ")
-		return strings.TrimRight(text, " \r")
-	}
-
-	inner := strings.TrimSuffix(strings.TrimPrefix(raw, "/*"), "*/")
-	rows := strings.Split(inner, "\n")
-	for i, row := range rows {
-		row = strings.TrimSpace(row)
-		row = strings.TrimPrefix(row, "*")
-		rows[i] = strings.TrimPrefix(row, " ")
-	}
-	return strings.Trim(strings.Join(rows, "\n"), "\n")
+	text := strings.TrimPrefix(raw, "///")
+	text = strings.TrimPrefix(text, " ")
+	return strings.TrimRight(text, " \r")
 }

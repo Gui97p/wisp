@@ -19,7 +19,7 @@ var (
 	suggestionPattern = regexp.MustCompile(`did you mean (\S+?)\?`)
 	undeclaredPattern = regexp.MustCompile(`identifier (\w+) not declared in this scope`)
 	unknownTypeModule = regexp.MustCompile(`unknown type (\w+)\.\w+`)
-	missingImplements = regexp.MustCompile(`(\\w+) has the methods of (\\w+) but does not declare it`)
+	missingImplements = regexp.MustCompile(`(\w+) has the methods of (\w+) but does not declare it`)
 )
 
 func importCandidatesFor(path, alias string) []module.ImportCandidate {
