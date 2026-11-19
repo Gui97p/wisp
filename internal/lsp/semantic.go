@@ -10,12 +10,13 @@ import (
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
-var semanticTokenTypes = []string{"property", "enumMember", "type"}
+var semanticTokenTypes = []string{"property", "enumMember", "type", "typeParameter"}
 
 const (
 	tokenProperty = iota
 	tokenEnumMember
 	tokenType
+	tokenTypeParameter
 )
 
 type semanticToken struct {
@@ -42,9 +43,14 @@ func semanticTokens(context *glsp.Context, params *protocol.SemanticTokensParams
 func collectTokens(program *ast.Program, info *analyser.Info) []semanticToken {
 	var tokens []semanticToken
 
+	params := typeParamUses(program)
+
 	add := func(at ast.Position, kind int) {
 		if at.Line == 0 {
 			return
+		}
+		if kind == tokenType && params[[2]int{at.Line, at.Col}] {
+			kind = tokenTypeParameter
 		}
 		length := at.EndCol - at.Col + 1
 		if at.EndLine != at.Line || length <= 0 {
@@ -66,8 +72,14 @@ func collectTokens(program *ast.Program, info *analyser.Info) []semanticToken {
 		}
 	}
 
+	for _, scope := range typeParamScopes(program) {
+		for _, param := range scope.params {
+			add(param.At, tokenTypeParameter)
+		}
+	}
+
 	walkTypeRefs(reflect.ValueOf(program), func(ref ast.TypeRef) {
-		if ref.Name == "" || ref.IsFunc || ref.Line == 0 || ref.EndLine != ref.Line {
+		if ref.Name == "" || ref.IsFunc || ref.Line == 0 {
 			return
 		}
 		if primitiveType(ref.Name) && ref.Module == "" {
@@ -77,7 +89,7 @@ func collectTokens(program *ast.Program, info *analyser.Info) []semanticToken {
 		if ref.Module != "" {
 			col += len(ref.Module) + 1
 		}
-		add(ast.Position{Line: ref.Line, Col: col, EndLine: ref.EndLine, EndCol: ref.EndCol}, tokenType)
+		add(ast.Position{Line: ref.Line, Col: col, EndLine: ref.Line, EndCol: col + len(ref.Name) - 1}, tokenType)
 	})
 
 	walkProgram(program, func(expr ast.Expression) {

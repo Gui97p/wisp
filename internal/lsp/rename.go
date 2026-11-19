@@ -203,6 +203,10 @@ func prepareRename(uri protocol.DocumentUri, pos protocol.Position) *protocol.Ra
 	}
 	line, col := int(pos.Line)+1, int(pos.Character)+1
 	own := declarationsOf(program, declarationFiles(path), path)
+	if hit := typeParamAt(own, line, col); hit != nil {
+		r := rangeOf(hit.rng.Line, hit.rng.Col, hit.rng.EndLine, hit.rng.EndCol)
+		return &r
+	}
 	sym := symbolAt(own, info, fileBuffer[path], line, col)
 	if sym == nil || renamable(path, sym, program) != nil {
 		return nil
@@ -237,6 +241,9 @@ func rename(uri protocol.DocumentUri, pos protocol.Position, newName string) (*p
 
 	src := fileBuffer[path]
 	own := declarationsOf(program, declarationFiles(path), path)
+	if hit := typeParamAt(own, int(pos.Line)+1, int(pos.Character)+1); hit != nil {
+		return typeParamRename(uri, hit, newName)
+	}
 	sym := symbolAt(own, info, src, int(pos.Line)+1, int(pos.Character)+1)
 	if sym == nil {
 		return nil, fmt.Errorf("nothing to rename here")

@@ -60,6 +60,7 @@ type Symbol struct {
 
 	Generic *GenericDecl
 	Builtin bool
+	Phantom string
 }
 
 type Scope struct {

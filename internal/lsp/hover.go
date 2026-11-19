@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -84,6 +85,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		return h
 	}
 	local := declarationsOf(program, declarationFiles(path), path)
+
+	if hit := typeParamAt(local, line, col); hit != nil {
+		return markdownHover(typeParamHover(hit), positionRange(hit.rng))
+	}
 
 	if param, owner, idx := paramAt(local, line, col); param != nil {
 		text := paramHoverText(param, owner, idx, program, info)
@@ -241,6 +246,13 @@ func renderDoc(code, doc string) string {
 }
 
 func paramHoverText(param *ast.Param, owner ast.Node, idx int, program *ast.Program, info *analyser.Info) string {
+	if idx >= 0 && usesTypeParam(param.Type, typeParamUses(program)) {
+		doc := ""
+		if _, isFunc := owner.(*ast.FuncDecl); isFunc {
+			doc = "Parameter."
+		}
+		return renderDoc(fmt.Sprintf("%s %s", param.Type.String(), param.Name), doc)
+	}
 	for _, sym := range info.VarSymbols[owner] {
 		if sym.Name == param.Name && sym.Line == param.Line && sym.Col == param.Col {
 			if idx == -1 {
@@ -314,6 +326,9 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 		}
 	case *ast.IdentLiteral:
 		if sym := identSymbol(e, info, line, col); sym != nil {
+			if text := declaredTypeHover(sym, program); text != "" {
+				return text
+			}
 			if text := symbolHover(sym, program); text != "" {
 				return text
 			}
@@ -469,7 +484,12 @@ func funcHover(sym *analyser.Symbol, program *ast.Program) string {
 		doc = fmt.Sprintf("Exported to C as `%s`.", sym.CName)
 	}
 
-	return renderDoc(analyser.FuncSignature(sym.Name, ft, funcDecl(program, sym)), joinDocs(sym.Doc, doc))
+	name, decl := sym.Name, funcDecl(program, sym)
+	if ft.Decl != nil && ft.Decl.Instance != "" && ft.Receiver == nil {
+		name, decl = ft.Decl.Instance, ft.Decl
+	}
+
+	return renderDoc(analyser.FuncSignature(name, ft, decl), joinDocs(sym.Doc, doc))
 }
 
 func funcDecl(program *ast.Program, sym *analyser.Symbol) *ast.FuncDecl {
@@ -565,6 +585,10 @@ func exportLine(name string, sym *analyser.Symbol) string {
 func variableHover(sym *analyser.Symbol) string {
 	if sym.Type == nil {
 		return ""
+	}
+
+	if sym.Phantom != "" {
+		return renderDoc(fmt.Sprintf("const %s %s", analyser.TypeText(sym.Type), sym.Name), "Value parameter: each use of it picks a constant.")
 	}
 
 	if sym.Kind == analyser.CONST && sym.Const != nil {
@@ -693,4 +717,29 @@ func staticHover(e *ast.BlockExpr, info *analyser.Info, line, col int) string {
 		}
 	}
 	return renderDoc(code, doc)
+}
+
+func usesTypeParam(ref ast.TypeRef, uses map[[2]int]bool) bool {
+	found := false
+	walkTypeRefs(reflect.ValueOf(ref), func(r ast.TypeRef) {
+		if uses[[2]int{r.Line, r.Col}] {
+			found = true
+		}
+	})
+	return found
+}
+
+func declaredTypeHover(sym *analyser.Symbol, program *ast.Program) string {
+	if sym.Line == 0 || (sym.Kind != analyser.VAR && sym.Kind != analyser.PARAM) {
+		return ""
+	}
+	param, owner, idx := paramAt(program, sym.Line, sym.Col)
+	if param == nil || idx < 0 || param.Name != sym.Name || !usesTypeParam(param.Type, typeParamUses(program)) {
+		return ""
+	}
+	doc := ""
+	if _, isFunc := owner.(*ast.FuncDecl); isFunc {
+		doc = "Parameter."
+	}
+	return renderDoc(fmt.Sprintf("%s %s", param.Type.String(), param.Name), doc)
 }

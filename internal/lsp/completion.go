@@ -129,8 +129,23 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 		}
 		return items
 	}
+	if before := textBefore(path, int(pos.Line), int(pos.Character)); trigger == "<" || trigger == "," || trigger == " " {
+		if ctx, ok := genericArgsContext(before, info, line, col); ok {
+			if !ctx.typing {
+				return []protocol.CompletionItem{}
+			}
+			return genericTypeItems(path, pos, info, line, col, ctx)
+		}
+	}
 	if trigger == "{" || trigger == "," || trigger == " " || trigger == ":" || trigger == "<" {
 		return nil
+	}
+
+	if ctx, ok := genericArgsContext(textBefore(path, int(pos.Line), int(pos.Character)), info, line, col); ok {
+		if !ctx.typing {
+			return []protocol.CompletionItem{}
+		}
+		return genericTypeItems(path, pos, info, line, col, ctx)
 	}
 
 	if ctx, ok := typeContextAt(textBefore(path, int(pos.Line), int(pos.Character))); ok {
@@ -882,4 +897,13 @@ func anonLiteralItems(path string, pos protocol.Position) ([]protocol.Completion
 		items = append(items, it)
 	}
 	return items, true
+}
+
+func genericTypeItems(path string, pos protocol.Position, info *analyser.Info, line, col int, ctx typeContext) []protocol.CompletionItem {
+	items := typeItems(info, line, col, ctx)
+	if info != nil && ctx.module == "" {
+		before := textBefore(path, int(pos.Line), int(pos.Character))
+		items = append(items, unimportedTypeItems(path, scopeAt(info, line, col), typedWord(before))...)
+	}
+	return items
 }

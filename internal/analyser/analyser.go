@@ -70,12 +70,18 @@ type Analyser struct {
 	pending         []pendingBody
 	instanceDepth   int
 	bodyDepth       int
+	phantoms        bool
+	phantomBuilding bool
 
 	errors diag.List
 }
 
 func (a *Analyser) SetPackageParts(parts []string) {
 	a.parts = parts
+}
+
+func (a *Analyser) SetPhantoms(on bool) {
+	a.phantoms = on
 }
 
 func (a *Analyser) SetImportErrors(errors map[string]string) {

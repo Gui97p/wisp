@@ -34,6 +34,10 @@ func definition(uri protocol.DocumentUri, pos protocol.Position) []protocol.Loca
 
 	own := declarationsOf(m.merged, m.declFiles, path)
 
+	if hit := typeParamAt(own, line, col); hit != nil {
+		return typeParamLocation(path, hit)
+	}
+
 	if sym := nativeSymbolAt(m.info, line, col); sym != nil {
 		if loc := symbolLocation(sym); loc != nil {
 			return []protocol.Location{*loc}
@@ -215,13 +219,17 @@ func methodName(call *analyser.MethodCall, info *analyser.Info, member *ast.Memb
 }
 
 func (pa *projectAnalysis) structField(st *analyser.StructType, field string) []protocol.Location {
-	target := pa.moduleByPath(st.Module)
+	module, name := st.Module, st.Name
+	if st.Instance != nil {
+		module, name = st.Instance.Decl.Module, st.Instance.Decl.Name
+	}
+	target := pa.moduleByPath(module)
 	if target == nil {
 		return nil
 	}
 	for _, d := range target.merged.Declarations {
 		decl, ok := d.(*ast.StructDecl)
-		if !ok || decl.Name != st.Name {
+		if !ok || decl.Name != name {
 			continue
 		}
 		for _, member := range decl.Members {

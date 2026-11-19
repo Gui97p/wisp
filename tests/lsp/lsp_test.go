@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -385,4 +386,226 @@ func TestAutoImportCompletion(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestSemanticTokensGenerics(t *testing.T) {
+	c := start(t)
+	src := "struct Pair<A, B> {\n\tA first;\n\tB second;\n}\n\nfunc swap<A, B>(Pair<A, B> p) Pair<B, A> {\n\treturn Pair<B, A>{first: p.second, second: p.first};\n}\n\nfunc main() {\n\tPair<int, string> p = Pair<int, string>{first: 1, second: \"a\"};\n\tPair<string, int> q = swap(p);\n}\n"
+	p := c.open(map[string]string{"main.wsp": src})
+	got := map[string]string{}
+	for _, tok := range p.semanticTokens() {
+		got[strconv.Itoa(tok.line)+":"+strconv.Itoa(tok.col)] = tok.kind
+		if tok.kind == "type" && tok.length != 4 {
+			t.Errorf("type token at %d:%d has length %d, want the name only (4)", tok.line, tok.col, tok.length)
+		}
+	}
+	want := map[string]string{
+		"0:12": "typeParameter", "0:15": "typeParameter",
+		"1:1": "typeParameter", "2:1": "typeParameter",
+		"5:10": "typeParameter", "5:13": "typeParameter",
+		"5:16": "type", "5:21": "typeParameter", "5:24": "typeParameter",
+		"5:30": "type", "5:35": "typeParameter", "5:38": "typeParameter",
+		"6:8": "type", "6:13": "typeParameter", "6:16": "typeParameter",
+		"10:1": "type", "10:23": "type",
+	}
+	for at, kind := range want {
+		if got[at] != kind {
+			t.Errorf("token at %s: want %s, got %q", at, kind, got[at])
+		}
+	}
+}
+
+const genericShapes = `struct Pair<A, B> {
+	A first;
+	B second;
+}
+
+func (*Pair<A, B> p) swapped() Pair<B, A> {
+	return Pair<B, A>{first: p.second, second: p.first};
+}
+
+func firstOf<T>(Pair<T, int> p) T {
+	return p.first;
+}
+
+func spare<T>(T v) T {
+	T copy = v;
+	return copy;
+}
+
+func main() {
+	Pair<int, string> p = Pair<int, string>{first: 1, second: "a"};
+	int n = firstOf(Pair<int, int>{first: 1, second: 2});
+}
+`
+
+func TestGenericsHoverAndDefinition(t *testing.T) {
+	c := start(t)
+	cases := []struct {
+		name  string
+		probe string
+		hover string
+		line  int
+	}{
+		{"call shows the generic name and the type arguments", "first¦Of(Pair<int, int>", "func firstOf<int>(Pair<int, int> p) int", 9},
+		{"type parameter in the signature", "func firstOf<¦T>", "type parameter T", 9},
+		{"type parameter used in a parameter", "firstOf<T>(Pair<¦T, int> p)", "type parameter T", 9},
+		{"parameter keeps the declared type", "Pair<T, int> ¦p) T", "Pair<T, int> p", -1},
+		{"field in a generic body, with an instance", "return p.fi¦rst;\n}\n\nfunc spare", "Field of struct `Pair<int, int>`", 1},
+		{"field of an instance", "int n = firstOf(Pair<int, int>{fi¦rst: 1", "Field of struct `Pair<int, int>`", 1},
+		{"body with no instance", "return ¦copy;", "T copy", 14},
+		{"receiver type parameter", "func (*Pair<¦A, B> p)", "type parameter A", 5},
+	}
+	for _, tc := range cases {
+		plain := strings.Replace(tc.probe, "¦", "", 1)
+		p := c.open(map[string]string{"main.wsp": strings.Replace(genericShapes, plain, tc.probe, 1)})
+		if got := p.hover(); !strings.Contains(got, tc.hover) {
+			t.Errorf("%s: hover %q does not contain %q", tc.name, got, tc.hover)
+		}
+		if tc.line >= 0 {
+			defs := p.definition()
+			if len(defs) == 0 || int(defs[0].Range.Start.Line) != tc.line {
+				t.Errorf("%s: definition %v, want line %d", tc.name, defs, tc.line)
+			}
+		}
+	}
+}
+
+func TestGenericsPhantomDiagnostics(t *testing.T) {
+	c := start(t)
+	src := `struct Box<T> {
+	T value;
+}
+
+func (*Box<T> b) get() T {
+	return b.missing;
+}
+
+func broken<T>(T v) T {
+	return unknownName;
+}
+
+func fine<T>(Box<T> b) T {
+	T copy = b.value;
+	return copy;
+}
+
+func describe<T>(T v) string {
+	switch type v {
+		case int i => return "int";
+		default => return "other";
+	}
+}
+
+func main() {
+}
+`
+	p := c.open(map[string]string{"main.wsp": src})
+	var errors []string
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			errors = append(errors, d.Message)
+		}
+	}
+	want := []string{"invalid field missing in struct Box<T>", "identifier unknownName not declared in this scope"}
+	if !slices.Equal(errors, want) {
+		t.Errorf("errors %q, want %q", errors, want)
+	}
+}
+
+func TestGenericsCompletion(t *testing.T) {
+	c := start(t)
+	base := "struct Box<T> { T v; }\nstruct Item { int x; }\nfunc id<T>(T v) T { return v; }\n"
+	cases := []struct {
+		name string
+		body string
+		want []string
+		deny []string
+	}{
+		{"type arguments of a type", "func main() {\n\tBox<I¦> b;\n}\n", []string{"Item", "Box", "int"}, []string{"if", "return"}},
+		{"type arguments of a call", "func main() {\n\tint n = id<¦>(3);\n}\n", []string{"Item", "int"}, []string{"if"}},
+		{"second argument", "func main() {\n\tBox<Box<int>, ¦> b;\n}\n", []string{"Item", "int"}, []string{"if"}},
+		{"type parameter in a generic body", "func first<T>(Box<T> b) T {\n\tBox<¦> c;\n\treturn b.v;\n}\nfunc main() {}\n", []string{"T", "Item"}, nil},
+		{"comparison is not a type context", "func main() {\n\tint n = 3 <¦ 4;\n}\n", []string{"if"}, nil},
+		{"declaring parameters offers nothing", "struct Pair<¦> { int a; }\nfunc main() {}\n", nil, []string{"Item", "int", "if"}},
+	}
+	for _, tc := range cases {
+		p := c.open(map[string]string{"main.wsp": base + tc.body})
+		got := p.completion()
+		for _, w := range tc.want {
+			if !slices.Contains(got, w) {
+				t.Errorf("%s: %q missing from the completion", tc.name, w)
+			}
+		}
+		for _, d := range tc.deny {
+			if slices.Contains(got, d) {
+				t.Errorf("%s: %q should not be offered", tc.name, d)
+			}
+		}
+	}
+}
+
+func TestGenericsRename(t *testing.T) {
+	c := start(t)
+	src := "struct Box<T> {\n\tT value;\n}\n\nfunc (*Box<T> b) get() T {\n\treturn b.value;\n}\n\nfunc wrap<T, U>(T a, Box<U> b) Box<T> {\n\tT copy = a;\n\treturn Box<T>{value: copy};\n}\n\nfunc main() {}\n"
+	p := c.open(map[string]string{"main.wsp": strings.Replace(src, "T copy = a;", "¦T copy = a;", 1)})
+	got := p.renamed("Item")
+	want := "func wrap<Item, U>(Item a, Box<U> b) Box<Item> {\n\tItem copy = a;\n\treturn Box<Item>{value: copy};\n}"
+	if !strings.Contains(got, want) {
+		t.Errorf("function parameter:\n%s", got)
+	}
+	if !strings.Contains(got, "struct Box<T> {\n\tT value;") {
+		t.Errorf("another declaration was renamed:\n%s", got)
+	}
+
+	p = c.open(map[string]string{"main.wsp": strings.Replace(src, "struct Box<T>", "struct Box<¦T>", 1)})
+	got = p.renamed("E")
+	if !strings.Contains(got, "struct Box<E> {\n\tE value;\n}") || !strings.Contains(got, "func (*Box<T> b) get() T {") {
+		t.Errorf("struct parameter:\n%s", got)
+	}
+
+	p = c.open(map[string]string{"main.wsp": strings.Replace(src, "func (*Box<T> b) get() T {", "func (*Box<T> b) get() ¦T {", 1)})
+	got = p.renamed("V")
+	if !strings.Contains(got, "func (*Box<V> b) get() V {") || !strings.Contains(got, "struct Box<T> {") {
+		t.Errorf("receiver parameter:\n%s", got)
+	}
+}
+
+func TestGenericsDeclaredTypesInHover(t *testing.T) {
+	c := start(t)
+	src := `struct Ring<T, const int N> {
+	[N]T items;
+	int head;
+}
+
+func (*Ring<T, N> r) push(T v) {
+	r.head = (r.head + 1) % N;
+}
+
+func twice<T>(T v) T {
+	T copy = v;
+	T again = copy;
+	return again;
+}
+
+func main() {
+	int n = twice(3);
+	Ring<int, 4> r;
+	r.push(1);
+}
+`
+	cases := []struct{ probe, want string }{
+		{"T co¦py = v;", "T copy"},
+		{"T again = ¦copy;", "T copy"},
+		{"return ¦again;", "T again"},
+		{"% ¦N;", "const int N"},
+		{"func (*Ring<T, N> r) push(¦T v)", "type parameter T"},
+	}
+	for _, tc := range cases {
+		plain := strings.Replace(tc.probe, "¦", "", 1)
+		p := c.open(map[string]string{"main.wsp": strings.Replace(src, plain, tc.probe, 1)})
+		if got := p.hover(); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: hover %q does not contain %q", tc.probe, got, tc.want)
+		}
+	}
 }

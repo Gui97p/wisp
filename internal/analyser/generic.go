@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -30,9 +31,13 @@ type GenericDecl struct {
 type TypeValue struct {
 	Type  Type
 	Value *ConstValue
+	Label string
 }
 
 func (v TypeValue) String() string {
+	if v.Label != "" {
+		return v.Label
+	}
 	if v.Value != nil {
 		return v.Value.String()
 	}
@@ -82,6 +87,8 @@ type pendingBody struct {
 	file  string
 	depth int
 	args  string
+
+	phantom bool
 }
 
 func typeKey(t Type) string {
@@ -122,7 +129,9 @@ func typeKey(t Type) string {
 func (g *GenericDecl) key(args []TypeValue) string {
 	parts := make([]string, len(args))
 	for i, v := range args {
-		if v.Value != nil {
+		if v.Label != "" {
+			parts[i] = "phantom:" + v.Label
+		} else if v.Value != nil {
 			parts[i] = "const:" + v.Value.String()
 		} else {
 			parts[i] = typeKey(v.Type)
@@ -224,6 +233,7 @@ func (a *Analyser) bindScope(parent *Scope, names []string, params []ast.TypePar
 			sym.Kind = CONST
 			sym.Type = args[i].Type
 			sym.Const = args[i].Value
+			sym.Phantom = args[i].Label
 		} else {
 			sym.Kind = TYPE
 			sym.Type = args[i].Type
@@ -273,7 +283,7 @@ func (a *Analyser) evalArgList(node ast.Node, g *GenericDecl, given []ast.TypeAr
 			ok = false
 			continue
 		}
-		if _, invalid := t.(InvalidType); invalid {
+		if invalid, isInvalid := t.(InvalidType); isInvalid && invalid.Name == "" {
 			ok = false
 			continue
 		}
@@ -302,6 +312,12 @@ func (a *Analyser) evalValueArg(node ast.Node, g *GenericDecl, param ast.TypePar
 	a.scope = scope
 	t := a.checkExpr(expr)
 	value, ok := a.evalConst(expr)
+	label := ""
+	if id, isIdent := expr.(*ast.IdentLiteral); isIdent {
+		if sym, found := scope.Resolve(id.Value); found {
+			label = sym.Phantom
+		}
+	}
 	a.scope = saved
 	if _, invalid := t.(InvalidType); invalid {
 		return TypeValue{}, false
@@ -315,7 +331,7 @@ func (a *Analyser) evalValueArg(node ast.Node, g *GenericDecl, param ast.TypePar
 		a.errorf(expr, "the value %s does not fit %s, the type of %s", value.String(), paramType.String(), param.Name)
 		return TypeValue{}, false
 	}
-	return TypeValue{Type: paramType, Value: &converted}, true
+	return TypeValue{Type: paramType, Value: &converted, Label: label}, true
 }
 
 func (a *Analyser) instantiateStructRef(node ast.Node, g *GenericDecl, args []ast.TypeArg, scope *Scope) Type {
@@ -471,7 +487,7 @@ func (a *Analyser) instanceOfMethod(node ast.Node, tmpl *FuncType) *FuncType {
 	a.info.VarTypes[clone] = ft.Params
 	a.program.Declarations = append(a.program.Declarations, clone)
 	a.declFiles[clone] = t.Gen.File
-	a.pending = append(a.pending, pendingBody{decl: clone, ft: &ft, recv: tmpl.Receiver, scope: t.Scope, gen: t.Gen, at: node, file: a.currentFile, depth: a.bodyDepth + 1, args: instanceArgs(t.Struct)})
+	a.pending = append(a.pending, pendingBody{decl: clone, ft: &ft, recv: tmpl.Receiver, scope: t.Scope, gen: t.Gen, at: node, file: a.currentFile, depth: a.bodyDepth + 1, args: instanceArgs(t.Struct), phantom: a.phantomBuilding})
 	return &ft
 }
 
@@ -513,7 +529,7 @@ func (a *Analyser) checkInstanceBody(p pendingBody) {
 
 	a.checkFuncBodyOf(p.decl, p.ft, p.recv)
 
-	for i := start; i < len(a.errors); i++ {
+	for i := start; i < len(a.errors) && !p.phantom; i++ {
 		callLine, callCol := p.at.Position()
 		endLine, endCol := p.at.EndPosition()
 		a.errors[i].Note(p.file, callLine, callCol, endLine, endCol, "with %s, instantiated here", p.args)
@@ -780,7 +796,7 @@ func (a *Analyser) instantiateFunc(node ast.Node, g *GenericDecl, args []TypeVal
 	a.currentFile = savedFile
 
 	for _, r := range returns {
-		if _, invalid := r.(InvalidType); invalid {
+		if invalid, ok := r.(InvalidType); ok && invalid.Name == "" {
 			return nil, nil
 		}
 	}
@@ -812,7 +828,7 @@ func (a *Analyser) instantiateFunc(node ast.Node, g *GenericDecl, args []TypeVal
 		for i, p := range g.Params {
 			argText[i] = p.Name + " = " + args[i].String()
 		}
-		a.pending = append(a.pending, pendingBody{decl: clone, ft: ft, scope: scope, gen: g, at: node, file: a.currentFile, depth: a.bodyDepth + 1, args: strings.Join(argText, ", ")})
+		a.pending = append(a.pending, pendingBody{decl: clone, ft: ft, scope: scope, gen: g, at: node, file: a.currentFile, depth: a.bodyDepth + 1, args: strings.Join(argText, ", "), phantom: a.phantomBuilding})
 	}
 	return sym, ft
 }
@@ -1064,4 +1080,91 @@ func shortName(s string) string {
 		return s[:45] + "..."
 	}
 	return s
+}
+
+func (a *Analyser) instantiatePhantoms() {
+	if !a.phantoms {
+		return
+	}
+	a.phantomBuilding = true
+	defer func() { a.phantomBuilding = false }()
+
+	declarations := append([]ast.Declaration(nil), a.program.Declarations...)
+	for _, d := range declarations {
+		a.currentFile = a.declFiles[d]
+		switch decl := d.(type) {
+		case *ast.FuncDecl:
+			if len(decl.TypeParams) == 0 || decl.Receiver != nil {
+				continue
+			}
+			if g := a.genericOf(decl.Name, decl, nil); g != nil {
+				if args, ok := a.phantomArgs(g); ok {
+					a.instantiateFunc(decl, g, args)
+				}
+			}
+		case *ast.StructDecl:
+			if len(decl.TypeParams) == 0 {
+				continue
+			}
+			g := a.genericOf(decl.Name, nil, decl)
+			if g == nil {
+				continue
+			}
+			args, ok := a.phantomArgs(g)
+			if !ok {
+				continue
+			}
+			st, isStruct := a.instantiateStruct(decl, g, args).(*StructType)
+			if !isStruct {
+				continue
+			}
+			methods := MethodsOf(st)
+			names := make([]string, 0, len(methods))
+			for name := range methods {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				a.instanceOfMethod(decl, methods[name])
+			}
+		}
+	}
+}
+
+func (a *Analyser) genericOf(name string, fd *ast.FuncDecl, sd *ast.StructDecl) *GenericDecl {
+	symbol, ok := a.moduleScope.Resolve(name)
+	if !ok || symbol.Generic == nil {
+		return nil
+	}
+	if g := symbol.Generic; g.Func == fd && g.Struct == sd {
+		return g
+	}
+	return nil
+}
+
+func (a *Analyser) phantomArgs(g *GenericDecl) ([]TypeValue, bool) {
+	args := make([]TypeValue, len(g.Params))
+	for i, param := range g.Params {
+		if !param.Const {
+			args[i] = TypeValue{Type: InvalidType{Name: param.Name}}
+			continue
+		}
+		paramType := a.resolveTypeRef(g.node(), g.Scope, param.Type)
+		if paramType == nil {
+			return nil, false
+		}
+		value := ConstValue{Kind: ConstInt, Int: big.NewInt(1), Type: paramType}
+		if prim, isPrim := paramType.(PrimitiveType); isPrim && prim.Name == "bool" {
+			value = ConstValue{Kind: ConstBool, Bool: true, Type: paramType}
+		}
+		args[i] = TypeValue{Type: paramType, Value: &value, Label: param.Name}
+	}
+	return args, true
+}
+
+func (g *GenericDecl) node() ast.Node {
+	if g.Func != nil {
+		return g.Func
+	}
+	return g.Struct
 }

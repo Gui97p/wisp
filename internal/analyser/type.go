@@ -12,9 +12,14 @@ type Type interface {
 	Equals(Type) bool
 }
 
-type InvalidType struct{}
+type InvalidType struct {
+	Name string
+}
 
-func (InvalidType) String() string {
+func (t InvalidType) String() string {
+	if t.Name != "" {
+		return t.Name
+	}
 	return "<invalid>"
 }
 

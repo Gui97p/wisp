@@ -2,7 +2,7 @@
     "name": "wisp",
     "displayName": "Wisp Language Support",
     "description": "Language support for Wisp: highlighting, diagnostics, completion, hover, rename, snippets and a file icon.",
-    "version": "0.9.1",
+    "version": "0.9.2",
     "publisher": "gui97p",
     "license": "MIT",
     "repository": {
@@ -129,6 +129,10 @@
                     ],
                     "enumMember": [
                         "variable.other.enummember.wisp"
+                    ],
+                    "typeParameter": [
+                        "support.type.parameter.wisp",
+                        "entity.name.type.parameter.wisp"
                     ]
                 }
             }

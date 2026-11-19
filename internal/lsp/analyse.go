@@ -153,6 +153,7 @@ func analyseGroup(group []*module.Module, exports map[string]*analyser.ModuleInf
 		a := analyser.NewAnalyser(merged, exports, declFiles, mod.Path)
 		a.SetImportErrors(mod.ImportErrors)
 		a.SetPackageParts(mod.Parts)
+		a.SetPhantoms(true)
 		analysers[i], merges[i], declMaps[i] = a, merged, declFiles
 	}
 	analyser.AnalyzeGroup(analysers)
@@ -203,15 +204,21 @@ func declarationFiles(path string) map[ast.Declaration]string {
 }
 
 func declarationsOf(program *ast.Program, files map[ast.Declaration]string, path string) *ast.Program {
-	if files == nil {
-		return program
-	}
 	own := &ast.Program{}
+	var templates []ast.Declaration
 	for _, d := range program.Declarations {
-		if file, known := files[d]; !known || file == path {
-			own.Declarations = append(own.Declarations, d)
+		if files != nil {
+			if file, known := files[d]; known && file != path {
+				continue
+			}
 		}
+		if fd, ok := d.(*ast.FuncDecl); ok && (len(fd.TypeParams) > 0 || (fd.Receiver != nil && len(fd.Receiver.Type.Args) > 0)) {
+			templates = append(templates, d)
+			continue
+		}
+		own.Declarations = append(own.Declarations, d)
 	}
+	own.Declarations = append(own.Declarations, templates...)
 	return own
 }
 

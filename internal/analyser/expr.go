@@ -198,7 +198,9 @@ func singleReturn(block *ast.BlockStmt) (*ast.ReturnStmt, bool) {
 
 func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	left := a.checkExpr(expr.Left)
-	if _, boxed := left.(BoxedType); boxed {
+	_, boxed := left.(BoxedType)
+	_, invalid := left.(InvalidType)
+	if boxed || (invalid && expr.TypeTest) {
 		return a.checkTypeCase(expr)
 	}
 	if expr.TypeTest {

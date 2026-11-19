@@ -429,3 +429,44 @@ func (a codeAction) apply(p *project, text string) string {
 	}
 	return text
 }
+
+type semanticToken struct {
+	line, col, length int
+	kind              string
+}
+
+func (p *project) semanticTokens() []semanticToken {
+	p.c.t.Helper()
+	raw := p.c.call("textDocument/semanticTokens/full", map[string]any{"textDocument": map[string]any{"uri": p.uri()}})
+	var result struct {
+		Data []int `json:"data"`
+	}
+	json.Unmarshal(raw, &result)
+	kinds := []string{"property", "enumMember", "type", "typeParameter"}
+	var tokens []semanticToken
+	line, col := 0, 0
+	for i := 0; i+4 < len(result.Data); i += 5 {
+		line += result.Data[i]
+		if result.Data[i] == 0 {
+			col += result.Data[i+1]
+		} else {
+			col = result.Data[i+1]
+		}
+		tokens = append(tokens, semanticToken{line, col, result.Data[i+2], kinds[result.Data[i+3]]})
+	}
+	return tokens
+}
+
+func (p *project) renamed(newName string) string {
+	p.c.t.Helper()
+	params := p.at()
+	params["newName"] = newName
+	raw := p.c.call("textDocument/rename", params)
+	var action codeAction
+	if err := json.Unmarshal(raw, &struct {
+		Changes *map[string][]textEdit `json:"changes"`
+	}{&action.Edit.Changes}); err != nil {
+		p.c.t.Fatal(err)
+	}
+	return action.apply(p, p.text)
+}

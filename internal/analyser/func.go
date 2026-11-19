@@ -92,6 +92,7 @@ func (a *Analyser) checkFuncBodies() {
 			a.checkFuncBody(fd)
 		}
 	}
+	a.instantiatePhantoms()
 	a.drainInstances()
 }
 

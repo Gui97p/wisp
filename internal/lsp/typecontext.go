@@ -196,3 +196,66 @@ func importedTypeItems(scope *analyser.Scope) []protocol.CompletionItem {
 	}
 	return items
 }
+
+var (
+	genericDeclHeader = regexp.MustCompile(`(?:\bstruct\s+|\bfunc\s+(?:\([^)]*\)\s*)?|\bfunc\s*\(\s*\*?)$`)
+	genericName       = regexp.MustCompile(`((?:[A-Za-z_]\w*\.)?[A-Za-z_]\w*)$`)
+)
+
+func genericArgsContext(text string, info *analyser.Info, line, col int) (typeContext, bool) {
+	open, depth := -1, 0
+scan:
+	for i := len(text) - 1; i >= 0; i-- {
+		switch c := text[i]; {
+		case c == '>':
+			depth++
+		case c == '<':
+			if depth == 0 {
+				open = i
+				break scan
+			}
+			depth--
+		case c == '_' || c == '.' || c == ',' || c == ' ' || c == '\t' || c == '*' || c == '[' || c == ']' || c == '?',
+			c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		default:
+			return typeContext{}, false
+		}
+	}
+	if open < 0 {
+		return typeContext{}, false
+	}
+
+	head := text[:open]
+	m := genericName.FindStringSubmatch(head)
+	if m == nil {
+		return typeContext{}, false
+	}
+	before := head[:len(head)-len(m[1])]
+	if genericDeclHeader.MatchString(before) {
+		return typeContext{}, true
+	}
+	if info == nil {
+		return typeContext{}, false
+	}
+
+	scope := scopeAt(info, line, col)
+	var sym *analyser.Symbol
+	if module, name, qualified := strings.Cut(m[1], "."); qualified {
+		owner, found := scope.Resolve(module)
+		if !found {
+			return typeContext{}, false
+		}
+		if mt, isModule := owner.Type.(*analyser.ModuleType); isModule {
+			sym = mt.Exports[name]
+		}
+	} else if found, ok := scope.Resolve(m[1]); ok {
+		sym = found
+	}
+	if sym == nil || sym.Generic == nil {
+		return typeContext{}, false
+	}
+
+	ctx, _ := typingType(afterLast(text[open+1:], ",<"))
+	ctx.typing = true
+	return ctx, true
+}
