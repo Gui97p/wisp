@@ -213,9 +213,6 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 
 	call.Body = body
 	a.info.Inlines[expr] = call
-	if ft.Module != "" && ft.Module != savedModule {
-		a.checkInlineVisibility(expr, decl, body, ft.Module)
-	}
 }
 
 type bindings struct {
@@ -325,41 +322,6 @@ func (a *Analyser) propagatedArgument(arg ast.Expression, tp Type, name string, 
 		a.info.ConstRefs[ref] = ConstRefInfo{Value: converted, Type: tp, Enum: enum}
 		return ref
 	}, true
-}
-
-func (a *Analyser) checkInlineVisibility(site *ast.CallExpr, decl *ast.FuncDecl, body *ast.BlockStmt, module string) {
-	info, ok := a.modules[module]
-	if !ok {
-		return
-	}
-	reported := map[string]bool{}
-	ast.Inspect(body, func(node ast.Node) bool {
-		if call, isCall := node.(*ast.CallExpr); isCall {
-			mc := a.info.MethodCalls[call]
-			if mc != nil && mc.Func != nil && mc.Module == module && !mc.Func.Exported && !reported[mc.Owner+"."+mc.Func.Name] {
-				reported[mc.Owner+"."+mc.Func.Name] = true
-				a.errorf(site, "inline function %s uses the method %s of %s, which is private to module %s, so it cannot be expanded here", decl.Name, mc.Func.Name, mc.Owner, module)
-			}
-			return true
-		}
-		id, ok := node.(*ast.IdentLiteral)
-		if !ok {
-			return true
-		}
-		sym := a.info.Idents[id]
-		if sym == nil || sym.Module != module || reported[sym.Name] {
-			return true
-		}
-		if sym.Kind != FUNC && !(sym.Kind == VAR && sym.Global) {
-			return true
-		}
-		if exported, found := info.Exports[sym.Name]; found && exported == sym {
-			return true
-		}
-		reported[sym.Name] = true
-		a.errorf(site, "inline function %s uses %s, which is private to module %s, so it cannot be expanded here", decl.Name, sym.Name, module)
-		return true
-	})
 }
 
 func (a *Analyser) placeholderBody(fd *ast.FuncDecl, ft *FuncType, body *ast.BlockStmt) *ast.BlockStmt {

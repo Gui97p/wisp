@@ -121,6 +121,9 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 }
 
 func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
+	if stmt.IsSwitch && a.pruneTypeSwitch(stmt) {
+		stmt.IsSwitch = false
+	}
 	if stmt.IsSwitch {
 		a.pushSwitch()
 		defer a.popLoop()
@@ -494,6 +497,9 @@ func (a *Analyser) stmtTerminates(stmt ast.Statement) bool {
 	case *ast.ExpressionStmt:
 		return a.callNeverReturns(s.Expr)
 	case *ast.IfStmt:
+		if lit, isLit := s.Condition.(*ast.BoolLiteral); isLit && lit.Value && s.Capture == "" {
+			return a.blockTerminates(s.Then)
+		}
 		if s.Else == nil {
 			return false
 		}

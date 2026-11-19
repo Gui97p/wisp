@@ -19,8 +19,8 @@
 // it raises is reported at the line of the call.
 //
 // An inline function that calls itself is expanded once and then called
-// normally. A public inline function can only use public names of its module,
-// since the body ends up in other modules.
+// normally. The body is analysed where the function was written, so it may use
+// the private names of its own module, even when it ends up in another module.
 
 import "std/fmt";
 

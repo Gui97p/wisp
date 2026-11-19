@@ -88,6 +88,7 @@ type FuncDecl struct {
 	Doc         string
 	Name        string
 	Receiver    *Param
+	TypeParams  []TypeParam
 	Params      []Param
 	Body        *BlockStmt
 	ReturnTypes []TypeRef
@@ -99,6 +100,7 @@ type FuncDecl struct {
 	CExport     string
 	CVariadic   bool
 	Generated   bool
+	Instance    string
 	Inline      bool
 	Native      bool
 	Selector    string
@@ -170,6 +172,7 @@ type StructDecl struct {
 	Tagged
 	Doc        string
 	Name       string
+	TypeParams []TypeParam
 	Members    []Param
 	Exported   bool
 	Reach      int
@@ -213,6 +216,7 @@ type TypeDecl struct {
 	Tagged
 	Doc        string
 	Name       string
+	TypeParams []TypeParam
 	Underlying TypeRef
 	Exported   bool
 	Reach      int

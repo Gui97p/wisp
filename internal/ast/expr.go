@@ -487,3 +487,18 @@ func (b *BlockExpr) Tree(indent string) string {
 
 	return out.String()
 }
+
+type GenericExpr struct {
+	Base Expression
+	Args []TypeArg
+
+	NodePos
+}
+
+func (*GenericExpr) expr() {}
+func (g *GenericExpr) Tree(indent string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "%sGenericExpr%s\n", indent, TypeArgsText(g.Args))
+	b.WriteString(g.Base.Tree(indent + "   "))
+	return b.String()
+}

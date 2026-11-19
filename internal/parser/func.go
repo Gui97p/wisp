@@ -101,6 +101,12 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 		return nil
 	}
 
+	typeParams, ok := p.optionalTypeParams()
+	if !ok {
+		return nil
+	}
+	decl.TypeParams = typeParams
+
 	if !p.expect(lexer.TOKEN_LPAREN) {
 		return nil
 	}

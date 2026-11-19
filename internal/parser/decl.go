@@ -452,6 +452,12 @@ func (p *Parser) parseTypeDeclaration() *ast.TypeDecl {
 		return nil
 	}
 
+	typeParams, ok := p.optionalTypeParams()
+	if !ok {
+		return nil
+	}
+	decl.TypeParams = typeParams
+
 	p.advance()
 	ref := p.parseTypeDefinitionPrefix()
 	if ref == nil {

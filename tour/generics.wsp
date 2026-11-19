@@ -1,0 +1,110 @@
+// Tour - Generics: functions, structs and methods that work for any type.
+//
+// A type parameter goes between `<>` after the name: `func biggest<T>(...)`,
+// `struct List<T>`. Inside, `T` is a type like any other, and the compiler
+// writes a copy of the declaration for every type it is used with: `List<int>`
+// and `List<string>` are two different structs, as if each had been written by
+// hand. A copy is only analysed when something asks for it, so a generic that
+// nobody uses is not checked, and the body of a generic function is checked for
+// each type it is given: what `T` has to support is whatever the body does with
+// it.
+//
+// Calls infer the type from the arguments, and `f<int>(x)` names it when it
+// cannot be inferred. A struct always names its types: `List<int> numbers`.
+//
+// A method of a generic struct lists the type parameters in its receiver:
+// `func (*List<T> l) push(T value)`. The names between `<>` there are new each
+// time, so a method may call its parameter `E` if it likes.
+//
+// A parameter can also be a value that is known at compile time, written with
+// `const`: `struct Ring<T, const int N>`. It works as a constant in the
+// declaration, it can size an array, and it can be inferred from an array.
+
+import "std/fmt";
+
+struct List<T> {
+  [8]T items;
+  int count;
+}
+
+func (*List<T> l) push(T value) {
+  l.items[l.count] = value;
+  l.count++;
+}
+
+func (*List<T> l) sum() T {
+  T total;
+  for i in 0..l.count - 1 {
+    total += l.items[i];
+  }
+  return total;
+}
+
+struct Pair<A, B> {
+  A first;
+  B second;
+}
+
+func swap<A, B>(Pair<A, B> p) Pair<B, A> {
+  return Pair<B, A>{first: p.second, second: p.first};
+}
+
+func biggest<T>(T a, T b) T {
+  return a > b ? a : b;
+}
+
+func apply<T, U>(T value, (T) => U f) U {
+  return f(value);
+}
+
+func square(int x) int => x * x;
+
+struct Ring<T, const int N> {
+  [N]T slots;
+  int head;
+}
+
+func (*Ring<T, N> r) put(T value) {
+  r.slots[r.head % N] = value;
+  r.head++;
+}
+
+func capacity<T, const int N>(Ring<T, N> _ring) int {
+  return N;
+}
+
+// `switch type` on a value that is not an `any` is decided by the compiler:
+// each copy keeps only the case of its own type, and the other cases are not
+// even analysed, so a case may do what only its type can do. `case signed v`
+// and `case unsigned v` stand for every integer of that kind.
+func describe<T>(T value) string {
+  switch type value {
+    case string text => return text;
+    case signed _number => return "an integer";
+    case bool => return "a bool";
+    default => return "something else";
+  }
+}
+
+public func demo() {
+  List<int> numbers;
+  numbers.push(3);
+  numbers.push(4);
+  List<float> weights;
+  weights.push(1.5);
+  weights.push(2.5);
+  fmt.printf("sum of the numbers {}, of the weights {}\n", numbers.sum(), weights.sum());
+
+  Pair<int, string> pair = Pair<int, string>{first: 1, second: "one"};
+  Pair<string, int> flipped = swap(pair);
+  fmt.printf("swapped: {} and {}\n", flipped.first, flipped.second);
+
+  fmt.printf("biggest(3, 9) = {}, biggest<float>(1.5, 0.5) = {}\n", biggest(3, 9), biggest<float>(1.5, 0.5));
+  fmt.printf("apply(7, square) = {}\n", apply(7, square));
+
+  Ring<byte, 4> ring;
+  ring.put(1);
+  fmt.printf("a ring of {} slots, {} bytes in all\n", capacity(ring), sizeof(ring));
+
+  fmt.printf("{}, {}, {}, {}\n", describe("text"), describe(42), describe(true), describe(1.5));
+}

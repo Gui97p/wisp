@@ -261,6 +261,10 @@ func (p *printer) needSpace(i int) bool {
 		return false
 	case pr == roleTypeBracketClose:
 		return false
+	case nr == roleGenericOpen || pr == roleGenericOpen || nr == roleGenericClose:
+		return false
+	case pr == roleGenericClose && (nk == lexer.TOKEN_LPAREN || nr == roleLiteralOpen):
+		return false
 	case nk == lexer.TOKEN_LPAREN:
 		if operandEnd(prev, pr) {
 			return false
@@ -301,6 +305,7 @@ func (p *printer) needSpace(i int) bool {
 		return true
 	case nr == roleSelectorOpen || pr == roleSelectorOpen || nr == roleSelectorClose:
 		return false
+
 	case pr == roleSelectorClose:
 		return true
 	case nr == roleDeclDots:

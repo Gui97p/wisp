@@ -205,6 +205,16 @@ func TestDiagnostics(t *testing.T) {
 		{"returning a call that gives a value from a function with none", "func one() int { return 1; }\nfunc f() {\n  return one();\n}\nfunc main() { f(); }\n", 1, "expected 0 return values, got 1"},
 		{"a call that gives nothing used as a value", "func nothing() {}\nfunc main() {\n  int x = nothing();\n}\n", 1, "function doesn't expect any return"},
 		{"returning a call that gives nothing from a function that gives a value", "func nothing() {}\nfunc f() int {\n  return nothing();\n}\nfunc main() { int x = f(); }\n", 1, ""},
+		{"a clean generic program", "struct Box<T> { T value; }\nfunc (*Box<T> b) get() T { return b.value; }\nfunc first<T>(Box<T> b) T { return b.value; }\nfunc main() {\n  Box<int> b = Box<int>{value: 1};\n  int x = first(b) + b.get();\n}\n", 0, ""},
+		{"a generic struct with the wrong number of arguments", "struct Box<T> { T value; }\nfunc main() {\n  Box<int, int> b;\n}\n", 1, "Box takes 1 type arguments, got 2"},
+		{"a generic struct without arguments", "struct Box<T> { T value; }\nfunc main() {\n  Box b;\n}\n", 1, "Box is generic"},
+		{"a type that cannot be inferred", "func make<T>() T { T v; return v; }\nfunc main() {\n  int x = make();\n}\n", 1, "cannot infer T"},
+		{"conflicting types in one call", "func same<T>(T a, T b) T { return a; }\nfunc main() {\n  int x = same(1, \"a\");\n}\n", 1, "T is both int and string"},
+		{"a bound is not accepted yet", "func f<T: Number>(T a) {}\nfunc main() {}\n", 1, "no bound yet"},
+		{"a generic function used as a value", "func id<T>(T a) T { return a; }\nfunc main() {\n  let f = id;\n}\n", 1, "id is generic"},
+		{"an error in the body of an instance", "func bad<T>(T a) T { return a.missing; }\nfunc main() {\n  int x = bad(1);\n}\n", 1, "with T = int, instantiated here"},
+		{"a value parameter that is not constant", "struct Ring<T, const int N> { [N]T slots; }\nfunc main() {\n  int n = 3;\n  Ring<int, n> r;\n}\n", 1, "value parameter"},
+		{"a generic method on a type that is not generic", "struct P { int x; }\nfunc (*P<T> p) f() {}\nfunc main() {}\n", 1, "not a generic struct"},
 		{"a slice literal with elements", "func main() {\n  []int s = []int{1, 2};\n}\n", 1, "a slice literal has no elements"},
 	}
 	for _, tc := range cases {

@@ -14,6 +14,17 @@ func (a *Analyser) registerFuncSignatures() {
 			a.checkMainFunc(fd)
 			continue
 		}
+		if isGenericMethod(fd) {
+			continue
+		}
+		if len(fd.TypeParams) > 0 {
+			if fd.Receiver != nil {
+				a.errorf(fd, "a method takes its type parameters from the receiver: write func (*List<T> l) name(...)")
+				continue
+			}
+			a.registerGenericFunc(fd)
+			continue
+		}
 
 		params := make([]Type, 0, len(fd.Params))
 		names := make([]string, 0, len(fd.Params))
@@ -70,29 +81,26 @@ func (a *Analyser) registerFuncSignatures() {
 }
 
 func (a *Analyser) checkFuncBodies() {
+	a.markGenericUses()
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		fd, ok := d.(*ast.FuncDecl)
-		if !ok {
+		if !ok || isGenericDecl(fd) {
 			continue
 		}
 		if fd.Body != nil {
 			a.checkFuncBody(fd)
 		}
 	}
+	a.drainInstances()
 }
 
 func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
-	placeholders := fd.Inline && fd.HasConstParams()
-	a.enterScope()
-	defer a.exitScope()
-
-	line, col := fd.Position()
-
 	var ft *FuncType
+	var recvType Type
 
 	if fd.Receiver != nil {
-		recvType := a.resolveTypeRef(fd, a.scope, fd.Receiver.Type)
+		recvType = a.resolveTypeRef(fd, a.scope, fd.Receiver.Type)
 		if recvType == nil {
 			return
 		}
@@ -104,7 +112,22 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 		if ft == nil {
 			return
 		}
+	} else {
+		symbol, _ := a.scope.Resolve(fd.Name)
+		ft = symbol.Type.(*FuncType)
+	}
 
+	a.checkFuncBodyOf(fd, ft, recvType)
+}
+
+func (a *Analyser) checkFuncBodyOf(fd *ast.FuncDecl, ft *FuncType, recvType Type) {
+	placeholders := fd.Inline && fd.HasConstParams()
+	a.enterScope()
+	defer a.exitScope()
+
+	line, col := fd.Position()
+
+	if fd.Receiver != nil {
 		recvLine, recvCol := identPos(*fd.Receiver, line, col)
 		recvSym := &Symbol{Name: fd.Receiver.Name, Kind: PARAM, Type: recvType, Line: recvLine, Col: recvCol, File: a.currentFile}
 		if fd.Receiver.Name != "" {
@@ -113,9 +136,6 @@ func (a *Analyser) checkFuncBody(fd *ast.FuncDecl) {
 			}
 		}
 		a.info.VarSymbols[fd] = append(a.info.VarSymbols[fd], recvSym)
-	} else {
-		symbol, _ := a.scope.Resolve(fd.Name)
-		ft = symbol.Type.(*FuncType)
 	}
 
 	var declared []*Symbol

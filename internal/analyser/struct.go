@@ -2,6 +2,7 @@ package analyser
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -9,12 +10,21 @@ import (
 func (a *Analyser) registerStructNames() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
+		if td, isType := d.(*ast.TypeDecl); isType && len(td.TypeParams) > 0 {
+			a.errorf(td, "a type declaration cannot take type parameters yet, only a struct can").
+				WithHelp("write it as a struct: struct %s<%s> { ... }", td.Name, strings.Join(paramNames(td.TypeParams), ", "))
+			continue
+		}
 		if td, isEnum := d.(*ast.TypeDecl); isEnum && td.Data {
 			a.registerSumName(td)
 			continue
 		}
 		sd, ok := d.(*ast.StructDecl)
 		if !ok {
+			continue
+		}
+		if len(sd.TypeParams) > 0 {
+			a.registerGenericStruct(sd)
 			continue
 		}
 
@@ -51,6 +61,9 @@ func (a *Analyser) registerStructFields() {
 
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
+		if td, isEnum := d.(*ast.TypeDecl); isEnum && len(td.TypeParams) > 0 {
+			continue
+		}
 		if td, isEnum := d.(*ast.TypeDecl); isEnum && td.Data {
 			a.registerSumFields(td)
 			continue
@@ -62,7 +75,7 @@ func (a *Analyser) registerStructFields() {
 }
 
 func (a *Analyser) registerFieldsOf(sd *ast.StructDecl) {
-	if a.fieldsStarted[sd] {
+	if a.fieldsStarted[sd] || len(sd.TypeParams) > 0 {
 		return
 	}
 	a.fieldsStarted[sd] = true
@@ -116,6 +129,23 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 	symbol, ok := a.lookupType(a.scope, expr.Module, expr.Name)
 	if ok {
 		a.noteUse(expr, symbol)
+	}
+	if ok && symbol.Generic != nil && symbol.Generic.Struct != nil {
+		if len(expr.TypeArgs) == 0 {
+			a.errorf(expr, "%s is generic: write %s<...>{...}", qualified(expr.Module, expr.Name), qualified(expr.Module, expr.Name)).
+				WithHelp("%s", symbol.Type.String())
+			return InvalidType{}
+		}
+		inst := a.instantiateStructRef(expr, symbol.Generic, expr.TypeArgs, a.scope)
+		st, isStruct := inst.(*StructType)
+		if !isStruct {
+			return InvalidType{}
+		}
+		return a.checkFieldInits(expr, st)
+	}
+	if ok && len(expr.TypeArgs) > 0 {
+		a.errorf(expr, "%s takes no type arguments", qualified(expr.Module, expr.Name))
+		return InvalidType{}
 	}
 	if !ok {
 		d := a.errorf(expr, "unknown type %s", qualified(expr.Module, expr.Name))

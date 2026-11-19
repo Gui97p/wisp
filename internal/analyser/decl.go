@@ -10,7 +10,7 @@ func (a *Analyser) registerTypeAliases() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		td, ok := d.(*ast.TypeDecl)
-		if !ok || td.Data {
+		if !ok || td.Data || len(td.TypeParams) > 0 {
 			continue
 		}
 
@@ -154,7 +154,7 @@ func (a *Analyser) registerMethods() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		fd, ok := d.(*ast.FuncDecl)
-		if !ok || fd.Receiver == nil {
+		if !ok || fd.Receiver == nil || isGenericMethod(fd) {
 			continue
 		}
 

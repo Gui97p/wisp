@@ -68,6 +68,9 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		t = a.checkArrayLiteral(e)
 	case *ast.AnonLiteral:
 		t = a.checkAnonLiteral(e)
+	case *ast.GenericExpr:
+		a.errorf(e, "type arguments go before a call or a literal: write %s(...) or %s{...}", ast.ExprText(e.Base)+ast.TypeArgsText(e.Args), ast.ExprText(e.Base)+ast.TypeArgsText(e.Args))
+		t = InvalidType{}
 	case *ast.BinaryExpr:
 		t = a.checkBinaryExpr(e)
 	case *ast.UnaryExpr:
@@ -115,6 +118,11 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	case *ast.DotIdent:
 		t = a.checkDotIdent(e)
 	default:
+		t = InvalidType{}
+	}
+
+	if _, generic := t.(GenericType); generic && expr != a.callee {
+		a.errorf(expr, "%s is generic: call it with arguments, or name the types as in %s<...>(...)", ast.ExprText(expr), ast.ExprText(expr))
 		t = InvalidType{}
 	}
 
@@ -444,6 +452,10 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 				} else if ft.Module != a.module && ft.InternalDir != "" && !insideDir(a.currentFile, ft.InternalDir) {
 					a.errorf(expr, "method %s of %s is internal to %q", member.Field, owner, filepath.Base(ft.InternalDir))
 				}
+				if ft.Template != nil && !ft.Inline {
+					owner = ft.Template.Owner
+					ft = a.instanceOfMethod(expr, ft)
+				}
 				a.info.MethodCalls[expr] = &MethodCall{
 					Owner:           owner,
 					Module:          ft.Module,
@@ -459,6 +471,12 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 		}
 	}
 
+	if generic, ok := expr.Name.(*ast.GenericExpr); ok {
+		a.callee = generic.Base
+		baseType := a.checkExpr(generic.Base)
+		return a.callGeneric(expr, baseType, generic.Args)
+	}
+
 	a.callee = expr.Name
 	nameType := a.checkExpr(expr.Name)
 	if a.rejectOptionalUse(expr, nameType, "a call") {
@@ -472,6 +490,8 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 	}
 
 	switch ct := nameType.(type) {
+	case GenericType:
+		return a.callGeneric(expr, ct, nil)
 	case *FuncType:
 		a.checkCallArgs(expr, ct)
 		a.expandInline(expr, ct)
@@ -510,7 +530,10 @@ func (a *Analyser) receiverArgument(object ast.Expression, objType Type, pointer
 }
 
 func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
-	argTypes := a.evalArgTypes(expr)
+	a.checkCallArgsWith(expr, ft, a.evalArgTypes(expr))
+}
+
+func (a *Analyser) checkCallArgsWith(expr *ast.CallExpr, ft *FuncType, argTypes []Type) {
 
 	if expr.Spread && (!ft.Variadic || ft.CVariadic) {
 		a.errorf(expr, "... passes a slice on to a variadic parameter, and %s has none", ft.Name)
@@ -1325,7 +1348,7 @@ func (a *Analyser) isBuiltinCall(expr *ast.CallExpr, name string) bool {
 		return false
 	}
 	sym, found := a.scope.Resolve(name)
-	if !found || a.universe.symbols[name] != sym {
+	if !found || !sym.Builtin || sym.Name != name {
 		return false
 	}
 	a.info.Idents[id] = sym

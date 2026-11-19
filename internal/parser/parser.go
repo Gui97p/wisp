@@ -25,6 +25,7 @@ type Parser struct {
 	native             *nativeHeader
 	nakedTag           bool
 	spread             bool
+	typeOperands       bool
 }
 
 func NewParser(l *lexer.Lexer) *Parser {

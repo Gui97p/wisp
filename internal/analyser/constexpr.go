@@ -715,7 +715,7 @@ func (a *Analyser) evalField(e *ast.MemberExpr) (ConstValue, bool) {
 
 func (a *Analyser) evalLen(e *ast.CallExpr) (ConstValue, bool) {
 	id, ok := e.Name.(*ast.IdentLiteral)
-	if !ok || id.Value != "len" || len(e.Args) != 1 || a.info.Idents[id] != a.universe.symbols["len"] {
+	if !ok || id.Value != "len" || len(e.Args) != 1 || !a.isBuiltinIdent(id, "len") {
 		return ConstValue{}, false
 	}
 	value, ok := a.evalConst(e.Args[0])
@@ -788,4 +788,9 @@ func (c ConstValue) Preview(limit int) string {
 		return TypeText(c.Type) + "{" + strings.Join(parts, ", ") + "}"
 	}
 	return c.String()
+}
+
+func (a *Analyser) isBuiltinIdent(id *ast.IdentLiteral, name string) bool {
+	sym := a.info.Idents[id]
+	return sym != nil && sym.Builtin && sym.Name == name
 }

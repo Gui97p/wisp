@@ -84,9 +84,37 @@ type TypeLayer struct {
 	Text     string
 }
 
+type TypeParam struct {
+	Name  string
+	Const bool
+	Type  TypeRef
+	At    Position
+}
+
+type TypeArg struct {
+	Type *TypeRef
+	Expr Expression
+}
+
+func (a TypeArg) String() string {
+	if a.Type != nil {
+		return a.Type.String()
+	}
+	return ExprText(a.Expr)
+}
+
+func TypeArgsText(args []TypeArg) string {
+	parts := make([]string, len(args))
+	for i, a := range args {
+		parts[i] = a.String()
+	}
+	return "<" + strings.Join(parts, ", ") + ">"
+}
+
 type TypeRef struct {
 	Module string
 	Name   string
+	Args   []TypeArg
 
 	Line, Col, EndLine, EndCol int
 
@@ -119,6 +147,9 @@ func (t *TypeRef) String() string {
 		b.WriteString(".")
 	}
 	b.WriteString(t.Name)
+	if len(t.Args) > 0 {
+		b.WriteString(TypeArgsText(t.Args))
+	}
 	return b.String()
 }
 

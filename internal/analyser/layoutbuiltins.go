@@ -23,6 +23,23 @@ func (a *Analyser) typeOperand(arg ast.Expression) Type {
 				return sym.Type
 			}
 		}
+	case *ast.GenericExpr:
+		ref := ast.TypeRef{Args: e.Args}
+		switch base := e.Base.(type) {
+		case *ast.IdentLiteral:
+			ref.Name = base.Value
+		case *ast.MemberExpr:
+			if module, isIdent := base.Object.(*ast.IdentLiteral); isIdent {
+				ref.Module, ref.Name = module.Value, base.Field
+			}
+		}
+		if ref.Name != "" {
+			if t := a.resolveTypeRef(arg, a.scope, ref); t != nil {
+				if _, invalid := t.(InvalidType); !invalid {
+					return t
+				}
+			}
+		}
 	}
 	return nil
 }

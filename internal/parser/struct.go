@@ -24,6 +24,12 @@ func (p *Parser) parseStructDeclaration() *ast.StructDecl {
 		return nil
 	}
 
+	typeParams, ok := p.optionalTypeParams()
+	if !ok {
+		return nil
+	}
+	decl.TypeParams = typeParams
+
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
 	}

@@ -24,6 +24,16 @@ func (a *Analyser) arraySize(expr ast.Expression) (int64, bool) {
 	return size, ok
 }
 
+func (a *Analyser) arraySizeIn(scope *Scope, expr ast.Expression) (int64, bool) {
+	if scope == a.scope {
+		return a.arraySize(expr)
+	}
+	saved := a.scope
+	a.scope = scope
+	defer func() { a.scope = saved }()
+	return a.evalArraySize(expr)
+}
+
 func (a *Analyser) evalArraySize(expr ast.Expression) (int64, bool) {
 	if a.namesGlobalVar(expr) {
 		a.error(expr, "the size of an array must be a constant integer").

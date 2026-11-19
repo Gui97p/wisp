@@ -48,6 +48,8 @@ func TestRules(t *testing.T) {
 		{"multi-line literals keep their lines", "const [3]int T = .{\n1,\n  2,\n3\n};\n", "const [3]int T = .{\n\t1,\n\t2,\n\t3\n};\n"},
 		{"blocks", "func f() {\nif a{b();}else{c();}\nloop{ d(); }\n}\n", "func f() {\n\tif a { b(); } else { c(); }\n\tloop { d(); }\n}\n"},
 		{"an array literal in a header", "func f() {\n\tfor x in [3]int{1,2,3}{ g(x); }\n\tfor y in [2]geo.P{a,b}{ g(y); }\n\tif ok {}\n}\nfunc h() []int {}\n", "func f() {\n\tfor x in [3]int{1, 2, 3} { g(x); }\n\tfor y in [2]geo.P{a, b} { g(y); }\n\tif ok {}\n}\nfunc h() []int {}\n"},
+		{"generics", "struct List<T>{ []T items; }\nfunc map<T,U>(List<T> xs,(T)=>U f)List<U>{\n\tList<List<int>> n=List<int>{ count:1 };\n\tint a=first<int>(xs);\n\tgeo.thing<int,string>(1);\n\tbool c=a<b&&b>(a);\n}\n", "struct List<T> { []T items; }\nfunc map<T, U>(List<T> xs, (T) => U f) List<U> {\n\tList<List<int>> n = List<int>{count: 1};\n\tint a = first<int>(xs);\n\tgeo.thing<int, string>(1);\n\tbool c = a < b && b > (a);\n}\n"},
+		{"generic methods and value parameters", "struct Ring<T,const int N>{ [N]T data; }\nfunc (*List<T> l) push(T v){}\ntype Names<T> []List<T>;\n", "struct Ring<T, const int N> { [N]T data; }\nfunc (*List<T> l) push(T v) {}\ntype Names<T> []List<T>;\n"},
 		{"empty braces", "func f() { }\nstruct S {}\n", "func f() {}\nstruct S {}\n"},
 		{"ternary and optional", "func f() {\n\tint a=c?1:2;\n\t?int b=null;\n\t?*P p=null;\n}\n", "func f() {\n\tint a = c ? 1 : 2;\n\t?int b = null;\n\t?*P p = null;\n}\n"},
 		{"types", "func f([]int a,[3]*int b,*[2]int c) []int {\n\t[2][2]int g;\n}\n", "func f([]int a, [3]*int b, *[2]int c) []int {\n\t[2][2]int g;\n}\n"},

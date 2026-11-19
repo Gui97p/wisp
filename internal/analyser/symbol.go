@@ -57,6 +57,9 @@ type Symbol struct {
 	Used    bool
 
 	Deprecated *string
+
+	Generic *GenericDecl
+	Builtin bool
 }
 
 type Scope struct {

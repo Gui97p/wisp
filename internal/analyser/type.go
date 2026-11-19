@@ -273,6 +273,10 @@ type StructType struct {
 	layout    *StructLayout
 	complete  bool
 	Packed    bool
+
+	key        string
+	Instance   *InstanceInfo
+	methodInit func()
 }
 
 type SumVariant struct {
@@ -304,6 +308,9 @@ func (s *StructType) Equals(other Type) bool {
 	if !ok {
 		return false
 	}
+	if s.key != "" || o.key != "" {
+		return s.key == o.key
+	}
 	return s.Name == o.Name
 }
 
@@ -326,6 +333,7 @@ type FuncType struct {
 	Scope        *Scope
 	Inline       bool
 	Nullable     bool
+	Template     *MethodTemplate
 }
 
 func (f *FuncType) String() string {
@@ -461,6 +469,11 @@ func MethodsOf(t Type) map[string]*FuncType {
 	}
 	switch tt := t.(type) {
 	case *StructType:
+		if tt.methodInit != nil {
+			init := tt.methodInit
+			tt.methodInit = nil
+			init()
+		}
 		return tt.Methods
 	case NamedType:
 		return tt.Methods

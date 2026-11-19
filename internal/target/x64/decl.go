@@ -14,7 +14,7 @@ import (
 func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 	switch d := decl.(type) {
 	case *ast.FuncDecl:
-		if d.Extern || (d.TagNamed("test") != nil && !t.testBuild) {
+		if d.Extern || (d.TagNamed("test") != nil && !t.testBuild) || len(d.TypeParams) > 0 || (d.Receiver != nil && len(d.Receiver.Type.Args) > 0) {
 			return nil
 		}
 		t.file = t.files[decl]
@@ -35,9 +35,7 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		for i := range d.Vars {
 			sym := syms[i]
 			l := symbolName(sym.Module, sym.Name)
-			if d.Exported {
-				t.data.printft("global %s\n", l)
-			}
+			t.data.printft("global %s\n", l)
 			t.data.printft("align 8\n%s:\n", l)
 
 			var init ast.Expression
@@ -54,6 +52,9 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		}
 		return nil
 	case *ast.StructDecl:
+		if len(d.TypeParams) > 0 {
+			return nil
+		}
 		key := analyser.TypeKey(t.module, d.Name)
 		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
 		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
@@ -63,7 +64,7 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
 	case *ast.ConstDecl:
 		for _, sym := range t.info.VarSymbols[d] {
-			if err := t.emitConstSymbol(sym, d.Exported); err != nil {
+			if err := t.emitConstSymbol(sym, true); err != nil {
 				return err
 			}
 		}
@@ -560,20 +561,20 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 		display = fd.CExport
 	}
 
-	visible := fd.Exported
 	if fd.Receiver != nil {
-		visible = t.info.MethodVisible[fd]
 		display += fd.Receiver.Type.Name + "."
 	}
-	if visible {
-		t.text.printf("global %s\n", name)
+	title := display + fd.Name
+	if fd.Instance != "" {
+		title = t.module + "." + fd.Instance
 	}
+	t.text.printf("global %s\n", name)
 
 	if fd.TagNamed("naked") != nil {
 		return t.compileNakedFunc(fd, name)
 	}
 
-	return t.compileFuncBody(name, display+fd.Name, t.isEntry && fd.Name == "main", fd.CExport != "" && t.abi == "win64", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
+	return t.compileFuncBody(name, title, t.isEntry && fd.Name == "main", fd.CExport != "" && t.abi == "win64", t.info.VarSymbols[fd], t.info.FuncReturns[fd], fd.Fallible, fd.Body)
 }
 
 func (t *X64Target) compileNakedFunc(fd *ast.FuncDecl, name string) error {

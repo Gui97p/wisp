@@ -12425,6 +12425,261 @@ func main() {
 }
 `, expected: []string{"a call that gives two values can be returned", "returning a call that gives nothing runs the call and leaves", "the code after the return still runs when the condition is false", "returning nothing with a guard", "returning nothing from an inline function", "returning a fallible call that gives nothing"}},
 
+	{dir: "generic_functions", src: `struct Pair<A, B> {
+    A first;
+    B second;
+}
+
+func swap<A, B>(Pair<A, B> p) Pair<B, A> {
+    return Pair<B, A>{first: p.second, second: p.first};
+}
+
+func biggest<T>(T a, T b) T {
+    return a > b ? a : b;
+}
+
+func countDown<T>(T tag, int n) int {
+    return 0 if n == 0;
+    return countDown(tag, n - 1) + 1;
+}
+
+func sumAll<T>(T ...values) T {
+    T total;
+    for _i, v in values {
+        total += v;
+    }
+    return total;
+}
+
+func apply<T, U>(T value, (T) => U f) U {
+    return f(value);
+}
+
+func double(int x) int {
+    return x * 2;
+}
+
+func zero<T>() T {
+    T value;
+    return value;
+}
+
+func main() {
+    check(biggest(3, 9) == 9 && biggest<float>(1.5, 0.5) == 1.5, "a generic function infers its type from the arguments");
+    check(biggest("a", "b") == "b", "strings compare in a generic function");
+    Pair<int, string> p = Pair<int, string>{first: 1, second: "one"};
+    Pair<string, int> q = swap(p);
+    check(q.first == "one" && q.second == 1, "a generic function takes and gives generic structs");
+    check(countDown("x", 4) == 4 && countDown(2.5, 3) == 3, "a generic function can call itself");
+    check(sumAll(1, 2, 3) == 6 && sumAll(1.5, 2.5) == 4.0, "a generic variadic");
+    check(apply(21, double) == 42, "the result type comes from a function argument");
+    check(zero<int>() == 0 && zero<bool>() == false, "a type that cannot be inferred is named");
+}
+`, expected: []string{"a generic function infers its type from the arguments", "strings compare in a generic function", "a generic function takes and gives generic structs", "a generic function can call itself", "a generic variadic", "the result type comes from a function argument", "a type that cannot be inferred is named"}},
+
+	{dir: "generic_structs", src: `struct List<T> {
+    [8]T items;
+    int count;
+}
+
+func (*List<T> l) push(T value) {
+    l.items[l.count] = value;
+    l.count++;
+}
+
+func (*List<T> l) get(int i) T {
+    return l.items[i];
+}
+
+func (*List<T> l) sum() T {
+    T total;
+    for i in 0..l.count - 1 {
+        total += l.items[i];
+    }
+    return total;
+}
+
+func (*List<T> l) last() T {
+    return l.get(l.count - 1);
+}
+
+struct Node<T> {
+    T value;
+    ?*Node<T> next;
+}
+
+struct Box<T> {
+    T value;
+}
+
+struct Counter {
+    List<int> seen;
+    Box<List<byte>> bytes;
+}
+
+func main() {
+    List<int> xs;
+    xs.push(3);
+    xs.push(4);
+    check(xs.get(1) == 4 && xs.sum() == 7 && xs.last() == 4, "methods of a generic struct");
+
+    List<float> fs;
+    fs.push(1.5);
+    fs.push(2.5);
+    check(fs.sum() == 4.0, "the same methods for another type");
+
+    Node<int> tail = Node<int>{value: 2};
+    Node<int> head = Node<int>{value: 1, next: &tail};
+    check(head.next!!.value == 2, "a generic struct that points to itself");
+
+    Counter c;
+    c.seen.push(5);
+    c.bytes.value.push(7);
+    check(c.seen.get(0) == 5 && c.bytes.value.get(0) == 7, "generic structs as fields of other structs");
+
+    check(sizeof(Box<int>) == 8 && sizeof(Box<byte>) == 1, "each instance has its own layout");
+    check(List<int>{count: 2}.count == 2, "a literal names the instance");
+}
+`, expected: []string{"methods of a generic struct", "the same methods for another type", "a generic struct that points to itself", "generic structs as fields of other structs", "each instance has its own layout", "a literal names the instance"}},
+
+	{dir: "generic_modules", files: map[string]string{"stack/stack.wsp": `func clampTop(int n, int limit) int {
+    return n >= limit ? limit - 1 : n;
+}
+
+public struct Stack<T> {
+    [16]T items;
+    int top;
+}
+
+public func (*Stack<T> s) push(T value) {
+    s.top = clampTop(s.top, 16);
+    s.items[s.top] = value;
+    s.top++;
+}
+
+public func (*Stack<T> s) pop() T {
+    s.top--;
+    return s.items[s.top];
+}
+
+public func depth<T>(*Stack<T> s) int {
+    return clampTop(s.top, 100) + 1;
+}
+
+public struct Ring<T, const int N> {
+    [N]T slots;
+    int head;
+}
+
+public func (*Ring<T, N> r) put(T v) {
+    r.slots[r.head % N] = v;
+    r.head++;
+}
+
+public func (*Ring<T, N> r) capacity() int {
+    return N;
+}
+
+public func size<T, const int N>(Ring<T, N> r) int {
+    return N * sizeof(T);
+}
+`}, src: `import "stack";
+
+func main() {
+    stack.Stack<int> s;
+    s.push(10);
+    s.push(20);
+    check(s.pop() == 20 && stack.depth(&s) == 2, "a generic from another module, with a private helper");
+
+    stack.Ring<byte, 4> r;
+    r.put(1);
+    r.put(2);
+    check(r.capacity() == 4 && len(r.slots) == 4, "a value parameter");
+
+    stack.Ring<int, 3> big;
+    check(stack.size(big) == 24 && stack.size(r) == 4, "a value parameter is inferred from the argument");
+}
+`, expected: []string{"a generic from another module, with a private helper", "a value parameter", "a value parameter is inferred from the argument"}},
+
+	{dir: "generic_type_switch", src: `struct Wrapper<T> {
+    T value;
+}
+
+func (*Wrapper<T> w) describe() string {
+    switch type w.value {
+        case int n => return "int";
+        case string s => return s;
+        case float f => return "float";
+        default => return "other";
+    }
+}
+
+func twice<T>(T x) T {
+    switch type x {
+        case signed v => return x + x;
+        case string s => return x;
+        default => return x;
+    }
+}
+
+func kind<T>(T x) string {
+    string name = "";
+    switch type x {
+        case int, int64 => name = "integer";
+        case bool => name = "bool";
+        default => name = "other";
+    }
+    return name;
+}
+
+func main() {
+    Wrapper<int> a = Wrapper<int>{value: 1};
+    Wrapper<string> b = Wrapper<string>{value: "text"};
+    Wrapper<bool> d = Wrapper<bool>{value: true};
+    check(a.describe() == "int" && b.describe() == "text" && d.describe() == "other", "the branch of the type is the only one that exists");
+    check(twice(21) == 42 && twice("hi") == "hi" && twice(1.5) == 1.5, "a group case and a default");
+    check(kind(1) == "integer" && kind(true) == "bool" && kind("x") == "other", "a case with several types");
+}
+`, expected: []string{"the branch of the type is the only one that exists", "a group case and a default", "a case with several types"}},
+
+	{dir: "inline_private_names", files: map[string]string{"meter/meter.wsp": `var int total;
+
+const [3]int STEPS = .{1, 2, 3};
+
+struct Reading {
+    int value;
+}
+
+func (*Reading r) scaled(int factor) int {
+    return r.value * factor;
+}
+
+func record(int amount) int {
+    total += amount;
+    return total;
+}
+
+public inline func measure(int amount) int {
+    return record(amount) + STEPS[1];
+}
+
+public inline func scaleOf(int value) int {
+    Reading r = Reading{value: value};
+    return r.scaled(3);
+}
+
+public func seen() int {
+    return total;
+}
+`}, src: `import "meter";
+
+func main() {
+    check(meter.measure(5) == 7, "an inline function uses a private function and a private constant");
+    check(meter.measure(10) == 17 && meter.seen() == 15, "and a private global variable");
+    check(meter.scaleOf(4) == 12, "and a private struct with its method");
+}
+`, expected: []string{"an inline function uses a private function and a private constant", "and a private global variable", "and a private struct with its method"}},
+
 	{dir: "switch_then_break", src: `func next(int k) ?int {
     return null if k > 3;
     return k;

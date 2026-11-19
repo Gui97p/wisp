@@ -463,7 +463,7 @@ func (a *Analyser) isPanicCall(expr ast.Expression) bool {
 		return false
 	}
 	sym, found := a.scope.Resolve("panic")
-	return found && sym == a.universe.symbols["panic"]
+	return found && sym.Builtin && sym.Name == "panic"
 }
 
 func zeroProblem(t Type) string {

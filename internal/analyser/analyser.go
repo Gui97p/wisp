@@ -64,6 +64,13 @@ type Analyser struct {
 	structDecls   map[string]*ast.StructDecl
 	fieldsStarted map[*ast.StructDecl]bool
 
+	instances       map[string]*StructType
+	funcInstances   map[string]*Symbol
+	methodInstances map[string]*FuncType
+	pending         []pendingBody
+	instanceDepth   int
+	bodyDepth       int
+
 	errors diag.List
 }
 
@@ -79,17 +86,20 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 	universe := NewScope(nil)
 	moduleScope := NewScope(universe)
 	return &Analyser{
-		program:        program,
-		info:           NewInfo(),
-		universe:       universe,
-		scope:          moduleScope,
-		moduleScope:    moduleScope,
-		modules:        modules,
-		declFiles:      declFiles,
-		module:         module,
-		pendingDots:    map[*ast.DotIdent]bool{},
-		pendingDotLits: map[*ast.StructLiteral]bool{},
-		pendingAnon:    map[*ast.AnonLiteral]bool{},
+		program:         program,
+		info:            NewInfo(),
+		universe:        universe,
+		scope:           moduleScope,
+		moduleScope:     moduleScope,
+		modules:         modules,
+		declFiles:       declFiles,
+		module:          module,
+		instances:       map[string]*StructType{},
+		funcInstances:   map[string]*Symbol{},
+		methodInstances: map[string]*FuncType{},
+		pendingDots:     map[*ast.DotIdent]bool{},
+		pendingDotLits:  map[*ast.StructLiteral]bool{},
+		pendingAnon:     map[*ast.AnonLiteral]bool{},
 	}
 }
 
@@ -106,6 +116,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.registerImports()
 		a.checkTags()
 		a.registerStructNames()
+		a.attachGenericMethods()
 	}
 	publish(group, false)
 	for _, a := range group {
@@ -137,6 +148,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.checkMustUse()
 		a.exports = a.buildExports(false)
 		a.checkPartConflicts()
+		a.dedupeDiagnostics()
 	}
 }
 
@@ -212,6 +224,20 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		switch symbol.Kind {
 		case STRUCT, TYPE:
 			result = symbol.Type
+			if symbol.Generic != nil && symbol.Generic.Struct != nil {
+				if len(ref.Args) == 0 {
+					a.errorAtRef(node, ref, "%s is generic: write %s<...>", qualified(ref.Module, ref.Name), qualified(ref.Module, ref.Name)).
+						WithHelp("%s takes %d type arguments: %s", ref.Name, len(symbol.Generic.Params), symbol.Type.String())
+					return InvalidType{}
+				}
+				result = a.instantiateStructRef(node, symbol.Generic, ref.Args, scope)
+				if _, invalid := result.(InvalidType); invalid {
+					return InvalidType{}
+				}
+			} else if len(ref.Args) > 0 {
+				a.errorAtRef(node, ref, "%s takes no type arguments", qualified(ref.Module, ref.Name))
+				return InvalidType{}
+			}
 		default:
 			a.errorAtRef(node, ref, "%s is not a type", qualified(ref.Module, ref.Name))
 			return InvalidType{}
@@ -234,7 +260,7 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 			}
 			result = ArrayType{Element: result, Size: -1}
 		case layer.Expr != nil:
-			size, ok := a.arraySize(layer.Expr)
+			size, ok := a.arraySizeIn(scope, layer.Expr)
 			if !ok {
 				return nil
 			}

@@ -139,6 +139,7 @@ func (*NullLiteral) Tree(indent string) string {
 type StructLiteral struct {
 	Module   string
 	Name     string
+	TypeArgs []TypeArg
 	Keys     []string
 	KeyAt    []Position
 	Values   []Expression

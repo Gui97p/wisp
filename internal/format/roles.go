@@ -21,6 +21,8 @@ const (
 	roleCapClose
 	roleSelectorOpen
 	roleSelectorClose
+	roleGenericOpen
+	roleGenericClose
 	roleBlockOpen
 	roleLiteralOpen
 	roleBlockClose
@@ -121,6 +123,7 @@ func classify(tokens []token) []role {
 	stack := []frame{{open: lexer.TOKEN_LBRACE, atTop: true}}
 	var stmt stmtState
 	inSelector := false
+	genericClosers := map[int]bool{}
 
 	top := func() *frame { return &stack[len(stack)-1] }
 	atTop := func() bool { return len(stack) == 1 || (top().open == lexer.TOKEN_LBRACE && !top().literal) }
@@ -149,7 +152,7 @@ func classify(tokens []token) []role {
 			case i == 0:
 			case pk == lexer.TOKEN_DOT:
 				literal = true
-			case pk == lexer.TOKEN_IDENT || isTypeKeyword(pk):
+			case pk == lexer.TOKEN_IDENT || isTypeKeyword(pk) || (i > 0 && roles[i-1] == roleGenericClose):
 				literal = !(atTop() && stmt.header)
 				if !literal && !stmt.fn && arrayTypeBefore(tokens, roles, i) {
 					literal = true
@@ -257,6 +260,10 @@ func classify(tokens []token) []role {
 			} else {
 				r = roleBinary
 			}
+		case (k == lexer.TOKEN_GT || k == lexer.TOKEN_SHIFT_RIGHT) && genericClosers[i]:
+			r = roleGenericClose
+		case k == lexer.TOKEN_LT && prevKind(i) == lexer.TOKEN_IDENT && genericOpens(tokens, i, genericClosers):
+			r = roleGenericOpen
 		case k == lexer.TOKEN_LT && selectorKeyword(prevKind(i)):
 			r = roleSelectorOpen
 			inSelector = true
@@ -335,4 +342,41 @@ func arrayTypeBefore(tokens []token, roles []role, brace int) bool {
 		j -= 2
 	}
 	return j-1 >= 0 && roles[j-1] == roleTypeBracketClose
+}
+
+func genericOpens(tokens []token, open int, closers map[int]bool) bool {
+	depth := 0
+	for j := open; j < len(tokens); j++ {
+		switch tokens[j].kind {
+		case lexer.TOKEN_LT:
+			depth++
+		case lexer.TOKEN_GT, lexer.TOKEN_SHIFT_RIGHT:
+			if tokens[j].kind == lexer.TOKEN_GT {
+				depth--
+			} else {
+				depth -= 2
+			}
+			if depth <= 0 {
+				if j+1 >= len(tokens) {
+					return false
+				}
+				switch tokens[j+1].kind {
+				case lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACE, lexer.TOKEN_IDENT, lexer.TOKEN_LBRACKET, lexer.TOKEN_STAR,
+					lexer.TOKEN_QUESTION_MARK, lexer.TOKEN_RPAREN, lexer.TOKEN_COMMA, lexer.TOKEN_GT, lexer.TOKEN_SHIFT_RIGHT,
+					lexer.TOKEN_RBRACKET, lexer.TOKEN_SEMICOLON, lexer.TOKEN_ARROW:
+					closers[j] = true
+					return true
+				}
+				return false
+			}
+		case lexer.TOKEN_IDENT, lexer.TOKEN_DOT, lexer.TOKEN_COMMA, lexer.TOKEN_STAR, lexer.TOKEN_QUESTION_MARK,
+			lexer.TOKEN_LBRACKET, lexer.TOKEN_RBRACKET, lexer.TOKEN_INT_LITERAL, lexer.TOKEN_CHAR_LITERAL,
+			lexer.TOKEN_MINUS, lexer.TOKEN_CONST, lexer.TOKEN_LPAREN, lexer.TOKEN_RPAREN, lexer.TOKEN_ARROW:
+		default:
+			if !isTypeKeyword(tokens[j].kind) {
+				return false
+			}
+		}
+	}
+	return false
 }

@@ -18,11 +18,23 @@ func (p *Parser) parseExpressionPratt(precedence Precedence) ast.Expression {
 		return nil
 	}
 
-	for p.peek.Type != lexer.TOKEN_EOF && precedence < p.peekPrecedence() {
+	for p.peek.Type != lexer.TOKEN_EOF && (precedence < p.peekPrecedence() || (p.peek.Type == lexer.TOKEN_LT && isNameExpr(left))) {
 		if p.captureAllowed && p.peek.Type == lexer.TOKEN_PIPE && p.atCapture() {
 			break
 		}
 		line, col := left.Position()
+
+		if p.peek.Type == lexer.TOKEN_LT && isNameExpr(left) {
+			if generic := p.tryGenericRef(left); generic != nil {
+				generic.SetPos(line, col)
+				generic.SetEndPos(p.currentEnd())
+				left = generic
+				continue
+			}
+			if precedence >= p.peekPrecedence() {
+				break
+			}
+		}
 
 		switch p.peek.Type {
 		case lexer.TOKEN_LPAREN:
@@ -391,7 +403,15 @@ func (p *Parser) parseMemberExpression(object ast.Expression) ast.Expression {
 }
 
 func (p *Parser) parseCallExpression(name ast.Expression) ast.Expression {
+	savedOperands := p.typeOperands
+	if id, ok := name.(*ast.IdentLiteral); ok {
+		switch id.Value {
+		case "sizeof", "alignof", "offsetof", "make", "makeDirty", "create", "resize":
+			p.typeOperands = true
+		}
+	}
 	args := p.parseCallArgs()
+	p.typeOperands = savedOperands
 	if args == nil {
 		return nil
 	}
@@ -598,6 +618,21 @@ func (p *Parser) parseStructLiteral(left ast.Expression) ast.Expression {
 	switch l := left.(type) {
 	case *ast.IdentLiteral:
 		lit = &ast.StructLiteral{Name: l.Value}
+	case *ast.GenericExpr:
+		switch base := l.Base.(type) {
+		case *ast.IdentLiteral:
+			lit = &ast.StructLiteral{Name: base.Value, TypeArgs: l.Args}
+		case *ast.MemberExpr:
+			module, ok := base.Object.(*ast.IdentLiteral)
+			if !ok {
+				p.error("expected identifier before {")
+				return nil
+			}
+			lit = &ast.StructLiteral{Module: module.Value, Name: base.Field, TypeArgs: l.Args}
+		default:
+			p.error("expected a type name before {")
+			return nil
+		}
 	case *ast.DotIdent:
 		lit = &ast.StructLiteral{Name: l.Name, Dot: true}
 	case *ast.MemberExpr:

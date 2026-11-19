@@ -41,6 +41,15 @@ func (p *Parser) parseTypeDefinitionPrefix() *ast.TypeRef {
 		ref.Name = p.current.Literal
 		_, _, ref.EndLine, ref.EndCol = p.currentIdentPos()
 	}
+	if p.current.Type == lexer.TOKEN_IDENT && p.peek.Type == lexer.TOKEN_LT {
+		p.advance()
+		args, ok := p.parseTypeArgs()
+		if !ok {
+			return nil
+		}
+		ref.Args = args
+		_, _, ref.EndLine, ref.EndCol = p.currentIdentPos()
+	}
 
 	return ref
 }
@@ -113,6 +122,12 @@ func (p *Parser) looksLikeTypeDeclaration() bool {
 		if p.peek.Type == lexer.TOKEN_DOT {
 			p.advance()
 			if !p.expect(lexer.TOKEN_IDENT) {
+				return false
+			}
+		}
+		if p.peek.Type == lexer.TOKEN_LT {
+			p.advance()
+			if _, ok := p.parseTypeArgs(); !ok {
 				return false
 			}
 		}
