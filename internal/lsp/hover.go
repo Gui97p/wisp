@@ -90,6 +90,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		return markdownHover(typeParamHover(hit), positionRange(hit.rng))
 	}
 
+	if text, ok := methodDeclHover(local, fileBuffer[path], line, col); ok {
+		return markdownHover(text, wordRange(fileBuffer[path], line, col))
+	}
+
 	if param, owner, idx := paramAt(local, line, col); param != nil {
 		text := paramHoverText(param, owner, idx, program, info)
 		if text == "" {
@@ -445,6 +449,11 @@ func enumMemberHover(value analyser.EnumValue) string {
 }
 
 func symbolHover(sym *analyser.Symbol, program *ast.Program) string {
+	if sym.Generic != nil {
+		if _, isGeneric := sym.Type.(analyser.GenericType); isGeneric {
+			return genericHover(sym)
+		}
+	}
 	switch sym.Kind {
 	case analyser.FUNC:
 		return funcHover(sym, program)
@@ -621,22 +630,21 @@ func refText(ref ast.TypeRef) string {
 		for i, p := range ref.FuncParams {
 			params[i] = refText(p)
 		}
-		var text strings.Builder
-		text.WriteString("(")
-		text.WriteString(strings.Join(params, ", "))
-		text.WriteString(")")
-		if ref.FuncFallible {
-			text.WriteString(" !")
-		}
+		results := make([]string, len(ref.FuncReturns))
 		for i, r := range ref.FuncReturns {
-			if i == 0 {
-				text.WriteString(" ")
-			} else {
-				text.WriteString(", ")
-			}
-			text.WriteString(refText(r))
+			results[i] = refText(r)
 		}
-		return text.String()
+		text := (&ast.TypeRef{Layers: ref.Layers}).String() + "(" + strings.Join(params, ", ") + ") => "
+		if ref.FuncFallible {
+			text += "!"
+		}
+		switch {
+		case len(results) > 0:
+			text += strings.Join(results, ", ")
+		case !ref.FuncFallible:
+			text += "()"
+		}
+		return text
 	}
 
 	return ref.String()
@@ -742,4 +750,18 @@ func declaredTypeHover(sym *analyser.Symbol, program *ast.Program) string {
 		doc = "Parameter."
 	}
 	return renderDoc(fmt.Sprintf("%s %s", param.Type.String(), param.Name), doc)
+}
+
+func wordRange(src []byte, line, col int) *protocol.Range {
+	lines := splitLines(src)
+	text := lines[line-1]
+	start, end := col-1, col-1
+	for start > 0 && isIdentByte(text[start-1]) {
+		start--
+	}
+	for end < len(text) && isIdentByte(text[end]) {
+		end++
+	}
+	r := rangeOf(line, start+1, line, end)
+	return &r
 }

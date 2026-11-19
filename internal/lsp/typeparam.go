@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strings"
 
+	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
@@ -176,4 +178,114 @@ func typeParamRename(uri protocol.DocumentUri, hit *typeParamHit, newName string
 		edits = append(edits, protocol.TextEdit{Range: rangeOf(at.Line, at.Col, at.Line, at.Col+len(hit.param.Name)-1), NewText: newName})
 	}
 	return &protocol.WorkspaceEdit{Changes: map[protocol.DocumentUri][]protocol.TextEdit{uri: edits}}, nil
+}
+
+func typeParamsText(params []ast.TypeParam) string {
+	names := make([]string, len(params))
+	for i, p := range params {
+		names[i] = p.Name
+		if p.Const {
+			names[i] = "const " + p.Type.String() + " " + p.Name
+		}
+	}
+	return "<" + strings.Join(names, ", ") + ">"
+}
+
+func paramsText(params []ast.Param) string {
+	parts := make([]string, len(params))
+	for i, p := range params {
+		name := p.Name
+		if p.Variadic || p.Any {
+			name = "..." + name
+		}
+		if p.Any {
+			parts[i] = name
+			continue
+		}
+		parts[i] = refText(p.Type) + " " + name
+	}
+	return strings.Join(parts, ", ")
+}
+
+func genericHover(sym *analyser.Symbol) string {
+	g := sym.Generic
+	switch {
+	case g.Func != nil:
+		fd := g.Func
+		text := fmt.Sprintf("func %s%s(%s)", fd.Name, typeParamsText(fd.TypeParams), paramsText(fd.Params))
+		results := make([]string, len(fd.ReturnTypes))
+		for i := range fd.ReturnTypes {
+			results[i] = refText(fd.ReturnTypes[i])
+		}
+		switch len(results) {
+		case 0:
+		case 1:
+			text += " " + results[0]
+		default:
+			text += " (" + strings.Join(results, ", ") + ")"
+		}
+		if fd.Fallible {
+			text += " !"
+		}
+		return renderDoc(text, joinDocs(sym.Doc, "Generic function: each use picks its types."))
+	case g.Struct != nil:
+		sd := g.Struct
+		var b strings.Builder
+		fmt.Fprintf(&b, "struct %s%s {", sd.Name, typeParamsText(sd.TypeParams))
+		for i := range sd.Members {
+			fmt.Fprintf(&b, "\n  %s %s", refText(sd.Members[i].Type), sd.Members[i].Name)
+		}
+		b.WriteString("\n}")
+		return renderDoc(b.String(), joinDocs(sym.Doc, "Generic struct: each use picks its types."))
+	case g.Sum != nil:
+		td := g.Sum
+		var b strings.Builder
+		fmt.Fprintf(&b, "enum %s%s {", td.Name, typeParamsText(td.TypeParams))
+		for _, m := range td.Members {
+			fmt.Fprintf(&b, "\n  %s", m.Name)
+			if m.Payload {
+				fmt.Fprintf(&b, " { %s }", paramsText(m.Fields))
+			}
+		}
+		b.WriteString("\n}")
+		return renderDoc(b.String(), joinDocs(sym.Doc, "Generic enum: each use picks its types."))
+	case g.Alias != nil:
+		td := g.Alias
+		return renderDoc(fmt.Sprintf("type %s%s %s", td.Name, typeParamsText(td.TypeParams), refText(td.Underlying)), joinDocs(sym.Doc, "Generic type: each use picks its types."))
+	}
+	return ""
+}
+
+func methodDeclHover(program *ast.Program, src []byte, line, col int) (string, bool) {
+	word := wordUnderCursor(src, line, col)
+	if word == "" {
+		return "", false
+	}
+	for _, decl := range program.Declarations {
+		fd, ok := decl.(*ast.FuncDecl)
+		if !ok || fd.Receiver == nil || fd.Name != word || fd.Generated || fd.Instance != "" {
+			continue
+		}
+		if l, _ := fd.Position(); l != line {
+			continue
+		}
+		receiver := refText(fd.Receiver.Type)
+		text := fmt.Sprintf("func (%s %s) %s(%s)", receiver, fd.Receiver.Name, fd.Name, paramsText(fd.Params))
+		results := make([]string, len(fd.ReturnTypes))
+		for i := range fd.ReturnTypes {
+			results[i] = refText(fd.ReturnTypes[i])
+		}
+		switch len(results) {
+		case 0:
+		case 1:
+			text += " " + results[0]
+		default:
+			text += " (" + strings.Join(results, ", ") + ")"
+		}
+		if fd.Fallible {
+			text += " !"
+		}
+		return renderDoc(text, joinDocs(fd.Doc, "Method.")), true
+	}
+	return "", false
 }

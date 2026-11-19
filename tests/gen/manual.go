@@ -12749,6 +12749,22 @@ func text(Result<int, string> r) string {
     };
 }
 
+enum Slots<T, const int N> {
+    Empty,
+    Full { [N]T items; }
+}
+
+func (*Slots<T, N> s) capacity() int {
+    return N;
+}
+
+func (*Slots<T, N> s) first(T fallback) T {
+    switch s {
+        case .Full f => return f.items[0];
+        default => return fallback;
+    }
+}
+
 func which(...args) string {
     switch type args[0] {
         case *Maybe<int> m => return "maybe of int";
@@ -12767,8 +12783,12 @@ func main() {
     Holder<string> h = Holder<string>{slot: .Just{value: "x"}};
     check(h.slot.name() == "Just" && b.name() == "Nothing", "name() of an instance");
     check(which(&a) == "maybe of int" && which(&c) == "maybe of string" && which(5) == "other", "an instance of an enum in an any value");
+    Slots<int, 3> full = .Full{items: .{7, 8, 9}};
+    Slots<byte, 5> empty = .Empty;
+    check(full.capacity() == 3 && empty.capacity() == 5 && full.first(0) == 7 && empty.first(1) == 1, "an enum with a const parameter");
+    check(sizeof(Slots<int, 3>) == 32 && sizeof(Slots<byte, 5>) == 16, "the size follows the const parameter");
 }
-`, expected: []string{"a method of a generic enum", "a switch on the variants of an instance", "two type parameters and a switch expression", "name() of an instance", "an instance of an enum in an any value"}},
+`, expected: []string{"a method of a generic enum", "a switch on the variants of an instance", "two type parameters and a switch expression", "name() of an instance", "an instance of an enum in an any value", "an enum with a const parameter", "the size follows the const parameter"}},
 
 	{dir: "static_recursion_frames", src: `func fibLocals(int n) int {
     if n < 2 {

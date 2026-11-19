@@ -634,3 +634,75 @@ func TestGenericTypeDeclarationsInLSP(t *testing.T) {
 		}
 	}
 }
+
+func TestGenericDeclarationNamesHover(t *testing.T) {
+	c := start(t)
+	src := `struct Box<T> {
+	T value;
+}
+
+enum Maybe<T> {
+	Nothing,
+	Just { T value; }
+}
+
+type Op<T> (T, T) => T;
+
+func (*Box<T> b) get() T {
+	return b.value;
+}
+
+func id<T, const int N>(T v, ...rest) (T, T) {
+	return v, v;
+}
+
+func main() {
+}
+`
+	cases := []struct{ probe, want string }{
+		{"struct B¦ox<T>", "struct Box<T> {\n  T value\n}"},
+		{"enum Ma¦ybe<T>", "enum Maybe<T> {\n  Nothing\n  Just { T value }\n}"},
+		{"type O¦p<T>", "type Op<T> (T, T) => T"},
+		{"func i¦d<T", "func id<T, const int N>(T v, ...rest) (T, T)"},
+		{"func (*Box<T> b) g¦et()", "func (*Box<T> b) get() T"},
+	}
+	for _, tc := range cases {
+		plain := strings.Replace(tc.probe, "¦", "", 1)
+		p := c.open(map[string]string{"main.wsp": strings.Replace(src, plain, tc.probe, 1)})
+		if got := p.hover(); !strings.Contains(got, tc.want) {
+			t.Errorf("%s: hover %q does not contain %q", tc.probe, got, tc.want)
+		}
+	}
+}
+
+func TestGenericTypeArgumentsHoverAndLiteralDefinition(t *testing.T) {
+	c := start(t)
+	src := "struct Box<T> {\n\tT value;\n}\n\nstruct Plain {\n\tint value;\n}\n\nenum Maybe<T> {\n\tNothing,\n\tJust { T value; }\n}\n\nfunc main() {\n\tBox<Maybe<int>> nested;\n\tBox<int> b = Box<int>{value: 1};\n\tPlain p = Plain{value: 2};\n}\n"
+	hovers := []struct{ probe, want string }{
+		{"\tBox<May¦be<int>> nested", "enum Maybe<T>"},
+		{"\tBox<Maybe<i¦nt>> nested", "int"},
+		{"\tBo¦x<Maybe<int>> nested", "struct Box<T>"},
+	}
+	for _, tc := range hovers {
+		plain := strings.Replace(tc.probe, "¦", "", 1)
+		p := c.open(map[string]string{"main.wsp": strings.Replace(src, plain, tc.probe, 1)})
+		if got := p.hover(); !strings.Contains(got, tc.want) || strings.Contains(got, "struct Box<T>") != strings.Contains(tc.want, "struct Box<T>") {
+			t.Errorf("%s: hover %q, want %q", tc.probe, got, tc.want)
+		}
+	}
+	definitions := []struct {
+		probe string
+		line  int
+	}{
+		{"= Bo¦x<int>{value: 1}", 0},
+		{"= Pla¦in{value: 2}", 4},
+	}
+	for _, tc := range definitions {
+		plain := strings.Replace(tc.probe, "¦", "", 1)
+		p := c.open(map[string]string{"main.wsp": strings.Replace(src, plain, tc.probe, 1)})
+		defs := p.definition()
+		if len(defs) == 0 || int(defs[0].Range.Start.Line) != tc.line {
+			t.Errorf("%s: definition %v, want line %d", tc.probe, defs, tc.line)
+		}
+	}
+}

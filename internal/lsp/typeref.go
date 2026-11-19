@@ -42,6 +42,13 @@ func refIn(ref *ast.TypeRef, line, col int) *ast.TypeRef {
 		}
 	}
 	if refContains(ref, line, col) {
+		for i := range ref.Args {
+			if ref.Args[i].Type != nil {
+				if r := refIn(ref.Args[i].Type, line, col); r != nil {
+					return r
+				}
+			}
+		}
 		return ref
 	}
 	return nil

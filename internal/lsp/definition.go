@@ -179,6 +179,9 @@ func exprDefinition(pa *projectAnalysis, m *moduleAnalysis, expr ast.Expression,
 			}
 		}
 	case *ast.StructLiteral:
+		if loc := literalNameLocation(e, info, line, col); loc != nil {
+			return []protocol.Location{*loc}
+		}
 		st, ok := info.Types[e].(*analyser.StructType)
 		if !ok {
 			return nil
@@ -299,4 +302,34 @@ func symbolLocation(sym *analyser.Symbol) *protocol.Location {
 	}
 	loc := pointLocation(sym.File, sym.Line, sym.Col)
 	return &loc
+}
+
+func literalNameLocation(e *ast.StructLiteral, info *analyser.Info, line, col int) *protocol.Location {
+	startLine, startCol := e.Position()
+	if line != startLine || e.Dot || e.Variant != "" {
+		return nil
+	}
+	nameCol := startCol
+	if e.Module != "" {
+		nameCol += len(e.Module) + 1
+	}
+	if col < nameCol || col >= nameCol+len(e.Name) {
+		return nil
+	}
+	sym, ok := scopeFor(info, line, col).Resolve(e.Name)
+	if e.Module != "" {
+		owner, found := scopeFor(info, line, col).Resolve(e.Module)
+		if !found {
+			return nil
+		}
+		mt, isModule := owner.Type.(*analyser.ModuleType)
+		if !isModule {
+			return nil
+		}
+		sym, ok = mt.Exports[e.Name], mt.Exports[e.Name] != nil
+	}
+	if !ok {
+		return nil
+	}
+	return symbolLocation(sym)
 }
