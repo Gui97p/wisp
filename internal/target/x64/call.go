@@ -836,6 +836,10 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		return []Operand{op}, nil
 	}
 
+	if mc, ok := t.info.MethodCalls[expr]; ok && mc.Iface != nil {
+		return t.compileInterfaceCall(expr, mc)
+	}
+
 	if mc, ok := t.info.MethodCalls[expr]; ok {
 		sym := t.funcSymbol(mc.Module, fmt.Sprintf("%s_%s", mc.Owner, expr.Name.(*ast.MemberExpr).Field))
 		rets := t.info.CallReturns[expr]

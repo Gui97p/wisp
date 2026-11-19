@@ -1,6 +1,7 @@
 package analyser
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -455,4 +456,140 @@ func (a *Analyser) checkInterfaceTypeCase(expr *ast.BinaryExpr, held *InterfaceT
 
 	a.info.TypeCases[expr] = &TypeCase{Type: t, Iface: held}
 	return boolType
+}
+
+func (a *Analyser) vtableEntries(node ast.Node, pointer PointerType, it *InterfaceType) ([]VtableEntry, bool) {
+	concrete := pointer.Element
+	key := typeKey(concrete) + "|" + it.key + "|" + a.module
+	if entries, ok := a.vtables[key]; ok {
+		return entries, true
+	}
+
+	methods := MethodsOf(concrete)
+	var entries []VtableEntry
+	for _, m := range it.AllMethods() {
+		ft := methods[m.Name]
+		if ft == nil {
+			return nil, false
+		}
+		if ft.Inline {
+			a.errorf(node, "method %s of %s is inline, so it has no address to put in %s", m.Name, elementName(pointer), it.Name).
+				WithHelp("an inline method works as a constraint, not behind an interface value")
+			return nil, false
+		}
+
+		owner, _, _ := methodOwner(concrete)
+		if ft.Template != nil {
+			owner = ft.Template.Owner
+			ft = a.instanceOfMethod(node, ft)
+		}
+		if _, byPointer := ft.Receiver.(PointerType); byPointer {
+			entries = append(entries, VtableEntry{Owner: owner, Module: ft.Module, Name: m.Name})
+			continue
+		}
+		entries = append(entries, a.valueReceiverWrapper(node, concrete, owner, m.Name, ft))
+	}
+	a.vtables[key] = entries
+	return entries, true
+}
+
+func (a *Analyser) valueReceiverWrapper(node ast.Node, concrete Type, owner, name string, ft *FuncType) VtableEntry {
+	wrapperName := "__iface_" + name
+	key := owner + "." + wrapperName + "|" + a.module
+	if entry, ok := a.ifaceWrappers[key]; ok {
+		return entry
+	}
+	entry := VtableEntry{Owner: owner, Module: a.module, Name: wrapperName}
+	a.ifaceWrappers[key] = entry
+
+	place := func(target ast.Node) {
+		line, col := node.Position()
+		endLine, endCol := node.EndPosition()
+		switch v := target.(type) {
+		case *ast.IdentLiteral:
+			v.SetPos(line, col)
+			v.SetEndPos(endLine, endCol)
+		case *ast.DerefExpr:
+			v.SetPos(line, col)
+			v.SetEndPos(endLine, endCol)
+		case *ast.MemberExpr:
+			v.SetPos(line, col)
+			v.SetEndPos(endLine, endCol)
+		case *ast.CallExpr:
+			v.SetPos(line, col)
+			v.SetEndPos(endLine, endCol)
+		case *ast.PropagateExpr:
+			v.SetPos(line, col)
+			v.SetEndPos(endLine, endCol)
+		case *ast.ReturnStmt:
+			v.SetPos(line, col)
+			v.SetEndPos(endLine, endCol)
+		case *ast.ExpressionStmt:
+			v.SetPos(line, col)
+			v.SetEndPos(endLine, endCol)
+		case *ast.BlockStmt:
+			v.SetPos(line, col)
+			v.SetEndPos(endLine, endCol)
+		}
+	}
+
+	params := make([]ast.Param, len(ft.Params))
+	names := make([]string, len(ft.Params))
+	args := make([]ast.Expression, len(ft.Params))
+	for i := range ft.Params {
+		names[i] = fmt.Sprintf("__arg%d", i)
+		params[i] = ast.Param{Name: names[i]}
+		ident := &ast.IdentLiteral{Value: names[i]}
+		place(ident)
+		args[i] = ident
+	}
+
+	receiver := &ast.IdentLiteral{Value: "__recv"}
+	place(receiver)
+	deref := &ast.DerefExpr{Value: receiver}
+	place(deref)
+	member := &ast.MemberExpr{Object: deref, Field: name}
+	place(member)
+	var call ast.Expression = &ast.CallExpr{Name: member, Args: args}
+	place(call)
+	if ft.Fallible {
+		call = &ast.PropagateExpr{Value: call}
+		place(call)
+	}
+
+	var body ast.Statement
+	if len(ft.Returns) == 0 {
+		body = &ast.ExpressionStmt{Expr: call}
+	} else {
+		body = &ast.ReturnStmt{Values: []ast.Expression{call}}
+	}
+	place(body)
+	block := &ast.BlockStmt{Statements: []ast.Statement{body}}
+	place(block)
+
+	decl := &ast.FuncDecl{
+		Name:        wrapperName,
+		Receiver:    &ast.Param{Name: "__recv", Type: ast.TypeRef{Name: owner}},
+		Params:      params,
+		Body:        block,
+		ReturnTypes: []ast.TypeRef{},
+		Fallible:    ft.Fallible,
+		Generated:   true,
+		Instance:    owner + "." + wrapperName,
+	}
+	place(decl)
+
+	wrapper := &FuncType{
+		Name: wrapperName, Params: ft.Params, ParamNames: names, Returns: ft.Returns, Fallible: ft.Fallible,
+		Receiver: PointerType{Element: concrete}, Module: a.module, DeclFile: a.currentFile, Decl: decl,
+	}
+	a.info.FuncReturns[decl] = ft.Returns
+	a.info.VarTypes[decl] = ft.Params
+	if !a.phantomBuilding || a.phantoms {
+		a.program.Declarations = append(a.program.Declarations, decl)
+		a.declFiles[decl] = a.currentFile
+	}
+	gen := &GenericDecl{Name: wrapperName, Module: a.module, File: a.currentFile, Scope: a.moduleScope}
+	a.pending = append(a.pending, pendingBody{decl: decl, ft: wrapper, recv: PointerType{Element: concrete}, scope: a.moduleScope, gen: gen, at: node, file: a.currentFile, depth: a.bodyDepth + 1, phantom: a.phantomBuilding, waive: true})
+	return entry
 }

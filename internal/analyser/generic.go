@@ -93,6 +93,7 @@ type pendingBody struct {
 	phantom   bool
 	checkNote string
 	argValues []TypeValue
+	waive     bool
 }
 
 func typeKey(t Type) string {
@@ -670,7 +671,8 @@ func (a *Analyser) checkInstanceBody(p pendingBody) {
 
 	savedScope, savedModuleScope, savedModule, savedFile := a.scope, a.moduleScope, a.module, a.currentFile
 	savedDepth := a.bodyDepth
-	savedBuilding, savedNote, savedContext := a.phantomBuilding, a.phantomNote, a.instanceContext
+	savedBuilding, savedNote, savedContext, savedWaive := a.phantomBuilding, a.phantomNote, a.instanceContext, a.waiveAccess
+	a.waiveAccess = p.waive
 	a.instanceContext = &instanceContext{gen: p.gen, args: p.argValues}
 	a.scope, a.moduleScope, a.module, a.currentFile = p.scope, p.gen.Scope, p.gen.Module, p.gen.File
 	a.bodyDepth = p.depth
@@ -691,7 +693,7 @@ func (a *Analyser) checkInstanceBody(p pendingBody) {
 	}
 	a.scope, a.moduleScope, a.module, a.currentFile = savedScope, savedModuleScope, savedModule, savedFile
 	a.bodyDepth = savedDepth
-	a.phantomBuilding, a.phantomNote, a.instanceContext = savedBuilding, savedNote, savedContext
+	a.phantomBuilding, a.phantomNote, a.instanceContext, a.waiveAccess = savedBuilding, savedNote, savedContext, savedWaive
 }
 
 func (g *GenericDecl) paramIndex(name string) int {

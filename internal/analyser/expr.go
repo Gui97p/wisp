@@ -468,7 +468,7 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 					a.errorf(expr, "method %s needs a pointer receiver, but the value is a temporary", member.Field)
 				}
 				owner, _, ownerExported := methodOwner(objType)
-				viaBound := ft.Module != a.module && a.boundGuarantees(objType, member.Field)
+				viaBound := ft.Module != a.module && (a.waiveAccess || a.boundGuarantees(objType, member.Field))
 				if ft.Module != a.module && !viaBound && !(ft.Exported && ownerExported) {
 					a.errorf(expr, "method %s of %s is not public", member.Field, owner)
 				} else if ft.Module != a.module && !viaBound && ft.InternalDir != "" && !insideDir(a.currentFile, ft.InternalDir) {

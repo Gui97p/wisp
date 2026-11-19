@@ -76,9 +76,16 @@ type TypeCase struct {
 	Iface *InterfaceType
 }
 
+type VtableEntry struct {
+	Owner  string
+	Module string
+	Name   string
+}
+
 type IfaceConversion struct {
-	Iface *InterfaceType
-	From  PointerType
+	Iface   *InterfaceType
+	From    PointerType
+	Entries []VtableEntry
 }
 
 func NewInfo() *Info {

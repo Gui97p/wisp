@@ -69,6 +69,10 @@ func (i *InterfaceType) Equals(other Type) bool {
 	return i == o || (i.key != "" && i.key == o.key)
 }
 
+func (i *InterfaceType) Key() string {
+	return i.key
+}
+
 func (i *InterfaceType) ensure() {
 	if i.fill != nil {
 		fill := i.fill

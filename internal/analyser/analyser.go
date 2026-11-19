@@ -76,6 +76,9 @@ type Analyser struct {
 	phantomNote          string
 	comparisonNode       ast.Node
 	instanceContext      *instanceContext
+	waiveAccess          bool
+	vtables              map[string][]VtableEntry
+	ifaceWrappers        map[string]VtableEntry
 	pending              []pendingBody
 	instanceDepth        int
 	bodyDepth            int
@@ -112,6 +115,8 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 		instances:            map[string]*StructType{},
 		aliases:              map[string]Type{},
 		ifaceInstances:       map[string]*InterfaceType{},
+		vtables:              map[string][]VtableEntry{},
+		ifaceWrappers:        map[string]VtableEntry{},
 		staticExpansions:     map[*ast.FuncDecl]*InlineCall{},
 		funcInstances:        map[string]*Symbol{},
 		methodInstances:      map[string]*FuncType{},

@@ -13025,6 +13025,176 @@ func main() {
 }
 `, expected: []string{"a private type implements a public interface of another module", "a public type with public methods does too", "a public type set of another module"}},
 
+	{dir: "interfaces_values", files: map[string]string{"shapes/shapes.wsp": `public interface Shape {
+    func area() int;
+    func label() string;
+}
+
+public struct Square implements Shape {
+    int side;
+}
+
+public func (Square s) area() int {
+    return s.side * s.side;
+}
+
+public func (Square s) label() string {
+    return "square";
+}
+
+public func describe(Shape s) int {
+    return s.area() + len(s.label());
+}
+`}, src: `import "shapes";
+
+enum Problem {
+    Bad = 1
+}
+
+struct Pair {
+    int a;
+    int b;
+}
+
+interface Measure {
+    func area() int;
+    func sum(int a, int b) (int, int);
+    func fail(int n) !int;
+    func big() Pair;
+}
+
+interface Closer {
+    func close();
+}
+
+interface Source<T> {
+    func next() T;
+}
+
+struct Rect implements Measure {
+    int side;
+}
+
+func (Rect r) area() int {
+    return r.side * r.side;
+}
+
+func (Rect r) sum(int a, int b) (int, int) {
+    return a + b + r.side, a * b;
+}
+
+func (Rect r) fail(int n) !int {
+    return n if n > 0;
+    return Error(Problem.Bad, "bad");
+}
+
+func (Rect r) big() Pair {
+    return Pair{a: r.side, b: r.side * 2};
+}
+
+struct Disk implements Measure, Closer {
+    int radius;
+    int closed;
+}
+
+func (*Disk d) area() int {
+    return d.radius * 3;
+}
+
+func (*Disk d) sum(int a, int b) (int, int) {
+    return a, b;
+}
+
+func (*Disk d) fail(int _n) !int {
+    return Error(Problem.Bad, "always");
+}
+
+func (*Disk d) big() Pair {
+    return Pair{a: 1, b: 2};
+}
+
+func (*Disk d) close() {
+    d.closed++;
+}
+
+struct Counter<T> implements Source<T> {
+    T value;
+}
+
+func (*Counter<T> c) next() T {
+    return c.value;
+}
+
+struct Holder {
+    Measure inner;
+    ?Measure spare;
+}
+
+func use(Measure m) int {
+    let x, y = m.sum(2, 3);
+    return m.area() * 100 + x * 10 + y;
+}
+
+func attempt(Measure m, int n) int {
+    let v, e = m.fail(n);
+    return -1 if e != null;
+    return v;
+}
+
+func total<Measure M>(M m) int {
+    return m.area() + 1;
+}
+
+func fetch(Source<int> s) int {
+    return s.next();
+}
+
+func which(Measure m) int {
+    switch type m {
+        case *Rect r => return r.side;
+        case *Disk d => return d.radius + 1000;
+        default => return -1;
+    }
+}
+
+func finish(*Disk d) int {
+    Closer c = d;
+    defer c.close();
+    return d.closed;
+}
+
+func main() {
+    Rect r = Rect{side: 4};
+    Disk d = Disk{radius: 2};
+    check(use(&r) == 1696 && use(&d) == 623, "a method through the interface, with several arguments and results");
+    check(attempt(&r, 5) == 5 && attempt(&d, 5) == -1, "a method that can fail");
+    Measure m = &r;
+    Pair big = m.big();
+    check(big.a == 4 && big.b == 8, "a struct returned through the interface");
+    check(total(m) == 17 && total(&d) == 7, "an interface value, and a pointer, as the type argument of a constraint");
+    [2]Measure both = .{&r, &d};
+    check(both[0].area() + both[1].area() == 22, "an array of interface values");
+    Holder h = Holder{inner: &d, spare: null};
+    int seen = 0;
+    if h.spare |x| {
+        seen += x.area();
+    }
+    h.spare = &r;
+    if h.spare |y| {
+        seen += y.area();
+    }
+    check(h.inner.area() == 6 && seen == 16, "an interface as a field, and as an optional");
+    check(which(&r) == 4 && which(m) == 4 && which(&d) == 1002, "a switch on the type behind an interface");
+    Counter<int> c = Counter<int>{value: 9};
+    check(fetch(&c) == 9, "an instance of a generic struct behind an instance of a generic interface");
+    shapes.Square sq = shapes.Square{side: 3};
+    check(shapes.describe(&sq) == 15, "a value receiver and a public interface of another module");
+    int before = d.closed;
+    int unused = finish(&d);
+    check(d.closed == before + 1 && unused == before, "a method called by defer through an interface");
+}
+`, expected: []string{"a method through the interface, with several arguments and results", "a method that can fail", "a struct returned through the interface", "an interface value, and a pointer, as the type argument of a constraint", "an array of interface values", "an interface as a field, and as an optional", "a switch on the type behind an interface", "an instance of a generic struct behind an instance of a generic interface", "a value receiver and a public interface of another module", "a method called by defer through an interface"}},
+
 	{dir: "generic_type_switch", src: `struct Wrapper<T> {
     T value;
 }

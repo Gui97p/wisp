@@ -67,6 +67,9 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		}
 		if orig, ok := t.info.Narrowed[sym]; ok {
 			off, _ := t.ctx.Get(orig)
+			if _, fromInterface := orig.Type.(*analyser.InterfaceType); fromInterface {
+				return slot(off, 16).at(0, 8), nil
+			}
 			return slot(off, 24).at(8, sizeOf(sym.Type)), nil
 		}
 		size := sizeOf(t.info.Types[e])
@@ -366,6 +369,9 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 }
 
 func (t *X64Target) compileTypeCase(expr *ast.BinaryExpr, tc *analyser.TypeCase) (Operand, error) {
+	if tc.Iface != nil {
+		return t.compileInterfaceTypeCase(expr, tc)
+	}
 	op, err := t.compileExpr(expr.Left)
 	if err != nil {
 		return nil, err
@@ -549,6 +555,9 @@ func (t *X64Target) compileCallExpr(expr *ast.CallExpr) (Operand, error) {
 }
 
 func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
+	if conv, ok := t.info.IfaceConversions[expr]; ok {
+		return t.compileInterfaceConversion(expr, conv)
+	}
 	srcType := t.info.Types[expr.Value]
 	dstType := t.info.Types[expr]
 

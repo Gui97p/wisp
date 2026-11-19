@@ -753,7 +753,11 @@ func (a *Analyser) coerceToInterface(slot *ast.Expression, from Type, it *Interf
 		return true, true
 	}
 
-	a.insertInterfaceConversion(slot, pointer, it)
+	entries, ok := a.vtableEntries(*slot, pointer, it)
+	if !ok {
+		return true, true
+	}
+	a.insertInterfaceConversion(slot, pointer, it, entries)
 	return true, true
 }
 
@@ -762,7 +766,7 @@ func isNamedConcrete(t Type) bool {
 	return ok
 }
 
-func (a *Analyser) insertInterfaceConversion(slot *ast.Expression, from PointerType, to *InterfaceType) {
+func (a *Analyser) insertInterfaceConversion(slot *ast.Expression, from PointerType, to *InterfaceType, entries []VtableEntry) {
 	inner := *slot
 	cast := &ast.CastExpr{Value: inner, Implicit: true}
 
@@ -772,6 +776,6 @@ func (a *Analyser) insertInterfaceConversion(slot *ast.Expression, from PointerT
 	cast.SetEndPos(endLine, endCol)
 
 	a.info.Types[cast] = to
-	a.info.IfaceConversions[cast] = &IfaceConversion{Iface: to, From: from}
+	a.info.IfaceConversions[cast] = &IfaceConversion{Iface: to, From: from, Entries: entries}
 	*slot = cast
 }
