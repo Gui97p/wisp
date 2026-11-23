@@ -15,7 +15,7 @@ import (
 var cleanDryRun bool
 
 var cleanCmd = &cobra.Command{
-	Use:          "clean",
+	Use:          "clear",
 	Short:        "Remove the files a build writes (binaries, objects, assembly)",
 	Args:         cobra.NoArgs,
 	RunE:         runClean,

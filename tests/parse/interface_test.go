@@ -163,7 +163,6 @@ struct Pipe<Reader R, Writer W> { R source; W target; }
 
 func TestInterfaceErrors(t *testing.T) {
 	cases := map[string]string{
-		"interface X { }\n":                        "is empty",
 		"interface X { A & B; C | D }\n":           "one type expression",
 		"interface X { func m<T>(T v); }\n":        "cannot take type parameters",
 		"interface X implements Y { func m(); }\n": "does not implement another",
@@ -187,5 +186,16 @@ func TestInterfaceMethodMissingSemicolon(t *testing.T) {
 	_, errors := parse(t, "interface AST { func node() }\n")
 	if len(errors) == 0 || !strings.Contains(errors[0], "expected ';'") {
 		t.Fatalf("errors: %v", errors)
+	}
+}
+
+func TestEmptyInterface(t *testing.T) {
+	program, errors := parse(t, "interface Any {}\n")
+	if len(errors) > 0 {
+		t.Fatalf("errors: %v", errors)
+	}
+	decls := collect[*ast.InterfaceDecl](program)
+	if len(decls) != 1 || len(decls[0].Methods) != 0 || decls[0].Constraint != nil {
+		t.Fatalf("decls: %+v", decls)
 	}
 }

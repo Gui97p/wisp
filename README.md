@@ -55,7 +55,7 @@ wisp run                   # compile and run
 wisp check                 # parse and analyse only
 wisp test                  # run the #test functions, each one in its own process
 wisp fmt                   # format the project (--check only lists what would change)
-wisp clean                 # remove what a build writes (-n lists only)
+wisp clear                 # remove what a build writes (-n lists only)
 wisp env [key]             # what the compiler resolved for this project
 wisp targets               # built-in and project targets
 wisp doc [module [symbol]] # the public API of a module, with its doc comments

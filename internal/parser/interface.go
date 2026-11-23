@@ -69,11 +69,6 @@ func (p *Parser) parseInterfaceDeclaration() *ast.InterfaceDecl {
 		return nil
 	}
 
-	if len(decl.Methods) == 0 && decl.Constraint == nil {
-		p.errorf("interface %s is empty: list its methods or a type expression", decl.Name)
-		return nil
-	}
-
 	return decl
 }
 
