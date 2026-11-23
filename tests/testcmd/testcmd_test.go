@@ -88,7 +88,7 @@ func refuse(t *testing.T, out string, unwanted ...string) {
 }
 
 func TestRunsEveryTest(t *testing.T) {
-	out, code := run(t, "basic", "test")
+	out, code := run(t, "basic", "test", "--report")
 	if code != 1 {
 		t.Errorf("exit code %d, want 1", code)
 	}
@@ -110,7 +110,7 @@ func TestRunsEveryTest(t *testing.T) {
 }
 
 func TestFilterByName(t *testing.T) {
-	out, code := run(t, "basic", "test", "--run", "internal")
+	out, code := run(t, "basic", "test", "--report", "--run", "internal")
 	if code != 0 {
 		t.Errorf("exit code %d, want 0", code)
 	}
@@ -119,14 +119,14 @@ func TestFilterByName(t *testing.T) {
 }
 
 func TestFilterByPath(t *testing.T) {
-	out, code := run(t, "basic", "test", "tests")
+	out, code := run(t, "basic", "test", "--report", "tests")
 	if code != 0 {
 		t.Errorf("exit code %d, want 0", code)
 	}
 	expect(t, out, "Running 1 test", "tests/blackbox: public api from another folder")
 	refuse(t, out, "calc.test")
 
-	out, code = run(t, "basic", "test", "calc.wsp")
+	out, code = run(t, "basic", "test", "--report", "calc.wsp")
 	if code != 0 {
 		t.Errorf("exit code %d, want 0", code)
 	}
@@ -167,7 +167,7 @@ func TestNoMatch(t *testing.T) {
 }
 
 func TestTimeout(t *testing.T) {
-	out, code := run(t, "hang", "test", "--timeout", "1s")
+	out, code := run(t, "hang", "test", "--report", "--timeout", "1s")
 	if code != 1 {
 		t.Errorf("exit code %d, want 1", code)
 	}
@@ -175,7 +175,7 @@ func TestTimeout(t *testing.T) {
 }
 
 func TestShowOutput(t *testing.T) {
-	out, _ := run(t, "basic", "test", "--run", "internal", "--show-output")
+	out, _ := run(t, "basic", "test", "--report", "--run", "internal", "--show-output")
 	expect(t, out, "ok    calc.test: an internal function")
 }
 
@@ -215,7 +215,7 @@ func TestOnlyWhatTheTestsNeedIsAnalysed(t *testing.T) {
 }
 
 func TestTestingModule(t *testing.T) {
-	out, code := run(t, "testing", "test")
+	out, code := run(t, "testing", "test", "--report")
 	if code != 1 {
 		t.Errorf("exit code %d, want 1", code)
 	}
@@ -246,7 +246,7 @@ func TestTestingModule(t *testing.T) {
 }
 
 func TestGenericCodeInTests(t *testing.T) {
-	out, code := run(t, "generics", "test")
+	out, code := run(t, "generics", "test", "--report")
 	if code != 0 {
 		t.Fatalf("exit code %d:\n%s", code, out)
 	}
@@ -259,4 +259,23 @@ func TestGenericTestIsRejected(t *testing.T) {
 		t.Fatalf("a generic test was accepted:\n%s", out)
 	}
 	expect(t, out, "a test cannot be generic")
+}
+
+func TestCompactReport(t *testing.T) {
+	out, code := run(t, "basic", "test")
+	if code != 1 {
+		t.Errorf("exit code %d, want 1", code)
+	}
+	expect(t, out,
+		"Running 5 tests",
+		"FAIL  calc.test: failsWithError",
+		"FAIL  calc.test: an index out of range aborts",
+		"panic: index out of range",
+		"Failed:",
+		"Test result: FAILED. 3 passed, 2 failed",
+	)
+	refuse(t, out, "ok    calc: add works in the file itself", "ok    tests/blackbox")
+	if !strings.Contains(out, "...FF") && !strings.Contains(out, "FF") {
+		t.Errorf("the output has no progress line:\n%s", out)
+	}
 }

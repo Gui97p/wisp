@@ -28,6 +28,7 @@ var (
 	testTimeout    time.Duration
 	testList       bool
 	testShowOutput bool
+	testReport     bool
 )
 
 var (
@@ -60,6 +61,7 @@ func init() {
 	f.IntVarP(&testJobs, "jobs", "j", 0, "tests running at once (the number of processors by default)")
 	f.DurationVar(&testTimeout, "timeout", 30*time.Second, "time limit of each test")
 	f.BoolVar(&testList, "list", false, "list the tests without running them")
+	f.BoolVar(&testReport, "report", false, "print a line for every test, not only for the ones that fail or skip")
 	f.BoolVar(&testShowOutput, "show-output", false, "print what passing tests wrote too")
 	f.StringVar(&osOpt, "os", "", "system to test on (linux, windows)")
 	f.StringVar(&archOpt, "arch", "", "architecture to test on (x64)")
@@ -340,17 +342,20 @@ func runTests(cmd *cobra.Command, args []string) error {
 		}()
 	}
 
+	report := testReport || verboseOpt
 	passed, failed, skipped := 0, 0, 0
 	var failures []testOutcome
+	var details []string
+	dots := 0
 	for i := range tests {
 		o := <-done[i]
-		label := "ok  "
+		label, mark := "ok  ", "."
 		switch {
 		case o.skipped:
-			label = "skip"
+			label, mark = "skip", "s"
 			skipped++
 		case !o.passed:
-			label = "FAIL"
+			label, mark = "FAIL", "F"
 			failed++
 			failures = append(failures, o)
 		default:
@@ -363,9 +368,32 @@ func runTests(cmd *cobra.Command, args []string) error {
 		case o.note != "":
 			line += ": " + o.note
 		}
-		fmt.Println(line)
+		text := line + "\n"
 		if !o.passed || o.skipped || testShowOutput {
-			fmt.Print(indent(o.output, "      "))
+			text += indent(o.output, "      ")
+		}
+		if report {
+			fmt.Print(text)
+			continue
+		}
+		fmt.Print(mark)
+		dots++
+		if dots%60 == 0 {
+			fmt.Println()
+		}
+		if !o.passed || o.skipped || testShowOutput {
+			details = append(details, text)
+		}
+	}
+	if !report {
+		if dots%60 != 0 {
+			fmt.Println()
+		}
+		if len(details) > 0 {
+			fmt.Println()
+			for _, text := range details {
+				fmt.Print(text)
+			}
 		}
 	}
 
