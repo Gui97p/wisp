@@ -61,7 +61,7 @@ func init() {
 	f.IntVarP(&testJobs, "jobs", "j", 0, "tests running at once (the number of processors by default)")
 	f.DurationVar(&testTimeout, "timeout", 30*time.Second, "time limit of each test")
 	f.BoolVar(&testList, "list", false, "list the tests without running them")
-	f.BoolVar(&testReport, "report", false, "print a line for every test, not only for the ones that fail or skip")
+	f.BoolVar(&testReport, "report", false, "print the place and time of every test, and what a failure says right under it")
 	f.BoolVar(&testShowOutput, "show-output", false, "print what passing tests wrote too")
 	f.StringVar(&osOpt, "os", "", "system to test on (linux, windows)")
 	f.StringVar(&archOpt, "arch", "", "architecture to test on (x64)")
@@ -343,10 +343,11 @@ func runTests(cmd *cobra.Command, args []string) error {
 	}
 
 	report := testReport || verboseOpt
+	dots := quietOpt && !report
 	passed, failed, skipped := 0, 0, 0
 	var failures []testOutcome
 	var details []string
-	dots := 0
+	marks := 0
 	for i := range tests {
 		o := <-done[i]
 		label, mark := "ok  ", "."
@@ -376,29 +377,36 @@ func runTests(cmd *cobra.Command, args []string) error {
 			fmt.Print(text)
 			continue
 		}
-		fmt.Print(mark)
-		dots++
-		if dots%60 == 0 {
-			fmt.Println()
+		if dots {
+			fmt.Print(mark)
+			marks++
+			if marks%60 == 0 {
+				fmt.Println()
+			}
+		} else {
+			fmt.Printf("%s  %s\n", label, testName(o.test))
 		}
 		if !o.passed || o.skipped || testShowOutput {
 			details = append(details, text)
 		}
 	}
 	if !report {
-		if dots%60 != 0 {
+		if dots && marks%60 != 0 {
 			fmt.Println()
 		}
 		if len(details) > 0 {
 			fmt.Println()
-			for _, text := range details {
+			for i, text := range details {
+				if i > 0 {
+					fmt.Println()
+				}
 				fmt.Print(text)
 			}
 		}
 	}
 
 	fmt.Println()
-	if failed > 0 {
+	if failed > 0 && report {
 		fmt.Println("Failed:")
 		for _, o := range failures {
 			fmt.Printf("  %s  (%s)\n", testName(o.test), testPlace(o.test))

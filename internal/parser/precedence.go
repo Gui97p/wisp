@@ -9,6 +9,7 @@ type Precedence int
 const (
 	LOWEST     Precedence = iota
 	TERNARY               // x ? a : b
+	RANGE                 // a..b
 	OR                    // ||
 	AND                   // &&
 	BIT_OR                // |
@@ -28,6 +29,8 @@ const (
 var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_QUESTION_MARK: TERNARY,
 	lexer.TOKEN_COALESCE:      TERNARY,
+
+	lexer.TOKEN_RANGE: RANGE,
 
 	lexer.TOKEN_OR:  OR,
 	lexer.TOKEN_AND: AND,

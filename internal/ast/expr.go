@@ -110,6 +110,7 @@ type CallExpr struct {
 	Spread  bool
 	Cast    *CastExpr
 	Lowered *CallExpr
+	Range   bool
 
 	NodePos
 }

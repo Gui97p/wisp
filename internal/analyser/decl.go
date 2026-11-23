@@ -428,9 +428,13 @@ func docOf(node ast.Node) string {
 
 func hasHintable(values []ast.Expression) bool {
 	for _, v := range values {
-		switch v.(type) {
+		switch v := v.(type) {
 		case *ast.SwitchExpr, *ast.BlockExpr:
 			return true
+		case *ast.CallExpr:
+			if rangeChain(v) {
+				return true
+			}
 		}
 	}
 	return false

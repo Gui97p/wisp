@@ -118,6 +118,10 @@ func (p *Parser) parseInterfaceMethod(doc string) *ast.InterfaceMethod {
 	endLine, endCol := p.currentEnd()
 	method.At = ast.Position{Line: start.Line, Col: start.Col, EndLine: endLine, EndCol: endCol}
 
+	if p.peek.Type == lexer.TOKEN_RBRACE {
+		p.errorExpected(lexer.TOKEN_SEMICOLON, lexer.TOKEN_RBRACE)
+		return method
+	}
 	if !p.expect(lexer.TOKEN_SEMICOLON) {
 		return nil
 	}

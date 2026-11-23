@@ -16,12 +16,15 @@ func (a *Analyser) checkBlock(block *ast.BlockStmt) {
 
 func (a *Analyser) checkStatements(stmts []ast.Statement) {
 	terminated, warned := false, false
-	for _, stmt := range stmts {
+	for i, stmt := range stmts {
 		if terminated && !warned {
 			a.warnf(stmt, "unreachable code")
 			warned = true
 		}
 		a.checkStmt(stmt)
+		if loop, isFor := stmt.(*ast.ForStmt); isFor && loop.Lowered != nil {
+			stmts[i] = loop.Lowered
+		}
 		switch s := stmt.(type) {
 		case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt, *ast.YieldStmt:
 			terminated = true
@@ -152,11 +155,31 @@ func (a *Analyser) checkIfStmt(stmt *ast.IfStmt) {
 func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 	line, col := stmt.Position()
 
+	if stmt.Lowered != nil {
+		a.checkStmt(stmt.Lowered)
+		return
+	}
+
 	if stmt.Range != nil {
+		probe := ast.Clone(stmt.Range, ast.CloneOptions{})
+		probeType := a.viewAsBase(probe, a.checkExpr(probe))
+		if a.lowerPointerFor(stmt, probeType) || a.lowerIteratorFor(stmt, probeType) {
+			a.checkStmt(stmt.Lowered)
+			return
+		}
 		rangeType := a.viewAsBase(stmt.Range, a.checkExpr(stmt.Range))
 
 		a.pushLoop(stmt.Label)
 		a.enterScope()
+
+		switch rangeType := rangeType.(type) {
+		case ArrayType, SpanType:
+			a.elementOnly(stmt)
+		case PrimitiveType:
+			if rangeType.Name == "string" {
+				a.elementOnly(stmt)
+			}
+		}
 
 		switch t := rangeType.(type) {
 		case ArrayType:

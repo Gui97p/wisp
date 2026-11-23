@@ -21,6 +21,7 @@ type Analyser struct {
 	hint            []Type
 	hintedSwitch    bool
 	blockHint       Type
+	rangeHint       Type
 	deferredFree    map[*Symbol]*ast.DeferStmt
 	loopFrames      []loopFrame
 	untilScope      *Scope
@@ -37,6 +38,7 @@ type Analyser struct {
 
 	inlineStack   []*ast.FuncDecl
 	currentInline *InlineCall
+	iterCount     int
 	siteFile      string
 	callee        ast.Expression
 	unavailable   map[string][]string
@@ -48,6 +50,7 @@ type Analyser struct {
 
 	importErrors map[string]string
 	module       string
+	home         string
 
 	universe    *Scope
 	moduleScope *Scope
@@ -115,6 +118,7 @@ func NewAnalyser(program *ast.Program, modules map[string]*ModuleInfo, declFiles
 		modules:              modules,
 		declFiles:            declFiles,
 		module:               module,
+		home:                 module,
 		instances:            map[string]*StructType{},
 		aliases:              map[string]Type{},
 		ifaceInstances:       map[string]*InterfaceType{},

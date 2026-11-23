@@ -97,7 +97,7 @@ func NewHandler() *protocol.Handler {
 	}
 
 	handler.TextDocumentDefinition = func(context *glsp.Context, params *protocol.DefinitionParams) (any, error) {
-		locations := definition(params.TextDocument.URI, params.Position)
+		locations := withoutBuiltin(definition(params.TextDocument.URI, params.Position))
 		if len(locations) == 0 {
 			return nil, nil
 		}

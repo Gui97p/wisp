@@ -43,6 +43,8 @@ func (a *Analyser) registerBuiltins() {
 
 	a.universe.Define(&Symbol{Name: "Error", Kind: TYPE, Type: ErrorType{}})
 
+	a.registerRange()
+
 	for _, symbol := range a.universe.symbols {
 		symbol.Builtin = true
 	}

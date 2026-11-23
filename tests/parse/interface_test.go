@@ -183,8 +183,8 @@ func TestInterfaceErrors(t *testing.T) {
 }
 
 func TestInterfaceMethodMissingSemicolon(t *testing.T) {
-	_, errors := parse(t, "interface AST { func node() }\n")
-	if len(errors) == 0 || !strings.Contains(errors[0], "expected ';'") {
+	_, errors := parse(t, "interface a {\n\tfunc a()\n}\n\nstruct b implements a {}\n\nfunc main() {}\n")
+	if len(errors) != 1 || !strings.Contains(errors[0], "expected ';'") {
 		t.Fatalf("errors: %v", errors)
 	}
 }

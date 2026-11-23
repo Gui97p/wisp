@@ -226,6 +226,8 @@ type ForStmt struct {
 	Range  Expression
 	Body   *BlockStmt
 
+	Lowered Statement
+
 	NodePos
 }
 

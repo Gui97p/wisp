@@ -339,6 +339,8 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		return &ast.DerefExpr{Value: left}
 	case lexer.TOKEN_IN:
 		return p.parseInExpr(left)
+	case lexer.TOKEN_RANGE:
+		return p.parseRangeExpr(left)
 	}
 
 	return left
@@ -1083,4 +1085,39 @@ func (p *Parser) parseJumpArm() ast.Statement {
 		stmt = jump
 	}
 	return stmt
+}
+
+func (p *Parser) parseRangeExpr(start ast.Expression) ast.Expression {
+	line, col := p.current.Line, p.current.Column
+	p.advance()
+	end := p.parseExpressionPratt(RANGE)
+	if end == nil {
+		return nil
+	}
+	name := &ast.IdentLiteral{Value: "__wisp_range", Synthetic: true}
+	name.SetPos(line, col)
+	name.SetEndPos(line, col+1)
+	call := &ast.CallExpr{Name: name, Args: []ast.Expression{start, end}, Range: true}
+	call.SetPos(line, col)
+	call.SetEndPos(p.currentEnd())
+	return call
+}
+
+func rangeOperands(expr ast.Expression) (start, end, step ast.Expression, ok bool) {
+	call, isCall := expr.(*ast.CallExpr)
+	if !isCall {
+		return nil, nil, nil, false
+	}
+	if call.Range {
+		return call.Args[0], call.Args[1], nil, true
+	}
+	member, isMember := call.Name.(*ast.MemberExpr)
+	if !isMember || member.Field != "step" || len(call.Args) != 1 {
+		return nil, nil, nil, false
+	}
+	inner, isRange := member.Object.(*ast.CallExpr)
+	if !isRange || !inner.Range {
+		return nil, nil, nil, false
+	}
+	return inner.Args[0], inner.Args[1], call.Args[0], true
 }

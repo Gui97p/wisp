@@ -654,7 +654,7 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 
 		prev := p.allowStructLiteral
 		p.allowStructLiteral = false
-		expr := p.parseExpression()
+		expr := p.parseExpressionPratt(RANGE)
 		p.allowStructLiteral = prev
 
 		if p.peek.Type == lexer.TOKEN_RANGE {
@@ -663,17 +663,10 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 			p.advance()
 			prev := p.allowStructLiteral
 			p.allowStructLiteral = false
-			stmt.End = p.parseExpression()
+			stmt.End = p.parseExpressionPratt(RANGE)
 			p.allowStructLiteral = prev
-
-			if p.peek.Type == lexer.TOKEN_COLON {
-				p.advance()
-				p.advance()
-				prev := p.allowStructLiteral
-				p.allowStructLiteral = false
-				stmt.Step = p.parseExpression()
-				p.allowStructLiteral = prev
-			}
+		} else if start, end, step, ok := rangeOperands(expr); ok {
+			stmt.Start, stmt.End, stmt.Step = start, end, step
 		} else {
 			stmt.Range = expr
 		}

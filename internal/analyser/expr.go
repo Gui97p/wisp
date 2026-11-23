@@ -474,15 +474,17 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 				} else if ft.Module != a.module && !viaBound && ft.InternalDir != "" && !insideDir(a.currentFile, ft.InternalDir) {
 					a.errorf(expr, "method %s of %s is internal to %q", member.Field, owner, filepath.Base(ft.InternalDir))
 				}
+				symbolModule := ft.Module
 				if ft.Template != nil && !ft.Inline {
 					owner = ft.Template.Owner
 					ft = a.instanceOfMethod(expr, ft)
+					symbolModule = a.home
 				}
 				a.info.MethodCalls[expr] = &MethodCall{
 					Iface:           ft.Iface,
 					Slot:            ft.Slot,
 					Owner:           owner,
-					Module:          ft.Module,
+					Module:          symbolModule,
 					Func:            ft,
 					PointerReceiver: pointerRecv,
 					ObjectIsPointer: objectPtr,
@@ -709,7 +711,11 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 		}
 
 		if call, ok := e.(*ast.CallExpr); ok {
+			if hint != nil && rangeChain(call) {
+				a.rangeHint = rangeElement(hint[index])
+			}
 			returns := a.checkCallExpr(call)
+			a.rangeHint = nil
 			if len(returns) == 0 {
 				if voidCallOK {
 					continue

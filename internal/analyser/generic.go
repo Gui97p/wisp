@@ -739,6 +739,11 @@ func (a *Analyser) callGeneric(expr *ast.CallExpr, calleeType Type, explicit []a
 		}
 	}
 
+	if hint := a.rangeHint; hint != nil && expr.Range && bound[0] == nil && allUntyped(argTypes) {
+		bound[0] = &TypeValue{Type: hint}
+	}
+	a.rangeHint = nil
+
 	if !a.inferTypeArgs(expr, g, argTypes, bound) {
 		return []Type{InvalidType{}}
 	}
@@ -870,8 +875,12 @@ func (a *Analyser) unify(g *GenericDecl, ref ast.TypeRef, t Type, bound []*TypeV
 
 	if ref.Module == "" && len(ref.Args) == 0 {
 		if idx := g.paramIndex(ref.Name); idx >= 0 && !g.Params[idx].Const {
+			untyped := isUntyped(t)
 			t = defaultType(t)
 			if bound[idx] != nil {
+				if untyped && bound[idx].Type != nil && fitsUntyped(bound[idx].Type, t) {
+					return ""
+				}
 				if !bound[idx].Type.Equals(t) {
 					return fmt.Sprintf("%s is both %s and %s in this call", ref.Name, bound[idx].Type.String(), t.String())
 				}
@@ -980,7 +989,7 @@ func (a *Analyser) instantiateFunc(node ast.Node, g *GenericDecl, args []TypeVal
 	clone.Exported = false
 	clone.Instance = g.display(args)
 
-	module := a.module
+	module := a.home
 	if fd.Inline {
 		module = g.Module
 	}

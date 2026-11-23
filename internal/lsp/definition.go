@@ -1,7 +1,10 @@
 package lsp
 
 import (
+	"net/url"
+	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -344,4 +347,16 @@ func interfaceMethodLocation(it *analyser.InterfaceType, name string) []protocol
 		}
 	}
 	return nil
+}
+
+func withoutBuiltin(locations []protocol.Location) []protocol.Location {
+	kept := locations[:0:0]
+	for _, loc := range locations {
+		name, _ := url.PathUnescape(strings.TrimPrefix(loc.URI, "file://"))
+		if strings.HasPrefix(filepath.Base(name), "<") {
+			continue
+		}
+		kept = append(kept, loc)
+	}
+	return kept
 }

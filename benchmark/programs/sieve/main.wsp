@@ -10,7 +10,7 @@ func main() {
 		if composite[i] == 0 {
 			count++;
 			if i <= N / i {
-				for j in i * i..N:i {
+				for j in (i * i..N).step(i) {
 					composite[j] = 1;
 				}
 			}

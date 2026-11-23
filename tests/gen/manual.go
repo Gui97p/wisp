@@ -2914,10 +2914,10 @@ func main() {
     check(total == 100, "for in array sums the values");
     check(idx == 6, "for in array indexes");
     int count = 0;
-    for i in a {
-        count += 1;
+    for v in a {
+        count += v;
     }
-    check(count == 4, "single name walks the indexes");
+    check(count == 100, "single name walks the elements");
     []int part = a[1:3];
     int sum = 0;
     for v in part {
@@ -3111,7 +3111,7 @@ func main() {
     }
     check(sum == 55, "for inclusive range");
     int stepped = 0;
-    for i in 1..10:4 {
+    for i in (1..10).step(4) {
         stepped += i;
     }
     check(stepped == 15, "for range with step");
@@ -6702,7 +6702,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6711,7 +6711,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 0..9:2 {
+        for i in (0..9).step(2) {
             count++;
             sum += i;
         }
@@ -6720,7 +6720,7 @@ func main() {
         int step = 2;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6729,7 +6729,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 0..9:3 {
+        for i in (0..9).step(3) {
             count++;
             sum += i;
         }
@@ -6738,7 +6738,7 @@ func main() {
         int step = 3;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6756,7 +6756,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6765,7 +6765,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 10..0:-1 {
+        for i in (10..0).step(-1) {
             count++;
             sum += i;
         }
@@ -6774,7 +6774,7 @@ func main() {
         int step = -1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6783,7 +6783,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 10..0:-3 {
+        for i in (10..0).step(-3) {
             count++;
             sum += i;
         }
@@ -6792,7 +6792,7 @@ func main() {
         int step = -3;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6810,7 +6810,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6819,7 +6819,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 5..-5:-2 {
+        for i in (5..-5).step(-2) {
             count++;
             sum += i;
         }
@@ -6828,7 +6828,7 @@ func main() {
         int step = -2;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6837,7 +6837,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 1..100:7 {
+        for i in (1..100).step(7) {
             count++;
             sum += i;
         }
@@ -6846,7 +6846,7 @@ func main() {
         int step = 7;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6855,7 +6855,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 100..1:-7 {
+        for i in (100..1).step(-7) {
             count++;
             sum += i;
         }
@@ -6864,7 +6864,7 @@ func main() {
         int step = -7;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6882,7 +6882,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6900,7 +6900,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6909,7 +6909,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 1000..0:-10 {
+        for i in (1000..0).step(-10) {
             count++;
             sum += i;
         }
@@ -6918,7 +6918,7 @@ func main() {
         int step = -10;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6936,7 +6936,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6945,7 +6945,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in -1073741830..-1073741824:2 {
+        for i in (-1073741830..-1073741824).step(2) {
             count++;
             sum += i;
         }
@@ -6954,7 +6954,7 @@ func main() {
         int step = 2;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6972,7 +6972,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6981,7 +6981,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in -2147483650..-2147483640:3 {
+        for i in (-2147483650..-2147483640).step(3) {
             count++;
             sum += i;
         }
@@ -6990,7 +6990,7 @@ func main() {
         int step = 3;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7008,7 +7008,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7017,7 +7017,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 9..0:-1 {
+        for i in (9..0).step(-1) {
             count++;
             sum += i;
         }
@@ -7026,7 +7026,7 @@ func main() {
         int step = -1;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7035,7 +7035,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 0..0:5 {
+        for i in (0..0).step(5) {
             count++;
             sum += i;
         }
@@ -7044,7 +7044,7 @@ func main() {
         int step = 5;
         int count2 = 0;
         int sum2 = 0;
-        for j in a..b:step {
+        for j in (a..b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7080,7 +7080,7 @@ func main() {
     }
     if true {
         int total = 0;
-        for i in 5..1:-1 {
+        for i in (5..1).step(-1) {
             for j in 1..3 {
                 total += i * j;
             }
@@ -7931,7 +7931,7 @@ func main() {
     }
     check(up == 1234, "range ascending visits every value");
     int down = 0;
-    for i in 4..1:-1 {
+    for i in (4..1).step(-1) {
         down = down * 10 + i;
     }
     check(down == 4321, "a negative step counts down");
@@ -7941,22 +7941,22 @@ func main() {
     }
     check(once == 1, "range with equal bounds runs once");
     int stepUp = 0;
-    for i in 1..10:4 {
+    for i in (1..10).step(4) {
         stepUp = stepUp * 100 + i;
     }
     check(stepUp == 10509, "range ascending with a step");
     int stepDown = 0;
-    for i in 10..1:-3 {
+    for i in (10..1).step(-3) {
         stepDown = stepDown * 100 + i;
     }
     check(stepDown == 10070401, "descending with a negative step");
     int skip = 0;
-    for i in 10..1:-20 {
+    for i in (10..1).step(-20) {
         skip += 1;
     }
     check(skip == 1, "range step larger than the distance visits only the start");
     int skipUp = 0;
-    for i in 1..10:20 {
+    for i in (1..10).step(20) {
         skipUp += 1;
     }
     check(skipUp == 1, "ascending step larger than the distance visits only the start");
@@ -7975,18 +7975,18 @@ func main() {
     }
     check(reversed == 0, "a range that starts above its end is empty");
     int wrongWay = 0;
-    for i in low..high:-1 {
+    for i in (low..high).step(-1) {
         wrongWay += 1;
     }
     check(wrongWay == 0, "a negative step over an ascending range is empty");
     int back = 0;
-    for i in high..low:-1 {
+    for i in (high..low).step(-1) {
         back = back * 10 + i;
     }
     check(back == 54321, "a runtime range counts down with a negative step");
     int s = -2;
     int dynamic = 0;
-    for i in 9..1:s {
+    for i in (9..1).step(s) {
         dynamic = dynamic * 10 + i;
     }
     check(dynamic == 97531, "a runtime negative step counts down");
@@ -8013,7 +8013,7 @@ func main() {
     check(calls == 3, "range with a call as its end runs the right number of times");
     int step = 2;
     int stepped = 0;
-    for i in 1..9:step {
+    for i in (1..9).step(step) {
         stepped += 1;
         step = 100;
     }
@@ -8027,7 +8027,7 @@ func main() {
     int a = 3;
     int b = 1;
     int dir = 0;
-    for i in a..b:-1 {
+    for i in (a..b).step(-1) {
         dir += 1;
     }
     check(dir == 3, "the step sign sets the direction when the bounds are variables");
@@ -8037,7 +8037,7 @@ func main() {
 	{dir: "abort_range_step_zero", src: `func main() {
     int step = 0;
     check(true, "abortstep before the loop");
-    for i in 1..5:step {
+    for i in (1..5).step(step) {
         check(true, "abortstep never printed");
     }
 }
@@ -8180,7 +8180,7 @@ func main() {
     check(turns == 3, "rangetypes iteration count of a narrow type");
     int8 step = 3;
     int seen = 0;
-    for i in 1..10:step {
+    for i in (1..10).step(step) {
         seen += 1;
     }
     check(seen == 4, "rangetypes step of a narrow type");
@@ -8696,7 +8696,7 @@ func deep() int {
 func indexOnly() int {
     [4]int xs = .{9, 9, 9, 9};
     int t = 0;
-    for i in xs {
+    for i, _ in xs {
         t += i;
     }
     return t;
@@ -12981,6 +12981,176 @@ func main() {
 }
 `, expected: []string{"a switch returned as an interface converts each case", "a switch returned as an optional interface converts each case", "a switch returned as an optional enum takes dotted variants and null", "a block takes the declared type for its dotted yields", "an assignment gives the switch its target type"}},
 
+	{dir: "for_in_iterators", src: `struct Count { int n; int max; }
+
+func (*Count c) next() ?int {
+    if c.n >= c.max {
+        return null;
+    }
+    c.n++;
+    return c.n;
+}
+
+struct Bag { [3]int items; }
+
+func (*Bag b) iter() Count {
+    return Count{n: 0, max: 3};
+}
+
+func upTo(int m) Count {
+    return Count{n: 0, max: m};
+}
+
+func main() {
+    Count c = .{n: 0, max: 4};
+    int sum = 0;
+    for x in c {
+        sum += x;
+    }
+    check(sum == 10 && c.n == 4, "a variable is consumed by the loop");
+    int paired = 0;
+    for i, x in upTo(3) {
+        paired += i * 10 + x;
+    }
+    check(paired == 36, "an index counts the items of a temporary iterator");
+    Bag bag;
+    int viaIter = 0;
+    for x in bag {
+        viaIter += x;
+    }
+    check(viaIter == 6, "a type with iter is walked through it");
+    *Count p = &c;
+    p.n = 0;
+    int pairs = 0;
+    :outer for a in p {
+        for b in upTo(5) {
+            if b == 2 {
+                continue :outer;
+            }
+            if a == 3 {
+                break :outer;
+            }
+            pairs += a * 10 + b;
+        }
+    }
+    check(pairs == 32, "labels reach the loop of an iterator");
+    [3]int xs = .{10, 20, 30};
+    int total = 0;
+    for x in xs {
+        total += x;
+    }
+    for i, _ in xs {
+        total += i;
+    }
+    check(total == 63, "a single name over an array is the element");
+}
+`, expected: []string{"a variable is consumed by the loop", "an index counts the items of a temporary iterator", "a type with iter is walked through it", "labels reach the loop of an iterator", "a single name over an array is the element"}},
+
+	{dir: "range_values", src: `func evens(int top) Range<int> {
+    return (0..top).step(2);
+}
+
+func total(Range<int> r) int {
+    int sum = 0;
+    for x in r {
+        sum += x;
+    }
+    return sum;
+}
+
+func main() {
+    Range<int> r = 0..9;
+    check(r.count() == 10 && r.contains(9) && !r.contains(10), "a range is a value with a size and a membership test");
+    check(total(r) == 45 && total(r) == 45, "a range can be walked again and again");
+    check(total(evens(10)) == 30 && evens(10).count() == 6, "a step is a method of the range");
+    Range<int> down = (10..1).step(-3);
+    int sumX = 0;
+    int sumI = 0;
+    for i, x in down {
+        sumX += x;
+        sumI += i;
+    }
+    check(sumX == 22 && sumI == 6, "a negative step counts down");
+    check(down.count() == 4 && down.contains(4) && !down.contains(5), "a descending range knows its size and members");
+    Range<int> none = 5..1;
+    int visits = 0;
+    for x in none {
+        visits += 1 + x - x;
+    }
+    check(visits == 0 && none.count() == 0, "a range that starts above its end is empty");
+    int literal = 0;
+    for i in (3..9).step(3) {
+        literal += i;
+    }
+    check(literal == 18, "a literal range with a step is still a counted loop");
+    Range<uint8> bytes = 0..255;
+    int seenBytes = 0;
+    for x in bytes {
+        seenBytes += 1 + int(x) - int(x);
+    }
+    check(seenBytes == 256 && bytes.count() == 256 && bytes.contains(255), "a range can end at the top of its type");
+    Range<uint8> sparse = (0..255).step(100);
+    int sparseSum = 0;
+    for x in sparse {
+        sparseSum += int(x);
+    }
+    check(sparseSum == 300 && sparse.count() == 3, "the range takes the type it is declared with");
+    Range<int> wide = -9223372036854775807..9223372036854775807;
+    int jumps = 0;
+    for x in wide.step(4611686018427387904) {
+        jumps += 1 + x - x;
+    }
+    check(jumps == 4, "a range that spans most of int does not overflow");
+    Range<uint> backwards = (5..0).step(-2);
+    int backSum = 0;
+    for x in backwards {
+        backSum += int(x);
+    }
+    check(backSum == 9 && backwards.count() == 3 && backwards.contains(3) && !backwards.contains(4), "an unsigned range counts down");
+}
+`, expected: []string{"a range is a value with a size and a membership test", "a range can be walked again and again", "a step is a method of the range", "a negative step counts down", "a descending range knows its size and members", "a range that starts above its end is empty", "a literal range with a step is still a counted loop", "a range can end at the top of its type", "the range takes the type it is declared with", "a range that spans most of int does not overflow", "an unsigned range counts down"}},
+
+	{dir: "for_in_pointers", src: `struct P { int x; int y; }
+
+func main() {
+    [3]int xs = .{1, 2, 3};
+    for p in &xs {
+        p@ += 10;
+    }
+    check(xs[0] == 11 && xs[1] == 12 && xs[2] == 13, "a pointer to an array gives pointers to its elements");
+    []int view = xs[0:2];
+    for i, p in &view {
+        p@ = p@ * 2 + i;
+    }
+    check(xs[0] == 22 && xs[1] == 25 && xs[2] == 13, "a pointer to a slice does too, with an index first");
+    [2]P ps = .{.{x: 1, y: 2}, .{x: 3, y: 4}};
+    for p in &ps {
+        p.x += 100;
+        p.y = p.x;
+    }
+    check(ps[0].x == 101 && ps[0].y == 101 && ps[1].x == 103 && ps[1].y == 103, "the elements of structs change through the pointer");
+    int total = 0;
+    :outer for p in &xs {
+        for q in &xs {
+            if q@ > 25 {
+                continue :outer;
+            }
+            total += q@;
+        }
+        if p@ > 0 {
+            break :outer;
+        }
+    }
+    check(total == 60, "labels reach the loop over pointers");
+    [0]int none;
+    int visited = 0;
+    for p in &none {
+        visited += 1;
+    }
+    check(visited == 0, "an empty array has no elements to walk");
+}
+`, expected: []string{"a pointer to an array gives pointers to its elements", "a pointer to a slice does too, with an index first", "the elements of structs change through the pointer", "labels reach the loop over pointers", "an empty array has no elements to walk"}},
+
 	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
 interface Closer { func close(); }
 interface WriteCloser { Writer & Closer }
@@ -13050,6 +13220,39 @@ func main() {
     check(same(3, 3) && !same("a", "b") && same(true, true), "Comparable");
 }
 `, expected: []string{"a type that declares implements satisfies the constraint", "close() of WriteCloser was called through the constraint", "an instance of a generic struct implements an instance of a generic interface", "a type set with several types", "a type defined from a member of the set satisfies it", "a type set that excludes a type", "Comparable"}},
+
+	{dir: "generics_sibling_calls", files: map[string]string{"lib/lib.wsp": `public struct Box<T> {
+    T v;
+}
+
+public func (Box<T> b) twice() T {
+    T x = b.once();
+    return pick(x, x);
+}
+
+public func (Box<T> b) once() T {
+    return b.v;
+}
+
+func pick<T>(T a, T b) T {
+    return first(a, b);
+}
+
+func first<T>(T a, T b) T {
+    return b;
+}
+
+public func outer<T>(T a) T {
+    return pick(a, a);
+}
+`}, src: `import "lib";
+
+func main() {
+    lib.Box<int> b = .{v: 4};
+    check(b.twice() == 4, "a method of a generic from another module calls its siblings and generic functions");
+    check(lib.outer(7) == 7 && lib.outer(2.5) == 2.5, "a generic function calls other generic functions of its module");
+}
+`, expected: []string{"a method of a generic from another module calls its siblings and generic functions", "a generic function calls other generic functions of its module"}},
 
 	{dir: "interfaces_modules", files: map[string]string{"shapes/shapes.wsp": `public interface Shape {
     func area() int;

@@ -106,7 +106,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int, typ
 	p.advance()
 
 	if value == nil {
-		expr := p.parseExpression()
+		expr := p.parseExpressionPratt(RANGE)
 		if expr != nil && p.peek.Type == lexer.TOKEN_RANGE {
 			p.errorf("a range needs a switch value to compare against")
 			return nil
@@ -136,7 +136,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int, typ
 		return match
 	}
 
-	expr := p.parseExpression()
+	expr := p.parseExpressionPratt(RANGE)
 	if expr == nil {
 		return nil
 	}
@@ -167,7 +167,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int, typ
 		p.advance()
 		p.advance()
 
-		end := p.parseExpression()
+		end := p.parseExpressionPratt(RANGE)
 		if end == nil {
 			return nil
 		}

@@ -1047,3 +1047,47 @@ func TestCompletionInTypedContexts(t *testing.T) {
 		})
 	}
 }
+
+func TestRangeInLSP(t *testing.T) {
+	c := start(t)
+
+	members := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..9;\n\tint n = r.¦\n}\n"}).completion()
+	for _, want := range []string{"start", "end", "contains", "count", "iter", "step"} {
+		if !slices.Contains(members, want) {
+			t.Errorf("a range lacks %q: %v", want, members)
+		}
+	}
+	for _, hidden := range []string{"by", "stride", "makeRange"} {
+		if slices.Contains(members, hidden) {
+			t.Errorf("a range offers the internal %q: %v", hidden, members)
+		}
+	}
+
+	names := c.open(map[string]string{"main.wsp": "func main() {\n\tRan¦\n}\n"}).completion()
+	if !slices.Contains(names, "Range") {
+		t.Errorf("Range is not offered: %v", names)
+	}
+
+	hover := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..9;\n\tint n = r.cou¦nt();\n}\n"}).hover()
+	if !strings.Contains(hover, "count() int") || !strings.Contains(hover, "How many values") {
+		t.Errorf("hover of count: %q", hover)
+	}
+
+	dots := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0.¦.9;\n}\n"}).hover()
+	if !strings.Contains(dots, "Range<int>") || strings.Contains(dots, "__wisp") {
+		t.Errorf("hover of ..: %q", dots)
+	}
+
+	typed := c.open(map[string]string{"main.wsp": "func main() {\n\tRan¦ge<int> r = 0..9;\n}\n"})
+	if hover := typed.hover(); !strings.Contains(hover, "struct Range<T>") {
+		t.Errorf("hover of Range: %q", hover)
+	}
+	if defs := typed.definition(); len(defs) != 0 {
+		t.Errorf("Range has no file to open: %v", defs)
+	}
+
+	method := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..9;\n\tint n = r.cou¦nt();\n}\n"})
+	if defs := method.definition(); len(defs) != 0 {
+		t.Errorf("a builtin method has no file to open: %v", defs)
+	}
+}

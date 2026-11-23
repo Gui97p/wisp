@@ -261,21 +261,30 @@ func TestGenericTestIsRejected(t *testing.T) {
 	expect(t, out, "a test cannot be generic")
 }
 
-func TestCompactReport(t *testing.T) {
+func TestShortLines(t *testing.T) {
 	out, code := run(t, "basic", "test")
 	if code != 1 {
 		t.Errorf("exit code %d, want 1", code)
 	}
 	expect(t, out,
 		"Running 5 tests",
-		"FAIL  calc.test: failsWithError",
-		"FAIL  calc.test: an index out of range aborts",
+		"ok    calc: add works in the file itself",
+		"ok    tests/blackbox: public api from another folder",
+		"FAIL  calc.test: failsWithError\n",
 		"panic: index out of range",
-		"Failed:",
 		"Test result: FAILED. 3 passed, 2 failed",
 	)
-	refuse(t, out, "ok    calc: add works in the file itself", "ok    tests/blackbox")
-	if !strings.Contains(out, "...FF") && !strings.Contains(out, "FF") {
-		t.Errorf("the output has no progress line:\n%s", out)
+	refuse(t, out, "Failed:", "ok    calc: add works in the file itself  (")
+	if strings.Count(out, "FAIL  calc.test: failsWithError") != 2 {
+		t.Errorf("a failure is listed once and explained once:\n%s", out)
 	}
+}
+
+func TestQuietPrintsDots(t *testing.T) {
+	out, code := run(t, "basic", "test", "-q")
+	if code != 1 {
+		t.Errorf("exit code %d, want 1", code)
+	}
+	expect(t, out, "Running 5 tests", "FAIL  calc.test: failsWithError", "panic: index out of range", "Test result: FAILED. 3 passed, 2 failed")
+	refuse(t, out, "Failed:", "ok    calc: add works in the file itself")
 }

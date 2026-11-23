@@ -334,6 +334,9 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 		}
 	case *ast.IdentLiteral:
 		if sym := identSymbol(e, info, line, col); sym != nil {
+			if ft, isFunc := sym.Type.(*analyser.FuncType); isFunc && strings.Contains(sym.Name, "wisp_range") && len(ft.Returns) == 1 {
+				return renderDoc(analyser.TypeText(ft.Returns[0]), "The values from start to end, both included.")
+			}
 			if text := declaredTypeHover(sym, program); text != "" {
 				return text
 			}
@@ -441,6 +444,8 @@ func methodHover(e *ast.MemberExpr, program *ast.Program, info *analyser.Info) s
 			doc := ""
 			if decl != nil {
 				doc = decl.Doc
+			} else if method.Func.Decl != nil {
+				doc = method.Func.Decl.Doc
 			}
 			return renderDoc(analyser.FuncSignature(e.Field, method.Func, decl), joinDocs(doc, "Method."))
 		}
