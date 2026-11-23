@@ -1,0 +1,153 @@
+import "std/errors";
+import "std/mem";
+
+/// A growable array. `items` holds the elements, so it is indexed, sliced and
+/// walked like any slice: `l.items[i]`, `l.items[a:b]`, `for x in l.items`. Never
+/// assign to it: the methods keep it and the capacity in step. It stays valid
+/// until the next call that adds elements, which can move them.
+///
+/// The zero value is an empty list that is ready to use, and it takes its
+/// memory from `parent`, or from the heap when that is null.
+public struct List<T> {
+	?mem.Allocator parent;
+	[]T items;
+	internal int cap;
+}
+
+inline func (*List<T> l) source() mem.Allocator {
+	return l.parent ?? mem.heap;
+}
+
+inline func (*List<T> l) storage() []T {
+	return (*T)(l.items)[0:l.cap];
+}
+
+inline func (*List<T> l) setLen(int n) {
+	l.items = (*T)(l.items)[0:n];
+}
+
+/// Makes room for n more elements, so that the next n appends cannot fail. When
+/// it fails the list is left as it was.
+public func (*List<T> l) reserve(int n) ! {
+	int needed = len(l.items) + n;
+	return if needed <= l.cap;
+
+	int cap = l.cap;
+	if cap < 8 {
+		cap = 8;
+	}
+	loop cap < needed {
+		cap *= 2;
+	}
+	int count = len(l.items);
+	[]T bigger = mem.resize<T>(l.source(), l.storage(), cap)!;
+	l.items = bigger[0:count];
+	l.cap = cap;
+}
+
+/// Adds an element at the end.
+public func (*List<T> l) append(T v) ! {
+	l.reserve(1)!;
+	int at = len(l.items);
+	l.setLen(at + 1);
+	l.items[at] = v;
+}
+
+/// Adds the elements of a slice at the end, which may belong to this list.
+public func (*List<T> l) extend([]T more) ! {
+	int n = len(more);
+	return if n == 0;
+
+	int index = -1;
+	if l.cap > 0 {
+		*T base = (*T)(l.items);
+		*T start = (*T)(more);
+		if start >= base && start < base + l.cap {
+			index = start - base;
+		}
+	}
+
+	l.reserve(n)!;
+	*T source = (*T)(more);
+	if index >= 0 {
+		source = (*T)(l.items) + index;
+	}
+	int at = len(l.items);
+	l.setLen(at + n);
+	mem.move(&l.items[at], source, n * int(sizeof(T)));
+}
+
+/// Puts an element before the one at position i. A position past the end is an
+/// error: i can be len(l.items) to add at the end.
+public func (*List<T> l) insert(int i, T v) ! {
+	int count = len(l.items);
+	return Error(errors.Kind.Invalid) if i < 0 || i > count;
+
+	l.reserve(1)!;
+	l.setLen(count + 1);
+	if i < count {
+		mem.move(&l.items[i + 1], &l.items[i], (count - i) * int(sizeof(T)));
+	}
+	l.items[i] = v;
+}
+
+/// Takes the last element out, or gives null when the list is empty.
+public func (*List<T> l) pop() ?T {
+	int count = len(l.items);
+	return null if count == 0;
+
+	T v = l.items[count - 1];
+	l.setLen(count - 1);
+	return v;
+}
+
+/// Takes the element at position i out, keeping the order of the others, or
+/// gives null when there is none there.
+public func (*List<T> l) remove(int i) ?T {
+	int count = len(l.items);
+	return null if i < 0 || i >= count;
+
+	T v = l.items[i];
+	if i < count - 1 {
+		mem.move(&l.items[i], &l.items[i + 1], (count - i - 1) * int(sizeof(T)));
+	}
+	l.setLen(count - 1);
+	return v;
+}
+
+/// The element at position i, or null when there is none there.
+public func (*List<T> l) get(int i) ?T {
+	return null if i < 0 || i >= len(l.items);
+	return l.items[i];
+}
+
+/// Forgets every element and keeps the memory for the next ones.
+public inline func (*List<T> l) clear() {
+	l.setLen(0);
+}
+
+/// How many elements the list holds.
+public inline func (*List<T> l) len() int {
+	return len(l.items);
+}
+
+/// A new list with the same elements, from the same allocator. The elements are
+/// copied as they are, so pointers still point to the same things, and a list
+/// of lists shares what is inside them.
+public func (*List<T> l) clone() !List<T> {
+	return l.cloneIn(l.source())!;
+}
+
+/// Like clone, with the memory taken from another allocator.
+public func (*List<T> l) cloneIn(mem.Allocator a) !List<T> {
+	List<T> copy = .{parent: a};
+	copy.extend(l.items)!;
+	return copy;
+}
+
+/// Gives the memory back. The list is empty afterwards, and can be used again.
+public func (*List<T> l) release() {
+	mem.free(l.source(), l.items);
+	l.items = .{};
+	l.cap = 0;
+}
