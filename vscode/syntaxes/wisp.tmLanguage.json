@@ -639,7 +639,7 @@
             ]
         },
         "function-signature": {
-            "begin": "\\b(func)\\s+(?:(\\()\\s*(\\*+)?\\s*([A-Za-z_][A-Za-z0-9_]*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(\\))\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(\\()",
+            "begin": "\\b(func)\\s+(?:(\\()\\s*(\\*+)?\\s*([A-Za-z_][A-Za-z0-9_]*)(<[^()]*>)?(?:\\s+([A-Za-z_][A-Za-z0-9_]*))?\\s*(\\))\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(<[^()]*>)?\\s*(\\()",
             "beginCaptures": {
                 "1": {
                     "name": "storage.type.function.wisp"
@@ -654,15 +654,29 @@
                     "name": "entity.name.type.wisp"
                 },
                 "5": {
-                    "name": "variable.other.readwrite.wisp"
+                    "patterns": [
+                        {
+                            "include": "#type-param-list"
+                        }
+                    ]
                 },
                 "6": {
-                    "name": "punctuation.bracket.wisp"
+                    "name": "variable.other.readwrite.wisp"
                 },
                 "7": {
-                    "name": "entity.name.function.wisp"
+                    "name": "punctuation.bracket.wisp"
                 },
                 "8": {
+                    "name": "entity.name.function.wisp"
+                },
+                "9": {
+                    "patterns": [
+                        {
+                            "include": "#type-param-list"
+                        }
+                    ]
+                },
+                "10": {
                     "name": "punctuation.bracket.wisp"
                 }
             },
@@ -734,6 +748,41 @@
                 },
                 {
                     "include": "#delimiters"
+                }
+            ]
+        },
+        "type-param-list": {
+            "patterns": [
+                {
+                    "name": "punctuation.bracket.wisp",
+                    "match": "[<>]"
+                },
+                {
+                    "name": "punctuation.separator.wisp",
+                    "match": ","
+                },
+                {
+                    "name": "storage.modifier.wisp",
+                    "match": "\\bconst\\b"
+                },
+                {
+                    "name": "storage.type.primitive.wisp",
+                    "match": "\\b(?:u?int(?:8|16|32|64)?|float(?:32|64)|bool|byte|string)\\b(?=\\s+[A-Za-z_])"
+                },
+                {
+                    "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.type.wisp"
+                        },
+                        "2": {
+                            "name": "entity.name.type.parameter.wisp"
+                        }
+                    }
+                },
+                {
+                    "name": "entity.name.type.parameter.wisp",
+                    "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
                 }
             ]
         }

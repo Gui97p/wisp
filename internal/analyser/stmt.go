@@ -1,6 +1,8 @@
 package analyser
 
 import (
+	"strings"
+
 	"slices"
 
 	"github.com/Gui97p/wisp/internal/ast"
@@ -278,6 +280,8 @@ func (a *Analyser) coerceRangeValue(slot *ast.Expression, what string) {
 func (a *Analyser) defineLoopVar(stmt *ast.ForStmt, name string, tp Type, at ast.Position, line, col int) {
 	if at.Line != 0 {
 		line, col = at.Line, at.Col
+	} else if strings.HasPrefix(name, "__wisp_") {
+		line, col = 0, 0
 	}
 	sym := &Symbol{Name: name, Kind: VAR, Type: tp, Line: line, Col: col, File: a.currentFile}
 	a.scope.Define(sym)

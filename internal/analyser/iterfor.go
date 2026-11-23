@@ -68,12 +68,12 @@ func (a *Analyser) lowerIteratorFor(stmt *ast.ForStmt, rangeType Type) bool {
 
 	ident := func(name string) *ast.IdentLiteral {
 		id := &ast.IdentLiteral{Value: name, Synthetic: true}
-		a.at(stmt, id)
+		a.synthetic(stmt, id)
 		return id
 	}
 	declare := func(name string, value ast.Expression) *ast.VarStmt {
 		decl := &ast.VarStmt{Vars: []ast.Param{{Name: name}}, Values: []ast.Expression{value}}
-		a.at(stmt, decl)
+		a.synthetic(stmt, decl)
 		return decl
 	}
 
@@ -84,44 +84,46 @@ func (a *Analyser) lowerIteratorFor(stmt *ast.ForStmt, rangeType Type) bool {
 	}
 
 	nextCall := &ast.CallExpr{Name: &ast.MemberExpr{Object: ident(holder), Field: "next"}}
-	a.at(stmt, nextCall)
-	a.at(stmt, nextCall.Name)
+	a.synthetic(stmt, nextCall)
+	a.synthetic(stmt, nextCall.Name)
 
 	body := stmt.Body
 	if indexName != "" && indexName != "_" {
 		advance := &ast.IncDecStmt{Target: ident(counter), Op: "++"}
-		a.at(stmt, advance)
+		a.synthetic(stmt, advance)
 		index := declare(indexName, ident(counter))
 		index.Vars[0].Line, index.Vars[0].Col = indexAt.Line, indexAt.Col
 		index.Vars[0].EndLine, index.Vars[0].EndCol = indexAt.EndLine, indexAt.EndCol
+		a.place(index, indexAt)
 		body.Statements = append([]ast.Statement{index, advance}, body.Statements...)
 	}
 
 	item := ident(capture)
+	a.place(item, elemAt)
 	test := &ast.IfStmt{Condition: item, Capture: elemName, CaptureAt: elemAt, CaptureSrc: item, Then: body}
-	a.at(stmt, test)
+	a.synthetic(stmt, test)
 	leave := &ast.BreakStmt{}
-	a.at(stmt, leave)
+	a.synthetic(stmt, leave)
 	otherwise := &ast.BlockStmt{Statements: []ast.Statement{leave}}
-	a.at(stmt, otherwise)
+	a.synthetic(stmt, otherwise)
 	test.Else = otherwise
 
 	step := &ast.BlockStmt{Statements: []ast.Statement{declare(capture, nextCall), test}}
-	a.at(stmt, step)
+	a.synthetic(stmt, step)
 	loopBody := &ast.BlockStmt{Statements: []ast.Statement{step}}
-	a.at(stmt, loopBody)
+	a.synthetic(stmt, loopBody)
 	loop := &ast.LoopStmt{Label: stmt.Label, Body: loopBody}
-	a.at(stmt, loop)
+	a.synthetic(stmt, loop)
 
 	statements := []ast.Statement{declare(holder, held)}
 	if indexName != "" && indexName != "_" {
 		zero := &ast.IntLiteral{Value: 0}
-		a.at(stmt, zero)
+		a.synthetic(stmt, zero)
 		statements = append(statements, declare(counter, zero))
 	}
 	statements = append(statements, loop)
 	outer := &ast.BlockStmt{Statements: statements}
-	a.at(stmt, outer)
+	a.synthetic(stmt, outer)
 	stmt.Lowered = outer
 	return true
 }
@@ -150,42 +152,43 @@ func (a *Analyser) lowerPointerFor(stmt *ast.ForStmt, rangeType Type) bool {
 
 	ident := func(name string) *ast.IdentLiteral {
 		node := &ast.IdentLiteral{Value: name, Synthetic: true}
-		a.at(stmt, node)
+		a.synthetic(stmt, node)
 		return node
 	}
 	collection := func() ast.Expression {
 		node := &ast.DerefExpr{Value: ident(holder)}
-		a.at(stmt, node)
+		a.synthetic(stmt, node)
 		return node
 	}
 
 	body := stmt.Body
 	if elemName != "_" {
 		slot := &ast.IndexExpr{Array: collection(), Index: ident(indexName)}
-		a.at(stmt, slot)
+		a.synthetic(stmt, slot)
 		address := &ast.UnaryExpr{Operator: "&", Value: slot}
-		a.at(stmt, address)
+		a.synthetic(stmt, address)
 		bind := &ast.VarStmt{Vars: []ast.Param{{Name: elemName, Line: elemAt.Line, Col: elemAt.Col, EndLine: elemAt.EndLine, EndCol: elemAt.EndCol}}, Values: []ast.Expression{address}}
-		a.at(stmt, bind)
+		a.synthetic(stmt, bind)
+		a.place(bind, elemAt)
 		body.Statements = append([]ast.Statement{bind}, body.Statements...)
 	}
 
 	size := &ast.CallExpr{Name: &ast.IdentLiteral{Value: "len"}, Args: []ast.Expression{collection()}}
-	a.at(stmt, size)
-	a.at(stmt, size.Name)
+	a.synthetic(stmt, size)
+	a.synthetic(stmt, size.Name)
 	one := &ast.IntLiteral{Value: 1}
-	a.at(stmt, one)
+	a.synthetic(stmt, one)
 	last := &ast.BinaryExpr{Left: size, Operator: "-", Right: one}
-	a.at(stmt, last)
+	a.synthetic(stmt, last)
 	zero := &ast.IntLiteral{Value: 0}
-	a.at(stmt, zero)
+	a.synthetic(stmt, zero)
 	loop := &ast.ForStmt{Label: stmt.Label, Var: indexName, VarAt: indexAt, Start: zero, End: last, Body: body}
-	a.at(stmt, loop)
+	a.synthetic(stmt, loop)
 
 	hold := &ast.VarStmt{Vars: []ast.Param{{Name: holder}}, Values: []ast.Expression{stmt.Range}}
-	a.at(stmt, hold)
+	a.synthetic(stmt, hold)
 	outer := &ast.BlockStmt{Statements: []ast.Statement{hold, loop}}
-	a.at(stmt, outer)
+	a.synthetic(stmt, outer)
 	stmt.Lowered = outer
 	return true
 }

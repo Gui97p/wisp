@@ -211,6 +211,20 @@ func (a *Analyser) at(node ast.Node, built ast.Node) {
 	built.SetEndPos(endLine, endCol)
 }
 
+func (a *Analyser) synthetic(node ast.Node, built ast.Node) {
+	line, col := node.Position()
+	built.SetPos(line, col)
+	built.SetEndPos(line, col-1)
+}
+
+func (a *Analyser) place(node ast.Node, at ast.Position) {
+	if at.Line == 0 {
+		return
+	}
+	node.SetPos(at.Line, at.Col)
+	node.SetEndPos(at.EndLine, at.EndCol)
+}
+
 func (a *Analyser) optionalMember(object ast.Expression, field string) *ast.MemberExpr {
 	member := &ast.MemberExpr{Object: object, Field: field}
 	a.at(object, member)

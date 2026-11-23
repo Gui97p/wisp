@@ -1303,3 +1303,17 @@ func TestUseAfterFreeWarning(t *testing.T) {
 		})
 	}
 }
+
+func TestHoverOfLoweredLoops(t *testing.T) {
+	c := start(t)
+	for _, tc := range []struct{ name, src, want string }{
+		{"pointer loop variable", "func fill<T>([]T items, T v) {\n\tfor ¦k in &items {\n\t\tk@ = v;\n\t}\n}\nfunc main() {}\n", "*T k"},
+		{"iterator loop variable", "struct C { int n; }\nfunc (*C c) next() ?int { return null; }\nfunc main() {\n\tC c;\n\tfor ¦x in c {\n\t\tint y = x;\n\t}\n}\n", "int x"},
+		{"for keyword", "func fill<T>([]T items, T v) {\n\t¦for k in &items {\n\t\tk@ = v;\n\t}\n}\nfunc main() {}\n", ""},
+	} {
+		got := c.open(map[string]string{"main.wsp": tc.src}).hover()
+		if tc.want == "" && got != "" || !strings.Contains(got, tc.want) {
+			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}

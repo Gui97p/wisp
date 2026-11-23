@@ -2,6 +2,7 @@ package analyser
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
 )
@@ -423,6 +424,9 @@ func (a *Analyser) warnUnusedGlobals() {
 func identPos(p ast.Param, line, col int) (int, int) {
 	if p.Line != 0 {
 		return p.Line, p.Col
+	}
+	if strings.HasPrefix(p.Name, "__wisp_") {
+		return 0, 0
 	}
 	return line, col
 }
