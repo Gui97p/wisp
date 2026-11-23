@@ -226,6 +226,7 @@ func (a *Analyser) registerMethods() {
 		}
 
 		a.checkInlineDecl(fd)
+		a.checkOperatorMethodDecl(fd, recvType)
 
 		receiverName := ""
 		if fd.Receiver != nil {

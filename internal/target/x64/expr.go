@@ -17,7 +17,22 @@ func (t *X64Target) compileExpr(expr ast.Expression) (Operand, error) {
 	return op, t.locate(expr, err)
 }
 
+func loweredOf(expr ast.Expression) ast.Expression {
+	switch e := expr.(type) {
+	case *ast.BinaryExpr:
+		return e.Lowered
+	case *ast.IndexExpr:
+		return e.Lowered
+	case *ast.SliceExpr:
+		return e.Lowered
+	}
+	return nil
+}
+
 func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
+	if lowered := loweredOf(expr); lowered != nil {
+		return t.compileExpr(lowered)
+	}
 	if _, recorded := t.info.Folds[expr]; recorded {
 		if value, ok := t.info.Folded(expr); ok {
 			if value.Kind == analyser.ConstBool {
@@ -259,6 +274,9 @@ func (t *X64Target) compileAssignable(expr ast.Expression) (Operand, error) {
 }
 
 func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
+	if lowered := loweredOf(expr); lowered != nil {
+		return t.compileLValue(lowered)
+	}
 	switch e := expr.(type) {
 	case *ast.IdentLiteral:
 		size := sizeOf(t.info.Types[e])

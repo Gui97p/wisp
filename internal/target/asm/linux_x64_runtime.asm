@@ -35,6 +35,7 @@ global main
 section .rodata
 
 section .bss
+__wisp_altstack: resb 16384
 __wisp_envp: resq 1
 __wisp_args_ptr: resq 1
 __wisp_args_len: resq 1
@@ -183,6 +184,61 @@ __wisp_panic_site:
 	mov eax, 60
 	syscall
 
+__wisp_install_signals:
+	push rdi
+	push rsi
+	push rdx
+	sub rsp, 32
+	lea rax, [rel __wisp_altstack]
+	mov [rsp], rax
+	mov qword [rsp+8], 0
+	mov qword [rsp+16], 16384
+	mov rdi, rsp
+	xor esi, esi
+	mov eax, 131
+	syscall
+
+	lea rax, [rel __wisp_segv]
+	mov [rsp], rax
+	mov qword [rsp+8], 0x0C000004
+	lea rax, [rel __wisp_restore]
+	mov [rsp+16], rax
+	mov qword [rsp+24], 0
+	mov edi, 11
+	mov rsi, rsp
+	xor edx, edx
+	mov r10d, 8
+	mov eax, 13
+	syscall
+	add rsp, 32
+	pop rdx
+	pop rsi
+	pop rdi
+	ret
+
+__wisp_restore:
+	mov eax, 15
+	syscall
+
+__wisp_segv:
+	mov rax, [rsi+16]
+	mov rcx, [rdx+160]
+	mov rdx, rcx
+	sub rdx, 65536
+	cmp rax, rdx
+	jb .other
+	add rcx, 16777216
+	cmp rax, rcx
+	jae .other
+	lit {"panic: stack overflow", 10}
+	jmp .done
+.other:
+	lit {"panic: invalid memory access", 10}
+.done:
+	mov edi, 1
+	mov eax, 60
+	syscall
+
 __wisp_panic:
 	push rdi
 	push rsi
@@ -314,6 +370,7 @@ main:
 	push rbp
 	mov rbp, rsp
 	mov [rel __wisp_envp], rdx
+	call __wisp_install_signals
 
 	mov r9, rdi
 	imul r9, 16

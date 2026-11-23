@@ -2,6 +2,7 @@ package analyser
 
 func (a *Analyser) registerBuiltins() {
 	a.universe.Define(&Symbol{Name: "Comparable", Kind: INTERFACE, Type: &InterfaceType{Name: "Comparable", builtin: "comparable", key: "Comparable"}, Used: true})
+	a.universe.Define(&Symbol{Name: "Orderable", Kind: INTERFACE, Type: &InterfaceType{Name: "Orderable", builtin: "orderable", key: "Orderable"}, Used: true})
 	intType := PrimitiveType{Name: "int"}
 	strType := PrimitiveType{Name: "string"}
 

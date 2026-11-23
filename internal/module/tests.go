@@ -49,6 +49,17 @@ func exposeTests(program *ast.Program) {
 	}
 }
 
+func dropTests(program *ast.Program) {
+	kept := program.Declarations[:0]
+	for _, decl := range program.Declarations {
+		if fd, ok := decl.(*ast.FuncDecl); ok && fd.Receiver == nil && fd.TagNamed("test") != nil {
+			continue
+		}
+		kept = append(kept, decl)
+	}
+	program.Declarations = kept
+}
+
 func testFunctions(mods []*Module) []TestFunc {
 	var tests []TestFunc
 	for _, mod := range mods {

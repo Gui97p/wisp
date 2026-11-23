@@ -288,6 +288,18 @@ func comparableType(t Type) bool {
 		return true
 	case NamedType:
 		return v.Enum
+	case *StructType:
+		return hasOperatorMethod(t, "eq", returnsBool)
+	}
+	return false
+}
+
+func orderableType(t Type) bool {
+	switch v := definedBase(t).(type) {
+	case PrimitiveType:
+		return v.Name != "bool"
+	case *StructType:
+		return hasOperatorMethod(t, "less", returnsBool)
 	}
 	return false
 }
@@ -363,6 +375,12 @@ func (a *Analyser) satisfiesInterface(t Type, i *InterfaceType) string {
 			return ""
 		}
 		return fmt.Sprintf("%s cannot be compared with ==", t)
+	}
+	if i.builtin == "orderable" {
+		if orderableType(t) {
+			return ""
+		}
+		return fmt.Sprintf("%s cannot be ordered with <", t)
 	}
 	if held, isInterface := t.(*InterfaceType); isInterface {
 		return coverProblem(held, i)

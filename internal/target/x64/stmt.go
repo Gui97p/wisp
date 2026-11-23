@@ -232,7 +232,7 @@ func (t *X64Target) compileAssignStmt(stmt *ast.AssignStmt) error {
 		if stmt.Op == "=" {
 			switch s := stmt.Values[0].(type) {
 			case *ast.BinaryExpr:
-				if s.Operator != "/" && s.Operator != "%" {
+				if s.Lowered == nil && s.Operator != "/" && s.Operator != "%" {
 					var ident *ast.IdentLiteral
 					var expr ast.Expression
 					if targetIdent, ok := stmt.Targets[0].(*ast.IdentLiteral); ok {

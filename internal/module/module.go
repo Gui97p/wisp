@@ -392,6 +392,8 @@ func loadModule(path, dir string, files []string, overrides map[string][]byte) *
 
 		if testsEnabled {
 			exposeTests(program)
+		} else {
+			dropTests(program)
 		}
 
 		mod.Files = append(mod.Files, program)

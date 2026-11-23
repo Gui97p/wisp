@@ -37,6 +37,9 @@ func elemSize(tp analyser.Type) int {
 }
 
 func regsNeeded(expr ast.Expression) int {
+	if lowered := loweredOf(expr); lowered != nil {
+		return regsNeeded(lowered)
+	}
 	switch e := expr.(type) {
 	case *ast.ArrayLiteral:
 		needed := 0

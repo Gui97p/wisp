@@ -26,6 +26,8 @@ extern MultiByteToWideChar
 extern WriteConsoleW
 extern WriteFile
 extern ExitProcess
+extern AddVectoredExceptionHandler
+extern SetThreadStackGuarantee
 
 %macro lit 1
 	section .rodata
@@ -260,6 +262,26 @@ __wisp_panic_site:
 	mov ecx, 1
 	call ExitProcess
 
+__wisp_fault:
+	mov rax, [rcx]
+	mov eax, [rax]
+	cmp eax, 0xC00000FD
+	je .overflow
+	cmp eax, 0xC0000005
+	je .invalid
+	xor eax, eax
+	ret
+.overflow:
+	lit {"panic: stack overflow", 10}
+	jmp .exit
+.invalid:
+	lit {"panic: invalid memory access", 10}
+.exit:
+	and rsp, -16
+	sub rsp, 32
+	mov ecx, 1
+	call ExitProcess
+
 __wisp_panic:
 	push rdi
 	push rsi
@@ -375,6 +397,21 @@ main:
 	push rbp
 	mov rbp, rsp
 	mov [rel __wisp_envp], rdx
+
+	push rdi
+	push rsi
+	push rdx
+	sub rsp, 40
+	mov ecx, 1
+	lea rdx, [rel __wisp_fault]
+	call AddVectoredExceptionHandler
+	mov dword [rsp+32], 65536
+	lea rcx, [rsp+32]
+	call SetThreadStackGuarantee
+	add rsp, 40
+	pop rdx
+	pop rsi
+	pop rdi
 
 	mov r9, rdi
 	imul r9, 16

@@ -200,6 +200,7 @@ func singleReturn(block *ast.BlockStmt) (*ast.ReturnStmt, bool) {
 }
 
 func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
+	expr.Lowered = nil
 	left := a.checkExpr(expr.Left)
 	if held, isInterface := left.(*InterfaceType); isInterface && expr.TypeTest {
 		return a.checkInterfaceTypeCase(expr, held)
@@ -220,6 +221,10 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 		}
 	}
 	right := a.checkExpr(expr.Right)
+
+	if t, handled := a.lowerOperator(expr, left, right); handled {
+		return t
+	}
 
 	if expr.Operator == "==" || expr.Operator == "!=" {
 		if t, handled := a.checkErrorComparison(expr, left, right); handled {
@@ -552,6 +557,10 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 }
 
 func (a *Analyser) checkCallArgsWith(expr *ast.CallExpr, ft *FuncType, argTypes []Type) {
+	if ft.Decl != nil && ft.Decl.Receiver == nil && ft.Decl.TagNamed("test") != nil && !strings.HasPrefix(a.module, ".wisp-test-main") {
+		a.errorf(expr, "%s is a test: only `wisp test` runs it, so it cannot be called", ft.label()).
+			WithHelp("move what it does into a function, and call that from the test")
+	}
 
 	if expr.Spread && (!ft.Variadic || ft.CVariadic) {
 		a.errorf(expr, "... passes a slice on to a variadic parameter, and %s has none", ft.label())
@@ -854,11 +863,16 @@ func (a *Analyser) viewAsBase(expr ast.Expression, t Type) Type {
 }
 
 func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
+	expr.Lowered = nil
 	arrType := a.viewAsBase(expr.Array, a.checkExpr(expr.Array))
 	idxType := a.checkExpr(expr.Index)
 
 	if _, ok := arrType.(InvalidType); ok {
 		return InvalidType{}
+	}
+
+	if t, handled := a.lowerIndex(expr, arrType); handled {
+		return t
 	}
 
 	switch t := arrType.(type) {
@@ -897,6 +911,7 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 }
 
 func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
+	expr.Lowered = nil
 	original := a.checkExpr(expr.Array)
 	arrType := a.viewAsBase(expr.Array, original)
 	if expr.Start != nil {
@@ -904,6 +919,10 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 	}
 	if expr.End != nil {
 		a.requireNumeric(expr.End, a.checkExpr(expr.End), "slice end")
+	}
+
+	if t, handled := a.lowerSlice(expr, arrType); handled {
+		return t
 	}
 
 	switch t := arrType.(type) {
@@ -986,8 +1005,39 @@ func (a *Analyser) checkPropagateExpr(expr *ast.PropagateExpr) Type {
 	return InvalidType{}
 }
 
+func callName(call *ast.CallExpr) string {
+	switch n := call.Name.(type) {
+	case *ast.IdentLiteral:
+		return n.Value
+	case *ast.MemberExpr:
+		return n.Field
+	}
+	return "this call"
+}
+
 func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
-	operand := a.checkExpr(expr.Value)
+	var operand Type
+	if call, isCall := expr.Value.(*ast.CallExpr); isCall {
+		returns := a.checkCallExpr(call)
+		switch len(returns) {
+		case 0:
+			op := "!"
+			if expr.Assert {
+				op = "!!"
+			}
+			a.errorf(expr, "%s gives no value and cannot fail, so %s has nothing to check", callName(call), op).
+				WithHelp("call it as a statement: %s(...);", callName(call))
+			return []Type{InvalidType{}}
+		case 1:
+			a.info.Types[call] = returns[0]
+			operand = returns[0]
+		default:
+			a.errorf(call, "functions returns %d values, expected 1 in this context", len(returns))
+			return []Type{InvalidType{}}
+		}
+	} else {
+		operand = a.checkExpr(expr.Value)
+	}
 	if _, bad := operand.(InvalidType); bad {
 		return []Type{InvalidType{}}
 	}

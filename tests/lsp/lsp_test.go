@@ -1251,3 +1251,26 @@ func TestMembersOfAnyExpressionBeforeTheDot(t *testing.T) {
 		})
 	}
 }
+
+func TestDiagnosticsOfOperatorsAndCalls(t *testing.T) {
+	c := start(t)
+	cases := []struct{ name, src, want string }{
+		{"!! on a call with no result", "func abc() {\n}\n\nfunc main() {\n\tabc()!!;\n}\n", "abc gives no value and cannot fail, so !! has nothing to check"},
+		{"calling a test", "#test\nfunc abc() ! {\n}\n\nfunc main() {\n\tabc()!!;\n}\n", "abc is a test: only `wisp test` runs it, so it cannot be called"},
+		{"eq with the wrong signature", "struct P { int x; }\nfunc (P a) eq(int b) bool { return true; }\nfunc main() {\n\tP p;\n\tP q;\n\tbool same = p == q;\n}\n", "eq of P has to be func (P a) eq(P b) bool"},
+		{"index with the wrong signature", "struct S { int n; }\nfunc (*S s) index(int i) int { return i; }\nfunc main() {\n\tS s;\n\tint v = s[0];\n}\n", "index of S has to be func (*S x) index(position) *Element"},
+		{"eq on a type that has ==", "type Meters int;\nfunc (Meters a) eq(Meters b) bool { return true; }\nfunc main() {}\n", "Meters already has ==, so eq would never be called"},
+		{"index on a string type", "type Name string;\nfunc (Name n) index(int i) *byte { return null!!; }\nfunc main() {}\n", "Name already has [], so index would never be called"},
+		{"== on a struct with no eq", "struct P { int x; }\nfunc main() {\n\tP p;\n\tP q;\n\tbool same = p == q;\n}\n", "operator == is not defined for P"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, d := range c.open(map[string]string{"main.wsp": tc.src}).diagnostics() {
+				if strings.Contains(d.Message, tc.want) {
+					return
+				}
+			}
+			t.Errorf("no diagnostic says %q", tc.want)
+		})
+	}
+}

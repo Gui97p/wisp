@@ -20,6 +20,7 @@ type BinaryExpr struct {
 	Synthetic bool
 	TypeTest  bool
 	Bind      *TypeBind
+	Lowered   Expression
 
 	NodePos
 }
@@ -144,8 +145,9 @@ type MemberExpr struct {
 }
 
 type IndexExpr struct {
-	Array Expression
-	Index Expression
+	Array   Expression
+	Index   Expression
+	Lowered Expression
 
 	NodePos
 }
@@ -168,9 +170,10 @@ func (i *IndexExpr) Tree(indent string) string {
 }
 
 type SliceExpr struct {
-	Array Expression
-	Start Expression
-	End   Expression
+	Array   Expression
+	Start   Expression
+	End     Expression
+	Lowered Expression
 
 	NodePos
 }

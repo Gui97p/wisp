@@ -502,6 +502,9 @@ func (t *X64Target) compileFloatComparison(op string, left, right Operand, leftT
 }
 
 func (t *X64Target) branch(cond ast.Expression, label string, whenTrue bool) error {
+	if lowered := loweredOf(cond); lowered != nil {
+		return t.branch(lowered, label, whenTrue)
+	}
 	if c, folded := t.info.Folded(cond); folded && c.Kind == analyser.ConstBool {
 		if c.Bool == whenTrue {
 			t.text.printft("jmp %s\n", label)

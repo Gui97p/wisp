@@ -344,6 +344,7 @@ func (a *Analyser) opaqueFor(g *GenericDecl, param ast.TypeParam, expr *Constrai
 	impl := &ImplSet{}
 	methods := map[string]*FuncType{}
 	comparable := false
+	orderable := false
 
 	if expr != nil {
 		walkConstraintAtoms(expr, func(atom *ConstraintExpr) {
@@ -354,12 +355,20 @@ func (a *Analyser) opaqueFor(g *GenericDecl, param ast.TypeParam, expr *Constrai
 				comparable = true
 				return
 			}
+			if atom.Iface.builtin == "orderable" {
+				orderable = true
+				return
+			}
 			impl.add(atom.Iface)
 		})
 	}
 
 	var result Type
-	if comparable {
+	if orderable {
+		nt := NamedType{Name: param.Name, Underlying: PrimitiveType{Name: "int"}, Methods: methods, Module: g.Module, Dir: filepath.Dir(g.File), Exported: true, Impl: impl}
+		impl.typ = nt
+		result = nt
+	} else if comparable {
 		nt := NamedType{Name: param.Name, Underlying: PrimitiveType{Name: "int"}, Enum: true, Methods: methods, Module: g.Module, Dir: filepath.Dir(g.File), Exported: true, Members: map[string]int64{}, MemberDocs: map[string]string{}, Impl: impl}
 		impl.typ = nt
 		result = nt

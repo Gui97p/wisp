@@ -19,6 +19,9 @@ func (t *X64Target) framelessExpr(expr ast.Expression, params map[*analyser.Symb
 	case *ast.BoolLiteral, *ast.CharLiteral, *ast.IntLiteral, *ast.NullLiteral:
 		return true
 	case *ast.BinaryExpr:
+		if e.Lowered != nil {
+			return false
+		}
 		if e.Operator == ">>" || e.Operator == "<<" {
 			_, ok := t.info.Folded(e.Right)
 			return ok

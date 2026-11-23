@@ -992,6 +992,9 @@ func (t *X64Target) mustPush(op Operand, later []ast.Expression) bool {
 
 func hasCall(exprs []ast.Expression) bool {
 	for _, expr := range exprs {
+		if lowered := loweredOf(expr); lowered != nil {
+			return hasCall([]ast.Expression{lowered})
+		}
 		switch e := expr.(type) {
 		case *ast.CallExpr, *ast.PropagateExpr, *ast.CoalesceExpr, *ast.SwitchExpr, *ast.BlockExpr:
 			return true

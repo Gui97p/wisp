@@ -4780,6 +4780,25 @@ func main() ! {
 }
 `, expected: []string{"the table follows thousands of live blocks", "freeing half leaves half", "everything freed, nothing reported"}},
 
+	{dir: "abort_stack_overflow", src: `func deeper(int n) int {
+    return deeper(n + 1) + 1;
+}
+
+func main() {
+    check(true, "stack overflow before the recursion");
+    int n = deeper(0);
+    check(n == 0, "stack overflow never printed");
+}
+`, expected: []string{"stack overflow before the recursion"}, abort: "panic: stack overflow"},
+
+	{dir: "abort_invalid_memory", src: `func main() {
+    check(true, "invalid memory before the write");
+    *int p = (*int)(4096);
+    p@ = 1;
+    check(true, "invalid memory never printed");
+}
+`, expected: []string{"invalid memory before the write"}, abort: "panic: invalid memory access"},
+
 	{dir: "abort_panic_location", src: `func fail(string why) {
     panic(why);
 }
@@ -13353,6 +13372,174 @@ func main() {
     check(len(arr) == 5, "and the builtin len still works next to it");
 }
 `, expected: []string{"a method can be called len", "and the builtin len still works next to it"}},
+
+	{dir: "operator_methods", src: `struct Point {
+    int x;
+    int y;
+}
+
+func (Point a) eq(Point b) bool {
+    return a.x == b.x && a.y == b.y;
+}
+
+struct Version {
+    int major;
+    int minor;
+}
+
+func (Version a) less(Version b) bool {
+    return a.major < b.major || (a.major == b.major && a.minor < b.minor);
+}
+
+struct Ring {
+    [4]int buf;
+    int head;
+    int size;
+}
+
+func (*Ring r) index(int i) *int {
+    if i < 0 || i >= r.size {
+        panic("ring index out of range");
+    }
+    return &r.buf[(r.head + i) % 4];
+}
+
+func (*Ring r) slice(int start, int end) []int {
+    return r.buf[start:end];
+}
+
+func (*Ring r) len() int {
+    return r.size;
+}
+
+func same<Comparable T>(T a, T b) bool {
+    return a == b;
+}
+
+func smaller<Orderable T>(T a, T b) T {
+    if a < b {
+        return a;
+    }
+    return b;
+}
+
+func count<Comparable T>([]T items, T want) int {
+    int n = 0;
+    for it in items {
+        if it == want {
+            n++;
+        }
+    }
+    return n;
+}
+
+func next() Version {
+    return Version{major: 1, minor: 3};
+}
+
+func main() {
+    Point p = .{x: 1, y: 2};
+    Point q = .{x: 1, y: 2};
+    Point r = .{x: 2, y: 2};
+    check(p == q && !(p != q) && p != r && !(p == r), "== and != call eq");
+
+    Version a = .{major: 1, minor: 2};
+    Version b = .{major: 1, minor: 5};
+    check(a < b && a <= b && !(a > b) && !(a >= b) && b > a && b >= a, "the four orderings come from less");
+    check(next() > a && a <= next() && !(next() < a), "operands that are calls are evaluated once, in order");
+
+    Ring ring = .{buf: .{10, 20, 30, 40}, head: 1, size: 3};
+    ring[0] = 5;
+    ring[2] += 1;
+    int v = ring[1];
+    *int ptr = &ring[0];
+    ptr@ = 7;
+    check(v == 30 && ring[0] == 7 && ring[2] == 41, "an index method reads, writes, and gives the address");
+    []int part = ring[1:3];
+    []int whole = ring[:];
+    check(len(part) == 2 && len(whole) == 3, "a slice method takes the open forms through len");
+
+    [3]Point ps = .{p, .{x: 9, y: 9}, q};
+    check(same(p, q) && !same(p, r) && same(3, 3) && !same("a", "b"), "Comparable takes a struct that has eq");
+    check(count(ps[0:3], p) == 2, "and a generic compares its elements with ==");
+    Version c = smaller(b, a);
+    check(c.minor == 2 && smaller(4, 2) == 2 && smaller("b", "a") == "a" && smaller(2.5, 1.5) == 1.5, "Orderable takes numbers, strings and structs that have less");
+}
+`, expected: []string{"== and != call eq", "the four orderings come from less", "operands that are calls are evaluated once, in order", "an index method reads, writes, and gives the address", "a slice method takes the open forms through len", "Comparable takes a struct that has eq", "and a generic compares its elements with ==", "Orderable takes numbers, strings and structs that have less"}},
+
+	{dir: "operator_methods_in_context", src: `struct Point {
+    int x;
+    int y;
+}
+
+func (Point a) eq(Point b) bool {
+    return a.x == b.x && a.y == b.y;
+}
+
+struct Row {
+    int first;
+}
+
+func (*Row r) index(int col) *int {
+    return &(*int)(r)[col];
+}
+
+struct Grid {
+    [6]int cells;
+    int width;
+}
+
+func (*Grid g) index(int row) *Row {
+    return (*Row)(&g.cells[row * g.width]);
+}
+
+struct Cell {
+    int v;
+}
+
+func (*Cell c) index(int i) *int {
+    return &c.v;
+}
+
+inline func fast(Point a, Point b) bool {
+    return a == b;
+}
+
+func sum3(int a, int b, int c) int {
+    return a + b + c;
+}
+
+func main() {
+    Point p = .{x: 1, y: 2};
+    Point q = .{x: 1, y: 2};
+    Point z = .{x: 0, y: 0};
+    int matched = 0;
+    switch p {
+        case z => matched = 1;
+        case q => matched = 2;
+        default => matched = 3;
+    }
+    check(matched == 2, "a case compares with eq");
+    check(fast(p, q), "an inline function can compare with eq");
+
+    Grid g = .{cells: .{1, 2, 3, 4, 5, 6}, width: 3};
+    g[1][2] = 60;
+    g[0][1]++;
+    g[0][0] -= 5;
+    int total = sum3(g[0][0], g[0][1], g[1][2]) + g[1][0] * 2;
+    check(total == 67 && g[1][1] == 5, "indexes chain, assign, count and sit in arguments");
+    Cell c = .{v: 4};
+    c[9] += 3;
+    check(c.v == 7, "compound assignment goes through the index method");
+
+    bool mix = (p == q) && !(p == z) && (z != p);
+    int k = 0;
+    loop p == q && k < 3 {
+        k++;
+    }
+    check(mix && k == 3, "== works inside conditions and loops");
+}
+`, expected: []string{"a case compares with eq", "an inline function can compare with eq", "indexes chain, assign, count and sit in arguments", "compound assignment goes through the index method", "== works inside conditions and loops"}},
 
 	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
 interface Closer { func close(); }
