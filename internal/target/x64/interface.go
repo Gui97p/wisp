@@ -104,3 +104,17 @@ func (t *X64Target) compileInterfaceTypeCase(expr *ast.BinaryExpr, tc *analyser.
 	t.freeOp(subject)
 	return Reg{result, 1}, nil
 }
+
+func (t *X64Target) compileInterfaceData(expr *ast.CastExpr) (Operand, error) {
+	op, err := t.compileExpr(expr.Value)
+	if err != nil {
+		return nil, err
+	}
+	object := slot(t.ctx.Reserve(16), 16)
+	t.store(op, object)
+	t.freeOp(op)
+
+	reg := t.ctx.AllocFreeRegister()
+	t.loadWord(reg, object.at(0, 8))
+	return Reg{reg, 8}, nil
+}

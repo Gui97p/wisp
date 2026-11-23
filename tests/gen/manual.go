@@ -13151,6 +13151,63 @@ func main() {
 }
 `, expected: []string{"a pointer to an array gives pointers to its elements", "a pointer to a slice does too, with an index first", "the elements of structs change through the pointer", "labels reach the loop over pointers", "an empty array has no elements to walk"}},
 
+	{dir: "interface_to_pointer", src: `import "std/mem";
+
+interface Node { func node() int; }
+
+struct Lit implements Node { int v; }
+
+func (*Lit l) node() int { return l.v; }
+
+func make(int v) !Node {
+    *Lit l = (*Lit)(mem.alloc(sizeof(Lit))!);
+    l.v = v;
+    return l;
+}
+
+func main() ! {
+    Node n = make(7)!;
+    *void p = (*void)(n);
+    check(n.node() == 7, "an interface still works after taking its pointer");
+    *Lit back = (*Lit)(p);
+    check(back.v == 7, "the pointer of an interface is the object it holds");
+    mem.free(n);
+    Node m = make(9)!;
+    ?*void q = m;
+    *void r = m;
+    check(q != null && (*void)(m) == r, "an interface converts on its own to a pointer, and to a nullable one");
+    mem.free(q);
+}
+`, expected: []string{"an interface still works after taking its pointer", "the pointer of an interface is the object it holds", "an interface converts on its own to a pointer, and to a nullable one"}},
+
+	{dir: "type_switch_interface_case", src: `interface Hashable { func hash() uint; }
+interface Number { int | float }
+
+struct P implements Hashable { int x; int y; }
+
+func (P p) hash() uint { return uint(p.x) * 31 + uint(p.y); }
+
+struct Q { int z; }
+
+func hashOf<K>(K k) uint {
+    switch type k {
+        case Number n => return uint(n);
+        case string s => return uint(len(s));
+        case Hashable h => return h.hash();
+        default => return 999;
+    }
+}
+
+func main() {
+    P p = .{x: 1, y: 2};
+    Q q = .{z: 3};
+    check(hashOf(5) == 5 && hashOf(2.5) == 2, "a constraint case matches the types it holds");
+    check(hashOf("abc") == 3, "a plain type case still matches");
+    check(hashOf(p) == 33, "an interface case matches a type that implements it");
+    check(hashOf(q) == 999, "and does not match one that does not");
+}
+`, expected: []string{"a constraint case matches the types it holds", "a plain type case still matches", "an interface case matches a type that implements it", "and does not match one that does not"}},
+
 	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
 interface Closer { func close(); }
 interface WriteCloser { Writer & Closer }

@@ -261,6 +261,17 @@ func (a *Analyser) coerce(slot *ast.Expression, from, to Type) bool {
 		return true
 	}
 
+	if isInterfaceValue(from) {
+		if tp, ok := to.(PointerType); ok && isVoidPointer(to) {
+			voidPointer := PointerType{Element: VoidType{}}
+			a.insertCast(slot, voidPointer)
+			if tp.Nullable {
+				return a.coerce(slot, voidPointer, to)
+			}
+			return true
+		}
+	}
+
 	if it, isInterface := to.(*InterfaceType); isInterface {
 		if handled, ok := a.coerceToInterface(slot, from, it); handled {
 			return ok
@@ -637,6 +648,7 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 		a.checkConstFits(arg, PrimitiveType{Name: "uint64"})
 		a.fixUntyped(arg, PrimitiveType{Name: "uint64"})
 	case isNullType(from) && a.retypeNull(arg, from, result):
+	case isInterfaceValue(from) && isVoidPointer(pointer):
 	case isWideInteger(underlyingOf(from)):
 	case isString(underlyingOf(from)) && isByteLike(pointer.Element):
 	case sequenceMatches(underlyingOf(from), pointer.Element):
@@ -778,4 +790,9 @@ func (a *Analyser) insertInterfaceConversion(slot *ast.Expression, from PointerT
 	a.info.Types[cast] = to
 	a.info.IfaceConversions[cast] = &IfaceConversion{Iface: to, From: from, Entries: entries}
 	*slot = cast
+}
+
+func isInterfaceValue(t Type) bool {
+	_, ok := t.(*InterfaceType)
+	return ok
 }

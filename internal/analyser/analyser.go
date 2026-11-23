@@ -15,18 +15,19 @@ type Analyser struct {
 	info  *Info
 	scope *Scope
 
-	currentReturns  []Type
-	currentFallible bool
-	yieldFrames     []yieldFrame
-	hint            []Type
-	hintedSwitch    bool
-	blockHint       Type
-	rangeHint       Type
-	deferredFree    map[*Symbol]*ast.DeferStmt
-	loopFrames      []loopFrame
-	untilScope      *Scope
-	untilFrame      int
-	untilSawBody    bool
+	currentReturns   []Type
+	currentFallible  bool
+	yieldFrames      []yieldFrame
+	hint             []Type
+	hintedSwitch     bool
+	blockHint        Type
+	rangeHint        Type
+	constraintAsTest bool
+	deferredFree     map[*Symbol]*ast.DeferStmt
+	loopFrames       []loopFrame
+	untilScope       *Scope
+	untilFrame       int
+	untilSawBody     bool
 
 	mustUse        []*Symbol
 	pendingDots    map[*ast.DotIdent]bool
@@ -291,7 +292,7 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 			}
 			if it, isInterface := result.(*InterfaceType); isInterface {
 				it.ensure()
-				if it.ConstraintOnly() {
+				if it.ConstraintOnly() && !a.constraintAsTest {
 					a.errorAtRef(node, ref, "%s is a constraint, not a contract: it cannot be the type of a value", it.Name).
 						WithHelp("it constrains a type parameter, as in <%s T>", it.Name)
 					return InvalidType{}

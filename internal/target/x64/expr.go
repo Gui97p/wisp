@@ -561,6 +561,10 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 	srcType := t.info.Types[expr.Value]
 	dstType := t.info.Types[expr]
 
+	if _, fromInterface := srcType.(*analyser.InterfaceType); fromInterface {
+		return t.compileInterfaceData(expr)
+	}
+
 	if expr.Saturate {
 		op, err := t.compileExpr(expr.Value)
 		if err != nil {

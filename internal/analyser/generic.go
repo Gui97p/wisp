@@ -1154,12 +1154,17 @@ func (a *Analyser) staticTypeMatch(test *ast.BinaryExpr, subject Type) bool {
 		}
 	}
 
+	a.constraintAsTest = true
 	resolved := a.resolveTypeRef(test, a.scope, ref)
+	a.constraintAsTest = false
 	if resolved == nil {
 		return false
 	}
 	if _, invalid := resolved.(InvalidType); invalid {
 		return false
+	}
+	if it, isInterface := resolved.(*InterfaceType); isInterface {
+		return a.satisfiesInterface(subject, it) == ""
 	}
 	return resolved.Equals(subject)
 }
