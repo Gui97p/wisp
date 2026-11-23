@@ -342,6 +342,7 @@ type FuncType struct {
 	Inline       bool
 	Nullable     bool
 	Template     *MethodTemplate
+	Generic      *InstanceInfo
 	Iface        *InterfaceType
 	Slot         int
 }

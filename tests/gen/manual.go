@@ -2580,7 +2580,7 @@ func (*Counter c) allocDirty(int n) !*void {
     return mem.heap.allocDirty(n)!;
 }
 
-func (*Counter _c) realloc(?*void p, int old, int n) !*void {
+func (*Counter) realloc(?*void p, int old, int n) !*void {
     return mem.heap.realloc(p, old, n)!;
 }
 
@@ -2665,7 +2665,7 @@ func (*Counter c) allocDirty(int n) !*void {
     return mem.heap.allocDirty(n)!;
 }
 
-func (*Counter _c) realloc(?*void p, int old, int n) !*void {
+func (*Counter) realloc(?*void p, int old, int n) !*void {
     return mem.heap.realloc(p, old, n)!;
 }
 
@@ -13287,6 +13287,46 @@ func main() {
     check(wrap(wrap(1)) == 4, "and can be nested");
 }
 `, expected: []string{"an inline function calls a generic one, written with or without its type", "and can be nested"}},
+
+	{dir: "optional_unwrap_through_pointer", src: `interface A { func get() int; }
+
+struct Raw implements A { int n; }
+
+func (*Raw r) get() int { return r.n; }
+
+struct D implements A { ?A parent; }
+
+func (*D d) get() int { return (d.parent!!).get() + 1; }
+
+struct Big { int a; int b; int c; }
+
+struct Holder { ?Big big; string name; }
+
+func viaPointer(*D d) int {
+    A p = d.parent!!;
+    return p.get();
+}
+
+func sum(*Holder h) int {
+    Big b = h.big!!;
+    return b.a + b.b + b.c;
+}
+
+func main() {
+    Raw state;
+    state.n = 5;
+    D d;
+    d.parent = &state;
+    A a = &d;
+    check(viaPointer(&d) == 5, "an optional interface field unwrapped through a pointer");
+    check(a.get() == 6, "and called in the same expression, from a method");
+    Holder h = .{big: Big{a: 1, b: 2, c: 3}, name: "x"};
+    check(sum(&h) == 6, "an optional struct field unwrapped through a pointer");
+    Holder none;
+    Big fallback = none.big ?? Big{a: 9, b: 9, c: 9};
+    check(fallback.a == 9, "an absent optional struct field takes the fallback");
+}
+`, expected: []string{"an optional interface field unwrapped through a pointer", "and called in the same expression, from a method", "an optional struct field unwrapped through a pointer", "an absent optional struct field takes the fallback"}},
 
 	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
 interface Closer { func close(); }

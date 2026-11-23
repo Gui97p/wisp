@@ -36,8 +36,7 @@ public inline func (*Fixed f) used() int {
 	return f.bUsed;
 }
 
-public func (*Fixed _f) free(?*void _p) {
-}
+public func (*Fixed) free(?*void _p) {}
 
 public func (*Fixed f) realloc(?*void p, int old, int n) !*void {
 	errors.ensure(old >= 0 && n >= 0, errors.Kind.Invalid)!;

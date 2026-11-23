@@ -74,7 +74,7 @@ func verifyPoison(*Header h) {
 	}
 }
 
-func mix(uint key) uint {
+inline func mix(uint key) uint {
 	uint x = key >> 4;
 	x = x ^ (x >> 29);
 	x = x *% 0xBF58476D1CE4E5B9;

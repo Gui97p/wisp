@@ -1000,6 +1000,9 @@ func (a *Analyser) instantiateFunc(node ast.Node, g *GenericDecl, args []TypeVal
 		Name: name, Params: params, ParamNames: paramNames, Returns: returns, Variadic: variadic, Fallible: fd.Fallible,
 		Module: module, DeclFile: g.File, Decl: clone, Scope: scope, Inline: fd.Inline,
 	}
+	if fd.Inline {
+		ft.Generic = &InstanceInfo{Decl: g, Args: args}
+	}
 	line, col := fd.Position()
 	sym := &Symbol{Name: name, Kind: FUNC, Type: ft, Line: line, Col: col, File: g.File, Module: module, Doc: fd.Doc, Used: true}
 	cache[key] = sym

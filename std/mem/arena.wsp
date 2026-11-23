@@ -85,8 +85,7 @@ public func (*Arena a) release() {
 	a.head = null;
 }
 
-public func (*Arena _a) free(?*void _p) {
-}
+public func (*Arena) free(?*void _p) {}
 
 public func (*Arena a) reset() {
 	mem.Allocator source = a.source();

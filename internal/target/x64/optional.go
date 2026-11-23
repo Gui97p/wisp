@@ -57,7 +57,12 @@ func (t *X64Target) testPresent(parts optionalParts) (x64context.Register, strin
 		reg := t.materialize(parts.value, 8)
 		return reg, t.ctx.GetRegister(reg, 8), 8
 	}
-	reg := t.materialize(parts.present, 1)
+	reg := t.ctx.AllocFreeRegister()
+	if reg == x64context.NoReg {
+		t.fail("x86-64: no available registers")
+		return reg, "", 1
+	}
+	t.loadWord(reg, parts.present)
 	return reg, t.ctx.GetRegister(reg, 1), 1
 }
 

@@ -172,6 +172,10 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 	savedLoops, savedYields := a.loopFrames, a.yieldFrames
 	savedInline := a.currentInline
 	savedUntil := a.untilScope
+	savedContext := a.instanceContext
+	if ft.Generic != nil {
+		a.instanceContext = &instanceContext{gen: ft.Generic.Decl, args: ft.Generic.Args}
+	}
 
 	if a.siteFile == "" {
 		a.siteFile = a.currentFile
@@ -215,6 +219,7 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 
 	a.inlineStack = a.inlineStack[:len(a.inlineStack)-1]
 	a.currentInline = savedInline
+	a.instanceContext = savedContext
 	a.loopFrames, a.yieldFrames, a.untilScope = savedLoops, savedYields, savedUntil
 	a.currentReturns, a.currentFallible = savedReturns, savedFallible
 	a.currentFile, a.siteFile = savedFile, savedSite

@@ -102,6 +102,23 @@ func FindProjectRoot(startDir string) string {
 	}
 }
 
+func stdModulePath(file string) (string, bool) {
+	stdRoot, err := StdlibRoot()
+	if err != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(stdRoot, file)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", false
+	}
+	rel = filepath.ToSlash(strings.TrimSuffix(rel, ".wsp"))
+	dir, name := filepath.Split(rel)
+	if dir != "" && strings.TrimSuffix(dir, "/") == name {
+		return "std/" + name, true
+	}
+	return "std/" + rel, true
+}
+
 func canonicalModulePath(root, file string) (string, error) {
 	rel, err := filepath.Rel(root, file)
 	if err != nil {
@@ -320,6 +337,9 @@ func discoverModuleRoots(root string) ([]moduleRoot, error) {
 		path, err := canonicalModulePath(root, p)
 		if err != nil {
 			return err
+		}
+		if stdPath, ok := stdModulePath(p); ok {
+			path = stdPath
 		}
 		roots = append(roots, moduleRoot{path: path, dir: filepath.Dir(p), files: []string{p}})
 		return nil

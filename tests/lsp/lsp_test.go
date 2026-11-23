@@ -1,6 +1,8 @@
 package lsp
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -1089,5 +1091,23 @@ func TestRangeInLSP(t *testing.T) {
 	method := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..9;\n\tint n = r.cou¦nt();\n}\n"})
 	if defs := method.definition(); len(defs) != 0 {
 		t.Errorf("a builtin method has no file to open: %v", defs)
+	}
+}
+
+func TestStdModulesOpenedAsFiles(t *testing.T) {
+	c := start(t)
+	for _, name := range []string{"mem/mem.wsp", "mem/debug.wsp", "mem/arena.wsp"} {
+		path := filepath.Join(repoRoot(), "std", filepath.FromSlash(name))
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := &project{c: c, dir: filepath.Dir(path), path: path, text: string(data)}
+		c.notify("textDocument/didOpen", map[string]any{"textDocument": map[string]any{"uri": "file://" + path, "languageId": "wisp", "version": 1, "text": string(data)}})
+		for _, d := range p.diagnostics() {
+			if d.Severity == 1 {
+				t.Errorf("%s: %s", name, d.Message)
+			}
+		}
 	}
 }

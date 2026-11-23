@@ -15,8 +15,7 @@ public interface Allocator {
 	func free(?*void p);
 }
 
-struct Raw implements Allocator {
-}
+struct Raw implements Allocator {}
 
 /// The heap of the process: blocks of any size, freed one by one. It has no
 /// state, and `mem.heap` is the value to pass where an allocator is asked for.
@@ -29,12 +28,12 @@ Heap heapState;
 /// The heap of the process, as an allocator.
 public Allocator heap = &heapState;
 
-func (*Raw _r) alloc(int n) !*void {
+func (*Raw) alloc(int n) !*void {
 	*void p = raw.allocate(n, true) ?? return Error(errors.Kind.OutOfMemory);
 	return p;
 }
 
-func (*Raw _r) allocDirty(int n) !*void {
+func (*Raw) allocDirty(int n) !*void {
 	*void p = raw.allocate(n, false) ?? return Error(errors.Kind.OutOfMemory);
 	return p;
 }
@@ -48,13 +47,13 @@ func (*Raw r) realloc(?*void p, int old, int n) !*void {
 	return grown;
 }
 
-func (*Raw _r) free(?*void p) {
+func (*Raw) free(?*void p) {
 	if p |block| {
 		raw.release(block);
 	}
 }
 
-let<debug> checked = dbg.Debug{};
+var<debug> dbg.Debug checked;
 let<debug> hookPending = true;
 
 func<debug> leakReport() {
@@ -69,7 +68,7 @@ func<debug> arm() {
 	}
 }
 
-func source() Allocator {
+inline func source() Allocator {
 	return &rawState;
 }
 
@@ -78,45 +77,45 @@ func<debug> source() Allocator {
 	return &checked;
 }
 
-public func (*Heap _h) alloc(int n) !*void {
+public func (*Heap) alloc(int n) !*void {
 	return source().alloc(n)!;
 }
 
-public func (*Heap _h) allocDirty(int n) !*void {
+public func (*Heap) allocDirty(int n) !*void {
 	return source().allocDirty(n)!;
 }
 
-public func (*Heap _h) realloc(?*void p, int old, int n) !*void {
+public func (*Heap) realloc(?*void p, int old, int n) !*void {
 	return source().realloc(p, old, n)!;
 }
 
-public func (*Heap _h) free(?*void p) {
+public func (*Heap) free(?*void p) {
 	source().free(p);
 }
 
 /// A slice of n zeroed elements of T: `mem.make<int>(mem.heap, 8)!`. It can
 /// fail like the allocator does.
-public func make<T, Allocator A>(A a, int n) ![]T {
+public inline func make<T, Allocator A>(A a, int n) ![]T {
 	*void p = a.alloc(n * int(sizeof(T)))!;
 	return (*T)(p)[0:n];
 }
 
 /// Like `make`, for memory you are about to overwrite: the elements are not
 /// cleared, so what they hold before you write is not defined.
-public func makeDirty<T, Allocator A>(A a, int n) ![]T {
+public inline func makeDirty<T, Allocator A>(A a, int n) ![]T {
 	*void p = a.allocDirty(n * int(sizeof(T)))!;
 	return (*T)(p)[0:n];
 }
 
 /// One zeroed T, as a pointer: `mem.create<Pair>(mem.heap)!`.
-public func create<T, Allocator A>(A a) !*T {
+public inline func create<T, Allocator A>(A a) !*T {
 	*void p = a.alloc(int(sizeof(T)))!;
 	return (*T)(p);
 }
 
 /// The slice with n elements: it keeps what it had, and the new elements are
 /// zeroed. The old size comes from the slice itself.
-public func resize<T, Allocator A>(A a, []T items, int n) ![]T {
+public inline func resize<T, Allocator A>(A a, []T items, int n) ![]T {
 	int size = int(sizeof(T));
 	*void p = a.realloc(items, len(items) * size, n * size)!;
 	return (*T)(p)[0:n];
@@ -124,7 +123,7 @@ public func resize<T, Allocator A>(A a, []T items, int n) ![]T {
 
 /// Gives a block back: a pointer, a slice or an array that came from the
 /// allocator, or an interface value that holds such a pointer. Null is ignored.
-public func free<Allocator A>(A a, ?*void p) {
+public inline func free<Allocator A>(A a, ?*void p) {
 	a.free(p);
 }
 
