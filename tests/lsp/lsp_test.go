@@ -1274,3 +1274,32 @@ func TestDiagnosticsOfOperatorsAndCalls(t *testing.T) {
 		})
 	}
 }
+
+func TestUseAfterFreeWarning(t *testing.T) {
+	c := start(t)
+	head := "import \"std/mem\";\n\nfunc main() ! {\n"
+	cases := []struct {
+		name, body string
+		warns      bool
+	}{
+		{"a pointer used after the free", "\t*int p = (*int)(mem.heap.alloc(8)!);\n\tmem.heap.free(p);\n\tp@ = 2;\n", true},
+		{"a slice used after the free", "\t[]int xs = mem.make<int>(mem.heap, 3)!;\n\tmem.free(mem.heap, xs);\n\txs[0] = 1;\n", true},
+		{"given a new value first", "\t*int p = (*int)(mem.heap.alloc(8)!);\n\tmem.heap.free(p);\n\tp = (*int)(mem.heap.alloc(8)!);\n\tp@ = 2;\n\tmem.heap.free(p);\n", false},
+		{"freed only in a branch", "\t*int p = (*int)(mem.heap.alloc(8)!);\n\tint n = 1;\n\tif n > 0 {\n\t\tmem.heap.free(p);\n\t}\n\tp@ = 1;\n\tmem.heap.free(p);\n", false},
+		{"only compared", "\t*int p = (*int)(mem.heap.alloc(8)!);\n\tmem.heap.free(p);\n\t*int q = (*int)(mem.heap.alloc(8)!);\n\tbool same = q == p;\n\tmem.heap.free(q);\n", false},
+		{"only the length is read", "\t[]int xs = mem.make<int>(mem.heap, 3)!;\n\tmem.free(mem.heap, xs);\n\tint n = len(xs);\n", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			warned := false
+			for _, d := range c.open(map[string]string{"main.wsp": head + tc.body + "}\n"}).diagnostics() {
+				if strings.Contains(d.Message, "is used after it was freed") {
+					warned = true
+				}
+			}
+			if warned != tc.warns {
+				t.Errorf("warned %v, want %v", warned, tc.warns)
+			}
+		})
+	}
+}

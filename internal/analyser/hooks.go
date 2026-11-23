@@ -149,9 +149,19 @@ func (a *Analyser) lowerOperator(expr *ast.BinaryExpr, left, right Type) (Type, 
 		lowered = wrapper
 	}
 
-	result := a.checkExpr(lowered)
+	result := a.checkLowered(lowered)
 	expr.Lowered = lowered
 	return result, true
+}
+
+func (a *Analyser) checkLowered(lowered ast.Expression) Type {
+	saved := a.waiveAccess
+	if a.instanceContext != nil {
+		a.waiveAccess = true
+	}
+	result := a.checkExpr(lowered)
+	a.waiveAccess = saved
+	return result
 }
 
 func (a *Analyser) checkOperatorMethodDecl(fd *ast.FuncDecl, recv Type) {
@@ -241,7 +251,7 @@ func (a *Analyser) lowerIn(expr *ast.InExpr, element Type) (Type, bool) {
 	wrapper := &ast.BlockExpr{Block: block}
 	at(wrapper)
 
-	result := a.checkExpr(wrapper)
+	result := a.checkLowered(wrapper)
 	expr.Lowered = wrapper
 	return result, true
 }

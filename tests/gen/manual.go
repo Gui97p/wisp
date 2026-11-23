@@ -13637,6 +13637,79 @@ func main() ! {
 }
 `, expected: []string{"the list takes its memory from its parent", "release gives it all back", "a full fixed buffer says NoSpace", "and the list keeps what it had", "a refused allocation leaves the list as it was"}},
 
+	{dir: "slices_search_sort", src: `import "std/slices";
+
+struct Version {
+    int major;
+    int minor;
+}
+
+func (Version a) eq(Version b) bool {
+    return a.major == b.major && a.minor == b.minor;
+}
+
+func (Version a) less(Version b) bool {
+    return a.major < b.major || (a.major == b.major && a.minor < b.minor);
+}
+
+enum Color { Red, Green, Blue }
+
+func sorted<Orderable T>([]T items) bool {
+    for i in 1..len(items) - 1 {
+        if items[i] < items[i - 1] {
+            return false;
+        }
+    }
+    return true;
+}
+
+func main() {
+    [5]int numbers = .{40, 10, 30, 20, 10};
+    check(slices.indexOf(numbers, 30) == 2 && slices.indexOf(numbers, 10) == 1 && slices.indexOf(numbers, 99) == -1, "indexOf finds the first and says -1 when there is none");
+    check(slices.contains(numbers, 20) && !slices.contains(numbers, 21), "contains");
+    [3]string words = .{"pear", "apple", "fig"};
+    check(slices.indexOf(words, "fig") == 2 && !slices.contains(words, "plum"), "it compares strings by content");
+    [3]Color colors = .{.Green, .Blue, .Red};
+    check(slices.indexOf(colors, Color.Red) == 2, "and enums");
+    [3]Version versions = .{.{major: 1, minor: 2}, .{major: 1, minor: 0}, .{major: 0, minor: 9}};
+    check(slices.indexOf(versions, Version{major: 1, minor: 0}) == 1 && !slices.contains(versions, Version{major: 2, minor: 0}), "and structs through eq");
+
+    slices.sort(numbers);
+    check(numbers[0] == 10 && numbers[1] == 10 && numbers[2] == 20 && numbers[3] == 30 && numbers[4] == 40, "sort puts numbers in order");
+    slices.sort(words);
+    check(words[0] == "apple" && words[1] == "fig" && words[2] == "pear", "strings");
+    slices.sort(versions);
+    check(versions[0].major == 0 && versions[1].minor == 0 && versions[2].minor == 2, "and structs through less");
+
+    []int none = numbers[0:0];
+    slices.sort(none);
+    []int one = numbers[0:1];
+    slices.sort(one);
+    check(len(none) == 0 && one[0] == 10, "empty and single element slices are left alone");
+
+    [200]int many;
+    int seed = 12345;
+    int total = 0;
+    for i in 0..199 {
+        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
+        many[i] = seed % 1000;
+        total += many[i];
+    }
+    slices.sort(many);
+    int after = 0;
+    for x in many {
+        after += x;
+    }
+    check(sorted(many) && after == total, "a long slice comes out ordered and with the same elements");
+    [100]int descending;
+    for i in 0..99 {
+        descending[i] = 100 - i;
+    }
+    slices.sort(descending);
+    check(sorted(descending) && descending[0] == 1 && descending[99] == 100, "a reversed slice is ordered too");
+}
+`, expected: []string{"indexOf finds the first and says -1 when there is none", "contains", "it compares strings by content", "and enums", "and structs through eq", "sort puts numbers in order", "strings", "and structs through less", "empty and single element slices are left alone", "a long slice comes out ordered and with the same elements", "a reversed slice is ordered too"}},
+
 	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
 interface Closer { func close(); }
 interface WriteCloser { Writer & Closer }

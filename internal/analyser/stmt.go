@@ -16,6 +16,8 @@ func (a *Analyser) checkBlock(block *ast.BlockStmt) {
 
 func (a *Analyser) checkStatements(stmts []ast.Statement) {
 	terminated, warned := false, false
+	var frees []freedVariable
+	defer func() { a.warnUseAfterFree(stmts, frees) }()
 	for i, stmt := range stmts {
 		if terminated && !warned {
 			a.warnf(stmt, "unreachable code")
@@ -24,6 +26,9 @@ func (a *Analyser) checkStatements(stmts []ast.Statement) {
 		a.checkStmt(stmt)
 		if loop, isFor := stmt.(*ast.ForStmt); isFor && loop.Lowered != nil {
 			stmts[i] = loop.Lowered
+		}
+		if sym := a.freedSymbol(stmt); sym != nil {
+			frees = append(frees, freedVariable{index: i, sym: sym, stmt: stmt})
 		}
 		switch s := stmt.(type) {
 		case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt, *ast.YieldStmt:
