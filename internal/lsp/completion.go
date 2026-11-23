@@ -228,23 +228,58 @@ func patchedInfo(path string, pos protocol.Position) *analyser.Info {
 		return nil
 	}
 
-	for _, filler := range []string{"_", "_;"} {
-		patched := make([]byte, 0, len(text)+len(filler))
-		patched = append(patched, text[:offset]...)
-		patched = append(patched, filler...)
-		patched = append(patched, text[offset:]...)
+	semicolon := missingSemicolonOffset(text, offset)
+	repairs := []int{-1}
+	if semicolon >= 0 {
+		repairs = append(repairs, semicolon)
+	}
+	for _, repair := range repairs {
+		for _, filler := range []string{"_", "_;"} {
+			patched := make([]byte, 0, len(text)+len(filler)+1)
+			if repair >= 0 {
+				patched = append(patched, text[:repair]...)
+				patched = append(patched, ';')
+				patched = append(patched, text[repair:offset]...)
+			} else {
+				patched = append(patched, text[:offset]...)
+			}
+			patched = append(patched, filler...)
+			patched = append(patched, text[offset:]...)
 
-		buffers := maps.Clone(fileBuffer)
-		buffers[path] = patched
-		pa, err := runProjectAnalysis(path, buffers)
-		if err != nil || pa == nil {
-			continue
-		}
-		if m := pa.moduleOf(path); m != nil && m.mod.ParseError == nil {
-			return m.info
+			buffers := maps.Clone(fileBuffer)
+			buffers[path] = patched
+			pa, err := runProjectAnalysis(path, buffers)
+			if err != nil || pa == nil {
+				continue
+			}
+			if m := pa.moduleOf(path); m != nil && m.mod.ParseError == nil {
+				return m.info
+			}
 		}
 	}
 	return nil
+}
+
+func missingSemicolonOffset(text []byte, offset int) int {
+	lineStart := bytes.LastIndexByte(text[:offset], '\n') + 1
+	end := lineStart
+	for end > 0 {
+		lineBegin := bytes.LastIndexByte(text[:end-1], '\n') + 1
+		line := bytes.TrimRight(text[lineBegin:end-1], " \t\r")
+		if len(bytes.TrimSpace(line)) == 0 {
+			end = lineBegin
+			continue
+		}
+		if bytes.Contains(line, []byte("//")) {
+			return -1
+		}
+		switch line[len(line)-1] {
+		case ';', '{', '(', ',', '[':
+			return -1
+		}
+		return lineBegin + len(line)
+	}
+	return -1
 }
 
 func cursorOffset(text []byte, line, character int) int {
@@ -668,7 +703,7 @@ func literalType(text string, brace int, scope *analyser.Scope) (*analyser.Struc
 	var sym *analyser.Symbol
 	var found bool
 	if variant, dotted := strings.CutPrefix(chain, "."); dotted {
-		tp := contextType(text[:start], text[:start], scope, "", 0)
+		tp := expectedEnum(lastLine(text[:start]), text[:start], scope)
 		if pointer, isPointer := tp.(analyser.PointerType); isPointer {
 			tp = pointer.Element
 		}

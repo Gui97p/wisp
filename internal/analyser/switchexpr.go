@@ -17,6 +17,8 @@ func (a *Analyser) checkSwitchExprValue(expr *ast.SwitchExpr) Type {
 }
 
 func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type {
+	hinted := a.hintedSwitch
+	a.hintedSwitch = false
 	if failed := a.pruneTypeSwitchExpr(expr); failed != nil {
 		return []Type{failed}
 	}
@@ -44,7 +46,11 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 		if arm.Exit != nil {
 			a.checkStmt(arm.Exit)
 		} else {
+			if expected != nil {
+				a.hint = expected
+			}
 			armTypes[i] = a.rejectFallible(arm.Values, a.checkExprList(arm.Values))
+			a.hint = nil
 			switch {
 			case count == -1:
 				count = len(armTypes[i])
@@ -74,6 +80,9 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 		return nil
 	}
 
+	if hinted && expected != nil && len(expected) != count {
+		expected = nil
+	}
 	if expected != nil && len(expected) != count {
 		a.errorf(expr, "this switch gives %d values, the call gives %d", count, len(expected))
 		return []Type{InvalidType{}}
@@ -81,13 +90,13 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 
 	result := make([]Type, count)
 	for i := range result {
-		result[i] = a.unifyArms(arms, armTypes, i, expected)
+		result[i] = a.unifyArms(arms, armTypes, i, expected, hinted)
 	}
 	a.info.SwitchValues[expr] = result
 	return result
 }
 
-func (a *Analyser) unifyArms(arms []*ast.SwitchArm, armTypes [][]Type, index int, expected []Type) Type {
+func (a *Analyser) unifyArms(arms []*ast.SwitchArm, armTypes [][]Type, index int, expected []Type, hinted bool) Type {
 	var target Type
 	if expected != nil {
 		target = expected[index]
@@ -107,7 +116,9 @@ func (a *Analyser) unifyArms(arms []*ast.SwitchArm, armTypes [][]Type, index int
 			continue
 		}
 		if !a.coerceAt(arm.Values, len(armTypes[i]), index, got, target) {
-			if expected != nil {
+			if hinted {
+				a.helpMismatch(a.errorf(arm, "this case gives %s, expected %s", got, target), got, target)
+			} else if expected != nil {
 				a.errorf(arm, "expected %s for the handler value, got %s", target, got)
 			} else {
 				a.errorf(arm, "this case gives %s, the others give %s", got, target)

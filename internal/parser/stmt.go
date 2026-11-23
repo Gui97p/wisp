@@ -475,6 +475,7 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 			first = false
 		}
 
+		armLine, armCol := p.peek.Line, p.peek.Column
 		expr := p.parseCaseExpression(value, line, col, typed)
 		if expr == nil {
 			return nil
@@ -487,18 +488,23 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 			return nil
 		}
 		currentIf.Then.Statements = stmts
+		currentIf.Then.SetPos(armLine, armCol)
+		currentIf.Then.SetEndPos(p.currentEnd())
 		currentIf.SetEndPos(p.currentEnd())
 	}
 
 	if p.peek.Type == lexer.TOKEN_DEFAULT {
 		p.advance()
 		stmt.SwitchDefault = true
+		defaultLine, defaultCol := p.current.Line, p.current.Column
 
 		stmts, ok := p.parseSwitchArmBody()
 		if !ok {
 			return nil
 		}
 		currentIf.Else = &ast.BlockStmt{Statements: stmts}
+		currentIf.Else.(*ast.BlockStmt).SetPos(defaultLine, defaultCol)
+		currentIf.Else.(*ast.BlockStmt).SetEndPos(p.currentEnd())
 		currentIf.SetEndPos(p.currentEnd())
 	}
 

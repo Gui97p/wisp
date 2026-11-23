@@ -661,8 +661,13 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 	var types []Type
 	voidCallOK := a.voidCallOK
 	a.voidCallOK = false
+	hint := a.hint
+	a.hint = nil
+	if len(hint) != len(exprs) {
+		hint = nil
+	}
 
-	for _, e := range exprs {
+	for index, e := range exprs {
 		if pe, ok := e.(*ast.PropagateExpr); ok {
 			values := a.checkPropagate(pe)
 			a.recordValues(pe, values)
@@ -677,8 +682,21 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 			continue
 		}
 
+		if be, ok := e.(*ast.BlockExpr); ok && hint != nil {
+			a.blockHint = hint[index]
+			t := a.checkExpr(be)
+			a.blockHint = nil
+			types = append(types, t)
+			continue
+		}
+
 		if se, ok := e.(*ast.SwitchExpr); ok {
-			values := a.checkSwitchExpr(se, nil)
+			var expected []Type
+			if hint != nil {
+				expected = hint[index : index+1]
+				a.hintedSwitch = true
+			}
+			values := a.checkSwitchExpr(se, expected)
 			if len(values) == 0 {
 				a.error(se, "this switch gives no value").
 					WithHelp("at least one case has to give a value")

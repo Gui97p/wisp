@@ -260,6 +260,17 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		return
 	}
 
+	if hasExplicitType && len(vars) == len(values) && hasHintable(values) {
+		declared := make([]Type, len(vars))
+		for i, v := range vars {
+			declared[i] = a.resolveTypeRef(node, a.scope, v.Type)
+			if declared[i] == nil {
+				declared = nil
+				break
+			}
+		}
+		a.hint = declared
+	}
 	valueTypes := a.checkExprList(values)
 	valueTypes, destructured := a.expandFallible(values, valueTypes, len(vars))
 	valueTypes = a.rejectFallible(values, valueTypes)
@@ -413,4 +424,14 @@ func docOf(node ast.Node) string {
 		return n.Doc
 	}
 	return ""
+}
+
+func hasHintable(values []ast.Expression) bool {
+	for _, v := range values {
+		switch v.(type) {
+		case *ast.SwitchExpr, *ast.BlockExpr:
+			return true
+		}
+	}
+	return false
 }

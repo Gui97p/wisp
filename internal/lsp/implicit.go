@@ -15,6 +15,7 @@ var (
 	assignedBefore = regexp.MustCompile(`(^|[^=!<>])\b([A-Za-z_][\w.]*)\s*=\s*$`)
 	caseWord       = regexp.MustCompile(`\bcase\b`)
 	armBefore      = regexp.MustCompile(`=>\s*$`)
+	yieldBefore    = regexp.MustCompile(`\b(?:yield|break\s+:\w+)\s*$`)
 	switchWord     = regexp.MustCompile(`\bswitch\b`)
 	returnBefore   = regexp.MustCompile(`\breturn\b[^;]*$`)
 	coalesceBefore = regexp.MustCompile(`([A-Za-z_][\w.]*\s*\((?:[^()]|\([^()]*\))*\))\s*\?\?\s*(?:\|\w+\|\s*)?$`)
@@ -35,7 +36,7 @@ func implicitDotItems(path string, pos protocol.Position, info *analyser.Info) (
 
 	before := prefix[:loc[3]]
 	scope := scopeAt(info, int(pos.Line)+1, int(pos.Character)+1)
-	name, members, ok := dotMembers(expectedEnum(before, textBefore(path, int(pos.Line), int(pos.Character)), scope, path, int(pos.Line)))
+	name, members, ok := dotMembers(expectedEnum(before, textBefore(path, int(pos.Line), int(pos.Character)), scope))
 	if !ok {
 		return items, true
 	}
@@ -49,6 +50,9 @@ func implicitDotItems(path string, pos protocol.Position, info *analyser.Info) (
 func dotMembers(tp analyser.Type) (string, []string, bool) {
 	if pointer, ok := tp.(analyser.PointerType); ok {
 		tp = pointer.Element
+	}
+	if optional, ok := tp.(*analyser.StructType); ok && optional.Optional != nil {
+		tp = optional.Optional
 	}
 	switch v := tp.(type) {
 	case analyser.NamedType:
@@ -67,33 +71,62 @@ func dotMembers(tp analyser.Type) (string, []string, bool) {
 	return "", nil, false
 }
 
-func expectedEnum(before, text string, scope *analyser.Scope, path string, line int) analyser.Type {
+func expectedEnum(before, text string, scope *analyser.Scope) analyser.Type {
 	var tp analyser.Type
 
 	switch {
+	case yieldBefore.MatchString(before):
+		tp = yieldType(text, scope)
 	case armBefore.MatchString(before):
 		if _, prefix, ok := switchHeader(text); ok {
-			tp = contextType(prefix, text, scope, path, line)
+			tp = contextType(prefix, text, scope)
 		}
 	case inCaseHeader(before):
 		if subject, _, ok := switchHeader(text); ok && subject != "" {
 			tp = exprType(scope, subject)
 		} else if ok {
-			tp = contextType(before, text, scope, path, line)
+			tp = contextType(before, text, scope)
 		}
 	default:
-		tp = contextType(before, text, scope, path, line)
+		tp = contextType(before, text, scope)
 	}
 
 	return tp
 }
 
-func contextType(before, text string, scope *analyser.Scope, path string, line int) analyser.Type {
+func yieldType(text string, scope *analyser.Scope) analyser.Type {
+	masked := maskLiterals(text)
+	var opens []int
+	for i := 0; i < len(masked); i++ {
+		switch masked[i] {
+		case '{':
+			opens = append(opens, i)
+		case '}':
+			if len(opens) > 0 {
+				opens = opens[:len(opens)-1]
+			}
+		}
+	}
+	for i := len(opens) - 1; i >= 0; i-- {
+		head := masked[:opens[i]]
+		start := strings.LastIndexAny(head, ";{}\n")
+		statement := head[start+1:]
+		if functionHeader.MatchString(statement) {
+			return nil
+		}
+		if tp := contextType(statement, text, scope); tp != nil {
+			return tp
+		}
+	}
+	return nil
+}
+
+func contextType(before, text string, scope *analyser.Scope) analyser.Type {
 	if m := coalesceBefore.FindStringSubmatch(before); m != nil {
 		return exprType(scope, m[1])
 	}
 	if returnBefore.MatchString(before) {
-		return returnType(path, line, before, scope)
+		return returnType(text, before, scope)
 	}
 	if tp, ok := structValueEnum(text, scope); ok {
 		return tp
@@ -116,6 +149,7 @@ func contextType(before, text string, scope *analyser.Scope, path string, line i
 }
 
 func typeFromText(scope *analyser.Scope, text string) analyser.Type {
+	text = strings.TrimPrefix(strings.TrimSpace(text), "?")
 	sym, ok := resolveChain(scope, text)
 	if !ok || (sym.Kind != analyser.TYPE && sym.Kind != analyser.STRUCT) {
 		return nil
@@ -169,12 +203,9 @@ func cutLast(s, sep string) (string, string, bool) {
 	return s[:i], s[i+len(sep):], true
 }
 
-func returnType(path string, line int, before string, scope *analyser.Scope) analyser.Type {
-	lines, ok := bufferLines(path)
-	if !ok {
-		return nil
-	}
-	for i := line; i >= 0 && i < len(lines); i-- {
+func returnType(text, before string, scope *analyser.Scope) analyser.Type {
+	lines := strings.Split(text, "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
 		if !functionHeader.MatchString(lines[i]) {
 			continue
 		}

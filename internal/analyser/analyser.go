@@ -18,6 +18,9 @@ type Analyser struct {
 	currentReturns  []Type
 	currentFallible bool
 	yieldFrames     []yieldFrame
+	hint            []Type
+	hintedSwitch    bool
+	blockHint       Type
 	deferredFree    map[*Symbol]*ast.DeferStmt
 	loopFrames      []loopFrame
 	untilScope      *Scope
@@ -155,6 +158,7 @@ func AnalyzeGroup(group []*Analyser) {
 	for _, a := range group {
 		a.registerMethods()
 		a.registerStructFields()
+		a.checkInfiniteTypes()
 		a.registerFuncSignatures()
 		a.registerLateDecls()
 		a.checkImplements()

@@ -93,6 +93,7 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 	}
 	a.warnReturnedFree(stmt)
 	a.voidCallOK = len(a.currentReturns) == 0 && len(stmt.Values) == 1
+	a.hint = a.currentReturns
 	types := a.rejectFallible(stmt.Values, a.checkExprList(stmt.Values))
 	a.voidCallOK = false
 
@@ -325,6 +326,9 @@ func (a *Analyser) checkAssignStmt(s *ast.AssignStmt) {
 		if a.isStringElement(target) {
 			return
 		}
+	}
+	if s.Op == "=" {
+		a.hint = targetTypes
 	}
 	valueTypes := a.checkExprList(s.Values)
 	valueTypes, _ = a.expandFallible(s.Values, valueTypes, len(targetTypes))

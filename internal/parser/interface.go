@@ -108,7 +108,7 @@ func (p *Parser) parseInterfaceMethod(doc string) *ast.InterfaceMethod {
 		return nil
 	}
 
-	if p.peek.Type == lexer.TOKEN_SEMICOLON {
+	if p.peek.Type == lexer.TOKEN_SEMICOLON || p.peek.Type == lexer.TOKEN_RBRACE {
 		method.ReturnTypes = []ast.TypeRef{}
 	} else {
 		p.advance()

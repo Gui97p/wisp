@@ -1015,3 +1015,35 @@ func TestOnlyTripleSlashIsDocumentation(t *testing.T) {
 		t.Errorf("hover %q shows a plain comment as documentation", got)
 	}
 }
+
+func TestCompletionInTypedContexts(t *testing.T) {
+	c := start(t)
+	head := "enum Token { Number, Plus, Minus }\ninterface Node { func node(); }\nstruct Lit implements Node { float value; }\nfunc (*Lit l) node() {}\nenum AST {\n\tUndefined,\n\tLiteral{float value;}\n}\n"
+	tokens := []string{"Number", "Plus", "Minus"}
+	cases := []struct {
+		name string
+		body string
+		want []string
+	}{
+		{"assignment", "func main() {\n\tToken t;\n\tt = .¦\n}\n", tokens},
+		{"yield", "func f() Token {\n\tToken t = {\n\t\tyield .¦;\n\t};\n\treturn t;\n}\n", tokens},
+		{"yield inside an if", "func f(bool b) Token {\n\tToken t = {\n\t\tif b {\n\t\t\tyield .¦;\n\t\t}\n\t\tyield .Plus;\n\t};\n\treturn t;\n}\n", tokens},
+		{"yield of an enum type", "func f() Token {\n\tToken t = {\n\t\tyield Token.¦;\n\t};\n\treturn t;\n}\n", tokens},
+		{"optional return switch arm", "func f(Token k) ?Token {\n\treturn switch k {\n\t\tcase .Number => .¦;\n\t\tdefault => null;\n\t};\n}\n", tokens},
+		{"variant fields in an arm", "func f(Token k) ?AST {\n\treturn switch k {\n\t\tcase .Number => .Literal{¦};\n\t\tdefault => null;\n\t};\n}\n", []string{"value"}},
+		{"member after a line without a semicolon", "func main() {\n\tLit a = .{value: 1.0}\n\ta.¦\n}\n", []string{"value", "node"}},
+		{"binding of a type switch arm", "func f(Node n) {\n\tswitch type n {\n\t\tcase *Lit l => l.¦\n\t\tdefault => {}\n\t}\n}\n", []string{"value", "node"}},
+		{"binding of a type switch block arm", "func f(Node n) {\n\tswitch type n {\n\t\tcase *Lit l => {\n\t\t\tl.¦\n\t\t}\n\t\tdefault => {}\n\t}\n}\n", []string{"value", "node"}},
+		{"binding of a variant arm", "func f(AST a) {\n\tswitch a {\n\t\tcase .Literal l => l.¦\n\t\tdefault => {}\n\t}\n}\n", []string{"value"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := c.open(map[string]string{"main.wsp": head + tc.body}).completion()
+			for _, want := range tc.want {
+				if !slices.Contains(got, want) {
+					t.Errorf("completion lacks %q: %v", want, got)
+				}
+			}
+		})
+	}
+}

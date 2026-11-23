@@ -12915,6 +12915,72 @@ func main() {
 }
 `, expected: []string{"a defined integer type keeps the arithmetic and the comparisons", "a defined float type keeps the arithmetic", "a defined unsigned type keeps the bit operators", "a defined array keeps indexing, len and range", "a defined string keeps indexing and len", "slicing a defined string or slice gives the same defined type, an array gives a slice", "a defined pointer keeps the dereference", "a generic defined array is indexable"}},
 
+	{dir: "expected_type_switch", src: `enum Tok { Number, Plus }
+
+enum Tree {
+    Empty,
+    Leaf{int value;},
+    Pair{*Tree left; *Tree right;}
+}
+
+interface Shape { func area() int; }
+
+struct Square implements Shape { int side; }
+struct Rect implements Shape { int w; int h; }
+
+func (*Square s) area() int { return s.side * s.side; }
+func (*Rect r) area() int { return r.w * r.h; }
+
+func parse(Tok t) ?Tree {
+    return switch t {
+        case .Number => .Leaf{value: 7};
+        default => null;
+    };
+}
+
+func pick(Tok t, *Square s, *Rect r) Shape {
+    return switch t {
+        case .Number => s;
+        default => r;
+    };
+}
+
+func maybe(Tok t, *Square s, *Rect r) ?Shape {
+    return switch t {
+        case .Number => s;
+        default => r;
+    };
+}
+
+func tok(bool b) Tok {
+    Tok t = {
+        if b {
+            yield .Number;
+        }
+        yield .Plus;
+    };
+    return t;
+}
+
+func main() {
+    Square s = .{side: 3};
+    Rect r = .{w: 2, h: 5};
+    check(pick(.Number, &s, &r).area() == 9 && pick(.Plus, &s, &r).area() == 10, "a switch returned as an interface converts each case");
+    ?Shape m = maybe(.Plus, &s, &r);
+    check(m != null, "a switch returned as an optional interface converts each case");
+    ?Tree a = parse(.Number);
+    ?Tree b = parse(.Plus);
+    check(a != null && b == null, "a switch returned as an optional enum takes dotted variants and null");
+    check(tok(true) == .Number && tok(false) == .Plus, "a block takes the declared type for its dotted yields");
+    Tok after = .Number;
+    after = switch after {
+        case .Number => .Plus;
+        default => .Number;
+    };
+    check(after == .Plus, "an assignment gives the switch its target type");
+}
+`, expected: []string{"a switch returned as an interface converts each case", "a switch returned as an optional interface converts each case", "a switch returned as an optional enum takes dotted variants and null", "a block takes the declared type for its dotted yields", "an assignment gives the switch its target type"}},
+
 	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
 interface Closer { func close(); }
 interface WriteCloser { Writer & Closer }
