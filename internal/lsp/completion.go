@@ -160,6 +160,11 @@ func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string)
 		return items
 	}
 
+	if endsInMemberDot(prefix) && len(candidates) > 0 {
+		if items, found := typedMembers(path, candidates[0], pos, suffix); found {
+			return items
+		}
+	}
 	if base, ok := memberBase(prefix); ok {
 		for _, candidate := range candidates {
 			if items := memberItems(path, base, scopeAt(candidate, line, col), suffix); items != nil {
@@ -327,6 +332,14 @@ func refreshModules(prev, fresh *analyser.Info) {
 	}
 }
 
+func endsInMemberDot(prefix string) bool {
+	end := len(prefix)
+	for end > 0 && isIdentByte(prefix[end-1]) {
+		end--
+	}
+	return end >= 1 && prefix[end-1] == '.' && !(end >= 2 && prefix[end-2] == '.')
+}
+
 func memberBase(prefix string) (string, bool) {
 	end := len(prefix)
 	for end > 0 && isIdentByte(prefix[end-1]) {
@@ -342,8 +355,16 @@ func memberBase(prefix string) (string, bool) {
 	start := dot
 	for {
 		seg := start
-		for seg > 0 && prefix[seg-1] == ']' {
-			open := matchingBracket(prefix, seg-1)
+		for seg > 0 && prefix[seg-1] == '!' {
+			seg--
+		}
+		for seg > 0 && (prefix[seg-1] == ']' || prefix[seg-1] == ')') {
+			var open int
+			if prefix[seg-1] == ']' {
+				open = matchingBracket(prefix, seg-1)
+			} else {
+				open = matchingParen(prefix, seg-1)
+			}
 			if open < 0 {
 				return "", false
 			}
@@ -357,7 +378,7 @@ func memberBase(prefix string) (string, bool) {
 			break
 		}
 		start = word
-		if word > 1 && prefix[word-1] == '.' && (isIdentByte(prefix[word-2]) || prefix[word-2] == ']') {
+		if word > 1 && prefix[word-1] == '.' && (isIdentByte(prefix[word-2]) || prefix[word-2] == ']' || prefix[word-2] == ')') {
 			start = word - 1
 			continue
 		}
@@ -385,14 +406,30 @@ func matchingBracket(text string, close int) int {
 	return -1
 }
 
+func matchingParen(text string, close int) int {
+	depth := 0
+	for i := close; i >= 0; i-- {
+		switch text[i] {
+		case ')':
+			depth++
+		case '(':
+			depth--
+			if depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
 func splitChain(chain string) []string {
 	var parts []string
 	depth, from := 0, 0
 	for i := 0; i < len(chain); i++ {
 		switch chain[i] {
-		case '[':
+		case '[', '(':
 			depth++
-		case ']':
+		case ']', ')':
 			depth--
 		case '.':
 			if depth == 0 {
@@ -433,12 +470,59 @@ func indexed(tp analyser.Type, count int) analyser.Type {
 	return tp
 }
 
+func splitBangs(part string) (string, int) {
+	bangs := 0
+	for strings.HasSuffix(part, "!") {
+		part = part[:len(part)-1]
+		bangs++
+	}
+	return part, bangs
+}
+
+func unwrapped(tp analyser.Type, bangs int) analyser.Type {
+	if bangs == 0 || tp == nil {
+		return tp
+	}
+	if element, ok := analyser.OptionalElement(tp); ok {
+		return element
+	}
+	return tp
+}
+
+func splitCall(part string) (string, bool) {
+	if !strings.HasSuffix(part, ")") {
+		return part, false
+	}
+	open := matchingParen(part, len(part)-1)
+	if open < 0 {
+		return part, false
+	}
+	return part[:open], true
+}
+
+func callResult(ft *analyser.FuncType) analyser.Type {
+	if ft == nil || len(ft.Returns) == 0 {
+		return nil
+	}
+	return ft.Returns[0]
+}
+
 func resolveChain(scope *analyser.Scope, chain string) (*analyser.Symbol, bool) {
 	parts := splitChain(chain)
-	name, count := splitIndexes(parts[0])
+	firstText, firstBangs := splitBangs(parts[0])
+	first, count := splitIndexes(firstText)
+	name, firstIsCall := splitCall(first)
 	sym, ok := scope.Resolve(name)
 	if !ok {
 		return nil, false
+	}
+	if firstIsCall {
+		ft, isFunc := sym.Type.(*analyser.FuncType)
+		result := callResult(ft)
+		if !isFunc || result == nil {
+			return nil, false
+		}
+		sym = &analyser.Symbol{Name: name, Kind: analyser.VAR, Type: result}
 	}
 	if count > 0 {
 		tp := indexed(sym.Type, count)
@@ -447,17 +531,41 @@ func resolveChain(scope *analyser.Scope, chain string) (*analyser.Symbol, bool) 
 		}
 		sym = &analyser.Symbol{Name: name, Kind: analyser.VAR, Type: tp}
 	}
+	if firstBangs > 0 {
+		sym = &analyser.Symbol{Name: name, Kind: analyser.VAR, Type: unwrapped(sym.Type, firstBangs)}
+	}
 	for _, part := range parts[1:] {
-		field, count := splitIndexes(part)
+		partText, bangs := splitBangs(part)
+		member, count := splitIndexes(partText)
+		field, isCall := splitCall(member)
 		if module, isModule := sym.Type.(*analyser.ModuleType); isModule {
 			next, found := module.Exports[field]
 			if !found {
 				return nil, false
 			}
 			sym = next
+			if isCall {
+				ft, isFunc := sym.Type.(*analyser.FuncType)
+				result := callResult(ft)
+				if !isFunc || result == nil {
+					return nil, false
+				}
+				sym = &analyser.Symbol{Name: field, Kind: analyser.VAR, Type: result}
+			}
 			continue
 		}
-		tp := indexed(chainFieldType(sym.Type, field), count)
+		if isCall {
+			result := callResult(analyser.MethodsOf(sym.Type)[field])
+			if result == nil {
+				return nil, false
+			}
+			sym = &analyser.Symbol{Name: field, Kind: analyser.VAR, Type: unwrapped(indexed(result, count), bangs)}
+			if sym.Type == nil {
+				return nil, false
+			}
+			continue
+		}
+		tp := unwrapped(indexed(chainFieldType(sym.Type, field), count), bangs)
 		if tp == nil {
 			return nil, false
 		}
@@ -495,7 +603,42 @@ func memberItems(path, base string, scope *analyser.Scope, suffix string) []prot
 	if !ok {
 		return nil
 	}
+	return symbolMembers(path, sym, suffix)
+}
 
+func typedMembers(path string, info *analyser.Info, pos protocol.Position, suffix string) ([]protocol.CompletionItem, bool) {
+	if info == nil {
+		return nil, false
+	}
+	line, col := int(pos.Line)+1, int(pos.Character)+1
+	for expr := range info.Types {
+		member, ok := expr.(*ast.MemberExpr)
+		if !ok || member.Field != "_" || member.FieldAt.Line != line || member.FieldAt.Col != col {
+			continue
+		}
+		tp, known := info.Types[member.Object]
+		if call, isCall := member.Object.(*ast.CallExpr); isCall && !known {
+			if returns := info.CallReturns[call]; len(returns) > 0 {
+				tp, known = returns[0], true
+			}
+		}
+		if !known {
+			return nil, false
+		}
+		if _, bad := tp.(analyser.InvalidType); bad {
+			return nil, false
+		}
+		sym := &analyser.Symbol{Kind: analyser.VAR, Type: tp}
+		if mt, isModule := tp.(*analyser.ModuleType); isModule {
+			sym.Type = mt
+		}
+		items := symbolMembers(path, sym, suffix)
+		return items, items != nil
+	}
+	return nil, false
+}
+
+func symbolMembers(path string, sym *analyser.Symbol, suffix string) []protocol.CompletionItem {
 	var items []protocol.CompletionItem
 
 	switch t := sym.Type.(type) {

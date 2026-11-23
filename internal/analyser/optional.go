@@ -575,7 +575,7 @@ func (a *Analyser) helpMismatch(d *diag.Diagnostic, got, want Type) *diag.Diagno
 }
 
 func (a *Analyser) argumentMismatch(expr ast.Node, i int, ft *FuncType, got Type) {
-	d := a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), got.String())
+	d := a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.label(), ft.Params[i].String(), got.String())
 	if help := mismatchHelp(got, ft.Params[i]); help != "" {
 		d.WithHelp("%s", help)
 		return

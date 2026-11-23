@@ -595,12 +595,15 @@ func (a *Analyser) registerInstanceMethods(g *GenericDecl, st *StructType, args 
 }
 
 func (a *Analyser) instanceOfMethod(node ast.Node, tmpl *FuncType) *FuncType {
-	if tmpl.Template == nil || tmpl.Inline {
+	if tmpl.Template == nil || (tmpl.Inline && !a.phantomBuilding) {
 		return tmpl
 	}
 	key := tmpl.Template.Owner + "." + tmpl.Name
 	cache := a.methodCache()
 	if ft, ok := cache[key]; ok {
+		if tmpl.Inline {
+			return tmpl
+		}
 		return ft
 	}
 
@@ -624,6 +627,9 @@ func (a *Analyser) instanceOfMethod(node ast.Node, tmpl *FuncType) *FuncType {
 		a.declFiles[clone] = t.Gen.File
 	}
 	a.pending = append(a.pending, pendingBody{decl: clone, ft: &ft, recv: tmpl.Receiver, scope: t.Scope, gen: t.Gen, at: node, file: a.currentFile, depth: a.bodyDepth + 1, args: instanceArgs(t.Struct), phantom: a.phantomBuilding, checkNote: a.phantomNote, argValues: structArgs(t.Struct)})
+	if tmpl.Inline {
+		return tmpl
+	}
 	return &ft
 }
 
@@ -998,7 +1004,7 @@ func (a *Analyser) instantiateFunc(node ast.Node, g *GenericDecl, args []TypeVal
 	}
 	ft := &FuncType{
 		Name: name, Params: params, ParamNames: paramNames, Returns: returns, Variadic: variadic, Fallible: fd.Fallible,
-		Module: module, DeclFile: g.File, Decl: clone, Scope: scope, Inline: fd.Inline,
+		Module: module, DeclFile: g.File, Decl: clone, Scope: scope, Inline: fd.Inline, Source: fd.Name,
 	}
 	if fd.Inline {
 		ft.Generic = &InstanceInfo{Decl: g, Args: args}
@@ -1009,7 +1015,7 @@ func (a *Analyser) instantiateFunc(node ast.Node, g *GenericDecl, args []TypeVal
 
 	a.info.FuncReturns[clone] = returns
 	a.info.VarTypes[clone] = params
-	if !fd.Inline {
+	if !fd.Inline || a.phantomBuilding {
 		if !a.phantomBuilding || a.phantoms {
 			a.program.Declarations = append(a.program.Declarations, clone)
 			a.declFiles[clone] = g.File

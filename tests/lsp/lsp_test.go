@@ -1111,3 +1111,143 @@ func TestStdModulesOpenedAsFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestSemanticTokensOfGenericMethodsHaveTheLengthOfTheName(t *testing.T) {
+	c := start(t)
+	src := "struct List<T> { T x; }\nfunc (*List<T> l) append(T v) ! {}\nfunc (*List<T> l) insert(int i, T v) ! {}\n"
+	for round := 0; round < 10; round++ {
+		for _, tk := range c.open(map[string]string{"main.wsp": src}).semanticTokens() {
+			if tk.kind == "type" && tk.length != len("List") {
+				t.Fatalf("a type token of length %d at line %d: %+v", tk.length, tk.line, tk)
+			}
+		}
+	}
+}
+
+func TestCompletionInsideGenericInlineMethods(t *testing.T) {
+	c := start(t)
+	head := "struct List<T> {\n\tinternal []T buf;\n\tinternal int size;\n}\n\n"
+	cases := []struct{ name, src string }{
+		{"a return", head + "inline func (*List<T> l) first() int {\n\treturn l¦\n}\n"},
+		{"a declaration", head + "inline func (*List<T> l) first() int {\n\tint n = l¦\n\treturn n;\n}\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := c.open(map[string]string{"main.wsp": tc.src}).completion()
+			if !slices.Contains(got, "l") {
+				t.Errorf("the receiver is not offered: %v", got)
+			}
+		})
+	}
+}
+
+func TestGenericFunctionsHelpWhileTyping(t *testing.T) {
+	c := start(t)
+	head := "import \"std/mem\";\n\nfunc twice<T>(T v, int n) T { return v; }\n\nfunc main() ! {\n\t[]int xs = mem.make<int>(mem.heap, 4)!;\n"
+	cases := []struct {
+		name, src, label string
+		active           int
+	}{
+		{"a module function, first argument", head + "\txs = mem.resize(¦\n}\n", "resize<T, Allocator A>(A a, []T items, int n) ![]T", 0},
+		{"a module function, third argument", head + "\txs = mem.resize(mem.heap, xs, ¦\n}\n", "resize<T, Allocator A>(A a, []T items, int n) ![]T", 2},
+		{"a function of the module", head + "\tint k = twice(3, ¦\n}\n", "twice<T>(T v, int n) T", 1},
+		{"with the types written", head + "\tint k = twice<int>(3, ¦\n}\n", "twice<T>(T v, int n) T", 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			label, active := c.open(map[string]string{"main.wsp": tc.src}).signature()
+			if label != tc.label || active != tc.active {
+				t.Errorf("signature %q (parameter %d), want %q (parameter %d)", label, active, tc.label, tc.active)
+			}
+		})
+	}
+}
+
+func TestHoverOfACallThatIsStillBeingTyped(t *testing.T) {
+	c := start(t)
+	cases := []struct{ name, src, want string }{
+		{"a generic of a module", "import \"std/mem\";\n\nfunc main() ! {\n\t[]int xs = mem.make<int>(mem.heap, 4)!;\n\txs = mem.resi¦ze(mem.heap, \n}\n", "resize<T, Allocator A>(A a, []T items, int n) ![]T"},
+		{"a generic of the module", "func twice<T>(T v, int n) T { return v; }\n\nfunc main() {\n\tint k = twi¦ce(3, \n}\n", "func twice<T>(T v, int n) T"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := c.open(map[string]string{"main.wsp": tc.src}).hover()
+			if !strings.Contains(got, tc.want) {
+				t.Errorf("hover %q lacks %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMembersAfterACallInAChain(t *testing.T) {
+	c := start(t)
+	head := "import \"std/mem\";\n\npublic struct List<T> {\n\t?mem.Allocator parent;\n\tinternal []T buf;\n}\n\ninline func (*List<T> l) source() mem.Allocator {\n\treturn l.parent ?? mem.heap;\n}\n\nstruct Plain { ?mem.Allocator parent; }\nfunc (*Plain p) source() mem.Allocator { return p.parent ?? mem.heap; }\nfunc (*Plain p) self() *Plain { return p; }\n\n"
+	cases := []struct {
+		name, src string
+		want, no  []string
+	}{
+		{"a method of a generic type", head + "func (*List<T> l) release() {\n\tl.source().¦\n}\n", []string{"alloc", "free"}, []string{"len", "parent"}},
+		{"a method of a plain type", head + "func (*Plain p) release() {\n\tp.source().¦\n}\n", []string{"alloc", "free"}, []string{"len"}},
+		{"a method that gives its own type", head + "func (*Plain p) release() {\n\tp.self().¦\n}\n", []string{"parent", "source", "self"}, []string{"len"}},
+		{"with a half typed member", head + "func (*List<T> l) release() {\n\tl.source().fr¦\n}\n", []string{"free"}, []string{"parent"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := c.open(map[string]string{"main.wsp": tc.src}).completion()
+			for _, want := range tc.want {
+				if !slices.Contains(got, want) {
+					t.Errorf("completion lacks %q: %v", want, got)
+				}
+			}
+			for _, bad := range tc.no {
+				if slices.Contains(got, bad) {
+					t.Errorf("completion offers %q: %v", bad, got)
+				}
+			}
+		})
+	}
+}
+
+func TestHoverOfAMethodCallWithoutItsSemicolon(t *testing.T) {
+	c := start(t)
+	src := "import \"std/mem\";\n\nstruct Plain { ?mem.Allocator parent; }\nfunc (*Plain p) source() mem.Allocator { return p.parent ?? mem.heap; }\n\nfunc (*Plain p) release() {\n\tp.sou¦rce()\n}\n"
+	got := c.open(map[string]string{"main.wsp": src}).hover()
+	if !strings.Contains(got, "source() Allocator") {
+		t.Errorf("hover %q", got)
+	}
+}
+
+func TestErrorsOfGenericCallsUseTheWrittenName(t *testing.T) {
+	c := start(t)
+	src := "func twice<T>(T v, int n) T { return v; }\n\nfunc main() {\n\tint k = twice(1);\n}\n"
+	for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
+		if strings.Contains(d.Message, "expects 2 arguments") {
+			if strings.Contains(d.Message, "twice_") || !strings.Contains(d.Message, "function twice expects 2 arguments") {
+				t.Errorf("the message shows an internal name: %q", d.Message)
+			}
+			return
+		}
+	}
+	t.Error("no error about the arguments")
+}
+
+func TestMembersOfAnyExpressionBeforeTheDot(t *testing.T) {
+	c := start(t)
+	head := "struct Box { int width; int height; }\nfunc mk() !Box { return Box{width: 1, height: 2}; }\nfunc pick<T>(T v) T { return v; }\nfunc find() ?Box { return null; }\nfunc ls() [2]Box { return .{}; }\n\n"
+	cases := []struct{ name, body string }{
+		{"a fallible call", "func main() ! {\n\tmk()!.¦\n}\n"},
+		{"a generic call", "func main() {\n\tBox b;\n\tpick(b).¦\n}\n"},
+		{"a generic call with its types", "func main() {\n\tBox b;\n\tpick<Box>(b).¦\n}\n"},
+		{"an index", "func main() {\n\t[2]Box xs;\n\txs[1].¦\n}\n"},
+		{"an optional taken out", "func main() {\n\tfind()!!.¦\n}\n"},
+		{"an index of a call", "func main() {\n\tls()[0].¦\n}\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := c.open(map[string]string{"main.wsp": head + tc.body}).completion()
+			if !slices.Contains(got, "width") || !slices.Contains(got, "height") || len(got) != 2 {
+				t.Errorf("completion is %v, want the two fields of Box", got)
+			}
+		})
+	}
+}

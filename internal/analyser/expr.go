@@ -134,7 +134,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	if ft, ok := t.(*FuncType); ok && ft.Inline && ft.Decl != nil && ft.Decl.HasConstParams() && expr != a.callee {
 		switch expr.(type) {
 		case *ast.IdentLiteral, *ast.MemberExpr:
-			a.errorf(expr, "%s takes const parameters, so it only exists where it is called and cannot be used as a value", ft.Name)
+			a.errorf(expr, "%s takes const parameters, so it only exists where it is called and cannot be used as a value", ft.label())
 		}
 	}
 	return t
@@ -554,11 +554,11 @@ func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
 func (a *Analyser) checkCallArgsWith(expr *ast.CallExpr, ft *FuncType, argTypes []Type) {
 
 	if expr.Spread && (!ft.Variadic || ft.CVariadic) {
-		a.errorf(expr, "... passes a slice on to a variadic parameter, and %s has none", ft.Name)
+		a.errorf(expr, "... passes a slice on to a variadic parameter, and %s has none", ft.label())
 		return
 	}
 
-	if ft.Name == "len" {
+	if a.isBuiltinFunc(ft, "len") {
 		if len(argTypes) != 1 {
 			a.errorf(expr, "len expects 1 argument, got %d", len(argTypes))
 			return
@@ -586,7 +586,7 @@ func (a *Analyser) checkCallArgsWith(expr *ast.CallExpr, ft *FuncType, argTypes 
 	if ft.Variadic {
 		fixedCount := len(ft.Params) - 1
 		if len(argTypes) < fixedCount {
-			a.errorf(expr, "function %s expects at least %d arguments, got %d", ft.Name, fixedCount, len(argTypes)).WithHelp("%s", signatureHelp(ft))
+			a.errorf(expr, "function %s expects at least %d arguments, got %d", ft.label(), fixedCount, len(argTypes)).WithHelp("%s", signatureHelp(ft))
 			return
 		}
 		for i := range fixedCount {
@@ -617,7 +617,7 @@ func (a *Analyser) checkCallArgsWith(expr *ast.CallExpr, ft *FuncType, argTypes 
 				a.errorf(expr, "... passes a slice on, got %s", argTypes[end].String()).WithHelp("%s", signatureHelp(ft))
 				return
 			case !span.Element.Equals(variadicType):
-				a.errorf(expr, "... passes a slice of %s on, and %s takes %s", span.Element.String(), ft.Name, variadicType.String()).WithHelp("%s", signatureHelp(ft))
+				a.errorf(expr, "... passes a slice of %s on, and %s takes %s", span.Element.String(), ft.label(), variadicType.String()).WithHelp("%s", signatureHelp(ft))
 				return
 			}
 		}
@@ -626,7 +626,7 @@ func (a *Analyser) checkCallArgsWith(expr *ast.CallExpr, ft *FuncType, argTypes 
 				continue
 			}
 			if _, isAny := variadicType.(AnyType); !isAny && !a.coerceAt(expr.Args, len(argTypes), i, argTypes[i], variadicType) {
-				a.errorf(expr, "argument %d from %s: expected %s (variadic), got %s", i+1, ft.Name, variadicType.String(), argTypes[i].String()).WithHelp("%s", signatureHelp(ft))
+				a.errorf(expr, "argument %d from %s: expected %s (variadic), got %s", i+1, ft.label(), variadicType.String(), argTypes[i].String()).WithHelp("%s", signatureHelp(ft))
 				continue
 			}
 			a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), variadicType)
@@ -635,7 +635,7 @@ func (a *Analyser) checkCallArgsWith(expr *ast.CallExpr, ft *FuncType, argTypes 
 	}
 
 	if len(argTypes) != len(ft.Params) {
-		a.errorf(expr, "function %s expects %d arguments, got %d", ft.Name, len(ft.Params), len(argTypes)).WithHelp("%s", signatureHelp(ft))
+		a.errorf(expr, "function %s expects %d arguments, got %d", ft.label(), len(ft.Params), len(argTypes)).WithHelp("%s", signatureHelp(ft))
 		return
 	}
 
@@ -1423,7 +1423,7 @@ func (a *Analyser) isBuiltinCall(expr *ast.CallExpr, name string) bool {
 
 func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes []Type) {
 	if len(argTypes) < len(ft.Params) {
-		a.errorf(expr, "function %s expects at least %d arguments, got %d", ft.Name, len(ft.Params), len(argTypes))
+		a.errorf(expr, "function %s expects at least %d arguments, got %d", ft.label(), len(ft.Params), len(argTypes))
 		return
 	}
 
@@ -1434,7 +1434,7 @@ func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes
 
 		if i < len(ft.Params) {
 			if !a.coerceAt(expr.Args, len(argTypes), i, at, ft.Params[i]) {
-				a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.Name, ft.Params[i].String(), at.String())
+				a.errorf(expr, "argument %d from %s: expected %s, got %s", i+1, ft.label(), ft.Params[i].String(), at.String())
 				continue
 			}
 			a.checkConstFits(a.valueAt(expr.Args, len(argTypes), i), ft.Params[i])
@@ -1455,7 +1455,7 @@ func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes
 				break
 			}
 			if !cCompatible(at) {
-				d := a.errorf(expr, "argument %d from %s has type %s, which C cannot take", i+1, ft.Name, at)
+				d := a.errorf(expr, "argument %d from %s has type %s, which C cannot take", i+1, ft.label(), at)
 				if isString(at) {
 					d.WithHelp("pass the address of the bytes instead, as in *int8(s)")
 				}
@@ -1465,5 +1465,9 @@ func (a *Analyser) checkCVariadicArgs(expr *ast.CallExpr, ft *FuncType, argTypes
 }
 
 func signatureHelp(ft *FuncType) string {
-	return FuncSignature(ft.Name, ft, nil)
+	return FuncSignature(ft.label(), ft, nil)
+}
+
+func (a *Analyser) isBuiltinFunc(ft *FuncType, name string) bool {
+	return ft.Name == name && ft.Decl == nil && ft.Receiver == nil && ft.Template == nil && ft.DeclFile == ""
 }

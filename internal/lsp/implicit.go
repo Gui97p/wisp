@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	leadingDot     = regexp.MustCompile(`(^|[^\w)\]"'.])\.\w*$`)
+	leadingDot     = regexp.MustCompile(`(^|[^\w)\]"'.!])\.\w*$`)
 	declaredBefore = regexp.MustCompile(`([A-Za-z_][\w.]*)\s+[A-Za-z_]\w*\s*=\s*$`)
 	comparedBefore = regexp.MustCompile(`([A-Za-z_][\w.]*)\s*(==|!=)\s*$`)
 	assignedBefore = regexp.MustCompile(`(^|[^=!<>])\b([A-Za-z_][\w.]*)\s*=\s*$`)

@@ -142,9 +142,56 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	}
 
 	if text == "" {
-		return nil
+		return textualHover(path, line, col, info, program)
 	}
 	return markdownHover(text, rng)
+}
+
+func textualHover(path string, line, col int, info *analyser.Info, program *ast.Program) *protocol.Hover {
+	lines := splitLines(fileBuffer[path])
+	if line < 1 || line > len(lines) {
+		return nil
+	}
+	text := lines[line-1]
+	start, end := col-1, col-1
+	for start > 0 && start <= len(text) && isIdentByte(text[start-1]) {
+		start--
+	}
+	for end < len(text) && isIdentByte(text[end]) {
+		end++
+	}
+	if start >= end {
+		return nil
+	}
+	name := text[start:end]
+
+	scope := scopeAt(info, line, col)
+	var sym *analyser.Symbol
+	if base, qualified := memberBase(text[:end]); qualified {
+		owner, found := resolveChain(scope, base)
+		if !found {
+			return nil
+		}
+		if mt, isModule := owner.Type.(*analyser.ModuleType); isModule {
+			sym = mt.Exports[name]
+		} else if ft := analyser.MethodsOf(owner.Type)[name]; ft != nil {
+			doc := ""
+			if ft.Decl != nil {
+				doc = ft.Decl.Doc
+			}
+			return markdownHover(renderDoc(analyser.FuncSignature(name, ft, nil), joinDocs(doc, "Method.")), wordRange(fileBuffer[path], line, col))
+		}
+	} else if found, ok := scope.Resolve(name); ok {
+		sym = found
+	}
+	if sym == nil {
+		return nil
+	}
+	content := symbolHover(sym, program)
+	if content == "" {
+		return nil
+	}
+	return markdownHover(content, wordRange(fileBuffer[path], line, col))
 }
 
 var primitiveDocs = map[string]string{

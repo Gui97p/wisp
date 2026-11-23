@@ -35,9 +35,22 @@ func semanticTokens(context *glsp.Context, params *protocol.SemanticTokensParams
 		program, info = prev.program, prev.info
 	}
 
-	program = declarationsOf(program, declarationFiles(path), path)
+	program = withoutInstances(declarationsOf(program, declarationFiles(path), path))
 
 	return &protocol.SemanticTokens{Data: encodeTokens(collectTokens(program, info))}, nil
+}
+
+func withoutInstances(program *ast.Program) *ast.Program {
+	kept := &ast.Program{}
+	*kept = *program
+	kept.Declarations = nil
+	for _, decl := range program.Declarations {
+		if fd, ok := decl.(*ast.FuncDecl); ok && fd.Instance != "" {
+			continue
+		}
+		kept.Declarations = append(kept.Declarations, decl)
+	}
+	return kept
 }
 
 func collectTokens(program *ast.Program, info *analyser.Info) []semanticToken {

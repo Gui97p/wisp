@@ -553,7 +553,7 @@ func (a *Analyser) staticCall(call *ast.CallExpr) (ConstValue, bool) {
 	a.staticDepth++
 	defer func() { a.staticDepth-- }()
 	if a.staticDepth > staticDepthLimit {
-		a.errorf(call, "the recursion of %s is too deep for compile time: more than %d calls inside each other", ft.Name, staticDepthLimit)
+		a.errorf(call, "the recursion of %s is too deep for compile time: more than %d calls inside each other", ft.label(), staticDepthLimit)
 		return ConstValue{}, false
 	}
 

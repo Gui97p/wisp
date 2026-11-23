@@ -346,7 +346,7 @@ func (a *Analyser) warnMustUse(stmt *ast.ExpressionStmt) {
 	if tag == nil {
 		return
 	}
-	name := ft.Name
+	name := ft.label()
 	if path, ok := fieldPath(call.Name); ok {
 		name = joinPath(path)
 	}

@@ -505,3 +505,17 @@ func (p *project) symbols() []string {
 	}
 	return out
 }
+
+func (p *project) signature() (label string, active int) {
+	p.c.t.Helper()
+	raw := p.c.call("textDocument/signatureHelp", p.at())
+	var h struct {
+		Signatures      []struct{ Label string } `json:"signatures"`
+		ActiveParameter int                      `json:"activeParameter"`
+	}
+	json.Unmarshal(raw, &h)
+	if len(h.Signatures) == 0 {
+		return "", 0
+	}
+	return h.Signatures[0].Label, h.ActiveParameter
+}

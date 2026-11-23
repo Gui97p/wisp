@@ -13328,6 +13328,32 @@ func main() {
 }
 `, expected: []string{"an optional interface field unwrapped through a pointer", "and called in the same expression, from a method", "an optional struct field unwrapped through a pointer", "an absent optional struct field takes the fallback"}},
 
+	{dir: "method_named_len", src: `struct Box<T> {
+    int n;
+    T v;
+}
+
+func (*Box<T> b) len() int {
+    return b.n;
+}
+
+struct Plain {
+    int n;
+}
+
+func (*Plain p) len() int {
+    return p.n;
+}
+
+func main() {
+    Box<int> b = .{n: 3, v: 1};
+    Plain p = .{n: 4};
+    [5]int arr;
+    check(b.len() == 3 && p.len() == 4, "a method can be called len");
+    check(len(arr) == 5, "and the builtin len still works next to it");
+}
+`, expected: []string{"a method can be called len", "and the builtin len still works next to it"}},
+
 	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
 interface Closer { func close(); }
 interface WriteCloser { Writer & Closer }

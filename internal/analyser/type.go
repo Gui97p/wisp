@@ -343,6 +343,7 @@ type FuncType struct {
 	Nullable     bool
 	Template     *MethodTemplate
 	Generic      *InstanceInfo
+	Source       string
 	Iface        *InterfaceType
 	Slot         int
 }
@@ -597,4 +598,11 @@ func sliceable(expr ast.Expression) bool {
 		return true
 	}
 	return isAddressable(expr)
+}
+
+func (ft *FuncType) label() string {
+	if ft.Source != "" {
+		return ft.Source
+	}
+	return ft.Name
 }

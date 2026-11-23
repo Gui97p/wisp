@@ -187,6 +187,9 @@ func typeParamsText(params []ast.TypeParam) string {
 	names := make([]string, len(params))
 	for i, p := range params {
 		names[i] = p.Name
+		if p.Constraint != nil {
+			names[i] = p.Constraint.String() + " " + p.Name
+		}
 		if p.Const {
 			names[i] = "const " + p.Type.String() + " " + p.Name
 		}
@@ -220,15 +223,19 @@ func genericHover(sym *analyser.Symbol) string {
 		for i := range fd.ReturnTypes {
 			results[i] = refText(fd.ReturnTypes[i])
 		}
+		bang := ""
+		if fd.Fallible {
+			bang = "!"
+		}
 		switch len(results) {
 		case 0:
+			if fd.Fallible {
+				text += " !"
+			}
 		case 1:
-			text += " " + results[0]
+			text += " " + bang + results[0]
 		default:
-			text += " (" + strings.Join(results, ", ") + ")"
-		}
-		if fd.Fallible {
-			text += " !"
+			text += " " + bang + "(" + strings.Join(results, ", ") + ")"
 		}
 		return renderDoc(text, joinDocs(sym.Doc, "Generic function: each use picks its types."))
 	case g.Struct != nil:
