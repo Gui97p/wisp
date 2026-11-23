@@ -413,7 +413,7 @@ func (p *Parser) parseCallExpression(name ast.Expression) ast.Expression {
 	savedOperands := p.typeOperands
 	if id, ok := name.(*ast.IdentLiteral); ok {
 		switch id.Value {
-		case "sizeof", "alignof", "offsetof", "make", "makeDirty", "create", "resize":
+		case "sizeof", "alignof", "offsetof":
 			p.typeOperands = true
 		}
 	}

@@ -11,7 +11,7 @@ struct Chunk {
 	?*Chunk next;
 }
 
-public struct Pool {
+public struct Pool implements mem.Allocator {
 	int size;
 	?mem.Allocator parent;
 	internal ?*void spare;
@@ -86,28 +86,4 @@ public func (*Pool p) release() {
 
 public inline func (*Pool p) blocks() int {
 	return p.liveBlocks;
-}
-
-public func (*Pool p) allocator() mem.Allocator {
-	return mem.allocator((*void)(p), poolAlloc, poolAllocDirty, poolRealloc, poolFree);
-}
-
-func poolOf(?*void state) *Pool {
-	return (*Pool)(state!!);
-}
-
-func poolAlloc(?*void state, int n) !*void {
-	return poolOf(state).alloc(n)!;
-}
-
-func poolAllocDirty(?*void state, int n) !*void {
-	return poolOf(state).allocDirty(n)!;
-}
-
-func poolRealloc(?*void state, ?*void p, int old, int n) !*void {
-	return poolOf(state).realloc(p, old, n)!;
-}
-
-func poolFree(?*void state, ?*void p) {
-	poolOf(state).free(p);
 }

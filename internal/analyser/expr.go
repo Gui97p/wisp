@@ -397,14 +397,6 @@ func (a *Analyser) checkCallExpr(expr *ast.CallExpr) []Type {
 		return nil
 	}
 
-	for _, name := range []string{"make", "makeDirty", "create", "free", "resize"} {
-		if a.isBuiltinCall(expr, name) {
-			returns := a.checkAllocBuiltin(expr, name)
-			a.info.CallReturns[expr] = machineReturns(returns)
-			return returns
-		}
-	}
-
 	for _, name := range []string{"truncate", "saturate"} {
 		if a.isBuiltinCall(expr, name) {
 			returns := []Type{a.checkWidthBuiltin(expr, name)}

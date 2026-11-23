@@ -98,10 +98,10 @@ public func skip(...args) {
 
 public func allocator() mem.Allocator {
 	if !tracking {
-		tracker.parent = store.allocator();
+		tracker.parent = &store;
 		tracking = true;
 	}
-	return tracker.allocator();
+	return &tracker;
 }
 
 public func finish() ! {

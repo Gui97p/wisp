@@ -118,3 +118,33 @@ func (t *X64Target) compileInterfaceData(expr *ast.CastExpr) (Operand, error) {
 	t.loadWord(reg, object.at(0, 8))
 	return Reg{reg, 8}, nil
 }
+
+func (t *X64Target) emitInterfaceData(expr ast.Expression) error {
+	err := fmt.Errorf("x86-64: unsupported global initializer")
+	cast, ok := expr.(*ast.CastExpr)
+	if !ok {
+		return err
+	}
+	conv, ok := t.info.IfaceConversions[cast]
+	if !ok {
+		return err
+	}
+	address, ok := cast.Value.(*ast.UnaryExpr)
+	if !ok {
+		return err
+	}
+	id, ok := address.Value.(*ast.IdentLiteral)
+	if !ok {
+		return err
+	}
+	sym := t.info.Idents[id]
+	if sym == nil {
+		return err
+	}
+	object := symbolName(sym.Module, sym.Name)
+	if sym.Module != t.module {
+		t.prelude.define(object)
+	}
+	t.data.printft("dq %s\n\tdq %s\n", object, t.vtableLabel(conv))
+	return nil
+}

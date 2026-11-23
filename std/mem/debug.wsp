@@ -3,6 +3,7 @@
 import "std/errors";
 import "std/fmt";
 import "std/mem";
+import "std/mem/heap" as raw;
 import "std/mem/x64" as impl;
 import "std/strings";
 
@@ -10,20 +11,21 @@ const {
 	HEAD = 64;
 	CANARY = 16;
 	MAX_BLOCK = 1 << 47;
-	uint LIVE = 0x57495350444C4956;
-	uint DEAD = 0x5749535044444541;
+	uint EMPTY = 0;
+	uint TOMB = 1;
 }
 
 struct Header {
-	uint magic;
 	int size;
 	string site, freed;
 	?*Header prev, next;
 }
 
-public struct Debug {
+public struct Debug implements mem.Allocator {
 	?mem.Allocator parent;
 	internal ?*Header head;
+	internal []uint table;
+	internal int entries, tombs;
 	internal int liveBlocks;
 	internal [256]?*Header ring;
 	internal int ringStart, ringCount;
@@ -72,6 +74,93 @@ func verifyPoison(*Header h) {
 	}
 }
 
+func mix(uint key) uint {
+	uint x = key >> 4;
+	x = x ^ (x >> 29);
+	x = x *% 0xBF58476D1CE4E5B9;
+	return x ^ (x >> 32);
+}
+
+func (*Debug d) find(uint key) int {
+	int n = len(d.table);
+	return -1 if n == 0;
+	int mask = n - 1;
+	int i = int(mix(key) & uint(mask));
+	for _ in 0..n - 1 {
+		uint at = d.table[i];
+		return -1 if at == EMPTY;
+		return i if at == key;
+		i = (i + 1) & mask;
+	}
+	return -1;
+}
+
+func (*Debug d) insert(uint key) {
+	int mask = len(d.table) - 1;
+	int i = int(mix(key) & uint(mask));
+	loop d.table[i] > TOMB {
+		i = (i + 1) & mask;
+	}
+	if d.table[i] == TOMB {
+		d.tombs--;
+	}
+	d.table[i] = key;
+	d.entries++;
+}
+
+func (*Debug d) rebuild() ! {
+	int want = 64;
+	loop want < (d.entries + 1) * 4 {
+		want *= 2;
+	}
+	[]uint old = d.table;
+	*void block = raw.allocate(want * 8, true) ?? return Error(errors.Kind.OutOfMemory);
+	d.table = (*uint)(block)[0:want];
+	d.entries = 0;
+	d.tombs = 0;
+	for key in old {
+		if key > TOMB {
+			d.insert(key);
+		}
+	}
+	if len(old) > 0 {
+		raw.release(old);
+	}
+}
+
+func (*Debug d) track(*Header h) ! {
+	if (d.entries + d.tombs + 1) * 2 > len(d.table) {
+		d.rebuild()!;
+	}
+	d.insert(uint(h));
+}
+
+func (*Debug d) untrack(uint key) {
+	int i = d.find(key);
+	d.table[i] = TOMB;
+	d.entries--;
+	d.tombs++;
+}
+
+func (*Debug d) reject(*void p, string ifFreed, string ifInside, string ifForeign) {
+	uint at = uint(p) - HEAD;
+	for i in 0..d.ringCount - 1 {
+		*Header dead = d.ring[(d.ringStart + i) % len(d.ring)]!!;
+		if uint(dead) == at {
+			fail(dead, ifFreed);
+		}
+	}
+	?*Header c = d.head;
+	loop c |h| {
+		c = h.next;
+		uint start = uint(dataOf(h));
+		if uint(p) > start && uint(p) < start + uint(h.size) {
+			fail(h, ifInside);
+		}
+	}
+	panic(ifForeign);
+}
+
 func (*Debug d) obtain(int n, bool zero) !*void {
 	errors.ensure(n >= 0 && n <= MAX_BLOCK, errors.Kind.OutOfMemory)!;
 	int total = HEAD + n + CANARY;
@@ -80,12 +169,15 @@ func (*Debug d) obtain(int n, bool zero) !*void {
 		mem.fill(raw, 0, total);
 	}
 	*Header h = (*Header)(raw);
-	h.magic = LIVE;
 	h.size = n;
 	h.site = impl.site();
 	h.freed = "";
 	h.prev = null;
 	h.next = d.head;
+	d.track(h) ?? {
+		d.source().free(raw);
+		return Error(errors.Kind.OutOfMemory);
+	};
 	if d.head |first| {
 		first.prev = h;
 	}
@@ -116,13 +208,11 @@ func (*Debug d) evict() {
 
 public func (*Debug d) free(?*void p) {
 	*void block = p ?? return;
+	uint at = uint(block) - HEAD;
+	if d.find(at) < 0 {
+		d.reject(block, "double free", "free of a pointer into the middle of a block: free the pointer the allocator gave", "free of a pointer that is not a block of this allocator: a stack or global address, or a block of another allocator");
+	}
 	*Header h = headerOf(block);
-	if h.magic == DEAD {
-		fail(h, "double free");
-	}
-	if h.magic != LIVE {
-		panic("free of a pointer this allocator did not give");
-	}
 	verifyCanary(h);
 	if h.prev |before| {
 		before.next = h.next;
@@ -132,7 +222,7 @@ public func (*Debug d) free(?*void p) {
 	if h.next |after| {
 		after.prev = h.prev;
 	}
-	h.magic = DEAD;
+	d.untrack(at);
 	h.freed = impl.site();
 	mem.fill(dataOf(h), 0xDD, h.size);
 	d.liveBlocks--;
@@ -145,13 +235,10 @@ public func (*Debug d) free(?*void p) {
 
 public func (*Debug d) realloc(?*void p, int old, int n) !*void {
 	*void block = p ?? return d.obtain(n, true)!;
+	if d.find(uint(block) - HEAD) < 0 {
+		d.reject(block, "realloc of a freed block", "realloc of a pointer into the middle of a block: use the pointer the allocator gave", "realloc of a pointer that is not a block of this allocator: a stack or global address, or a block of another allocator");
+	}
 	*Header h = headerOf(block);
-	if h.magic == DEAD {
-		fail(h, "realloc of a freed block");
-	}
-	if h.magic != LIVE {
-		panic("realloc of a pointer this allocator did not give");
-	}
 	if h.size != old {
 		fail(h, "realloc with a size that is not the size of the block");
 	}
@@ -177,17 +264,19 @@ public func (*Debug d) release() {
 	loop d.ringCount > 0 {
 		d.evict();
 	}
+	if len(d.table) > 0 {
+		raw.release(d.table);
+		d.table = .{};
+		d.entries = 0;
+		d.tombs = 0;
+	}
 }
 
 internal func (*Debug d) sizeOf(*void p) int {
-	*Header h = headerOf(p);
-	if h.magic == DEAD {
-		fail(h, "use of a freed block");
+	if d.find(uint(p) - HEAD) < 0 {
+		d.reject(p, "use of a freed block", "a pointer into the middle of a block", "a pointer that is not a block of this allocator");
 	}
-	if h.magic != LIVE {
-		panic("a pointer this allocator did not give");
-	}
-	return h.size;
+	return headerOf(p).size;
 }
 
 public inline func (*Debug d) blocks() int {
@@ -230,28 +319,4 @@ public func (*Debug d) report() int {
 		fmt.fprintf(2, "leak: {} more blocks from other places\n", others)!!;
 	}
 	return d.liveBlocks;
-}
-
-public func (*Debug d) allocator() mem.Allocator {
-	return mem.allocator((*void)(d), debugAlloc, debugAllocDirty, debugRealloc, debugFree);
-}
-
-func debugOf(?*void state) *Debug {
-	return (*Debug)(state!!);
-}
-
-func debugAlloc(?*void state, int n) !*void {
-	return debugOf(state).alloc(n)!;
-}
-
-func debugAllocDirty(?*void state, int n) !*void {
-	return debugOf(state).allocDirty(n)!;
-}
-
-func debugRealloc(?*void state, ?*void p, int old, int n) !*void {
-	return debugOf(state).realloc(p, old, n)!;
-}
-
-func debugFree(?*void state, ?*void p) {
-	debugOf(state).free(p);
 }

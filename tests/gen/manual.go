@@ -1370,7 +1370,8 @@ func main() {
     [3]int arr = .{};
     check(len(arr) == 3 && arr[0] == 0 && arr[2] == 0, "[] is also the zero array");
 
-    mem.free((*byte)(a), (*byte)(b));
+    mem.heap.free((*byte)(a));
+    mem.heap.free((*byte)(b));
     check(true, "free accepts an empty slice");
 }
 `, expected: []string{"return [] gives an empty slice", "a declaration takes the type of the slice", "an assignment can empty a slice", "a struct field can be []", "an argument can be []", "[] is also the zero array", "free accepts an empty slice"}},
@@ -2556,7 +2557,7 @@ struct Node {
     ?*Node next;
 }
 
-struct Counter {
+struct Counter implements mem.Allocator {
     int allocs;
     int dirty;
     int frees;
@@ -2568,7 +2569,7 @@ func (*Counter c) alloc(int n) !*void {
     errors.ensure(c.limit == 0 || c.allocs < c.limit, errors.Kind.OutOfMemory)!;
     c.allocs++;
     c.bytes += n;
-    return mem.alloc(n)!;
+    return mem.heap.alloc(n)!;
 }
 
 func (*Counter c) allocDirty(int n) !*void {
@@ -2576,21 +2577,25 @@ func (*Counter c) allocDirty(int n) !*void {
     c.allocs++;
     c.dirty++;
     c.bytes += n;
-    return mem.allocDirty(n)!;
+    return mem.heap.allocDirty(n)!;
+}
+
+func (*Counter _c) realloc(?*void p, int old, int n) !*void {
+    return mem.heap.realloc(p, old, n)!;
 }
 
 func (*Counter c) free(?*void p) {
     c.frees++;
-    mem.free(p);
+    mem.heap.free(p);
 }
 
 inline func ints(*Counter c, int n) ![]int {
-    return make(c, int, n)!;
+    return mem.make<int>(c, n)!;
 }
 
 func total(*Counter c, int n) !int {
-    []int xs = make(c, int, n)!;
-    defer free(c, xs);
+    []int xs = mem.make<int>(c, n)!;
+    defer mem.free(c, xs);
     int sum;
     for i, _ in xs {
         xs[i] = i;
@@ -2601,143 +2606,139 @@ func total(*Counter c, int n) !int {
 
 func main() ! {
     Counter c;
-    []int xs = make(&c, int, 5)!;
+    []int xs = mem.make<int>(&c, 5)!;
     check(len(xs) == 5 && xs[0] == 0 && xs[4] == 0, "make gives a zeroed slice of the length asked");
     check(c.allocs == 1 && c.bytes == 40, "make asks the allocator for count times the size");
     xs[2] = 42;
     check(xs[2] == 42, "the slice is usable");
 
-    []Node nodes = make(&c, Node, 3)!;
+    []Node nodes = mem.make<Node>(&c, 3)!;
     nodes[1].value = 7;
     check(len(nodes) == 3 && nodes[0].next == null && nodes[1].value == 7, "make of a struct");
 
-    *Node n = create(&c, Node)!;
+    *Node n = mem.create<Node>(&c)!;
     n.value = 9;
     check(n.value == 9 && n.next == null && c.bytes == 40 + 3 * 16 + 16, "create gives a zeroed value and a pointer");
 
-    []byte raw = makeDirty(&c, byte, 16)!;
+    []byte raw = mem.makeDirty<byte>(&c, 16)!;
     check(len(raw) == 16 && c.dirty == 1, "makeDirty asks for memory that is not cleared");
 
-    []int none = make(&c, int, 0)!;
+    []int none = mem.make<int>(&c, 0)!;
     check(len(none) == 0, "make of zero elements");
 
-    free(&c, xs);
-    free(&c, nodes);
-    free(&c, n);
-    free(&c, raw);
+    mem.free(&c, xs);
+    mem.free(&c, nodes);
+    mem.free(&c, n);
+    mem.free(&c, raw);
     check(c.frees == 4, "free hands each block back to the allocator");
 
     check(total(&c, 5)! == 10 && c.frees == 5, "make and free around a use");
     []int viaInline = ints(&c, 3)!;
     check(len(viaInline) == 3, "make inside an inline function");
-    free(&c, viaInline);
+    mem.free(&c, viaInline);
 
     Counter small = Counter{limit: 1};
-    []int first = make(&small, int, 2)!;
-    let second, failure = make(&small, int, 2);
+    []int first = mem.make<int>(&small, 2)!;
+    let second, failure = mem.make<int>(&small, 2);
     check(failure == errors.Kind.OutOfMemory && len(second) == 0, "a failing allocator makes make fail");
-    []int fallback = make(&small, int, 2) ?? first;
+    []int fallback = mem.make<int>(&small, 2) ?? first;
     check(len(fallback) == 2, "make can be handled with ??");
-    free(&small, first);
+    mem.free(&small, first);
 }
 `, expected: []string{"make gives a zeroed slice of the length asked", "make asks the allocator for count times the size", "the slice is usable", "make of a struct", "create gives a zeroed value and a pointer", "makeDirty asks for memory that is not cleared", "make of zero elements", "free hands each block back to the allocator", "make and free around a use", "make inside an inline function", "a failing allocator makes make fail", "make can be handled with ??"}},
 
 	{dir: "alloc_interface", src: `import "std/errors";
 import "std/mem";
 
-struct Counter {
+struct Counter implements mem.Allocator {
     int allocs;
     int frees;
 }
 
-func (*Counter c) allocator() mem.Allocator {
-    return mem.allocator((*void)(c), countAlloc, countAllocDirty, countRealloc, countFree);
+func (*Counter c) alloc(int n) !*void {
+    c.allocs++;
+    return mem.heap.alloc(n)!;
 }
 
-func countAlloc(?*void state, int n) !*void {
-    ((*Counter)(state!!)).allocs++;
-    return mem.alloc(n)!;
+func (*Counter c) allocDirty(int n) !*void {
+    c.allocs++;
+    return mem.heap.allocDirty(n)!;
 }
 
-func countAllocDirty(?*void state, int n) !*void {
-    ((*Counter)(state!!)).allocs++;
-    return mem.allocDirty(n)!;
-}
-
-func countRealloc(?*void state, ?*void p, int old, int n) !*void {
+func (*Counter _c) realloc(?*void p, int old, int n) !*void {
     return mem.heap.realloc(p, old, n)!;
 }
 
-func countFree(?*void state, ?*void p) {
-    ((*Counter)(state!!)).frees++;
-    mem.free(p);
+func (*Counter c) free(?*void p) {
+    c.frees++;
+    mem.heap.free(p);
 }
 
 func main() ! {
-    []int onHeap = make(mem.heap, int, 4)!;
+    []int onHeap = mem.make<int>(mem.heap, 4)!;
     onHeap[3] = 9;
     check(len(onHeap) == 4 && onHeap[0] == 0 && onHeap[3] == 9, "the heap is a value the builtins accept");
-    free(mem.heap, onHeap);
+    mem.free(mem.heap, onHeap);
 
     mem.Arena arena;
-    mem.Allocator viaArena = arena.allocator();
-    []int a = make(viaArena, int, 8)!;
+    mem.Allocator viaArena = &arena;
+    []int a = mem.make<int>(viaArena, 8)!;
     a[7] = 70;
     check(len(a) == 8 && a[7] == 70, "an arena as an Allocator value");
-    free(viaArena, a);
+    mem.free(viaArena, a);
     check(a[7] == 70, "free on an arena changes nothing");
 
     [256]byte storage;
     mem.Fixed fixed = mem.Fixed{buffer: storage};
-    mem.Allocator viaFixed = fixed.allocator();
-    *int one = create(viaFixed, int)!;
+    mem.Allocator viaFixed = &fixed;
+    *int one = mem.create<int>(viaFixed)!;
     one@ = 5;
     check(one@ == 5 && fixed.used() >= 16, "a fixed buffer as an Allocator value");
 
     Counter counts;
-    mem.Allocator counting = counts.allocator();
+    mem.Allocator counting = &counts;
     mem.Arena child = mem.Arena{parent: counting};
-    []byte block = make(&child, byte, 100)!;
+    []byte block = mem.make<byte>(&child, 100)!;
     check(len(block) == 100 && counts.allocs == 1, "an arena takes its memory from its parent");
     child.release();
     check(counts.frees == 1, "release hands the chunks back to the parent");
 
-    []int xs = make(mem.heap, int, 3)!;
+    []int xs = mem.make<int>(mem.heap, 3)!;
     xs[0] = 1;
     xs[2] = 3;
-    xs = resize(mem.heap, xs, 6)!;
+    xs = mem.resize(mem.heap, xs, 6)!;
     check(len(xs) == 6 && xs[0] == 1 && xs[2] == 3 && xs[3] == 0 && xs[5] == 0, "resize grows a slice and keeps its content, zeroing the rest");
-    xs = resize(mem.heap, xs, 2)!;
+    xs = mem.resize(mem.heap, xs, 2)!;
     check(len(xs) == 2 && xs[0] == 1, "resize shrinks a slice");
-    xs = resize(mem.heap, xs, 5)!;
+    xs = mem.resize(mem.heap, xs, 5)!;
     check(xs[2] == 0 && xs[4] == 0, "memory that comes back after a shrink is zeroed");
-    free(mem.heap, xs);
+    mem.free(mem.heap, xs);
 
     mem.Arena grower;
-    []int g = make(&grower, int, 4)!;
+    []int g = mem.make<int>(&grower, 4)!;
     g[0] = 11;
     *int before = (*int)(g);
-    g = resize(&grower, g, 8)!;
+    g = mem.resize(&grower, g, 8)!;
     check((*int)(g) == before && g[0] == 11 && g[7] == 0, "an arena grows its last block in place");
-    []int other = make(&grower, int, 2)!;
-    g = resize(&grower, g, 100)!;
+    []int other = mem.make<int>(&grower, 2)!;
+    g = mem.resize(&grower, g, 100)!;
     check(g[0] == 11 && len(g) == 100 && len(other) == 2, "an arena copies a block that is not the last");
     grower.release();
 
     [128]byte small;
     mem.Fixed tight = mem.Fixed{buffer: small};
-    []int t = make(&tight, int, 4)!;
+    []int t = mem.make<int>(&tight, 4)!;
     t[1] = 4;
-    t = resize(&tight, t, 8)!;
+    t = mem.resize(&tight, t, 8)!;
     check(t[1] == 4 && len(t) == 8, "a fixed buffer grows its last block in place");
-    let _, full = resize(&tight, t, 100);
+    let _, full = mem.resize(&tight, t, 100);
     check(full == errors.Kind.NoSpace, "resize fails like the allocator does");
     check(len(t) == 8 && t[1] == 4, "the old slice stays valid when resize fails");
 
     []int none = .{};
-    []int fresh = resize(mem.heap, none, 3)!;
+    []int fresh = mem.resize(mem.heap, none, 3)!;
     check(len(fresh) == 3 && fresh[0] == 0, "resize of an empty slice allocates");
-    free(mem.heap, fresh);
+    mem.free(mem.heap, fresh);
 }
 `, expected: []string{"the heap is a value the builtins accept", "an arena as an Allocator value", "free on an arena changes nothing", "a fixed buffer as an Allocator value", "an arena takes its memory from its parent", "release hands the chunks back to the parent", "resize grows a slice and keeps its content, zeroing the rest", "resize shrinks a slice", "memory that comes back after a shrink is zeroed", "an arena grows its last block in place", "an arena copies a block that is not the last", "a fixed buffer grows its last block in place", "resize fails like the allocator does", "the old slice stays valid when resize fails", "resize of an empty slice allocates"}},
 
@@ -3440,13 +3441,13 @@ func main() ! {
     word[0] = 'x';
     check(seen == "xbc", "a byte array converts to a string view of itself");
 
-    *int8 b = mem.alloc(8)!;
+    *int8 b = mem.heap.alloc(8)!;
     b[0] = 104;
     b[1] = 105;
     string s = string(b[0:2]);
     b[1] = 111;
     check(s == "ho", "string is a view of the buffer");
-    mem.free(b);
+    mem.heap.free(b);
 
     int x = 5;
     *int p = &x;
@@ -4599,16 +4600,16 @@ func main() {
 	{dir: "abort_double_free", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48)!!;
-    *byte q = mem.alloc(48)!!;
+    *byte p = mem.heap.alloc(48)!!;
+    *byte q = mem.heap.alloc(48)!!;
     check(int(p) != 0 && int(q) != 0, "double free before the second free");
-    mem.free(p);
-    mem.free(q);
-    mem.free(null);
-    *byte r = mem.alloc(48)!!;
+    mem.heap.free(p);
+    mem.heap.free(q);
+    mem.heap.free(null);
+    *byte r = mem.heap.alloc(48)!!;
     check(int(r) != 0, "a freed block is reused without a complaint");
-    mem.free(r);
-    mem.free(r);
+    mem.heap.free(r);
+    mem.heap.free(r);
     check(true, "double free never printed");
 }
 `, expected: []string{"double free before the second free", "a freed block is reused without a complaint"}, abort: "panic: double free"},
@@ -4629,17 +4630,17 @@ func main() ! {
     check(counting.blocks() == 0 && counting.bytes() == 0 && counting.allocated() == 500, "everything freed, totals kept");
 
     mem.Failing failing = mem.Failing{after: 2};
-    []int s = make(failing, int, 4)!;
-    []int t = make(failing, int, 4)!;
-    let u, e = make(failing, int, 4);
+    []int s = mem.make<int>(&failing, 4)!;
+    []int t = mem.make<int>(&failing, 4)!;
+    let u, e = mem.make<int>(&failing, 4);
     check(e == errors.Kind.OutOfMemory && len(u) == 0, "the third allocation fails");
     check(failing.calls() == 3, "failing counts the attempts");
-    free(failing, s);
-    free(failing, t);
+    mem.free(&failing, s);
+    mem.free(&failing, t);
     failing.reset();
-    []int again = make(failing, int, 4)!;
+    []int again = mem.make<int>(&failing, 4)!;
     check(len(again) == 4, "reset starts the count again");
-    free(failing, again);
+    mem.free(&failing, again);
 
     mem.Pool pool = mem.Pool{size: 24};
     *int p1 = pool.alloc(8)!;
@@ -4650,9 +4651,9 @@ func main() ! {
     check(p3 == p1 && p3@ == 0 && pool.blocks() == 2, "a freed block comes back zeroed");
     let big, tooBig = pool.alloc(25);
     check(tooBig == errors.Kind.Invalid && big == null, "a request larger than the block is refused");
-    []int fromPool = make(pool.allocator(), int, 3)!;
+    []int fromPool = mem.make<int>(&pool, 3)!;
     check(len(fromPool) == 3 && pool.blocks() == 3, "a pool serves the builtins");
-    free(pool.allocator(), fromPool);
+    mem.free(&pool, fromPool);
     pool.free(p2);
     pool.free(p3);
     check(pool.blocks() == 0, "the pool is empty again");
@@ -4660,13 +4661,13 @@ func main() ! {
 
     mem.Debug debug;
     mem.Counting inner = mem.Counting{parent: mem.heap};
-    debug.parent = inner.allocator();
-    []int d = make(debug, int, 10)!;
+    debug.parent = &inner;
+    []int d = mem.make<int>(&debug, 10)!;
     d[9] = 5;
     check(len(d) == 10 && d[0] == 0 && debug.blocks() == 1 && inner.blocks() == 1, "debug passes through to its parent");
-    []int grown = resize(debug, d, 20)!;
+    []int grown = mem.resize(&debug, d, 20)!;
     check(grown[9] == 5 && grown[19] == 0 && debug.blocks() == 1, "debug keeps the contents when a block moves");
-    free(debug, grown);
+    mem.free(&debug, grown);
     check(debug.blocks() == 0 && debug.report() == 0, "no leaks");
     debug.release();
     check(inner.blocks() == 0, "release gives the quarantine back");
@@ -4721,6 +4722,64 @@ func main() ! {
 }
 `, expected: []string{"debug wrong size before realloc"}, abort: "panic: realloc with a size"},
 
+	{dir: "abort_debug_stack_pointer", src: `import "std/mem";
+
+func main() ! {
+    mem.Debug debug;
+    int local = 5;
+    check(local == 5, "debug stack pointer before the free");
+    debug.free(&local);
+    check(true, "debug stack pointer never printed");
+}
+`, expected: []string{"debug stack pointer before the free"}, abort: "panic: free of a pointer that is not a block of this allocator"},
+
+	{dir: "abort_debug_interior_pointer", src: `import "std/mem";
+
+func main() ! {
+    mem.Debug debug;
+    *byte p = debug.alloc(16)!;
+    check(true, "debug interior pointer before the free");
+    debug.free(p + 8);
+    check(true, "debug interior pointer never printed");
+}
+`, expected: []string{"debug interior pointer before the free"}, abort: "panic: free of a pointer into the middle of a block"},
+
+	{dir: "abort_debug_foreign_block", src: `import "std/mem";
+
+func main() ! {
+    mem.Debug first;
+    mem.Debug second;
+    *byte p = first.alloc(16)!;
+    check(true, "debug foreign block before the free");
+    second.free(p);
+    check(true, "debug foreign block never printed");
+}
+`, expected: []string{"debug foreign block before the free"}, abort: "panic: free of a pointer that is not a block of this allocator"},
+
+	{dir: "mem_debug_many", src: `import "std/mem";
+
+func main() ! {
+    mem.Debug debug;
+    [3000]?*byte blocks;
+    for i in 0..2999 {
+        blocks[i] = debug.alloc(8 + i % 40)!;
+    }
+    check(debug.blocks() == 3000, "the table follows thousands of live blocks");
+    for i in (0..2999).step(2) {
+        debug.free(blocks[i]);
+    }
+    check(debug.blocks() == 1500, "freeing half leaves half");
+    for i in (0..2999).step(2) {
+        blocks[i] = debug.alloc(16)!;
+    }
+    for i in 0..2999 {
+        debug.free(blocks[i]);
+    }
+    check(debug.blocks() == 0 && debug.report() == 0, "everything freed, nothing reported");
+    debug.release();
+}
+`, expected: []string{"the table follows thousands of live blocks", "freeing half leaves half", "everything freed, nothing reported"}},
+
 	{dir: "abort_panic_location", src: `func fail(string why) {
     panic(why);
 }
@@ -4735,38 +4794,38 @@ func main() {
 	{dir: "mem_debug_clean", src: `import "std/mem";
 
 func main() {
-    *byte first = mem.alloc(48)!!;
+    *byte first = mem.heap.alloc(48)!!;
     mem.fill(first, 7, 48);
-    mem.free(first);
+    mem.heap.free(first);
     bool zeroed = true;
     for i in 0..2500 {
-        *byte q = mem.alloc(48)!!;
+        *byte q = mem.heap.alloc(48)!!;
         if int(q) == 0 || q[0] != 0 || q[47] != 0 {
             zeroed = false;
         }
         q[0] = 9;
-        mem.free(q);
+        mem.heap.free(q);
     }
     check(zeroed, "debug mode still hands out zeroed blocks after reuse");
-    *byte big = mem.alloc(100000)!!;
+    *byte big = mem.heap.alloc(100000)!!;
     check(int(big) != 0, "debug mode serves a large block");
-    mem.free(big);
-    *byte again = mem.alloc(48)!!;
+    mem.heap.free(big);
+    *byte again = mem.heap.alloc(48)!!;
     check(int(again) != 0 && again[10] == 0, "debug mode recycles quarantined blocks");
-    mem.free(again);
+    mem.heap.free(again);
 }
 `, expected: []string{"debug mode still hands out zeroed blocks after reuse", "debug mode serves a large block", "debug mode recycles quarantined blocks"}, profile: "debug"},
 
 	{dir: "abort_use_after_free", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48)!!;
+    *byte p = mem.heap.alloc(48)!!;
     check(int(p) != 0, "use after free before the stale write");
-    mem.free(p);
+    mem.heap.free(p);
     p[5] = 1;
     for i in 0..1100 {
-        *byte q = mem.alloc(48)!!;
-        mem.free(q);
+        *byte q = mem.heap.alloc(48)!!;
+        mem.heap.free(q);
     }
     check(true, "use after free never printed");
 }
@@ -4775,11 +4834,11 @@ func main() {
 	{dir: "abort_double_free_reused", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48)!!;
-    mem.free(p);
-    *byte q = mem.alloc(48)!!;
+    *byte p = mem.heap.alloc(48)!!;
+    mem.heap.free(p);
+    *byte q = mem.heap.alloc(48)!!;
     check(int(q) != 0 && q != p, "a freed block is not reused right away in debug mode");
-    mem.free(p);
+    mem.heap.free(p);
     check(true, "double free after reuse never printed");
 }
 `, expected: []string{"a freed block is not reused right away in debug mode"}, abort: "the block was freed at", profile: "debug"},
@@ -4787,20 +4846,20 @@ func main() {
 	{dir: "mem_leak_report", src: `import "std/mem";
 
 func leaky() {
-    *byte p = mem.alloc(48)!!;
+    *byte p = mem.heap.alloc(48)!!;
     p[0] = 1;
 }
 
 func clean() {
-    *byte q = mem.alloc(64)!!;
-    mem.free(q);
+    *byte q = mem.heap.alloc(64)!!;
+    mem.heap.free(q);
 }
 
 func main() {
     leaky();
     leaky();
     clean();
-    *byte big = mem.alloc(100000)!!;
+    *byte big = mem.heap.alloc(100000)!!;
     big[0] = 1;
     check(true, "the program runs to the end with leaks");
 }
@@ -4809,10 +4868,10 @@ func main() {
 	{dir: "mem_leak_none", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48)!!;
-    *byte q = mem.alloc(100000)!!;
-    mem.free(p);
-    mem.free(q);
+    *byte p = mem.heap.alloc(48)!!;
+    *byte q = mem.heap.alloc(100000)!!;
+    mem.heap.free(p);
+    mem.heap.free(q);
     check(true, "everything was freed");
 }
 `, expected: []string{"everything was freed"}, profile: "debug", stderr: "!leak:"},
@@ -4820,7 +4879,7 @@ func main() {
 	{dir: "mem_leak_off", src: `import "std/mem";
 
 func main() {
-    *byte p = mem.alloc(48)!!;
+    *byte p = mem.heap.alloc(48)!!;
     p[0] = 1;
     check(true, "no report in release");
 }
@@ -8188,10 +8247,10 @@ func main() {
 `},
 	{dir: "alloc_basic", src: `import "std/mem";
 func main() ! {
-    *int p = mem.alloc(sizeof(int) * 4)!;
+    *int p = mem.heap.alloc(sizeof(int) * 4)!;
     p@ = 42;
     check(p@ == 42, "malloc write and read");
-    mem.free(p);
+    mem.heap.free(p);
     check(sizeof(int) == 8, "sizeof int");
     check(sizeof(int8) == 1, "sizeof int8");
     check(sizeof(int32) == 4, "sizeof int32");
@@ -8200,27 +8259,27 @@ func main() ! {
 
 	{dir: "alloc_reuse", profile: "release", src: `import "std/mem";
 func main() ! {
-    *int a = mem.alloc(24)!;
-    mem.free(a);
-    *int b = mem.alloc(24)!;
+    *int a = mem.heap.alloc(24)!;
+    mem.heap.free(a);
+    *int b = mem.heap.alloc(24)!;
     check(a == b, "freed block is reused");
-    mem.free(b);
-    mem.free(null);
+    mem.heap.free(b);
+    mem.heap.free(null);
     check(true, "free null is a no-op");
 }
 `, expected: []string{"freed block is reused", "free null is a no-op"}},
 
 	{dir: "alloc_realloc", src: `import "std/mem";
 func main() ! {
-    *int p = mem.alloc(8)!;
+    *int p = mem.heap.alloc(8)!;
     p@ = 1234;
-    *int same = mem.realloc(p, 8)!;
+    *int same = mem.heap.realloc(p, 8, 8)!;
     check(same == p, "realloc within capacity keeps the block");
-    *int big = mem.realloc(p, 100)!;
+    *int big = mem.heap.realloc(p, 8, 100)!;
     check(big@ == 1234, "realloc keeps the contents");
-    *int huge = mem.realloc(big, 100000)!;
+    *int huge = mem.heap.realloc(big, 100, 100000)!;
     check(huge@ == 1234, "realloc to a large block keeps the contents");
-    mem.free(huge);
+    mem.heap.free(huge);
 }
 `, expected: []string{"realloc within capacity keeps the block", "realloc keeps the contents", "realloc to a large block keeps the contents"}},
 
@@ -8240,8 +8299,8 @@ func main() {
 	{dir: "size_mem_release", profile: "release", maxSize: 20000, maxWin: 30000, src: `import "std/mem";
 
 func main() {
-    *void p = mem.alloc(16)!!;
-    mem.free(p);
+    *void p = mem.heap.alloc(16)!!;
+    mem.heap.free(p);
     check(int(p) != 0, "allocating does not pull in the debug allocator or fmt");
 }
 `, expected: []string{"allocating does not pull in the debug allocator or fmt"}},
@@ -9094,8 +9153,8 @@ func main() {
 	{dir: "abort_malloc_oom", exit: 2, src: `import "std/mem";
 func main() ! {
     check(true, "oom before the failure");
-    *int p = mem.alloc(-1)!;
-    mem.free(p);
+    *int p = mem.heap.alloc(-1)!;
+    mem.heap.free(p);
 }
 `, expected: []string{"oom before the failure"}, abort: "error[std/errors/kind.Kind]: Kind.OutOfMemory"},
 
@@ -9106,7 +9165,7 @@ struct P {
 }
 
 func main() ! {
-    *int p = mem.alloc(sizeof(int) * 4)!;
+    *int p = mem.heap.alloc(sizeof(int) * 4)!;
     p[0] = 10;
     p[1] = 20;
     p[3] = 40;
@@ -9118,21 +9177,21 @@ func main() ! {
     *int mid = (*int)(p);
     check(mid[3] == 40, "pointer index through a converted pointer");
 
-    *int8 b = mem.alloc(16)!;
+    *int8 b = mem.heap.alloc(16)!;
     b[4] = 7;
     *int8 q = (*int8)(b);
     check(q[4] == 7, "pointer index on bytes");
     int i = 4;
     check(b[i] == 7, "pointer index with a variable");
 
-    *P ps = mem.alloc(sizeof(P) * 3)!;
+    *P ps = mem.heap.alloc(sizeof(P) * 3)!;
     ps[2].a = 99;
     ps[2].b = 5;
     check(ps[2].a == 99, "pointer index struct field a");
     check(ps[2].b == 5, "pointer index struct field b");
-    mem.free(ps);
-    mem.free(b);
-    mem.free(p);
+    mem.heap.free(ps);
+    mem.heap.free(b);
+    mem.heap.free(p);
 }
 `, expected: []string{"pointer index first", "pointer index second", "pointer index last", "pointer index compound assign", "pointer index through a converted pointer", "pointer index on bytes", "pointer index with a variable", "pointer index struct field a", "pointer index struct field b"}},
 
@@ -9224,7 +9283,7 @@ func main() ! {
 
     []byte copy = strings.clone("hey")!;
     check(string(copy) == "hey", "clone copies the bytes");
-    mem.free((*byte)(copy));
+    mem.heap.free((*byte)(copy));
     []byte empty = strings.clone("")!;
     check(len(empty) == 0, "clone of an empty string");
 }
@@ -10229,7 +10288,7 @@ func main() {
 
 	{dir: "ptr_slice", src: `import "std/mem";
 func main() ! {
-    *int8 b = mem.alloc(16)!;
+    *int8 b = mem.heap.alloc(16)!;
     for i in 0..15 {
         b[i] = int8(i * 2);
     }
@@ -10247,7 +10306,7 @@ func main() ! {
     check(len(u) == 5, "pointer slice with variable bounds");
     []int8 head = b[:3];
     check(len(head) == 3 && head[2] == 4, "pointer slice with the start omitted begins at the pointer");
-    mem.free(b);
+    mem.heap.free(b);
 }
 `, expected: []string{"pointer slice length", "pointer slice first", "pointer slice last", "pointer slice writes through to the buffer", "slice of a pointer slice", "pointer slice with variable bounds", "pointer slice with the start omitted begins at the pointer"}},
 
@@ -10258,7 +10317,7 @@ struct P {
 }
 
 func main() ! {
-    *int p = mem.alloc(32)!;
+    *int p = mem.heap.alloc(32)!;
     p[0] = 1234;
     uint64 addr = uint64(p);
     check(addr != 0, "pointer to integer is not null");
@@ -10277,7 +10336,7 @@ func main() ! {
     *int8 bytes = (*int8)(sp);
     check(bytes[0] == 77, "bytes view of a struct pointer");
     check((?*int)(0) == null, "converted zero is the null pointer");
-    mem.free(p);
+    mem.heap.free(p);
 }
 `, expected: []string{"pointer to integer is not null", "pointer to int matches uint64", "integer to pointer round trip", "write through a converted integer", "read through a converted integer", "struct pointer reinterpreted from int pointer", "bytes view of a struct pointer", "converted zero is the null pointer"}},
 
@@ -10288,7 +10347,7 @@ struct P {
 }
 
 func main() ! {
-    *int p = mem.alloc(sizeof(int) * 8)!;
+    *int p = mem.heap.alloc(sizeof(int) * 8)!;
     *int q = p + 2;
     q@ = 7;
     check(p[2] == 7, "pointer plus offset");
@@ -10302,12 +10361,12 @@ func main() ! {
     check(q - p == 4, "pointer plus assign");
     check(q - 4 == p, "pointer minus offset");
 
-    *int8 b = mem.alloc(16)!;
+    *int8 b = mem.heap.alloc(16)!;
     *int8 c = b + 5;
     check(c - b == 5, "byte pointer difference");
     check(uint64(c) - uint64(b) == 5, "byte pointer address step");
 
-    *P ps = mem.alloc(sizeof(P) * 4)!;
+    *P ps = mem.heap.alloc(sizeof(P) * 4)!;
     *P p2 = ps + 1;
     check(p2 - ps == 1, "struct pointer difference");
     check(uint64(p2) - uint64(ps) == uint64(sizeof(P)), "struct pointer steps by sizeof");
@@ -10331,22 +10390,22 @@ func main() ! {
     *P sw = ps;
     sw++;
     check(uint64(sw) - uint64(ps) == uint64(sizeof(P)), "struct pointer increment");
-    mem.free(ps);
-    mem.free(b);
-    mem.free(p);
+    mem.heap.free(ps);
+    mem.heap.free(b);
+    mem.heap.free(p);
 }
 `, expected: []string{"pointer plus offset", "pointer difference", "offset plus pointer", "pointer ordering", "pointer ordering reversed", "pointer minus assign", "pointer plus assign", "pointer minus offset", "byte pointer difference", "byte pointer address step", "struct pointer difference", "struct pointer steps by sizeof", "pointer plus variable", "pointer plus narrow integer", "pointer increment steps one element", "pointer decrement steps one element", "byte pointer increment", "struct pointer increment"}},
 
 	{dir: "string_from_bytes", src: `import "std/mem";
 func main() ! {
-    *int8 b = mem.alloc(8)!;
+    *int8 b = mem.heap.alloc(8)!;
     b[0] = 104;
     b[1] = 105;
     string s = string(b[0:2]);
     check(len(s) == 2, "string from int8 pointer slice length");
     check(s == "hi", "string from int8 pointer slice content");
 
-    *byte c = mem.alloc(4)!;
+    *byte c = mem.heap.alloc(4)!;
     c[0] = 'o';
     c[1] = 'k';
     []byte cs = c[0:2];
@@ -10360,48 +10419,53 @@ func main() ! {
     check(string(us) == "ABC", "string from uint8 array slice");
     check(string(arr[1:3]) == "BC", "string from inline slice");
     check(len(string(us)) == 3, "string from bytes length");
-    mem.free(b);
-    mem.free(c);
+    mem.heap.free(b);
+    mem.heap.free(c);
 }
 `, expected: []string{"string from int8 pointer slice length", "string from int8 pointer slice content", "string from byte slice", "string from uint8 array slice", "string from inline slice", "string from bytes length"}},
 
 	{dir: "free_slice", profile: "release", src: `import "std/mem";
 func main() ! {
-    *int8 b = mem.alloc(24)!;
+    *int8 b = mem.heap.alloc(24)!;
     b[0] = 120;
     []int8 s = b[0:5];
-    mem.free((*int8)(s));
-    *int8 c = mem.alloc(24)!;
+    mem.heap.free((*int8)(s));
+    *int8 c = mem.heap.alloc(24)!;
     check(b == c, "free of a slice releases its block");
-    mem.free(c);
-    mem.free(null);
+    mem.heap.free(c);
+    mem.heap.free(null);
     check(true, "free of null still works");
 }
 `, expected: []string{"free of a slice releases its block", "free of null still works"}},
 
 	{dir: "free_many", profile: "release", src: `import "std/mem";
 func main() ! {
-    *int a = mem.alloc(24)!;
-    *int b = mem.alloc(24)!;
-    *int c = mem.alloc(100)!;
-    mem.free(a, b, c);
-    *int x = mem.alloc(24)!;
-    *int y = mem.alloc(24)!;
-    *int z = mem.alloc(100)!;
-    check((x == a && y == b) || (x == b && y == a), "free of many releases every small block");
-    check(z == c, "free of many releases the last block");
+    *int a = mem.heap.alloc(24)!;
+    *int b = mem.heap.alloc(24)!;
+    *int c = mem.heap.alloc(100)!;
+    mem.heap.free(a);
+    mem.heap.free(b);
+    mem.heap.free(c);
+    *int x = mem.heap.alloc(24)!;
+    *int y = mem.heap.alloc(24)!;
+    *int z = mem.heap.alloc(100)!;
+    check((x == a && y == b) || (x == b && y == a), "free of several blocks releases every small block");
+    check(z == c, "free of several blocks releases the last block");
 
-    *int8 raw = mem.alloc(40)!;
+    *int8 raw = mem.heap.alloc(40)!;
     []int8 s = raw[0:3];
-    *int d = mem.alloc(40)!;
-    mem.free((*int8)(s), d);
-    *int8 raw2 = mem.alloc(40)!;
-    *int d2 = mem.alloc(40)!;
+    *int d = mem.heap.alloc(40)!;
+    mem.heap.free((*int8)(s));
+    mem.heap.free(d);
+    *int8 raw2 = mem.heap.alloc(40)!;
+    *int d2 = mem.heap.alloc(40)!;
     check((raw2 == raw && uint64(d2) == uint64(d)) || (uint64(raw2) == uint64(d) && d2 == (*int)(raw)), "free of mixed slice and pointer");
-    mem.free(raw2, d2, null);
-    check(true, "free of many accepts null");
+    mem.heap.free(raw2);
+    mem.heap.free(d2);
+    mem.heap.free(null);
+    check(true, "free of several blocks accepts null");
 }
-`, expected: []string{"free of many releases every small block", "free of many releases the last block", "free of mixed slice and pointer", "free of many accepts null"}},
+`, expected: []string{"free of several blocks releases every small block", "free of several blocks releases the last block", "free of mixed slice and pointer", "free of several blocks accepts null"}},
 
 	{dir: "free_node_next", profile: "release", src: `import "std/mem";
 struct Node {
@@ -10410,17 +10474,19 @@ struct Node {
 }
 
 func main() ! {
-    *Node first = mem.alloc(sizeof(Node))!;
-    *Node second = mem.alloc(sizeof(Node))!;
+    *Node first = mem.heap.alloc(sizeof(Node))!;
+    *Node second = mem.heap.alloc(sizeof(Node))!;
     first.next = second;
     second.v = 42;
     second.next = null;
-    mem.free(first, first.next);
-    *Node a = mem.alloc(sizeof(Node))!;
-    *Node b = mem.alloc(sizeof(Node))!;
-    check((a == first && b == second) || (a == second && b == first), "free reads every argument before releasing any");
+    ?*Node after = first.next;
+    mem.heap.free(first);
+    mem.heap.free(after);
+    *Node a = mem.heap.alloc(sizeof(Node))!;
+    *Node b = mem.heap.alloc(sizeof(Node))!;
+    check((a == first && b == second) || (a == second && b == first), "a link read before the free is still freed after it");
 }
-`, expected: []string{"free reads every argument before releasing any"}},
+`, expected: []string{"a link read before the free is still freed after it"}},
 
 	{dir: "string_order", src: `func main() {
     check("a" < "b", "string less");
@@ -13160,7 +13226,7 @@ struct Lit implements Node { int v; }
 func (*Lit l) node() int { return l.v; }
 
 func make(int v) !Node {
-    *Lit l = (*Lit)(mem.alloc(sizeof(Lit))!);
+    *Lit l = (*Lit)(mem.heap.alloc(sizeof(Lit))!);
     l.v = v;
     return l;
 }
@@ -13171,12 +13237,12 @@ func main() ! {
     check(n.node() == 7, "an interface still works after taking its pointer");
     *Lit back = (*Lit)(p);
     check(back.v == 7, "the pointer of an interface is the object it holds");
-    mem.free(n);
+    mem.heap.free(n);
     Node m = make(9)!;
     ?*void q = m;
     *void r = m;
     check(q != null && (*void)(m) == r, "an interface converts on its own to a pointer, and to a nullable one");
-    mem.free(q);
+    mem.heap.free(q);
 }
 `, expected: []string{"an interface still works after taking its pointer", "the pointer of an interface is the object it holds", "an interface converts on its own to a pointer, and to a nullable one"}},
 
@@ -13207,6 +13273,20 @@ func main() {
     check(hashOf(q) == 999, "and does not match one that does not");
 }
 `, expected: []string{"a constraint case matches the types it holds", "a plain type case still matches", "an interface case matches a type that implements it", "and does not match one that does not"}},
+
+	{dir: "inline_calls_generic", src: `func twice<T>(T v) T {
+    return v;
+}
+
+inline func wrap(int n) int {
+    return twice<int>(n) + twice(n);
+}
+
+func main() {
+    check(wrap(4) == 8, "an inline function calls a generic one, written with or without its type");
+    check(wrap(wrap(1)) == 4, "and can be nested");
+}
+`, expected: []string{"an inline function calls a generic one, written with or without its type", "and can be nested"}},
 
 	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
 interface Closer { func close(); }
@@ -14251,13 +14331,13 @@ extern func count_calls() int32;
 func main() ! {
     check(add(2, 3) == 5, "extern function with two arguments");
     check(mul64(6, 7) == 42, "extern function with 64-bit arguments");
-    *int8 b = mem.alloc(4)!;
+    *int8 b = mem.heap.alloc(4)!;
     b[0] = 1;
     b[1] = 2;
     b[2] = 3;
     b[3] = 4;
     check(sum_bytes(b, 4) == 10, "extern function taking a pointer");
-    mem.free(b);
+    mem.heap.free(b);
     check(c_twice(21) == 42, "extern function renamed with as");
     check(low_byte(0x1234) == 0x34, "extern function returning uint8");
     count_calls();
@@ -15606,27 +15686,31 @@ func dirty(*byte p, int n) int {
 }
 
 func main() !int {
-    *byte a = mem.alloc(100)!;
-    *byte b = mem.alloc(100)!;
-    *byte c = mem.alloc(100)!;
+    *byte a = mem.heap.alloc(100)!;
+    *byte b = mem.heap.alloc(100)!;
+    *byte c = mem.heap.alloc(100)!;
     check(dirty(a, 100) == 0, "a new block is zeroed");
     mem.fill(a, 85, 100);
     mem.fill(b, 85, 100);
     mem.fill(c, 85, 100);
     check(a[0] == 85 && a[99] == 85 && c[50] == 85, "fill sets every byte");
-    mem.free(a, b, c);
+    mem.heap.free(a);
+    mem.heap.free(b);
+    mem.heap.free(c);
 
-    *byte x = mem.alloc(100)!;
-    *byte y = mem.alloc(100)!;
-    *byte z = mem.alloc(100)!;
+    *byte x = mem.heap.alloc(100)!;
+    *byte y = mem.heap.alloc(100)!;
+    *byte z = mem.heap.alloc(100)!;
     check(dirty(x, 100) + dirty(y, 100) + dirty(z, 100) == 0, "a reused block is zeroed");
-    mem.free(x, y, z);
+    mem.heap.free(x);
+    mem.heap.free(y);
+    mem.heap.free(z);
 
-    *byte grown = mem.alloc(16)!;
+    *byte grown = mem.heap.alloc(16)!;
     mem.fill(grown, 7, 16);
-    grown = mem.realloc(grown, 4000)!;
+    grown = mem.heap.realloc(grown, 16, 4000)!;
     check(grown[0] == 7 && grown[15] == 7, "realloc keeps the old contents");
-    mem.free(grown);
+    mem.heap.free(grown);
 
     [8]byte letters;
     mem.fill(letters, 'q', 8);
@@ -15639,28 +15723,30 @@ func main() !int {
 import "std/errors";
 
 func main() {
-    let _, huge = mem.alloc(9223372036854775800);
-    let _, over = mem.alloc((1 << 47) + 1);
+    let _, huge = mem.heap.alloc(9223372036854775800);
+    let _, over = mem.heap.alloc((1 << 47) + 1);
     check(huge != null && over != null, "a size that cannot exist is refused");
-    let _, hugeDirty = mem.allocDirty(9223372036854775800);
+    let _, hugeDirty = mem.heap.allocDirty(9223372036854775800);
     check(hugeDirty != null, "allocDirty refuses a size that cannot exist too");
 
-    let _, problem = mem.alloc(9223372036854775800);
+    let _, problem = mem.heap.alloc(9223372036854775800);
     check(problem == errors.Kind.OutOfMemory, "the refusal is OutOfMemory");
 
-    *byte a = mem.alloc(100)!!;
-    *byte b = mem.alloc(100)!!;
-    *byte c = mem.alloc(100)!!;
-    mem.free(a, b, c);
-    *byte x = mem.alloc(100)!!;
-    *byte y = mem.alloc(100)!!;
-    *byte z = mem.alloc(100)!!;
+    *byte a = mem.heap.alloc(100)!!;
+    *byte b = mem.heap.alloc(100)!!;
+    *byte c = mem.heap.alloc(100)!!;
+    mem.heap.free(a);
+    mem.heap.free(b);
+    mem.heap.free(c);
+    *byte x = mem.heap.alloc(100)!!;
+    *byte y = mem.heap.alloc(100)!!;
+    *byte z = mem.heap.alloc(100)!!;
     check(x == c && y == b && z == a, "freed blocks are reused without losing the list");
 
-    *int big = mem.alloc(100000)!!;
+    *int big = mem.heap.alloc(100000)!!;
     mem.fill(big, 1, 100000);
-    mem.free(big);
-    *int again = mem.alloc(100000)!!;
+    mem.heap.free(big);
+    *int again = mem.heap.alloc(100000)!!;
     check(int(again) != 0 && again[0] == 0 && again[12000] == 0, "a large block is zeroed too");
 }
 `, expected: []string{"a size that cannot exist is refused", "allocDirty refuses a size that cannot exist too", "the refusal is OutOfMemory", "freed blocks are reused without losing the list", "a large block is zeroed too"}},
@@ -15693,11 +15779,11 @@ func main() {
     mem.move(apart, source, 3);
     check(string(apart[0:3]) == "xyz", "move works when the regions do not overlap");
 
-    *byte dirty = mem.allocDirty(64)!!;
+    *byte dirty = mem.heap.allocDirty(64)!!;
     check(int(dirty) != 0, "allocDirty gives a block");
     mem.fill(dirty, 9, 64);
     check(dirty[0] == 9 && dirty[63] == 9, "a dirty block is usable");
-    mem.free(dirty);
+    mem.heap.free(dirty);
 }
 `, expected: []string{"move copies forward over an overlap", "move copies backward over an overlap", "move of zero bytes changes nothing", "move works when the regions do not overlap", "allocDirty gives a block", "a dirty block is usable"}},
 	{dir: "any_error", src: `enum Kind {

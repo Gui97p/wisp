@@ -29,7 +29,7 @@
 //   optionals     `?T`, null, `??`, `!!`, `if x |v|`, `loop x |v|`
 //   assertions    `!!` on a call that cannot fail here
 //   pointers      `*T`, `&`, `@`, indexing and slicing pointers
-//   memory        allocators: Fixed, Arena, marks and reset, `make`, `makeDirty`, `create`
+//   memory        allocators: Fixed, Arena, marks and reset, `mem.make`, `mem.makeDirty`, `mem.create`
 //   files         os, path, the environment
 //   globals       global variables and constants
 //   interop       native blocks and functions (assembly)

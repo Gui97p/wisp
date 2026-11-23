@@ -128,6 +128,16 @@ func (a *Analyser) constantInitializer(expr ast.Expression) bool {
 		if sym, ok := a.scope.Resolve(e.Value); ok && sym.Kind == FUNC {
 			return true
 		}
+	case *ast.CastExpr:
+		if _, converted := a.info.IfaceConversions[e]; converted {
+			if address, isAddress := e.Value.(*ast.UnaryExpr); isAddress && address.Operator == "&" {
+				if id, isIdent := address.Value.(*ast.IdentLiteral); isIdent {
+					if sym, ok := a.scope.Resolve(id.Value); ok && sym.Kind == VAR && sym.Global {
+						return true
+					}
+				}
+			}
+		}
 	case *ast.GenericExpr:
 		if _, isFunc := a.info.Types[e].(*FuncType); isFunc && a.info.GenericFuncs[e] != nil {
 			return true

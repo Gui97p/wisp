@@ -2,7 +2,7 @@ import "std/errors";
 import "std/math";
 import "std/mem";
 
-public struct Fixed {
+public struct Fixed implements mem.Allocator {
 	[]byte buffer;
 	internal int bUsed;
 }
@@ -36,7 +36,7 @@ public inline func (*Fixed f) used() int {
 	return f.bUsed;
 }
 
-public inline func (*Fixed _f) free(?*void _p) {
+public func (*Fixed _f) free(?*void _p) {
 }
 
 public func (*Fixed f) realloc(?*void p, int old, int n) !*void {
@@ -55,27 +55,4 @@ public func (*Fixed f) realloc(?*void p, int old, int n) !*void {
 	*void next = f.alloc(n)!;
 	mem.copy(next, block, math.min(old, n));
 	return next;
-}
-
-public func (*Fixed f) allocator() mem.Allocator {
-	return mem.allocator((*void)(f), fixedAlloc, fixedAllocDirty, fixedRealloc, fixedFree);
-}
-
-func fixedOf(?*void state) *Fixed {
-	return (*Fixed)(state!!);
-}
-
-func fixedAlloc(?*void state, int n) !*void {
-	return fixedOf(state).alloc(n)!;
-}
-
-func fixedAllocDirty(?*void state, int n) !*void {
-	return fixedOf(state).allocDirty(n)!;
-}
-
-func fixedRealloc(?*void state, ?*void p, int old, int n) !*void {
-	return fixedOf(state).realloc(p, old, n)!;
-}
-
-func fixedFree(?*void _state, ?*void _p) {
 }

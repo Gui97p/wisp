@@ -770,6 +770,9 @@ func (a *Analyser) callGeneric(expr *ast.CallExpr, calleeType Type, explicit []a
 	syn.SetEndPos(endLine, endCol)
 	a.info.Idents[syn] = sym
 	a.info.Types[syn] = ft
+	if expr.Generic == nil {
+		expr.Generic = expr.Name
+	}
 	expr.Name = syn
 
 	a.checkCallArgsWith(expr, ft, argTypes)

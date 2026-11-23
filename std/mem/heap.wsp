@@ -105,7 +105,7 @@ internal func release(*void p) {
 	}
 }
 
-internal func resize(*void p, int n) ?*void {
+internal func realloc(*void p, int n) ?*void {
 	int h = header(p);
 	int cap = (h < 11 ? (MIN_BLOCK << h) : h) - 16;
 	return p if n <= cap;

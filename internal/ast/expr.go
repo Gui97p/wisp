@@ -109,8 +109,8 @@ type CallExpr struct {
 	Args    []Expression
 	Spread  bool
 	Cast    *CastExpr
-	Lowered *CallExpr
 	Range   bool
+	Generic Expression
 
 	NodePos
 }

@@ -34,10 +34,11 @@ public func demo() ! {
 	?*int nothing = null;
 	fmt.printf("nothing == null: {}\n", nothing == null);
 
-	// `mem.alloc` asks for a number of bytes and can fail, so it is a fallible
-	// call: the error is errors.Kind.OutOfMemory. `sizeof` takes a type or an
-	// expression. The result is a *void, which converts to any pointer type.
-	*int heap = mem.alloc(sizeof(int) * 4)!;
+	// `mem.heap.alloc` asks for a number of bytes and can fail, so it is a
+	// fallible call: the error is errors.Kind.OutOfMemory. `sizeof` takes a type
+	// or an expression. The result is a *void, which converts to any pointer
+	// type.
+	*int heap = mem.heap.alloc(sizeof(int) * 4)!;
 
 	// A pointer can be indexed and sliced. A slice of a pointer is a span, so
 	// the usual span operations apply. Pointer indexing is not bounds-checked:
@@ -57,18 +58,17 @@ public func demo() ! {
 	fmt.printf("after second++, second@ = {}\n", second@);
 	fmt.printf("heap < second: {}\n", heap < second);
 
-	// `mem.realloc` resizes a block and keeps its contents. If it cannot, the
-	// original block is left untouched.
-	heap = mem.realloc(heap, sizeof(int) * 8)!;
+	// `realloc` resizes a block, given the size it has now, and keeps its
+	// contents. If it cannot, the original block is left untouched.
+	heap = mem.heap.realloc(heap, sizeof(int) * 4, sizeof(int) * 8)!;
 	heap[7] = 80;
 	fmt.printf("after realloc: {}, {}, {}\n", heap[0], heap[3], heap[7]);
 
-	// `mem.free` takes pointers, any number of them at once. A slice or an
-	// array is converted to its base pointer on its own, so `mem.free(s)` works
-	// when `s` came from `mem.alloc`. A string is only a view,
-	// so it is never freed: free the buffer it came from. All the arguments
-	// are evaluated before anything is released.
-	mem.free(heap);
+	// `free` takes a pointer. A slice or an array is converted to its base
+	// pointer on its own, so `mem.heap.free(s)` works when `s` came from the
+	// heap. A string is only a view, so it is never freed: free the buffer it
+	// came from.
+	mem.heap.free(heap);
 
 	// Pointers and integers convert explicitly, and so do pointers of
 	// different types. A pointer type that is not a plain name goes in
@@ -83,7 +83,7 @@ public func demo() ! {
 	// Bytes become a string without a copy, and a string gives the address of
 	// its bytes. The second one is only safe to hand to C when the string ends
 	// in a zero byte, which string literals do and slices of them do not.
-	*int8 bytes = mem.alloc(3)!;
+	*int8 bytes = mem.heap.alloc(3)!;
 	bytes[0] = 104;
 	bytes[1] = 105;
 	bytes[2] = 0;
@@ -92,7 +92,7 @@ public func demo() ! {
 
 	*int8 literal = (*int8)("hey");
 	fmt.printf("\"hey\" starts with {} and ends with {}\n", literal[0], literal[3]);
-	mem.free(bytes);
+	mem.heap.free(bytes);
 
 	// An array or a span converts to a pointer to its first element, which is
 	// what a system call or a C function takes, and it does so on its own

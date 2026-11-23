@@ -69,7 +69,7 @@ public func demo() ! {
 
 	// `readFile` allocates the content, so the memory is yours to free.
 	[]byte content = os.readFile(first)!;
-	defer mem.free((*byte)(content));
+	defer mem.free(mem.heap, content);
 	fmt.printf("it reads back {} bytes, starting with \"{}\"\n", len(content), string(content[:8]));
 
 	// Renaming, and asking a folder what is in it. The order of the entries

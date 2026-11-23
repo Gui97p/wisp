@@ -1,7 +1,7 @@
 import "std/errors";
 import "std/mem";
 
-public struct Failing {
+public struct Failing implements mem.Allocator {
 	?mem.Allocator parent;
 	?int after;
 	internal int attempts;
@@ -43,28 +43,4 @@ public inline func (*Failing f) calls() int {
 
 public inline func (*Failing f) reset() {
 	f.attempts = 0;
-}
-
-public func (*Failing f) allocator() mem.Allocator {
-	return mem.allocator((*void)(f), failingAlloc, failingAllocDirty, failingRealloc, failingFree);
-}
-
-func failingOf(?*void state) *Failing {
-	return (*Failing)(state!!);
-}
-
-func failingAlloc(?*void state, int n) !*void {
-	return failingOf(state).alloc(n)!;
-}
-
-func failingAllocDirty(?*void state, int n) !*void {
-	return failingOf(state).allocDirty(n)!;
-}
-
-func failingRealloc(?*void state, ?*void p, int old, int n) !*void {
-	return failingOf(state).realloc(p, old, n)!;
-}
-
-func failingFree(?*void state, ?*void p) {
-	failingOf(state).free(p);
 }

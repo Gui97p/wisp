@@ -151,6 +151,8 @@ func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
 	case analyser.PointerType:
 		t.data.printlnt("dq 0")
 		return nil
+	case *analyser.InterfaceType:
+		return t.emitInterfaceData(expr)
 	case analyser.ArrayType:
 		lit, ok := expr.(*ast.ArrayLiteral)
 		if !ok {

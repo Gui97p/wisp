@@ -33,7 +33,7 @@ public struct Mark {
 	internal int used;
 }
 
-public struct Arena {
+public struct Arena implements mem.Allocator {
 	?mem.Allocator parent;
 	internal ?*Chunk head;
 }
@@ -142,27 +142,4 @@ public func (*Arena a) realloc(?*void p, int old, int n) !*void {
 	*void next = a.alloc(n)!;
 	mem.copy(next, block, math.min(old, n));
 	return next;
-}
-
-public func (*Arena a) allocator() mem.Allocator {
-	return mem.allocator((*void)(a), arenaAlloc, arenaAllocDirty, arenaRealloc, arenaFree);
-}
-
-func arenaOf(?*void state) *Arena {
-	return (*Arena)(state!!);
-}
-
-func arenaAlloc(?*void state, int n) !*void {
-	return arenaOf(state).alloc(n)!;
-}
-
-func arenaAllocDirty(?*void state, int n) !*void {
-	return arenaOf(state).allocDirty(n)!;
-}
-
-func arenaRealloc(?*void state, ?*void p, int old, int n) !*void {
-	return arenaOf(state).realloc(p, old, n)!;
-}
-
-func arenaFree(?*void _state, ?*void _p) {
 }

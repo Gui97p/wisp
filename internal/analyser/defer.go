@@ -54,17 +54,19 @@ func (a *Analyser) recordDeferredFree(d *ast.DeferStmt) {
 	if a.deferredFree == nil {
 		a.deferredFree = map[*Symbol]*ast.DeferStmt{}
 	}
-	for _, arg := range call.Args {
-		if cast, isCast := arg.(*ast.CastExpr); isCast && cast.Implicit {
-			arg = cast.Value
-		}
-		id, isIdent := arg.(*ast.IdentLiteral)
-		if !isIdent {
-			continue
-		}
-		if sym, found := a.scope.Resolve(id.Value); found {
-			a.deferredFree[sym] = d
-		}
+	if len(call.Args) == 0 {
+		return
+	}
+	arg := call.Args[len(call.Args)-1]
+	if cast, isCast := arg.(*ast.CastExpr); isCast && cast.Implicit {
+		arg = cast.Value
+	}
+	id, isIdent := arg.(*ast.IdentLiteral)
+	if !isIdent {
+		return
+	}
+	if sym, found := a.scope.Resolve(id.Value); found {
+		a.deferredFree[sym] = d
 	}
 }
 

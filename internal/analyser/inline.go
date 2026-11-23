@@ -150,6 +150,16 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 				if n.Implicit {
 					return cloneUnwrapped(undoWidening(n), options), true
 				}
+			case *ast.CallExpr:
+				if n.Generic != nil {
+					restored := &ast.CallExpr{Name: cloneUnwrapped(n.Generic, options).(ast.Expression), Spread: n.Spread, Range: n.Range}
+					for _, arg := range n.Args {
+						restored.Args = append(restored.Args, cloneUnwrapped(arg, options).(ast.Expression))
+					}
+					restored.SetPos(at.Line, at.Col)
+					restored.SetEndPos(at.EndLine, at.EndCol)
+					return restored, true
+				}
 			}
 			return nil, false
 		},

@@ -755,9 +755,6 @@ func (t *X64Target) compileIndirectCall(expr *ast.CallExpr) ([]Operand, error) {
 func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 	line, col, endLine, endCol := t.enter(expr)
 	defer t.leave(line, col, endLine, endCol)
-	if expr.Lowered != nil {
-		return t.compileAllocation(expr)
-	}
 	if e, ok := t.info.ErrorLiterals[expr]; ok {
 		op, err := t.compileErrorLiteral(e)
 		if err != nil {

@@ -3,60 +3,58 @@ import<debug> "std/mem/debug" as dbg;
 import "std/mem/heap" as raw;
 import "std/mem/x64" as impl;
 
-public type AllocFn(?*void, int) => !*void;
-public type ReallocFn(?*void, ?*void, int, int) => !*void;
-public type FreeFn(?*void, ?*void) => ();
-
-public struct Allocator {
-	internal ?*void state;
-	internal AllocFn allocFn, allocDirtyFn;
-	internal ReallocFn reallocFn;
-	internal FreeFn freeFn;
+/// Where blocks of memory come from. A block is a number of bytes: `alloc`
+/// gives it zeroed, `allocDirty` leaves it as it was, `realloc` resizes a block
+/// given the size it has now (what the new bytes hold is zero), and `free`
+/// gives it back. Every function that needs memory takes an allocator, because
+/// nothing allocates behind your back.
+public interface Allocator {
+	func alloc(int n) !*void;
+	func allocDirty(int n) !*void;
+	func realloc(?*void p, int old, int n) !*void;
+	func free(?*void p);
 }
 
-public func allocator(?*void state, AllocFn alloc, AllocFn allocDirty, ReallocFn realloc, FreeFn free) Allocator {
-	return Allocator{state: state, allocFn: alloc, allocDirtyFn: allocDirty, reallocFn: realloc, freeFn: free};
+struct Raw implements Allocator {
 }
 
-public inline func (Allocator a) alloc(int n) !*void {
-	return a.allocFn(a.state, n)!;
-}
+/// The heap of the process: blocks of any size, freed one by one. It has no
+/// state, and `mem.heap` is the value to pass where an allocator is asked for.
+/// In a debug build it checks what the program does with its blocks.
+public struct Heap implements Allocator {}
 
-public inline func (Allocator a) allocDirty(int n) !*void {
-	return a.allocDirtyFn(a.state, n)!;
-}
+Raw rawState;
+Heap heapState;
 
-public inline func (Allocator a) realloc(?*void p, int old, int n) !*void {
-	return a.reallocFn(a.state, p, old, n)!;
-}
+/// The heap of the process, as an allocator.
+public Allocator heap = &heapState;
 
-public inline func (Allocator a) free(?*void p) {
-	a.freeFn(a.state, p);
-}
-
-func rawAlloc(?*void _state, int n) !*void {
+func (*Raw _r) alloc(int n) !*void {
 	*void p = raw.allocate(n, true) ?? return Error(errors.Kind.OutOfMemory);
 	return p;
 }
 
-func rawAllocDirty(?*void _state, int n) !*void {
+func (*Raw _r) allocDirty(int n) !*void {
 	*void p = raw.allocate(n, false) ?? return Error(errors.Kind.OutOfMemory);
 	return p;
 }
 
-func rawResize(?*void _state, ?*void p, int _old, int n) !*void {
-	*void block = p ?? return rawAlloc(null, n)!;
-	*void grown = raw.resize(block, n) ?? return Error(errors.Kind.OutOfMemory);
+func (*Raw r) realloc(?*void p, int old, int n) !*void {
+	*void block = p ?? return r.alloc(n)!;
+	*void grown = raw.realloc(block, n) ?? return Error(errors.Kind.OutOfMemory);
+	if n > old {
+		fill((*byte)(grown) + old, 0, n - old);
+	}
 	return grown;
 }
 
-func<debug> rawRelease(?*void _state, ?*void p) {
+func (*Raw _r) free(?*void p) {
 	if p |block| {
 		raw.release(block);
 	}
 }
 
-let<debug> checked = dbg.Debug{parent: Allocator{state: null, allocFn: rawAlloc, allocDirtyFn: rawAllocDirty, reallocFn: rawResize, freeFn: rawRelease}};
+let<debug> checked = dbg.Debug{};
 let<debug> hookPending = true;
 
 func<debug> leakReport() {
@@ -65,85 +63,78 @@ func<debug> leakReport() {
 
 func<debug> arm() {
 	if hookPending {
+		checked.parent = &rawState;
 		impl.setExitHook(leakReport);
 		hookPending = false;
 	}
 }
 
-func obtain(int n, bool zero) !*void {
-	return rawAlloc(null, n)! if zero;
-	return rawAllocDirty(null, n)!;
+func source() Allocator {
+	return &rawState;
 }
 
-func<debug> obtain(int n, bool zero) !*void {
+func<debug> source() Allocator {
 	arm();
-	return checked.alloc(n)! if zero;
-	return checked.allocDirty(n)!;
+	return &checked;
 }
 
-func giveBack(*void p) {
-	raw.release(p);
+public func (*Heap _h) alloc(int n) !*void {
+	return source().alloc(n)!;
 }
 
-func<debug> giveBack(*void p) {
-	checked.free(p);
+public func (*Heap _h) allocDirty(int n) !*void {
+	return source().allocDirty(n)!;
 }
 
-func resizeBlock(*void p, int n) !*void {
-	return rawResize(null, p, 0, n)!;
+public func (*Heap _h) realloc(?*void p, int old, int n) !*void {
+	return source().realloc(p, old, n)!;
 }
 
-func<debug> resizeBlock(*void p, int n) !*void {
-	return checked.realloc(p, checked.sizeOf(p), n)!;
+public func (*Heap _h) free(?*void p) {
+	source().free(p);
 }
 
-public func alloc(int n) !*void {
-	return obtain(n, true)!;
+/// A slice of n zeroed elements of T: `mem.make<int>(mem.heap, 8)!`. It can
+/// fail like the allocator does.
+public func make<T, Allocator A>(A a, int n) ![]T {
+	*void p = a.alloc(n * int(sizeof(T)))!;
+	return (*T)(p)[0:n];
 }
 
-public func allocDirty(int n) !*void {
-	return obtain(n, false)!;
+/// Like `make`, for memory you are about to overwrite: the elements are not
+/// cleared, so what they hold before you write is not defined.
+public func makeDirty<T, Allocator A>(A a, int n) ![]T {
+	*void p = a.allocDirty(n * int(sizeof(T)))!;
+	return (*T)(p)[0:n];
 }
 
-public func free(?*void ...p) {
-	for _, v in p {
-		if v |block| {
-			giveBack(block);
-		}
-	}
+/// One zeroed T, as a pointer: `mem.create<Pair>(mem.heap)!`.
+public func create<T, Allocator A>(A a) !*T {
+	*void p = a.alloc(int(sizeof(T)))!;
+	return (*T)(p);
 }
 
-public func realloc(*void p, int n) !*void {
-	return resizeBlock(p, n)!;
+/// The slice with n elements: it keeps what it had, and the new elements are
+/// zeroed. The old size comes from the slice itself.
+public func resize<T, Allocator A>(A a, []T items, int n) ![]T {
+	int size = int(sizeof(T));
+	*void p = a.realloc(items, len(items) * size, n * size)!;
+	return (*T)(p)[0:n];
 }
 
-func heapAlloc(?*void _state, int n) !*void {
-	return alloc(n)!;
+/// Gives a block back: a pointer, a slice or an array that came from the
+/// allocator, or an interface value that holds such a pointer. Null is ignored.
+public func free<Allocator A>(A a, ?*void p) {
+	a.free(p);
 }
 
-func heapAllocDirty(?*void _state, int n) !*void {
-	return allocDirty(n)!;
-}
-
-func heapRealloc(?*void _state, ?*void p, int old, int n) !*void {
-	*void block = p ?? return alloc(n)!;
-	*void grown = realloc(block, n)!;
-	if n > old {
-		fill((*byte)(grown) + old, 0, n - old);
-	}
-	return grown;
-}
-
-func heapFree(?*void _state, ?*void p) {
-	free(p);
-}
-
-public let heap = Allocator{state: null, allocFn: heapAlloc, allocDirtyFn: heapAllocDirty, reallocFn: heapRealloc, freeFn: heapFree};
-
+/// Copies n bytes from src to dst. The blocks must not overlap: use `move` when
+/// they can.
 public inline func copy(*void dst, src, int n) {
 	impl.rawCopy(dst, src, n);
 }
 
+/// Copies n bytes from src to dst, also when they overlap.
 public func move(*void dst, src, int n) {
 	if dst > src && dst < (*byte)(src) + n {
 		impl.rawCopyBackward(dst, src, n);
@@ -152,6 +143,7 @@ public func move(*void dst, src, int n) {
 	}
 }
 
+/// Sets n bytes from dst to the value.
 public inline func fill(*void dst, byte value, int n) {
 	impl.rawSet(dst, value, n);
 }

@@ -4,7 +4,7 @@ import "std/mem";
 
 const HEADER = 16;
 
-public struct Counting {
+public struct Counting implements mem.Allocator {
 	?mem.Allocator parent;
 	internal int liveBlocks, liveBytes, peakBytes, totalBlocks, totalBytes;
 }
@@ -83,28 +83,4 @@ public inline func (*Counting c) allocations() int {
 
 public inline func (*Counting c) allocated() int {
 	return c.totalBytes;
-}
-
-public func (*Counting c) allocator() mem.Allocator {
-	return mem.allocator((*void)(c), countingAlloc, countingAllocDirty, countingRealloc, countingFree);
-}
-
-func countingOf(?*void state) *Counting {
-	return (*Counting)(state!!);
-}
-
-func countingAlloc(?*void state, int n) !*void {
-	return countingOf(state).alloc(n)!;
-}
-
-func countingAllocDirty(?*void state, int n) !*void {
-	return countingOf(state).allocDirty(n)!;
-}
-
-func countingRealloc(?*void state, ?*void p, int old, int n) !*void {
-	return countingOf(state).realloc(p, old, n)!;
-}
-
-func countingFree(?*void state, ?*void p) {
-	countingOf(state).free(p);
 }

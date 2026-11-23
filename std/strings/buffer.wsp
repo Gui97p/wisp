@@ -102,7 +102,7 @@ public func reverse([]byte buf) {
 
 public func clone(string s) ![]byte {
 	return .{} if len(s) == 0;
-	[]byte buf = (*byte)(mem.alloc(sizeof(byte) * len(s))!)[:len(s)];
+	[]byte buf = mem.make<byte>(mem.heap, len(s))!;
 	copy(buf, s)!;
 	return buf;
 }

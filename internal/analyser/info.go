@@ -39,24 +39,10 @@ type Info struct {
 	SwitchValues     map[*ast.SwitchExpr][]Type
 	Variants         map[ast.Expression]*VariantInfo
 	SumTests         map[*ast.BinaryExpr]*SumTest
-	Makes            map[*ast.CallExpr]*MakeInfo
 	Natives          map[*ast.NativeStmt]*NativeInfo
 	LayoutValues     map[*ast.CallExpr]int
 	Statics          map[*ast.BlockExpr]ConstValue
 	StaticAsserts    map[*ast.CallExpr]bool
-	Resizes          map[*ast.CallExpr]*ResizeInfo
-}
-
-type MakeInfo struct {
-	Elem  Type
-	Count ast.Expression
-	Size  *ast.CallExpr
-}
-
-type ResizeInfo struct {
-	Elem  Type
-	Slice ast.Expression
-	Count ast.Expression
 }
 
 type VariantInfo struct {
@@ -124,8 +110,6 @@ func NewInfo() *Info {
 		Statics:          make(map[*ast.BlockExpr]ConstValue),
 		StaticAsserts:    make(map[*ast.CallExpr]bool),
 		SumTests:         make(map[*ast.BinaryExpr]*SumTest),
-		Makes:            make(map[*ast.CallExpr]*MakeInfo),
-		Resizes:          make(map[*ast.CallExpr]*ResizeInfo),
 	}
 }
 

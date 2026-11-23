@@ -166,6 +166,84 @@
         "declarations": {
             "patterns": [
                 {
+                    "begin": "\\b(const|let)\\s*(\\{)",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "storage.modifier.wisp"
+                        },
+                        "2": {
+                            "name": "punctuation.bracket.wisp"
+                        }
+                    },
+                    "end": "\\}",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.bracket.wisp"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#comments"
+                        },
+                        {
+                            "begin": "(?:\\b(u?int(?:8|16|32|64)?|float(?:32|64)|bool|byte|string)\\s+|\\b([A-Z][A-Za-z0-9_]*)\\s+)?\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?==)",
+                            "beginCaptures": {
+                                "1": {
+                                    "name": "storage.type.primitive.wisp"
+                                },
+                                "2": {
+                                    "name": "entity.name.type.wisp"
+                                },
+                                "3": {
+                                    "name": "variable.other.readwrite.wisp"
+                                }
+                            },
+                            "end": ";",
+                            "patterns": [
+                                {
+                                    "include": "#comments"
+                                },
+                                {
+                                    "include": "#strings"
+                                },
+                                {
+                                    "include": "#characters"
+                                },
+                                {
+                                    "include": "#numbers"
+                                },
+                                {
+                                    "include": "#keywords"
+                                },
+                                {
+                                    "include": "#types"
+                                },
+                                {
+                                    "include": "#constants"
+                                },
+                                {
+                                    "include": "#builtins"
+                                },
+                                {
+                                    "include": "#members"
+                                },
+                                {
+                                    "include": "#calls"
+                                },
+                                {
+                                    "include": "#type-names"
+                                },
+                                {
+                                    "include": "#operators"
+                                },
+                                {
+                                    "include": "#delimiters"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
                     "match": "\\b(struct|enum|type|interface)\\s+([A-Za-z_][A-Za-z0-9_]*)",
                     "captures": {
                         "1": {
@@ -427,7 +505,7 @@
             "patterns": [
                 {
                     "name": "support.function.builtin.wisp",
-                    "match": "\\b(emit|len|panic|sizeof|alignof|offsetof|staticAssert|make|makeDirty|create|free|resize|truncate|saturate)\\b(?=\\s*\\()"
+                    "match": "\\b(emit|len|panic|sizeof|alignof|offsetof|staticAssert|truncate|saturate)\\b(?=\\s*\\()"
                 }
             ]
         },
