@@ -13391,27 +13391,6 @@ func (Version a) less(Version b) bool {
     return a.major < b.major || (a.major == b.major && a.minor < b.minor);
 }
 
-struct Ring {
-    [4]int buf;
-    int head;
-    int size;
-}
-
-func (*Ring r) index(int i) *int {
-    if i < 0 || i >= r.size {
-        panic("ring index out of range");
-    }
-    return &r.buf[(r.head + i) % 4];
-}
-
-func (*Ring r) slice(int start, int end) []int {
-    return r.buf[start:end];
-}
-
-func (*Ring r) len() int {
-    return r.size;
-}
-
 func same<Comparable T>(T a, T b) bool {
     return a == b;
 }
@@ -13448,24 +13427,13 @@ func main() {
     check(a < b && a <= b && !(a > b) && !(a >= b) && b > a && b >= a, "the four orderings come from less");
     check(next() > a && a <= next() && !(next() < a), "operands that are calls are evaluated once, in order");
 
-    Ring ring = .{buf: .{10, 20, 30, 40}, head: 1, size: 3};
-    ring[0] = 5;
-    ring[2] += 1;
-    int v = ring[1];
-    *int ptr = &ring[0];
-    ptr@ = 7;
-    check(v == 30 && ring[0] == 7 && ring[2] == 41, "an index method reads, writes, and gives the address");
-    []int part = ring[1:3];
-    []int whole = ring[:];
-    check(len(part) == 2 && len(whole) == 3, "a slice method takes the open forms through len");
-
     [3]Point ps = .{p, .{x: 9, y: 9}, q};
     check(same(p, q) && !same(p, r) && same(3, 3) && !same("a", "b"), "Comparable takes a struct that has eq");
     check(count(ps[0:3], p) == 2, "and a generic compares its elements with ==");
     Version c = smaller(b, a);
     check(c.minor == 2 && smaller(4, 2) == 2 && smaller("b", "a") == "a" && smaller(2.5, 1.5) == 1.5, "Orderable takes numbers, strings and structs that have less");
 }
-`, expected: []string{"== and != call eq", "the four orderings come from less", "operands that are calls are evaluated once, in order", "an index method reads, writes, and gives the address", "a slice method takes the open forms through len", "Comparable takes a struct that has eq", "and a generic compares its elements with ==", "Orderable takes numbers, strings and structs that have less"}},
+`, expected: []string{"== and != call eq", "the four orderings come from less", "operands that are calls are evaluated once, in order", "Comparable takes a struct that has eq", "and a generic compares its elements with ==", "Orderable takes numbers, strings and structs that have less"}},
 
 	{dir: "operator_methods_in_context", src: `struct Point {
     int x;
@@ -13476,37 +13444,8 @@ func (Point a) eq(Point b) bool {
     return a.x == b.x && a.y == b.y;
 }
 
-struct Row {
-    int first;
-}
-
-func (*Row r) index(int col) *int {
-    return &(*int)(r)[col];
-}
-
-struct Grid {
-    [6]int cells;
-    int width;
-}
-
-func (*Grid g) index(int row) *Row {
-    return (*Row)(&g.cells[row * g.width]);
-}
-
-struct Cell {
-    int v;
-}
-
-func (*Cell c) index(int i) *int {
-    return &c.v;
-}
-
 inline func fast(Point a, Point b) bool {
     return a == b;
-}
-
-func sum3(int a, int b, int c) int {
-    return a + b + c;
 }
 
 func main() {
@@ -13522,16 +13461,6 @@ func main() {
     check(matched == 2, "a case compares with eq");
     check(fast(p, q), "an inline function can compare with eq");
 
-    Grid g = .{cells: .{1, 2, 3, 4, 5, 6}, width: 3};
-    g[1][2] = 60;
-    g[0][1]++;
-    g[0][0] -= 5;
-    int total = sum3(g[0][0], g[0][1], g[1][2]) + g[1][0] * 2;
-    check(total == 67 && g[1][1] == 5, "indexes chain, assign, count and sit in arguments");
-    Cell c = .{v: 4};
-    c[9] += 3;
-    check(c.v == 7, "compound assignment goes through the index method");
-
     bool mix = (p == q) && !(p == z) && (z != p);
     int k = 0;
     loop p == q && k < 3 {
@@ -13539,7 +13468,174 @@ func main() {
     }
     check(mix && k == 3, "== works inside conditions and loops");
 }
-`, expected: []string{"a case compares with eq", "an inline function can compare with eq", "indexes chain, assign, count and sit in arguments", "compound assignment goes through the index method", "== works inside conditions and loops"}},
+`, expected: []string{"a case compares with eq", "an inline function can compare with eq", "== works inside conditions and loops"}},
+
+	{dir: "in_with_eq", src: `struct Point {
+    int x;
+    int y;
+}
+
+func (Point a) eq(Point b) bool {
+    return a.x == b.x && a.y == b.y;
+}
+
+func pts() [3]Point {
+    return .{.{x: 0, y: 0}, .{x: 1, y: 2}, .{x: 5, y: 5}};
+}
+
+func main() {
+    Point p = .{x: 1, y: 2};
+    Point z = .{x: 9, y: 9};
+    [3]Point ps = pts();
+    []Point part = ps[0:2];
+    check(p in ps && !(z in ps), "in compares struct elements with eq");
+    check(p in part && !(.{x: 5, y: 5} in part), "in works on a slice of structs");
+    check(p in pts(), "in works on a call");
+    int n = 0;
+    if p in ps && !(z in ps) {
+        n = 1;
+    }
+    check(n == 1, "and inside a condition");
+    [4]int numbers = .{1, 2, 3, 4};
+    check(3 in numbers && !(7 in numbers), "numbers keep their own in");
+}
+`, expected: []string{"in compares struct elements with eq", "in works on a slice of structs", "in works on a call", "and inside a condition", "numbers keep their own in"}},
+
+	{dir: "list_basic", src: `import "std/list";
+
+struct Pair {
+    int a;
+    int b;
+}
+
+func main() ! {
+    list.List<int> l;
+    ?int none = l.get(0);
+    check(l.len() == 0 && len(l.items) == 0 && none == null, "the zero value is an empty list");
+    for i in 1..20 {
+        l.append(i)!;
+    }
+    int sum = 0;
+    for x in l.items {
+        sum += x;
+    }
+    check(l.len() == 20 && sum == 210 && l.items[0] == 1 && l.items[19] == 20, "appending grows past the first capacity");
+    l.items[2] = 30;
+    check(l.items[2] == 30 && (l.get(2) ?? 0) == 30, "the items are indexed and written like a slice");
+    check(len(l.items[5:8]) == 3 && (l.get(20) ?? -1) == -1, "and sliced, and get is null past the end");
+
+    l.insert(0, 100)!;
+    l.insert(l.len(), 200)!;
+    l.insert(5, 55)!;
+    check(l.items[0] == 100 && l.items[5] == 55 && l.items[l.len() - 1] == 200 && l.len() == 23, "insert keeps the order of the others");
+    let bad = l.insert(99, 1);
+    check(bad != null, "insert past the end is an error");
+
+    int first = l.remove(0) ?? -1;
+    int last = l.pop() ?? -1;
+    int middle = l.remove(4) ?? -1;
+    check(first == 100 && last == 200 && middle == 55 && l.len() == 20 && l.items[4] == 5, "remove and pop give the element and close the gap");
+    check((l.remove(50) ?? -1) == -1 && (l.remove(-1) ?? -1) == -1, "removing what is not there gives null");
+
+    l.clear();
+    check(l.len() == 0, "clear forgets the elements");
+    l.append(7)!;
+    check(l.items[0] == 7, "and the list is used again");
+    l.release();
+    check(l.len() == 0, "release empties it");
+    l.append(8)!;
+    check(l.items[0] == 8, "and it can start over");
+    l.release();
+
+    list.List<Pair> pairs;
+    for i in 0..9 {
+        pairs.append(.{a: i, b: i * 2})!;
+    }
+    check(pairs.len() == 10 && pairs.items[9].b == 18, "a list of structs");
+    for p in &pairs.items {
+        p.b += 1;
+    }
+    check(pairs.items[3].b == 7, "and its elements change through a pointer");
+    pairs.release();
+}
+`, expected: []string{"the zero value is an empty list", "appending grows past the first capacity", "the items are indexed and written like a slice", "and sliced, and get is null past the end", "insert keeps the order of the others", "insert past the end is an error", "remove and pop give the element and close the gap", "removing what is not there gives null", "clear forgets the elements", "and the list is used again", "release empties it", "and it can start over", "a list of structs", "and its elements change through a pointer"}},
+
+	{dir: "list_extend_clone", src: `import "std/list";
+import "std/mem";
+
+func main() ! {
+    list.List<int> l;
+    for i in 1..5 {
+        l.append(i)!;
+    }
+    []int more = .{10, 20, 30};
+    l.extend(more)!;
+    check(l.len() == 8 && l.items[5] == 10 && l.items[7] == 30, "extend adds a slice at the end");
+    l.extend(l.items[0:3])!;
+    check(l.len() == 11 && l.items[8] == 1 && l.items[10] == 3, "extend takes a slice of the list itself");
+    list.List<int> grown;
+    for i in 1..8 {
+        grown.append(i)!;
+    }
+    grown.extend(grown.items)!;
+    check(grown.len() == 16 && grown.items[8] == 1 && grown.items[15] == 8, "extend can take the whole list while it has to grow");
+    grown.release();
+    l.extend(.{})!;
+    check(l.len() == 11, "extending with nothing changes nothing");
+
+    list.List<int> copy = l.clone()!;
+    copy.append(999)!;
+    copy.items[0] = -1;
+    check(copy.len() == 12 && l.len() == 11 && l.items[0] == 1 && copy.items[0] == -1, "a clone is independent of the original");
+
+    mem.Arena arena;
+    list.List<int> inArena = l.cloneIn(&arena)!;
+    check(inArena.len() == 11 && inArena.items[10] == 3, "a clone can take its memory from another allocator");
+    arena.release();
+
+    l.release();
+    copy.release();
+}
+`, expected: []string{"extend adds a slice at the end", "extend takes a slice of the list itself", "extend can take the whole list while it has to grow", "extending with nothing changes nothing", "a clone is independent of the original", "a clone can take its memory from another allocator"}},
+
+	{dir: "list_allocators", src: `import "std/errors";
+import "std/list";
+import "std/mem";
+
+func main() ! {
+    mem.Debug debug;
+    list.List<int> l = .{parent: &debug};
+    for i in 1..40 {
+        l.append(i)!;
+    }
+    check(debug.blocks() >= 1 && l.len() == 40, "the list takes its memory from its parent");
+    l.release();
+    check(debug.blocks() == 0 && debug.report() == 0, "release gives it all back");
+    debug.release();
+
+    [256]byte storage;
+    mem.Fixed fixed = mem.Fixed{buffer: storage};
+    list.List<int> small = .{parent: &fixed};
+    int added = 0;
+    loop {
+        let failure = small.append(added);
+        if failure != null {
+            check(failure == errors.Kind.NoSpace, "a full fixed buffer says NoSpace");
+            break;
+        }
+        added++;
+    }
+    check(added > 0 && small.len() == added && small.items[added - 1] == added - 1, "and the list keeps what it had");
+
+    mem.Failing failing = mem.Failing{after: 1};
+    list.List<int> fragile = .{parent: &failing};
+    fragile.append(1)!;
+    int before = fragile.len();
+    let refused = fragile.reserve(1000);
+    check(refused == errors.Kind.OutOfMemory && fragile.len() == before && fragile.items[0] == 1, "a refused allocation leaves the list as it was");
+    fragile.release();
+}
+`, expected: []string{"the list takes its memory from its parent", "release gives it all back", "a full fixed buffer says NoSpace", "and the list keeps what it had", "a refused allocation leaves the list as it was"}},
 
 	{dir: "interfaces_static", src: `interface Writer { func write(int n) int; }
 interface Closer { func close(); }

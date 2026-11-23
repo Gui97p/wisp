@@ -21,9 +21,7 @@ func loweredOf(expr ast.Expression) ast.Expression {
 	switch e := expr.(type) {
 	case *ast.BinaryExpr:
 		return e.Lowered
-	case *ast.IndexExpr:
-		return e.Lowered
-	case *ast.SliceExpr:
+	case *ast.InExpr:
 		return e.Lowered
 	}
 	return nil
@@ -274,9 +272,6 @@ func (t *X64Target) compileAssignable(expr ast.Expression) (Operand, error) {
 }
 
 func (t *X64Target) compileLValue(expr ast.Expression) (Mem, error) {
-	if lowered := loweredOf(expr); lowered != nil {
-		return t.compileLValue(lowered)
-	}
 	switch e := expr.(type) {
 	case *ast.IdentLiteral:
 		size := sizeOf(t.info.Types[e])

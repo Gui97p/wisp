@@ -145,9 +145,8 @@ type MemberExpr struct {
 }
 
 type IndexExpr struct {
-	Array   Expression
-	Index   Expression
-	Lowered Expression
+	Array Expression
+	Index Expression
 
 	NodePos
 }
@@ -170,10 +169,9 @@ func (i *IndexExpr) Tree(indent string) string {
 }
 
 type SliceExpr struct {
-	Array   Expression
-	Start   Expression
-	End     Expression
-	Lowered Expression
+	Array Expression
+	Start Expression
+	End   Expression
 
 	NodePos
 }
@@ -366,8 +364,9 @@ func (c *CastExpr) Tree(indent string) string {
 }
 
 type InExpr struct {
-	Left  Expression
-	Right Expression
+	Left    Expression
+	Right   Expression
+	Lowered Expression
 
 	NodePos
 }

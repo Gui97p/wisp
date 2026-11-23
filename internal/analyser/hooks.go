@@ -154,138 +154,114 @@ func (a *Analyser) lowerOperator(expr *ast.BinaryExpr, left, right Type) (Type, 
 	return result, true
 }
 
-func hookReceiver(t Type) (Type, bool) {
-	if _, ok := structValue(t); !ok {
-		return nil, false
-	}
-	return t, true
-}
-
 func (a *Analyser) checkOperatorMethodDecl(fd *ast.FuncDecl, recv Type) {
-	if fd.Receiver == nil {
-		return
-	}
-	var operator string
-	switch fd.Name {
-	case "eq":
-		operator = "=="
-	case "less":
-		operator = "<"
-	case "index":
-		operator = "[]"
-	case "slice":
-		operator = "[:]"
-	default:
+	if fd.Receiver == nil || (fd.Name != "eq" && fd.Name != "less") {
 		return
 	}
 	target := recv
 	if pointer, ok := recv.(PointerType); ok {
 		target = pointer.Element
 	}
+	operator := "=="
+	if fd.Name == "less" {
+		operator = "<"
+	}
+	builtin := false
 	switch base := definedBase(target).(type) {
 	case PrimitiveType:
-		if fd.Name == "index" || fd.Name == "slice" {
-			if base.Name != "string" {
-				return
-			}
-		} else if fd.Name == "less" && base.Name == "bool" {
-			return
-		}
+		builtin = fd.Name == "eq" || base.Name != "bool"
 	case PointerType:
-		if fd.Name == "less" {
-			return
-		}
+		builtin = fd.Name == "eq"
 	case NamedType:
-		if !base.Enum || fd.Name != "eq" {
-			return
-		}
-	case ArrayType, SpanType:
-		if fd.Name == "eq" || fd.Name == "less" {
-			return
-		}
-	default:
-		return
+		builtin = base.Enum && fd.Name == "eq"
 	}
-	a.errorAtName(fd, "%s already has %s, so %s would never be called: give the method another name", target.String(), operator, fd.Name)
+	if builtin {
+		a.errorAtName(fd, "%s already has %s, so %s would never be called: give the method another name", target.String(), operator, fd.Name)
+	}
 }
 
-func validIndexMethod(ft *FuncType) bool {
-	if ft.Fallible || len(ft.Params) != 1 || len(ft.Returns) != 1 {
-		return false
-	}
-	pointer, ok := ft.Returns[0].(PointerType)
-	return ok && !pointer.Nullable
-}
-
-func (a *Analyser) lowerIndex(expr *ast.IndexExpr, arrType Type) (Type, bool) {
-	base, ok := hookReceiver(arrType)
-	if !ok {
+func (a *Analyser) lowerIn(expr *ast.InExpr, element Type) (Type, bool) {
+	if _, isStruct := structValue(element); !isStruct {
 		return nil, false
 	}
-	ft := MethodsOf(base)["index"]
-	if ft == nil {
-		return nil, false
-	}
-	if !validIndexMethod(ft) {
-		a.errorf(expr, "index of %s has to be func (*%s x) index(position) *Element, with one parameter and a pointer that is never null", base.String(), base.String())
-		return InvalidType{}, true
+	if !hasOperatorMethod(element, "eq", returnsBool) {
+		a.errorf(expr, "'in' compares the elements with ==, and %s has no eq", element.String()).
+			WithHelp("define func (%s a) eq(%s b) bool", element.String(), element.String())
+		return PrimitiveType{Name: "bool"}, true
 	}
 
-	receiver, position := a.pristine(expr.Array), a.pristine(expr.Index)
-	name := &ast.MemberExpr{Object: receiver, Field: "index"}
-	a.at(expr, name)
-	call := &ast.CallExpr{Name: name, Args: []ast.Expression{position}}
-	a.at(expr, call)
-	deref := &ast.DerefExpr{Value: call}
-	a.at(expr, deref)
+	id := a.iterCount
+	a.iterCount++
+	foundName, itemName, wantName := fmt.Sprintf("__wisp_found_%d", id), fmt.Sprintf("__wisp_item_%d", id), fmt.Sprintf("__wisp_want_%d", id)
+	at := func(node ast.Node) { a.at(expr, node) }
+	ident := func(name string) ast.Expression {
+		node := &ast.IdentLiteral{Value: name, Synthetic: true}
+		at(node)
+		return node
+	}
+	declare := func(name string, value ast.Expression) ast.Statement {
+		decl := &ast.VarStmt{Vars: []ast.Param{{Name: name}}, Values: []ast.Expression{value}}
+		at(decl)
+		return decl
+	}
+	truth := func(value bool) ast.Expression {
+		node := &ast.BoolLiteral{Value: value}
+		at(node)
+		return node
+	}
 
-	result := a.checkExpr(deref)
-	expr.Lowered = deref
+	collection := a.pristine(expr.Right)
+	statements := []ast.Statement{declare(foundName, truth(false)), declare(wantName, a.pristine(expr.Left))}
+	if !isPureOperand(collection) {
+		collectionName := fmt.Sprintf("__wisp_set_%d", id)
+		statements = append(statements, declare(collectionName, collection))
+		collection = ident(collectionName)
+	}
+
+	same := &ast.BinaryExpr{Left: ident(itemName), Operator: "==", Right: ident(wantName)}
+	at(same)
+	found := &ast.AssignStmt{Targets: []ast.Expression{ident(foundName)}, Op: "=", Values: []ast.Expression{truth(true)}}
+	at(found)
+	leave := &ast.BreakStmt{}
+	at(leave)
+	then := &ast.BlockStmt{Statements: []ast.Statement{found, leave}}
+	at(then)
+	test := &ast.IfStmt{Condition: same, Then: then}
+	at(test)
+	body := &ast.BlockStmt{Statements: []ast.Statement{test}}
+	at(body)
+	loop := &ast.ForStmt{Var: itemName, Range: collection, Body: body}
+	at(loop)
+	yield := &ast.YieldStmt{Values: []ast.Expression{ident(foundName)}}
+	at(yield)
+
+	statements = append(statements, loop, yield)
+	block := &ast.BlockStmt{Statements: statements}
+	at(block)
+	wrapper := &ast.BlockExpr{Block: block}
+	at(wrapper)
+
+	result := a.checkExpr(wrapper)
+	expr.Lowered = wrapper
 	return result, true
 }
 
-func (a *Analyser) lowerSlice(expr *ast.SliceExpr, arrType Type) (Type, bool) {
-	base, ok := hookReceiver(arrType)
-	if !ok {
-		return nil, false
-	}
-	ft := MethodsOf(base)["slice"]
-	if ft == nil {
-		return nil, false
-	}
-	if ft.Fallible || len(ft.Params) != 2 || len(ft.Returns) != 1 || !isInteger(underlyingOf(ft.Params[0])) || !isInteger(underlyingOf(ft.Params[1])) {
-		a.errorf(expr, "slice of %s has to be func (*%s x) slice(int start, int end) Result", base.String(), base.String())
-		return InvalidType{}, true
-	}
-
-	receiver := a.pristine(expr.Array)
-	var start, end ast.Expression
-	if expr.Start != nil {
-		start = a.pristine(expr.Start)
-	} else {
-		start = &ast.IntLiteral{Value: 0}
-		a.at(expr, start)
-	}
-	if expr.End != nil {
-		end = a.pristine(expr.End)
-	} else {
-		if MethodsOf(base)["len"] == nil || !isPureOperand(receiver) {
-			a.errorf(expr, "a slice without its end needs a len method on %s, and a value held in a variable", base.String())
-			return InvalidType{}, true
+func hookedOperator(expr ast.Expression) ast.Expression {
+	switch e := expr.(type) {
+	case *ast.BinaryExpr:
+		if e.Lowered != nil {
+			return e
 		}
-		size := &ast.MemberExpr{Object: a.pristine(expr.Array), Field: "len"}
-		a.at(expr, size)
-		sizeCall := &ast.CallExpr{Name: size}
-		a.at(expr, sizeCall)
-		end = sizeCall
+		if found := hookedOperator(e.Left); found != nil {
+			return found
+		}
+		return hookedOperator(e.Right)
+	case *ast.UnaryExpr:
+		return hookedOperator(e.Value)
+	case *ast.InExpr:
+		if e.Lowered != nil {
+			return e
+		}
 	}
-
-	name := &ast.MemberExpr{Object: receiver, Field: "slice"}
-	a.at(expr, name)
-	call := &ast.CallExpr{Name: name, Args: []ast.Expression{start, end}}
-	a.at(expr, call)
-
-	result := a.checkExpr(call)
-	expr.Lowered = call
-	return result, true
+	return nil
 }

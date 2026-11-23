@@ -1258,9 +1258,9 @@ func TestDiagnosticsOfOperatorsAndCalls(t *testing.T) {
 		{"!! on a call with no result", "func abc() {\n}\n\nfunc main() {\n\tabc()!!;\n}\n", "abc gives no value and cannot fail, so !! has nothing to check"},
 		{"calling a test", "#test\nfunc abc() ! {\n}\n\nfunc main() {\n\tabc()!!;\n}\n", "abc is a test: only `wisp test` runs it, so it cannot be called"},
 		{"eq with the wrong signature", "struct P { int x; }\nfunc (P a) eq(int b) bool { return true; }\nfunc main() {\n\tP p;\n\tP q;\n\tbool same = p == q;\n}\n", "eq of P has to be func (P a) eq(P b) bool"},
-		{"index with the wrong signature", "struct S { int n; }\nfunc (*S s) index(int i) int { return i; }\nfunc main() {\n\tS s;\n\tint v = s[0];\n}\n", "index of S has to be func (*S x) index(position) *Element"},
 		{"eq on a type that has ==", "type Meters int;\nfunc (Meters a) eq(Meters b) bool { return true; }\nfunc main() {}\n", "Meters already has ==, so eq would never be called"},
-		{"index on a string type", "type Name string;\nfunc (Name n) index(int i) *byte { return null!!; }\nfunc main() {}\n", "Name already has [], so index would never be called"},
+		{"in on structs with no eq", "struct P { int x; }\nfunc main() {\n\tP p;\n\t[2]P ps = .{p, p};\n\tbool has = p in ps;\n}\n", "'in' compares the elements with ==, and P has no eq"},
+		{"an operator method in a static block", "struct P { int x; }\nfunc (P a) eq(P b) bool { return true; }\nconst SAME = static {\n\tP a = .{x: 1};\n\tP b = .{x: 1};\n\tyield a == b;\n};\nfunc main() {}\n", "this operator goes through a method of a type"},
 		{"== on a struct with no eq", "struct P { int x; }\nfunc main() {\n\tP p;\n\tP q;\n\tbool same = p == q;\n}\n", "operator == is not defined for P"},
 	}
 	for _, tc := range cases {

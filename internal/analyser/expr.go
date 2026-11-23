@@ -863,16 +863,11 @@ func (a *Analyser) viewAsBase(expr ast.Expression, t Type) Type {
 }
 
 func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
-	expr.Lowered = nil
 	arrType := a.viewAsBase(expr.Array, a.checkExpr(expr.Array))
 	idxType := a.checkExpr(expr.Index)
 
 	if _, ok := arrType.(InvalidType); ok {
 		return InvalidType{}
-	}
-
-	if t, handled := a.lowerIndex(expr, arrType); handled {
-		return t
 	}
 
 	switch t := arrType.(type) {
@@ -911,7 +906,6 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 }
 
 func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
-	expr.Lowered = nil
 	original := a.checkExpr(expr.Array)
 	arrType := a.viewAsBase(expr.Array, original)
 	if expr.Start != nil {
@@ -919,10 +913,6 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 	}
 	if expr.End != nil {
 		a.requireNumeric(expr.End, a.checkExpr(expr.End), "slice end")
-	}
-
-	if t, handled := a.lowerSlice(expr, arrType); handled {
-		return t
 	}
 
 	switch t := arrType.(type) {
@@ -1421,6 +1411,7 @@ func (a *Analyser) checkErrorComparison(expr *ast.BinaryExpr, left, right Type) 
 }
 
 func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {
+	expr.Lowered = nil
 	left := a.checkExpr(expr.Left)
 	right := a.checkExpr(expr.Right)
 	boolType := PrimitiveType{Name: "bool"}
@@ -1438,11 +1429,17 @@ func (a *Analyser) checkInExpr(expr *ast.InExpr) Type {
 			a.errorf(expr, "'in' expects %s, got %s", rt.Element, left)
 		}
 		a.checkConstFits(expr.Left, rt.Element)
+		if t, handled := a.lowerIn(expr, rt.Element); handled {
+			return t
+		}
 	case SpanType:
 		if !a.coerce(&expr.Left, left, rt.Element) {
 			a.errorf(expr, "'in' expects %s, got %s", rt.Element, left)
 		}
 		a.checkConstFits(expr.Left, rt.Element)
+		if t, handled := a.lowerIn(expr, rt.Element); handled {
+			return t
+		}
 	case PrimitiveType:
 		if rt.Name != "string" {
 			a.errorf(expr, "'in' not supported for %s", right)

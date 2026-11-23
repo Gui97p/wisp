@@ -88,6 +88,8 @@ func (r *staticRun) value(expr ast.Expression) (ConstValue, bool) {
 			r.failed = true
 		} else if outer := r.outerVariable(expr); outer != nil {
 			r.fail(outer, "%s is a variable of the surrounding code: a static block runs at compile time, and only sees its own variables and constants", outer.Value)
+		} else if hooked := hookedOperator(expr); hooked != nil {
+			r.fail(hooked, "this operator goes through a method of a type, and a static block runs only constants and ordinary functions")
 		} else {
 			r.fail(expr, "this cannot be evaluated at compile time")
 		}
