@@ -151,6 +151,14 @@ func (s *Scope) Visible() []*Symbol {
 	seen := map[string]bool{}
 	var out []*Symbol
 	for scope := s; scope != nil; scope = scope.parent {
+		if scope.privates != nil && scope.file != nil && *scope.file != "" {
+			for name, sym := range scope.privates[filepath.Clean(*scope.file)] {
+				if !seen[name] {
+					seen[name] = true
+					out = append(out, sym)
+				}
+			}
+		}
 		for name, sym := range scope.symbols {
 			if seen[name] {
 				continue

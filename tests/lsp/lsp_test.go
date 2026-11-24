@@ -1631,3 +1631,35 @@ func TestMessagesNeverShowTheInternalNameOfARepeatedPrivateName(t *testing.T) {
 		t.Errorf("expected an error that names P: %+v", p.diagnostics())
 	}
 }
+
+func TestTheEditorSeesThePrivateNameOfItsOwnFile(t *testing.T) {
+	c := start(t)
+	files := func(a, b string) map[string]string {
+		return map[string]string{
+			"wisp.toml": "",
+			"main.wsp":  "func main() {}\n",
+			"a.wsp":     a,
+			"b.wsp":     b,
+		}
+	}
+	a := "private func helper() int => 1;\nfunc fromA() int => helper();\n"
+	b := "private func helper() int => 2;\nfunc fromB() int => helper();\n"
+
+	inA := c.openAs("a.wsp", files("private func helper() int => 1;\nfunc fromA() int => hel¦per();\n", b))
+	if defs := inA.definition(); len(defs) != 1 || !strings.HasSuffix(defs[0].URI, "/a.wsp") || defs[0].Range.Start.Line != 0 {
+		t.Errorf("the helper of a.wsp: %+v", defs)
+	}
+
+	inB := c.openAs("b.wsp", files(a, "private func helper() int => 2;\nfunc fromB() int => hel¦per();\n"))
+	if defs := inB.definition(); len(defs) != 1 || !strings.HasSuffix(defs[0].URI, "/b.wsp") {
+		t.Errorf("the helper of b.wsp: %+v", defs)
+	}
+	if got := inB.hover(); !strings.Contains(got, "func helper() int") {
+		t.Errorf("hover on the helper of b.wsp: %q", got)
+	}
+
+	typing := c.openAs("b.wsp", files(a, "private func helper() int => 2;\nfunc fromB() int {\n\treturn hel¦\n}\n"))
+	if got := typing.completion(); !slices.Contains(got, "helper") {
+		t.Errorf("the private helper of this file is offered: %v", got)
+	}
+}

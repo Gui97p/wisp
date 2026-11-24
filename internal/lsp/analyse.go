@@ -184,10 +184,18 @@ func analyseEntryChecked(path string) (program *ast.Program, info *analyser.Info
 
 	for _, m := range pa.modules {
 		if slices.Contains(m.mod.FilePaths, path) {
+			bindModuleFile(m.info, path)
 			return m.merged, m.info, m.mod.ParseError == nil
 		}
 	}
 	return nil, nil, false
+}
+
+func bindModuleFile(info *analyser.Info, path string) {
+	if info != nil && info.Module != nil {
+		file := path
+		info.Module.BindFile(&file)
+	}
 }
 
 func declarationFiles(path string) map[ast.Declaration]string {

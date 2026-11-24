@@ -72,6 +72,7 @@ func definition(uri protocol.DocumentUri, pos protocol.Position) []protocol.Loca
 func (pa *projectAnalysis) moduleOf(path string) *moduleAnalysis {
 	for i := range pa.modules {
 		if slices.Contains(pa.modules[i].mod.FilePaths, path) {
+			bindModuleFile(pa.modules[i].info, path)
 			return &pa.modules[i]
 		}
 	}
