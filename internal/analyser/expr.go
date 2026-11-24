@@ -476,6 +476,10 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 					owner = ft.Template.Owner
 					ft = a.instanceOfMethod(expr, ft)
 					symbolModule = a.home
+				} else if ft.Inline {
+					if st, ok := instanceStruct(objType); ok {
+						owner = st.Instance.Decl.Name
+					}
 				}
 				a.info.MethodCalls[expr] = &MethodCall{
 					Iface:           ft.Iface,

@@ -171,7 +171,7 @@ func (a *Analyser) registerMethods() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		fd, ok := d.(*ast.FuncDecl)
-		if !ok || fd.Receiver == nil || isGenericMethod(fd) {
+		if !ok || fd.Receiver == nil || isGenericMethod(fd) || len(fd.TypeParams) > 0 {
 			continue
 		}
 

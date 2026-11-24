@@ -218,6 +218,9 @@ func (c *client) openAs(primary string, files map[string]string) *project {
 	p := &project{c: c, dir: dir}
 	for name, text := range files {
 		clean, line, char := stripCursor(text)
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o755); err != nil {
+			c.t.Fatal(err)
+		}
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(clean), 0o644); err != nil {
 			c.t.Fatal(err)
 		}

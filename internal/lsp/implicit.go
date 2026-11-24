@@ -135,6 +135,9 @@ func contextType(before, text string, scope *analyser.Scope) analyser.Type {
 		if ft := calleeType(scope, callee); ft != nil && arg < len(ft.Params) {
 			return ft.Params[arg]
 		}
+		if tp := genericParamType(calleeGeneric(scope, callee), arg); tp != nil {
+			return tp
+		}
 	}
 	if m := declaredBefore.FindStringSubmatch(before); m != nil {
 		return typeFromText(scope, m[1])
@@ -193,6 +196,39 @@ func calleeType(scope *analyser.Scope, callee string) *analyser.FuncType {
 	}
 	ft, _ := sym.Type.(*analyser.FuncType)
 	return ft
+}
+
+func calleeGeneric(scope *analyser.Scope, callee string) *analyser.Symbol {
+	var sym *analyser.Symbol
+	if base, member, dotted := cutLast(callee, "."); dotted {
+		owner, ok := resolveChain(scope, base)
+		if !ok {
+			return nil
+		}
+		if module, isModule := owner.Type.(*analyser.ModuleType); isModule {
+			sym = module.Exports[member]
+		}
+	} else if found, ok := scope.Resolve(callee); ok {
+		sym = found
+	}
+	if sym == nil {
+		return nil
+	}
+	if _, isGeneric := sym.Type.(analyser.GenericType); !isGeneric {
+		return nil
+	}
+	return sym
+}
+
+func genericParamType(sym *analyser.Symbol, arg int) analyser.Type {
+	if sym == nil || sym.Generic == nil || sym.Generic.Func == nil || sym.Generic.Scope == nil {
+		return nil
+	}
+	params := sym.Generic.Func.Params
+	if arg >= len(params) || params[arg].Variadic || params[arg].Any {
+		return nil
+	}
+	return typeFromText(sym.Generic.Scope, refText(params[arg].Type))
 }
 
 func cutLast(s, sep string) (string, string, bool) {

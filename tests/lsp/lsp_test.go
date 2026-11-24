@@ -1334,3 +1334,48 @@ func TestHoverOfLoweredLoops(t *testing.T) {
 		}
 	}
 }
+
+func TestDefinitionOfInlineMethodOfGenericStruct(t *testing.T) {
+	c := start(t)
+	src := "struct L<T> { []T items; }\ninline func (*L<T> l) size() int { return len(l.items); }\nfunc main() {\n\tL<int> l;\n\tint n = l.si¦ze();\n}\n"
+	defs := c.open(map[string]string{"main.wsp": src}).definition()
+	if len(defs) != 1 || defs[0].Range.Start.Line != 1 {
+		t.Errorf("definition of an inline method of a generic struct: %+v", defs)
+	}
+}
+
+func TestEnumCompletionInGenericCalls(t *testing.T) {
+	c := start(t)
+	pre := "enum Mode { Fast, Slow }\nstruct Thing { int x; }\nfunc make<T>(int a, int b, int c, Mode m) !?T { return null; }\n"
+	for name, files := range map[string]map[string]string{
+		"explicit arguments": {"main.wsp": pre + "func main() ! {\n\tThing t = make<Thing>(1, 2, 3, .¦);\n}\n"},
+		"unfinished call":    {"main.wsp": pre + "func main() ! {\n\t?Thing t = make<Thing>(1, 2, 3, .¦\n}\n"},
+		"from a module": {
+			"main.wsp":    "import \"geo\";\nfunc main() ! {\n\tgeo.Thing t = geo.make<geo.Thing>(1, 2, 3, .¦);\n}\n",
+			"geo/geo.wsp": "public enum Mode { Fast, Slow }\npublic struct Thing { int x; }\npublic func make<T>(int a, int b, int c, Mode m) !?T { return null; }\n",
+		},
+	} {
+		got := c.open(files).completion()
+		if len(got) != 2 || got[0] != "Fast" || got[1] != "Slow" {
+			t.Errorf("%s: got %v", name, got)
+		}
+	}
+}
+
+func TestMethodTypeParametersAreOneClearError(t *testing.T) {
+	c := start(t)
+	for name, src := range map[string]string{
+		"plain receiver":   "struct W { int x; }\nfunc (*W w) draw<T>(T v) {}\nfunc main() {}\n",
+		"generic receiver": "struct L<T> { []T items; }\nfunc (*L<T> l) map<U>(U v) {}\nfunc main() {}\n",
+	} {
+		var errors []string
+		for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
+			if d.Severity == 1 {
+				errors = append(errors, d.Message)
+			}
+		}
+		if len(errors) != 1 || !strings.Contains(errors[0], "cannot have type parameters of its own") {
+			t.Errorf("%s: %q", name, errors)
+		}
+	}
+}

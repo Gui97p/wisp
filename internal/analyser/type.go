@@ -524,6 +524,14 @@ func methodOwner(t Type) (name, module string, exported bool) {
 	return "", "", false
 }
 
+func instanceStruct(t Type) (*StructType, bool) {
+	if pt, ok := t.(PointerType); ok {
+		t = pt.Element
+	}
+	st, ok := t.(*StructType)
+	return st, ok && st.Instance != nil
+}
+
 func isString(t Type) bool {
 	p, ok := t.(PrimitiveType)
 	if !ok {

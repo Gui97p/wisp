@@ -48,9 +48,14 @@ prod-windows: check-toolchain-windows
 	cd $(STAGE) && zip -qr $(CURDIR)/$(DIST)/$(WINNAME).zip $(APP)
 	rm -rf $(STAGE)
 
+PREFIX ?= $(HOME)/.$(APP)
+
 install: prod
-	sudo rm -rf /usr/local/$(APP)
-	sudo tar -C /usr/local -xzf $(DIST)/$(NAME).tar.gz
+	rm -rf $(PREFIX).new
+	mkdir -p $(PREFIX).new
+	tar -C $(PREFIX).new --strip-components=1 -xzf $(DIST)/$(NAME).tar.gz
+	rm -rf $(PREFIX)
+	mv $(PREFIX).new $(PREFIX)
 
 ext:
 	mkdir -p dist/vscode

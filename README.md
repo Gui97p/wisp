@@ -50,7 +50,7 @@ make build         # bin/wisp
 make toolchain     # fetch nasm, lld and the Windows import libraries into dependencies/
 make prod          # package for Linux into dist/ (a .tar.gz)
 make prod-windows  # package for Windows into dist/ (a .zip with wisp.exe)
-make install       # package into dist/ and install to /usr/local/wisp (asks for sudo)
+make install       # package into dist/ and install to ~/.wisp (PREFIX=... changes it)
 make test          # both backends, the language server and the tools; FILTER=name narrows the first
 make test-windows  # the Windows executables, run through WSL
 make ext           # package the VS Code extension into dist/vscode

@@ -223,7 +223,7 @@ func (a *Analyser) attachGenericMethods() {
 
 func (a *Analyser) attachGenericMethod(d ast.Declaration) {
 	fd, ok := d.(*ast.FuncDecl)
-	if !ok || !isGenericMethod(fd) {
+	if !ok || !isGenericMethod(fd) || len(fd.TypeParams) > 0 {
 		return
 	}
 	a.currentFile = a.declFiles[d]

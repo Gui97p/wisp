@@ -14,14 +14,15 @@ func (a *Analyser) registerFuncSignatures() {
 			a.checkMainFunc(fd)
 			continue
 		}
+		if fd.Receiver != nil && len(fd.TypeParams) > 0 {
+			a.errorf(fd, "a method cannot have type parameters of its own").
+				WithHelp("write a function that takes the value: func %s<...>(%s %s, ...)", fd.Name, fd.Receiver.Type.String(), fd.Receiver.Name)
+			continue
+		}
 		if isGenericMethod(fd) {
 			continue
 		}
 		if len(fd.TypeParams) > 0 {
-			if fd.Receiver != nil {
-				a.errorf(fd, "a method takes its type parameters from the receiver: write func (*List<T> l) name(...)")
-				continue
-			}
 			a.registerGenericFunc(fd)
 			continue
 		}
