@@ -1590,3 +1590,44 @@ func TestAFolderIsOneModuleInTheEditor(t *testing.T) {
 		t.Errorf("importing a file of the same folder: %q", got)
 	}
 }
+
+func TestPrivateNamesOfSeveralFilesDoNotCollide(t *testing.T) {
+	c := start(t)
+	p := c.open(map[string]string{
+		"wisp.toml": "",
+		"main.wsp":  "func main() {\n\tint n = helper();\n}\n",
+		"a.wsp":     "private func helper() int => 1;\nfunc fromA() int => helper();\n",
+		"b.wsp":     "private func helper() int => 2;\nfunc fromB() int => helper();\n",
+	})
+	got := errorsOf(p)
+	if len(got) != 1 || !strings.Contains(got[0], "identifier helper not declared") {
+		t.Fatalf("only main.wsp is wrong: %q", got)
+	}
+	for _, d := range p.diagnostics() {
+		if strings.Contains(d.Message, "helper is only defined as private in other files of this module") && strings.Contains(d.Message, ".wsp") {
+			t.Errorf("the hint must not list files: %q", d.Message)
+		}
+	}
+}
+
+func TestMessagesNeverShowTheInternalNameOfARepeatedPrivateName(t *testing.T) {
+	c := start(t)
+	p := c.openAs("a.wsp", map[string]string{
+		"wisp.toml": "",
+		"main.wsp":  "func main() {}\n",
+		"a.wsp":     "private struct P { int x; }\nprivate enum Color { Red }\nfunc fromA() int {\n\tP p = P{x: 1};\n\tstring s = p;\n\treturn 1;\n}\n",
+		"b.wsp":     "private struct P { int y; }\nprivate enum Color { Blue }\nfunc fromB() int {\n\tP p = P{y: 1};\n\treturn p.y;\n}\n",
+	})
+	found := false
+	for _, d := range p.diagnostics() {
+		if strings.Contains(d.Message, "__") {
+			t.Errorf("an internal name leaked: %q", d.Message)
+		}
+		if strings.Contains(d.Message, "P") && d.Severity == 1 {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected an error that names P: %+v", p.diagnostics())
+	}
+}

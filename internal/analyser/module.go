@@ -392,3 +392,106 @@ func (a *Analyser) reportPrivate(node ast.Node, sym *Symbol) {
 	file := filepath.Base(sym.File)
 	a.errorf(node, "%s %s is private to %s", sym.Kind, sym.Name, file).WithHelp("only %s can use it: mark it internal to share it with the project, or public to share it with everyone", file)
 }
+
+func (a *Analyser) defineTop(sym *Symbol) bool {
+	if a.scope != a.moduleScope {
+		return a.scope.Define(sym)
+	}
+	if sym.Private && a.privateCollisions()[sym.Name] {
+		file := filepath.Clean(sym.File)
+		if _, repeated := a.moduleScope.privates[file][sym.Name]; repeated {
+			return false
+		}
+		if _, taken := a.moduleScope.symbols[sym.Name]; taken {
+			return false
+		}
+		a.moduleScope.addPrivate(sym)
+		return true
+	}
+	if a.moduleScope.hasPrivate(sym.Name) {
+		return false
+	}
+	return a.scope.Define(sym)
+}
+
+func (a *Analyser) privateCollisions() map[string]bool {
+	if a.collisions != nil {
+		return a.collisions
+	}
+	files := map[string]map[string]bool{}
+	note := func(name, file string) {
+		if files[name] == nil {
+			files[name] = map[string]bool{}
+		}
+		files[name][filepath.Clean(file)] = true
+	}
+	for _, d := range a.program.Declarations {
+		if declReach(d) != ast.ReachFile {
+			continue
+		}
+		file := a.declFiles[d]
+		switch decl := d.(type) {
+		case *ast.FuncDecl:
+			if decl.Receiver == nil {
+				note(decl.Name, file)
+			}
+		case *ast.StructDecl:
+			note(decl.Name, file)
+		case *ast.TypeDecl:
+			note(decl.Name, file)
+		case *ast.InterfaceDecl:
+			note(decl.Name, file)
+		case *ast.ConstDecl:
+			for _, v := range decl.Vars {
+				note(v.Name, file)
+			}
+		case *ast.VarDecl:
+			for _, v := range decl.Vars {
+				note(v.Name, file)
+			}
+		}
+	}
+	a.collisions = map[string]bool{}
+	for name, owners := range files {
+		if len(owners) > 1 {
+			a.collisions[name] = true
+		}
+	}
+	return a.collisions
+}
+
+func (a *Analyser) emitFor(name string, reach int) string {
+	if reach == ast.ReachFile && a.privateCollisions()[name] {
+		emit := name + "__" + fileSuffix(a.currentFile)
+		if a.mangled == nil {
+			a.mangled = map[string]string{}
+		}
+		a.mangled[emit] = name
+		return emit
+	}
+	return name
+}
+
+func (a *Analyser) demangle(text string) string {
+	for emit, name := range a.mangled {
+		text = strings.ReplaceAll(text, emit, name)
+	}
+	return text
+}
+
+func (a *Analyser) emitOrEmpty(name string, reach int) string {
+	if emit := a.emitFor(name, reach); emit != name {
+		return emit
+	}
+	return ""
+}
+
+func fileSuffix(file string) string {
+	base := strings.TrimSuffix(filepath.Base(file), ".wsp")
+	return strings.Map(func(r rune) rune {
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' {
+			return r
+		}
+		return '_'
+	}, base)
+}

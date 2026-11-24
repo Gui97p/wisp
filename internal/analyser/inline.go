@@ -186,6 +186,7 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 		a.module = savedModule
 	}
 	a.currentFile = ft.DeclFile
+	restoreFile := ft.Scope.BindFile(&a.currentFile)
 	a.currentReturns, a.currentFallible = ft.Returns, ft.Fallible
 	a.loopFrames, a.yieldFrames, a.untilScope = nil, nil, nil
 	a.currentInline = call
@@ -222,6 +223,7 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 	a.instanceContext = savedContext
 	a.loopFrames, a.yieldFrames, a.untilScope = savedLoops, savedYields, savedUntil
 	a.currentReturns, a.currentFallible = savedReturns, savedFallible
+	restoreFile()
 	a.currentFile, a.siteFile = savedFile, savedSite
 	a.module = savedModule
 	a.scope, a.moduleScope = savedScope, savedModuleScope

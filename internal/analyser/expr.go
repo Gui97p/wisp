@@ -35,7 +35,9 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 		}
 		if !ok {
 			d := a.errorf(expr, "identifier %s not declared in this scope", e.Value)
-			if a.lateNames[e.Value] {
+			if a.moduleScope.hasPrivate(e.Value) {
+				d.WithHelp("%s is only defined as private in other files of this module, where only they can use it", e.Value)
+			} else if a.lateNames[e.Value] {
 				d.WithHelp("%s measures a type, so it is only known after the structs are declared: use it inside a function, or write the size without it", e.Value)
 			} else if !a.unavailableHint(d, e.Value) {
 				a.suggest(d, e.Value, a.scope.names(func(sym *Symbol) bool {

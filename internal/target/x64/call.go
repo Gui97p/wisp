@@ -882,7 +882,7 @@ func (t *X64Target) compileCallValues(expr *ast.CallExpr) ([]Operand, error) {
 		return t.compileBuiltin(sym.Name, expr)
 	}
 
-	symbol := t.funcSymbol(sym.Module, sym.Name)
+	symbol := t.funcSymbol(sym.Module, sym.EmitName())
 	if ft, ok := underlying(sym.Type).(*analyser.FuncType); ok {
 		if ft.Variadic {
 			return t.compileVariadicCall(symbol, sym.Module != t.module, nil, expr, ft, t.info.CallReturns[expr])

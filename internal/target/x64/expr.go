@@ -204,7 +204,7 @@ func (t *X64Target) funcLabel(sym *analyser.Symbol) string {
 	if t.abi == "win64" && sym.CName != "" {
 		return t.queueAdapter(sym)
 	}
-	symName := t.funcSymbol(sym.Module, sym.Name)
+	symName := t.funcSymbol(sym.Module, sym.EmitName())
 	if sym.CName != "" {
 		symName = sym.CName
 	}
@@ -215,7 +215,7 @@ func (t *X64Target) funcLabel(sym *analyser.Symbol) string {
 }
 
 func (t *X64Target) globalMem(sym *analyser.Symbol, size int) Mem {
-	l := symbolName(sym.Module, sym.Name)
+	l := symbolName(sym.Module, sym.EmitName())
 	if sym.Module != t.module {
 		t.prelude.define(l)
 	}

@@ -177,41 +177,41 @@ func isGenericDecl(fd *ast.FuncDecl) bool {
 }
 
 func (a *Analyser) registerGenericStruct(sd *ast.StructDecl) {
-	g := &GenericDecl{Name: sd.Name, Module: a.module, File: a.currentFile, ModuleFiles: a.moduleFileSet(), Scope: a.moduleScope, Params: sd.TypeParams, Struct: sd, Exported: sd.Exported}
+	g := &GenericDecl{Name: a.emitFor(sd.Name, sd.Reach), Module: a.module, File: a.currentFile, ModuleFiles: a.moduleFileSet(), Scope: a.moduleScope, Params: sd.TypeParams, Struct: sd, Exported: sd.Exported}
 	line, col := sd.Position()
 	symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: sd.Doc, Generic: g, Private: sd.Reach == ast.ReachFile}
 	g.Symbol = symbol
-	if !a.scope.Define(symbol) {
+	if !a.defineTop(symbol) {
 		a.errorAlreadyDeclared(sd, STRUCT, sd.Name)
 	}
 }
 
 func (a *Analyser) registerGenericAlias(td *ast.TypeDecl) {
-	g := &GenericDecl{Name: td.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: td.TypeParams, Alias: td, Exported: td.Exported}
+	g := &GenericDecl{Name: a.emitFor(td.Name, td.Reach), Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: td.TypeParams, Alias: td, Exported: td.Exported}
 	line, col := td.Position()
 	symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: td.Doc, Generic: g, Private: td.Reach == ast.ReachFile}
 	g.Symbol = symbol
-	if !a.scope.Define(symbol) {
+	if !a.defineTop(symbol) {
 		a.errorAlreadyDeclared(td, TYPE, td.Name)
 	}
 }
 
 func (a *Analyser) registerGenericSum(td *ast.TypeDecl) {
-	g := &GenericDecl{Name: td.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: td.TypeParams, Sum: td, Exported: td.Exported}
+	g := &GenericDecl{Name: a.emitFor(td.Name, td.Reach), Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: td.TypeParams, Sum: td, Exported: td.Exported}
 	line, col := td.Position()
 	symbol := &Symbol{Name: td.Name, Kind: STRUCT, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: td.Doc, Generic: g, Private: td.Reach == ast.ReachFile}
 	g.Symbol = symbol
-	if !a.scope.Define(symbol) {
+	if !a.defineTop(symbol) {
 		a.errorAlreadyDeclared(td, STRUCT, td.Name)
 	}
 }
 
 func (a *Analyser) registerGenericFunc(fd *ast.FuncDecl) {
-	g := &GenericDecl{Name: fd.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: fd.TypeParams, Func: fd, Exported: fd.Exported}
+	g := &GenericDecl{Name: a.emitFor(fd.Name, fd.Reach), Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: fd.TypeParams, Func: fd, Exported: fd.Exported}
 	line, col := fd.Position()
 	symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc, Generic: g, Private: fd.Reach == ast.ReachFile}
 	g.Symbol = symbol
-	if !a.scope.Define(symbol) {
+	if !a.defineTop(symbol) {
 		a.errorAlreadyDeclared(fd, FUNC, fd.Name)
 	}
 }
@@ -680,6 +680,7 @@ func (a *Analyser) checkInstanceBody(p pendingBody) {
 	a.waiveAccess = p.waive
 	a.instanceContext = &instanceContext{gen: p.gen, args: p.argValues}
 	a.scope, a.moduleScope, a.module, a.currentFile = p.scope, p.gen.Scope, p.gen.Module, p.gen.File
+	restoreFile := p.gen.Scope.BindFile(&a.currentFile)
 	a.bodyDepth = p.depth
 	a.phantomBuilding, a.phantomNote = p.phantom, p.checkNote
 	start := len(a.errors)
@@ -696,6 +697,7 @@ func (a *Analyser) checkInstanceBody(p pendingBody) {
 			a.errors[i].Note(p.file, callLine, callCol, endLine, endCol, "checking the body with %s", p.checkNote)
 		}
 	}
+	restoreFile()
 	a.scope, a.moduleScope, a.module, a.currentFile = savedScope, savedModuleScope, savedModule, savedFile
 	a.bodyDepth = savedDepth
 	a.phantomBuilding, a.phantomNote, a.instanceContext, a.waiveAccess = savedBuilding, savedNote, savedContext, savedWaive

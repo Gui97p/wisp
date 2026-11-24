@@ -6,7 +6,22 @@ import (
 )
 
 func (a *Analyser) Errors() diag.List {
-	return a.errors
+	if len(a.mangled) == 0 {
+		return a.errors
+	}
+	shown := make(diag.List, len(a.errors))
+	copy(shown, a.errors)
+	for i := range shown {
+		shown[i].Message = a.demangle(shown[i].Message)
+		shown[i].Help = a.demangle(shown[i].Help)
+		notes := make([]diag.Note, len(shown[i].Notes))
+		for j, n := range shown[i].Notes {
+			n.Message = a.demangle(n.Message)
+			notes[j] = n
+		}
+		shown[i].Notes = notes
+	}
+	return shown
 }
 
 func (a *Analyser) HasErrors() bool {

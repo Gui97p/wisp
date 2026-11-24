@@ -63,7 +63,8 @@ func (a *Analyser) registerFuncSignatures() {
 			continue
 		}
 		line, col := fd.Position()
-		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc, Private: fd.Reach == ast.ReachFile}
+		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc, Private: fd.Reach == ast.ReachFile, Emit: a.emitOrEmpty(fd.Name, fd.Reach)}
+		fd.Emit = symbol.Emit
 		ft.CVariadic = fd.CVariadic
 		if fd.Extern {
 			a.checkCSignature(fd, "an extern function", params, returns, variadic)
@@ -75,7 +76,7 @@ func (a *Analyser) registerFuncSignatures() {
 			symbol.CName = fd.CExport
 		}
 
-		if !a.scope.Define(symbol) {
+		if !a.defineTop(symbol) {
 			a.errorAlreadyDeclared(fd, FUNC, fd.Name)
 		}
 	}

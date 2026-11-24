@@ -20,25 +20,26 @@ func (a *Analyser) registerInterfaceNames() {
 			continue
 		}
 
-		it := &InterfaceType{Name: decl.Name, Module: a.module, Exported: decl.Exported, Doc: decl.Doc, key: qualifiedName(a.module, decl.Name)}
+		interfaceName := a.emitFor(decl.Name, decl.Reach)
+		it := &InterfaceType{Name: interfaceName, Module: a.module, Exported: decl.Exported, Doc: decl.Doc, key: qualifiedName(a.module, interfaceName)}
 		file := a.currentFile
 		scope := a.moduleScope
 		it.fill = func() { a.fillInterface(it, decl, scope, file) }
 
 		line, col := decl.Position()
 		symbol := &Symbol{Name: decl.Name, Kind: INTERFACE, Type: it, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: decl.Doc, Used: true, Private: decl.Reach == ast.ReachFile}
-		if !a.scope.Define(symbol) {
+		if !a.defineTop(symbol) {
 			a.errorAlreadyDeclared(decl, INTERFACE, decl.Name)
 		}
 	}
 }
 
 func (a *Analyser) registerGenericInterface(decl *ast.InterfaceDecl) {
-	g := &GenericDecl{Name: decl.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: decl.TypeParams, Interface: decl, Exported: decl.Exported}
+	g := &GenericDecl{Name: a.emitFor(decl.Name, decl.Reach), Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: decl.TypeParams, Interface: decl, Exported: decl.Exported}
 	line, col := decl.Position()
 	symbol := &Symbol{Name: decl.Name, Kind: INTERFACE, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: decl.Doc, Generic: g, Used: true, Private: decl.Reach == ast.ReachFile}
 	g.Symbol = symbol
-	if !a.scope.Define(symbol) {
+	if !a.defineTop(symbol) {
 		a.errorAlreadyDeclared(decl, INTERFACE, decl.Name)
 	}
 }

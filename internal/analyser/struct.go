@@ -31,7 +31,7 @@ func (a *Analyser) registerStructNames() {
 		}
 
 		st := &StructType{
-			Name:      sd.Name,
+			Name:      a.emitFor(sd.Name, sd.Reach),
 			Fields:    make(map[string]Type),
 			Order:     make([]string, 0, len(sd.Members)),
 			Methods:   make(map[string]*FuncType),
@@ -47,8 +47,10 @@ func (a *Analyser) registerStructNames() {
 		line, col := sd.Position()
 		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: sd.Doc, Private: sd.Reach == ast.ReachFile}
 
-		if !a.scope.Define(symbol) {
+		if !a.defineTop(symbol) {
 			a.errorAlreadyDeclared(sd, STRUCT, sd.Name)
+		} else if st.Name != sd.Name {
+			sd.Emit = st.Name
 		}
 	}
 }

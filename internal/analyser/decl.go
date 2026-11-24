@@ -21,7 +21,7 @@ func (a *Analyser) registerTypeAliases() {
 		}
 
 		nt := NamedType{
-			Name:       td.Name,
+			Name:       a.emitFor(td.Name, td.Reach),
 			Underlying: underlyingType,
 			Methods:    make(map[string]*FuncType),
 			Enum:       td.IsEnum,
@@ -42,9 +42,10 @@ func (a *Analyser) registerTypeAliases() {
 		nt.Impl = a.newImplSet(td.Implements, nt, td, a.moduleScope, nil)
 
 		line, col := td.Position()
+		td.Emit = a.emitOrEmpty(td.Name, td.Reach)
 		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col, File: a.currentFile, Doc: td.Doc, Private: td.Reach == ast.ReachFile}
 
-		if !a.scope.Define(symbol) {
+		if !a.defineTop(symbol) {
 			a.errorAlreadyDeclared(td, TYPE, td.Name)
 		}
 	}
@@ -190,6 +191,9 @@ func (a *Analyser) registerMethods() {
 				WithHelp("a method lives in the folder of its type, so declare it in %s, or write a function that takes the value", owner)
 			continue
 		}
+		if owner, _, _ := methodOwner(recvType); owner != "" && owner != fd.Receiver.Type.Name {
+			fd.Emit = owner + "_" + fd.Name
+		}
 		line, _ := fd.Position()
 		previous, exists := methods[fd.Name]
 		sameDecl := exists && previous.DeclFile == a.currentFile && previous.DeclLine == line
@@ -258,8 +262,8 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 				t = InvalidType{}
 			}
 			symLine, symCol := identPos(v, line, col)
-			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node), Private: nodeReach(node) == ast.ReachFile}
-			if !a.scope.Define(sym) {
+			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node), Private: nodeReach(node) == ast.ReachFile, Emit: a.emitOrEmpty(v.Name, nodeReach(node))}
+			if !a.defineTop(sym) {
 				a.errorAlreadyDeclared(node, kind, v.Name)
 			}
 			if decl, isVar := node.(*ast.VarStmt); !isVar || !decl.Result {
@@ -347,7 +351,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		}
 
 		symLine, symCol := identPos(v, line, col)
-		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node), Private: nodeReach(node) == ast.ReachFile}
+		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node), Private: nodeReach(node) == ast.ReachFile, Emit: a.emitOrEmpty(v.Name, nodeReach(node))}
 		if kind == CONST {
 			sym.Const = a.constantFor(node, values, len(vars), i, finalType, a.errorCount() > errorsBefore)
 			if sym.Const != nil && sym.Const.aggregate() && a.scope == a.moduleScope {
@@ -361,7 +365,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 				sym.MustUse = true
 				a.mustUse = append(a.mustUse, sym)
 			}
-			if !a.scope.Define(sym) {
+			if !a.defineTop(sym) {
 				a.errorAlreadyDeclared(node, kind, v.Name)
 			}
 		}
@@ -377,7 +381,7 @@ func (a *Analyser) warnUnusedFuncs() {
 		if !ok || decl.Receiver != nil || decl.Exported || decl.Extern || decl.CExport != "" || decl.Name == "main" || decl.TagNamed("test") != nil || silencesUnused(decl.Name) {
 			continue
 		}
-		sym, found := a.scope.symbols[decl.Name]
+		sym, found := a.scope.topLevel(decl.Name, a.declFiles[d])
 		if !found || sym.Used {
 			continue
 		}
@@ -411,7 +415,7 @@ func (a *Analyser) warnUnusedGlobals() {
 		}
 
 		for _, v := range vars {
-			sym, ok := a.scope.symbols[v.Name]
+			sym, ok := a.scope.topLevel(v.Name, a.declFiles[d])
 			if !ok || sym.Used || silencesUnused(v.Name) {
 				continue
 			}

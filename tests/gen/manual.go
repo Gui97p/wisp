@@ -1130,6 +1130,157 @@ func main() {
     check(tools.double(21) == 42, "another folder of the project works with it");
 }
 `, expected: []string{"a private field is updated through its own methods", "an internal field is used by the project", "a field with no word is open", "a private function helps an internal one", "another folder of the project works with it"}},
+	{dir: "private_same_names", files: map[string]string{"pair/a.wsp": `private func helper() int {
+    return 1;
+}
+
+private int counter = 10;
+
+private const Scale = 2;
+
+private struct Box {
+    int n;
+}
+
+private func (*Box b) get() int {
+    return b.n * Scale;
+}
+
+public func fromA() int {
+    counter += helper();
+    return counter;
+}
+
+public func boxA() int {
+    Box b = Box{n: 7};
+    return b.get();
+}
+`, "pair/b.wsp": `private func helper() int {
+    return 100;
+}
+
+private int counter = 20;
+
+private const Scale = 3;
+
+private struct Box {
+    int n;
+    int m;
+}
+
+private func (*Box b) get() int {
+    return b.n * Scale + b.m;
+}
+
+public func fromB() int {
+    counter += helper();
+    return counter;
+}
+
+public func boxB() int {
+    Box b = Box{n: 7, m: 1};
+    return b.get();
+}
+
+public func again() int {
+    return helper();
+}
+`}, src: `import "pair";
+
+func main() {
+    check(pair.fromA() == 11, "a private function and variable of one file");
+    check(pair.fromB() == 120, "the same names in another file are other things");
+    check(pair.fromA() == 12, "each file keeps its own variable");
+    check(pair.boxA() == 14, "a private struct and its method in one file");
+    check(pair.boxB() == 22, "a private struct of the same name in another file");
+    check(pair.again() == 100, "a function reaches the helper of its own file");
+}
+`, expected: []string{"a private function and variable of one file", "the same names in another file are other things", "each file keeps its own variable", "a private struct and its method in one file", "a private struct of the same name in another file", "a function reaches the helper of its own file"}},
+	{dir: "private_same_names_kinds", files: map[string]string{"kinds/a.wsp": `private enum Color { Red, Green }
+private func (Color c) code() int => switch c { case Color.Red => 10; default => 11; };
+public func enumA() int {
+	Color c = Color.Green;
+	return c.code();
+}
+
+private enum Shape { Circle{int r;}, Square{int s;} }
+public func sumA() int {
+	Shape s = Shape.Circle{r: 3};
+	return switch s { case .Circle c => c.r; case .Square q => q.s; default => 0; };
+}
+
+private type Meters int;
+public func aliasA() int {
+	Meters m = 5;
+	return int(m) + 1;
+}
+
+private interface Greeter { func greet() int; }
+private struct Hello implements Greeter { int n; }
+private func (*Hello h) greet() int => h.n + 1;
+public func ifaceA() int {
+	Hello h = Hello{n: 1};
+	Greeter g = &h;
+	return g.greet();
+}
+
+private func twice<T>(T v) T => v;
+public func genA() int => twice(21);
+
+private struct Stack<T> { T top; }
+private func (*Stack<T> s) peek() T => s.top;
+public func stackA() int {
+	Stack<int> s = Stack<int>{top: 7};
+	return s.peek();
+}
+`, "kinds/b.wsp": `private enum Color { Blue, Yellow, Pink }
+private func (Color c) code() int => switch c { case Color.Blue => 20; default => 21; };
+public func enumB() int {
+	Color c = Color.Pink;
+	return c.code();
+}
+
+private enum Shape { Circle{int r;}, Square{int s;}, Dot }
+public func sumB() int {
+	Shape s = Shape.Square{s: 4};
+	return switch s { case .Circle c => c.r; case .Square q => q.s; default => 0; };
+}
+
+private type Meters float;
+public func aliasB() int {
+	Meters m = 2.5;
+	return int(float(m) * 2.0);
+}
+
+private interface Greeter { func greet() int; }
+private struct Hello implements Greeter { int n; int m; }
+private func (*Hello h) greet() int => h.n * 100 + h.m;
+public func ifaceB() int {
+	Hello h = Hello{n: 2, m: 3};
+	Greeter g = &h;
+	return g.greet();
+}
+
+private func twice<T>(T v) T => v;
+public func genB() int => twice(22) + 1;
+
+private struct Stack<T> { T top; T under; }
+private func (*Stack<T> s) peek() T => s.under;
+public func stackB() int {
+	Stack<int> s = Stack<int>{top: 7, under: 3};
+	return s.peek();
+}
+`}, src: `import "kinds";
+
+func main() {
+    check(kinds.enumA() == 11 && kinds.enumB() == 21, "two private enums of the same name");
+    check(kinds.sumA() == 3 && kinds.sumB() == 4, "two private enums with data of the same name");
+    check(kinds.aliasA() == 6 && kinds.aliasB() == 5, "two private named types of the same name");
+    check(kinds.ifaceA() == 2 && kinds.ifaceB() == 203, "two private interfaces and the structs that implement them");
+    check(kinds.genA() == 21 && kinds.genB() == 23, "two private generic functions of the same name");
+    check(kinds.stackA() == 7 && kinds.stackB() == 3, "two private generic structs of the same name");
+}
+`, expected: []string{"two private enums of the same name", "two private enums with data of the same name", "two private named types of the same name", "two private interfaces and the structs that implement them", "two private generic functions of the same name", "two private generic structs of the same name"}},
 	{dir: "array_to_slice", src: `struct Box {
     [3]int items;
 }

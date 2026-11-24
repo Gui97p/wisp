@@ -141,7 +141,7 @@ func (t *X64Target) emitInterfaceData(expr ast.Expression) error {
 	if sym == nil {
 		return err
 	}
-	object := symbolName(sym.Module, sym.Name)
+	object := symbolName(sym.Module, sym.EmitName())
 	if sym.Module != t.module {
 		t.prelude.define(object)
 	}

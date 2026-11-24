@@ -34,7 +34,7 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		syms := t.info.VarSymbols[d]
 		for i := range d.Vars {
 			sym := syms[i]
-			l := symbolName(sym.Module, sym.Name)
+			l := symbolName(sym.Module, sym.EmitName())
 			t.data.printft("global %s\n", l)
 			t.data.printft("align 8\n%s:\n", l)
 
@@ -55,14 +55,22 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		if len(d.TypeParams) > 0 {
 			return nil
 		}
-		key := analyser.TypeKey(t.module, d.Name)
+		structName := d.Name
+		if d.Emit != "" {
+			structName = d.Emit
+		}
+		key := analyser.TypeKey(t.module, structName)
 		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
 		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
 	case *ast.TypeDecl:
 		if len(d.TypeParams) > 0 {
 			return nil
 		}
-		key := analyser.TypeKey(t.module, d.Name)
+		typeName := d.Name
+		if d.Emit != "" {
+			typeName = d.Emit
+		}
+		key := analyser.TypeKey(t.module, typeName)
 		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
 		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
 	case *ast.ConstDecl:
@@ -560,6 +568,9 @@ func (t *X64Target) compileFunc(fd *ast.FuncDecl) error {
 	fdName := fd.Name
 	if fd.Receiver != nil {
 		fdName = fmt.Sprintf("%s_%s", fd.Receiver.Type.Name, fd.Name)
+	}
+	if fd.Emit != "" {
+		fdName = fd.Emit
 	}
 	name := t.funcSymbol(t.module, fdName)
 	display := t.module + "."

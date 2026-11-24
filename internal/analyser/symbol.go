@@ -1,5 +1,7 @@
 package analyser
 
+import "path/filepath"
+
 type SymbolKind int
 
 const (
@@ -54,6 +56,7 @@ type Symbol struct {
 
 	ScopeDir string
 	Private  bool
+	Emit     string
 
 	ImportPath string
 
@@ -67,10 +70,21 @@ type Symbol struct {
 	Phantom string
 }
 
+func (s *Symbol) EmitName() string {
+	if s.Emit != "" {
+		return s.Emit
+	}
+	return s.Name
+}
+
 type Scope struct {
 	parent  *Scope
 	symbols map[string]*Symbol
 	lambda  bool
+
+	privates     map[string]map[string]*Symbol
+	privateFiles map[string]int
+	file         *string
 }
 
 func NewScope(parent *Scope) *Scope {
@@ -89,6 +103,11 @@ func (s *Scope) Define(symbol *Symbol) bool {
 }
 
 func (s *Scope) Resolve(name string) (*Symbol, bool) {
+	if s.privates != nil && s.file != nil && *s.file != "" {
+		if symbol, ok := s.privates[filepath.Clean(*s.file)][name]; ok {
+			return symbol, true
+		}
+	}
 	if symbol, ok := s.symbols[name]; ok {
 		return symbol, true
 	}
@@ -141,4 +160,35 @@ func (s *Scope) Visible() []*Symbol {
 		}
 	}
 	return out
+}
+
+func (s *Scope) BindFile(file *string) (restore func()) {
+	saved := s.file
+	s.file = file
+	return func() { s.file = saved }
+}
+
+func (s *Scope) hasPrivate(name string) bool {
+	return s.privateFiles[name] > 0
+}
+
+func (s *Scope) addPrivate(sym *Symbol) {
+	if s.privates == nil {
+		s.privates = map[string]map[string]*Symbol{}
+		s.privateFiles = map[string]int{}
+	}
+	file := filepath.Clean(sym.File)
+	if s.privates[file] == nil {
+		s.privates[file] = map[string]*Symbol{}
+	}
+	s.privates[file][sym.Name] = sym
+	s.privateFiles[sym.Name]++
+}
+
+func (s *Scope) topLevel(name, file string) (*Symbol, bool) {
+	if sym, ok := s.privates[filepath.Clean(file)][name]; ok {
+		return sym, true
+	}
+	sym, ok := s.symbols[name]
+	return sym, ok
 }

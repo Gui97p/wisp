@@ -8,7 +8,7 @@ import (
 )
 
 func constLabel(sym *analyser.Symbol) string {
-	return symbolName(sym.Module, sym.Name)
+	return symbolName(sym.Module, sym.EmitName())
 }
 
 func (t *X64Target) constMem(sym *analyser.Symbol, tp analyser.Type) (Mem, error) {

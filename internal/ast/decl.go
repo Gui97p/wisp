@@ -87,6 +87,7 @@ type FuncDecl struct {
 	Tagged
 	Doc         string
 	Name        string
+	Emit        string
 	Receiver    *Param
 	TypeParams  []TypeParam
 	Params      []Param
@@ -169,6 +170,7 @@ func (f *FuncDecl) Tree(indent string) string {
 }
 
 type StructDecl struct {
+	Emit string
 	Tagged
 	Doc        string
 	Name       string
@@ -214,6 +216,7 @@ type EnumMember struct {
 }
 
 type TypeDecl struct {
+	Emit string
 	Tagged
 	Doc        string
 	Name       string
