@@ -232,6 +232,9 @@ func importEdit(path, importPath string) (protocol.TextEdit, bool) {
 				first = i + 1
 				continue
 			}
+			if strings.HasPrefix(t, "///") {
+				break
+			}
 			if strings.HasPrefix(t, "//") || t == "" {
 				first = i + 1
 				continue

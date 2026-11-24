@@ -1,4 +1,4 @@
-.PHONY: build prod prod-windows toolchain install test-windows test-lsp test-cli test-fmt ext install-ext run clean version testgen test test-x64 bench
+.PHONY: build prod prod-windows release check-toolchain-linux check-toolchain-windows toolchain install test-windows test-lsp test-cli test-fmt ext install-ext run clean version testgen test test-x64 bench
 APP=wisp
 DIST=dist/wisp
 STAGE=dist/wisp-tmp
@@ -13,14 +13,14 @@ build:
 version:
 	@go run ./cmd/main version
 
-prod: build
+prod: build check-toolchain-linux
 	rm -f $(DIST)/$(NAME).tar.gz
 	rm -rf $(STAGE)
 	mkdir -p $(DIST) $(STAGE)/$(APP)
 
 	cp -r bin $(STAGE)/$(APP)
 	cp -r std $(STAGE)/$(APP)
-	if [ -d dependencies/toolchain/linux-amd64 ]; then mkdir -p $(STAGE)/$(APP)/toolchain && cp -a dependencies/toolchain/linux-amd64/. $(STAGE)/$(APP)/toolchain; fi
+	mkdir -p $(STAGE)/$(APP)/toolchain && cp -a dependencies/toolchain/linux-amd64/. $(STAGE)/$(APP)/toolchain
 
 	tar -C $(STAGE) -czf $(DIST)/$(NAME).tar.gz $(APP)
 
@@ -29,13 +29,22 @@ prod: build
 toolchain:
 	scripts/fetch-toolchain.sh all
 
-prod-windows:
+check-toolchain-linux:
+	@test -x dependencies/toolchain/linux-amd64/bin/ld.lld && test -x dependencies/toolchain/linux-amd64/bin/nasm || { echo "dependencies/toolchain/linux-amd64 is missing: run 'make toolchain' first, a release without the toolchain is not allowed" >&2; exit 1; }
+
+check-toolchain-windows:
+	@test -f dependencies/toolchain/windows-amd64/bin/nasm.exe && test -f dependencies/toolchain/windows-amd64/bin/ld.lld.exe || { echo "dependencies/toolchain/windows-amd64 is missing: run 'make toolchain' first, a release without the toolchain is not allowed" >&2; exit 1; }
+
+release: prod prod-windows
+	cd $(DIST) && sha256sum $(NAME).tar.gz $(WINNAME).zip > SHA256SUMS-$(VERSION)
+
+prod-windows: check-toolchain-windows
 	rm -f $(DIST)/$(WINNAME).zip
 	rm -rf $(STAGE)
 	mkdir -p $(DIST) $(STAGE)/$(APP)/bin
 	GOOS=windows GOARCH=amd64 go build -o $(STAGE)/$(APP)/bin/$(APP).exe ./cmd/main
 	cp -r std $(STAGE)/$(APP)
-	if [ -d dependencies/toolchain/windows-amd64 ]; then mkdir -p $(STAGE)/$(APP)/toolchain && cp -a dependencies/toolchain/windows-amd64/. $(STAGE)/$(APP)/toolchain; fi
+	mkdir -p $(STAGE)/$(APP)/toolchain && cp -a dependencies/toolchain/windows-amd64/. $(STAGE)/$(APP)/toolchain
 	cd $(STAGE) && zip -qr $(CURDIR)/$(DIST)/$(WINNAME).zip $(APP)
 	rm -rf $(STAGE)
 

@@ -1147,7 +1147,7 @@ func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr, values []Type) bool
 	a.exitScope()
 
 	if !valueless && !a.blockDiverges(b) {
-		d := a.error(expr, "the handler block must end with yield, return, break or continue")
+		d := a.errorAtEnd(b, "the handler block must end with yield, return, break or continue")
 		if endsInSwitch(b) {
 			d.WithHelp("a switch handler needs a default, and every case must end with yield, return, continue or a labeled break: a plain break only leaves the switch")
 		}
