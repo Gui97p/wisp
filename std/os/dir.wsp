@@ -66,7 +66,7 @@ public func (*Dir d) next() !?Entry {
 		case sys.KIND_LINK => .Link;
 		default => .Other;
 	};
-	return Entry{name: string(d.entry.name[:d.entry.len]), kind: kind};
+	return Entry{name: string(d.entry.name[..d.entry.len]), kind: kind};
 }
 
 /// Closes the directory. It must not be used afterwards.

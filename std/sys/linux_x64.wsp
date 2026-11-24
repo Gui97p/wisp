@@ -425,8 +425,8 @@ internal func getenv(string name) ?string {
 				loop entry[n] != '\0' {
 					n++;
 				}
-				string line = string(entry[:n]);
-				return line[len(name) + 1:] if len(line) > len(name) && line[len(name)] == '=' && line[:len(name)] == name;
+				string line = string(entry[..n]);
+				return line[len(name) + 1..] if len(line) > len(name) && line[len(name)] == '=' && line[..len(name)] == name;
 			} else {
 				break;
 			}
@@ -447,7 +447,7 @@ internal func envNext(*Env e) ?string {
 			loop entry[n] != '\0' {
 				n++;
 			}
-			return string(entry[:n]);
+			return string(entry[..n]);
 		}
 	}
 	return null;

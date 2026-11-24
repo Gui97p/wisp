@@ -306,7 +306,7 @@ func remPio2(float x, []float y) int {
 	loop tx[nx - 1] == rempio2_zero {
 		nx -= 1;
 	}
-	int n = kernelRemPio2(tx[:], y, e0, nx);
+	int n = kernelRemPio2(tx[..], y, e0, nx);
 	if hx < 0 {
 		y[0] = -y[0];
 		y[1] = -y[1];

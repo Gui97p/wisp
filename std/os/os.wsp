@@ -109,7 +109,7 @@ public func (*Environ e) next() ?Variable {
 			eq++;
 		}
 		continue if eq == 0 || eq == len(entry);
-		return Variable{name: entry[:eq], value: entry[eq + 1:]};
+		return Variable{name: entry[..eq], value: entry[eq + 1..]};
 	}
 }
 

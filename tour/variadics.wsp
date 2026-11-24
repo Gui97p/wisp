@@ -9,7 +9,7 @@
 // as long as its elements are the type the variadic takes. Loose values can
 // come before it, `sum(1, 2, numbers...)`, and a function can pass its own
 // variadic on, `sum(values...)`. An array is spread through a slice of it,
-// `sum(array[:]...)`.
+// `sum(array[..]...)`.
 //
 // Do not confuse this with a C variadic such as C's printf, which is declared
 // with `extern`.

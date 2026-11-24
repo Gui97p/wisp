@@ -16,7 +16,7 @@ public func indexOf(string s, sub) ?int {
 	int limit = len(s) - subLen;
 
 	for i in 0..=limit {
-		return i if s[i:i + len(sub)] == sub;
+		return i if s[i..i + len(sub)] == sub;
 	}
 
 	return null;
@@ -37,7 +37,7 @@ public func lastIndexOf(string s, sub) ?int {
 
 	?int last = null;
 	for i in 0..=limit {
-		if s[i:i + len(sub)] == sub {
+		if s[i..i + len(sub)] == sub {
 			last = i;
 		}
 	}
@@ -81,7 +81,7 @@ public func count(string s, sub) int {
 		int nIdx = idx + len(sub);
 		break if nIdx >= len(s);
 
-		s = s[nIdx:];
+		s = s[nIdx..];
 	}
 
 	return total;
@@ -91,13 +91,13 @@ public func count(string s, sub) int {
 #must_use
 public func startsWith(string s, prefix) bool {
 	return false if len(prefix) > len(s);
-	return s[:len(prefix)] == prefix;
+	return s[..len(prefix)] == prefix;
 }
 /// Reports whether `s` ends with `suffix`. An empty `suffix` always matches.
 #must_use
 public func endsWith(string s, suffix) bool {
 	return false if len(suffix) > len(s);
-	return s[len(s) - len(suffix):] == suffix;
+	return s[len(s) - len(suffix)..] == suffix;
 }
 
 /// Compares `a` and `b` byte by byte and returns -1, 0 or 1 when `a` is less than,
@@ -109,7 +109,7 @@ public func compare(string a, b) int {
 	int lenB = len(b);
 	int n = math.min(lenA, lenB);
 
-	for i, c in a[:n] {
+	for i, c in a[..n] {
 		return -1 if c < b[i];
 
 		return 1 if c > b[i];

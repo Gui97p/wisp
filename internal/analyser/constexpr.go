@@ -753,7 +753,7 @@ func (a *Analyser) evalStringSlice(e *ast.SliceExpr) (ConstValue, bool) {
 	}
 	if start < 0 || end > int64(len(base.Str)) || start > end {
 		if !a.quiet && a.staticVars != nil {
-			a.errorf(e, "the slice %d:%d is out of range: the string has %d bytes", start, end, len(base.Str))
+			a.errorf(e, "the slice %d..%d is out of range: the string has %d bytes", start, end, len(base.Str))
 		}
 		return ConstValue{}, false
 	}

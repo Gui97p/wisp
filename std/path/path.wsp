@@ -59,7 +59,7 @@ public struct Elements {
 public func (*Elements e) next() ?string {
 	string s = e.rest;
 	loop s != "" && isSep(s[0]) {
-		s = s[1:];
+		s = s[1..];
 	}
 	if s == "" {
 		e.rest = "";
@@ -69,14 +69,14 @@ public func (*Elements e) next() ?string {
 	loop i < len(s) && !isSep(s[i]) {
 		i++;
 	}
-	e.rest = s[i:];
-	return s[:i];
+	e.rest = s[i..];
+	return s[..i];
 }
 
 /// Starts an iteration over the elements of `p`, without any volume name. `.`
 /// and `..` are returned as they are.
 public func elements(string p) Elements {
-	return Elements{rest: p[volumeLen(p):]};
+	return Elements{rest: p[volumeLen(p)..]};
 }
 
 func elementsAfterVolume(string s) Elements {
@@ -99,7 +99,7 @@ public func base(string p) string {
 	loop i >= v && !isSep(p[i]) {
 		i--;
 	}
-	return p[i + 1:end];
+	return p[i + 1..end];
 }
 
 /// Returns everything but the last element of `p`, without trailing separators.
@@ -114,18 +114,18 @@ public func dir(string p) string {
 	loop end > v && isSep(p[end - 1]) {
 		end--;
 	}
-	return len(p) > v ? p[:v + 1] : (v == 0 ? "." : p[:v]) if end == v;
+	return len(p) > v ? p[..v + 1] : (v == 0 ? "." : p[..v]) if end == v;
 	int i = end - 1;
 	loop i >= v && !isSep(p[i]) {
 		i--;
 	}
-	return v == 0 ? "." : p[:v] if i < v;
+	return v == 0 ? "." : p[..v] if i < v;
 	int head = i;
 	loop head > v && isSep(p[head - 1]) {
 		head--;
 	}
-	return p[:v + 1] if head == v;
-	return p[:head];
+	return p[..v + 1] if head == v;
+	return p[..head];
 }
 
 /// Returns the extension of the last element of `p`, with its dot, or an empty
@@ -135,7 +135,7 @@ public func ext(string p) string {
 	p = base(p);
 
 	int idx = strings.lastIndexOfByte(p, '.') ?? return "";
-	return idx == 0 || idx == len(p) - 1 ? "" : p[idx:];
+	return idx == 0 || idx == len(p) - 1 ? "" : p[idx..];
 }
 
 /// Returns the last element of `p` without its extension.

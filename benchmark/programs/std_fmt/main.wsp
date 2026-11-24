@@ -8,13 +8,13 @@ func main() {
 	int width = 0;
 	int sum = 0;
 	for i in 1..=ROUNDS {
-		string s = conv.itoa(buf[:], i * 7919 - 1000000)!!;
+		string s = conv.itoa(buf[..], i * 7919 - 1000000)!!;
 		width += len(s);
 		sum += conv.atoi(s)!!;
 	}
 	int written = 0;
 	for i in 1..=ROUNDS {
-		written += fmt.sprintf(buf[:], "{} {}", i, i * 3)!!;
+		written += fmt.sprintf(buf[..], "{} {}", i, i * 3)!!;
 	}
 	fmt.printf("{} {} {}\n", width, sum, written);
 }

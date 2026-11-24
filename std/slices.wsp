@@ -107,7 +107,7 @@ public func binarySearch<Orderable T>([]T sorted, T want) ?int {
 public func min<Orderable T>([]T items) ?T {
 	return null if len(items) == 0;
 	T m = items[0];
-	for v in items[1:] {
+	for v in items[1..] {
 		if v < m {
 			m = v;
 		}
@@ -120,7 +120,7 @@ public func min<Orderable T>([]T items) ?T {
 public func max<Orderable T>([]T items) ?T {
 	return null if len(items) == 0;
 	T m = items[0];
-	for v in items[1:] {
+	for v in items[1..] {
 		if v > m {
 			m = v;
 		}

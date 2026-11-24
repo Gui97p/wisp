@@ -965,7 +965,7 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 			return InvalidType{}
 		}
 		if expr.End == nil {
-			a.error(expr, "slicing a pointer needs an end, as in p[:n]")
+			a.error(expr, "slicing a pointer needs an end, as in p[..n]")
 			return InvalidType{}
 		}
 		a.checkConstSlice(expr, -1)

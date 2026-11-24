@@ -41,7 +41,7 @@ func formatUnsigned([]byte buf, uint n, int base, bool upper) !string {
 		right -= 1;
 	}
 
-	return string(buf[0:i]);
+	return string(buf[0..i]);
 }
 
 /// Writes `n` in `base` (2 to 36) into `buf` and returns the text, which shares
@@ -54,9 +54,9 @@ public func formatInt([]byte buf, int n, base, bool upper) !string {
 	errors.ensure(len(buf) > 1, errors.Kind.NoSpace)!;
 
 	uint mag = uint(-(n + 1)) + 1;
-	string digits = formatUnsigned(buf[1:], mag, base, upper)!;
+	string digits = formatUnsigned(buf[1..], mag, base, upper)!;
 	buf[0] = '-';
-	return string(buf[0:len(digits) + 1]);
+	return string(buf[0..len(digits) + 1]);
 }
 
 /// Writes `n` in `base` (2 to 36) into `buf` and returns the text, which shares
@@ -127,7 +127,7 @@ public func parseInt(string s, int base) !int {
 	bool neg = s[0] == '-';
 
 	if neg || s[0] == '+' {
-		s = s[1:];
+		s = s[1..];
 	}
 
 	uint mag = parseUint(s, base)!;

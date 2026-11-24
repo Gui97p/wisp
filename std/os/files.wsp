@@ -37,10 +37,10 @@ public func readFile(string p) ![]byte {
 	defer !mem.free(mem.heap, buf);
 	int total;
 	loop {
-		int r = read(fd, buf[total:])!;
+		int r = read(fd, buf[total..])!;
 		total += r;
 	} until r == 0 || total >= size;
-	return buf[:total];
+	return buf[..total];
 }
 
 /// Renames or moves `from` to `to`, replacing `to` if it is a file. Fails with
@@ -78,5 +78,5 @@ public inline func exists(string p) bool {
 public func cwd([]byte buf) !string {
 	int r = sys.getcwd(buf);
 	return errorIO(sys.errno(r)) if r < 0;
-	return string(buf[:r]);
+	return string(buf[..r]);
 }

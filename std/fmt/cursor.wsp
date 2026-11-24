@@ -39,7 +39,7 @@ func (*Cursor c) advanceUntil(byte ...chs) bool {
 }
 
 inline func (*Cursor c) since(int mark) string {
-	return c.text[mark:c.pos];
+	return c.text[mark..c.pos];
 }
 
 inline func (*Cursor c) done() bool {

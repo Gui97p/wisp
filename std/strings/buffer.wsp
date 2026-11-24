@@ -8,7 +8,7 @@ public func copy([]byte buf, string s) !string {
 	for i, c in s {
 		buf[i] = c;
 	}
-	return string(buf[:len(s)]);
+	return string(buf[..len(s)]);
 }
 
 /// Writes `parts` one after another into `buf` and returns the joined bytes. The
@@ -17,10 +17,10 @@ public func copy([]byte buf, string s) !string {
 public func concat([]byte buf, string ...parts) !string {
 	int total;
 	for _, part in parts {
-		copy(buf[total:], part)!;
+		copy(buf[total..], part)!;
 		total += len(part);
 	}
-	return string(buf[:total]);
+	return string(buf[..total]);
 }
 
 /// Writes `parts` into `buf` separated by `sep` and returns the joined bytes. The
@@ -31,14 +31,14 @@ public func join([]byte buf, []string parts, string sep) !string {
 	return "" if len(parts) == 0;
 	int total = len(parts[0]);
 	copy(buf, parts[0])!;
-	for _, p in parts[1:] {
+	for _, p in parts[1..] {
 		if sep == "" {
-			total += len(copy(buf[total:], p)!);
+			total += len(copy(buf[total..], p)!);
 		} else {
-			total += len(concat(buf[total:], sep, p)!);
+			total += len(concat(buf[total..], sep, p)!);
 		}
 	}
-	return string(buf[:total]);
+	return string(buf[..total]);
 }
 
 /// Writes `n` copies of `s` into `buf` and returns the bytes. The result shares
@@ -50,11 +50,11 @@ public func rep([]byte buf, string s, int n) !string {
 
 	int total;
 	for n {
-		copy(buf[total:], s)!;
+		copy(buf[total..], s)!;
 		total += len(s);
 	}
 
-	return string(buf[:total]);
+	return string(buf[..total]);
 }
 
 /// Writes `s` into `buf` with occurrences of `old` replaced by `new` and returns
@@ -66,7 +66,7 @@ public func rep([]byte buf, string s, int n) !string {
 public func replace([]byte buf, string s, old, new, int n) !string {
 	if old == "" {
 		copy(buf, s)!;
-		return string(buf[:len(s)]);
+		return string(buf[..len(s)]);
 	}
 
 	Splitter sp = splitter(s, old);
@@ -74,16 +74,16 @@ public func replace([]byte buf, string s, old, new, int n) !string {
 	loop sp.next() |next| {
 		if count > 0 {
 			string chosen = count > n && n >= 0 ? old : new;
-			copy(buf[total:], chosen)!;
+			copy(buf[total..], chosen)!;
 			total += len(chosen);
 		}
 
-		copy(buf[total:], next)!;
+		copy(buf[total..], next)!;
 		total += len(next);
 		count++;
 	}
 
-	return string(buf[:total]);
+	return string(buf[..total]);
 }
 
 /// Writes `s` into `buf` with ASCII lowercase letters made uppercase and returns
@@ -94,7 +94,7 @@ public func upper([]byte buf, string s) !string {
 	for i, c in s {
 		buf[i] = upperByte(c);
 	}
-	return string(buf[:len(s)]);
+	return string(buf[..len(s)]);
 }
 /// Makes the ASCII lowercase letters in `buf` uppercase, in place.
 public func toUpper([]byte buf) {
@@ -109,7 +109,7 @@ public func lower([]byte buf, string s) !string {
 	for i, c in s {
 		buf[i] = lowerByte(c);
 	}
-	return string(buf[:len(s)]);
+	return string(buf[..len(s)]);
 }
 /// Makes the ASCII uppercase letters in `buf` lowercase, in place.
 public func toLower([]byte buf) {

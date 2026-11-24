@@ -16,24 +16,24 @@ public func join([]byte buf, string ...parts) !string {
 		if !seen {
 			seen = true;
 			int v = volumeLen(p);
-			total += len(strings.copy(buf[total:], p[:v])!);
+			total += len(strings.copy(buf[total..], p[..v])!);
 			if v < len(p) && isSep(p[v]) {
-				total += len(strings.copy(buf[total:], sep)!);
+				total += len(strings.copy(buf[total..], sep)!);
 			} else if v > 2 {
 				firstPassed = true;
 			}
-			rest = p[v:];
+			rest = p[v..];
 		}
 		let elems = elementsAfterVolume(rest);
 		loop elems.next() |n| {
 			if firstPassed {
-				total += len(strings.copy(buf[total:], sep)!);
+				total += len(strings.copy(buf[total..], sep)!);
 			}
-			total += len(strings.copy(buf[total:], n)!);
+			total += len(strings.copy(buf[total..], n)!);
 			firstPassed = true;
 		}
 	}
-	return string(buf[:total]);
+	return string(buf[..total]);
 }
 
 /// Writes into `buf` the shortest form of `p` that names the same place:
@@ -44,20 +44,20 @@ public func join([]byte buf, string ...parts) !string {
 public func clean([]byte buf, string p) !string {
 	int total, depth;
 	int v = volumeLen(p);
-	total += len(strings.copy(buf, p[:v])!);
+	total += len(strings.copy(buf, p[..v])!);
 	bool rooted = v < len(p) && isSep(p[v]);
 	if rooted {
-		total += len(strings.copy(buf[total:], sep)!);
+		total += len(strings.copy(buf[total..], sep)!);
 	}
 	int rootLen = total;
 
-	let elems = elementsAfterVolume(p[v:]);
+	let elems = elementsAfterVolume(p[v..]);
 	loop elems.next() |n| {
 		switch n {
 			case "." => continue;
 			case ".." => {
 				if depth > 0 {
-					total = math.max(strings.lastIndexOf(string(buf[:total]), sep) ?? rootLen, rootLen);
+					total = math.max(strings.lastIndexOf(string(buf[..total]), sep) ?? rootLen, rootLen);
 					depth--;
 					continue;
 				} else if rooted {
@@ -68,9 +68,9 @@ public func clean([]byte buf, string p) !string {
 		}
 
 		if total > rootLen {
-			total += len(strings.copy(buf[total:], sep)!);
+			total += len(strings.copy(buf[total..], sep)!);
 		}
-		total += len(strings.copy(buf[total:], n)!);
+		total += len(strings.copy(buf[total..], n)!);
 	}
 
 	if total == 0 {
@@ -78,5 +78,5 @@ public func clean([]byte buf, string p) !string {
 		total++;
 	}
 
-	return string(buf[:total]);
+	return string(buf[..total]);
 }

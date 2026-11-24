@@ -106,14 +106,14 @@ public func (*Heap) free(?*void p) {
 /// fail like the allocator does.
 public inline func make<T, Allocator A>(A a, int n) ![]T {
 	*void p = a.alloc(n * int(sizeof(T)))!;
-	return (*T)(p)[0:n];
+	return (*T)(p)[0..n];
 }
 
 /// Like `make`, for memory you are about to overwrite: the elements are not
 /// cleared, so what they hold before you write is not defined.
 public inline func makeDirty<T, Allocator A>(A a, int n) ![]T {
 	*void p = a.allocDirty(n * int(sizeof(T)))!;
-	return (*T)(p)[0:n];
+	return (*T)(p)[0..n];
 }
 
 /// One zeroed T, as a pointer: `mem.create<Pair>(mem.heap)!`.
@@ -127,7 +127,7 @@ public inline func create<T, Allocator A>(A a) !*T {
 public inline func resize<T, Allocator A>(A a, []T items, int n) ![]T {
 	int size = int(sizeof(T));
 	*void p = a.realloc(items, len(items) * size, n * size)!;
-	return (*T)(p)[0:n];
+	return (*T)(p)[0..n];
 }
 
 /// Gives a block back: a pointer, a slice or an array that came from the

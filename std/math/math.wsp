@@ -68,7 +68,7 @@ public func min(int ...args) int {
 	return 0 if len(args) == 0;
 	int m = args[0];
 
-	for _, n in args[1:] {
+	for _, n in args[1..] {
 		if n < m {
 			m = n;
 		}
@@ -82,7 +82,7 @@ public func max(int ...args) int {
 	return 0 if len(args) == 0;
 	int m = args[0];
 
-	for _, n in args[1:] {
+	for _, n in args[1..] {
 		if n > m {
 			m = n;
 		}

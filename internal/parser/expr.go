@@ -471,50 +471,67 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 	return args
 }
 
+func isRangeToken(t lexer.TokenType) bool {
+	return t == lexer.TOKEN_RANGE || t == lexer.TOKEN_RANGE_OPEN
+}
+
+func (p *Parser) parseSliceBound() ast.Expression {
+	prev := p.allowStructLiteral
+	p.allowStructLiteral = true
+	bound := p.parseExpressionPratt(RANGE)
+	p.allowStructLiteral = prev
+	return bound
+}
+
 func (p *Parser) parseIndexSliceExpression(array ast.Expression) ast.Expression {
 	p.advance()
 
 	var start ast.Expression
-	if p.current.Type != lexer.TOKEN_COLON {
-		prev := p.allowStructLiteral
-		p.allowStructLiteral = true
-		start = p.parseExpression()
-		p.allowStructLiteral = prev
+	if !isRangeToken(p.current.Type) {
+		start = p.parseSliceBound()
 		if start == nil {
 			return nil
 		}
-		if p.peek.Type == lexer.TOKEN_COLON {
-			p.advance()
-		}
-	}
-
-	if p.current.Type == lexer.TOKEN_COLON {
-		slice := &ast.SliceExpr{Array: array, Start: start}
-		if p.peek.Type != lexer.TOKEN_RBRACKET {
-			p.advance()
-			prev := p.allowStructLiteral
-			p.allowStructLiteral = true
-			slice.End = p.parseExpression()
-			p.allowStructLiteral = prev
-			if slice.End == nil {
+		if !isRangeToken(p.peek.Type) {
+			if !p.expect(lexer.TOKEN_RBRACKET) {
 				return nil
 			}
+			return &ast.IndexExpr{Array: array, Index: start}
 		}
-		if !p.expect(lexer.TOKEN_RBRACKET) {
-			return nil
-		}
-		return slice
+		p.advance()
 	}
 
-	if start == nil {
-		p.error("expected expression")
+	inclusive := p.current.Type == lexer.TOKEN_RANGE
+	slice := &ast.SliceExpr{Array: array, Start: start}
+	if p.peek.Type != lexer.TOKEN_RBRACKET {
+		p.advance()
+		slice.End = p.parseSliceBound()
+		if slice.End == nil {
+			return nil
+		}
+		if inclusive {
+			slice.End = p.afterLast(slice.End)
+		}
+	} else if inclusive {
+		p.error("a slice with ..= needs an end: write a..=b, or a.. to go to the end")
 		return nil
 	}
 	if !p.expect(lexer.TOKEN_RBRACKET) {
 		return nil
 	}
+	return slice
+}
 
-	return &ast.IndexExpr{Array: array, Index: start}
+func (p *Parser) afterLast(end ast.Expression) ast.Expression {
+	if value, ok := literalInt(end); ok {
+		return p.numberAt(value+1, end)
+	}
+	next := &ast.BinaryExpr{Left: end, Operator: "+", Right: p.numberAt(1, end), Synthetic: true}
+	line, col := end.Position()
+	endLine, endCol := end.EndPosition()
+	next.SetPos(line, col)
+	next.SetEndPos(endLine, endCol)
+	return next
 }
 
 func (p *Parser) parseArrayLiteral() ast.Expression {

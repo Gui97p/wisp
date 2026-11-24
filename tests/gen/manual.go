@@ -609,7 +609,7 @@ func main() {
     check(a == 300, "spill with indexed elements pending");
     int b = ((i1 == 0 ? xs[i1] : 5) + ((i2 == 0 ? xs[i2] : 5) + ((i3 == 0 ? xs[i3] : 5) + ((i4 == 0 ? xs[i4] : 5) + ((i5 == 0 ? xs[i5] : 5) + ((i6 == 0 ? xs[i6] : 5) + ((i7 == 0 ? xs[i7] : 5) + ((i8 == 0 ? xs[i8] : 5) + ((i9 == 0 ? xs[i9] : 5) + ((i10 == 0 ? xs[i10] : 5) + ((i11 == 0 ? xs[i11] : 5) + (i12 == 0 ? xs[i12] : 5))))))))))));
     check(b == 75, "spill with ternaries and indexed elements pending");
-    []int part = xs[1:4];
+    []int part = xs[1..4];
     int d = (part[0] + (part[1] + (part[2] + (part[0] + (part[1] + (part[2] + (part[0] + (part[1] + (part[2] + (part[0] + (part[1] + part[2])))))))))));
     check(d == 360, "spill with span elements pending");
 }
@@ -630,11 +630,11 @@ func main() {
     fill((*byte)(buf), 8, 'a');
     check(buf[0] == 'a' && buf[7] == 'a', "an array converts to a pointer to its first element");
 
-    []byte view = buf[2:6];
+    []byte view = buf[2..6];
     fill((*byte)(view), 4, 'z');
     check(buf[1] == 'a' && buf[2] == 'z' && buf[5] == 'z' && buf[6] == 'a', "a span points into the array it views");
 
-    []byte empty = buf[3:3];
+    []byte empty = buf[3..3];
     *byte none = (*byte)(empty);
     check(none == (*byte)(buf) + 3, "the pointer of an empty span is still its start");
 
@@ -887,9 +887,9 @@ func main() {
 
 func main() {
     [5]int nums = .{10, 20, 30, 40, 50};
-    []int middle = nums[1:3];
-    []int head = nums[:2];
-    []int tail = nums[3:];
+    []int middle = nums[1..3];
+    []int head = nums[..2];
+    []int tail = nums[3..];
     check(len(middle) == 2, "slice length");
     check(middle[0] == 20, "slice first element");
     check(middle[1] == 30, "slice second element");
@@ -1372,6 +1372,24 @@ func main() {
     check(bytes.count() == 5 && sum == 1260, "a range of bytes stops before 255");
 }
 `, expected: []string{"a variable range stops before its end", "an empty range runs nothing", "a range that starts above its end runs nothing", "a constant range counts its end out", "a constant range with equal bounds is empty", "the end is evaluated once", "a negative step stops before the end", "a step skips over the open end", "labels work on exclusive loops", "in leaves the end out", "a case range leaves its end out", "a range value counts, contains and walks without its end", "counting down and an empty range value", "an unsigned range that is empty does not wrap", "a range of bytes stops before 255"}},
+	{dir: "slice_ranges", src: `func main() {
+    [6]int a = .{10, 20, 30, 40, 50, 60};
+    check(len(a[1..4]) == 3 && a[1..4][0] == 20, "the end is left out");
+    check(len(a[1..=4]) == 4 && a[1..=4][3] == 50, "..= puts the end in");
+    check(len(a[..2]) == 2 && len(a[4..]) == 2 && len(a[..]) == 6, "open ends");
+    int n = 3;
+    check(len(a[..=n]) == 4 && a[n..][0] == 40, "variable bounds");
+    check(len(a[n..n]) == 0 && len(a[..0]) == 0, "an empty slice");
+
+    string s = "hello, world";
+    check(s[..5] == "hello" && s[7..] == "world" && s[7..=8] == "wo", "strings slice with ranges");
+    int k = 4;
+    check(s[k..=k] == "o" && s[..k + 1] == "hello"[..5], "an inclusive end after an expression");
+
+    *int p = &a[0];
+    check(len(p[0..3]) == 3 && p[0..=2][2] == 30 && p[..2][1] == 20, "a pointer slices with ranges");
+}
+`, expected: []string{"the end is left out", "..= puts the end in", "open ends", "variable bounds", "an empty slice", "strings slice with ranges", "an inclusive end after an expression", "a pointer slices with ranges"}},
 	{dir: "generic_methods", src: `import "std/mem";
 
 struct Window {
@@ -1450,7 +1468,7 @@ func main() {
     [2][2]int grid = .{.{1, 2}, .{3, 4}};
     check(total(grid[1]) == 7, "an array element passes as a slice");
 
-    check(total(nums[1:3]) == 50, "an explicit slice still works");
+    check(total(nums[1..3]) == 50, "an explicit slice still works");
 
     check(total(.{4, 5, 6}) == 15, "an array literal passes as a slice");
 
@@ -2291,13 +2309,13 @@ func main() {
     ?bool flag = true;
 
     int len = fmt.sprintf(buf, "{} {} {} {} {} {} {}", a, b, s, t, q, f, flag)!!;
-    check(string(buf[:len]) == "5 null wisp null null 1.5 true", "optionals print their value or null");
+    check(string(buf[..len]) == "5 null wisp null null 1.5 true", "optionals print their value or null");
 
     len = fmt.sprintf(buf, "[{4}] [{x}] [{>6}]", a, a, s)!!;
-    check(string(buf[:len]) == "[   5] [5] [  wisp]", "an optional follows the format of its value");
+    check(string(buf[..len]) == "[   5] [5] [  wisp]", "an optional follows the format of its value");
 
     len = fmt.sprintf(buf, "[{6}]", b)!!;
-    check(string(buf[:len]) == "[null  ]", "null is padded like any other text");
+    check(string(buf[..len]) == "[null  ]", "null is padded like any other text");
 }
 `, expected: []string{"optionals print their value or null", "an optional follows the format of its value", "null is padded like any other text"}},
 	{dir: "optional_assert", src: `func find(int n) ?int {
@@ -3197,9 +3215,9 @@ func main() {
     string s = "hello";
     string t = "hel";
     check(s != t, "variables of different length");
-    check(s[0:3] == t, "a slice compares equal to its text");
-    check(s[1:3] == "el", "a middle slice");
-    check(s[2:2] == "", "an empty slice is the empty string");
+    check(s[0..3] == t, "a slice compares equal to its text");
+    check(s[1..3] == "el", "a middle slice");
+    check(s[2..2] == "", "an empty slice is the empty string");
     [2]string arr = .{"x", "y"};
     check(arr[0] == "x", "array element equals");
     check(arr[1] != "x", "array element differs");
@@ -3245,7 +3263,7 @@ func main() {
         count += v;
     }
     check(count == 100, "single name walks the elements");
-    []int part = a[1:3];
+    []int part = a[1..3];
     int sum = 0;
     for v in part {
         sum += 1;
@@ -3266,7 +3284,7 @@ func main() {
     check(chars == 3, "for in string visits every byte");
     check(last == 2, "for in string last index");
     int empty = 0;
-    []int none = a[2:2];
+    []int none = a[2..2];
     for i, v in none {
         empty += 1;
     }
@@ -3312,11 +3330,11 @@ func main() {
     check(!(50 in a), "in does not find a missing value");
     int8 small = 20;
     check(small in a, "in widens the left operand");
-    []int part = a[1:3];
+    []int part = a[1..3];
     check(20 in part, "in finds an element of a span");
     check(!(10 in part), "in is limited to the span");
     check(!(40 in part), "in stops at the end of the span");
-    []int none = a[2:2];
+    []int none = a[2..2];
     check(!(10 in none), "in an empty span finds nothing");
     string word = "hello";
     check('e' in word, "in finds a byte in a string");
@@ -3367,10 +3385,10 @@ func main() {
     check(!("zed" in names), "in does not find a missing string");
     check(!("bo" in names), "a prefix of an element is not an element");
     check(!("bobby" in names), "an extension of an element is not an element");
-    []string part = names[1:3];
+    []string part = names[1..3];
     check("cy" in part, "in finds a string in a span");
     check(!("ann" in part), "in is limited to the span of strings");
-    []string none = names[1:1];
+    []string none = names[1..1];
     check(!("bob" in none), "in an empty span of strings finds nothing");
     string first = names[0];
     check(first in names, "in with a string variable");
@@ -3770,17 +3788,17 @@ func main() ! {
     *int8 b = mem.heap.alloc(8)!;
     b[0] = 104;
     b[1] = 105;
-    string s = string(b[0:2]);
+    string s = string(b[0..2]);
     b[1] = 111;
     check(s == "ho", "string is a view of the buffer");
     mem.heap.free(b);
 
     int x = 5;
     *int p = &x;
-    let n, err = fmt.sprintf(scratch[:], "{}", p);
-    check(err == null && n > 2 && string(scratch[0:2]) == "0x", "a pointer starts with 0x");
-    let m, err2 = fmt.sprintf(other[:], "{p}", p);
-    check(err2 == null && m == n && string(scratch[0:n]) == string(other[0:m]), "p is the default for a pointer");
+    let n, err = fmt.sprintf(scratch[..], "{}", p);
+    check(err == null && n > 2 && string(scratch[0..2]) == "0x", "a pointer starts with 0x");
+    let m, err2 = fmt.sprintf(other[..], "{p}", p);
+    check(err2 == null && m == n && string(scratch[0..n]) == string(other[0..m]), "p is the default for a pointer");
 }
 `, expected: []string{"a byte array converts to a string view of itself", "string is a view of the buffer", "a pointer starts with 0x", "p is the default for a pointer"}},
 
@@ -4205,7 +4223,7 @@ func main() {
     }
     check(n == 3, "the length of a string constant");
     *byte text = p!!;
-    check(string(text[:n]) == "hey", "the address of a string constant");
+    check(string(text[..n]) == "hey", "the address of a string constant");
 }
 `}, expected: []string{"a constant of another module is an immediate", "a negative constant keeps its sign", "a bool constant is 1 or 0", "the length of a string constant", "the address of a string constant"}},
 
@@ -8477,7 +8495,7 @@ func main() {
 
 	{dir: "abort_index_span", src: `func main() {
     [5]int nums = .{1, 2, 3, 4, 5};
-    []int part = nums[1:3];
+    []int part = nums[1..3];
     int i = 2;
     check(part[1] == 3, "abortspan last element is readable");
     check(true, "abortspan before the bad read");
@@ -8527,7 +8545,7 @@ func main() {
     [5]int nums = .{1, 2, 3, 4, 5};
     int end = 6;
     check(true, "abortslice before the bad slice");
-    []int part = nums[1:end];
+    []int part = nums[1..end];
     check(false, "abortslice never printed");
 }
 `, expected: []string{"abortslice before the bad slice"}, abort: "panic: slice out of range"},
@@ -8537,7 +8555,7 @@ func main() {
     int start = 3;
     int end = 2;
     check(true, "abortorder before the bad slice");
-    []int part = nums[start:end];
+    []int part = nums[start..end];
     check(false, "abortorder never printed");
 }
 `, expected: []string{"abortorder before the bad slice"}, abort: "panic: slice out of range"},
@@ -10634,19 +10652,19 @@ func main() ! {
     for i in 0..=15 {
         b[i] = int8(i * 2);
     }
-    []int8 s = b[2:6];
+    []int8 s = b[2..6];
     check(len(s) == 4, "pointer slice length");
     check(s[0] == 4, "pointer slice first");
     check(s[3] == 10, "pointer slice last");
     s[1] = 99;
     check(b[3] == 99, "pointer slice writes through to the buffer");
-    []int8 t = s[1:3];
+    []int8 t = s[1..3];
     check(t[0] == 99, "slice of a pointer slice");
     int lo = 4;
     int hi = 9;
-    []int8 u = b[lo:hi];
+    []int8 u = b[lo..hi];
     check(len(u) == 5, "pointer slice with variable bounds");
-    []int8 head = b[:3];
+    []int8 head = b[..3];
     check(len(head) == 3 && head[2] == 4, "pointer slice with the start omitted begins at the pointer");
     mem.heap.free(b);
 }
@@ -10743,23 +10761,23 @@ func main() ! {
     *int8 b = mem.heap.alloc(8)!;
     b[0] = 104;
     b[1] = 105;
-    string s = string(b[0:2]);
+    string s = string(b[0..2]);
     check(len(s) == 2, "string from int8 pointer slice length");
     check(s == "hi", "string from int8 pointer slice content");
 
     *byte c = mem.heap.alloc(4)!;
     c[0] = 'o';
     c[1] = 'k';
-    []byte cs = c[0:2];
+    []byte cs = c[0..2];
     check(string(cs) == "ok", "string from byte slice");
 
     [4]uint8 arr;
     arr[0] = 65;
     arr[1] = 66;
     arr[2] = 67;
-    []uint8 us = arr[0:3];
+    []uint8 us = arr[0..3];
     check(string(us) == "ABC", "string from uint8 array slice");
-    check(string(arr[1:3]) == "BC", "string from inline slice");
+    check(string(arr[1..3]) == "BC", "string from inline slice");
     check(len(string(us)) == 3, "string from bytes length");
     mem.heap.free(b);
     mem.heap.free(c);
@@ -10770,7 +10788,7 @@ func main() ! {
 func main() ! {
     *int8 b = mem.heap.alloc(24)!;
     b[0] = 120;
-    []int8 s = b[0:5];
+    []int8 s = b[0..5];
     mem.heap.free((*int8)(s));
     *int8 c = mem.heap.alloc(24)!;
     check(b == c, "free of a slice releases its block");
@@ -10795,7 +10813,7 @@ func main() ! {
     check(z == c, "free of several blocks releases the last block");
 
     *int8 raw = mem.heap.alloc(40)!;
-    []int8 s = raw[0:3];
+    []int8 s = raw[0..3];
     *int d = mem.heap.alloc(40)!;
     mem.heap.free((*int8)(s));
     mem.heap.free(d);
@@ -10848,7 +10866,7 @@ func main() ! {
     check("abc" > "abb", "last byte decides");
     check("b" > "abc", "first byte decides over length");
     string word = "xxcdxx";
-    check(word[2:4] < "ce", "ordering on a slice");
+    check(word[2..4] < "ce", "ordering on a slice");
     string left = "apple";
     string right = "apricot";
     check(left < right, "ordering with variables");
@@ -10932,11 +10950,11 @@ enum Color {
 [256]byte scratch;
 
 func fm(string format, ...args) string {
-    let n, err = fmt.sprintf(scratch[:], format, args...);
+    let n, err = fmt.sprintf(scratch[..], format, args...);
     if err != null {
         return "<error>";
     }
-    return string(scratch[0:n]);
+    return string(scratch[0..n]);
 }
 
 func eq(string got, string want, string what) {
@@ -10946,13 +10964,13 @@ func eq(string got, string want, string what) {
 type Meters int;
 
 func fl(string format, ...args) string {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[..], mode: fmt.BufMode.Full};
     let _, _ = w.format(format, args...);
-    return string(scratch[0:w.buffered()]);
+    return string(scratch[0..w.buffered()]);
 }
 
 func fe(string format, ...args) Error {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[..], mode: fmt.BufMode.Full};
     let _, err = w.format(format, args...);
     return err;
 }
@@ -11022,26 +11040,26 @@ func main() {
     check(fe("{} {x}", 1, 255) == null, "a good format reports no error");
 
     [16]byte out;
-    let n, e1 = fmt.sprintf(out[:], "ab{}", 12);
+    let n, e1 = fmt.sprintf(out[..], "ab{}", 12);
     check(e1 == null && n == 4, "sprintf returns the byte count");
     [3]byte tiny;
-    let _, e2 = fmt.sprintf(tiny[:], "abcdef");
+    let _, e2 = fmt.sprintf(tiny[..], "abcdef");
     check(e2 == errors.Kind.NoSpace, "sprintf into a buffer that is too small is NoSpace");
 
     [32]byte mem;
-    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[..], mode: fmt.BufMode.Full};
     let k, _ = w.format("x={}", 5);
-    check(k == 3 && w.buffered() == 3 && string(mem[0:3]) == "x=5", "a memory writer collects the text");
+    check(k == 3 && w.buffered() == 3 && string(mem[0..3]) == "x=5", "a memory writer collects the text");
     let _, _ = w.format("y");
-    check(w.buffered() == 4 && string(mem[0:4]) == "x=5y", "a second call appends");
+    check(w.buffered() == 4 && string(mem[0..4]) == "x=5y", "a second call appends");
     [4]byte narrow;
-    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[:], mode: fmt.BufMode.Full};
+    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[..], mode: fmt.BufMode.Full};
     let _, e3 = ws.format("abcde");
     check(e3 == errors.Kind.NoSpace, "a memory writer that fills up is NoSpace");
 
     let file, _ = os.create("fmt_core.txt");
     [64]byte store;
-    fmt.Writer full = fmt.Writer{fd: file, buf: store[:], mode: fmt.BufMode.Full};
+    fmt.Writer full = fmt.Writer{fd: file, buf: store[..], mode: fmt.BufMode.Full};
     let _, _ = full.format("hello");
     let held, _ = os.size(file);
     check(held == 0, "a full writer holds the text until flush");
@@ -11051,7 +11069,7 @@ func main() {
 
     let lineFile, _ = os.create("fmt_line.txt");
     [64]byte lineStore;
-    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[:], mode: fmt.BufMode.Line};
+    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[..], mode: fmt.BufMode.Line};
     let _, _ = line.format("ab");
     let beforeNewline, _ = os.size(lineFile);
     check(beforeNewline == 0, "a line writer holds the text until a newline");
@@ -11061,14 +11079,14 @@ func main() {
 
     let rawFile, _ = os.create("fmt_none.txt");
     [8]byte rawStore;
-    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[:], mode: fmt.BufMode.None};
+    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[..], mode: fmt.BufMode.None};
     let _, _ = raw.format("xyz");
     let atOnce, _ = os.size(rawFile);
     check(atOnce == 3, "a writer with no buffering writes at once");
 
     let streamFile, _ = os.create("fmt_stream.txt");
     [4]byte streamStore;
-    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[:], mode: fmt.BufMode.Full};
+    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[..], mode: fmt.BufMode.Full};
     let _, _ = stream.format("abcdefghij");
     let _ = stream.flush();
     let streamed, _ = os.size(streamFile);
@@ -11105,11 +11123,11 @@ enum Color {
 [256]byte scratch;
 
 func fm(string format, ...args) string {
-    let n, err = fmt.sprintf(scratch[:], format, args...);
+    let n, err = fmt.sprintf(scratch[..], format, args...);
     if err != null {
         return "<error>";
     }
-    return string(scratch[0:n]);
+    return string(scratch[0..n]);
 }
 
 func eq(string got, string want, string what) {
@@ -11119,13 +11137,13 @@ func eq(string got, string want, string what) {
 type Meters int;
 
 func fl(string format, ...args) string {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[..], mode: fmt.BufMode.Full};
     let _, _ = w.format(format, args...);
-    return string(scratch[0:w.buffered()]);
+    return string(scratch[0..w.buffered()]);
 }
 
 func fe(string format, ...args) Error {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[:], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[..], mode: fmt.BufMode.Full};
     let _, err = w.format(format, args...);
     return err;
 }
@@ -11196,26 +11214,26 @@ func main() {
     check(fe("{} {x}", 1, 255) == null, "a good format reports no error");
 
     [16]byte out;
-    let n, e1 = fmt.sprintf(out[:], "ab{}", 12);
+    let n, e1 = fmt.sprintf(out[..], "ab{}", 12);
     check(e1 == null && n == 4, "sprintf returns the byte count");
     [3]byte tiny;
-    let _, e2 = fmt.sprintf(tiny[:], "abcdef");
+    let _, e2 = fmt.sprintf(tiny[..], "abcdef");
     check(e2 == errors.Kind.NoSpace, "sprintf into a buffer that is too small is NoSpace");
 
     [32]byte mem;
-    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[:], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[..], mode: fmt.BufMode.Full};
     let k, _ = w.format("x={}", 5);
-    check(k == 3 && w.buffered() == 3 && string(mem[0:3]) == "x=5", "a memory writer collects the text");
+    check(k == 3 && w.buffered() == 3 && string(mem[0..3]) == "x=5", "a memory writer collects the text");
     let _, _ = w.format("y");
-    check(w.buffered() == 4 && string(mem[0:4]) == "x=5y", "a second call appends");
+    check(w.buffered() == 4 && string(mem[0..4]) == "x=5y", "a second call appends");
     [4]byte narrow;
-    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[:], mode: fmt.BufMode.Full};
+    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[..], mode: fmt.BufMode.Full};
     let _, e3 = ws.format("abcde");
     check(e3 == errors.Kind.NoSpace, "a memory writer that fills up is NoSpace");
 
     let file, _ = os.create("fmt_core.txt");
     [64]byte store;
-    fmt.Writer full = fmt.Writer{fd: file, buf: store[:], mode: fmt.BufMode.Full};
+    fmt.Writer full = fmt.Writer{fd: file, buf: store[..], mode: fmt.BufMode.Full};
     let _, _ = full.format("hello");
     let held, _ = os.size(file);
     check(held == 0, "a full writer holds the text until flush");
@@ -11225,7 +11243,7 @@ func main() {
 
     let lineFile, _ = os.create("fmt_line.txt");
     [64]byte lineStore;
-    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[:], mode: fmt.BufMode.Line};
+    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[..], mode: fmt.BufMode.Line};
     let _, _ = line.format("ab");
     let beforeNewline, _ = os.size(lineFile);
     check(beforeNewline == 0, "a line writer holds the text until a newline");
@@ -11235,14 +11253,14 @@ func main() {
 
     let rawFile, _ = os.create("fmt_none.txt");
     [8]byte rawStore;
-    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[:], mode: fmt.BufMode.None};
+    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[..], mode: fmt.BufMode.None};
     let _, _ = raw.format("xyz");
     let atOnce, _ = os.size(rawFile);
     check(atOnce == 3, "a writer with no buffering writes at once");
 
     let streamFile, _ = os.create("fmt_stream.txt");
     [4]byte streamStore;
-    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[:], mode: fmt.BufMode.Full};
+    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[..], mode: fmt.BufMode.Full};
     let _, _ = stream.format("abcdefghij");
     let _ = stream.flush();
     let streamed, _ = os.size(streamFile);
@@ -11607,7 +11625,7 @@ func tag(string name, [2]int pair, bool on) int {
 
 func main() {
     [3]int data = .{1, 2, 3};
-    check(total(2, data[0:3]) == 12, "a span parameter after another parameter");
+    check(total(2, data[0..3]) == 12, "a span parameter after another parameter");
     [2]int pair = .{10, 20};
     check(tag("ab", pair, true) == 12, "an array parameter after another parameter");
 }
@@ -12689,7 +12707,7 @@ func main() {
     []int nums = .{10, 20, 30};
     check(total(5, nums...) == 3065, "a slice spread into a variadic");
     [4]int fixed = .{1, 2, 3, 4};
-    check(total(0, fixed[1:]...) == 3009, "a part of an array spread into a variadic");
+    check(total(0, fixed[1..]...) == 3009, "a part of an array spread into a variadic");
     check(again("a", "b", "c") == 3, "strings passed on");
 }
 `, expected: []string{"a typed variadic passed on", "a typed variadic passed on by an inline function", "loose values followed by a variadic passed on", "a slice spread into a variadic", "a part of an array spread into a variadic", "strings passed on"}},
@@ -13308,10 +13326,10 @@ func main() {
     check(len(row) == 3 && row[1] == 5 && sum == 12, "a defined array keeps indexing, len and range");
     Name name = Name("abc");
     check(len(name) == 3 && name[1] == 'b', "a defined string keeps indexing and len");
-    Name part = name[1:3];
-    Items items = Items(row[0:3]);
-    Items rest = items[1:];
-    []int tail = row[1:3];
+    Name part = name[1..3];
+    Items items = Items(row[0..3]);
+    Items rest = items[1..];
+    []int tail = row[1..3];
     check(length(part) == 2 && len(rest) == 2 && rest[0] == 5 && len(tail) == 2, "slicing a defined string or slice gives the same defined type, an array gives a slice");
     int x = 9;
     Handle h = Handle(&x);
@@ -13526,7 +13544,7 @@ func main() {
         p@ += 10;
     }
     check(xs[0] == 11 && xs[1] == 12 && xs[2] == 13, "a pointer to an array gives pointers to its elements");
-    []int view = xs[0:2];
+    []int view = xs[0..2];
     for i, p in &view {
         p@ = p@ * 2 + i;
     }
@@ -13752,7 +13770,7 @@ func main() {
 
     [3]Point ps = .{p, .{x: 9, y: 9}, q};
     check(same(p, q) && !same(p, r) && same(3, 3) && !same("a", "b"), "Comparable takes a struct that has eq");
-    check(count(ps[0:3], p) == 2, "and a generic compares its elements with ==");
+    check(count(ps[0..3], p) == 2, "and a generic compares its elements with ==");
     Version c = smaller(b, a);
     check(c.minor == 2 && smaller(4, 2) == 2 && smaller("b", "a") == "a" && smaller(2.5, 1.5) == 1.5, "Orderable takes numbers, strings and structs that have less");
 }
@@ -13810,7 +13828,7 @@ func main() {
     Point p = .{x: 1, y: 2};
     Point z = .{x: 9, y: 9};
     [3]Point ps = pts();
-    []Point part = ps[0:2];
+    []Point part = ps[0..2];
     check(p in ps && !(z in ps), "in compares struct elements with eq");
     check(p in part && !(.{x: 5, y: 5} in part), "in works on a slice of structs");
     check(p in pts(), "in works on a call");
@@ -13845,7 +13863,7 @@ func main() ! {
     check(l.len() == 20 && sum == 210 && l.items[0] == 1 && l.items[19] == 20, "appending grows past the first capacity");
     l.items[2] = 30;
     check(l.items[2] == 30 && (l.get(2) ?? 0) == 30, "the items are indexed and written like a slice");
-    check(len(l.items[5:8]) == 3 && (l.get(20) ?? -1) == -1, "and sliced, and get is null past the end");
+    check(len(l.items[5..8]) == 3 && (l.get(20) ?? -1) == -1, "and sliced, and get is null past the end");
 
     l.insert(0, 100)!;
     l.insert(l.len(), 200)!;
@@ -13894,7 +13912,7 @@ func main() ! {
     []int more = .{10, 20, 30};
     l.extend(more)!;
     check(l.len() == 8 && l.items[5] == 10 && l.items[7] == 30, "extend adds a slice at the end");
-    l.extend(l.items[0:3])!;
+    l.extend(l.items[0..3])!;
     check(l.len() == 11 && l.items[8] == 1 && l.items[10] == 3, "extend takes a slice of the list itself");
     list.List<int> grown;
     for i in 1..=8 {
@@ -14004,9 +14022,9 @@ func main() {
     slices.sort(versions);
     check(versions[0].major == 0 && versions[1].minor == 0 && versions[2].minor == 2, "and structs through less");
 
-    []int none = numbers[0:0];
+    []int none = numbers[0..0];
     slices.sort(none);
-    []int one = numbers[0:1];
+    []int one = numbers[0..1];
     slices.sort(one);
     check(len(none) == 0 && one[0] == 10, "empty and single element slices are left alone");
 
@@ -14782,7 +14800,7 @@ const VOWELS = static {
     }
     yield n;
 };
-const TAIL = static { yield "hello, world"[7:]; };
+const TAIL = static { yield "hello, world"[7..]; };
 const SUM = static {
     int total;
     for _i, v in TABLE {
@@ -15813,12 +15831,12 @@ func main() {
     int expBad;
     int singleBad;
     for i in 0..=227 {
-        shortBad += differ(conv.ftoa(buf[:], xs[i]) ?? "error", shortest[i]);
-        fixedBad += differ(conv.formatFixed(buf[:], xs[i], ns[i]) ?? "error", fixed[i]);
-        expBad += differ(conv.formatExp(buf[:], xs[i], ns[i], false) ?? "error", scientific[i]);
+        shortBad += differ(conv.ftoa(buf[..], xs[i]) ?? "error", shortest[i]);
+        fixedBad += differ(conv.formatFixed(buf[..], xs[i], ns[i]) ?? "error", fixed[i]);
+        expBad += differ(conv.formatExp(buf[..], xs[i], ns[i], false) ?? "error", scientific[i]);
     }
     for i in 0..=347 {
-        singleBad += differ(conv.ftoa32(buf[:], singles[i]) ?? "error", singleText[i]);
+        singleBad += differ(conv.ftoa32(buf[..], singles[i]) ?? "error", singleText[i]);
     }
     check(shortBad == 0, "ftoa writes the shortest text that reads back");
     check(fixedBad == 0, "formatFixed matches the exact decimal expansion");
@@ -15826,16 +15844,16 @@ func main() {
     check(singleBad == 0, "ftoa32 writes the shortest text of a float32");
 
     int special;
-    special += differ(conv.ftoa(buf[:], math.nan()) ?? "error", "NaN");
-    special += differ(conv.ftoa(buf[:], math.inf(1)) ?? "error", "inf");
-    special += differ(conv.formatFixed(buf[:], math.inf(-1), 2) ?? "error", "-inf");
-    special += differ(conv.formatExp(buf[:], math.nan(), 2, true) ?? "error", "NaN");
-    special += differ(conv.formatExp(buf[:], 1234.5, 2, true) ?? "error", "1.23E+03");
-    special += differ(conv.formatFixed(buf[:], -0.001, 2) ?? "error", "-0.00");
+    special += differ(conv.ftoa(buf[..], math.nan()) ?? "error", "NaN");
+    special += differ(conv.ftoa(buf[..], math.inf(1)) ?? "error", "inf");
+    special += differ(conv.formatFixed(buf[..], math.inf(-1), 2) ?? "error", "-inf");
+    special += differ(conv.formatExp(buf[..], math.nan(), 2, true) ?? "error", "NaN");
+    special += differ(conv.formatExp(buf[..], 1234.5, 2, true) ?? "error", "1.23E+03");
+    special += differ(conv.formatFixed(buf[..], -0.001, 2) ?? "error", "-0.00");
     check(special == 0, "NaN, the infinities and signed zeros keep their text");
 
     [3]byte tiny;
-    check((conv.ftoa(tiny[:], 123456.0) ?? "no space") == "no space", "a buffer that is too small is reported");
+    check((conv.ftoa(tiny[..], 123456.0) ?? "no space") == "no space", "a buffer that is too small is reported");
 }
 `, expected: []string{"ftoa writes the shortest text that reads back", "formatFixed matches the exact decimal expansion", "formatExp matches the exact decimal expansion", "ftoa32 writes the shortest text of a float32", "NaN, the infinities and signed zeros keep their text", "a buffer that is too small is reported"}},
 
@@ -15844,7 +15862,7 @@ import "std/math";
 
 func render([]byte buf, string format, ...args) string {
     let n, _ = fmt.sprintf(buf, format, args...);
-    return string(buf[:n]);
+    return string(buf[..n]);
 }
 
 func differ(string got, string want) int {
@@ -15857,413 +15875,413 @@ func main() {
     [1400]byte buf;
     int bad;
     int single;
-    bad += differ(render(buf[:], "[{}]", 1.0), "[1]");
-    bad += differ(render(buf[:], "[{}]", -1.0), "[-1]");
-    bad += differ(render(buf[:], "[{}]", 0.5), "[0.5]");
-    bad += differ(render(buf[:], "[{}]", 0.1), "[0.1]");
-    bad += differ(render(buf[:], "[{}]", -0.1), "[-0.1]");
-    bad += differ(render(buf[:], "[{}]", 123456.789), "[123456.789]");
-    bad += differ(render(buf[:], "[{}]", -2.5), "[-2.5]");
-    bad += differ(render(buf[:], "[{}]", 1e+21), "[1e+21]");
-    bad += differ(render(buf[:], "[{}]", 1e-07), "[1e-07]");
-    bad += differ(render(buf[:], "[{}]", 5e-324), "[5e-324]");
-    bad += differ(render(buf[:], "[{}]", 1.7976931348623157e+308), "[1.7976931348623157e+308]");
-    bad += differ(render(buf[:], "[{}]", 0.0), "[0]");
-    bad += differ(render(buf[:], "[{}]", -0.0), "[-0]");
-    bad += differ(render(buf[:], "[{}]", 100.0), "[100]");
-    bad += differ(render(buf[:], "[{}]", 0.000123), "[0.000123]");
-    bad += differ(render(buf[:], "[{}]", 3.14159), "[3.14159]");
-    bad += differ(render(buf[:], "[{}]", 9.995), "[9.995]");
-    bad += differ(render(buf[:], "[{}]", 0.375), "[0.375]");
-    bad += differ(render(buf[:], "[{}]", 1e+20), "[100000000000000000000]");
-    bad += differ(render(buf[:], "[{}]", 1e-05), "[0.00001]");
-    bad += differ(render(buf[:], "[{}]", 99.5), "[99.5]");
-    bad += differ(render(buf[:], "[{}]", math.nan()), "[NaN]");
-    bad += differ(render(buf[:], "[{}]", math.inf(1)), "[inf]");
-    bad += differ(render(buf[:], "[{}]", math.inf(-1)), "[-inf]");
-    bad += differ(render(buf[:], "[{.3}]", 1.0), "[1.000]");
-    bad += differ(render(buf[:], "[{.3}]", -1.0), "[-1.000]");
-    bad += differ(render(buf[:], "[{.3}]", 0.5), "[0.500]");
-    bad += differ(render(buf[:], "[{.3}]", 0.1), "[0.100]");
-    bad += differ(render(buf[:], "[{.3}]", -0.1), "[-0.100]");
-    bad += differ(render(buf[:], "[{.3}]", 123456.789), "[123456.789]");
-    bad += differ(render(buf[:], "[{.3}]", -2.5), "[-2.500]");
-    bad += differ(render(buf[:], "[{.3}]", 1e+21), "[1000000000000000000000.000]");
-    bad += differ(render(buf[:], "[{.3}]", 1e-07), "[0.000]");
-    bad += differ(render(buf[:], "[{.3}]", 5e-324), "[0.000]");
-    bad += differ(render(buf[:], "[{.3}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000]");
-    bad += differ(render(buf[:], "[{.3}]", 0.0), "[0.000]");
-    bad += differ(render(buf[:], "[{.3}]", -0.0), "[-0.000]");
-    bad += differ(render(buf[:], "[{.3}]", 100.0), "[100.000]");
-    bad += differ(render(buf[:], "[{.3}]", 0.000123), "[0.000]");
-    bad += differ(render(buf[:], "[{.3}]", 3.14159), "[3.142]");
-    bad += differ(render(buf[:], "[{.3}]", 9.995), "[9.995]");
-    bad += differ(render(buf[:], "[{.3}]", 0.375), "[0.375]");
-    bad += differ(render(buf[:], "[{.3}]", 1e+20), "[100000000000000000000.000]");
-    bad += differ(render(buf[:], "[{.3}]", 1e-05), "[0.000]");
-    bad += differ(render(buf[:], "[{.3}]", 99.5), "[99.500]");
-    bad += differ(render(buf[:], "[{.3}]", math.nan()), "[NaN]");
-    bad += differ(render(buf[:], "[{.3}]", math.inf(1)), "[inf]");
-    bad += differ(render(buf[:], "[{.3}]", math.inf(-1)), "[-inf]");
-    bad += differ(render(buf[:], "[{f}]", 1.0), "[1.000000]");
-    bad += differ(render(buf[:], "[{f}]", -1.0), "[-1.000000]");
-    bad += differ(render(buf[:], "[{f}]", 0.5), "[0.500000]");
-    bad += differ(render(buf[:], "[{f}]", 0.1), "[0.100000]");
-    bad += differ(render(buf[:], "[{f}]", -0.1), "[-0.100000]");
-    bad += differ(render(buf[:], "[{f}]", 123456.789), "[123456.789000]");
-    bad += differ(render(buf[:], "[{f}]", -2.5), "[-2.500000]");
-    bad += differ(render(buf[:], "[{f}]", 1e+21), "[1000000000000000000000.000000]");
-    bad += differ(render(buf[:], "[{f}]", 1e-07), "[0.000000]");
-    bad += differ(render(buf[:], "[{f}]", 5e-324), "[0.000000]");
-    bad += differ(render(buf[:], "[{f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000000]");
-    bad += differ(render(buf[:], "[{f}]", 0.0), "[0.000000]");
-    bad += differ(render(buf[:], "[{f}]", -0.0), "[-0.000000]");
-    bad += differ(render(buf[:], "[{f}]", 100.0), "[100.000000]");
-    bad += differ(render(buf[:], "[{f}]", 0.000123), "[0.000123]");
-    bad += differ(render(buf[:], "[{f}]", 3.14159), "[3.141590]");
-    bad += differ(render(buf[:], "[{f}]", 9.995), "[9.995000]");
-    bad += differ(render(buf[:], "[{f}]", 0.375), "[0.375000]");
-    bad += differ(render(buf[:], "[{f}]", 1e+20), "[100000000000000000000.000000]");
-    bad += differ(render(buf[:], "[{f}]", 1e-05), "[0.000010]");
-    bad += differ(render(buf[:], "[{f}]", 99.5), "[99.500000]");
-    bad += differ(render(buf[:], "[{f}]", math.nan()), "[NaN]");
-    bad += differ(render(buf[:], "[{f}]", math.inf(1)), "[inf]");
-    bad += differ(render(buf[:], "[{f}]", math.inf(-1)), "[-inf]");
-    bad += differ(render(buf[:], "[{.2f}]", 1.0), "[1.00]");
-    bad += differ(render(buf[:], "[{.2f}]", -1.0), "[-1.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 0.5), "[0.50]");
-    bad += differ(render(buf[:], "[{.2f}]", 0.1), "[0.10]");
-    bad += differ(render(buf[:], "[{.2f}]", -0.1), "[-0.10]");
-    bad += differ(render(buf[:], "[{.2f}]", 123456.789), "[123456.79]");
-    bad += differ(render(buf[:], "[{.2f}]", -2.5), "[-2.50]");
-    bad += differ(render(buf[:], "[{.2f}]", 1e+21), "[1000000000000000000000.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 1e-07), "[0.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 5e-324), "[0.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 0.0), "[0.00]");
-    bad += differ(render(buf[:], "[{.2f}]", -0.0), "[-0.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 100.0), "[100.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 0.000123), "[0.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 3.14159), "[3.14]");
-    bad += differ(render(buf[:], "[{.2f}]", 9.995), "[9.99]");
-    bad += differ(render(buf[:], "[{.2f}]", 0.375), "[0.38]");
-    bad += differ(render(buf[:], "[{.2f}]", 1e+20), "[100000000000000000000.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 1e-05), "[0.00]");
-    bad += differ(render(buf[:], "[{.2f}]", 99.5), "[99.50]");
-    bad += differ(render(buf[:], "[{.2f}]", math.nan()), "[NaN]");
-    bad += differ(render(buf[:], "[{.2f}]", math.inf(1)), "[inf]");
-    bad += differ(render(buf[:], "[{.2f}]", math.inf(-1)), "[-inf]");
-    bad += differ(render(buf[:], "[{e}]", 1.0), "[1.000000e+00]");
-    bad += differ(render(buf[:], "[{e}]", -1.0), "[-1.000000e+00]");
-    bad += differ(render(buf[:], "[{e}]", 0.5), "[5.000000e-01]");
-    bad += differ(render(buf[:], "[{e}]", 0.1), "[1.000000e-01]");
-    bad += differ(render(buf[:], "[{e}]", -0.1), "[-1.000000e-01]");
-    bad += differ(render(buf[:], "[{e}]", 123456.789), "[1.234568e+05]");
-    bad += differ(render(buf[:], "[{e}]", -2.5), "[-2.500000e+00]");
-    bad += differ(render(buf[:], "[{e}]", 1e+21), "[1.000000e+21]");
-    bad += differ(render(buf[:], "[{e}]", 1e-07), "[1.000000e-07]");
-    bad += differ(render(buf[:], "[{e}]", 5e-324), "[4.940656e-324]");
-    bad += differ(render(buf[:], "[{e}]", 1.7976931348623157e+308), "[1.797693e+308]");
-    bad += differ(render(buf[:], "[{e}]", 0.0), "[0.000000e+00]");
-    bad += differ(render(buf[:], "[{e}]", -0.0), "[-0.000000e+00]");
-    bad += differ(render(buf[:], "[{e}]", 100.0), "[1.000000e+02]");
-    bad += differ(render(buf[:], "[{e}]", 0.000123), "[1.230000e-04]");
-    bad += differ(render(buf[:], "[{e}]", 3.14159), "[3.141590e+00]");
-    bad += differ(render(buf[:], "[{e}]", 9.995), "[9.995000e+00]");
-    bad += differ(render(buf[:], "[{e}]", 0.375), "[3.750000e-01]");
-    bad += differ(render(buf[:], "[{e}]", 1e+20), "[1.000000e+20]");
-    bad += differ(render(buf[:], "[{e}]", 1e-05), "[1.000000e-05]");
-    bad += differ(render(buf[:], "[{e}]", 99.5), "[9.950000e+01]");
-    bad += differ(render(buf[:], "[{e}]", math.nan()), "[NaN]");
-    bad += differ(render(buf[:], "[{e}]", math.inf(1)), "[inf]");
-    bad += differ(render(buf[:], "[{e}]", math.inf(-1)), "[-inf]");
-    bad += differ(render(buf[:], "[{.3e}]", 1.0), "[1.000e+00]");
-    bad += differ(render(buf[:], "[{.3e}]", -1.0), "[-1.000e+00]");
-    bad += differ(render(buf[:], "[{.3e}]", 0.5), "[5.000e-01]");
-    bad += differ(render(buf[:], "[{.3e}]", 0.1), "[1.000e-01]");
-    bad += differ(render(buf[:], "[{.3e}]", -0.1), "[-1.000e-01]");
-    bad += differ(render(buf[:], "[{.3e}]", 123456.789), "[1.235e+05]");
-    bad += differ(render(buf[:], "[{.3e}]", -2.5), "[-2.500e+00]");
-    bad += differ(render(buf[:], "[{.3e}]", 1e+21), "[1.000e+21]");
-    bad += differ(render(buf[:], "[{.3e}]", 1e-07), "[1.000e-07]");
-    bad += differ(render(buf[:], "[{.3e}]", 5e-324), "[4.941e-324]");
-    bad += differ(render(buf[:], "[{.3e}]", 1.7976931348623157e+308), "[1.798e+308]");
-    bad += differ(render(buf[:], "[{.3e}]", 0.0), "[0.000e+00]");
-    bad += differ(render(buf[:], "[{.3e}]", -0.0), "[-0.000e+00]");
-    bad += differ(render(buf[:], "[{.3e}]", 100.0), "[1.000e+02]");
-    bad += differ(render(buf[:], "[{.3e}]", 0.000123), "[1.230e-04]");
-    bad += differ(render(buf[:], "[{.3e}]", 3.14159), "[3.142e+00]");
-    bad += differ(render(buf[:], "[{.3e}]", 9.995), "[9.995e+00]");
-    bad += differ(render(buf[:], "[{.3e}]", 0.375), "[3.750e-01]");
-    bad += differ(render(buf[:], "[{.3e}]", 1e+20), "[1.000e+20]");
-    bad += differ(render(buf[:], "[{.3e}]", 1e-05), "[1.000e-05]");
-    bad += differ(render(buf[:], "[{.3e}]", 99.5), "[9.950e+01]");
-    bad += differ(render(buf[:], "[{.3e}]", math.nan()), "[NaN]");
-    bad += differ(render(buf[:], "[{.3e}]", math.inf(1)), "[inf]");
-    bad += differ(render(buf[:], "[{.3e}]", math.inf(-1)), "[-inf]");
-    bad += differ(render(buf[:], "[{.2E}]", 1.0), "[1.00E+00]");
-    bad += differ(render(buf[:], "[{.2E}]", -1.0), "[-1.00E+00]");
-    bad += differ(render(buf[:], "[{.2E}]", 0.5), "[5.00E-01]");
-    bad += differ(render(buf[:], "[{.2E}]", 0.1), "[1.00E-01]");
-    bad += differ(render(buf[:], "[{.2E}]", -0.1), "[-1.00E-01]");
-    bad += differ(render(buf[:], "[{.2E}]", 123456.789), "[1.23E+05]");
-    bad += differ(render(buf[:], "[{.2E}]", -2.5), "[-2.50E+00]");
-    bad += differ(render(buf[:], "[{.2E}]", 1e+21), "[1.00E+21]");
-    bad += differ(render(buf[:], "[{.2E}]", 1e-07), "[1.00E-07]");
-    bad += differ(render(buf[:], "[{.2E}]", 5e-324), "[4.94E-324]");
-    bad += differ(render(buf[:], "[{.2E}]", 1.7976931348623157e+308), "[1.80E+308]");
-    bad += differ(render(buf[:], "[{.2E}]", 0.0), "[0.00E+00]");
-    bad += differ(render(buf[:], "[{.2E}]", -0.0), "[-0.00E+00]");
-    bad += differ(render(buf[:], "[{.2E}]", 100.0), "[1.00E+02]");
-    bad += differ(render(buf[:], "[{.2E}]", 0.000123), "[1.23E-04]");
-    bad += differ(render(buf[:], "[{.2E}]", 3.14159), "[3.14E+00]");
-    bad += differ(render(buf[:], "[{.2E}]", 9.995), "[9.99E+00]");
-    bad += differ(render(buf[:], "[{.2E}]", 0.375), "[3.75E-01]");
-    bad += differ(render(buf[:], "[{.2E}]", 1e+20), "[1.00E+20]");
-    bad += differ(render(buf[:], "[{.2E}]", 1e-05), "[1.00E-05]");
-    bad += differ(render(buf[:], "[{.2E}]", 99.5), "[9.95E+01]");
-    bad += differ(render(buf[:], "[{.2E}]", math.nan()), "[NaN]");
-    bad += differ(render(buf[:], "[{.2E}]", math.inf(1)), "[inf]");
-    bad += differ(render(buf[:], "[{.2E}]", math.inf(-1)), "[-inf]");
-    bad += differ(render(buf[:], "[{10}]", 1.0), "[         1]");
-    bad += differ(render(buf[:], "[{10}]", -1.0), "[        -1]");
-    bad += differ(render(buf[:], "[{10}]", 0.5), "[       0.5]");
-    bad += differ(render(buf[:], "[{10}]", 0.1), "[       0.1]");
-    bad += differ(render(buf[:], "[{10}]", -0.1), "[      -0.1]");
-    bad += differ(render(buf[:], "[{10}]", 123456.789), "[123456.789]");
-    bad += differ(render(buf[:], "[{10}]", -2.5), "[      -2.5]");
-    bad += differ(render(buf[:], "[{10}]", 1e+21), "[     1e+21]");
-    bad += differ(render(buf[:], "[{10}]", 1e-07), "[     1e-07]");
-    bad += differ(render(buf[:], "[{10}]", 5e-324), "[    5e-324]");
-    bad += differ(render(buf[:], "[{10}]", 1.7976931348623157e+308), "[1.7976931348623157e+308]");
-    bad += differ(render(buf[:], "[{10}]", 0.0), "[         0]");
-    bad += differ(render(buf[:], "[{10}]", -0.0), "[        -0]");
-    bad += differ(render(buf[:], "[{10}]", 100.0), "[       100]");
-    bad += differ(render(buf[:], "[{10}]", 0.000123), "[  0.000123]");
-    bad += differ(render(buf[:], "[{10}]", 3.14159), "[   3.14159]");
-    bad += differ(render(buf[:], "[{10}]", 9.995), "[     9.995]");
-    bad += differ(render(buf[:], "[{10}]", 0.375), "[     0.375]");
-    bad += differ(render(buf[:], "[{10}]", 1e+20), "[100000000000000000000]");
-    bad += differ(render(buf[:], "[{10}]", 1e-05), "[   0.00001]");
-    bad += differ(render(buf[:], "[{10}]", 99.5), "[      99.5]");
-    bad += differ(render(buf[:], "[{10}]", math.nan()), "[       NaN]");
-    bad += differ(render(buf[:], "[{10}]", math.inf(1)), "[       inf]");
-    bad += differ(render(buf[:], "[{10}]", math.inf(-1)), "[      -inf]");
-    bad += differ(render(buf[:], "[{<10}]", 1.0), "[1         ]");
-    bad += differ(render(buf[:], "[{<10}]", -1.0), "[-1        ]");
-    bad += differ(render(buf[:], "[{<10}]", 0.5), "[0.5       ]");
-    bad += differ(render(buf[:], "[{<10}]", 0.1), "[0.1       ]");
-    bad += differ(render(buf[:], "[{<10}]", -0.1), "[-0.1      ]");
-    bad += differ(render(buf[:], "[{<10}]", 123456.789), "[123456.789]");
-    bad += differ(render(buf[:], "[{<10}]", -2.5), "[-2.5      ]");
-    bad += differ(render(buf[:], "[{<10}]", 1e+21), "[1e+21     ]");
-    bad += differ(render(buf[:], "[{<10}]", 1e-07), "[1e-07     ]");
-    bad += differ(render(buf[:], "[{<10}]", 5e-324), "[5e-324    ]");
-    bad += differ(render(buf[:], "[{<10}]", 1.7976931348623157e+308), "[1.7976931348623157e+308]");
-    bad += differ(render(buf[:], "[{<10}]", 0.0), "[0         ]");
-    bad += differ(render(buf[:], "[{<10}]", -0.0), "[-0        ]");
-    bad += differ(render(buf[:], "[{<10}]", 100.0), "[100       ]");
-    bad += differ(render(buf[:], "[{<10}]", 0.000123), "[0.000123  ]");
-    bad += differ(render(buf[:], "[{<10}]", 3.14159), "[3.14159   ]");
-    bad += differ(render(buf[:], "[{<10}]", 9.995), "[9.995     ]");
-    bad += differ(render(buf[:], "[{<10}]", 0.375), "[0.375     ]");
-    bad += differ(render(buf[:], "[{<10}]", 1e+20), "[100000000000000000000]");
-    bad += differ(render(buf[:], "[{<10}]", 1e-05), "[0.00001   ]");
-    bad += differ(render(buf[:], "[{<10}]", 99.5), "[99.5      ]");
-    bad += differ(render(buf[:], "[{<10}]", math.nan()), "[NaN       ]");
-    bad += differ(render(buf[:], "[{<10}]", math.inf(1)), "[inf       ]");
-    bad += differ(render(buf[:], "[{<10}]", math.inf(-1)), "[-inf      ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 1.0), "[    1.00    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", -1.0), "[   -1.00    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 0.5), "[    0.50    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 0.1), "[    0.10    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", -0.1), "[   -0.10    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 123456.789), "[ 123456.79  ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", -2.5), "[   -2.50    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 1e+21), "[1000000000000000000000.00]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 1e-07), "[    0.00    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 5e-324), "[    0.00    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 0.0), "[    0.00    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", -0.0), "[   -0.00    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 100.0), "[   100.00   ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 0.000123), "[    0.00    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 3.14159), "[    3.14    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 9.995), "[    9.99    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 0.375), "[    0.38    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 1e+20), "[100000000000000000000.00]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 1e-05), "[    0.00    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", 99.5), "[   99.50    ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", math.nan()), "[    NaN     ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", math.inf(1)), "[    inf     ]");
-    bad += differ(render(buf[:], "[{^12.2f}]", math.inf(-1)), "[    -inf    ]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 1.0), "[*******1.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", -1.0), "[******-1.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 0.5), "[*******0.500]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 0.1), "[*******0.100]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", -0.1), "[******-0.100]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 123456.789), "[**123456.789]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", -2.5), "[******-2.500]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 1e+21), "[1000000000000000000000.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 1e-07), "[*******0.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 5e-324), "[*******0.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 0.0), "[*******0.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", -0.0), "[******-0.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 100.0), "[*****100.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 0.000123), "[*******0.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 3.14159), "[*******3.142]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 9.995), "[*******9.995]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 0.375), "[*******0.375]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 1e+20), "[100000000000000000000.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 1e-05), "[*******0.000]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", 99.5), "[******99.500]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", math.nan()), "[*********NaN]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", math.inf(1)), "[*********inf]");
-    bad += differ(render(buf[:], "[{*>12.3f}]", math.inf(-1)), "[********-inf]");
-    bad += differ(render(buf[:], "[{010.3f}]", 1.0), "[000001.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", -1.0), "[-00001.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 0.5), "[000000.500]");
-    bad += differ(render(buf[:], "[{010.3f}]", 0.1), "[000000.100]");
-    bad += differ(render(buf[:], "[{010.3f}]", -0.1), "[-00000.100]");
-    bad += differ(render(buf[:], "[{010.3f}]", 123456.789), "[123456.789]");
-    bad += differ(render(buf[:], "[{010.3f}]", -2.5), "[-00002.500]");
-    bad += differ(render(buf[:], "[{010.3f}]", 1e+21), "[1000000000000000000000.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 1e-07), "[000000.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 5e-324), "[000000.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 0.0), "[000000.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", -0.0), "[-00000.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 100.0), "[000100.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 0.000123), "[000000.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 3.14159), "[000003.142]");
-    bad += differ(render(buf[:], "[{010.3f}]", 9.995), "[000009.995]");
-    bad += differ(render(buf[:], "[{010.3f}]", 0.375), "[000000.375]");
-    bad += differ(render(buf[:], "[{010.3f}]", 1e+20), "[100000000000000000000.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 1e-05), "[000000.000]");
-    bad += differ(render(buf[:], "[{010.3f}]", 99.5), "[000099.500]");
-    bad += differ(render(buf[:], "[{010.3f}]", math.nan()), "[       NaN]");
-    bad += differ(render(buf[:], "[{010.3f}]", math.inf(1)), "[       inf]");
-    bad += differ(render(buf[:], "[{010.3f}]", math.inf(-1)), "[      -inf]");
-    bad += differ(render(buf[:], "[{010}]", 1.0), "[0000000001]");
-    bad += differ(render(buf[:], "[{010}]", -1.0), "[-000000001]");
-    bad += differ(render(buf[:], "[{010}]", 0.5), "[00000000.5]");
-    bad += differ(render(buf[:], "[{010}]", 0.1), "[00000000.1]");
-    bad += differ(render(buf[:], "[{010}]", -0.1), "[-0000000.1]");
-    bad += differ(render(buf[:], "[{010}]", 123456.789), "[123456.789]");
-    bad += differ(render(buf[:], "[{010}]", -2.5), "[-0000002.5]");
-    bad += differ(render(buf[:], "[{010}]", 1e+21), "[000001e+21]");
-    bad += differ(render(buf[:], "[{010}]", 1e-07), "[000001e-07]");
-    bad += differ(render(buf[:], "[{010}]", 5e-324), "[00005e-324]");
-    bad += differ(render(buf[:], "[{010}]", 1.7976931348623157e+308), "[1.7976931348623157e+308]");
-    bad += differ(render(buf[:], "[{010}]", 0.0), "[0000000000]");
-    bad += differ(render(buf[:], "[{010}]", -0.0), "[-000000000]");
-    bad += differ(render(buf[:], "[{010}]", 100.0), "[0000000100]");
-    bad += differ(render(buf[:], "[{010}]", 0.000123), "[000.000123]");
-    bad += differ(render(buf[:], "[{010}]", 3.14159), "[0003.14159]");
-    bad += differ(render(buf[:], "[{010}]", 9.995), "[000009.995]");
-    bad += differ(render(buf[:], "[{010}]", 0.375), "[000000.375]");
-    bad += differ(render(buf[:], "[{010}]", 1e+20), "[100000000000000000000]");
-    bad += differ(render(buf[:], "[{010}]", 1e-05), "[0000.00001]");
-    bad += differ(render(buf[:], "[{010}]", 99.5), "[00000099.5]");
-    bad += differ(render(buf[:], "[{010}]", math.nan()), "[       NaN]");
-    bad += differ(render(buf[:], "[{010}]", math.inf(1)), "[       inf]");
-    bad += differ(render(buf[:], "[{010}]", math.inf(-1)), "[      -inf]");
-    bad += differ(render(buf[:], "[{014.2e}]", 1.0), "[0000001.00e+00]");
-    bad += differ(render(buf[:], "[{014.2e}]", -1.0), "[-000001.00e+00]");
-    bad += differ(render(buf[:], "[{014.2e}]", 0.5), "[0000005.00e-01]");
-    bad += differ(render(buf[:], "[{014.2e}]", 0.1), "[0000001.00e-01]");
-    bad += differ(render(buf[:], "[{014.2e}]", -0.1), "[-000001.00e-01]");
-    bad += differ(render(buf[:], "[{014.2e}]", 123456.789), "[0000001.23e+05]");
-    bad += differ(render(buf[:], "[{014.2e}]", -2.5), "[-000002.50e+00]");
-    bad += differ(render(buf[:], "[{014.2e}]", 1e+21), "[0000001.00e+21]");
-    bad += differ(render(buf[:], "[{014.2e}]", 1e-07), "[0000001.00e-07]");
-    bad += differ(render(buf[:], "[{014.2e}]", 5e-324), "[000004.94e-324]");
-    bad += differ(render(buf[:], "[{014.2e}]", 1.7976931348623157e+308), "[000001.80e+308]");
-    bad += differ(render(buf[:], "[{014.2e}]", 0.0), "[0000000.00e+00]");
-    bad += differ(render(buf[:], "[{014.2e}]", -0.0), "[-000000.00e+00]");
-    bad += differ(render(buf[:], "[{014.2e}]", 100.0), "[0000001.00e+02]");
-    bad += differ(render(buf[:], "[{014.2e}]", 0.000123), "[0000001.23e-04]");
-    bad += differ(render(buf[:], "[{014.2e}]", 3.14159), "[0000003.14e+00]");
-    bad += differ(render(buf[:], "[{014.2e}]", 9.995), "[0000009.99e+00]");
-    bad += differ(render(buf[:], "[{014.2e}]", 0.375), "[0000003.75e-01]");
-    bad += differ(render(buf[:], "[{014.2e}]", 1e+20), "[0000001.00e+20]");
-    bad += differ(render(buf[:], "[{014.2e}]", 1e-05), "[0000001.00e-05]");
-    bad += differ(render(buf[:], "[{014.2e}]", 99.5), "[0000009.95e+01]");
-    bad += differ(render(buf[:], "[{014.2e}]", math.nan()), "[           NaN]");
-    bad += differ(render(buf[:], "[{014.2e}]", math.inf(1)), "[           inf]");
-    bad += differ(render(buf[:], "[{014.2e}]", math.inf(-1)), "[          -inf]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 1.0), "[1.0------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", -1.0), "[-1.0-----]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 0.5), "[0.5------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 0.1), "[0.1------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", -0.1), "[-0.1-----]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 123456.789), "[123456.8-]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", -2.5), "[-2.5-----]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 1e+21), "[1000000000000000000000.0]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 1e-07), "[0.0------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 5e-324), "[0.0------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.0]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 0.0), "[0.0------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", -0.0), "[-0.0-----]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 100.0), "[100.0----]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 0.000123), "[0.0------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 3.14159), "[3.1------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 9.995), "[10.0-----]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 0.375), "[0.4------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 1e+20), "[100000000000000000000.0]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 1e-05), "[0.0------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", 99.5), "[99.5-----]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", math.nan()), "[NaN------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", math.inf(1)), "[inf------]");
-    bad += differ(render(buf[:], "[{-<9.1f}]", math.inf(-1)), "[-inf-----]");
-    bad += differ(render(buf[:], "[{^11e}]", 1.0), "[1.000000e+00]");
-    bad += differ(render(buf[:], "[{^11e}]", -1.0), "[-1.000000e+00]");
-    bad += differ(render(buf[:], "[{^11e}]", 0.5), "[5.000000e-01]");
-    bad += differ(render(buf[:], "[{^11e}]", 0.1), "[1.000000e-01]");
-    bad += differ(render(buf[:], "[{^11e}]", -0.1), "[-1.000000e-01]");
-    bad += differ(render(buf[:], "[{^11e}]", 123456.789), "[1.234568e+05]");
-    bad += differ(render(buf[:], "[{^11e}]", -2.5), "[-2.500000e+00]");
-    bad += differ(render(buf[:], "[{^11e}]", 1e+21), "[1.000000e+21]");
-    bad += differ(render(buf[:], "[{^11e}]", 1e-07), "[1.000000e-07]");
-    bad += differ(render(buf[:], "[{^11e}]", 5e-324), "[4.940656e-324]");
-    bad += differ(render(buf[:], "[{^11e}]", 1.7976931348623157e+308), "[1.797693e+308]");
-    bad += differ(render(buf[:], "[{^11e}]", 0.0), "[0.000000e+00]");
-    bad += differ(render(buf[:], "[{^11e}]", -0.0), "[-0.000000e+00]");
-    bad += differ(render(buf[:], "[{^11e}]", 100.0), "[1.000000e+02]");
-    bad += differ(render(buf[:], "[{^11e}]", 0.000123), "[1.230000e-04]");
-    bad += differ(render(buf[:], "[{^11e}]", 3.14159), "[3.141590e+00]");
-    bad += differ(render(buf[:], "[{^11e}]", 9.995), "[9.995000e+00]");
-    bad += differ(render(buf[:], "[{^11e}]", 0.375), "[3.750000e-01]");
-    bad += differ(render(buf[:], "[{^11e}]", 1e+20), "[1.000000e+20]");
-    bad += differ(render(buf[:], "[{^11e}]", 1e-05), "[1.000000e-05]");
-    bad += differ(render(buf[:], "[{^11e}]", 99.5), "[9.950000e+01]");
-    bad += differ(render(buf[:], "[{^11e}]", math.nan()), "[    NaN    ]");
-    bad += differ(render(buf[:], "[{^11e}]", math.inf(1)), "[    inf    ]");
-    bad += differ(render(buf[:], "[{^11e}]", math.inf(-1)), "[   -inf    ]");
-    single += differ(render(buf[:], "{}", singles[0]), "1.1");
-    single += differ(render(buf[:], "{.2f}", singles[0]), "1.10");
-    single += differ(render(buf[:], "{}", singles[1]), "0.1");
-    single += differ(render(buf[:], "{.2f}", singles[1]), "0.10");
-    single += differ(render(buf[:], "{}", singles[2]), "2.5");
-    single += differ(render(buf[:], "{.2f}", singles[2]), "2.50");
-    single += differ(render(buf[:], "{}", singles[3]), "16777216");
-    single += differ(render(buf[:], "{.2f}", singles[3]), "16777216.00");
-    single += differ(render(buf[:], "{}", singles[4]), "3.4028235e+38");
-    single += differ(render(buf[:], "{.2f}", singles[4]), "340282346638528859811704183484516925440.00");
-    single += differ(render(buf[:], "{}", singles[5]), "1e-45");
-    single += differ(render(buf[:], "{.2f}", singles[5]), "0.00");
-    single += differ(render(buf[:], "{}", singles[6]), "0.3");
-    single += differ(render(buf[:], "{.2f}", singles[6]), "0.30");
-    single += differ(render(buf[:], "{}", singles[7]), "100");
-    single += differ(render(buf[:], "{.2f}", singles[7]), "100.00");
+    bad += differ(render(buf[..], "[{}]", 1.0), "[1]");
+    bad += differ(render(buf[..], "[{}]", -1.0), "[-1]");
+    bad += differ(render(buf[..], "[{}]", 0.5), "[0.5]");
+    bad += differ(render(buf[..], "[{}]", 0.1), "[0.1]");
+    bad += differ(render(buf[..], "[{}]", -0.1), "[-0.1]");
+    bad += differ(render(buf[..], "[{}]", 123456.789), "[123456.789]");
+    bad += differ(render(buf[..], "[{}]", -2.5), "[-2.5]");
+    bad += differ(render(buf[..], "[{}]", 1e+21), "[1e+21]");
+    bad += differ(render(buf[..], "[{}]", 1e-07), "[1e-07]");
+    bad += differ(render(buf[..], "[{}]", 5e-324), "[5e-324]");
+    bad += differ(render(buf[..], "[{}]", 1.7976931348623157e+308), "[1.7976931348623157e+308]");
+    bad += differ(render(buf[..], "[{}]", 0.0), "[0]");
+    bad += differ(render(buf[..], "[{}]", -0.0), "[-0]");
+    bad += differ(render(buf[..], "[{}]", 100.0), "[100]");
+    bad += differ(render(buf[..], "[{}]", 0.000123), "[0.000123]");
+    bad += differ(render(buf[..], "[{}]", 3.14159), "[3.14159]");
+    bad += differ(render(buf[..], "[{}]", 9.995), "[9.995]");
+    bad += differ(render(buf[..], "[{}]", 0.375), "[0.375]");
+    bad += differ(render(buf[..], "[{}]", 1e+20), "[100000000000000000000]");
+    bad += differ(render(buf[..], "[{}]", 1e-05), "[0.00001]");
+    bad += differ(render(buf[..], "[{}]", 99.5), "[99.5]");
+    bad += differ(render(buf[..], "[{}]", math.nan()), "[NaN]");
+    bad += differ(render(buf[..], "[{}]", math.inf(1)), "[inf]");
+    bad += differ(render(buf[..], "[{}]", math.inf(-1)), "[-inf]");
+    bad += differ(render(buf[..], "[{.3}]", 1.0), "[1.000]");
+    bad += differ(render(buf[..], "[{.3}]", -1.0), "[-1.000]");
+    bad += differ(render(buf[..], "[{.3}]", 0.5), "[0.500]");
+    bad += differ(render(buf[..], "[{.3}]", 0.1), "[0.100]");
+    bad += differ(render(buf[..], "[{.3}]", -0.1), "[-0.100]");
+    bad += differ(render(buf[..], "[{.3}]", 123456.789), "[123456.789]");
+    bad += differ(render(buf[..], "[{.3}]", -2.5), "[-2.500]");
+    bad += differ(render(buf[..], "[{.3}]", 1e+21), "[1000000000000000000000.000]");
+    bad += differ(render(buf[..], "[{.3}]", 1e-07), "[0.000]");
+    bad += differ(render(buf[..], "[{.3}]", 5e-324), "[0.000]");
+    bad += differ(render(buf[..], "[{.3}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000]");
+    bad += differ(render(buf[..], "[{.3}]", 0.0), "[0.000]");
+    bad += differ(render(buf[..], "[{.3}]", -0.0), "[-0.000]");
+    bad += differ(render(buf[..], "[{.3}]", 100.0), "[100.000]");
+    bad += differ(render(buf[..], "[{.3}]", 0.000123), "[0.000]");
+    bad += differ(render(buf[..], "[{.3}]", 3.14159), "[3.142]");
+    bad += differ(render(buf[..], "[{.3}]", 9.995), "[9.995]");
+    bad += differ(render(buf[..], "[{.3}]", 0.375), "[0.375]");
+    bad += differ(render(buf[..], "[{.3}]", 1e+20), "[100000000000000000000.000]");
+    bad += differ(render(buf[..], "[{.3}]", 1e-05), "[0.000]");
+    bad += differ(render(buf[..], "[{.3}]", 99.5), "[99.500]");
+    bad += differ(render(buf[..], "[{.3}]", math.nan()), "[NaN]");
+    bad += differ(render(buf[..], "[{.3}]", math.inf(1)), "[inf]");
+    bad += differ(render(buf[..], "[{.3}]", math.inf(-1)), "[-inf]");
+    bad += differ(render(buf[..], "[{f}]", 1.0), "[1.000000]");
+    bad += differ(render(buf[..], "[{f}]", -1.0), "[-1.000000]");
+    bad += differ(render(buf[..], "[{f}]", 0.5), "[0.500000]");
+    bad += differ(render(buf[..], "[{f}]", 0.1), "[0.100000]");
+    bad += differ(render(buf[..], "[{f}]", -0.1), "[-0.100000]");
+    bad += differ(render(buf[..], "[{f}]", 123456.789), "[123456.789000]");
+    bad += differ(render(buf[..], "[{f}]", -2.5), "[-2.500000]");
+    bad += differ(render(buf[..], "[{f}]", 1e+21), "[1000000000000000000000.000000]");
+    bad += differ(render(buf[..], "[{f}]", 1e-07), "[0.000000]");
+    bad += differ(render(buf[..], "[{f}]", 5e-324), "[0.000000]");
+    bad += differ(render(buf[..], "[{f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000000]");
+    bad += differ(render(buf[..], "[{f}]", 0.0), "[0.000000]");
+    bad += differ(render(buf[..], "[{f}]", -0.0), "[-0.000000]");
+    bad += differ(render(buf[..], "[{f}]", 100.0), "[100.000000]");
+    bad += differ(render(buf[..], "[{f}]", 0.000123), "[0.000123]");
+    bad += differ(render(buf[..], "[{f}]", 3.14159), "[3.141590]");
+    bad += differ(render(buf[..], "[{f}]", 9.995), "[9.995000]");
+    bad += differ(render(buf[..], "[{f}]", 0.375), "[0.375000]");
+    bad += differ(render(buf[..], "[{f}]", 1e+20), "[100000000000000000000.000000]");
+    bad += differ(render(buf[..], "[{f}]", 1e-05), "[0.000010]");
+    bad += differ(render(buf[..], "[{f}]", 99.5), "[99.500000]");
+    bad += differ(render(buf[..], "[{f}]", math.nan()), "[NaN]");
+    bad += differ(render(buf[..], "[{f}]", math.inf(1)), "[inf]");
+    bad += differ(render(buf[..], "[{f}]", math.inf(-1)), "[-inf]");
+    bad += differ(render(buf[..], "[{.2f}]", 1.0), "[1.00]");
+    bad += differ(render(buf[..], "[{.2f}]", -1.0), "[-1.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 0.5), "[0.50]");
+    bad += differ(render(buf[..], "[{.2f}]", 0.1), "[0.10]");
+    bad += differ(render(buf[..], "[{.2f}]", -0.1), "[-0.10]");
+    bad += differ(render(buf[..], "[{.2f}]", 123456.789), "[123456.79]");
+    bad += differ(render(buf[..], "[{.2f}]", -2.5), "[-2.50]");
+    bad += differ(render(buf[..], "[{.2f}]", 1e+21), "[1000000000000000000000.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 1e-07), "[0.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 5e-324), "[0.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 0.0), "[0.00]");
+    bad += differ(render(buf[..], "[{.2f}]", -0.0), "[-0.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 100.0), "[100.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 0.000123), "[0.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 3.14159), "[3.14]");
+    bad += differ(render(buf[..], "[{.2f}]", 9.995), "[9.99]");
+    bad += differ(render(buf[..], "[{.2f}]", 0.375), "[0.38]");
+    bad += differ(render(buf[..], "[{.2f}]", 1e+20), "[100000000000000000000.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 1e-05), "[0.00]");
+    bad += differ(render(buf[..], "[{.2f}]", 99.5), "[99.50]");
+    bad += differ(render(buf[..], "[{.2f}]", math.nan()), "[NaN]");
+    bad += differ(render(buf[..], "[{.2f}]", math.inf(1)), "[inf]");
+    bad += differ(render(buf[..], "[{.2f}]", math.inf(-1)), "[-inf]");
+    bad += differ(render(buf[..], "[{e}]", 1.0), "[1.000000e+00]");
+    bad += differ(render(buf[..], "[{e}]", -1.0), "[-1.000000e+00]");
+    bad += differ(render(buf[..], "[{e}]", 0.5), "[5.000000e-01]");
+    bad += differ(render(buf[..], "[{e}]", 0.1), "[1.000000e-01]");
+    bad += differ(render(buf[..], "[{e}]", -0.1), "[-1.000000e-01]");
+    bad += differ(render(buf[..], "[{e}]", 123456.789), "[1.234568e+05]");
+    bad += differ(render(buf[..], "[{e}]", -2.5), "[-2.500000e+00]");
+    bad += differ(render(buf[..], "[{e}]", 1e+21), "[1.000000e+21]");
+    bad += differ(render(buf[..], "[{e}]", 1e-07), "[1.000000e-07]");
+    bad += differ(render(buf[..], "[{e}]", 5e-324), "[4.940656e-324]");
+    bad += differ(render(buf[..], "[{e}]", 1.7976931348623157e+308), "[1.797693e+308]");
+    bad += differ(render(buf[..], "[{e}]", 0.0), "[0.000000e+00]");
+    bad += differ(render(buf[..], "[{e}]", -0.0), "[-0.000000e+00]");
+    bad += differ(render(buf[..], "[{e}]", 100.0), "[1.000000e+02]");
+    bad += differ(render(buf[..], "[{e}]", 0.000123), "[1.230000e-04]");
+    bad += differ(render(buf[..], "[{e}]", 3.14159), "[3.141590e+00]");
+    bad += differ(render(buf[..], "[{e}]", 9.995), "[9.995000e+00]");
+    bad += differ(render(buf[..], "[{e}]", 0.375), "[3.750000e-01]");
+    bad += differ(render(buf[..], "[{e}]", 1e+20), "[1.000000e+20]");
+    bad += differ(render(buf[..], "[{e}]", 1e-05), "[1.000000e-05]");
+    bad += differ(render(buf[..], "[{e}]", 99.5), "[9.950000e+01]");
+    bad += differ(render(buf[..], "[{e}]", math.nan()), "[NaN]");
+    bad += differ(render(buf[..], "[{e}]", math.inf(1)), "[inf]");
+    bad += differ(render(buf[..], "[{e}]", math.inf(-1)), "[-inf]");
+    bad += differ(render(buf[..], "[{.3e}]", 1.0), "[1.000e+00]");
+    bad += differ(render(buf[..], "[{.3e}]", -1.0), "[-1.000e+00]");
+    bad += differ(render(buf[..], "[{.3e}]", 0.5), "[5.000e-01]");
+    bad += differ(render(buf[..], "[{.3e}]", 0.1), "[1.000e-01]");
+    bad += differ(render(buf[..], "[{.3e}]", -0.1), "[-1.000e-01]");
+    bad += differ(render(buf[..], "[{.3e}]", 123456.789), "[1.235e+05]");
+    bad += differ(render(buf[..], "[{.3e}]", -2.5), "[-2.500e+00]");
+    bad += differ(render(buf[..], "[{.3e}]", 1e+21), "[1.000e+21]");
+    bad += differ(render(buf[..], "[{.3e}]", 1e-07), "[1.000e-07]");
+    bad += differ(render(buf[..], "[{.3e}]", 5e-324), "[4.941e-324]");
+    bad += differ(render(buf[..], "[{.3e}]", 1.7976931348623157e+308), "[1.798e+308]");
+    bad += differ(render(buf[..], "[{.3e}]", 0.0), "[0.000e+00]");
+    bad += differ(render(buf[..], "[{.3e}]", -0.0), "[-0.000e+00]");
+    bad += differ(render(buf[..], "[{.3e}]", 100.0), "[1.000e+02]");
+    bad += differ(render(buf[..], "[{.3e}]", 0.000123), "[1.230e-04]");
+    bad += differ(render(buf[..], "[{.3e}]", 3.14159), "[3.142e+00]");
+    bad += differ(render(buf[..], "[{.3e}]", 9.995), "[9.995e+00]");
+    bad += differ(render(buf[..], "[{.3e}]", 0.375), "[3.750e-01]");
+    bad += differ(render(buf[..], "[{.3e}]", 1e+20), "[1.000e+20]");
+    bad += differ(render(buf[..], "[{.3e}]", 1e-05), "[1.000e-05]");
+    bad += differ(render(buf[..], "[{.3e}]", 99.5), "[9.950e+01]");
+    bad += differ(render(buf[..], "[{.3e}]", math.nan()), "[NaN]");
+    bad += differ(render(buf[..], "[{.3e}]", math.inf(1)), "[inf]");
+    bad += differ(render(buf[..], "[{.3e}]", math.inf(-1)), "[-inf]");
+    bad += differ(render(buf[..], "[{.2E}]", 1.0), "[1.00E+00]");
+    bad += differ(render(buf[..], "[{.2E}]", -1.0), "[-1.00E+00]");
+    bad += differ(render(buf[..], "[{.2E}]", 0.5), "[5.00E-01]");
+    bad += differ(render(buf[..], "[{.2E}]", 0.1), "[1.00E-01]");
+    bad += differ(render(buf[..], "[{.2E}]", -0.1), "[-1.00E-01]");
+    bad += differ(render(buf[..], "[{.2E}]", 123456.789), "[1.23E+05]");
+    bad += differ(render(buf[..], "[{.2E}]", -2.5), "[-2.50E+00]");
+    bad += differ(render(buf[..], "[{.2E}]", 1e+21), "[1.00E+21]");
+    bad += differ(render(buf[..], "[{.2E}]", 1e-07), "[1.00E-07]");
+    bad += differ(render(buf[..], "[{.2E}]", 5e-324), "[4.94E-324]");
+    bad += differ(render(buf[..], "[{.2E}]", 1.7976931348623157e+308), "[1.80E+308]");
+    bad += differ(render(buf[..], "[{.2E}]", 0.0), "[0.00E+00]");
+    bad += differ(render(buf[..], "[{.2E}]", -0.0), "[-0.00E+00]");
+    bad += differ(render(buf[..], "[{.2E}]", 100.0), "[1.00E+02]");
+    bad += differ(render(buf[..], "[{.2E}]", 0.000123), "[1.23E-04]");
+    bad += differ(render(buf[..], "[{.2E}]", 3.14159), "[3.14E+00]");
+    bad += differ(render(buf[..], "[{.2E}]", 9.995), "[9.99E+00]");
+    bad += differ(render(buf[..], "[{.2E}]", 0.375), "[3.75E-01]");
+    bad += differ(render(buf[..], "[{.2E}]", 1e+20), "[1.00E+20]");
+    bad += differ(render(buf[..], "[{.2E}]", 1e-05), "[1.00E-05]");
+    bad += differ(render(buf[..], "[{.2E}]", 99.5), "[9.95E+01]");
+    bad += differ(render(buf[..], "[{.2E}]", math.nan()), "[NaN]");
+    bad += differ(render(buf[..], "[{.2E}]", math.inf(1)), "[inf]");
+    bad += differ(render(buf[..], "[{.2E}]", math.inf(-1)), "[-inf]");
+    bad += differ(render(buf[..], "[{10}]", 1.0), "[         1]");
+    bad += differ(render(buf[..], "[{10}]", -1.0), "[        -1]");
+    bad += differ(render(buf[..], "[{10}]", 0.5), "[       0.5]");
+    bad += differ(render(buf[..], "[{10}]", 0.1), "[       0.1]");
+    bad += differ(render(buf[..], "[{10}]", -0.1), "[      -0.1]");
+    bad += differ(render(buf[..], "[{10}]", 123456.789), "[123456.789]");
+    bad += differ(render(buf[..], "[{10}]", -2.5), "[      -2.5]");
+    bad += differ(render(buf[..], "[{10}]", 1e+21), "[     1e+21]");
+    bad += differ(render(buf[..], "[{10}]", 1e-07), "[     1e-07]");
+    bad += differ(render(buf[..], "[{10}]", 5e-324), "[    5e-324]");
+    bad += differ(render(buf[..], "[{10}]", 1.7976931348623157e+308), "[1.7976931348623157e+308]");
+    bad += differ(render(buf[..], "[{10}]", 0.0), "[         0]");
+    bad += differ(render(buf[..], "[{10}]", -0.0), "[        -0]");
+    bad += differ(render(buf[..], "[{10}]", 100.0), "[       100]");
+    bad += differ(render(buf[..], "[{10}]", 0.000123), "[  0.000123]");
+    bad += differ(render(buf[..], "[{10}]", 3.14159), "[   3.14159]");
+    bad += differ(render(buf[..], "[{10}]", 9.995), "[     9.995]");
+    bad += differ(render(buf[..], "[{10}]", 0.375), "[     0.375]");
+    bad += differ(render(buf[..], "[{10}]", 1e+20), "[100000000000000000000]");
+    bad += differ(render(buf[..], "[{10}]", 1e-05), "[   0.00001]");
+    bad += differ(render(buf[..], "[{10}]", 99.5), "[      99.5]");
+    bad += differ(render(buf[..], "[{10}]", math.nan()), "[       NaN]");
+    bad += differ(render(buf[..], "[{10}]", math.inf(1)), "[       inf]");
+    bad += differ(render(buf[..], "[{10}]", math.inf(-1)), "[      -inf]");
+    bad += differ(render(buf[..], "[{<10}]", 1.0), "[1         ]");
+    bad += differ(render(buf[..], "[{<10}]", -1.0), "[-1        ]");
+    bad += differ(render(buf[..], "[{<10}]", 0.5), "[0.5       ]");
+    bad += differ(render(buf[..], "[{<10}]", 0.1), "[0.1       ]");
+    bad += differ(render(buf[..], "[{<10}]", -0.1), "[-0.1      ]");
+    bad += differ(render(buf[..], "[{<10}]", 123456.789), "[123456.789]");
+    bad += differ(render(buf[..], "[{<10}]", -2.5), "[-2.5      ]");
+    bad += differ(render(buf[..], "[{<10}]", 1e+21), "[1e+21     ]");
+    bad += differ(render(buf[..], "[{<10}]", 1e-07), "[1e-07     ]");
+    bad += differ(render(buf[..], "[{<10}]", 5e-324), "[5e-324    ]");
+    bad += differ(render(buf[..], "[{<10}]", 1.7976931348623157e+308), "[1.7976931348623157e+308]");
+    bad += differ(render(buf[..], "[{<10}]", 0.0), "[0         ]");
+    bad += differ(render(buf[..], "[{<10}]", -0.0), "[-0        ]");
+    bad += differ(render(buf[..], "[{<10}]", 100.0), "[100       ]");
+    bad += differ(render(buf[..], "[{<10}]", 0.000123), "[0.000123  ]");
+    bad += differ(render(buf[..], "[{<10}]", 3.14159), "[3.14159   ]");
+    bad += differ(render(buf[..], "[{<10}]", 9.995), "[9.995     ]");
+    bad += differ(render(buf[..], "[{<10}]", 0.375), "[0.375     ]");
+    bad += differ(render(buf[..], "[{<10}]", 1e+20), "[100000000000000000000]");
+    bad += differ(render(buf[..], "[{<10}]", 1e-05), "[0.00001   ]");
+    bad += differ(render(buf[..], "[{<10}]", 99.5), "[99.5      ]");
+    bad += differ(render(buf[..], "[{<10}]", math.nan()), "[NaN       ]");
+    bad += differ(render(buf[..], "[{<10}]", math.inf(1)), "[inf       ]");
+    bad += differ(render(buf[..], "[{<10}]", math.inf(-1)), "[-inf      ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 1.0), "[    1.00    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", -1.0), "[   -1.00    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 0.5), "[    0.50    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 0.1), "[    0.10    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", -0.1), "[   -0.10    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 123456.789), "[ 123456.79  ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", -2.5), "[   -2.50    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 1e+21), "[1000000000000000000000.00]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 1e-07), "[    0.00    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 5e-324), "[    0.00    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 0.0), "[    0.00    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", -0.0), "[   -0.00    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 100.0), "[   100.00   ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 0.000123), "[    0.00    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 3.14159), "[    3.14    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 9.995), "[    9.99    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 0.375), "[    0.38    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 1e+20), "[100000000000000000000.00]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 1e-05), "[    0.00    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", 99.5), "[   99.50    ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", math.nan()), "[    NaN     ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", math.inf(1)), "[    inf     ]");
+    bad += differ(render(buf[..], "[{^12.2f}]", math.inf(-1)), "[    -inf    ]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 1.0), "[*******1.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", -1.0), "[******-1.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 0.5), "[*******0.500]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 0.1), "[*******0.100]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", -0.1), "[******-0.100]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 123456.789), "[**123456.789]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", -2.5), "[******-2.500]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 1e+21), "[1000000000000000000000.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 1e-07), "[*******0.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 5e-324), "[*******0.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 0.0), "[*******0.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", -0.0), "[******-0.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 100.0), "[*****100.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 0.000123), "[*******0.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 3.14159), "[*******3.142]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 9.995), "[*******9.995]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 0.375), "[*******0.375]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 1e+20), "[100000000000000000000.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 1e-05), "[*******0.000]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", 99.5), "[******99.500]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", math.nan()), "[*********NaN]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", math.inf(1)), "[*********inf]");
+    bad += differ(render(buf[..], "[{*>12.3f}]", math.inf(-1)), "[********-inf]");
+    bad += differ(render(buf[..], "[{010.3f}]", 1.0), "[000001.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", -1.0), "[-00001.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 0.5), "[000000.500]");
+    bad += differ(render(buf[..], "[{010.3f}]", 0.1), "[000000.100]");
+    bad += differ(render(buf[..], "[{010.3f}]", -0.1), "[-00000.100]");
+    bad += differ(render(buf[..], "[{010.3f}]", 123456.789), "[123456.789]");
+    bad += differ(render(buf[..], "[{010.3f}]", -2.5), "[-00002.500]");
+    bad += differ(render(buf[..], "[{010.3f}]", 1e+21), "[1000000000000000000000.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 1e-07), "[000000.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 5e-324), "[000000.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 0.0), "[000000.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", -0.0), "[-00000.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 100.0), "[000100.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 0.000123), "[000000.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 3.14159), "[000003.142]");
+    bad += differ(render(buf[..], "[{010.3f}]", 9.995), "[000009.995]");
+    bad += differ(render(buf[..], "[{010.3f}]", 0.375), "[000000.375]");
+    bad += differ(render(buf[..], "[{010.3f}]", 1e+20), "[100000000000000000000.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 1e-05), "[000000.000]");
+    bad += differ(render(buf[..], "[{010.3f}]", 99.5), "[000099.500]");
+    bad += differ(render(buf[..], "[{010.3f}]", math.nan()), "[       NaN]");
+    bad += differ(render(buf[..], "[{010.3f}]", math.inf(1)), "[       inf]");
+    bad += differ(render(buf[..], "[{010.3f}]", math.inf(-1)), "[      -inf]");
+    bad += differ(render(buf[..], "[{010}]", 1.0), "[0000000001]");
+    bad += differ(render(buf[..], "[{010}]", -1.0), "[-000000001]");
+    bad += differ(render(buf[..], "[{010}]", 0.5), "[00000000.5]");
+    bad += differ(render(buf[..], "[{010}]", 0.1), "[00000000.1]");
+    bad += differ(render(buf[..], "[{010}]", -0.1), "[-0000000.1]");
+    bad += differ(render(buf[..], "[{010}]", 123456.789), "[123456.789]");
+    bad += differ(render(buf[..], "[{010}]", -2.5), "[-0000002.5]");
+    bad += differ(render(buf[..], "[{010}]", 1e+21), "[000001e+21]");
+    bad += differ(render(buf[..], "[{010}]", 1e-07), "[000001e-07]");
+    bad += differ(render(buf[..], "[{010}]", 5e-324), "[00005e-324]");
+    bad += differ(render(buf[..], "[{010}]", 1.7976931348623157e+308), "[1.7976931348623157e+308]");
+    bad += differ(render(buf[..], "[{010}]", 0.0), "[0000000000]");
+    bad += differ(render(buf[..], "[{010}]", -0.0), "[-000000000]");
+    bad += differ(render(buf[..], "[{010}]", 100.0), "[0000000100]");
+    bad += differ(render(buf[..], "[{010}]", 0.000123), "[000.000123]");
+    bad += differ(render(buf[..], "[{010}]", 3.14159), "[0003.14159]");
+    bad += differ(render(buf[..], "[{010}]", 9.995), "[000009.995]");
+    bad += differ(render(buf[..], "[{010}]", 0.375), "[000000.375]");
+    bad += differ(render(buf[..], "[{010}]", 1e+20), "[100000000000000000000]");
+    bad += differ(render(buf[..], "[{010}]", 1e-05), "[0000.00001]");
+    bad += differ(render(buf[..], "[{010}]", 99.5), "[00000099.5]");
+    bad += differ(render(buf[..], "[{010}]", math.nan()), "[       NaN]");
+    bad += differ(render(buf[..], "[{010}]", math.inf(1)), "[       inf]");
+    bad += differ(render(buf[..], "[{010}]", math.inf(-1)), "[      -inf]");
+    bad += differ(render(buf[..], "[{014.2e}]", 1.0), "[0000001.00e+00]");
+    bad += differ(render(buf[..], "[{014.2e}]", -1.0), "[-000001.00e+00]");
+    bad += differ(render(buf[..], "[{014.2e}]", 0.5), "[0000005.00e-01]");
+    bad += differ(render(buf[..], "[{014.2e}]", 0.1), "[0000001.00e-01]");
+    bad += differ(render(buf[..], "[{014.2e}]", -0.1), "[-000001.00e-01]");
+    bad += differ(render(buf[..], "[{014.2e}]", 123456.789), "[0000001.23e+05]");
+    bad += differ(render(buf[..], "[{014.2e}]", -2.5), "[-000002.50e+00]");
+    bad += differ(render(buf[..], "[{014.2e}]", 1e+21), "[0000001.00e+21]");
+    bad += differ(render(buf[..], "[{014.2e}]", 1e-07), "[0000001.00e-07]");
+    bad += differ(render(buf[..], "[{014.2e}]", 5e-324), "[000004.94e-324]");
+    bad += differ(render(buf[..], "[{014.2e}]", 1.7976931348623157e+308), "[000001.80e+308]");
+    bad += differ(render(buf[..], "[{014.2e}]", 0.0), "[0000000.00e+00]");
+    bad += differ(render(buf[..], "[{014.2e}]", -0.0), "[-000000.00e+00]");
+    bad += differ(render(buf[..], "[{014.2e}]", 100.0), "[0000001.00e+02]");
+    bad += differ(render(buf[..], "[{014.2e}]", 0.000123), "[0000001.23e-04]");
+    bad += differ(render(buf[..], "[{014.2e}]", 3.14159), "[0000003.14e+00]");
+    bad += differ(render(buf[..], "[{014.2e}]", 9.995), "[0000009.99e+00]");
+    bad += differ(render(buf[..], "[{014.2e}]", 0.375), "[0000003.75e-01]");
+    bad += differ(render(buf[..], "[{014.2e}]", 1e+20), "[0000001.00e+20]");
+    bad += differ(render(buf[..], "[{014.2e}]", 1e-05), "[0000001.00e-05]");
+    bad += differ(render(buf[..], "[{014.2e}]", 99.5), "[0000009.95e+01]");
+    bad += differ(render(buf[..], "[{014.2e}]", math.nan()), "[           NaN]");
+    bad += differ(render(buf[..], "[{014.2e}]", math.inf(1)), "[           inf]");
+    bad += differ(render(buf[..], "[{014.2e}]", math.inf(-1)), "[          -inf]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 1.0), "[1.0------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", -1.0), "[-1.0-----]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 0.5), "[0.5------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 0.1), "[0.1------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", -0.1), "[-0.1-----]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 123456.789), "[123456.8-]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", -2.5), "[-2.5-----]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 1e+21), "[1000000000000000000000.0]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 1e-07), "[0.0------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 5e-324), "[0.0------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 1.7976931348623157e+308), "[179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.0]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 0.0), "[0.0------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", -0.0), "[-0.0-----]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 100.0), "[100.0----]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 0.000123), "[0.0------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 3.14159), "[3.1------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 9.995), "[10.0-----]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 0.375), "[0.4------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 1e+20), "[100000000000000000000.0]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 1e-05), "[0.0------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", 99.5), "[99.5-----]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", math.nan()), "[NaN------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", math.inf(1)), "[inf------]");
+    bad += differ(render(buf[..], "[{-<9.1f}]", math.inf(-1)), "[-inf-----]");
+    bad += differ(render(buf[..], "[{^11e}]", 1.0), "[1.000000e+00]");
+    bad += differ(render(buf[..], "[{^11e}]", -1.0), "[-1.000000e+00]");
+    bad += differ(render(buf[..], "[{^11e}]", 0.5), "[5.000000e-01]");
+    bad += differ(render(buf[..], "[{^11e}]", 0.1), "[1.000000e-01]");
+    bad += differ(render(buf[..], "[{^11e}]", -0.1), "[-1.000000e-01]");
+    bad += differ(render(buf[..], "[{^11e}]", 123456.789), "[1.234568e+05]");
+    bad += differ(render(buf[..], "[{^11e}]", -2.5), "[-2.500000e+00]");
+    bad += differ(render(buf[..], "[{^11e}]", 1e+21), "[1.000000e+21]");
+    bad += differ(render(buf[..], "[{^11e}]", 1e-07), "[1.000000e-07]");
+    bad += differ(render(buf[..], "[{^11e}]", 5e-324), "[4.940656e-324]");
+    bad += differ(render(buf[..], "[{^11e}]", 1.7976931348623157e+308), "[1.797693e+308]");
+    bad += differ(render(buf[..], "[{^11e}]", 0.0), "[0.000000e+00]");
+    bad += differ(render(buf[..], "[{^11e}]", -0.0), "[-0.000000e+00]");
+    bad += differ(render(buf[..], "[{^11e}]", 100.0), "[1.000000e+02]");
+    bad += differ(render(buf[..], "[{^11e}]", 0.000123), "[1.230000e-04]");
+    bad += differ(render(buf[..], "[{^11e}]", 3.14159), "[3.141590e+00]");
+    bad += differ(render(buf[..], "[{^11e}]", 9.995), "[9.995000e+00]");
+    bad += differ(render(buf[..], "[{^11e}]", 0.375), "[3.750000e-01]");
+    bad += differ(render(buf[..], "[{^11e}]", 1e+20), "[1.000000e+20]");
+    bad += differ(render(buf[..], "[{^11e}]", 1e-05), "[1.000000e-05]");
+    bad += differ(render(buf[..], "[{^11e}]", 99.5), "[9.950000e+01]");
+    bad += differ(render(buf[..], "[{^11e}]", math.nan()), "[    NaN    ]");
+    bad += differ(render(buf[..], "[{^11e}]", math.inf(1)), "[    inf    ]");
+    bad += differ(render(buf[..], "[{^11e}]", math.inf(-1)), "[   -inf    ]");
+    single += differ(render(buf[..], "{}", singles[0]), "1.1");
+    single += differ(render(buf[..], "{.2f}", singles[0]), "1.10");
+    single += differ(render(buf[..], "{}", singles[1]), "0.1");
+    single += differ(render(buf[..], "{.2f}", singles[1]), "0.10");
+    single += differ(render(buf[..], "{}", singles[2]), "2.5");
+    single += differ(render(buf[..], "{.2f}", singles[2]), "2.50");
+    single += differ(render(buf[..], "{}", singles[3]), "16777216");
+    single += differ(render(buf[..], "{.2f}", singles[3]), "16777216.00");
+    single += differ(render(buf[..], "{}", singles[4]), "3.4028235e+38");
+    single += differ(render(buf[..], "{.2f}", singles[4]), "340282346638528859811704183484516925440.00");
+    single += differ(render(buf[..], "{}", singles[5]), "1e-45");
+    single += differ(render(buf[..], "{.2f}", singles[5]), "0.00");
+    single += differ(render(buf[..], "{}", singles[6]), "0.3");
+    single += differ(render(buf[..], "{.2f}", singles[6]), "0.30");
+    single += differ(render(buf[..], "{}", singles[7]), "100");
+    single += differ(render(buf[..], "{.2f}", singles[7]), "100.00");
 
     [8]byte small;
-    let _, problem = fmt.sprintf(small[:], "{}", 1234567.125);
+    let _, problem = fmt.sprintf(small[..], "{}", 1234567.125);
     [16]byte chars;
-    let _, a = fmt.sprintf(chars[:], "{x}", 1.5);
-    let _, b = fmt.sprintf(chars[:], "{#f}", 1.5);
-    let _, c = fmt.sprintf(chars[:], "{.1001f}", 1.5);
+    let _, a = fmt.sprintf(chars[..], "{x}", 1.5);
+    let _, b = fmt.sprintf(chars[..], "{#f}", 1.5);
+    let _, c = fmt.sprintf(chars[..], "{.1001f}", 1.5);
     int rejects = (a != null ? 1 : 0) + (b != null ? 1 : 0) + (c != null ? 1 : 0);
     check(bad == 0, "floats match the reference for every spec and value");
     check(single == 0, "a float32 prints the shortest text of its own width");
@@ -16400,7 +16418,7 @@ func present(?*void p) bool {
 
 func main() {
     [4]int arr = .{7, 8, 9, 10};
-    []int tail = arr[1:];
+    []int tail = arr[1..];
     *int fromArray = arr;
     *int fromSlice = tail;
     *void untyped = tail;
@@ -16411,7 +16429,7 @@ func main() {
     check(present(arr) && present(tail), "an array and a slice are passed as a void pointer");
 
     [8]byte text;
-    []byte view = text[:];
+    []byte view = text[..];
     text[2] = 'z';
     *byte at = view;
     check((at + 2)@ == 'z', "a slice of characters converts to a character pointer");
@@ -16514,15 +16532,15 @@ func main() {
     mem.move((*byte)(a) + 2, a, 4);
     mem.move(b, (*byte)(b) + 2, 4);
     mem.move((*byte)(c) + 3, c, 0);
-    check(string(a[0:6]) == "ababcd", "move copies forward over an overlap");
-    check(string(b[0:6]) == "cdefef", "move copies backward over an overlap");
-    check(string(c[0:6]) == "abcdef", "move of zero bytes changes nothing");
+    check(string(a[0..6]) == "ababcd", "move copies forward over an overlap");
+    check(string(b[0..6]) == "cdefef", "move copies backward over an overlap");
+    check(string(c[0..6]) == "abcdef", "move of zero bytes changes nothing");
 
     [8]byte apart;
     [4]byte source;
     fill(source, "xyz");
     mem.move(apart, source, 3);
-    check(string(apart[0:3]) == "xyz", "move works when the regions do not overlap");
+    check(string(apart[0..3]) == "xyz", "move works when the regions do not overlap");
 
     *byte dirty = mem.heap.allocDirty(64)!!;
     check(int(dirty) != 0, "allocDirty gives a block");
@@ -16620,7 +16638,7 @@ func risky(int n) !int {
 
 func text([]byte buf, string format, ...args) string {
     int n = fmt.sprintf(buf, format, args...)!!;
-    return string(buf[0:n]);
+    return string(buf[0..n]);
 }
 
 func main() {
@@ -16714,7 +16732,7 @@ func main() {
     [2]int p = pair(3, 4);
     check(p[0] == 3 && p[1] == 4, "a function returns an array type");
 
-    []*int slice = refs[:];
+    []*int slice = refs[..];
     check(len(slice) == 2 && slice[0]@ == 1, "a slice of pointers");
     [2]*void raw = .{&a, &b};
     check(int(raw[0]) != 0 && int(raw[1]) != 0, "an array of void pointers");

@@ -52,11 +52,11 @@ func (*Debug d) source() Allocator {
 func fail(*Header h, string what) {
 	[2048]byte buf;
 	if len(h.freed) > 0 {
-		string both = strings.concat(buf, what, "\nthe block was allocated at ", h.site, "the block was freed at ", h.freed[:len(h.freed) - 1]) ?? what;
+		string both = strings.concat(buf, what, "\nthe block was allocated at ", h.site, "the block was freed at ", h.freed[..len(h.freed) - 1]) ?? what;
 		panic(both);
 	}
 	if len(h.site) > 0 {
-		string text = strings.concat(buf, what, "\nthe block was allocated at ", h.site[:len(h.site) - 1]) ?? what;
+		string text = strings.concat(buf, what, "\nthe block was allocated at ", h.site[..len(h.site) - 1]) ?? what;
 		panic(text);
 	}
 	panic(what);
@@ -121,7 +121,7 @@ func (*Debug d) rebuild() ! {
 	}
 	[]uint old = d.table;
 	*void block = allocate(want * 8, true) ?? return Error(errors.Kind.OutOfMemory);
-	d.table = (*uint)(block)[0:want];
+	d.table = (*uint)(block)[0..want];
 	d.entries = 0;
 	d.tombs = 0;
 	for key in old {

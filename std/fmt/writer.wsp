@@ -51,13 +51,13 @@ func (*Writer w) put(*byte c, int n) ! {
 	}
 
 	if w.mode == .None || len(w.buf) == 0 {
-		w.total += os.writeBytes(w.fd, c[0:n])!;
+		w.total += os.writeBytes(w.fd, c[0..n])!;
 		return;
 	}
 
 	if n > len(w.buf) {
 		w.flush()!;
-		w.total += os.writeBytes(w.fd, c[0:n])!;
+		w.total += os.writeBytes(w.fd, c[0..n])!;
 		return;
 	}
 
@@ -71,7 +71,7 @@ func (*Writer w) put(*byte c, int n) ! {
 
 	switch w.mode {
 		case .Line => {
-			if '\n' in c[0:n] {
+			if '\n' in c[0..n] {
 				w.flush()!;
 			}
 		}
@@ -115,7 +115,7 @@ public func (*Writer w) flush() ! {
 	if w.fd < 0 || w.len == 0 {
 		return;
 	}
-	os.writeBytes(w.fd, w.buf[:w.len])!;
+	os.writeBytes(w.fd, w.buf[..w.len])!;
 	w.len = 0;
 }
 

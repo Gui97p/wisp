@@ -26,7 +26,7 @@ func<debug> callerSite(*void f) string {
 	loop true {
 		string s = siteOf(at);
 		return first if len(s) <= 0;
-		if len(s) < 4 || s[:4] != "std/" {
+		if len(s) < 4 || s[..4] != "std/" {
 			return s;
 		}
 		at = parent(at);

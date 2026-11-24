@@ -3,7 +3,7 @@ import "std/errors";
 import "std/mem";
 
 /// A growable array. `items` holds the elements, so it is indexed, sliced and
-/// walked like any slice: `l.items[i]`, `l.items[a:b]`, `for x in l.items`. Never
+/// walked like any slice: `l.items[i]`, `l.items[a..b]`, `for x in l.items`. Never
 /// assign to it: the methods keep it and the capacity in step. It stays valid
 /// until the next call that adds elements, which can move them.
 ///
@@ -20,11 +20,11 @@ inline func (*List<T> l) source() mem.Allocator {
 }
 
 inline func (*List<T> l) storage() []T {
-	return (*T)(l.items)[0:l.cap];
+	return (*T)(l.items)[0..l.cap];
 }
 
 inline func (*List<T> l) setLen(int n) {
-	l.items = (*T)(l.items)[0:n];
+	l.items = (*T)(l.items)[0..n];
 }
 
 /// Makes room for n more elements, so that the next n appends cannot fail. When
@@ -42,7 +42,7 @@ public func (*List<T> l) reserve(int n) ! {
 	}
 	int count = len(l.items);
 	[]T bigger = mem.resize<T>(l.source(), l.storage(), cap)!;
-	l.items = bigger[0:count];
+	l.items = bigger[0..count];
 	l.cap = cap;
 }
 

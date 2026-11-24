@@ -36,27 +36,28 @@ public func demo() {
 	// `len` works on arrays, slices and strings.
 	fmt.printf("len(nums) = {}\n", len(nums));
 
-	// Slicing is [start:end]. The end is exclusive and both ends are optional.
+	// Slicing is `[start..end]`: the end is left out like in a range, and
+	// `[start..=end]` puts it in. Both ends are optional: `[..n]`, `[2..]`, `[..]`.
 	// A slice is a view: it shares the elements of the array.
-	[]int middle = nums[1:3];
-	[]int head = nums[:2];
-	[]int tail = nums[3:];
-	fmt.printf("nums[1:3] has {} elements and starts with {}\n", len(middle), middle[0]);
-	fmt.printf("nums[:2] ends with {}, nums[3:] starts with {}\n", head[1], tail[0]);
+	[]int middle = nums[1..3];
+	[]int head = nums[..2];
+	[]int tail = nums[3..];
+	fmt.printf("nums[1..3] has {} elements and starts with {}\n", len(middle), middle[0]);
+	fmt.printf("nums[..2] ends with {}, nums[3..] starts with {}\n", head[1], tail[0]);
 
 	middle[0] = 1;
 	fmt.printf("after middle[0] = 1, nums[1] is {}\n", nums[1]);
 
-	// An array variable goes where a slice is expected without writing `[:]`.
+	// An array variable goes where a slice is expected without writing `[..]`.
 	// It is the same view of the same elements: `total(nums)` is
-	// `total(nums[:])`. Something that has an address converts, and so does
-	// an array literal, as a temporary array. `[a:b]` is still how you take a
+	// `total(nums[..])`. Something that has an address converts, and so does
+	// an array literal, as a temporary array. `[a..b]` is still how you take a
 	// part.
 	fmt.printf("total(nums) = {}\n", total(nums));
 
 	// Strings slice the same way, and compare in dictionary order.
 	string greeting = "hello world";
-	fmt.printf("greeting[:5] = {}, greeting[6:] = {}\n", greeting[:5], greeting[6:]);
+	fmt.printf("greeting[:5] = {}, greeting[6:] = {}\n", greeting[..5], greeting[6..]);
 	fmt.printf("len(greeting) = {}\n", len(greeting));
 	fmt.printf("greeting[0] = {}\n", greeting[0]);
 	fmt.printf("\"apple\" < \"apricot\": {}\n", "apple" < "apricot");

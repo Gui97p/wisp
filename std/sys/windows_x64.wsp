@@ -598,7 +598,7 @@ internal func getenv(string name) ?string {
 	return null if n >= WIDE_MAX;
 	int r = WideCharToMultiByte(CP_UTF8, 0, wideValue(), int32(n), envBuffer(), ENV_BYTES, null, null);
 	return null if r == 0;
-	return string(envBuffer()[:r]);
+	return string(envBuffer()[..r]);
 }
 
 internal native args() []string s {
@@ -679,7 +679,7 @@ internal func envNext(*Env e) ?string {
 		continue if entry[0] == 61;
 		int r = WideCharToMultiByte(CP_UTF8, 0, entry, int32(n), iterBuffer(), ENV_BYTES, null, null);
 		continue if r == 0;
-		return string(iterBuffer()[:r]);
+		return string(iterBuffer()[..r]);
 	}
 }
 

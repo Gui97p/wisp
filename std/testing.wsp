@@ -31,7 +31,7 @@ public func report(...args) {
 
 	switch type args[0] {
 		case string format => {
-			warn(format, args[1:]...);
+			warn(format, args[1..]...);
 			warn("\n");
 		}
 	}

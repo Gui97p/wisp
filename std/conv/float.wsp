@@ -54,7 +54,7 @@ func layoutFixed([]byte buf, bool neg, *Decimal dec, int decimals) !string {
 		}
 	}
 
-	return string(buf[:size]);
+	return string(buf[..size]);
 }
 
 func layoutExp([]byte buf, bool neg, *Decimal dec, int decimals, bool upper) !string {
@@ -99,7 +99,7 @@ func layoutExp([]byte buf, bool neg, *Decimal dec, int decimals, bool upper) !st
 	buf[i] = byte(mag % 10 + '0');
 	i++;
 
-	return string(buf[:size]);
+	return string(buf[..size]);
 }
 
 func shortestText([]byte buf, float x, bool single) !string {

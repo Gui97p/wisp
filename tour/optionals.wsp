@@ -32,7 +32,7 @@ func half(int n) ?int {
 func firstWord(string text) ?string {
 	for i, c in text {
 		if c == ' ' {
-			return text[:i];
+			return text[..i];
 		}
 	}
 	return null;
