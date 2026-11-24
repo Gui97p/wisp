@@ -31,7 +31,19 @@ Features a backend cannot generate yet live in [`tour/_pending/`](tour/_pending)
 
 ## Install
 
-You need Go. The assembler and the linker (`nasm`, `lld`, and for Windows the import libraries) come bundled: `make toolchain` runs `scripts/fetch-toolchain.sh`, which downloads them with fixed versions and checksums into `dependencies/` (ignored by git), and `make prod` copies them into the package. Without a bundle `wisp` falls back to `nasm` and `ld.lld` (or `ld`) in the `PATH`. `cc` is only for `--libc` and the C tests on Linux.
+From a release, which already has `nasm`, `lld` and the Windows import libraries inside:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Gui97p/wisp/main/scripts/install.sh | sh
+```
+
+```powershell
+irm https://raw.githubusercontent.com/Gui97p/wisp/main/scripts/install.ps1 | iex
+```
+
+`wisp update` installs the newest release (`--check` only looks), and `wisp doctor` says what is missing when something does not work.
+
+From source you need Go. The assembler and the linker (`nasm`, `lld`, and for Windows the import libraries) come bundled: `make toolchain` runs `scripts/fetch-toolchain.sh`, which downloads them with fixed versions and checksums into `dependencies/` (ignored by git), and `make prod` copies them into the package. Without a bundle `wisp` falls back to `nasm` and `ld.lld` (or `ld`) in the `PATH`. `cc` is only for `--libc` and the C tests on Linux.
 
 ```bash
 make build         # bin/wisp

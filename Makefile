@@ -36,7 +36,7 @@ check-toolchain-windows:
 	@test -f dependencies/toolchain/windows-amd64/bin/nasm.exe && test -f dependencies/toolchain/windows-amd64/bin/ld.lld.exe || { echo "dependencies/toolchain/windows-amd64 is missing: run 'make toolchain' first, a release without the toolchain is not allowed" >&2; exit 1; }
 
 release: prod prod-windows
-	cd $(DIST) && sha256sum $(NAME).tar.gz $(WINNAME).zip > SHA256SUMS-$(VERSION)
+	cd $(DIST) && sha256sum $(NAME).tar.gz $(WINNAME).zip > SHA256SUMS
 
 prod-windows: check-toolchain-windows
 	rm -f $(DIST)/$(WINNAME).zip

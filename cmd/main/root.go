@@ -42,5 +42,5 @@ func init() {
 		}
 		return root
 	}
-	rootCmd.AddCommand(buildCmd, runCmd, testCmd, fmtCmd, checkCmd, cleanCmd, envCmd, doctorCmd, targetsCmd, docCmd, debugCmd, initCmd, cacheCmd, versionCmd, lspCmd)
+	rootCmd.AddCommand(buildCmd, runCmd, testCmd, fmtCmd, checkCmd, cleanCmd, envCmd, doctorCmd, updateCmd, targetsCmd, docCmd, debugCmd, initCmd, cacheCmd, versionCmd, lspCmd)
 }
