@@ -178,6 +178,7 @@ type StructDecl struct {
 	TypeParams []TypeParam
 	Implements []TypeRef
 	Members    []Param
+	Opaque     bool
 	Exported   bool
 	Reach      int
 	Selector   string

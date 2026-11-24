@@ -32,6 +32,103 @@ func (p *Parser) parseInlineDeclaration() *ast.FuncDecl {
 	return decl
 }
 
+func (p *Parser) externBlockAhead() bool {
+	return p.current.Type == lexer.TOKEN_EXTERN && (p.peek.Type == lexer.TOKEN_STRING_LITERAL || p.peek.Type == lexer.TOKEN_LBRACE)
+}
+
+func (p *Parser) parseExternType() *ast.StructDecl {
+	if !p.expect(lexer.TOKEN_IDENT) {
+		return nil
+	}
+	decl := &ast.StructDecl{Name: p.current.Literal, Opaque: true}
+	if !p.checkReservedName(decl.Name) {
+		return nil
+	}
+	if p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_LT {
+		p.error("an extern type has no fields and no type parameters: it is only a name for what C keeps behind a pointer")
+		return nil
+	}
+	if !p.expect(lexer.TOKEN_SEMICOLON) {
+		return nil
+	}
+	return decl
+}
+
+func (p *Parser) parseExternBlock(exported bool) []ast.Declaration {
+	p.advance()
+	prefix := ""
+	if p.current.Type == lexer.TOKEN_STRING_LITERAL {
+		prefix = p.current.Literal
+		if !p.expect(lexer.TOKEN_LBRACE) {
+			return nil
+		}
+	}
+	p.advance()
+
+	decls := []ast.Declaration{}
+	for p.current.Type != lexer.TOKEN_RBRACE {
+		if p.current.Type == lexer.TOKEN_EOF {
+			p.error("the extern block is not closed: expected }")
+			return nil
+		}
+		doc := p.docBefore(p.current.Line)
+		tags, ok := p.parseTags()
+		if !ok {
+			return nil
+		}
+		line, col := p.current.Line, p.current.Column
+
+		var decl ast.Declaration
+		switch p.current.Type {
+		case lexer.TOKEN_FUNC:
+			fd := p.parseFunc(true)
+			if fd == nil {
+				return nil
+			}
+			if fd.Receiver != nil {
+				p.error("an extern function cannot have a receiver")
+				return nil
+			}
+			fd.Extern = true
+			fd.Exported = exported
+			fd.ExternName = prefix + fd.Name
+			decl = fd
+		case lexer.TOKEN_TYPE:
+			sd := p.parseExternType()
+			if sd == nil {
+				return nil
+			}
+			sd.Exported = exported
+			decl = sd
+		default:
+			p.errorf("an extern block holds functions and types: expected func or type, got %s", p.current.Type.DisplayName())
+			return nil
+		}
+
+		if len(tags) > 0 {
+			tagged, can := decl.(ast.Tags)
+			if !can {
+				p.errorAt(tags[0].At, "this declaration cannot take tags")
+				return nil
+			}
+			tagged.SetTags(tags)
+			if fd, isFunc := decl.(*ast.FuncDecl); isFunc {
+				applySymbolTag(fd)
+			}
+		}
+		setDoc(decl, doc)
+		decl.SetPos(line, col)
+		decl.SetEndPos(p.currentEnd())
+		decls = append(decls, decl)
+		if p.placed == nil {
+			p.placed = map[ast.Declaration]bool{}
+		}
+		p.placed[decl] = true
+		p.advance()
+	}
+	return decls
+}
+
 func (p *Parser) parseExternDeclaration() *ast.FuncDecl {
 	if !p.expect(lexer.TOKEN_FUNC) {
 		return nil
@@ -142,20 +239,10 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 
 	if p.peek.Type == lexer.TOKEN_AS {
 		p.advance()
-		if !p.expect(lexer.TOKEN_IDENT) {
-			return nil
-		}
-		alias := p.current.Literal
-		if !p.checkReservedName(alias) {
-			return nil
-		}
-		if extern {
-			decl.ExternName = decl.Name
-			decl.Name = alias
-		} else {
-			decl.CExport = alias
-		}
-	} else if extern {
+		p.error("as on a function was replaced by the #symbol tag: write #symbol(\"name\") on the line before it")
+		return nil
+	}
+	if extern {
 		decl.ExternName = decl.Name
 	}
 

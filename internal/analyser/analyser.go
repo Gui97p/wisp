@@ -153,6 +153,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.info.Module = a.scope
 		a.registerBuiltins()
 		a.registerImports()
+		a.expandFailing()
 		a.checkTags()
 		a.registerInterfaceNames()
 		a.registerStructNames()
@@ -271,6 +272,11 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 		switch symbol.Kind {
 		case STRUCT, TYPE:
 			result = symbol.Type
+			if st, isStruct := result.(*StructType); isStruct && st.Opaque && (len(ref.Layers) == 0 || !ref.Layers[len(ref.Layers)-1].Pointer) {
+				a.errorAtRef(node, ref, "%s is an extern type: it has no size here, so it only exists behind a pointer", st.Name).
+					WithHelp("write *%s", st.Name)
+				return InvalidType{}
+			}
 			if symbol.Generic != nil && (symbol.Generic.Struct != nil || symbol.Generic.Alias != nil || symbol.Generic.Sum != nil) {
 				if len(ref.Args) == 0 {
 					a.errorAtRef(node, ref, "%s is generic: write %s<...>", qualified(ref.Module, ref.Name), qualified(ref.Module, ref.Name)).

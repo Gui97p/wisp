@@ -294,6 +294,14 @@ func ValidateArch(arch string) error {
 	return &UnknownError{Name: arch, Help: Suggestion(arch, archs, "architectures")}
 }
 
+func ActiveOS() string {
+	t, err := Lookup(Active())
+	if err != nil {
+		return ""
+	}
+	return t.OS
+}
+
 func ActiveArch() string {
 	t, err := Lookup(Active())
 	if err != nil {

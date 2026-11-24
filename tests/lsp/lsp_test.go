@@ -1726,3 +1726,52 @@ func TestTheTomlOffersTheProgramsThatWereFound(t *testing.T) {
 		}
 	}
 }
+
+func TestCInteropInTheEditor(t *testing.T) {
+	c := start(t)
+	src := "import \"std/errors\";\nextern type Db;\nextern \"sqlite3_\" {\n\tfunc open(*c_char path, **Db out) c_int;\n\t#fails(result < 0, errors.Kind.Invalid)\n\tfunc close(*Db db) !c_int;\n}\nfunc main() !int {\n\tDb* none = null;\n\treturn 0;\n}\n"
+	clean := strings.Replace(src, "\tDb* none = null;\n", "\t?*Db none = null;\n\tc_int n = close(none ?? return 0)!;\n", 1)
+	for _, d := range c.open(map[string]string{"main.wsp": clean}).diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("valid C declarations reported: %s", d.Message)
+		}
+	}
+
+	value := c.open(map[string]string{"main.wsp": "extern type Db;\nfunc main() {\n\tDb d;\n}\n"})
+	found := false
+	for _, d := range value.diagnostics() {
+		if d.Severity == 1 && strings.Contains(d.Message, "extern type") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("an extern type used as a value was not reported")
+	}
+
+	shape := c.open(map[string]string{"main.wsp": "extern \"x_\" {\n\t#fails(result < 0, 1)\n\tfunc f(c_int a) c_int;\n}\nfunc main() {}\n"})
+	found = false
+	for _, d := range shape.diagnostics() {
+		if d.Severity == 1 && strings.Contains(d.Message, "#fails tests the result") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("#fails without ! was not reported")
+	}
+
+	hidden := c.open(map[string]string{"main.wsp": "extern func f(c¦);\nfunc main() {}\n"}).completion()
+	for _, label := range hidden {
+		if strings.HasPrefix(label, "c_") {
+			t.Errorf("a C type shows up before c_ is typed: %s", label)
+		}
+	}
+	shown := c.open(map[string]string{"main.wsp": "extern func f(c_¦);\nfunc main() {}\n"}).completion()
+	if !slices.Contains(shown, "c_int") {
+		t.Errorf("C types are missing after c_: %v", shown)
+	}
+
+	hover := c.open(map[string]string{"main.wsp": "extern \"x_\" {\n\tfunc ope¦n(*c_char path) c_int;\n}\nfunc main() {}\n"}).hover()
+	if !strings.Contains(hover, "func open(") {
+		t.Errorf("hover on an extern block function: %q", hover)
+	}
+}

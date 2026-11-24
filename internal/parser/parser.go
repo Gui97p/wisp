@@ -20,6 +20,7 @@ type Parser struct {
 	allowStructLiteral bool
 	captureAllowed     bool
 	guards             map[*ast.ForStmt]*forGuard
+	placed             map[ast.Declaration]bool
 	captureCount       int
 	switchNameCount    int
 	cVariadic          bool

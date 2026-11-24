@@ -1,5 +1,7 @@
 package analyser
 
+import "github.com/Gui97p/wisp/internal/target"
+
 func (a *Analyser) registerBuiltins() {
 	a.universe.Define(&Symbol{Name: "Comparable", Kind: INTERFACE, Type: &InterfaceType{Name: "Comparable", builtin: "comparable", key: "Comparable"}, Used: true})
 	a.universe.Define(&Symbol{Name: "Orderable", Kind: INTERFACE, Type: &InterfaceType{Name: "Orderable", builtin: "orderable", key: "Orderable"}, Used: true})
@@ -39,8 +41,27 @@ func (a *Analyser) registerBuiltins() {
 	a.universe.Define(&Symbol{Name: "Error", Kind: TYPE, Type: ErrorType{}})
 
 	a.registerRange()
+	a.registerCTypes()
 
 	for _, symbol := range a.universe.symbols {
 		symbol.Builtin = true
+	}
+}
+
+func (a *Analyser) registerCTypes() {
+	long, ulong := "int64", "uint64"
+	if target.ActiveOS() == "windows" {
+		long, ulong = "int32", "uint32"
+	}
+	for name, base := range map[string]string{
+		"c_char": "int8", "c_schar": "int8", "c_uchar": "uint8",
+		"c_short": "int16", "c_ushort": "uint16",
+		"c_int": "int32", "c_uint": "uint32",
+		"c_long": long, "c_ulong": ulong,
+		"c_longlong": "int64", "c_ulonglong": "uint64",
+		"c_size": "uint64", "c_ssize": "int64",
+		"c_float": "float32", "c_double": "float64",
+	} {
+		a.universe.Define(&Symbol{Name: name, Kind: TYPE, Type: PrimitiveType{Name: base}, Doc: "The C type of this name for the system being built: " + base + ".", Used: true})
 	}
 }

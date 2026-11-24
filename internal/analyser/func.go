@@ -258,7 +258,7 @@ func cCompatible(t Type) bool {
 
 func (a *Analyser) checkCExport(fd *ast.FuncDecl, params, returns []Type, variadic bool) {
 	if !fd.Exported {
-		a.errorf(fd, "as %s gives a C name to a public function: write public func %s", fd.CExport, fd.Name)
+		a.errorf(fd, "#symbol(%q) gives a C name to a public function: write public func %s", fd.CExport, fd.Name)
 	}
 	if fd.Receiver != nil {
 		a.error(fd, "a method cannot have a C name")
@@ -267,8 +267,9 @@ func (a *Analyser) checkCExport(fd *ast.FuncDecl, params, returns []Type, variad
 }
 
 func (a *Analyser) checkCSignature(fd *ast.FuncDecl, what string, params, returns []Type, variadic bool) {
-	if fd.Fallible {
-		a.errorf(fd, "%s cannot be fallible: C has no Wisp error values", what)
+	if fd.Fallible && fd.TagNamed("fails") == nil {
+		a.errorf(fd, "%s cannot be fallible: C has no Wisp error values", what).
+			WithHelp("an extern function becomes fallible with #fails(result < 0), which tests what C returned")
 	}
 	if variadic {
 		a.errorf(fd, "%s cannot be variadic yet", what)

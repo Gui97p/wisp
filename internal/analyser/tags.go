@@ -51,6 +51,18 @@ var Tags = []TagSpec{
 		Args:    1,
 	},
 	{
+		Name: "symbol", Usage: "#symbol(\"name\")",
+		Doc:     "The name the linker sees. On an extern function it is the C function that is called, and the Wisp name is the one written in the declaration. On a public function it is the name C and other languages use to call it, which does not depend on the path of the module; a library with `shared = true` shows only these names.",
+		Targets: []string{"function", "extern function"},
+		Args:    1,
+	},
+	{
+		Name: "fails", Usage: "#fails(result < 0, errors.Kind.Invalid)",
+		Doc:     "Turns the result of an extern function into an error. The declaration says `!T`, and the first argument says when the call failed, with the name `result` for what C returned: `#fails(result < 0, errors.Kind.Invalid)`. For a function that returns a pointer, `#fails(null, errors.Kind.NotFound)` makes a null result the failure, and the result is then a pointer that is never null. The second argument is the kind of the error, or an expression that gives an `Error`, such as a call to a function of yours that chooses the error from `result`: `#fails(result != 0, statusError(result))`. The function is called through a Wisp function that makes the test, so C never sees the error.",
+		Targets: []string{"extern function"},
+		Args:    2,
+	},
+	{
 		Name: "noreturn", Usage: "#noreturn",
 		Doc:     "A function that never returns, such as one that ends the program. Its body must not return, and the code after a call to it is unreachable.",
 		Targets: []string{"function", "method", "native function"},
@@ -202,6 +214,27 @@ func (a *Analyser) checkTagArgs(spec TagSpec, tag *ast.Tag, decl ast.Declaration
 			case isGenericDecl(fd):
 				a.errorRange(tag.At, "a test cannot be generic: %s would have no type arguments to run with", fd.Name)
 			}
+		}
+	case "fails":
+		if fd, ok := decl.(*ast.FuncDecl); ok {
+			switch {
+			case len(tag.Args) != 2:
+				a.errorRange(tag.At, "#fails needs the condition and the error kind: #fails(result < 0, errors.Kind.Invalid)")
+			case !fd.Fallible || len(fd.ReturnTypes) != 1:
+				a.errorRange(tag.At, "#fails tests the result of the call: declare %s with a result that can fail, as in !c_int", fd.Name)
+			case fd.CVariadic:
+				a.errorRange(tag.At, "#fails cannot be used on a C variadic function yet")
+			default:
+				if _, onNull := tag.Args[0].(*ast.NullLiteral); onNull && !pointerRef(fd.ReturnTypes[0]) {
+					a.errorRange(tag.At, "#fails(null, ...) is for a function that returns a pointer, and %s does not", fd.Name)
+				}
+			}
+		}
+	case "symbol":
+		if len(tag.Args) == 0 {
+			a.errorRange(tag.At, "#symbol needs the name: #symbol(\"name\")")
+		} else if text, isText := tag.Args[0].(*ast.StringLiteral); !isText || strings.TrimSpace(text.Value) == "" {
+			a.errorf(tag.Args[0], "the name of #symbol is a text between quotes, and cannot be empty")
 		}
 	case "deprecated", "must_use":
 		if len(tag.Args) == 1 {
@@ -439,4 +472,8 @@ func (a *Analyser) checkNoReturn(fd *ast.FuncDecl) {
 		a.errorAtEnd(fd.Body, "the function %s is #noreturn but it can end", fd.Name).
 			WithHelp("end it with panic, a call to another #noreturn function, or a loop with no end")
 	}
+}
+
+func pointerRef(ref ast.TypeRef) bool {
+	return len(ref.Layers) > 0 && ref.Layers[0].Pointer
 }

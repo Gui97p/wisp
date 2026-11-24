@@ -66,6 +66,13 @@ func (p *Parser) parseDeclaration() []ast.Declaration {
 		p.errorAt(tags[len(tags)-1].At, "a tag needs a declaration after it")
 		return nil
 	}
+	if p.externBlockAhead() {
+		if len(tags) > 0 {
+			p.errorAt(tags[0].At, "a tag goes on each declaration inside the extern block, not on the block")
+			return nil
+		}
+		return p.parseExternBlock(false)
+	}
 
 	decls := p.parseDeclarationInner()
 	p.nakedTag = false
@@ -80,10 +87,18 @@ func (p *Parser) parseDeclaration() []ast.Declaration {
 				return nil
 			}
 			tagged.SetTags(tags)
+			if fd, isFunc := decl.(*ast.FuncDecl); isFunc {
+				applySymbolTag(fd)
+			}
 		}
 	}
-	setDoc(decls[0], doc)
+	if !p.placed[decls[0]] {
+		setDoc(decls[0], doc)
+	}
 	for _, decl := range decls {
+		if p.placed[decl] {
+			continue
+		}
 		if member, isConst := decl.(*ast.ConstDecl); isConst {
 			if placed, _ := member.Position(); placed != 0 {
 				continue
@@ -109,6 +124,15 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 		}
 		decls = append(decls, decl)
 	case lexer.TOKEN_EXTERN:
+		if p.peek.Type == lexer.TOKEN_TYPE {
+			p.advance()
+			decl := p.parseExternType()
+			if decl == nil {
+				return nil
+			}
+			decls = append(decls, decl)
+			break
+		}
 		decl := p.parseExternDeclaration()
 		if decl == nil {
 			return nil
@@ -346,6 +370,19 @@ func (p *Parser) parseExported() []ast.Declaration {
 		decls = append(decls, decl)
 
 	case lexer.TOKEN_EXTERN:
+		if p.externBlockAhead() {
+			return p.parseExternBlock(true)
+		}
+		if p.peek.Type == lexer.TOKEN_TYPE {
+			p.advance()
+			decl := p.parseExternType()
+			if decl == nil {
+				return nil
+			}
+			decl.Exported = true
+			decls = append(decls, decl)
+			break
+		}
 		decl := p.parseExternDeclaration()
 		if decl == nil {
 			return nil
@@ -707,4 +744,20 @@ func (p *Parser) oldSharedWord(field bool) bool {
 	endLine, endCol := p.currentEnd()
 	p.errors.Add("", p.current.Line, p.current.Column, endLine, endCol, "shared was replaced by internal, which now means the whole project").WithHelp("write internal where you wrote shared")
 	return true
+}
+
+func applySymbolTag(fd *ast.FuncDecl) {
+	tag := fd.TagNamed("symbol")
+	if tag == nil || len(tag.Args) != 1 {
+		return
+	}
+	text, ok := tag.Args[0].(*ast.StringLiteral)
+	if !ok || text.Value == "" {
+		return
+	}
+	if fd.Extern {
+		fd.ExternName = text.Value
+	} else {
+		fd.CExport = text.Value
+	}
 }

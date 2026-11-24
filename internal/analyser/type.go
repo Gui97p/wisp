@@ -267,6 +267,7 @@ func (n NamedType) Equals(other Type) bool {
 
 type StructType struct {
 	Name            string
+	Opaque          bool
 	Fields          map[string]Type
 	Order           []string
 	Methods         map[string]*FuncType

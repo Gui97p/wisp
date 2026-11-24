@@ -8,33 +8,79 @@
 //     wisp run
 //
 // On Windows (`os = "windows"` in wisp.toml) the C side has to be built for
-// Windows, and `extern` functions and the ones exported with `as` take their
+// Windows, and `extern` functions and the ones exported with `#symbol` take their
 // arguments the Win64 way instead of System V. The Wisp code does not change:
 // the compiler picks the convention from the system it builds for, and a
 // function value taken from a C function goes through a small adapter.
 //
 // `extern func` declares a function defined in C. It has no body, and the
 // linker finds it in the objects listed under `link` in wisp.toml (or given
-// with --link). The name is the C symbol; `as` gives it another name in
-// Wisp, the same way `import "x" as y` renames a module: what is on the left
-// exists already, the name on the right is the new one.
+// with --link). Its name is the C symbol. `#symbol("name")` puts a different
+// Wisp name on it: the symbol is what is written in the tag, and the name in
+// the declaration is the one Wisp code uses.
 //
 // C only understands integers, bool, byte, floats and pointers, so those are
 // the only types allowed in an extern signature, with at most one return
-// value and no `!`. A Wisp `int` is 64 bits wide; use the sized types
-// (`int32`, `uint8`, ...) to match what C declares.
+// value. A Wisp `int` is 64 bits wide, so the C types have names of their
+// own that follow the system being built: `c_int`, `c_uint`, `c_long` (32
+// bits on Windows, 64 on Linux), `c_size`, `c_char`, `c_float`, `c_double`
+// and the rest of the `c_` family. They are other names for the sized types
+// (`c_int` is `int32`), so they mix with them freely.
+//
+// A slice parameter in an `extern` function is passed to C as a pointer and a
+// length, two arguments one after the other: `func sum_ints([]c_int values)`
+// calls the C function `int sum_ints(const int *values, size_t values_len)`.
+// For another order of arguments, declare the pointer and the length yourself.
+//
+// Many functions of one library go in an `extern` block. The text after the
+// word is put in front of every name for the linker, so the block below
+// declares `lib_add`, `lib_twice` and so on, and Wisp calls them `add`,
+// `twice`. Leave the text out for names that need no prefix.
 
-extern func add(int32 a, int32 b) int32;
-extern func twice(int32 x) int32 as c_twice;
-extern func sum_bytes(*int8 bytes, int32 count) int32;
-extern func scale_by_three(int32 value) int32;
+import "std/errors";
 
-// The other direction: `public func ... as name` gives a public function
-// a C-visible name that does not depend on the module's path. A library
-// (`[export.name]` in wisp.toml) with `shared = true` also builds name.so, a
-// shared library whose only visible symbols are those names. lib.c declares
-// `wisp_scale` and calls it.
-public func scale(int32 value, int32 factor) int32 as wisp_scale => value * factor;
+extern "lib_" {
+  func add(c_int a, c_int b) c_int;
+  func sum_bytes(*c_char bytes, c_int count) c_int;
+  func scale_by_three(c_int value) c_int;
+
+  #symbol("lib_twice")
+  func c_twice(c_int x) c_int;
+
+  func sum_ints([]c_int values) c_int;
+
+  // A function that reports failure in its result can become a Wisp error:
+  // declare it with `!` and say when it failed with `#fails(condition, kind)`,
+  // where `result` is what C returned. A pointer result can use `null` as the
+  // condition, and then comes out as a pointer that is never null. The second
+  // argument can also be a call that gives an `Error`, to choose the error
+  // from the result: `#fails(result != 0, statusError(result))`.
+  #fails(result < 0, errors.Kind.Invalid)
+  func checked(c_int value) !c_int;
+
+  #fails(null, errors.Kind.NotFound)
+  func find(c_int key) !*c_char;
+}
+
+// A type that C keeps behind a pointer, and that Wisp never looks inside, is
+// an `extern type`. It has no fields and no size, so it only exists as a
+// pointer: `*Counter`.
+extern type Counter;
+
+extern "lib_" {
+  func counter_get() *Counter;
+  func counter_add(*Counter counter, c_int n);
+  func counter_value(*Counter counter) c_int;
+}
+
+// The other direction: `#symbol("name")` on a public function gives it a
+// C-visible name that does not depend on the module's path. A library
+// (`[export.name]` in wisp.toml) writes name.a with a name.h next to it, with
+// the C declarations of these functions, and with `shared = true` also builds
+// name.so, a shared library whose only visible symbols are those names.
+// lib.c declares `wisp_scale` and calls it.
+#symbol("wisp_scale")
+public func scale(int32 value, int32 factor) int32 => value * factor;
 
 // A string gives the address of its bytes with `(*int8)(text)`. C expects a
 // zero byte at the end, which string literals have and slices of them do not.
@@ -49,9 +95,24 @@ func check(bool holds, string what) {
 
 func main() int {
   check(add(2, 3) == 5, "C adds two numbers");
-  check(c_twice(21) == 42, "an extern function renamed with as");
+  check(c_twice(21) == 42, "an extern function renamed with #symbol");
   check(sum_bytes((*int8)("abc"), 3) == 294, "C reads the bytes of a string");
   check(scale_by_three(7) == 21, "C calls back into Wisp");
+  let value, failed = checked(4);
+  check(failed == null && value == 4, "a call that does not fail gives its result");
+  let _, negative = checked(-1);
+  check(negative != null, "a negative result is an error");
+  let _, missing = find(1);
+  check(missing != null, "a null result is an error");
+  let text, none = find(7);
+  check(none == null && text!![0] == 's', "and any other result is a pointer");
+
+  [3]c_int numbers = .{1, 2, 3};
+  check(sum_ints(numbers[..]) == 6, "a slice goes to C as a pointer and a length");
+
+  *Counter counter = counter_get();
+  counter_add(counter, 5);
+  check(counter_value(counter) == 5, "an extern type, only ever behind a pointer");
   return 0;
 }
 
@@ -60,7 +121,7 @@ func main() int {
 // (or `libc = true` in wisp.toml) to use the system's startup code instead,
 // and a C variadic is declared with a trailing `...`:
 //
-//     extern func printf(*int8 format, ...) int32;
+//     extern func printf(*c_char format, ...) c_int;
 //
 // A panic ends the program straight away without flushing C's buffered
 // output, the same way C's abort() does.

@@ -567,6 +567,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		tgt.PIC = true
 	}
 	var exports []string
+	var exported []exportedFunc
 	if job.export {
 		targets.binPath = archivePath(targets.binPath)
 	}
@@ -662,6 +663,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		for _, d := range c.merged.Declarations {
 			if fd, ok := d.(*ast.FuncDecl); ok && fd.CExport != "" {
 				exports = append(exports, fd.CExport)
+				exported = append(exported, exportedFunc{decl: fd, info: c.info})
 			}
 		}
 		source, err := backend.Compile()
@@ -746,6 +748,11 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 			}
 			detail("Archived in %s", elapsed(archiveStart))
 			detail("lib: %s", relPath(targets.binPath))
+			header := strings.TrimSuffix(targets.binPath, ".a") + ".h"
+			if err := writeCHeader(header, job.name, exported); err != nil {
+				return nil, err
+			}
+			detail("header: %s", relPath(header))
 			if shared {
 				linkStart := time.Now()
 				out := sharedPath(strings.TrimSuffix(targets.binPath, ".a"))

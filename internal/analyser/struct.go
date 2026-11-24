@@ -41,6 +41,7 @@ func (a *Analyser) registerStructNames() {
 			Dir:       filepath.Dir(a.currentFile),
 			Exported:  sd.Exported,
 			Packed:    sd.TagNamed("packed") != nil,
+			Opaque:    sd.Opaque,
 		}
 		st.Impl = a.newImplSet(sd.Implements, st, sd, a.moduleScope, nil)
 
@@ -182,6 +183,10 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 	}
 	if st.Sum != nil {
 		a.errorf(expr, "%s has variants: write %s.Name{...} or .Name{...}", st.Name, st.Name)
+		return InvalidType{}
+	}
+	if st.Opaque {
+		a.errorf(expr, "%s is an extern type: it has no fields, C is the only one that creates it", st.Name)
 		return InvalidType{}
 	}
 

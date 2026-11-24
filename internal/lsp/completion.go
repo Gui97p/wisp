@@ -54,7 +54,28 @@ func getLastGood(path string) (analysis, bool) {
 	return a, ok
 }
 
+var cTypeNames = map[string]bool{
+	"c_char": true, "c_schar": true, "c_uchar": true, "c_short": true, "c_ushort": true,
+	"c_int": true, "c_uint": true, "c_long": true, "c_ulong": true, "c_longlong": true, "c_ulonglong": true,
+	"c_size": true, "c_ssize": true, "c_float": true, "c_double": true,
+}
+
 func completion(uri protocol.DocumentUri, pos protocol.Position, trigger string) []protocol.CompletionItem {
+	items := completionItems(uri, pos, trigger)
+	path := uriToPath(uri)
+	if strings.HasPrefix(typedWord(linePrefix(path, int(pos.Line), int(pos.Character))), "c_") {
+		return items
+	}
+	kept := items[:0:0]
+	for _, it := range items {
+		if !cTypeNames[it.Label] {
+			kept = append(kept, it)
+		}
+	}
+	return kept
+}
+
+func completionItems(uri protocol.DocumentUri, pos protocol.Position, trigger string) []protocol.CompletionItem {
 	path := uriToPath(uri)
 	line := int(pos.Line) + 1
 	col := int(pos.Character) + 1

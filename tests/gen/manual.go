@@ -15032,19 +15032,23 @@ one_and_half: dq 1.5
 
 (int32, int32) => int32 globalScale = scale;
 
-public func scale(int32 value, int32 factor) int32 as wisp_scale {
+#symbol("wisp_scale")
+public func scale(int32 value, int32 factor) int32 {
     return value * factor;
 }
 
-public func many(int32 a, int32 b, int32 c, int32 d, int32 e, int32 f, int32 g) int32 as wisp_many {
+#symbol("wisp_many")
+public func many(int32 a, int32 b, int32 c, int32 d, int32 e, int32 f, int32 g) int32 {
     return a + b * 2 + c * 3 + d * 4 + e * 5 + f * 6 + g * 7;
 }
 
-public func mix(int32 a, float64 b, int32 c, float64 d) float64 as wisp_mix {
+#symbol("wisp_mix")
+public func mix(int32 a, float64 b, int32 c, float64 d) float64 {
     return float64(a) + b * 10.0 + float64(c) * 100.0 + d * 1000.0;
 }
 
-public func drift(int32 n, float64 x) float64 as wisp_drift {
+#symbol("wisp_drift")
+public func drift(int32 n, float64 x) float64 {
     float64 total = 0.0;
     int32 count = 0;
     for i in 0..n {
@@ -15087,7 +15091,8 @@ int count_calls(void) { static int n = 0; return ++n; }
 extern func add(int32 a, int32 b) int32;
 extern func mul64(int64 a, int64 b) int64;
 extern func sum_bytes(*int8 p, int32 n) int32;
-extern func twice(int32 x) int32 as c_twice;
+#symbol("twice")
+extern func c_twice(int32 x) int32;
 extern func low_byte(uint32 v) uint8;
 extern func count_calls() int32;
 
@@ -15110,12 +15115,98 @@ func main() ! {
     check(sum_bytes((*int8)("abc"), 3) == 294, "pointer to the bytes of a string");
 }
 `},
+	{dir: "win64_ctypes", system: "windows", src: `func main() {
+    check(sizeof(c_long) == 4 && sizeof(c_ulong) == 4 && sizeof(c_longlong) == 8, "long is 32 bits on Windows");
+    check(sizeof(c_int) == 4 && sizeof(c_size) == 8, "the other C types keep their size");
+}
+`, expected: []string{"long is 32 bits on Windows", "the other C types keep their size"}},
+	{dir: "interop_ergonomics", system: "linux", files: map[string]string{"lib.c": `#include <stddef.h>
+typedef struct counter { int value; } counter;
+static counter the_counter = {0};
+counter *lib_counter_get(void) { return &the_counter; }
+void lib_counter_add(counter *c, int n) { c->value += n; }
+int lib_counter_value(const counter *c) { return c->value; }
+int lib_checked(int x) { return x < 0 ? -22 : x; }
+const char *lib_find(int x) { return x == 7 ? "seven" : NULL; }
+long lib_long(long v) { return v + 1; }
+long lib_sum(const int *p, size_t n) { long t = 0; for (size_t i = 0; i < n; i++) t += p[i]; return t; }
+void lib_fill(unsigned char *p, size_t n, int v) { for (size_t i = 0; i < n; i++) p[i] = (unsigned char)v; }
+int lib_status(int code) { return code; }
+long lib_dot(const int *a, size_t an, const int *b, size_t bn) { long t = 0; for (size_t i = 0; i < an && i < bn; i++) t += (long)a[i] * b[i]; return t; }
+`}, src: `import "std/errors";
 
-	{dir: "library_archive", system: "linux", library: "geo", files: map[string]string{"wisp.toml": "[export.geo]\nmodules = [\"lib\"]\n", "lib.wsp": `public func twice(int32 n) int32 as wisp_twice {
+extern type Counter;
+
+extern "lib_" {
+    func counter_get() *Counter;
+    func counter_add(*Counter c, c_int n);
+    func counter_value(*Counter c) c_int;
+
+    #fails(result < 0, errors.Kind.Invalid)
+    func checked(c_int x) !c_int;
+
+    #fails(null, errors.Kind.NotFound)
+    func find(c_int x) !*c_char;
+
+    #symbol("lib_long")
+    func plusOne(c_long v) c_long;
+
+    func sum([]c_int values) c_long;
+    func fill([]byte buffer, c_int v);
+    func dot([]c_int a, []c_int b) c_long;
+
+    #fails(result != 0, statusError(result))
+    func status(c_int code) !c_int;
+}
+
+func statusError(c_int code) Error {
+    return switch code {
+        case 5 => Error(errors.Kind.Busy);
+        case 12 => Error(errors.Kind.NotFound);
+        default => Error(errors.Kind.Invalid);
+    };
+}
+
+func main() ! {
+    *Counter c = counter_get();
+    counter_add(c, 5);
+    counter_add(c, 6);
+    check(counter_value(c) == 11, "an extern type behind a pointer, in a block with a prefix");
+    check(plusOne(41) == 42, "the C name given with #symbol, and the long type of C");
+    check(sizeof(c_int) == 4 && sizeof(c_char) == 1 && sizeof(c_size) == 8, "the C type names");
+
+    check(checked(5)! == 5, "a call that does not fail gives its result");
+    let _, bad = checked(-3);
+    check(bad != null && bad.code == errors.Kind.Invalid, "a failing call becomes the error given to #fails");
+    let _, missing = find(1);
+    check(missing != null && missing.code == errors.Kind.NotFound, "a null result becomes the error given to #fails");
+    check(find(7)![0] == 115, "a result that is not null passes, and is no longer optional");
+
+    [4]c_int numbers = .{1, 2, 3, 4};
+    check(sum(numbers[..]) == 10, "a slice is passed to C as a pointer and a length");
+    check(sum(numbers[1..3]) == 5, "a part of an array");
+    []c_int none = numbers[2..2];
+    check(sum(none) == 0, "an empty slice has length zero");
+    [5]byte bytes;
+    fill(bytes[1..4], 9);
+    check(bytes[0] == 0 && bytes[1] == 9 && bytes[3] == 9 && bytes[4] == 0, "C writes through the pointer of a slice");
+    check(dot(numbers[..], numbers[0..2]) == 5, "two slices in one call");
+
+    check(status(0)! == 0, "zero is no error");
+    let _, busy = status(5);
+    let _, absent = status(12);
+    let _, other = status(99);
+    check(busy.code == errors.Kind.Busy && absent.code == errors.Kind.NotFound && other.code == errors.Kind.Invalid, "a function of yours chooses the error from the result");
+}
+`, expected: []string{"an extern type behind a pointer, in a block with a prefix", "the C name given with #symbol, and the long type of C", "the C type names", "a call that does not fail gives its result", "a failing call becomes the error given to #fails", "a null result becomes the error given to #fails", "a result that is not null passes, and is no longer optional", "a slice is passed to C as a pointer and a length", "a part of an array", "an empty slice has length zero", "C writes through the pointer of a slice", "two slices in one call", "zero is no error", "a function of yours chooses the error from the result"}},
+
+	{dir: "library_archive", system: "linux", library: "geo", files: map[string]string{"wisp.toml": "[export.geo]\nmodules = [\"lib\"]\n", "lib.wsp": `#symbol("wisp_twice")
+public func twice(int32 n) int32 {
     return n * 2;
 }
 
-public func total(int64 a, int64 b) int64 as wisp_total {
+#symbol("wisp_total")
+public func total(int64 a, int64 b) int64 {
     return a + b;
 }
 `, "main.c": `#include <stdio.h>
@@ -15131,15 +15222,18 @@ int main(void) {
 
 	{dir: "library_shared", system: "linux", library: "geo", files: map[string]string{"shared-lib": "yes\n", "wisp.toml": "[export.geo]\nmodules = [\"lib\"]\nshared = true\n", "lib.wsp": `import "std/fmt";
 
-public func twice(int32 n) int32 as wisp_twice {
+#symbol("wisp_twice")
+public func twice(int32 n) int32 {
     return n * 2;
 }
 
-public func total(int64 a, int64 b) int64 as wisp_total {
+#symbol("wisp_total")
+public func total(int64 a, int64 b) int64 {
     return a + b;
 }
 
-public func shout(int32 n) int32 as wisp_shout {
+#symbol("wisp_shout")
+public func shout(int32 n) int32 {
     fmt.printf("shout {} {}\n", n, n / 2);
     return n + 1;
 }
@@ -15168,17 +15262,20 @@ int main(void) {
 }
 `}, expected: []string{"twice 42", "total 42", "shout 10 5", "shout returned 11", "runtime hidden 1", "std hidden 1"}},
 
-	{dir: "interop_export", system: "linux", cmain: true, files: map[string]string{"lib.wsp": `public func add(int32 a, int32 b) int32 as wisp_add {
+	{dir: "interop_export", system: "linux", cmain: true, files: map[string]string{"lib.wsp": `#symbol("wisp_add")
+public func add(int32 a, int32 b) int32 {
     return a +% b;
 }
 
-public func scale(int64 v, int64 k) int64 as wisp_scale => v *% k;
+#symbol("wisp_scale")
+public func scale(int64 v, int64 k) int64 => v *% k;
 
 func local() int32 {
     return 1;
 }
 
-public func next(int32 a) int32 as wisp_next {
+#symbol("wisp_next")
+public func next(int32 a) int32 {
     return add(a, local());
 }
 
