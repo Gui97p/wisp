@@ -124,6 +124,9 @@ func configDiagnostics(path string) (string, []protocol.Diagnostic, bool) {
 	diags := []protocol.Diagnostic{}
 	err := s.configErr
 	if err == nil {
+		err = s.programErr
+	}
+	if err == nil {
 		return s.tomlPath, diags, true
 	}
 

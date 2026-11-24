@@ -90,6 +90,7 @@ type configContext struct {
 	headers  map[string]bool
 	present  map[string]bool
 	declared []string
+	found    []string
 }
 
 func configContextAt(lines []string, line int) configContext {
@@ -186,10 +187,13 @@ func configCompletion(uri protocol.DocumentUri, pos protocol.Position) []protoco
 	}
 	prefix := string(runes[:col])
 	ctx := configContextAt(lines, int(pos.Line))
+	for _, program := range module.DiscoverPrograms(filepath.Dir(path)) {
+		ctx.found = append(ctx.found, program.Name)
+	}
 
 	trimmed := strings.TrimLeft(prefix, " \t")
 	if strings.HasPrefix(trimmed, "[") && !strings.Contains(trimmed, "]") {
-		return headerItems(ctx.declared, ctx.bins, ctx.libs, ctx.headers, pos, prefix)
+		return headerItems(ctx.declared, ctx.bins, ctx.libs, ctx.found, ctx.headers, pos, prefix)
 	}
 
 	if m := configKey.FindStringSubmatch(prefix); m != nil {
@@ -203,7 +207,7 @@ func configCompletion(uri protocol.DocumentUri, pos protocol.Position) []protoco
 	return nil
 }
 
-func headerItems(declared, declaredBins, declaredLibs []string, headers map[string]bool, pos protocol.Position, prefix string) []protocol.CompletionItem {
+func headerItems(declared, declaredBins, declaredLibs, found []string, headers map[string]bool, pos protocol.Position, prefix string) []protocol.CompletionItem {
 	start := strings.Index(prefix, "[")
 	for start < len(prefix) && (prefix[start] == '[' || prefix[start] == ' ') {
 		start++
@@ -236,7 +240,9 @@ func headerItems(declared, declaredBins, declaredLibs []string, headers map[stri
 
 	addNew("output", "where the programs write")
 	addNew("run.env", "environment variables for wisp run")
-	add("program.<name>", "program.${1:name}", "a new program")
+	for _, n := range found {
+		addNew("program."+n, "settings of the program "+n)
+	}
 	add("export.<name>", "export.${1:name}", "a new export for C")
 	for _, n := range declaredLibs {
 		addNew("export."+n+".output", "output of "+n)
@@ -325,7 +331,13 @@ func valueItems(ctx configContext, key, prefix string) []protocol.CompletionItem
 	}
 
 	inQuote := strings.Count(prefix[strings.Index(prefix, "="):], `"`)%2 == 1
-	for _, v := range valueChoices(ctx.section, key, ctx.declared) {
+	choices := valueChoices(ctx.section, key, ctx.declared)
+	if ctx.section == "" && key == "default" {
+		choices = append(append([]string{}, ctx.found...), ctx.bins...)
+		sort.Strings(choices)
+		choices = slices.Compact(choices)
+	}
+	for _, v := range choices {
 		text := `"` + v + `"`
 		if inQuote {
 			text = v

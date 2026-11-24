@@ -1663,3 +1663,53 @@ func TestTheEditorSeesThePrivateNameOfItsOwnFile(t *testing.T) {
 		t.Errorf("the private helper of this file is offered: %v", got)
 	}
 }
+
+func programsProject(toml string) map[string]string {
+	return map[string]string{
+		"wisp.toml":       toml,
+		"main.wsp":        "func main() {}\n",
+		"tools/main.wsp":  "func main() {}\n",
+		"server/main.wsp": "func main() {}\n",
+		"lib/lib.wsp":     "public func helper() int => 1;\n",
+	}
+}
+
+func TestTheTomlMustNameRealPrograms(t *testing.T) {
+	c := start(t)
+	p := c.openAs("wisp.toml", programsProject("default = \"ghost\"\n\n[program.nothing]\nlink = []\n"))
+	var messages []string
+	for _, d := range p.diagnostics() {
+		messages = append(messages, d.Message)
+	}
+	joined := strings.Join(messages, "\n")
+	for _, want := range []string{`default names "ghost"`, `"nothing" is not a program of this project`, "server, tools"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("the diagnostics lack %q:\n%s", want, joined)
+		}
+	}
+
+	ok := c.openAs("wisp.toml", programsProject("default = \"tools\"\n\n[program.server]\nname = \"srv\"\n"))
+	if got := ok.diagnostics(); len(got) != 0 {
+		t.Errorf("a toml that names real programs has no problems: %+v", got)
+	}
+}
+
+func TestTheTomlOffersTheProgramsThatWereFound(t *testing.T) {
+	c := start(t)
+	header := c.openAs("wisp.toml", programsProject("[program.¦\n")).completion()
+	for _, want := range []string{"program.tools", "program.server"} {
+		if !slices.Contains(header, want) {
+			t.Errorf("the header completion lacks %q: %v", want, header)
+		}
+	}
+	if slices.Contains(header, "program.lib") {
+		t.Errorf("a folder without main is not a program: %v", header)
+	}
+
+	values := c.openAs("wisp.toml", programsProject("default = \"¦\"\n")).completion()
+	for _, want := range []string{"tools", "server"} {
+		if !slices.Contains(values, want) {
+			t.Errorf("the default completion lacks %q: %v", want, values)
+		}
+	}
+}

@@ -102,21 +102,24 @@ bin = "bin"
 # [profiles.release]
 # checks = false
 
-# Programs. Without any [program.<name>] the project is one program named after
-# its folder, built from the keys above and starting at its only `main`. Declare
-# programs to build more than one from the same files: `wisp build` builds all of
-# them, `wisp build tools` one, and `wisp run tools -- arguments` runs one (the
-# name can be left out for the program named by `default`, or when there is
-# just one). The keys on top are the defaults of every program, and a program
-# overrides them. Precedence: flag, program, system, top level; `link` adds up
-# instead of replacing. {os}, {arch} and {name} (the name of the binary) are
-# replaced in every output path.
+# Programs. They need no declaration: every folder that defines `main` is a
+# program named after the folder, every #standalone file that defines it is one
+# named after the file, and the root folder is named after the project. `wisp
+# build` builds all of them, `wisp build tools` one, and `wisp run tools --
+# arguments` runs one (the name can be left out for the program named by
+# `default`, or when there is just one; `wisp run src/main.wsp` takes a path
+# too). Two folders with the same name are told apart by their path, as in
+# a_tool and b_tool. Write a [program.<name>] only to customize one that was
+# found: the table must name a real program, and `default` too. The keys on top
+# are the defaults of every program, and a program overrides them. Precedence:
+# flag, program, system, top level; `link` adds up instead of replacing. {os},
+# {arch} and {name} (the name of the binary) are replaced in every output path.
 #
 # [program.tools]
-# entry = "tools/main.wsp"      # the file whose main starts it
 # name = "mytools"              # the binary, which defaults to "tools"
 # link = ["-lm"]
 # os = "windows"                # a program can be built for another system
+# entry = "tools/main.wsp"      # rarely needed: picks the file with the main by hand
 #
 # [program.tools.output]
 # bin = "out/{arch}"

@@ -91,6 +91,9 @@ func openProject(cmd *cobra.Command) (string, *module.Config, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	if err := cfg.ApplyDiscoveredPrograms(root); err != nil {
+		return "", nil, err
+	}
 	applyPathPrograms(cfg)
 
 	if err := configureStdlib(cmd, root, cfg); err != nil {

@@ -193,7 +193,7 @@ func (p *project) requireMain() error {
 
 func (p *project) rejectManyMains() error {
 	if p.entry == "" && p.mainCount > 1 {
-		return fmt.Errorf("multiple main functions found across the project: declare each program as [program.<name>] with its entry in wisp.toml")
+		return fmt.Errorf("multiple main functions found: each folder, or #standalone file, with a main is a program of its own, so name the one you want, as in wisp run <name>")
 	}
 	return nil
 }

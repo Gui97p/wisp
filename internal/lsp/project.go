@@ -17,6 +17,9 @@ type projectSettings struct {
 	stdPath      string
 	stdDisabled  bool
 	configErr    error
+	programErr   error
+	generation   uint64
+	scansFiles   bool
 	configSource string
 	target       string
 	profile      target.Profile
@@ -43,7 +46,7 @@ func loadSettings(path string) *projectSettings {
 	projectMu.Lock()
 	defer projectMu.Unlock()
 
-	if c := projectCache; c != nil && c.root == root && c.hasConfig == buffered && c.configSource == text {
+	if c := projectCache; c != nil && c.root == root && c.hasConfig == buffered && c.configSource == text && (!c.scansFiles || c.generation == generation.Load()) {
 		return c
 	}
 
@@ -56,7 +59,10 @@ func loadSettings(path string) *projectSettings {
 		cfg, s.configErr = module.LoadConfig(root)
 	}
 
+	s.generation = generation.Load()
 	if s.configErr == nil {
+		s.scansFiles = len(cfg.Programs) > 0 || cfg.Default != ""
+		s.programErr = cfg.ApplyDiscoveredProgramsSource(root, tomlPath, text)
 		if resolved, err := target.Resolve(cfg.OS, cfg.Arch); err == nil && cfg.OS != "" {
 			s.target = resolved.Name
 		}
@@ -85,8 +91,12 @@ func loadSettings(path string) *projectSettings {
 }
 
 func resolveProjectEntry(path string) string {
-	if s := loadSettings(path); s.entry != "" {
+	s := loadSettings(path)
+	if s.entry != "" {
 		return s.entry
+	}
+	if programs := module.DiscoverPrograms(s.root); len(programs) == 1 {
+		return programs[0].File
 	}
 	return path
 }

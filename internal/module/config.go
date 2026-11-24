@@ -19,7 +19,7 @@ import (
 )
 
 type Config struct {
-	Default      string                      `toml:"default" doc:"The program that wisp run and wisp env use when no name is given. Without it a project with several programs asks for the name."`
+	Default      string                      `toml:"default" doc:"The program that wisp run and wisp env use when no name is given. It is one of the programs the project has: the folders and #standalone files that define main. Without it a project with several programs asks for the name."`
 	OS           string                      `toml:"os" doc:"The system to build for: linux, windows, or a name declared in [targets.<name>]. Defaults to the system of the machine."`
 	Arch         string                      `toml:"arch" doc:"The architecture to build for. Only needed when the system has more than one; otherwise it is a check."`
 	Std          string                      `toml:"std" doc:"The standard library. Leave it out for the one that ships with the compiler, write a folder to replace it, or \"none\" to build without any (a folder called none is written ./none)."`
@@ -32,7 +32,7 @@ type Config struct {
 	Output       OutputConfig                `toml:"output" doc:"Where build artifacts are written."`
 	Run          RunConfig                   `toml:"run" doc:"How wisp run starts the program."`
 	Fmt          FmtConfig                   `toml:"fmt" doc:"What wisp fmt leaves alone."`
-	Programs     map[string]ProgramConfig    `toml:"program" doc:"The programs of the project, declared as [program.<name>]. Without any, the project is one program named after its folder."`
+	Programs     map[string]ProgramConfig    `toml:"program" doc:"Settings of a program, written [program.<name>]. The programs themselves need no declaration: every folder (or #standalone file) that defines main is one, named after the folder or the file, and the root folder is named after the project. Declare one only to give it its own name, link, output or run environment."`
 	Exports      map[string]ExportConfig     `toml:"export" doc:"What the project exports to C and other languages, declared as [export.<name>]. An export has no entry: it is the modules it lists and everything they import, built as <name>.a (and <name>.so with shared = true)."`
 	Targets      map[string]TargetConfig     `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
 	Profile      string                      `toml:"profile" doc:"The profile to build with: debug (the default), release (optimized, with the run-time checks) or fast (optimized, without the checks). A program or export can choose its own, and --profile overrides it."`
@@ -97,7 +97,7 @@ type ExportConfig struct {
 
 type ProgramConfig struct {
 	Name    string       `toml:"name" doc:"Name of the binary this program produces. Defaults to the name of the program."`
-	Entry   string       `toml:"entry" doc:"Entry file of this program, relative to the project root."`
+	Entry   string       `toml:"entry" doc:"Optional: the file whose main starts this program, relative to the project root. Programs are found by themselves, so it is only needed to pick one of several mains by hand."`
 	OS      string       `toml:"os" doc:"The system to build this program for. Defaults to the top-level os."`
 	Arch    string       `toml:"arch" doc:"The architecture to build this program for."`
 	Link    []string     `toml:"link" doc:"Extra linker arguments for this program, added after the ones of the system."`
@@ -526,7 +526,7 @@ func decodeConfigSource(path, text string) (*Config, error) {
 			issues = append(issues, ConfigIssue{
 				Line:    locateKey(text, key),
 				Message: "entry belongs to a program now",
-				Help:    "write [program.<name>] with entry = \"...\", and default = \"<name>\" to choose the one wisp run starts; a project with a single main needs neither",
+				Help:    "programs are found by themselves: every folder, or #standalone file, that defines main is one; write [program.<name>] only to customize one, and default = \"<name>\" to choose the one wisp run starts",
 			})
 			continue
 		}
@@ -554,21 +554,6 @@ func decodeConfigSource(path, text string) (*Config, error) {
 	}
 	decodeSystemTables(text, md, &cfg, &issues)
 	decodeNativeTables(text, &cfg, &issues)
-
-	if cfg.Default != "" {
-		if _, declared := cfg.Programs[cfg.Default]; !declared {
-			names := make([]string, 0, len(cfg.Programs))
-			for n := range cfg.Programs {
-				names = append(names, n)
-			}
-			sort.Strings(names)
-			help := "declare it as [program." + cfg.Default + "]"
-			if len(names) > 0 {
-				help = "the programs are " + strings.Join(names, ", ")
-			}
-			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"default"}), Message: fmt.Sprintf("default names the program %q, which is not declared", cfg.Default), Help: help})
-		}
-	}
 
 	if cfg.Profile != "" {
 		if err := target.ValidateProfile(cfg.Profile); err != nil {

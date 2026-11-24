@@ -127,3 +127,109 @@ func TestAProgramNameStillWorks(t *testing.T) {
 		t.Errorf("exit %d:\n%s", code, out)
 	}
 }
+
+func programsTree(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	say := func(word string) string {
+		return "import \"std/fmt\";\nfunc main() { fmt.println(\"" + word + "\"); }\n"
+	}
+	write(t, root, "main.wsp", say("root"))
+	write(t, root, "server/main.wsp", say("server"))
+	write(t, root, "tools/tools.wsp", say("tools"))
+	write(t, root, "script.wsp", "#standalone\n"+say("script"))
+	write(t, root, "lib/lib.wsp", "public func helper() int => 1;\n")
+	return root
+}
+
+func TestProgramsAreTheFoldersAndFilesThatDefineMain(t *testing.T) {
+	root := programsTree(t)
+	name := filepath.Base(root)
+
+	out, _ := wisp(t, root, "env", "programs")
+	if got := strings.TrimSpace(out); got != name+", script, server, tools" && !strings.HasSuffix(got, ", script, server, tools") {
+		t.Errorf("programs: %q", got)
+	}
+	if strings.Contains(out, "lib") {
+		t.Errorf("a folder without main is not a program: %q", out)
+	}
+
+	for program, want := range map[string]string{"server": "server", "tools": "tools", "script": "script", name: "root"} {
+		out, code := wisp(t, root, "run", program)
+		if code != 0 || !strings.Contains(out, want) {
+			t.Errorf("run %s: exit %d:\n%s", program, code, out)
+		}
+	}
+}
+
+func TestSeveralProgramsAskForAName(t *testing.T) {
+	root := programsTree(t)
+	out, code := wisp(t, root, "run")
+	if code == 0 || !strings.Contains(out, "the project has several programs") || !strings.Contains(out, "script, server, tools") {
+		t.Errorf("exit %d:\n%s", code, out)
+	}
+}
+
+func TestBuildMakesEveryProgram(t *testing.T) {
+	root := programsTree(t)
+	write(t, root, "wisp.toml", "[output]\nbin = \"bin\"\n")
+	if out, code := wisp(t, root, "build"); code != 0 {
+		t.Fatalf("exit %d:\n%s", code, out)
+	}
+	for _, program := range []string{"server", "tools", "script"} {
+		matches, _ := filepath.Glob(filepath.Join(root, "bin", program))
+		if len(matches) == 0 {
+			t.Errorf("no binary for %s", program)
+		}
+	}
+}
+
+func TestTheTomlOnlyCustomizesPrograms(t *testing.T) {
+	root := programsTree(t)
+
+	write(t, root, "wisp.toml", "[program.server]\nname = \"srv\"\n[output]\nbin = \"bin\"\n")
+	if out, code := wisp(t, root, "build", "server"); code != 0 {
+		t.Fatalf("exit %d:\n%s", code, out)
+	}
+	if matches, _ := filepath.Glob(filepath.Join(root, "bin", "srv")); len(matches) == 0 {
+		t.Error("the binary should take the name from wisp.toml")
+	}
+
+	write(t, root, "wisp.toml", "default = \"tools\"\n")
+	if out, code := wisp(t, root, "run"); code != 0 || !strings.Contains(out, "tools") {
+		t.Errorf("default names a program that was found: exit %d:\n%s", code, out)
+	}
+
+	write(t, root, "wisp.toml", "[program.nothing]\nlink = []\n")
+	out, code := wisp(t, root, "run", "server")
+	if code == 0 || !strings.Contains(out, `"nothing" is not a program of this project`) || !strings.Contains(out, "script, server, tools") {
+		t.Errorf("a declared program that does not exist: exit %d:\n%s", code, out)
+	}
+
+	write(t, root, "wisp.toml", "default = \"nothing\"\n")
+	if out, code := wisp(t, root, "run"); code == 0 || !strings.Contains(out, `default names "nothing"`) {
+		t.Errorf("default must be a program: exit %d:\n%s", code, out)
+	}
+}
+
+func TestAnEntryStillPicksTheFileByHand(t *testing.T) {
+	root := programsTree(t)
+	write(t, root, "wisp.toml", "[program.old]\nentry = \"script.wsp\"\n")
+	if out, code := wisp(t, root, "run", "old"); code != 0 || !strings.Contains(out, "script") {
+		t.Errorf("exit %d:\n%s", code, out)
+	}
+	out, _ := wisp(t, root, "env", "programs")
+	if strings.Contains(out, "script") {
+		t.Errorf("the declared program is that file: it is not listed twice: %q", out)
+	}
+}
+
+func TestProgramsWithTheSameFolderNameAreToldApartByPath(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "a/tool/main.wsp", "func main() {}\n")
+	write(t, root, "b/tool/main.wsp", "func main() {}\n")
+	out, _ := wisp(t, root, "env", "programs")
+	if !strings.Contains(out, "a_tool") || !strings.Contains(out, "b_tool") {
+		t.Errorf("programs: %q", out)
+	}
+}
