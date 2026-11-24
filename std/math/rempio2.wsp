@@ -47,7 +47,7 @@ func kernelRemPio2([]float x, []float y, int e0, int nx) int {
 	[20]float q;
 	[20]int iq;
 
-	for i in 0..m {
+	for i in 0..=m {
 		if j < 0 {
 			f[i] = rempio2_zero;
 		} else {
@@ -56,9 +56,9 @@ func kernelRemPio2([]float x, []float y, int e0, int nx) int {
 		j += 1;
 	}
 
-	for i in 0..jk {
+	for i in 0..=jk {
 		float fw = 0.0;
-		for jj in 0..jx {
+		for jj in 0..=jx {
 			fw += x[jj] * f[jx + i - jj];
 		}
 		q[i] = fw;
@@ -99,7 +99,7 @@ func kernelRemPio2([]float x, []float y, int e0, int nx) int {
 		if ih > 0 {
 			n += 1;
 			int carry = 0;
-			for i in 0..jz - 1 {
+			for i in 0..jz {
 				int jq = iq[i];
 				if carry == 0 {
 					if jq != 0 {
@@ -137,10 +137,10 @@ func kernelRemPio2([]float x, []float y, int e0, int nx) int {
 				loop iq[jk - k] == 0 {
 					k += 1;
 				}
-				for ii in jz + 1..jz + k {
+				for ii in jz + 1..=jz + k {
 					f[jx + ii] = float(two_over_pi[jv + ii]);
 					float fw = 0.0;
-					for jj in 0..jx {
+					for jj in 0..=jx {
 						fw += x[jj] * f[jx + ii - jj];
 					}
 					q[ii] = fw;
@@ -204,7 +204,7 @@ func kernelRemPio2([]float x, []float y, int e0, int nx) int {
 		y[0] = -fw;
 	}
 	fw = fq[0] - fw;
-	for ii in 1..jz {
+	for ii in 1..=jz {
 		fw += fq[ii];
 	}
 	if ih == 0 {
@@ -297,7 +297,7 @@ func remPio2(float x, []float y) int {
 	int e0 = (ix >> 20) - 1046;
 	float z = fromWords(uint(ix - (e0 << 20)), lowWord(x));
 	[3]float tx;
-	for i in 0..1 {
+	for i in 0..=1 {
 		tx[i] = float(int(z));
 		z = (z - tx[i]) * two24;
 	}

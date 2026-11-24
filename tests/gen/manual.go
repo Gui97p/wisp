@@ -616,7 +616,7 @@ func main() {
 `},
 
 	{dir: "array_to_pointer", src: `func fill(*byte p, int n, byte c) {
-    for i in 0..n - 1 {
+    for i in 0..n {
         (p + i)@ = c;
     }
 }
@@ -831,7 +831,7 @@ func main() {
     nums[0] = 0;
     check(copy[0] == 999, "array copy is independent");
     int total = 0;
-    for k in 0..4 {
+    for k in 0..=4 {
         total += copy[k];
     }
     check(total == 999 + 513 + 11 + 77 + 2, "array walked by a loop");
@@ -1281,6 +1281,137 @@ func main() {
     check(kinds.stackA() == 7 && kinds.stackB() == 3, "two private generic structs of the same name");
 }
 `, expected: []string{"two private enums of the same name", "two private enums with data of the same name", "two private named types of the same name", "two private interfaces and the structs that implement them", "two private generic functions of the same name", "two private generic structs of the same name"}},
+	{dir: "range_exclusive", src: `int calls;
+
+func bound() int {
+    calls++;
+    return 4;
+}
+
+func sumOf(int lo, int hi) int {
+    int sum;
+    for i in lo..hi {
+        sum += i;
+    }
+    return sum;
+}
+
+func main() {
+    check(sumOf(0, 5) == 10, "a variable range stops before its end");
+    check(sumOf(3, 3) == 0, "an empty range runs nothing");
+    check(sumOf(5, 2) == 0, "a range that starts above its end runs nothing");
+
+    int steps;
+    for i in 0..10 {
+        steps += 1;
+    }
+    check(steps == 10, "a constant range counts its end out");
+
+    int empty;
+    for i in 3..3 {
+        empty += 1;
+    }
+    check(empty == 0, "a constant range with equal bounds is empty");
+
+    int visited;
+    for i in 0..bound() {
+        visited += 1;
+    }
+    check(visited == 4 && calls == 1, "the end is evaluated once");
+
+    int down;
+    for i in (5..0).step(-1) {
+        down = down * 10 + i;
+    }
+    check(down == 54321, "a negative step stops before the end");
+
+    int jump;
+    for i in (0..9).step(2) {
+        jump = jump * 10 + i;
+    }
+    check(jump == 2468, "a step skips over the open end");
+
+    int stopped;
+    :outer for i in 0..5 {
+        for j in 0..5 {
+            if j == 2 {
+                continue :outer;
+            }
+            if i == 3 {
+                break :outer;
+            }
+            stopped += 1;
+        }
+    }
+    check(stopped == 6, "labels work on exclusive loops");
+
+    check(3 in 1..4 && !(4 in 1..4) && 1 in 1..4 && !(0 in 1..4), "in leaves the end out");
+    int hit = switch 4 {
+        case 1..4 => 1;
+        case 4..8 => 2;
+        default => 0;
+    };
+    check(hit == 2, "a case range leaves its end out");
+
+    Range<int> r = 2..6;
+    int walked;
+    for v in r {
+        walked = walked * 10 + v;
+    }
+    check(r.count() == 4 && r.contains(5) && !r.contains(6) && walked == 2345, "a range value counts, contains and walks without its end");
+    check((10..0).step(-3).count() == 4 && (0..0).count() == 0, "counting down and an empty range value");
+
+    uint zero = 0;
+    Range<uint> none = zero..zero;
+    check(none.count() == 0, "an unsigned range that is empty does not wrap");
+    Range<uint8> bytes = 250..255;
+    int sum;
+    for v in bytes {
+        sum += int(v);
+    }
+    check(bytes.count() == 5 && sum == 1260, "a range of bytes stops before 255");
+}
+`, expected: []string{"a variable range stops before its end", "an empty range runs nothing", "a range that starts above its end runs nothing", "a constant range counts its end out", "a constant range with equal bounds is empty", "the end is evaluated once", "a negative step stops before the end", "a step skips over the open end", "labels work on exclusive loops", "in leaves the end out", "a case range leaves its end out", "a range value counts, contains and walks without its end", "counting down and an empty range value", "an unsigned range that is empty does not wrap", "a range of bytes stops before 255"}},
+	{dir: "generic_methods", src: `import "std/mem";
+
+struct Window {
+    int w;
+}
+
+func (*Window self) draw<mem.Allocator A>(A allocator) int {
+    return self.w * 2;
+}
+
+interface Number { int | float }
+
+func (Window self) scaled<Number T>(T factor) T {
+    return factor + factor;
+}
+
+func (*Window self) pair<A, B>(A a, B b) A {
+    return a;
+}
+
+struct Stack<T> {
+    []T items;
+}
+
+func (*Stack<T> s) pick<U>(int i, U extra) T {
+    return s.items[i];
+}
+
+func main() {
+    Window win = Window{w: 10};
+    check(win.draw(mem.heap) == 20, "a method with a constrained type parameter of its own");
+    check(win.scaled(21) == 42 && win.scaled(1.5) == 3.0, "each call picks its own type");
+    check(win.pair<int, string>(7, "x") == 7, "explicit type arguments");
+    check(win.pair(true, 9), "inferred from several arguments");
+
+    [3]int data = .{4, 5, 6};
+    Stack<int> st = Stack<int>{items: data};
+    check(st.pick(1, "ignored") == 5 && st.pick<bool>(2, true) == 6, "a method with its own parameter on a generic struct");
+}
+`, expected: []string{"a method with a constrained type parameter of its own", "each call picks its own type", "explicit type arguments", "inferred from several arguments", "a method with its own parameter on a generic struct"}},
 	{dir: "array_to_slice", src: `struct Box {
     [3]int items;
 }
@@ -1348,7 +1479,7 @@ public func (*World w) add(int hp) {
 
 public func total(*World w) int {
     int sum;
-    for i in 0..w.count - 1 {
+    for i in 0..w.count {
         sum += entity.health(w.slots[i]);
     }
     return sum;
@@ -1705,8 +1836,8 @@ func code(Color c) int {
 
 func band(Color c) int {
     switch c {
-        case Color.Red..Color.Green => return 1;
-        case .Blue..Color.Alpha => return 2;
+        case Color.Red..=Color.Green => return 1;
+        case .Blue..=Color.Alpha => return 2;
         default => return 3;
     }
 }
@@ -1903,7 +2034,7 @@ func first(int a, int b) int {
 
 func total(int n) int {
     int sum;
-    for i in 0..n {
+    for i in 0..=n {
         sum += lookup(i - 2) ?? continue;
     }
     return sum;
@@ -2206,7 +2337,7 @@ func clamp(int n) int {
 
 func early(int n) int {
     int seen;
-    for i in 0..9 {
+    for i in 0..=9 {
         continue if i % 2 == 0;
         break if i > n;
         seen++;
@@ -2229,8 +2360,8 @@ func pick(int n) int {
 
 func labeled() int {
     int count;
-    :outer for i in 0..3 {
-        for j in 0..3 {
+    :outer for i in 0..=3 {
+        for j in 0..=3 {
             continue :outer if j > i;
             break :outer if i == 3;
             count++;
@@ -2286,7 +2417,7 @@ func main() {
     check(total == 7, "a block is an operand");
 
     int sum;
-    for i in 0..3 {
+    for i in 0..=3 {
         int sq = {
             if i == 2 {
                 continue;
@@ -2361,7 +2492,7 @@ func main() {
 	{dir: "flow_block_labels", src: `func find(int want) int {
     int found = -1;
     :search {
-        for i in 0..9 {
+        for i in 0..=9 {
             break :search if i * i == want;
             found = i;
         }
@@ -2388,7 +2519,7 @@ func main() {
     check(trace == 1289, "leaving several blocks runs their defers from the inside out");
 
     int v = :pick {
-        for i in 0..5 {
+        for i in 0..=5 {
             break :pick i * 100 if i == 3;
         }
         yield -1;
@@ -2397,7 +2528,7 @@ func main() {
 
     int n;
     :skip {
-        for i in 0..3 {
+        for i in 0..=3 {
             break :skip if i == 2;
             n++;
         }
@@ -2405,7 +2536,7 @@ func main() {
     check(n == 2, "a labeled block can be left from inside a loop");
 
     int k;
-    for i in 0..3 {
+    for i in 0..=3 {
         :blk {
             break :blk if i == 1;
             k++;
@@ -2544,7 +2675,7 @@ func main() {
 
     [3]Token list = .{one, three, four};
     int sum;
-    for i in 0..2 {
+    for i in 0..=2 {
         sum += show(list[i]);
     }
     check(sum == 48, "an array of values with data");
@@ -3302,18 +3433,18 @@ func main() {
 
 	{dir: "flow_for_range", src: `func main() {
     int sum = 0;
-    for i in 1..10 {
+    for i in 1..=10 {
         sum += i;
     }
     check(sum == 55, "for inclusive range");
     int stepped = 0;
-    for i in (1..10).step(4) {
+    for i in (1..=10).step(4) {
         stepped += i;
     }
     check(stepped == 15, "for range with step");
     int hi = 5;
     int bounded = 0;
-    for i in 1..hi {
+    for i in 1..=hi {
         bounded += i;
     }
     check(bounded == 15, "for range with variable bound");
@@ -3323,7 +3454,7 @@ func main() {
     }
     check(count == 3, "for repeat count");
     int big = 0;
-    for i in 1..100000 {
+    for i in 1..=100000 {
         big += i;
     }
     check(big == 5000050000, "for large range sum past 32 bits");
@@ -3374,8 +3505,8 @@ func main() {
     }
     check(inner == 1, "label break outer");
     int total = 0;
-    :rows for i in 1..3 {
-        for j in 1..3 {
+    :rows for i in 1..=3 {
+        for j in 1..=3 {
             if j == 2 {
                 continue :rows;
             }
@@ -3384,8 +3515,8 @@ func main() {
     }
     check(total == 63, "label continue outer");
     int nested = 0;
-    for i in 1..4 {
-        for j in 1..4 {
+    for i in 1..=4 {
+        for j in 1..=4 {
             nested += i * j;
         }
     }
@@ -3397,7 +3528,7 @@ func main() {
     int r = 0;
     switch v {
         case 1 => r = 10;
-        case 2..5 => r = 20;
+        case 2..=5 => r = 20;
         default => r = 30;
     }
     return r;
@@ -4362,7 +4493,7 @@ func f(int x) !int {
 
 func main() {
     int total = 0;
-    for i in 0..3 {
+    for i in 0..=3 {
         let v = f(i) ?? |e| {
             continue;
         };
@@ -4370,7 +4501,7 @@ func main() {
     }
     check(total == 12, "errloop continue skips the failing iteration");
     int seen = 0;
-    for i in 0..3 {
+    for i in 0..=3 {
         let v = f(i) ?? |e| {
             break;
         };
@@ -4956,18 +5087,18 @@ func main() ! {
 func main() ! {
     mem.Debug debug;
     [3000]?*byte blocks;
-    for i in 0..2999 {
+    for i in 0..=2999 {
         blocks[i] = debug.alloc(8 + i % 40)!;
     }
     check(debug.blocks() == 3000, "the table follows thousands of live blocks");
-    for i in (0..2999).step(2) {
+    for i in (0..=2999).step(2) {
         debug.free(blocks[i]);
     }
     check(debug.blocks() == 1500, "freeing half leaves half");
-    for i in (0..2999).step(2) {
+    for i in (0..=2999).step(2) {
         blocks[i] = debug.alloc(16)!;
     }
-    for i in 0..2999 {
+    for i in 0..=2999 {
         debug.free(blocks[i]);
     }
     check(debug.blocks() == 0 && debug.report() == 0, "everything freed, nothing reported");
@@ -5012,7 +5143,7 @@ func main() {
     mem.fill(first, 7, 48);
     mem.heap.free(first);
     bool zeroed = true;
-    for i in 0..2500 {
+    for i in 0..=2500 {
         *byte q = mem.heap.alloc(48)!!;
         if int(q) == 0 || q[0] != 0 || q[47] != 0 {
             zeroed = false;
@@ -5037,7 +5168,7 @@ func main() {
     check(int(p) != 0, "use after free before the stale write");
     mem.heap.free(p);
     p[5] = 1;
-    for i in 0..1100 {
+    for i in 0..=1100 {
         *byte q = mem.heap.alloc(48)!!;
         mem.heap.free(q);
     }
@@ -5167,7 +5298,7 @@ func main() {
     check((Mode.Fast == Mode.Fast) && (Mode.Slow != Mode.Fast), "enum members compare as constants");
 
     int c = 0;
-    for i in 0..K-1 {
+    for i in 0..K {
         c += i * 2 + 1;
     }
     check(c == 100, "a constant bound in a loop");
@@ -5193,7 +5324,7 @@ func main() {
     int v13_int = -3;
     int v14_int = -8;
     int v15_int = 2147483648;
-    for i in 0..28 {
+    for i in 0..=28 {
         int x = values_int[i];
         if x / 1 != x / v0_int || x % 1 != x % v0_int {
             bad_int |= 1;
@@ -5262,7 +5393,7 @@ func main() {
     int32 v12_int32 = -2;
     int32 v13_int32 = -3;
     int32 v14_int32 = -8;
-    for i in 0..25 {
+    for i in 0..=25 {
         int32 x = values_int32[i];
         if x / 1 != x / v0_int32 || x % 1 != x % v0_int32 {
             bad_int32 |= 1;
@@ -5328,7 +5459,7 @@ func main() {
     int16 v12_int16 = -2;
     int16 v13_int16 = -3;
     int16 v14_int16 = -8;
-    for i in 0..25 {
+    for i in 0..=25 {
         int16 x = values_int16[i];
         if x / 1 != x / v0_int16 || x % 1 != x % v0_int16 {
             bad_int16 |= 1;
@@ -5393,7 +5524,7 @@ func main() {
     int8 v11_int8 = -2;
     int8 v12_int8 = -3;
     int8 v13_int8 = -8;
-    for i in 0..23 {
+    for i in 0..=23 {
         int8 x = values_int8[i];
         if x / 1 != x / v0_int8 || x % 1 != x % v0_int8 {
             bad_int8 |= 1;
@@ -5454,7 +5585,7 @@ func main() {
     uint v10_uint = 10;
     uint v11_uint = 1000;
     uint v12_uint = 2147483648;
-    for i in 0..18 {
+    for i in 0..=18 {
         uint x = values_uint[i];
         if x / 1 != x / v0_uint || x % 1 != x % v0_uint {
             bad_uint |= 1;
@@ -5512,7 +5643,7 @@ func main() {
     uint32 v10_uint32 = 10;
     uint32 v11_uint32 = 1000;
     uint32 v12_uint32 = 2147483648;
-    for i in 0..16 {
+    for i in 0..=16 {
         uint32 x = values_uint32[i];
         if x / 1 != x / v0_uint32 || x % 1 != x % v0_uint32 {
             bad_uint32 |= 1;
@@ -5570,7 +5701,7 @@ func main() {
     uint16 v10_uint16 = 10;
     uint16 v11_uint16 = 1000;
     uint16 v12_uint16 = 32768;
-    for i in 0..16 {
+    for i in 0..=16 {
         uint16 x = values_uint16[i];
         if x / 1 != x / v0_uint16 || x % 1 != x % v0_uint16 {
             bad_uint16 |= 1;
@@ -5627,7 +5758,7 @@ func main() {
     uint8 v9_uint8 = 7;
     uint8 v10_uint8 = 10;
     uint8 v11_uint8 = 100;
-    for i in 0..14 {
+    for i in 0..=14 {
         uint8 x = values_uint8[i];
         if x / 1 != x / v0_uint8 || x % 1 != x % v0_uint8 {
             bad_uint8 |= 1;
@@ -6637,64 +6768,64 @@ func no() bool {
 func main() {
     [12]int vals_int = .{0, 1, -1, 2, -2, 100, -100, 2147483647, -2147483648, 4294967296, 9223372036854775807, -9223372036854775807};
     int bad_int = 0;
-    for i in 0..11 {
-        for j in 0..11 {
+    for i in 0..=11 {
+        for j in 0..=11 {
             bad_int |= cmp_int(vals_int[i], vals_int[j]);
         }
     }
     check(bad_int == 0, "fused comparisons agree with values for int");
     [9]int32 vals_int32 = .{0, 1, -1, 2, -2, 100, -100, 2147483647, -2147483647};
     int bad_int32 = 0;
-    for i in 0..8 {
-        for j in 0..8 {
+    for i in 0..=8 {
+        for j in 0..=8 {
             bad_int32 |= cmp_int32(vals_int32[i], vals_int32[j]);
         }
     }
     check(bad_int32 == 0, "fused comparisons agree with values for int32");
     [9]int16 vals_int16 = .{0, 1, -1, 2, -2, 100, -100, 32767, -32767};
     int bad_int16 = 0;
-    for i in 0..8 {
-        for j in 0..8 {
+    for i in 0..=8 {
+        for j in 0..=8 {
             bad_int16 |= cmp_int16(vals_int16[i], vals_int16[j]);
         }
     }
     check(bad_int16 == 0, "fused comparisons agree with values for int16");
     [9]int8 vals_int8 = .{0, 1, -1, 2, -2, 100, -100, 127, -127};
     int bad_int8 = 0;
-    for i in 0..8 {
-        for j in 0..8 {
+    for i in 0..=8 {
+        for j in 0..=8 {
             bad_int8 |= cmp_int8(vals_int8[i], vals_int8[j]);
         }
     }
     check(bad_int8 == 0, "fused comparisons agree with values for int8");
     [10]uint vals_uint = .{0, 1, 2, 100, 255, 4294967295, 4294967296, 9223372036854775807, 9223372036854775808, 18446744073709551615};
     int bad_uint = 0;
-    for i in 0..9 {
-        for j in 0..9 {
+    for i in 0..=9 {
+        for j in 0..=9 {
             bad_uint |= cmp_uint(vals_uint[i], vals_uint[j]);
         }
     }
     check(bad_uint == 0, "fused comparisons agree with values for uint");
     [8]uint32 vals_uint32 = .{0, 1, 2, 100, 255, 2147483647, 2147483648, 4294967295};
     int bad_uint32 = 0;
-    for i in 0..7 {
-        for j in 0..7 {
+    for i in 0..=7 {
+        for j in 0..=7 {
             bad_uint32 |= cmp_uint32(vals_uint32[i], vals_uint32[j]);
         }
     }
     check(bad_uint32 == 0, "fused comparisons agree with values for uint32");
     [8]uint16 vals_uint16 = .{0, 1, 2, 100, 255, 32767, 32768, 65535};
     int bad_uint16 = 0;
-    for i in 0..7 {
-        for j in 0..7 {
+    for i in 0..=7 {
+        for j in 0..=7 {
             bad_uint16 |= cmp_uint16(vals_uint16[i], vals_uint16[j]);
         }
     }
     check(bad_uint16 == 0, "fused comparisons agree with values for uint16");
     [8]uint8 vals_uint8 = .{0, 1, 2, 100, 127, 128, 200, 255};
     int bad_uint8 = 0;
-    for i in 0..7 {
-        for j in 0..7 {
+    for i in 0..=7 {
+        for j in 0..=7 {
             bad_uint8 |= cmp_uint8(vals_uint8[i], vals_uint8[j]);
         }
     }
@@ -6966,7 +7097,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 0..9 {
+        for i in 0..=9 {
             count++;
             sum += i;
         }
@@ -6975,7 +7106,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -6984,7 +7115,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (0..9).step(2) {
+        for i in (0..=9).step(2) {
             count++;
             sum += i;
         }
@@ -6993,7 +7124,7 @@ func main() {
         int step = 2;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7002,7 +7133,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (0..9).step(3) {
+        for i in (0..=9).step(3) {
             count++;
             sum += i;
         }
@@ -7011,7 +7142,7 @@ func main() {
         int step = 3;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7020,7 +7151,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 3..3 {
+        for i in 3..=3 {
             count++;
             sum += i;
         }
@@ -7029,7 +7160,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7038,7 +7169,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (10..0).step(-1) {
+        for i in (10..=0).step(-1) {
             count++;
             sum += i;
         }
@@ -7047,7 +7178,7 @@ func main() {
         int step = -1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7056,7 +7187,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (10..0).step(-3) {
+        for i in (10..=0).step(-3) {
             count++;
             sum += i;
         }
@@ -7065,7 +7196,7 @@ func main() {
         int step = -3;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7074,7 +7205,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in -5..5 {
+        for i in -5..=5 {
             count++;
             sum += i;
         }
@@ -7083,7 +7214,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7092,7 +7223,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (5..-5).step(-2) {
+        for i in (5..=-5).step(-2) {
             count++;
             sum += i;
         }
@@ -7101,7 +7232,7 @@ func main() {
         int step = -2;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7110,7 +7241,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (1..100).step(7) {
+        for i in (1..=100).step(7) {
             count++;
             sum += i;
         }
@@ -7119,7 +7250,7 @@ func main() {
         int step = 7;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7128,7 +7259,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (100..1).step(-7) {
+        for i in (100..=1).step(-7) {
             count++;
             sum += i;
         }
@@ -7137,7 +7268,7 @@ func main() {
         int step = -7;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7146,7 +7277,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in -100..-90 {
+        for i in -100..=-90 {
             count++;
             sum += i;
         }
@@ -7155,7 +7286,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7164,7 +7295,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 0..1000 {
+        for i in 0..=1000 {
             count++;
             sum += i;
         }
@@ -7173,7 +7304,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7182,7 +7313,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (1000..0).step(-10) {
+        for i in (1000..=0).step(-10) {
             count++;
             sum += i;
         }
@@ -7191,7 +7322,7 @@ func main() {
         int step = -10;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7200,7 +7331,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 1073741824..1073741830 {
+        for i in 1073741824..=1073741830 {
             count++;
             sum += i;
         }
@@ -7209,7 +7340,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7218,7 +7349,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (-1073741830..-1073741824).step(2) {
+        for i in (-1073741830..=-1073741824).step(2) {
             count++;
             sum += i;
         }
@@ -7227,7 +7358,7 @@ func main() {
         int step = 2;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7236,7 +7367,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 2147483640..2147483650 {
+        for i in 2147483640..=2147483650 {
             count++;
             sum += i;
         }
@@ -7245,7 +7376,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7254,7 +7385,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (-2147483650..-2147483640).step(3) {
+        for i in (-2147483650..=-2147483640).step(3) {
             count++;
             sum += i;
         }
@@ -7263,7 +7394,7 @@ func main() {
         int step = 3;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7272,7 +7403,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in 5000000000..5000000009 {
+        for i in 5000000000..=5000000009 {
             count++;
             sum += i;
         }
@@ -7281,7 +7412,7 @@ func main() {
         int step = 1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7290,7 +7421,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (9..0).step(-1) {
+        for i in (9..=0).step(-1) {
             count++;
             sum += i;
         }
@@ -7299,7 +7430,7 @@ func main() {
         int step = -1;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7308,7 +7439,7 @@ func main() {
     if true {
         int count = 0;
         int sum = 0;
-        for i in (0..0).step(5) {
+        for i in (0..=0).step(5) {
             count++;
             sum += i;
         }
@@ -7317,7 +7448,7 @@ func main() {
         int step = 5;
         int count2 = 0;
         int sum2 = 0;
-        for j in (a..b).step(step) {
+        for j in (a..=b).step(step) {
             count2++;
             sum2 += j;
         }
@@ -7325,7 +7456,7 @@ func main() {
     }
     if true {
         int seen = 0;
-        for i in 1..20 {
+        for i in 1..=20 {
             if i % 2 == 0 {
                 continue;
             }
@@ -7338,8 +7469,8 @@ func main() {
     }
     if true {
         int cells = 0;
-        :outer for i in 1..5 {
-            for j in 1..5 {
+        :outer for i in 1..=5 {
+            for j in 1..=5 {
                 if j > i {
                     continue :outer;
                 }
@@ -7353,8 +7484,8 @@ func main() {
     }
     if true {
         int total = 0;
-        for i in (5..1).step(-1) {
-            for j in 1..3 {
+        for i in (5..=1).step(-1) {
+            for j in 1..=3 {
                 total += i * j;
             }
         }
@@ -7362,7 +7493,7 @@ func main() {
     }
     if true {
         int value = 0;
-        for i in 0..4 {
+        for i in 0..=4 {
             defer value += 1;
             value += 10;
         }
@@ -7371,14 +7502,14 @@ func main() {
     if true {
         int count = 0;
         int n = 0;
-        for i in 0..n-1 {
+        for i in 0..n {
             count++;
         }
         check(count == 0, "a runtime end below the start is empty, so 0..n-1 with n = 0 does not run");
     }
     if true {
         int visited = 0;
-        for i in 0..9 {
+        for i in 0..=9 {
             visited += 1;
             i += 2;
         }
@@ -7395,7 +7526,7 @@ func main() {
 
 func total16([16]int a) int {
     int s = 0;
-    for i in 0..15 {
+    for i in 0..=15 {
         s += a[i];
     }
     return s;
@@ -7413,38 +7544,38 @@ func main() {
     [131]byte bytes;
     int guardC = 333;
     bool clean = true;
-    for i in 0..130 {
+    for i in 0..=130 {
         if bytes[i] != 0 {
             clean = false;
         }
     }
     check(clean && guardC == 333, "a byte array with a tail is zeroed exactly");
 
-    for i in 0..16 {
+    for i in 0..=16 {
         a17[i] = i + 1;
     }
     [17]int c17 = a17;
     c17[16] = 99;
     check(c17[0] == 1 && c17[15] == 16 && c17[16] == 99 && a17[16] == 17, "copying 17 words copies the tail too");
 
-    for i in 0..15 {
+    for i in 0..=15 {
         a16[i] = i * 2;
     }
     [16]int c16 = a16;
     int ok = 0;
-    for i in 0..15 {
+    for i in 0..=15 {
         if c16[i] == i * 2 {
             ok++;
         }
     }
     check(ok == 16 && guardA == 111 && guardB == 222, "copying 16 words");
 
-    for i in 0..130 {
+    for i in 0..=130 {
         bytes[i] = byte(i);
     }
     [131]byte bcopy = bytes;
     bool same = true;
-    for i in 0..130 {
+    for i in 0..=130 {
         if bcopy[i] != bytes[i] {
             same = false;
         }
@@ -7454,7 +7585,7 @@ func main() {
     Holder h;
     h.before = 5;
     h.after = 6;
-    for i in 0..19 {
+    for i in 0..=19 {
         h.data[i] = i + 10;
     }
     Holder g = h;
@@ -7496,38 +7627,38 @@ func main() {
     int guardB = 9;
     check(w127[126] == 0 && w128[0] == 0 && w128[127] == 0 && w129[128] == 0, "zeroed arrays of 127, 128 and 129 words");
     bool clean = true;
-    for i in 0..1026 {
+    for i in 0..=1026 {
         if bytes[i] != 0 {
             clean = false;
         }
     }
     check(clean && guardA == 7 && guardB == 9, "a 1027 byte array is zeroed exactly, neighbours untouched");
 
-    for i in 0..128 {
+    for i in 0..=128 {
         w129[i] = i + 1;
     }
     [129]int c129 = w129;
     c129[128] = 0;
     check(c129[0] == 1 && c129[127] == 128 && c129[128] == 0 && w129[128] == 129, "copying 129 words");
 
-    for i in 0..127 {
+    for i in 0..=127 {
         w128[i] = i * 3;
     }
     [128]int c128 = w128;
     int ok = 0;
-    for i in 0..127 {
+    for i in 0..=127 {
         if c128[i] == i * 3 {
             ok++;
         }
     }
     check(ok == 128 && guardA == 7 && guardB == 9, "copying 128 words");
 
-    for i in 0..1026 {
+    for i in 0..=1026 {
         bytes[i] = truncate(byte, i);
     }
     [1027]byte bcopy = bytes;
     bool same = true;
-    for i in 0..1026 {
+    for i in 0..=1026 {
         if bcopy[i] != bytes[i] {
             same = false;
         }
@@ -7537,7 +7668,7 @@ func main() {
     Big h;
     h.before = 1;
     h.after = 2;
-    for i in 0..129 {
+    for i in 0..=129 {
         h.data[i] = i + 5;
     }
     Big g = h;
@@ -7575,7 +7706,7 @@ func main() {
 
     int failures = 0;
     int total = 0;
-    for i in 0..9 {
+    for i in 0..=9 {
         int v = i == 4 ? -1 : i;
         int r = limited(v) ?? |e| {
             failures++;
@@ -7696,7 +7827,7 @@ func main() {
     int w = 2;
     check(x * 3 + w * 5 + (x + w) * 7 == 21 + 10 + 63, "several multiplications keep their values apart");
     int acc = 1;
-    for k in 1..5 {
+    for k in 1..=5 {
         acc = acc * 3 + k;
     }
     check(acc == 422, "a multiplication inside a loop");
@@ -8197,71 +8328,71 @@ func main() {
 
 	{dir: "flow_range_directions", src: `func main() {
     int up = 0;
-    for i in 1..4 {
+    for i in 1..=4 {
         up = up * 10 + i;
     }
     check(up == 1234, "range ascending visits every value");
     int down = 0;
-    for i in (4..1).step(-1) {
+    for i in (4..=1).step(-1) {
         down = down * 10 + i;
     }
     check(down == 4321, "a negative step counts down");
     int once = 0;
-    for i in 5..5 {
+    for i in 5..=5 {
         once += 1;
     }
     check(once == 1, "range with equal bounds runs once");
     int stepUp = 0;
-    for i in (1..10).step(4) {
+    for i in (1..=10).step(4) {
         stepUp = stepUp * 100 + i;
     }
     check(stepUp == 10509, "range ascending with a step");
     int stepDown = 0;
-    for i in (10..1).step(-3) {
+    for i in (10..=1).step(-3) {
         stepDown = stepDown * 100 + i;
     }
     check(stepDown == 10070401, "descending with a negative step");
     int skip = 0;
-    for i in (10..1).step(-20) {
+    for i in (10..=1).step(-20) {
         skip += 1;
     }
     check(skip == 1, "range step larger than the distance visits only the start");
     int skipUp = 0;
-    for i in (1..10).step(20) {
+    for i in (1..=10).step(20) {
         skipUp += 1;
     }
     check(skipUp == 1, "ascending step larger than the distance visits only the start");
 
     int zero = 0;
     int empty = 0;
-    for i in 0..zero-1 {
+    for i in 0..zero {
         empty += 1;
     }
     check(empty == 0, "0..n-1 with n = 0 is empty");
     int high = 5;
     int low = 1;
     int reversed = 0;
-    for i in high..low {
+    for i in high..=low {
         reversed += 1;
     }
     check(reversed == 0, "a range that starts above its end is empty");
     int wrongWay = 0;
-    for i in (low..high).step(-1) {
+    for i in (low..=high).step(-1) {
         wrongWay += 1;
     }
     check(wrongWay == 0, "a negative step over an ascending range is empty");
     int back = 0;
-    for i in (high..low).step(-1) {
+    for i in (high..=low).step(-1) {
         back = back * 10 + i;
     }
     check(back == 54321, "a runtime range counts down with a negative step");
     int s = -2;
     int dynamic = 0;
-    for i in (9..1).step(s) {
+    for i in (9..=1).step(s) {
         dynamic = dynamic * 10 + i;
     }
     check(dynamic == 97531, "a runtime negative step counts down");
-    check(1 in 1..4 && !(1 in 4..1), "membership agrees with the loop: a reversed range holds nothing");
+    check(1 in 1..=4 && !(1 in 4..=1), "membership agrees with the loop: a reversed range holds nothing");
 }
 `, expected: []string{"range ascending visits every value", "a negative step counts down", "range with equal bounds runs once", "range ascending with a step", "descending with a negative step", "range step larger than the distance visits only the start", "ascending step larger than the distance visits only the start", "0..n-1 with n = 0 is empty", "a range that starts above its end is empty", "a negative step over an ascending range is empty", "a runtime range counts down with a negative step", "a runtime negative step counts down", "membership agrees with the loop: a reversed range holds nothing"}},
 
@@ -8272,25 +8403,25 @@ func main() {
 func main() {
     int n = 5;
     int seen = 0;
-    for i in 1..n {
+    for i in 1..=n {
         seen += 1;
         n = 2;
     }
     check(seen == 5, "range end is read once");
     int calls = 0;
-    for i in 1..bound(3) {
+    for i in 1..=bound(3) {
         calls += 1;
     }
     check(calls == 3, "range with a call as its end runs the right number of times");
     int step = 2;
     int stepped = 0;
-    for i in (1..9).step(step) {
+    for i in (1..=9).step(step) {
         stepped += 1;
         step = 100;
     }
     check(stepped == 5, "range step is read once");
     int edits = 0;
-    for j in 1..3 {
+    for j in 1..=3 {
         j += 1;
         edits += 1;
     }
@@ -8298,7 +8429,7 @@ func main() {
     int a = 3;
     int b = 1;
     int dir = 0;
-    for i in (a..b).step(-1) {
+    for i in (a..=b).step(-1) {
         dir += 1;
     }
     check(dir == 3, "the step sign sets the direction when the bounds are variables");
@@ -8308,7 +8439,7 @@ func main() {
 	{dir: "abort_range_step_zero", src: `func main() {
     int step = 0;
     check(true, "abortstep before the loop");
-    for i in (1..5).step(step) {
+    for i in (1..=5).step(step) {
         check(true, "abortstep never printed");
     }
 }
@@ -8413,7 +8544,7 @@ func main() {
 
 	{dir: "flow_switch_in_loop", src: `func main() {
     int hits = 0;
-    for i in 1..5 {
+    for i in 1..=5 {
         switch i {
             case 2 => continue;
             case 4 => break;
@@ -8423,8 +8554,8 @@ func main() {
     }
     check(hits == 34, "switchloop break leaves the switch and continue skips the rest of the iteration");
     int outer = 0;
-    :rows for i in 1..3 {
-        for j in 1..3 {
+    :rows for i in 1..=3 {
+        for j in 1..=3 {
             switch j {
                 case 2 => continue :rows;
                 default => outer += 1;
@@ -8439,7 +8570,7 @@ func main() {
     int8 lo = 2;
     int16 hi = 5;
     int acc = 0;
-    for i in lo..hi {
+    for i in lo..=hi {
         acc = acc * 10 + i;
     }
     check(acc == 2345, "rangetypes bounds of narrower types widen to int");
@@ -8451,7 +8582,7 @@ func main() {
     check(turns == 3, "rangetypes iteration count of a narrow type");
     int8 step = 3;
     int seen = 0;
-    for i in (1..10).step(step) {
+    for i in (1..=10).step(step) {
         seen += 1;
     }
     check(seen == 4, "rangetypes step of a narrow type");
@@ -8751,7 +8882,7 @@ func plain(int x) int {
 }
 
 inline func fromLoop(int n) int {
-    for i in 0..n {
+    for i in 0..=n {
         if i * i > n {
             return i;
         }
@@ -8783,7 +8914,7 @@ func main() {
     withCall(1);
     check(fromLoop(10) + plain(withCall(3)) * divided(17, 5) == 109, "several inline results in one expression");
     int sum = 0;
-    for i in 1..5 {
+    for i in 1..=5 {
         sum += withCall(i);
     }
     check(sum == 110, "inline results used in a loop");
@@ -8870,7 +9001,7 @@ func heavy(int x) int {
     int s = x + 3;
     int t = x + 4;
     int u = x + 5;
-    for k in 1..3 {
+    for k in 1..=3 {
         p += q;
         q += r;
         r += s;
@@ -8987,7 +9118,7 @@ func main() {
 
 	{dir: "regs_compound", src: `func chain(int n) int {
     int a = 1;
-    for i in 1..n {
+    for i in 1..=n {
         a += i;
         a *= 2;
         a -= 3;
@@ -9002,7 +9133,7 @@ func main() {
 
 func reversed(int n) int {
     int a = 5;
-    for i in 1..n {
+    for i in 1..=n {
         a = i - a;
     }
     return a;
@@ -9010,7 +9141,7 @@ func reversed(int n) int {
 
 func doubled() int {
     int8 s = 3;
-    for i in 1..4 {
+    for i in 1..=4 {
         s +%= s;
     }
     return int(s);
@@ -9019,7 +9150,7 @@ func doubled() int {
 func shifts() int {
     int sh = 3;
     int v = 1;
-    for i in 1..4 {
+    for i in 1..=4 {
         v <<= sh;
         v += i;
     }
@@ -9028,7 +9159,7 @@ func shifts() int {
 
 func floats() float {
     float f = 1.0;
-    for i in 1..4 {
+    for i in 1..=4 {
         f *= 1.5;
         f += 0.25;
         f -= f / 8.0;
@@ -9038,7 +9169,7 @@ func floats() float {
 
 func wrapped() int {
     uint8 u = 250;
-    for i in 1..3 {
+    for i in 1..=3 {
         u +%= 3;
     }
     return int(u);
@@ -9046,11 +9177,11 @@ func wrapped() int {
 
 func elements() int {
     [5]int arr;
-    for i in 0..4 {
+    for i in 0..=4 {
         arr[i] += i * 3;
     }
     int sum = 0;
-    for i in 0..4 {
+    for i in 0..=4 {
         sum += arr[i];
     }
     return sum;
@@ -9081,12 +9212,12 @@ struct Trio {
 
 func pairs(int n) int {
     [8]Pair ps;
-    for i in 0..n {
+    for i in 0..=n {
         ps[i].a = i;
         ps[i].b = i * 2;
     }
     int total = 0;
-    for i in 0..n {
+    for i in 0..=n {
         total += ps[i].a + ps[i].b;
     }
     return total + n;
@@ -9102,18 +9233,18 @@ func trios() int {
         k++;
     }
     int sum = 0;
-    for i in 0..3 {
+    for i in 0..=3 {
         sum += int(ts[i].a) + int(ts[i].b) + int(ts[i].c);
     }
     return sum;
 }
 
 func fill(*int p, int n) int {
-    for i in 0..n {
+    for i in 0..=n {
         p[i] = i * i;
     }
     int t = 0;
-    for i in 0..n {
+    for i in 0..=n {
         t += p[i];
     }
     return t;
@@ -9135,7 +9266,7 @@ func main() {
     int e = 5;
     int f = 6;
     int g = 7;
-    for i in 1..n {
+    for i in 1..=n {
         a += i;
         b += a;
         c += b;
@@ -9153,7 +9284,7 @@ func small() (int, int, int, int, int) {
     int16 c = 30000;
     uint16 d = 65000;
     int32 e = 2000000000;
-    for i in 1..3 {
+    for i in 1..=3 {
         a +%= 50;
         b +%= 100;
         c +%= 5000;
@@ -9170,7 +9301,7 @@ func heavy(int x) int {
     int s = x + 3;
     int t = x + 4;
     int u = x + 5;
-    for k in 1..3 {
+    for k in 1..=3 {
         p += q;
         q += r;
         r += s;
@@ -9184,7 +9315,7 @@ func heavy(int x) int {
 func outer(int n) int {
     int s = 0;
     int t = 1;
-    for i in 0..n {
+    for i in 0..=n {
         s += heavy(i);
         t += s;
     }
@@ -9194,7 +9325,7 @@ func outer(int n) int {
 func scale(float x) float {
     float a = x * 2.0;
     float b = a + 1.0;
-    for k in 1..3 {
+    for k in 1..=3 {
         b += a;
     }
     return b;
@@ -9203,7 +9334,7 @@ func scale(float x) float {
 func floats(int n) float {
     float acc = 0.5;
     float step = 0.25;
-    for i in 1..n {
+    for i in 1..=n {
         acc += scale(step);
         step += 0.25;
     }
@@ -9212,7 +9343,7 @@ func floats(int n) float {
 
 func many(int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8, int n) int {
     int t = 0;
-    for i in 0..n {
+    for i in 0..=n {
         t += a1 + a2 * 2 + a3 * 3 + a4 * 4 + a5 * 5 + a6 * 6 + a7 * 7 + a8 * 8 + i;
     }
     return t;
@@ -9224,7 +9355,7 @@ func bump(*int p) {
 
 func addr() int {
     int x = 0;
-    for i in 0..4 {
+    for i in 0..=4 {
         bump(&x);
         x += 2;
     }
@@ -9234,7 +9365,7 @@ func addr() int {
 func swap(int n) int {
     int a = 1;
     int b = 2;
-    for i in 1..n {
+    for i in 1..=n {
         a, b = b, a + b;
     }
     return a * 1000 + b;
@@ -9733,7 +9864,7 @@ func main() ! {
     check(problem == os.IOError.NotDir, "openDir on a file is NotDir");
 
     os.createDirAll(path.join(buf, root, "many")!!)!;
-    for i in 1..300 {
+    for i in 1..=300 {
         [256]byte full;
         int made = os.create(path.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
         os.close(made);
@@ -9746,7 +9877,7 @@ func main() ! {
     many.close();
     check(seen == 300, "a listing that needs several reads finds every entry");
 
-    for i in 1..300 {
+    for i in 1..=300 {
         [256]byte full;
         os.remove(path.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
     }
@@ -9868,7 +9999,7 @@ func main() ! {
 
     [1]byte one;
     [8]byte seq;
-    for i in 0..6 {
+    for i in 0..=6 {
         int r = os.read(os.STDIN, one)!;
         seq[i] = r == 1 ? one[0] : 0;
     }
@@ -10140,7 +10271,7 @@ func pick(int n) int {
 
 func sum(int a, int b, int c) int {
     int total;
-    for i in 0..2 {
+    for i in 0..=2 {
         int n = i == 0 ? a : (i == 1 ? b : c);
         int v = load(n) ?? |e| switch e {
             case Kind.NotFound => continue;
@@ -10153,7 +10284,7 @@ func sum(int a, int b, int c) int {
 
 func firstGood(int a, int b, int c) int {
     int total;
-    :scan for i in 0..2 {
+    :scan for i in 0..=2 {
         int n = i == 0 ? a : (i == 1 ? b : c);
         int v = load(n) ?? |e| switch e {
             case Kind.Denied => break :scan;
@@ -10245,7 +10376,7 @@ func main() {
     check(c == 100, "yield from one branch of an if");
 
     int d = load(0) ?? |e| {
-        for i in 0..5 {
+        for i in 0..=5 {
             if i == 3 {
                 yield i * 10;
             }
@@ -10319,7 +10450,7 @@ func pairOr(int n) int {
 
 func sumUntilZero(int a, int b, int c) int {
     int total;
-    for i in 0..2 {
+    for i in 0..=2 {
         int n = i == 0 ? a : (i == 1 ? b : c);
         total += switch n {
             case 0 => break;
@@ -10500,7 +10631,7 @@ func main() {
 	{dir: "ptr_slice", src: `import "std/mem";
 func main() ! {
     *int8 b = mem.heap.alloc(16)!;
-    for i in 0..15 {
+    for i in 0..=15 {
         b[i] = int8(i * 2);
     }
     []int8 s = b[2:6];
@@ -11198,7 +11329,7 @@ func firstOr(int n) int {
 
 func sum(int a, int b) int {
     int total = 0;
-    for i in 0..1 {
+    for i in 0..=1 {
         int x = risky(i == 0 ? a : b) ?? {
             continue;
         };
@@ -11209,7 +11340,7 @@ func sum(int a, int b) int {
 
 func firstGood(int a, int b, int c) int {
     int found = -1;
-    for i in 0..2 {
+    for i in 0..=2 {
         int x = risky(i == 0 ? a : (i == 1 ? b : c)) ?? continue;
         found = x;
         break;
@@ -11219,7 +11350,7 @@ func firstGood(int a, int b, int c) int {
 
 func stopAtBad(int a, int b, int c) int {
     int total = 0;
-    for i in 0..2 {
+    for i in 0..=2 {
         int x = risky(i == 0 ? a : (i == 1 ? b : c)) ?? break;
         total += x;
     }
@@ -11228,7 +11359,7 @@ func stopAtBad(int a, int b, int c) int {
 
 func namedJump(int a, int b) int {
     int total = 0;
-    for i in 0..1 {
+    for i in 0..=1 {
         int x = risky(i == 0 ? a : b) ?? |_| continue;
         total += x;
     }
@@ -11544,7 +11675,7 @@ func frozen() int {
 }
 
 func loops() {
-    for i in 1..3 {
+    for i in 1..=3 {
         defer mark(i);
         if i == 2 {
             continue;
@@ -11959,7 +12090,7 @@ func hot(int n) int {
     int a = 1;
     int b = 2;
     int c = 3;
-    for i in 1..n {
+    for i in 1..=n {
         a += i;
         b += a;
         c += b;
@@ -11977,7 +12108,7 @@ func hot(int n) int {
 func keeper(int n) int {
     int a = 0;
     int b = 0;
-    for i in 1..n {
+    for i in 1..=n {
         a += i;
         b += clobber();
     }
@@ -12000,7 +12131,7 @@ func divide(int x, int y) (int, int) {
 func copy() int {
     [4]int src;
     [4]int dst;
-    for i in 0..3 {
+    for i in 0..=3 {
         src[i] = i + 1;
     }
     native<x64> {
@@ -12070,7 +12201,7 @@ native<x64> viaModule(int a, int b) int r {
 func main() {
     int keep = 5;
     int total = 0;
-    for i in 1..3 {
+    for i in 1..=3 {
         total += viaCall(i);
         keep += i;
     }
@@ -12185,7 +12316,7 @@ inline func clamp(int x, int low, int high) int {
 
 const FACTORIAL = static {
     int result = 1;
-    for i in 1..5 {
+    for i in 1..=5 {
         result *= i;
     }
     yield result;
@@ -12193,7 +12324,7 @@ const FACTORIAL = static {
 
 const ODD_SUM = static {
     int total = 0;
-    for i in 0..9 {
+    for i in 0..=9 {
         if i % 2 == 0 {
             continue;
         }
@@ -12224,7 +12355,7 @@ const LABEL = static {
 const BIG = static { yield 1 << 20 > 1000000; };
 const RATIO = static {
     float r = 1.0;
-    for i in 1..3 {
+    for i in 1..=3 {
         r *= 1.5;
     }
     yield r;
@@ -12242,8 +12373,8 @@ func main() {
     check(RATIO > 3.37 && RATIO < 3.38, "floats");
     int local = static {
         int found = 0;
-        :search for i in 2..50 {
-            for j in 2..50 {
+        :search for i in 2..=50 {
+            for j in 2..=50 {
                 if i * j == 91 {
                     found = i;
                     break :search;
@@ -12306,7 +12437,7 @@ func main() {
     check(first() == 3 && second() == 30, "local constants of the same name in two functions");
     const [2]int L = .{7, 8};
     int sum;
-    for k in 0..1 {
+    for k in 0..=1 {
         sum += L[k];
     }
     check(sum == 15, "a local constant array read in a loop");
@@ -12775,7 +12906,7 @@ func (*List<T> l) get(int i) T {
 
 func (*List<T> l) sum() T {
     T total;
-    for i in 0..l.count - 1 {
+    for i in 0..l.count {
         total += l.items[i];
     }
     return total;
@@ -13324,7 +13455,7 @@ func main() {
 `, expected: []string{"a variable is consumed by the loop", "an index counts the items of a temporary iterator", "a type with iter is walked through it", "labels reach the loop of an iterator", "a single name over an array is the element"}},
 
 	{dir: "range_values", src: `func evens(int top) Range<int> {
-    return (0..top).step(2);
+    return (0..=top).step(2);
 }
 
 func total(Range<int> r) int {
@@ -13336,11 +13467,11 @@ func total(Range<int> r) int {
 }
 
 func main() {
-    Range<int> r = 0..9;
+    Range<int> r = 0..=9;
     check(r.count() == 10 && r.contains(9) && !r.contains(10), "a range is a value with a size and a membership test");
     check(total(r) == 45 && total(r) == 45, "a range can be walked again and again");
     check(total(evens(10)) == 30 && evens(10).count() == 6, "a step is a method of the range");
-    Range<int> down = (10..1).step(-3);
+    Range<int> down = (10..=1).step(-3);
     int sumX = 0;
     int sumI = 0;
     for i, x in down {
@@ -13349,36 +13480,36 @@ func main() {
     }
     check(sumX == 22 && sumI == 6, "a negative step counts down");
     check(down.count() == 4 && down.contains(4) && !down.contains(5), "a descending range knows its size and members");
-    Range<int> none = 5..1;
+    Range<int> none = 5..=1;
     int visits = 0;
     for x in none {
         visits += 1 + x - x;
     }
     check(visits == 0 && none.count() == 0, "a range that starts above its end is empty");
     int literal = 0;
-    for i in (3..9).step(3) {
+    for i in (3..=9).step(3) {
         literal += i;
     }
     check(literal == 18, "a literal range with a step is still a counted loop");
-    Range<uint8> bytes = 0..255;
+    Range<uint8> bytes = 0..=255;
     int seenBytes = 0;
     for x in bytes {
         seenBytes += 1 + int(x) - int(x);
     }
     check(seenBytes == 256 && bytes.count() == 256 && bytes.contains(255), "a range can end at the top of its type");
-    Range<uint8> sparse = (0..255).step(100);
+    Range<uint8> sparse = (0..=255).step(100);
     int sparseSum = 0;
     for x in sparse {
         sparseSum += int(x);
     }
     check(sparseSum == 300 && sparse.count() == 3, "the range takes the type it is declared with");
-    Range<int> wide = -9223372036854775807..9223372036854775807;
+    Range<int> wide = -9223372036854775807..=9223372036854775807;
     int jumps = 0;
     for x in wide.step(4611686018427387904) {
         jumps += 1 + x - x;
     }
     check(jumps == 4, "a range that spans most of int does not overflow");
-    Range<uint> backwards = (5..0).step(-2);
+    Range<uint> backwards = (5..=0).step(-2);
     int backSum = 0;
     for x in backwards {
         backSum += int(x);
@@ -13704,7 +13835,7 @@ func main() ! {
     list.List<int> l;
     ?int none = l.get(0);
     check(l.len() == 0 && len(l.items) == 0 && none == null, "the zero value is an empty list");
-    for i in 1..20 {
+    for i in 1..=20 {
         l.append(i)!;
     }
     int sum = 0;
@@ -13740,7 +13871,7 @@ func main() ! {
     l.release();
 
     list.List<Pair> pairs;
-    for i in 0..9 {
+    for i in 0..=9 {
         pairs.append(.{a: i, b: i * 2})!;
     }
     check(pairs.len() == 10 && pairs.items[9].b == 18, "a list of structs");
@@ -13757,7 +13888,7 @@ import "std/mem";
 
 func main() ! {
     list.List<int> l;
-    for i in 1..5 {
+    for i in 1..=5 {
         l.append(i)!;
     }
     []int more = .{10, 20, 30};
@@ -13766,7 +13897,7 @@ func main() ! {
     l.extend(l.items[0:3])!;
     check(l.len() == 11 && l.items[8] == 1 && l.items[10] == 3, "extend takes a slice of the list itself");
     list.List<int> grown;
-    for i in 1..8 {
+    for i in 1..=8 {
         grown.append(i)!;
     }
     grown.extend(grown.items)!;
@@ -13797,7 +13928,7 @@ import "std/mem";
 func main() ! {
     mem.Debug debug;
     list.List<int> l = .{parent: &debug};
-    for i in 1..40 {
+    for i in 1..=40 {
         l.append(i)!;
     }
     check(debug.blocks() >= 1 && l.len() == 40, "the list takes its memory from its parent");
@@ -13847,7 +13978,7 @@ func (Version a) less(Version b) bool {
 enum Color { Red, Green, Blue }
 
 func sorted<Orderable T>([]T items) bool {
-    for i in 1..len(items) - 1 {
+    for i in 1..=len(items) - 1 {
         if items[i] < items[i - 1] {
             return false;
         }
@@ -13882,7 +14013,7 @@ func main() {
     [200]int many;
     int seed = 12345;
     int total = 0;
-    for i in 0..199 {
+    for i in 0..=199 {
         seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
         many[i] = seed % 1000;
         total += many[i];
@@ -13894,7 +14025,7 @@ func main() {
     }
     check(sorted(many) && after == total, "a long slice comes out ordered and with the same elements");
     [100]int descending;
-    for i in 0..99 {
+    for i in 0..=99 {
         descending[i] = 100 - i;
     }
     slices.sort(descending);
@@ -14412,7 +14543,7 @@ func main() {
     nothing();
     check(forward(4) == 8, "a naked function can end in jmp");
     int total;
-    for i in 1..100 {
+    for i in 1..=100 {
         total += twice(i);
     }
     check(total == 10100, "it can be called in a loop");
@@ -14583,9 +14714,9 @@ const [2]string WORDS = .{"ab", "cde"};
 
 const [256]uint32 CRC = static {
     [256]uint32 table;
-    for i in 0..255 {
+    for i in 0..=255 {
         uint32 c = uint32(i);
-        for _k in 0..7 {
+        for _k in 0..=7 {
             if (c & 1) != 0 {
                 c = 0xEDB88320 ^ (c >> 1);
             } else {
@@ -14600,7 +14731,7 @@ const [256]uint32 CRC = static {
 const [8]int POWERS = static {
     [8]int powers;
     int p = 1;
-    for i in 0..7 {
+    for i in 0..=7 {
         powers[i] = p;
         p *= 2;
     }
@@ -14695,7 +14826,7 @@ func main() {
     check(copy[0] == 99 && TABLE[0] == 10, "a copy of a constant can change");
     int local = static {
         [4]int squares;
-        for k in 0..3 {
+        for k in 0..=3 {
             squares[k] = k * k;
         }
         yield squares;
@@ -14898,7 +15029,7 @@ public func mix(int32 a, float64 b, int32 c, float64 d) float64 as wisp_mix {
 public func drift(int32 n, float64 x) float64 as wisp_drift {
     float64 total = 0.0;
     int32 count = 0;
-    for i in 0..n-1 {
+    for i in 0..n {
         total += x;
         count += 1;
     }
@@ -15207,7 +15338,7 @@ func ulps(float a, float b) float {
 
 func main() {
     float expWorst = 0.0;
-    for i in 0..25 {
+    for i in 0..=25 {
         float u = ulps(math.exp(expIn[i]), expWant[i]);
         if u > expWorst {
             expWorst = u;
@@ -15216,7 +15347,7 @@ func main() {
     check(expWorst <= 1.0, "exp stays within 1 ulp");
     check(ulps(math.exp(math.inf(1)), math.inf(1)) == 0.0 && ulps(math.exp(math.inf(-1)), 0.0) == 0.0 && ulps(math.exp(math.nan()), math.nan()) == 0.0 && ulps(math.exp(710.0), math.inf(1)) == 0.0 && ulps(math.exp(-746.0), 0.0) == 0.0 && ulps(math.exp(0.0), 1.0) == 0.0, "exp special values");
     float expm1Worst = 0.0;
-    for i in 0..25 {
+    for i in 0..=25 {
         float u = ulps(math.expm1(expm1In[i]), expm1Want[i]);
         if u > expm1Worst {
             expm1Worst = u;
@@ -15225,7 +15356,7 @@ func main() {
     check(expm1Worst <= 1.0, "expm1 stays within 1 ulp");
     check(ulps(math.expm1(math.inf(1)), math.inf(1)) == 0.0 && ulps(math.expm1(math.inf(-1)), -1.0) == 0.0 && ulps(math.expm1(math.nan()), math.nan()) == 0.0 && ulps(math.expm1(0.0), 0.0) == 0.0, "expm1 special values");
     float exp2Worst = 0.0;
-    for i in 0..26 {
+    for i in 0..=26 {
         float u = ulps(math.exp2(exp2In[i]), exp2Want[i]);
         if u > exp2Worst {
             exp2Worst = u;
@@ -15279,7 +15410,7 @@ func ulps(float a, float b) float {
 
 func main() {
     float logWorst = 0.0;
-    for i in 0..26 {
+    for i in 0..=26 {
         float u = ulps(math.log(logIn[i]), logWant[i]);
         if u > logWorst {
             logWorst = u;
@@ -15288,7 +15419,7 @@ func main() {
     check(logWorst <= 1.0, "log stays within 1 ulp");
     check(ulps(math.log(0.0), math.inf(-1)) == 0.0 && ulps(math.log(-1.0), math.nan()) == 0.0 && ulps(math.log(math.inf(1)), math.inf(1)) == 0.0 && ulps(math.log(math.nan()), math.nan()) == 0.0 && ulps(math.log(1.0), 0.0) == 0.0, "log special values");
     float log2Worst = 0.0;
-    for i in 0..25 {
+    for i in 0..=25 {
         float u = ulps(math.log2(log2In[i]), log2Want[i]);
         if u > log2Worst {
             log2Worst = u;
@@ -15297,7 +15428,7 @@ func main() {
     check(log2Worst <= 2.0, "log2 stays within 2 ulp");
     check(ulps(math.log2(0.0), math.inf(-1)) == 0.0 && ulps(math.log2(-1.0), math.nan()) == 0.0 && ulps(math.log2(math.inf(1)), math.inf(1)) == 0.0 && ulps(math.log2(math.nan()), math.nan()) == 0.0 && ulps(math.log2(8.0), 3.0) == 0.0, "log2 special values");
     float log10Worst = 0.0;
-    for i in 0..24 {
+    for i in 0..=24 {
         float u = ulps(math.log10(log10In[i]), log10Want[i]);
         if u > log10Worst {
             log10Worst = u;
@@ -15306,7 +15437,7 @@ func main() {
     check(log10Worst <= 2.0, "log10 stays within 2 ulp");
     check(ulps(math.log10(0.0), math.inf(-1)) == 0.0 && ulps(math.log10(-1.0), math.nan()) == 0.0 && ulps(math.log10(math.inf(1)), math.inf(1)) == 0.0 && ulps(math.log10(math.nan()), math.nan()) == 0.0 && ulps(math.log10(1000.0), 3.0) == 0.0, "log10 special values");
     float log1pWorst = 0.0;
-    for i in 0..26 {
+    for i in 0..=26 {
         float u = ulps(math.log1p(log1pIn[i]), log1pWant[i]);
         if u > log1pWorst {
             log1pWorst = u;
@@ -15355,7 +15486,7 @@ func ulps(float a, float b) float {
 
 func main() {
     float fpowWorst = 0.0;
-    for i in 0..38 {
+    for i in 0..=38 {
         float u = ulps(math.fpow(fpowIn[i], fpowIn2[i]), fpowWant[i]);
         if u > fpowWorst {
             fpowWorst = u;
@@ -15407,7 +15538,7 @@ func ulps(float a, float b) float {
 
 func main() {
     float sinWorst = 0.0;
-    for i in 0..47 {
+    for i in 0..=47 {
         float u = ulps(math.sin(sinIn[i]), sinWant[i]);
         if u > sinWorst {
             sinWorst = u;
@@ -15416,7 +15547,7 @@ func main() {
     check(sinWorst <= 1.0, "sin stays within 1 ulp");
     check(ulps(math.sin(math.inf(1)), math.nan()) == 0.0 && ulps(math.sin(math.inf(-1)), math.nan()) == 0.0 && ulps(math.sin(math.nan()), math.nan()) == 0.0 && ulps(math.sin(0.0), 0.0) == 0.0, "sin special values");
     float cosWorst = 0.0;
-    for i in 0..47 {
+    for i in 0..=47 {
         float u = ulps(math.cos(cosIn[i]), cosWant[i]);
         if u > cosWorst {
             cosWorst = u;
@@ -15425,7 +15556,7 @@ func main() {
     check(cosWorst <= 1.0, "cos stays within 1 ulp");
     check(ulps(math.cos(math.inf(1)), math.nan()) == 0.0 && ulps(math.cos(math.nan()), math.nan()) == 0.0 && ulps(math.cos(0.0), 1.0) == 0.0, "cos special values");
     float tanWorst = 0.0;
-    for i in 0..46 {
+    for i in 0..=46 {
         float u = ulps(math.tan(tanIn[i]), tanWant[i]);
         if u > tanWorst {
             tanWorst = u;
@@ -15480,7 +15611,7 @@ func ulps(float a, float b) float {
 
 func main() {
     float atanWorst = 0.0;
-    for i in 0..29 {
+    for i in 0..=29 {
         float u = ulps(math.atan(atanIn[i]), atanWant[i]);
         if u > atanWorst {
             atanWorst = u;
@@ -15489,7 +15620,7 @@ func main() {
     check(atanWorst <= 1.0, "atan stays within 1 ulp");
     check(ulps(math.atan(math.inf(1)), 1.5707963267948966) == 0.0 && ulps(math.atan(math.inf(-1)), -1.5707963267948966) == 0.0 && ulps(math.atan(math.nan()), math.nan()) == 0.0 && ulps(math.atan(0.0), 0.0) == 0.0, "atan special values");
     float asinWorst = 0.0;
-    for i in 0..23 {
+    for i in 0..=23 {
         float u = ulps(math.asin(asinIn[i]), asinWant[i]);
         if u > asinWorst {
             asinWorst = u;
@@ -15498,7 +15629,7 @@ func main() {
     check(asinWorst <= 1.0, "asin stays within 1 ulp");
     check(ulps(math.asin(1.0), 1.5707963267948966) == 0.0 && ulps(math.asin(-1.0), -1.5707963267948966) == 0.0 && ulps(math.asin(2.0), math.nan()) == 0.0 && ulps(math.asin(math.nan()), math.nan()) == 0.0 && ulps(math.asin(0.0), 0.0) == 0.0, "asin special values");
     float acosWorst = 0.0;
-    for i in 0..23 {
+    for i in 0..=23 {
         float u = ulps(math.acos(acosIn[i]), acosWant[i]);
         if u > acosWorst {
             acosWorst = u;
@@ -15507,7 +15638,7 @@ func main() {
     check(acosWorst <= 1.0, "acos stays within 1 ulp");
     check(ulps(math.acos(1.0), 0.0) == 0.0 && ulps(math.acos(-1.0), 3.141592653589793) == 0.0 && ulps(math.acos(2.0), math.nan()) == 0.0 && ulps(math.acos(math.nan()), math.nan()) == 0.0 && ulps(math.acos(0.0), 1.5707963267948966) == 0.0, "acos special values");
     float atan2Worst = 0.0;
-    for i in 0..33 {
+    for i in 0..=33 {
         float u = ulps(math.atan2(atan2In[i], atan2In2[i]), atan2Want[i]);
         if u > atan2Worst {
             atan2Worst = u;
@@ -15564,7 +15695,7 @@ func ulps(float a, float b) float {
 
 func main() {
     float sinhWorst = 0.0;
-    for i in 0..28 {
+    for i in 0..=28 {
         float u = ulps(math.sinh(sinhIn[i]), sinhWant[i]);
         if u > sinhWorst {
             sinhWorst = u;
@@ -15573,7 +15704,7 @@ func main() {
     check(sinhWorst <= 2.0, "sinh stays within 2 ulp");
     check(ulps(math.sinh(math.inf(1)), math.inf(1)) == 0.0 && ulps(math.sinh(math.inf(-1)), math.inf(-1)) == 0.0 && ulps(math.sinh(math.nan()), math.nan()) == 0.0 && ulps(math.sinh(0.0), 0.0) == 0.0 && ulps(math.sinh(711.0), math.inf(1)) == 0.0, "sinh special values");
     float coshWorst = 0.0;
-    for i in 0..28 {
+    for i in 0..=28 {
         float u = ulps(math.cosh(coshIn[i]), coshWant[i]);
         if u > coshWorst {
             coshWorst = u;
@@ -15582,7 +15713,7 @@ func main() {
     check(coshWorst <= 2.0, "cosh stays within 2 ulp");
     check(ulps(math.cosh(math.inf(1)), math.inf(1)) == 0.0 && ulps(math.cosh(math.inf(-1)), math.inf(1)) == 0.0 && ulps(math.cosh(math.nan()), math.nan()) == 0.0 && ulps(math.cosh(0.0), 1.0) == 0.0 && ulps(math.cosh(711.0), math.inf(1)) == 0.0, "cosh special values");
     float tanhWorst = 0.0;
-    for i in 0..28 {
+    for i in 0..=28 {
         float u = ulps(math.tanh(tanhIn[i]), tanhWant[i]);
         if u > tanhWorst {
             tanhWorst = u;
@@ -15591,7 +15722,7 @@ func main() {
     check(tanhWorst <= 2.0, "tanh stays within 2 ulp");
     check(ulps(math.tanh(math.inf(1)), 1.0) == 0.0 && ulps(math.tanh(math.inf(-1)), -1.0) == 0.0 && ulps(math.tanh(math.nan()), math.nan()) == 0.0 && ulps(math.tanh(0.0), 0.0) == 0.0 && ulps(math.tanh(40.0), 1.0) == 0.0, "tanh special values");
     float cbrtWorst = 0.0;
-    for i in 0..28 {
+    for i in 0..=28 {
         float u = ulps(math.cbrt(cbrtIn[i]), cbrtWant[i]);
         if u > cbrtWorst {
             cbrtWorst = u;
@@ -15600,7 +15731,7 @@ func main() {
     check(cbrtWorst <= 1.0, "cbrt stays within 1 ulp");
     check(ulps(math.cbrt(math.inf(1)), math.inf(1)) == 0.0 && ulps(math.cbrt(math.inf(-1)), math.inf(-1)) == 0.0 && ulps(math.cbrt(math.nan()), math.nan()) == 0.0 && ulps(math.cbrt(0.0), 0.0) == 0.0 && ulps(math.cbrt(27.0), 3.0) == 0.0 && ulps(math.cbrt(-8.0), -2.0) == 0.0, "cbrt special values");
     float hypotWorst = 0.0;
-    for i in 0..26 {
+    for i in 0..=26 {
         float u = ulps(math.hypot(hypotIn[i], hypotIn2[i]), hypotWant[i]);
         if u > hypotWorst {
             hypotWorst = u;
@@ -15649,7 +15780,7 @@ func ulps(float a, float b) float {
 
 func main() {
     float fmodWorst = 0.0;
-    for i in 0..12 {
+    for i in 0..=12 {
         float u = ulps(math.fmod(fmodIn[i], fmodIn2[i]), fmodWant[i]);
         if u > fmodWorst {
             fmodWorst = u;
@@ -15681,12 +15812,12 @@ func main() {
     int fixedBad;
     int expBad;
     int singleBad;
-    for i in 0..227 {
+    for i in 0..=227 {
         shortBad += differ(conv.ftoa(buf[:], xs[i]) ?? "error", shortest[i]);
         fixedBad += differ(conv.formatFixed(buf[:], xs[i], ns[i]) ?? "error", fixed[i]);
         expBad += differ(conv.formatExp(buf[:], xs[i], ns[i], false) ?? "error", scientific[i]);
     }
-    for i in 0..347 {
+    for i in 0..=347 {
         singleBad += differ(conv.ftoa32(buf[:], singles[i]) ?? "error", singleText[i]);
     }
     check(shortBad == 0, "ftoa writes the shortest text that reads back");
@@ -16148,7 +16279,7 @@ func main() {
     check(float(c) == 0.30000001192092896, "a float32 sum is rounded to single precision");
 
     float32 sum = 0.0;
-    for i in 0..9 {
+    for i in 0..=9 {
         sum += a;
     }
     check(float(sum) == 1.0000001192092896, "a float32 accumulator rounds at every step");
@@ -16291,7 +16422,7 @@ func main() {
 
 func dirty(*byte p, int n) int {
     int count;
-    for i in 0..n-1 {
+    for i in 0..n {
         if p[i] != 0 {
             count++;
         }
@@ -16679,7 +16810,7 @@ func main() {
 
     int total = 0;
     bool ok = true;
-    for i in 0..40 {
+    for i in 0..=40 {
         *byte b = a.alloc(5000)!!;
         if int(b) == 0 {
             ok = false;
@@ -16710,7 +16841,7 @@ func main() {
 func main() {
     mem.Arena a;
     bool ok = true;
-    for i in 0..30 {
+    for i in 0..=30 {
         *byte b = a.alloc(5000)!!;
         if int(b) == 0 {
             ok = false;
@@ -16728,17 +16859,17 @@ func main() {
     check(int(x) != 0 && int(y) != 0, "arena works after reset");
     check(int(y) - int(x) == 112, "reset starts a fresh chunk");
     bool clean = true;
-    for i in 0..99 {
+    for i in 0..=99 {
         if x[i] != 0 || y[i] != 0 {
             clean = false;
         }
     }
     check(clean, "alloc after reset is zeroed");
 
-    for round in 0..4 {
+    for round in 0..=4 {
         a.reset();
         bool good = true;
-        for i in 0..20 {
+        for i in 0..=20 {
             *byte b = a.alloc(5000)!!;
             if int(b) == 0 || b[0] != 0 {
                 good = false;
@@ -16790,7 +16921,7 @@ func main() {
 
     mem.Mark m2 = a.mark();
     bool ok = true;
-    for i in 0..29 {
+    for i in 0..=29 {
         *byte b = a.alloc(5000)!!;
         if int(b) == 0 {
             ok = false;

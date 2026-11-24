@@ -6,7 +6,7 @@ const ROUNDS = 20000000;
 func main() {
 	int acc = 0;
 	int big = 0;
-	for i in 1..ROUNDS {
+	for i in 1..=ROUNDS {
 		int v = i * 37 % 2001 - 1000;
 		acc += math.abs(v) + math.clamp(v, -100, 100);
 		float x = float(i) * 0.5 - 1000.0;

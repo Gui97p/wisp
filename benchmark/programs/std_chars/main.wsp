@@ -8,7 +8,7 @@ const REPEAT = 16;
 func main() {
 	*byte buf = mem.alloc(SIZE)!!;
 	uint64 x = 88172645463325252;
-	for i in 0..SIZE-1 {
+	for i in 0..SIZE {
 		x ^= x << 13;
 		x ^= x >> 7;
 		x ^= x << 17;
@@ -19,8 +19,8 @@ func main() {
 	int spaces = 0;
 	int upper = 0;
 	int hex = 0;
-	for _ in 0..REPEAT-1 {
-		for i in 0..SIZE-1 {
+	for _ in 0..REPEAT {
+		for i in 0..SIZE {
 			byte c = buf[i];
 			if strings.isDigit(c) {
 				digits++;

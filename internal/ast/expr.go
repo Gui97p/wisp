@@ -106,12 +106,13 @@ func (c *ConstRef) Tree(indent string) string {
 }
 
 type CallExpr struct {
-	Name    Expression
-	Args    []Expression
-	Spread  bool
-	Cast    *CastExpr
-	Range   bool
-	Generic Expression
+	Name      Expression
+	Args      []Expression
+	Spread    bool
+	Cast      *CastExpr
+	Range     bool
+	RangeOpen bool
+	Generic   Expression
 
 	NodePos
 }

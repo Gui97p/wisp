@@ -32,7 +32,7 @@ func number([]byte buf, uint mag, bool neg, Spec s) !Piece {
 func renderInt([]byte buf, int v, Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
-		errors.ensure(v in 0..255, errors.Kind.Range)!;
+		errors.ensure(v in 0..=255, errors.Kind.Range)!;
 		buf[0] = truncate(byte, v);
 		piece.body = string(buf[:1]);
 		return piece;

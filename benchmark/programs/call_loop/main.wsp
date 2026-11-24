@@ -8,7 +8,7 @@ func add(int a, int b) int {
 
 func main() {
 	int total = 0;
-	for i in 0..N-1 {
+	for i in 0..N {
 		total = add(total, (i ^ total) & 1023);
 	}
 	fmt.printf("{}\n", total);

@@ -7,23 +7,23 @@ func main() {
 	*float a = mem.alloc(N * N * sizeof(float))!!;
 	*float b = mem.alloc(N * N * sizeof(float))!!;
 	*float c = mem.alloc(N * N * sizeof(float))!!;
-	for i in 0..N-1 {
-		for j in 0..N-1 {
+	for i in 0..N {
+		for j in 0..N {
 			a[i * N + j] = float((i + j) % 10);
 			b[i * N + j] = float((i * j) % 10);
 		}
 	}
-	for i in 0..N-1 {
-		for j in 0..N-1 {
+	for i in 0..N {
+		for j in 0..N {
 			float sum = 0.0;
-			for k in 0..N-1 {
+			for k in 0..N {
 				sum += a[i * N + k] * b[k * N + j];
 			}
 			c[i * N + j] = sum;
 		}
 	}
 	float total = 0.0;
-	for i in 0..N*N-1 {
+	for i in 0..N*N {
 		total += c[i];
 	}
 	fmt.printf("{}\n", int(total));

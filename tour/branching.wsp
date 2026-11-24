@@ -41,10 +41,10 @@ public func demo() {
 
 	// `switch` as a statement. A case is `value => statement;`, or a block
 	// `value => { ... }` when it takes several statements. There is no
-	// fallthrough, and a range like `11..20` includes both ends.
+	// fallthrough, and a range like `11..=20` includes both ends.
 	switch limit {
 		case 10 => fmt.printf("ten\n");
-		case 11..20 => {
+		case 11..=20 => {
 			fmt.printf("{} is between eleven and twenty\n", limit);
 			fmt.printf("so it is a block of two statements\n");
 		}
@@ -71,7 +71,7 @@ public func demo() {
 	// leave with `return`, `break` or `continue` instead of giving a value.
 	let low, high = switch limit {
 		case 10 => 0, 10;
-		case 11..20 => 11, 20;
+		case 11..=20 => 11, 20;
 		default => return;
 	};
 	fmt.printf("the range of {} is {}..{}\n", limit, low, high);
@@ -118,7 +118,7 @@ public func demo() {
 	// mixed up.
 	int found = -1;
 	:search{
-		for i in 0..limit{
+		for i in 0..=limit{
 			break :search if i * i == 49;
 			found = i;
 		}
@@ -127,7 +127,7 @@ public func demo() {
 	fmt.printf("the search stopped after {}\n", found);
 
 	int first = :pick{
-		for i in 0..limit{
+		for i in 0..=limit{
 			break :pick i if i * i > 30;
 		}
 		yield -1;

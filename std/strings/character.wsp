@@ -1,17 +1,17 @@
 /// Reports whether `c` is an ASCII decimal digit, `0` to `9`.
 public inline func isDigit(byte c) bool {
-	return c in '0'..'9';
+	return c in '0'..='9';
 }
 
 /// Reports whether `c` is an ASCII hexadecimal digit: `0` to `9`, `a` to `f`
 /// or `A` to `F`.
 public inline func isHex(byte c) bool {
-	return c in '0'..'9' || lowerByte(c) in 'a'..'f';
+	return c in '0'..='9' || lowerByte(c) in 'a'..='f';
 }
 
 /// Reports whether `c` is an ASCII letter. Bytes above 127 are never letters.
 public inline func isAlpha(byte c) bool {
-	return lowerByte(c) in 'a'..'z';
+	return lowerByte(c) in 'a'..='z';
 }
 
 /// Reports whether `c` is an ASCII letter or digit.
@@ -21,12 +21,12 @@ public inline func isAlphaNumeric(byte c) bool {
 
 /// Reports whether `c` is an ASCII uppercase letter.
 public inline func isUpper(byte c) bool {
-	return c in 'A'..'Z';
+	return c in 'A'..='Z';
 }
 
 /// Reports whether `c` is an ASCII lowercase letter.
 public inline func isLower(byte c) bool {
-	return c in 'a'..'z';
+	return c in 'a'..='z';
 }
 
 /// Reports whether `c` is ASCII white space: space, tab, newline, carriage
@@ -43,32 +43,32 @@ public inline func isPrint(byte c) bool {
 /// Returns `c` converted to uppercase when it is an ASCII lowercase letter, and
 /// `c` unchanged otherwise.
 public inline func upperByte(byte c) byte {
-	return c in 'a'..'z' ? c - 32 : c;
+	return c in 'a'..='z' ? c - 32 : c;
 }
 
 /// Returns `c` converted to lowercase when it is an ASCII uppercase letter, and
 /// `c` unchanged otherwise.
 public inline func lowerByte(byte c) byte {
-	return c in 'A'..'Z' ? c + 32 : c;
+	return c in 'A'..='Z' ? c + 32 : c;
 }
 
 /// Returns the value of `c` as a digit in `base`, where `0` to `9` are 0 to 9 and
 /// letters of either case are 10 to 35. The result is null when `c` is not a
 /// digit, when its value is not below `base`, or when `base` is outside 2 to 36.
 public func digitValue(byte c, int base) ?int {
-	return null if !(base in 2..36);
+	return null if !(base in 2..=36);
 
-	if c in '0'..'9' {
+	if c in '0'..='9' {
 		int v = c - '0';
 		return v if v < base;
 		return null;
 	}
 
-	if c in 'a'..'z' {
+	if c in 'a'..='z' {
 		c -= 32;
 	}
 
-	if c in 'A'..'Z' {
+	if c in 'A'..='Z' {
 		int v = c - 'A' + 10;
 		return v if v < base;
 	}

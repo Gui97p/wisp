@@ -36,7 +36,7 @@ func (*Pool p) grow() ! {
 	*PoolChunk chunk = p.source().allocDirty(pool_HEADER + stride * PER_CHUNK)!;
 	chunk.next = p.chunks;
 	p.chunks = chunk;
-	for i in 0..PER_CHUNK - 1 {
+	for i in 0..PER_CHUNK {
 		*void block = (*byte)(chunk) + pool_HEADER + i * stride;
 		((*?*void)(block))@ = p.spare;
 		p.spare = block;

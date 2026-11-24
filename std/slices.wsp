@@ -37,10 +37,10 @@ public func sort<Orderable T>([]T items) {
 	int n = len(items);
 	return if n < 2;
 
-	for start in (n / 2 - 1..0).step(-1) {
+	for start in (n / 2 - 1..=0).step(-1) {
 		siftDown(items, start, n - 1);
 	}
-	for end in (n - 1..1).step(-1) {
+	for end in (n - 1..=1).step(-1) {
 		items[0], items[end] = items[end], items[0];
 		siftDown(items, 0, end - 1);
 	}
@@ -50,7 +50,7 @@ public func sort<Orderable T>([]T items) {
 public func reverse<T>([]T items) {
 	int n = len(items);
 	return if n < 2;
-	for i in 0..n / 2 - 1 {
+	for i in 0..n / 2 {
 		items[i], items[n - i - 1] = items[n - i - 1], items[i];
 	}
 }
@@ -67,7 +67,7 @@ public func fill<T>([]T items, T item) {
 public func copy<T>([]T dst, src) int {
 	return 0 if len(dst) == 0 || len(src) == 0;
 	int count = math.min(len(dst), len(src));
-	for i in 0..count - 1 {
+	for i in 0..count {
 		dst[i] = src[i];
 	}
 	return count;
@@ -77,7 +77,7 @@ public func copy<T>([]T dst, src) int {
 /// with ==.
 public func equal<Comparable T>([]T a, b) bool {
 	return false if len(a) != len(b);
-	for i in 0..len(a) - 1 {
+	for i in 0..len(a) {
 		return false if a[i] != b[i];
 	}
 	return true;

@@ -15,7 +15,7 @@ public func indexOf(string s, sub) ?int {
 	int subLen = len(sub);
 	int limit = len(s) - subLen;
 
-	for i in 0..limit {
+	for i in 0..=limit {
 		return i if s[i:i + len(sub)] == sub;
 	}
 
@@ -36,7 +36,7 @@ public func lastIndexOf(string s, sub) ?int {
 	int limit = len(s) - subLen;
 
 	?int last = null;
-	for i in 0..limit {
+	for i in 0..=limit {
 		if s[i:i + len(sub)] == sub {
 			last = i;
 		}

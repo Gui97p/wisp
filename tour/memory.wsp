@@ -51,7 +51,7 @@ public func demo() ! {
 	// clear the elements, so it is a little cheaper, and what it holds before
 	// you write is not defined.
 	[]byte dirty = mem.makeDirty<byte>(&fixed, 8)!;
-	for i in 0..7 {
+	for i in 0..=7 {
 		dirty[i] = byte(i * 3);
 	}
 	fmt.printf("a dirty slice that was written: {}, {}, {}\n", dirty[0], dirty[3], dirty[7]);
@@ -88,7 +88,7 @@ public func demo() ! {
 
 	// `reset` drops every block but keeps one chunk for the next round, which
 	// suits a loop that builds something, uses it, and starts again.
-	for round in 0..2 {
+	for round in 0..=2 {
 		arena.reset();
 		*int items = arena.alloc(sizeof(int) * 10)!;
 		items[0] = round;

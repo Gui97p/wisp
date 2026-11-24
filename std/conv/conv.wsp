@@ -49,7 +49,7 @@ func formatUnsigned([]byte buf, uint n, int base, bool upper) !string {
 /// lowercase, or uppercase when `upper` is true. Fails with `Invalid` when `base`
 /// is out of range and `NoSpace` when `buf` is too small.
 public func formatInt([]byte buf, int n, base, bool upper) !string {
-	errors.ensure(base in 2..36, errors.Kind.Invalid)!;
+	errors.ensure(base in 2..=36, errors.Kind.Invalid)!;
 	return formatUnsigned(buf, uint(n), base, upper)! if n >= 0;
 	errors.ensure(len(buf) > 1, errors.Kind.NoSpace)!;
 
@@ -64,7 +64,7 @@ public func formatInt([]byte buf, int n, base, bool upper) !string {
 /// true. Fails with `Invalid` when `base` is out of range and `NoSpace` when `buf`
 /// is too small.
 public func formatUint([]byte buf, uint n, int base, bool upper) !string {
-	errors.ensure(base in 2..36, errors.Kind.Invalid)!;
+	errors.ensure(base in 2..=36, errors.Kind.Invalid)!;
 	return formatUnsigned(buf, n, base, upper)!;
 }
 
@@ -98,12 +98,12 @@ func digitValue(byte c) ?int {
 /// digit of `base`, and with `Overflow` when the value does not fit in `uint`.
 #must_use
 public func parseUint(string s, int base) !uint {
-	errors.ensure(base in 2..36 && len(s) > 0, errors.Kind.Invalid)!;
+	errors.ensure(base in 2..=36 && len(s) > 0, errors.Kind.Invalid)!;
 
 	uint n = 0;
 	uint b = uint(base);
 
-	for i in 0..len(s) - 1 {
+	for i in 0..len(s) {
 		int d = digitValue(s[i]) ?? return Error(errors.Kind.Invalid);
 		errors.ensure(d < base, errors.Kind.Invalid)!;
 

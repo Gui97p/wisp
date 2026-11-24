@@ -5,7 +5,7 @@ const ROUNDS = 1000000;
 
 func main() {
 	int total = 0;
-	for i in 1..ROUNDS {
+	for i in 1..=ROUNDS {
 		int n = 16 + (i & 255);
 		*byte a = mem.alloc(n)!!;
 		mem.fill(a, 7, n);

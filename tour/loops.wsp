@@ -18,37 +18,47 @@ func (*Countdown c) next() ?int {
 }
 
 public func demo() {
-	// A range includes both ends: this visits 1, 2, 3.
+	// `a..=b` includes both ends: this visits 1, 2, 3.
 	int sum;
-	for i in 1..3 {
+	for i in 1..=3 {
 		fmt.printf("i = {}\n", i);
 		sum += i;
 	}
-	fmt.printf("the sum of 1..3 is {}\n", sum);
+	fmt.printf("the sum of 1..=3 is {}\n", sum);
 
 	// `.step(4)` gives the range a step. This visits 1, 5, 9.
 	int stepped;
-	for i in (1..10).step(4) {
+	for i in (1..=10).step(4) {
 		fmt.printf("stepping: {}\n", i);
 		stepped += i;
 	}
-	fmt.printf("the sum of (1..10).step(4) is {}\n", stepped);
+	fmt.printf("the sum of (1..=10).step(4) is {}\n", stepped);
 
-	// A range only counts up, so one that starts above its end is empty and
-	// `0..n-1` is safe when `n` is 0. To count down, give a negative step:
-	// this visits 3, 2, 1. The sign of the step is the direction.
+	// A range only counts up, so one that starts above its end is empty. To
+	// count down, give a negative step: this visits 3, 2, 1. The sign of the
+	// step is the direction.
 	int countdown;
-	for i in (3..1).step(-1) {
+	for i in (3..=1).step(-1) {
 		countdown = countdown * 10 + i;
 	}
 	fmt.printf("counting down from 3 to 1 gives {}\n", countdown);
 
+	// `a..b` leaves the end out, so counting the items of something is
+	// `0..count`, with no `- 1` to get wrong, and it is empty when `count` is 0.
+	// It works with a step and counting down too: `(3..0).step(-1)` visits
+	// 3, 2, 1.
 	int none = 0;
 	int count = 0;
-	for _ in 0..count - 1 {
+	for _ in 0..count {
 		none++;
 	}
-	fmt.printf("0..count-1 with count = 0 ran {} times\n", none);
+	fmt.printf("0..count with count = 0 ran {} times\n", none);
+
+	int below;
+	for i in 0..4 {
+		below += i;
+	}
+	fmt.printf("the sum of 0..4 is {}\n", below);
 
 	// Without a variable, `for` just repeats.
 	int repeats;
@@ -127,7 +137,7 @@ public func demo() {
 
 	// A range is a value too. It knows its size and what it holds, `step` gives
 	// it a step, and it can be walked as many times as you like.
-	Range<int> evens = (0..10).step(2);
+	Range<int> evens = (0..=10).step(2);
 	fmt.printf("{} evens, 4 is one: {}, 5 is one: {}\n", evens.count(), evens.contains(4), evens.contains(5));
 	for x in evens {
 		fmt.printf("even {}\n", x);

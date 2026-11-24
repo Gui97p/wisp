@@ -62,7 +62,7 @@ public func demo() {
 	fmt.printf("scale(10, 4) = {}\n", scale(10, 4));
 
 	int total = 0;
-	for i in 0..5 {
+	for i in 0..=5 {
 		total += clamp(i * 3, 2, 9);
 	}
 	fmt.printf("sum of clamp(i * 3, 2, 9) = {}\n", total);

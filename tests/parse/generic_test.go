@@ -119,7 +119,7 @@ func TestComparisonsStayComparisons(t *testing.T) {
 	bool y = a < b && b > (c);
 	bool z = a < b || c > a;
 	int w = a < b ? 1 : 2;
-	for i in 0..c { if i < a { } }
+	for i in 0..=c { if i < a { } }
 }
 `)
 	if len(errors) > 0 {

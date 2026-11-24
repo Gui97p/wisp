@@ -30,7 +30,8 @@ var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_QUESTION_MARK: TERNARY,
 	lexer.TOKEN_COALESCE:      TERNARY,
 
-	lexer.TOKEN_RANGE: RANGE,
+	lexer.TOKEN_RANGE:      RANGE,
+	lexer.TOKEN_RANGE_OPEN: RANGE,
 
 	lexer.TOKEN_OR:  OR,
 	lexer.TOKEN_AND: AND,

@@ -71,7 +71,7 @@ public func isClose(float want, float got, float tolerance) bool {
 
 func firstDifference(string a, string b) int {
 	int n = math.min(len(a), len(b));
-	for i in 0..n - 1 {
+	for i in 0..n {
 		return i if a[i] != b[i];
 	}
 	return n;

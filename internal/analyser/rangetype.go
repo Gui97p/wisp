@@ -8,15 +8,19 @@ import (
 
 const rangeFile = "<builtin range>"
 
-const rangeCallName = "__wisp_range"
+const (
+	rangeCallName     = "__wisp_range"
+	rangeOpenCallName = "__wisp_range_open"
+)
 
 const rangeSource = `
-/// The values from start to end, both included, counting by one.
-/// Write it as start..end, and give it another step with step.
+/// The values from start up to end, counting by one: end is left out for start..end and included for start..=end.
+/// Give it another step with step.
 public struct Range<T> {
 	public T start;
 	public T end;
 	internal int by;
+	internal bool open;
 }
 
 /// Walks a range once: what for gives when it takes a range.
@@ -25,10 +29,15 @@ public struct RangeIter<T> {
 	internal T end;
 	internal int by;
 	internal bool done;
+	internal bool open;
 }
 
 public func makeRange<T>(T start, T end) Range<T> {
 	return Range<T>{start: start, end: end};
+}
+
+public func makeRangeOpen<T>(T start, T end) Range<T> {
+	return Range<T>{start: start, end: end, open: true};
 }
 
 /// The same range counting by n: negative to count down, never zero.
@@ -36,7 +45,7 @@ public func (Range<T> r) step(int n) Range<T> {
 	if n == 0 {
 		panic("the step of a range cannot be zero");
 	}
-	return Range<T>{start: r.start, end: r.end, by: n};
+	return Range<T>{start: r.start, end: r.end, by: n, open: r.open};
 }
 
 func (Range<T> r) stride() int {
@@ -48,31 +57,45 @@ func (Range<T> r) stride() int {
 
 /// A fresh walk of the range, which for uses to visit its values.
 public func (Range<T> r) iter() RangeIter<T> {
-	return RangeIter<T>{cur: r.start, end: r.end, by: r.stride()};
+	return RangeIter<T>{cur: r.start, end: r.end, by: r.stride(), open: r.open};
 }
 
 /// Whether the value is one the range visits, counting its step.
 public func (Range<T> r) contains(T v) bool {
 	int by = r.stride();
 	if by > 0 {
-		return v >= r.start && v <= r.end && (truncate(uint64, v) -% truncate(uint64, r.start)) % uint64(by) == 0;
+		if v < r.start || v > r.end || (r.open && v == r.end) {
+			return false;
+		}
+		return (truncate(uint64, v) -% truncate(uint64, r.start)) % uint64(by) == 0;
 	}
-	return v <= r.start && v >= r.end && (truncate(uint64, r.start) -% truncate(uint64, v)) % uint64(-by) == 0;
+	if v > r.start || v < r.end || (r.open && v == r.end) {
+		return false;
+	}
+	return (truncate(uint64, r.start) -% truncate(uint64, v)) % uint64(-by) == 0;
 }
 
 /// How many values the range visits.
 public func (Range<T> r) count() int {
 	int by = r.stride();
 	if by > 0 {
-		if r.end < r.start {
+		if r.end < r.start || (r.open && r.end == r.start) {
 			return 0;
 		}
-		return int((truncate(uint64, r.end) -% truncate(uint64, r.start)) / uint64(by)) + 1;
+		uint64 span = truncate(uint64, r.end) -% truncate(uint64, r.start);
+		if r.open {
+			span -= 1;
+		}
+		return int(span / uint64(by)) + 1;
 	}
-	if r.end > r.start {
+	if r.end > r.start || (r.open && r.end == r.start) {
 		return 0;
 	}
-	return int((truncate(uint64, r.start) -% truncate(uint64, r.end)) / uint64(-by)) + 1;
+	uint64 span = truncate(uint64, r.start) -% truncate(uint64, r.end);
+	if r.open {
+		span -= 1;
+	}
+	return int(span / uint64(-by)) + 1;
 }
 
 /// The next value of the walk, or null when it is over.
@@ -82,22 +105,30 @@ public func (*RangeIter<T> it) next() ?T {
 	}
 	T v = it.cur;
 	if it.by > 0 {
-		if v > it.end {
+		if v > it.end || (it.open && v == it.end) {
 			it.done = true;
 			return null;
 		}
-		if truncate(uint64, it.end) -% truncate(uint64, v) < uint64(it.by) {
+		uint64 left = truncate(uint64, it.end) -% truncate(uint64, v);
+		if it.open {
+			left -= 1;
+		}
+		if left < uint64(it.by) {
 			it.done = true;
 		} else {
 			it.cur = truncate(T, truncate(uint64, v) +% uint64(it.by));
 		}
 		return v;
 	}
-	if v < it.end {
+	if v < it.end || (it.open && v == it.end) {
 		it.done = true;
 		return null;
 	}
-	if truncate(uint64, v) -% truncate(uint64, it.end) < uint64(-it.by) {
+	uint64 left = truncate(uint64, v) -% truncate(uint64, it.end);
+	if it.open {
+		left -= 1;
+	}
+	if left < uint64(-it.by) {
 		it.done = true;
 	} else {
 		it.cur = truncate(T, truncate(uint64, v) -% uint64(-it.by));
@@ -128,8 +159,11 @@ func (a *Analyser) registerRange() {
 			continue
 		}
 		if fd.Receiver == nil {
-			if fd.Name == "makeRange" {
+			switch fd.Name {
+			case "makeRange":
 				fd.Name = rangeCallName
+			case "makeRangeOpen":
+				fd.Name = rangeOpenCallName
 			}
 			g := &GenericDecl{Name: fd.Name, File: rangeFile, Scope: a.universe, Params: fd.TypeParams, Func: fd, Exported: true}
 			define(fd.Name, FUNC, g, fd.Doc)

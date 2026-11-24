@@ -65,7 +65,7 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		if forStmt == nil {
 			return nil
 		}
-		stmt = forStmt
+		stmt = p.wrapFor(forStmt)
 	case lexer.TOKEN_LOOP:
 		loopStmt := p.parseLoopStatement()
 		if loopStmt == nil {
@@ -657,7 +657,8 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 		expr := p.parseExpressionPratt(RANGE)
 		p.allowStructLiteral = prev
 
-		if p.peek.Type == lexer.TOKEN_RANGE {
+		if p.peek.Type == lexer.TOKEN_RANGE || p.peek.Type == lexer.TOKEN_RANGE_OPEN {
+			open := p.peek.Type == lexer.TOKEN_RANGE_OPEN
 			stmt.Start = expr
 			p.advance()
 			p.advance()
@@ -665,8 +666,14 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 			p.allowStructLiteral = false
 			stmt.End = p.parseExpressionPratt(RANGE)
 			p.allowStructLiteral = prev
-		} else if start, end, step, ok := rangeOperands(expr); ok {
+			if open && stmt.End != nil {
+				p.makeExclusive(stmt, nil)
+			}
+		} else if start, end, step, open, ok := rangeOperands(expr); ok {
 			stmt.Start, stmt.End, stmt.Step = start, end, step
+			if open {
+				p.makeExclusive(stmt, expr)
+			}
 		} else {
 			stmt.Range = expr
 		}
@@ -902,7 +909,7 @@ func (p *Parser) parseLabeledStatement() ast.Statement {
 			return nil
 		}
 		stmt.Label = label
-		return stmt
+		return p.wrapFor(stmt)
 	case lexer.TOKEN_LOOP:
 		stmt := p.parseLoopStatement()
 		if stmt == nil {

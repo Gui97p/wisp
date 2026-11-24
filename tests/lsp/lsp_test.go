@@ -42,7 +42,7 @@ func TestHover(t *testing.T) {
 		{"tag", "#na¦ked\nfunc f() {}\nfunc main() {}\n", []string{"#naked", "no frame"}},
 		{"expect_abort tag", "#expect_ab¦ort(\"x\")\nfunc f() {}\nfunc main() {}\n", []string{"#expect_abort", "must stop the program"}},
 		{"test tag", "#te¦st\nfunc f() {}\nfunc main() {}\n", []string{"#test", "wisp test"}},
-		{"label", "func main() {\n  :outer for i in 0..3 {\n    break :ou¦ter;\n  }\n}\n", []string{":outer", "declared on line 2"}},
+		{"label", "func main() {\n  :outer for i in 0..=3 {\n    break :ou¦ter;\n  }\n}\n", []string{":outer", "declared on line 2"}},
 		{"capture", "func f() ?int { return null; }\nfunc main() {\n  if f() |va¦lue| {\n  }\n}\n", []string{"int value"}},
 		{"sizeof", "struct P { int x; }\nconst N = size¦of(P);\nfunc main() {}\n", []string{"func sizeof(x) int", "known at compile time"}},
 		{"static keyword", "const N = sta¦tic { yield 3 * 7; };\nfunc main() {}\n", []string{"static { ... } = 21", "while the program compiles", "type `int`"}},
@@ -76,7 +76,7 @@ func TestDefinition(t *testing.T) {
 		{"key in a nested literal", shapes + "func main() {\n  L l = .{a: .{¦x: 1, y: 1}, b: .{x: 2, y: 2}};\n}\n", 0},
 		{"key in an argument", shapes + "func main() {\n  take(.{x: 1, ¦y: 2});\n}\n", 0},
 		{"array literal type", shapes + "func main() {\n  let a = [2]¦P{.{x: 1, y: 1}, .{x: 2, y: 2}};\n}\n", 0},
-		{"label", "func main() {\n  :outer for i in 0..3 {\n    break :ou¦ter;\n  }\n}\n", 1},
+		{"label", "func main() {\n  :outer for i in 0..=3 {\n    break :ou¦ter;\n  }\n}\n", 1},
 		{"struct of a variable", shapes + "func main() {\n  ¦P p = .{x: 1, y: 2};\n}\n", 0},
 	}
 	for _, tc := range cases {
@@ -751,7 +751,7 @@ func TestCompletionOfCapturedVariable(t *testing.T) {
 
 func TestInterfacesInLSP(t *testing.T) {
 	c := start(t)
-	good := "interface Writer {\n\tfunc write([]byte data) !int;\n}\n\ninterface Number { int | float }\n\nstruct Buffer implements Writer {\n\tint length;\n}\n\nfunc (*Buffer b) write([]byte data) !int {\n\treturn len(data);\n}\n\nfunc sum<Number T>([]T items) T {\n\tT total;\n\tfor i in 0..len(items) - 1 {\n\t\ttotal += items[i];\n\t}\n\treturn total;\n}\n\nfunc send<Writer W>(W w, []byte data) !int {\n\treturn w.write(data)!;\n}\n\nfunc main() {\n\tBuffer b;\n\t[]byte data;\n\tint n = send(&b, data) ?? 0;\n\t[]int xs;\n\tint total = sum(xs);\n}\n"
+	good := "interface Writer {\n\tfunc write([]byte data) !int;\n}\n\ninterface Number { int | float }\n\nstruct Buffer implements Writer {\n\tint length;\n}\n\nfunc (*Buffer b) write([]byte data) !int {\n\treturn len(data);\n}\n\nfunc sum<Number T>([]T items) T {\n\tT total;\n\tfor i in 0..len(items) {\n\t\ttotal += items[i];\n\t}\n\treturn total;\n}\n\nfunc send<Writer W>(W w, []byte data) !int {\n\treturn w.write(data)!;\n}\n\nfunc main() {\n\tBuffer b;\n\t[]byte data;\n\tint n = send(&b, data) ?? 0;\n\t[]int xs;\n\tint total = sum(xs);\n}\n"
 	p := c.open(map[string]string{"main.wsp": good})
 	for _, d := range p.diagnostics() {
 		if d.Severity == 1 {
@@ -1070,7 +1070,7 @@ func TestCompletionInTypedContexts(t *testing.T) {
 func TestRangeInLSP(t *testing.T) {
 	c := start(t)
 
-	members := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..9;\n\tint n = r.¦\n}\n"}).completion()
+	members := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..=9;\n\tint n = r.¦\n}\n"}).completion()
 	for _, want := range []string{"start", "end", "contains", "count", "iter", "step"} {
 		if !slices.Contains(members, want) {
 			t.Errorf("a range lacks %q: %v", want, members)
@@ -1087,7 +1087,7 @@ func TestRangeInLSP(t *testing.T) {
 		t.Errorf("Range is not offered: %v", names)
 	}
 
-	hover := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..9;\n\tint n = r.cou¦nt();\n}\n"}).hover()
+	hover := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..=9;\n\tint n = r.cou¦nt();\n}\n"}).hover()
 	if !strings.Contains(hover, "count() int") || !strings.Contains(hover, "How many values") {
 		t.Errorf("hover of count: %q", hover)
 	}
@@ -1097,7 +1097,7 @@ func TestRangeInLSP(t *testing.T) {
 		t.Errorf("hover of ..: %q", dots)
 	}
 
-	typed := c.open(map[string]string{"main.wsp": "func main() {\n\tRan¦ge<int> r = 0..9;\n}\n"})
+	typed := c.open(map[string]string{"main.wsp": "func main() {\n\tRan¦ge<int> r = 0..=9;\n}\n"})
 	if hover := typed.hover(); !strings.Contains(hover, "struct Range<T>") {
 		t.Errorf("hover of Range: %q", hover)
 	}
@@ -1105,7 +1105,7 @@ func TestRangeInLSP(t *testing.T) {
 		t.Errorf("Range has no file to open: %v", defs)
 	}
 
-	method := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..9;\n\tint n = r.cou¦nt();\n}\n"})
+	method := c.open(map[string]string{"main.wsp": "func main() {\n\tRange<int> r = 0..=9;\n\tint n = r.cou¦nt();\n}\n"})
 	if defs := method.definition(); len(defs) != 0 {
 		t.Errorf("a builtin method has no file to open: %v", defs)
 	}
@@ -1362,21 +1362,34 @@ func TestEnumCompletionInGenericCalls(t *testing.T) {
 	}
 }
 
-func TestMethodTypeParametersAreOneClearError(t *testing.T) {
+func TestMethodsWithTypeParametersInTheEditor(t *testing.T) {
 	c := start(t)
-	for name, src := range map[string]string{
-		"plain receiver":   "struct W { int x; }\nfunc (*W w) draw<T>(T v) {}\nfunc main() {}\n",
-		"generic receiver": "struct L<T> { []T items; }\nfunc (*L<T> l) map<U>(U v) {}\nfunc main() {}\n",
-	} {
-		var errors []string
-		for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
-			if d.Severity == 1 {
-				errors = append(errors, d.Message)
-			}
+	decl := "import \"std/mem\";\nstruct Window { int w; }\nfunc (*Window w) draw<mem.Allocator A>(A allocator) int => w.w;\n"
+
+	good := c.open(map[string]string{"main.wsp": decl + "func main() {\n\tWindow win = Window{w: 3};\n\tint n = win.dr¦aw(mem.heap);\n\tn++;\n}\n"})
+	for _, d := range good.diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("valid generic method reported: %s", d.Message)
 		}
-		if len(errors) != 1 || !strings.Contains(errors[0], "cannot have type parameters of its own") {
-			t.Errorf("%s: %q", name, errors)
+	}
+	if hover := good.hover(); !strings.Contains(hover, "func (*Window w) draw(") || strings.Contains(hover, "__") {
+		t.Errorf("hover: %q", hover)
+	}
+
+	sig := c.open(map[string]string{"main.wsp": decl + "func main() {\n\tWindow win = Window{w: 3};\n\tint n = win.draw(¦);\n\tn++;\n}\n"})
+	if label, _ := sig.signature(); label != "draw(A allocator)" {
+		t.Errorf("signature: %q", label)
+	}
+
+	bad := c.open(map[string]string{"main.wsp": decl + "func main() {\n\tWindow win = Window{w: 3};\n\tint n = win.draw(5);\n\tn++;\n}\n"})
+	found := false
+	for _, d := range bad.diagnostics() {
+		if d.Severity == 1 && strings.Contains(d.Message, "does not satisfy") && !strings.Contains(d.Message, "__") {
+			found = true
 		}
+	}
+	if !found {
+		t.Errorf("bound violation not reported")
 	}
 }
 

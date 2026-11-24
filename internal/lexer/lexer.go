@@ -231,8 +231,11 @@ func (l *Lexer) NextToken() Token {
 			if l.peek() == '.' {
 				l.advance()
 				t = l.token(TOKEN_VARIADIC, "...")
+			} else if l.peek() == '=' {
+				l.advance()
+				t = l.token(TOKEN_RANGE, "..=")
 			} else {
-				t = l.token(TOKEN_RANGE, "..")
+				t = l.token(TOKEN_RANGE_OPEN, "..")
 			}
 		} else if isNumeric(l.peek()) {
 			var builder strings.Builder

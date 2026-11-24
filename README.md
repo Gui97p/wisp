@@ -8,7 +8,7 @@ func add(int a, b) int => a + b;
 func main() int {
   let total = add(2, 3);
 
-  for i in 1..3 {
+  for i in 1..=3 {
     if add(i, total) > 7 {
       emit("big");
     }

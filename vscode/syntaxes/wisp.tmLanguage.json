@@ -588,7 +588,7 @@
                 },
                 {
                     "name": "keyword.operator.range.wisp",
-                    "match": "\\.\\."
+                    "match": "\\.\\.=?"
                 },
                 {
                     "name": "punctuation.accessor.wisp",

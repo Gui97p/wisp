@@ -53,14 +53,14 @@ func (*Decimal dec) setUint(uint m) {
 
 func (*Decimal dec) shiftLeft() {
 	uint carry;
-	for i in (dec.n - 1..0).step(-1) {
+	for i in (dec.n - 1..=0).step(-1) {
 		uint cur = dec.d[i] * 2 + carry;
 		dec.d[i] = cur % 10;
 		carry = cur / 10;
 	}
 
 	if carry != 0 {
-		for i in (dec.n - 1..0).step(-1) {
+		for i in (dec.n - 1..=0).step(-1) {
 			dec.d[i + 1] = dec.d[i];
 		}
 		dec.n++;
@@ -75,7 +75,7 @@ func (*Decimal dec) shiftRight() {
 	uint carry;
 	int write;
 
-	for i in 0..dec.n - 1 {
+	for i in 0..dec.n {
 		uint cur = carry * 10 + dec.d[i];
 		dec.d[i] = cur / 2;
 		carry = cur % 2;
@@ -89,7 +89,7 @@ func (*Decimal dec) shiftRight() {
 	}
 
 	if dec.d[0] == 0 && dec.n > 1 {
-		for i in 1..dec.n - 1 {
+		for i in 1..dec.n {
 			dec.d[i - 1] = dec.d[i];
 		}
 
@@ -128,7 +128,7 @@ func (*Decimal dec) roundDown(int nd) {
 
 func (*Decimal dec) roundUp(int nd) {
 	if nd > 0 {
-		for i in (nd - 1..0).step(-1) {
+		for i in (nd - 1..=0).step(-1) {
 			if dec.d[i] < 9 {
 				dec.d[i]++;
 				dec.n = i + 1;
@@ -160,7 +160,7 @@ func (*Decimal dec) digitAt(int i) uint {
 
 func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive) {
 	int upperDelta;
-	for ui in 0..dec.n {
+	for ui in 0..=dec.n {
 		int mi = ui - upper.dp + dec.dp;
 		break if mi >= dec.n;
 		int li = ui - upper.dp + lower.dp;

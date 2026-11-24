@@ -212,7 +212,7 @@ func classify(tokens []token) []role {
 			} else {
 				r = rolePrefixDot
 			}
-		case k == lexer.TOKEN_RANGE:
+		case k == lexer.TOKEN_RANGE || k == lexer.TOKEN_RANGE_OPEN:
 			r = roleRange
 		case k == lexer.TOKEN_VARIADIC:
 			if i+1 < len(tokens) && tokens[i+1].kind == lexer.TOKEN_IDENT {

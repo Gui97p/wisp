@@ -51,7 +51,7 @@ func (*List<T> l) push(T value) {
 
 func (*List<T> l) sum() T {
 	T total;
-	for i in 0..l.count - 1 {
+	for i in 0..l.count {
 		total += l.items[i];
 	}
 	return total;

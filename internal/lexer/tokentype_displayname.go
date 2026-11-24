@@ -195,6 +195,8 @@ func (t TokenType) DisplayName() string {
 	case TOKEN_DOT:
 		return "."
 	case TOKEN_RANGE:
+		return "..="
+	case TOKEN_RANGE_OPEN:
 		return ".."
 	case TOKEN_VARIADIC:
 		return "..."

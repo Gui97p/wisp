@@ -5,7 +5,7 @@ const LIMIT = 1000000;
 func main() {
 	int bestStart = 1;
 	int bestLength = 1;
-	for start in 1..LIMIT-1 {
+	for start in 1..LIMIT {
 		int n = start;
 		int length = 1;
 		loop n != 1 {

@@ -172,7 +172,7 @@ internal native rawMmap(int len) *void r {
 
 internal func mmap(int len) ?*void {
 	*void r = rawMmap(len);
-	return null if int(r) in -4095..-1;
+	return null if int(r) in -4095..=-1;
 	return r;
 }
 
@@ -394,7 +394,7 @@ internal func dirNext(*Dir d, *Entry e) int {
 		continue if n == 1 && d.buf[start] == '.';
 		continue if n == 2 && d.buf[start] == '.' && d.buf[start + 1] == '.';
 
-		for i in 0..n {
+		for i in 0..=n {
 			e.name[i] = d.buf[start + i];
 		}
 		e.len = n;
@@ -419,7 +419,7 @@ internal func getcwd([]byte buf) int {
 
 internal func getenv(string name) ?string {
 	if environ() |env| {
-		for i in 0..1000000 {
+		for i in 0..=1000000 {
 			if env[i] |entry| {
 				int n;
 				loop entry[n] != '\0' {

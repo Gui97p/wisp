@@ -38,7 +38,7 @@ func layoutFixed([]byte buf, bool neg, *Decimal dec, int decimals) !string {
 		buf[i] = '0';
 		i++;
 	} else {
-		for k in 0..dec.dp - 1 {
+		for k in 0..dec.dp {
 			buf[i] = byte(dec.digitAt(k) + '0');
 			i++;
 		}
@@ -48,7 +48,7 @@ func layoutFixed([]byte buf, bool neg, *Decimal dec, int decimals) !string {
 		buf[i] = '.';
 		i++;
 
-		for k in 0..decimals - 1 {
+		for k in 0..decimals {
 			buf[i] = byte(dec.digitAt(dec.dp + k) + '0');
 			i++;
 		}
@@ -78,7 +78,7 @@ func layoutExp([]byte buf, bool neg, *Decimal dec, int decimals, bool upper) !st
 		buf[i] = '.';
 		i++;
 
-		for k in 1..decimals {
+		for k in 1..=decimals {
 			buf[i] = byte(dec.digitAt(k) + '0');
 			i++;
 		}
@@ -115,7 +115,7 @@ func shortestText([]byte buf, float x, bool single) !string {
 		dec.setShortest(math.fabs(x));
 	}
 
-	return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))! if dec.dp - 1 in -5..20;
+	return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))! if dec.dp - 1 in -5..=20;
 	return layoutExp(buf, neg, &dec, dec.n - 1, false)!;
 }
 
