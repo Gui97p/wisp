@@ -42,7 +42,7 @@ func (a *Analyser) registerTypeAliases() {
 		nt.Impl = a.newImplSet(td.Implements, nt, td, a.moduleScope, nil)
 
 		line, col := td.Position()
-		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col, File: a.currentFile, Doc: td.Doc}
+		symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: nt, Line: line, Col: col, File: a.currentFile, Doc: td.Doc, Private: td.Reach == ast.ReachFile}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(td, TYPE, td.Name)
@@ -234,7 +234,7 @@ func (a *Analyser) registerMethods() {
 			receiverName = fd.Receiver.Name
 		}
 		if !sameDecl {
-			methods[fd.Name] = &FuncType{Decl: fd, Scope: a.scope, Inline: fd.Inline, DeclFile: a.currentFile, DeclLine: line, Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported, InternalDir: reachDir(fd.Reach, a.currentFile), Module: a.module}
+			methods[fd.Name] = &FuncType{Decl: fd, Scope: a.scope, Inline: fd.Inline, DeclFile: a.currentFile, DeclLine: line, Name: fd.Name, Params: params, ParamNames: names, ReceiverName: receiverName, Returns: returns, Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported, InternalDir: reachDir(fd.Reach, a.currentFile), Private: fd.Reach == ast.ReachFile, Module: a.module}
 		}
 		a.info.FuncReturns[fd] = returns
 		_, _, ownerExported := methodOwner(recvType)
@@ -258,7 +258,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 				t = InvalidType{}
 			}
 			symLine, symCol := identPos(v, line, col)
-			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node)}
+			sym := &Symbol{Name: v.Name, Kind: kind, Type: t, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node), Private: nodeReach(node) == ast.ReachFile}
 			if !a.scope.Define(sym) {
 				a.errorAlreadyDeclared(node, kind, v.Name)
 			}
@@ -347,7 +347,7 @@ func (a *Analyser) checkVarsAndValues(node ast.Node, vars []ast.Param, values []
 		}
 
 		symLine, symCol := identPos(v, line, col)
-		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node)}
+		sym := &Symbol{Name: v.Name, Kind: kind, Type: finalType, Line: symLine, Col: symCol, File: a.currentFile, Doc: docOf(node), Private: nodeReach(node) == ast.ReachFile}
 		if kind == CONST {
 			sym.Const = a.constantFor(node, values, len(vars), i, finalType, a.errorCount() > errorsBefore)
 			if sym.Const != nil && sym.Const.aggregate() && a.scope == a.moduleScope {

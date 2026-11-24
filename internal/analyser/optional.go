@@ -2,6 +2,7 @@ package analyser
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/diag"
@@ -12,7 +13,10 @@ const (
 	optionalPresent = "$present"
 )
 
-var optionalStructs = map[string]*StructType{}
+var (
+	optionalStructs   = map[string]*StructType{}
+	optionalStructsMu sync.Mutex
+)
 
 func (a *Analyser) optionalOf(node ast.Node, elem Type) Type {
 	result, reason := tryOptionalOf(elem)
@@ -60,9 +64,19 @@ func tryOptionalOf(elem Type) (Type, string) {
 	return optionalStruct(elem), ""
 }
 
+func sameOptionalElement(cached, elem Type) bool {
+	if a, ok := cached.(*StructType); ok {
+		b, isStruct := elem.(*StructType)
+		return isStruct && a == b
+	}
+	return cached.Equals(elem) && elem.Equals(cached)
+}
+
 func optionalStruct(elem Type) *StructType {
 	key := elem.String()
-	if st, ok := optionalStructs[key]; ok && st.Optional.Equals(elem) && elem.Equals(st.Optional) {
+	optionalStructsMu.Lock()
+	defer optionalStructsMu.Unlock()
+	if st, ok := optionalStructs[key]; ok && sameOptionalElement(st.Optional, elem) {
 		return st
 	}
 	st := &StructType{

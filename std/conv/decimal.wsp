@@ -1,22 +1,22 @@
 import "std/math";
 
-internal struct Decimal {
+struct Decimal {
 	[1100]uint d;
 	int n, dp;
 }
 
-internal func (*Decimal dec) load(uint digit) {
+func (*Decimal dec) load(uint digit) {
 	dec.d[dec.n] = digit;
 	dec.n++;
 }
 
-internal func (*Decimal dec) trim() {
+func (*Decimal dec) trim() {
 	loop dec.n > 1 && dec.d[dec.n - 1] == 0 {
 		dec.n--;
 	}
 }
 
-internal func (*Decimal dec) setUint(uint m) {
+func (*Decimal dec) setUint(uint m) {
 	dec.n = 0;
 
 	uint tmp = m;
@@ -51,7 +51,7 @@ internal func (*Decimal dec) setUint(uint m) {
 	dec.trim();
 }
 
-internal func (*Decimal dec) shiftLeft() {
+func (*Decimal dec) shiftLeft() {
 	uint carry;
 	for i in (dec.n - 1..0).step(-1) {
 		uint cur = dec.d[i] * 2 + carry;
@@ -71,7 +71,7 @@ internal func (*Decimal dec) shiftLeft() {
 	dec.trim();
 }
 
-internal func (*Decimal dec) shiftRight() {
+func (*Decimal dec) shiftRight() {
 	uint carry;
 	int write;
 
@@ -100,7 +100,7 @@ internal func (*Decimal dec) shiftRight() {
 	dec.trim();
 }
 
-internal func (*Decimal dec) assign(uint m, int e) {
+func (*Decimal dec) assign(uint m, int e) {
 	dec.setUint(m);
 	for e {
 		dec.shiftLeft();
@@ -110,7 +110,7 @@ internal func (*Decimal dec) assign(uint m, int e) {
 	}
 }
 
-internal func (*Decimal dec) shouldRoundUp(int nd) bool {
+func (*Decimal dec) shouldRoundUp(int nd) bool {
 	if nd < 0 || nd >= dec.n {
 		return false;
 	}
@@ -121,12 +121,12 @@ internal func (*Decimal dec) shouldRoundUp(int nd) bool {
 	return d >= 5;
 }
 
-internal func (*Decimal dec) roundDown(int nd) {
+func (*Decimal dec) roundDown(int nd) {
 	dec.n = nd;
 	dec.trim();
 }
 
-internal func (*Decimal dec) roundUp(int nd) {
+func (*Decimal dec) roundUp(int nd) {
 	if nd > 0 {
 		for i in (nd - 1..0).step(-1) {
 			if dec.d[i] < 9 {
@@ -142,7 +142,7 @@ internal func (*Decimal dec) roundUp(int nd) {
 	dec.dp++;
 }
 
-internal func (*Decimal dec) round(int nd) {
+func (*Decimal dec) round(int nd) {
 	if nd < 0 || nd >= dec.n {
 		return;
 	}
@@ -154,11 +154,11 @@ internal func (*Decimal dec) round(int nd) {
 	}
 }
 
-internal func (*Decimal dec) digitAt(int i) uint {
+func (*Decimal dec) digitAt(int i) uint {
 	return i < 0 || i >= dec.n ? 0 : dec.d[i];
 }
 
-internal func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive) {
+func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive) {
 	int upperDelta;
 	for ui in 0..dec.n {
 		int mi = ui - upper.dp + dec.dp;
@@ -193,7 +193,7 @@ internal func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive
 	}
 }
 
-internal func (*Decimal dec) shortest(uint mant, int exp, uint hidden, int minExp) {
+func (*Decimal dec) shortest(uint mant, int exp, uint hidden, int minExp) {
 	dec.assign(mant, exp);
 
 	uint m = 1;
@@ -208,7 +208,7 @@ internal func (*Decimal dec) shortest(uint mant, int exp, uint hidden, int minEx
 	dec.roundShortest(&lower, &upper, mant % 2 == 0);
 }
 
-internal func (*Decimal dec) setShortest(float x) {
+func (*Decimal dec) setShortest(float x) {
 	let mant, exp = math.decompose(x);
 	if mant == 0 {
 		dec.n = 0;
@@ -218,7 +218,7 @@ internal func (*Decimal dec) setShortest(float x) {
 	dec.shortest(mant, exp, 1 << 52, -1074);
 }
 
-internal func (*Decimal dec) setShortest32(float32 x) {
+func (*Decimal dec) setShortest32(float32 x) {
 	let mant, exp = math.decompose(x);
 	if mant == 0 {
 		dec.n = 0;
@@ -232,7 +232,7 @@ internal func (*Decimal dec) setShortest32(float32 x) {
 	dec.shortest(m24, e24, 1 << 23, -149);
 }
 
-internal func (*Decimal dec) setFixed(float x, int n) {
+func (*Decimal dec) setFixed(float x, int n) {
 	let mant, exp = math.decompose(x);
 	if mant == 0 {
 		dec.n = 0;
@@ -248,7 +248,7 @@ internal func (*Decimal dec) setFixed(float x, int n) {
 	dec.round(dec.dp + n);
 }
 
-internal func (*Decimal dec) setSignificant(float x, int nd) {
+func (*Decimal dec) setSignificant(float x, int nd) {
 	let mant, exp = math.decompose(x);
 	if mant == 0 {
 		dec.n = 0;

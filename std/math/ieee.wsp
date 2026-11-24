@@ -9,7 +9,7 @@ is preserved.
 
 */
 
-internal func words(float x) (uint, uint) {
+func words(float x) (uint, uint) {
 	uint64 bits = (*uint64)(&x)@;
 	uint high = bits >> 32;
 	uint low = bits & 0xFFFFFFFF;
@@ -17,7 +17,7 @@ internal func words(float x) (uint, uint) {
 	return high, low;
 }
 
-internal func fromWords(uint high, low) float {
+func fromWords(uint high, low) float {
 	float f;
 	(*uint64)(&f)@ = (high << 32) | low;
 	return f;
@@ -305,39 +305,39 @@ public func decompose(float x) (uint, int) {
 	return fraction | (1 << 52), biased - 1075;
 }
 
-internal inline func highWord(float x) uint {
+inline func highWord(float x) uint {
 	uint h, _ = words(x);
 	return h;
 }
 
-internal inline func lowWord(float x) uint {
+inline func lowWord(float x) uint {
 	uint _, l = words(x);
 	return l;
 }
 
-internal inline func setHighWord(float x, uint h) float {
+inline func setHighWord(float x, uint h) float {
 	uint _, l = words(x);
 	return fromWords(h & 0xffffffff, l);
 }
 
-internal inline func setLowWord(float x, uint l) float {
+inline func setLowWord(float x, uint l) float {
 	uint h, _ = words(x);
 	return fromWords(h, l & 0xffffffff);
 }
 
-internal inline func signed32(uint w) int {
+inline func signed32(uint w) int {
 	if w >= 0x80000000 {
 		return int(w) - 0x100000000;
 	}
 	return int(w);
 }
 
-internal inline func addExponent(float x, int k) float {
+inline func addExponent(float x, int k) float {
 	uint h, l = words(x);
 	return fromWords(uint(int(h) + (k << 20)) & 0xffffffff, l);
 }
 
-internal func exponentOf(uint h, l) int {
+func exponentOf(uint h, l) int {
 	if h >= 0x00100000 {
 		return int(h >> 20) - 1023;
 	}

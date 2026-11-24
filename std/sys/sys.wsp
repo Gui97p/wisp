@@ -41,21 +41,21 @@ internal const {
 }
 
 internal struct Timespec {
-	int tv_sec;
-	int tv_nsec;
+	internal int tv_sec;
+	internal int tv_nsec;
 }
 
 internal struct Stat {
-	int kind;
-	int size;
-	int modified;
-	int mode;
+	internal int kind;
+	internal int size;
+	internal int modified;
+	internal int mode;
 }
 
 internal struct Entry {
-	int kind;
-	int len;
-	[1024]byte name;
+	internal int kind;
+	internal int len;
+	internal [1024]byte name;
 }
 
 internal func errno(int raw) int {

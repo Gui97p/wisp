@@ -1,6 +1,6 @@
 #standalone
 public struct Box<T> {
-	T value;
+	public T value;
 }
 
 public func (*Box<T> b) get() T {

@@ -1,28 +1,28 @@
-internal struct Cursor {
+struct Cursor {
 	string text;
 	int pos;
 }
 
-internal inline func (*Cursor c) peekAt(int k) byte {
+inline func (*Cursor c) peekAt(int k) byte {
 	if c.pos + k >= len(c.text) || k < 0 {
 		return '\0';
 	}
 	return c.text[c.pos + k];
 }
 
-internal inline func (*Cursor c) peek() byte {
+inline func (*Cursor c) peek() byte {
 	return c.peekAt(0);
 }
 
-internal inline func (*Cursor c) advance() {
+inline func (*Cursor c) advance() {
 	c.pos++;
 }
 
-internal inline func (*Cursor c) advanceN(int n) {
+inline func (*Cursor c) advanceN(int n) {
 	c.pos += n;
 }
 
-internal func (*Cursor c) advanceIf(byte ch) bool {
+func (*Cursor c) advanceIf(byte ch) bool {
 	if c.peek() == ch {
 		c.advance();
 		return true;
@@ -30,7 +30,7 @@ internal func (*Cursor c) advanceIf(byte ch) bool {
 	return false;
 }
 
-internal func (*Cursor c) advanceUntil(byte ...chs) bool {
+func (*Cursor c) advanceUntil(byte ...chs) bool {
 	loop !(c.peek() in chs) {
 		return false if c.done();
 		c.advance();
@@ -38,20 +38,20 @@ internal func (*Cursor c) advanceUntil(byte ...chs) bool {
 	return true;
 }
 
-internal inline func (*Cursor c) since(int mark) string {
+inline func (*Cursor c) since(int mark) string {
 	return c.text[mark:c.pos];
 }
 
-internal inline func (*Cursor c) done() bool {
+inline func (*Cursor c) done() bool {
 	return c.pos >= len(c.text);
 }
 
-internal struct Number {
+struct Number {
 	int value;
 	bool fits;
 }
 
-internal func (*Cursor c) number() ?Number {
+func (*Cursor c) number() ?Number {
 	const digits = "0123456789";
 
 	int count;

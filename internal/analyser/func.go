@@ -63,7 +63,7 @@ func (a *Analyser) registerFuncSignatures() {
 			continue
 		}
 		line, col := fd.Position()
-		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc}
+		symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: ft, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc, Private: fd.Reach == ast.ReachFile}
 		ft.CVariadic = fd.CVariadic
 		if fd.Extern {
 			a.checkCSignature(fd, "an extern function", params, returns, variadic)

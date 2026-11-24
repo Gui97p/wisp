@@ -76,13 +76,13 @@ struct StatBuf {
 }
 
 internal struct Env {
-	int index;
+	internal int index;
 }
 
 internal struct Dir {
-	int fd;
-	int pos, len;
-	[4096]byte buf;
+	internal int fd;
+	internal int pos, len;
+	internal [4096]byte buf;
 }
 
 internal native read(int fd, *byte buf, int n) int r {

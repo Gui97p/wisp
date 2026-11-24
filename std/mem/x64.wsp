@@ -1,6 +1,6 @@
 #target x64
 
-internal native<debug> setExitHook(() => () hook) {
+native<debug> setExitHook(() => () hook) {
 	extern __wisp_exit_hook;
 	mov rax, hook;
 	mov [rel __wisp_exit_hook], rax;
@@ -34,10 +34,10 @@ func<debug> callerSite(*void f) string {
 	return first;
 }
 
-internal inline func site() string {
+inline func site() string {
 	return "";
 }
-internal func<debug> site() string {
+func<debug> site() string {
 	?*void f;
 	native {
 		mov rax, [rbp];
@@ -46,14 +46,14 @@ internal func<debug> site() string {
 	return callerSite(f!!);
 }
 
-internal native rawCopy(*void dst, src, int n) {
+native rawCopy(*void dst, src, int n) {
 	mov rdi, dst;
 	mov rsi, src;
 	mov rcx, n;
 	rep movsb;
 }
 
-internal native rawCopyBackward(*void dst, src, int n) {
+native rawCopyBackward(*void dst, src, int n) {
 	mov rdi, dst;
 	add rdi, n;
 	dec rdi;
@@ -66,7 +66,7 @@ internal native rawCopyBackward(*void dst, src, int n) {
 	cld;
 }
 
-internal native rawSet(*void dst, byte value, int n) {
+native rawSet(*void dst, byte value, int n) {
 	mov rdi, dst;
 	mov al, value;
 	mov rcx, n;

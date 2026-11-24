@@ -45,6 +45,12 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 			t = InvalidType{}
 			break
 		}
+		if a.privateElsewhere(symbol) {
+			a.reportPrivate(expr, symbol)
+			symbol.Used = true
+			t = InvalidType{}
+			break
+		}
 		a.info.Idents[e] = symbol
 		symbol.Used = true
 		a.noteUse(expr, symbol)
@@ -468,6 +474,9 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 				viaBound := ft.Module != a.module && (a.waiveAccess || a.boundGuarantees(objType, member.Field))
 				if ft.Module != a.module && !viaBound && !(ft.Exported && ownerExported) {
 					a.errorf(expr, "method %s of %s is not public", member.Field, owner)
+				} else if ft.Private && ft.DeclFile != "" && a.currentFile != "" && filepath.Clean(ft.DeclFile) != filepath.Clean(a.currentFile) {
+					file := filepath.Base(ft.DeclFile)
+					a.errorf(expr, "method %s of %s is private to %s", member.Field, owner, file).WithHelp("only %s can call it: mark it internal to share it with the project, or public to share it with everyone", file)
 				} else if ft.Module != a.module && !viaBound && ft.InternalDir != "" && !insideDir(a.currentFile, ft.InternalDir) {
 					a.errorf(expr, "method %s of %s is internal to the project %q", member.Field, owner, filepath.Base(ft.InternalDir))
 				}

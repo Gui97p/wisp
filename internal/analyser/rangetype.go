@@ -14,8 +14,8 @@ const rangeSource = `
 /// The values from start to end, both included, counting by one.
 /// Write it as start..end, and give it another step with step.
 public struct Range<T> {
-	T start;
-	T end;
+	public T start;
+	public T end;
 	internal int by;
 }
 

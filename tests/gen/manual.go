@@ -1059,7 +1059,7 @@ internal func hidden() int {
 }
 
 public struct Box {
-    int w;
+    public int w;
     internal int scale;
 }
 
@@ -1085,7 +1085,7 @@ func main() {
 	{dir: "visibility_words", files: map[string]string{"counter/counter.wsp": `public struct Counter {
     private int hits;
     internal int step;
-    int label;
+    public int label;
 }
 
 public func start(int step, int label) Counter {
@@ -1186,8 +1186,8 @@ func main() !int {
 	{dir: "cyclic_modules", files: map[string]string{"world.wsp": `import "entity";
 
 public struct World {
-    [4]entity.Entity slots;
-    int count;
+    public [4]entity.Entity slots;
+    public int count;
 }
 
 public func (*World w) add(int hp) {
@@ -1212,8 +1212,8 @@ public func isEven(int n) bool {
 `, "entity.wsp": `import "world";
 
 public struct Entity {
-    int hp;
-    ?*world.World owner;
+    public int hp;
+    public ?*world.World owner;
 }
 
 public func make(int hp) Entity {
@@ -1255,8 +1255,8 @@ func main() {
 }
 `, expected: []string{"two modules that import each other share their types", "a struct points at a type from the module that imports it", "functions call each other across modules"}},
 	{dir: "methods_across_files", files: map[string]string{"shapes/shape.wsp": `public struct Shape {
-    int w;
-    int h;
+    public int w;
+    public int h;
 }
 `, "shapes/area.wsp": `public func (*Shape s) area() int {
     return s.w * s.h;
@@ -1435,7 +1435,7 @@ func main() {
 }
 `, expected: []string{"a byte is found in a literal of chars", "a byte that is not in the literal", "an int in a literal of ints", "a literal used directly in the expression"}},
 	{dir: "method_modules", files: map[string]string{"counter.wsp": `public struct Counter {
-    int n;
+    public int n;
 }
 
 public func (*Counter c) bump(int by) {
@@ -12108,8 +12108,8 @@ func main() {
 `, expected: []string{"a loop with a product", "continue inside a static loop", "a loop with a condition", "inline functions can be called", "strings", "booleans", "floats", "a static block inside a function, with a labeled break", "static blocks are operands"}},
 
 	{dir: "static_modules", files: map[string]string{"shapes/shapes.wsp": `public struct Packet {
-    uint8 kind;
-    int length;
+    public uint8 kind;
+    public int length;
 }
 
 public const PACKET_SIZE = sizeof(Packet);
@@ -12678,8 +12678,8 @@ func main() {
 }
 
 public struct Stack<T> {
-    [16]T items;
-    int top;
+    public [16]T items;
+    public int top;
 }
 
 public func (*Stack<T> s) push(T value) {
@@ -12698,8 +12698,8 @@ public func depth<T>(*Stack<T> s) int {
 }
 
 public struct Ring<T, const int N> {
-    [N]T slots;
-    int head;
+    public [N]T slots;
+    public int head;
 }
 
 public func (*Ring<T, N> r) put(T v) {
@@ -13822,7 +13822,7 @@ func main() {
 `, expected: []string{"a type that declares implements satisfies the constraint", "close() of WriteCloser was called through the constraint", "an instance of a generic struct implements an instance of a generic interface", "a type set with several types", "a type defined from a member of the set satisfies it", "a type set that excludes a type", "Comparable"}},
 
 	{dir: "generics_sibling_calls", files: map[string]string{"lib/lib.wsp": `public struct Box<T> {
-    T v;
+    public T v;
 }
 
 public func (Box<T> b) twice() T {
@@ -13878,7 +13878,7 @@ func (*Square s) area() int {
 }
 
 public struct Open implements shapes.Shape {
-    int side;
+    public int side;
 }
 
 public func (*Open o) area() int {
@@ -13900,7 +13900,7 @@ func main() {
 }
 
 public struct Square implements Shape {
-    int side;
+    public int side;
 }
 
 public func (Square s) area() int {
@@ -14404,9 +14404,9 @@ func main() {
 `, expected: []string{"the happy path"}, abort: "panic: stop here"},
 
 	{dir: "static_data", files: map[string]string{"palette/palette.wsp": `public struct Color {
-    uint8 r;
-    uint8 g;
-    uint8 b;
+    public uint8 r;
+    public uint8 g;
+    public uint8 b;
 }
 
 public const [3]Color PALETTE = .{Color{r: 255}, Color{g: 255}, Color{b: 255, r: 1}};

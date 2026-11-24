@@ -46,7 +46,7 @@ inline func classOf(int total) int {
 	return (bits > 5 ? bits : 5) - 5;
 }
 
-internal func allocate(int n, bool zero) ?*void {
+func allocate(int n, bool zero) ?*void {
 	if n < 0 || n > MAX_ALLOC {
 		return null;
 	}
@@ -89,7 +89,7 @@ inline func recycle(*void p, int h) {
 	classes[h] = p;
 }
 
-internal func release(*void p) {
+func release(*void p) {
 	switch state(p) {
 		case DEAD => panic("double free");
 		case LIVE => setState(p, DEAD);
@@ -104,7 +104,7 @@ internal func release(*void p) {
 	}
 }
 
-internal func realloc(*void p, int n) ?*void {
+func realloc(*void p, int n) ?*void {
 	int h = header(p);
 	int cap = (h < 11 ? (MIN_BLOCK << h) : h) - 16;
 	return p if n <= cap;

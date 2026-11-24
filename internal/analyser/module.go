@@ -373,3 +373,22 @@ func (a *Analyser) entryPosition(owner, name string) (string, int, int) {
 	}
 	return file, 1, 1
 }
+
+func nodeReach(node ast.Node) int {
+	if d, ok := node.(ast.Declaration); ok {
+		return declReach(d)
+	}
+	return ast.ReachNone
+}
+
+func (a *Analyser) privateElsewhere(sym *Symbol) bool {
+	if sym == nil || !sym.Private || sym.File == "" || a.currentFile == "" {
+		return false
+	}
+	return filepath.Clean(sym.File) != filepath.Clean(a.currentFile)
+}
+
+func (a *Analyser) reportPrivate(node ast.Node, sym *Symbol) {
+	file := filepath.Base(sym.File)
+	a.errorf(node, "%s %s is private to %s", sym.Kind, sym.Name, file).WithHelp("only %s can use it: mark it internal to share it with the project, or public to share it with everyone", file)
+}

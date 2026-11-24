@@ -95,14 +95,14 @@ struct FindData {
 }
 
 internal struct Env {
-	?*void block;
-	?*uint16 cursor;
+	internal ?*void block;
+	internal ?*uint16 cursor;
 }
 
 internal struct Dir {
-	int handle;
-	int started;
-	FindData data;
+	internal int handle;
+	internal int started;
+	internal FindData data;
 }
 
 var ?*uint16 wideAp;

@@ -10,9 +10,9 @@ import "std/mem";
 /// The zero value is an empty list that is ready to use, and it takes its
 /// memory from `parent`, or from the heap when that is null.
 public struct List<T> {
-	?mem.Allocator parent;
-	[]T items;
-	internal int cap;
+	public ?mem.Allocator parent;
+	public []T items;
+	int cap;
 }
 
 inline func (*List<T> l) source() mem.Allocator {

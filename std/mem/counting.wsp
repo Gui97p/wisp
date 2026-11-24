@@ -8,8 +8,8 @@ const counting_HEADER = 16;
 /// allocates and that it frees all of it. The counters are read with `blocks`,
 /// `bytes`, `peak`, `allocations` and `allocated`.
 public struct Counting implements Allocator {
-	?Allocator parent;
-	internal int liveBlocks, liveBytes, peakBytes, totalBlocks, totalBytes;
+	public ?Allocator parent;
+	int liveBlocks, liveBytes, peakBytes, totalBlocks, totalBytes;
 }
 
 func (*Counting c) source() Allocator {

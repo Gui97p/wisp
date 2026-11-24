@@ -30,8 +30,8 @@ func newChunk(Allocator source, int need) !*Chunk {
 /// only valid for the arena that made it, and only while that arena has not been
 /// rewound or reset past it.
 public struct Mark {
-	internal ?*Chunk chunk;
-	internal int used;
+	?*Chunk chunk;
+	int used;
 }
 
 /// An allocator that hands out memory in a row and frees it all at once. Blocks
@@ -40,8 +40,8 @@ public struct Mark {
 /// `parent` is null. An arena needs no setup: the zero value is empty and ready.
 /// Call `release` when done with it, or the chunks stay allocated.
 public struct Arena implements Allocator {
-	?Allocator parent;
-	internal ?*Chunk head;
+	public ?Allocator parent;
+	?*Chunk head;
 }
 
 func (*Arena a) source() Allocator {

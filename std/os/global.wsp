@@ -38,8 +38,8 @@ public enum FileKind { File, Dir, Link, Other }
 /// last modification time as the system gives it, and `mode` holds the permission
 /// bits.
 public struct Stat {
-	FileKind kind;
-	int size, modified, mode;
+	public FileKind kind;
+	public int size, modified, mode;
 }
 
 /// Kinds of error of the file system that `errors.Kind` has no name for. `IO` is

@@ -259,6 +259,7 @@ const (
 	ReachNone = iota
 	ReachProject
 	ReachFile
+	ReachPublic
 )
 
 type StaticAssertDecl struct {

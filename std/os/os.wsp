@@ -82,7 +82,7 @@ public inline func args() []string => sys.args();
 /// An iterator over the environment variables. Get one from `environ`, read it
 /// with `next` and call `close` when done.
 public struct Environ {
-	internal sys.Env state;
+	sys.Env state;
 }
 
 /// Starts an iteration over the environment variables of the process.
@@ -95,8 +95,8 @@ public func environ() Environ {
 /// One environment variable. Both strings point into the environment and must
 /// not be freed.
 public struct Variable {
-	string name;
-	string value;
+	public string name;
+	public string value;
 }
 
 /// Returns the next variable, or null when there are no more. Entries without a

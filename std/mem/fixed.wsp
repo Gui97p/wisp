@@ -5,8 +5,8 @@ import "std/math";
 /// freed one by one and nothing is allocated from the heap. When the buffer is
 /// full, allocation fails with `NoSpace`.
 public struct Fixed implements Allocator {
-	[]byte buffer;
-	internal int bUsed;
+	public []byte buffer;
+	int bUsed;
 }
 
 /// Allocates `n` zeroed bytes from the buffer. Fails with `Invalid` for a

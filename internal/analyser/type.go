@@ -266,21 +266,23 @@ func (n NamedType) Equals(other Type) bool {
 }
 
 type StructType struct {
-	Name       string
-	Fields     map[string]Type
-	Order      []string
-	Methods    map[string]*FuncType
-	FieldDocs  map[string]string
-	FieldDirs  map[string]string
-	FieldFiles map[string]string
-	Module     string
-	Dir        string
-	Exported   bool
-	Optional   Type
-	Sum        *SumInfo
-	layout     *StructLayout
-	complete   bool
-	Packed     bool
+	Name            string
+	Fields          map[string]Type
+	Order           []string
+	Methods         map[string]*FuncType
+	FieldDocs       map[string]string
+	FieldDirs       map[string]string
+	FieldFiles      map[string]string
+	FieldModuleOnly map[string]bool
+	ModuleFiles     map[string]bool
+	Module          string
+	Dir             string
+	Exported        bool
+	Optional        Type
+	Sum             *SumInfo
+	layout          *StructLayout
+	complete        bool
+	Packed          bool
 
 	key        string
 	Instance   *InstanceInfo
@@ -335,6 +337,7 @@ type FuncType struct {
 	Receiver     Type
 	Exported     bool
 	InternalDir  string
+	Private      bool
 	Module       string
 	DeclFile     string
 	DeclLine     int

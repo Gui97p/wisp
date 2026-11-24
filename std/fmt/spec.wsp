@@ -1,12 +1,12 @@
 
-internal enum Align {
+enum Align {
 	Default,
 	Left,
 	Right,
 	Center
 }
 
-internal struct Spec {
+struct Spec {
 	byte fill;
 	Align align;
 	bool alt;
@@ -16,14 +16,14 @@ internal struct Spec {
 	byte kind;
 }
 
-internal enum SpecError {
+enum SpecError {
 	UnknownType = 1,
 	BadNumber,
 	Trailing,
 	NotForType
 }
 
-internal enum Value {
+enum Value {
 	Int,
 	Uint,
 	Bool,
@@ -33,7 +33,7 @@ internal enum Value {
 	Error
 }
 
-internal func parse(string text) !Spec {
+func parse(string text) !Spec {
 	Spec spec = Spec{fill: ' ', precision: -1};
 	return spec if len(text) == 0;
 	[3]byte aligns = .{'<', '>', '^'};
@@ -90,7 +90,7 @@ internal func parse(string text) !Spec {
 	return spec;
 }
 
-internal func validate(Spec s, Value v) ! {
+func validate(Spec s, Value v) ! {
 	switch v {
 		case .Int, .Uint => {
 			if s.kind in "pv" ||

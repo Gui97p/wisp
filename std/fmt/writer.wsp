@@ -33,10 +33,10 @@ public enum BufMode {
 /// empty `buf` writes at once. Call `flush` at the end, since `Line` and `Full`
 /// can leave bytes in the buffer.
 public struct Writer {
-	int fd;
-	[]byte buf;
-	BufMode mode;
-	internal int len, total;
+	public int fd;
+	public []byte buf;
+	public BufMode mode;
+	int len, total;
 }
 
 func (*Writer w) put(*byte c, int n) ! {

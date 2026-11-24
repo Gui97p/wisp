@@ -1,6 +1,6 @@
 import "std/sys";
 
-internal inline func toNs(int s, ns) int => s * 1_000_000_000 + ns;
+inline func toNs(int s, ns) int => s * 1_000_000_000 + ns;
 
 /// Returns the wall clock time, in nanoseconds since the Unix epoch. It can jump
 /// if the clock of the system is changed, so use `ticks` to measure durations.

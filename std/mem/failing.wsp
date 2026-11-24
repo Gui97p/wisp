@@ -6,9 +6,9 @@ import "std/errors";
 /// forwarded to `parent`, or to `heap` when `parent` is null, and `free` is
 /// always forwarded.
 public struct Failing implements Allocator {
-	?Allocator parent;
-	?int after;
-	internal int attempts;
+	public ?Allocator parent;
+	public ?int after;
+	int attempts;
 }
 
 func (*Failing f) source() Allocator {

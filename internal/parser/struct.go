@@ -70,6 +70,9 @@ func (p *Parser) parseStructParamList() []ast.Param {
 		case lexer.TOKEN_PRIVATE:
 			reach = ast.ReachFile
 			p.advance()
+		case lexer.TOKEN_PUBLIC:
+			reach = ast.ReachPublic
+			p.advance()
 		}
 		if !p.isPointerType() {
 			p.errorType(p.current.Type)

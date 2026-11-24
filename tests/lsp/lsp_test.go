@@ -1491,7 +1491,7 @@ func TestInternalMeansTheWholeProject(t *testing.T) {
 		"wisp.toml":             "[dependencies]\ngeo = { path = \"geometry\" }\n",
 		"main.wsp":              "import \"geo\";\nfunc main() {\n\tgeo.Box b = geo.make();\n\tint n = b.cache;\n\tint w = b.w;\n}\n",
 		"geometry/wisp.toml":    "",
-		"geometry/geometry.wsp": "public struct Box {\n\tint w;\n\tinternal int cache;\n}\npublic func make() Box => Box{w: 1, cache: 2};\n",
+		"geometry/geometry.wsp": "public struct Box {\n\tpublic int w;\n\tinternal int cache;\n}\npublic func make() Box => Box{w: 1, cache: 2};\n",
 	})
 	got = errorsOf(field)
 	if len(got) != 1 || !strings.Contains(got[0], `field cache of Box is internal to the project "geometry"`) {
@@ -1505,7 +1505,7 @@ func TestPrivateKeepsANameInItsFile(t *testing.T) {
 	field := c.open(map[string]string{
 		"wisp.toml": "",
 		"main.wsp":  "import \"box\";\nfunc main() {\n\tbox.Box b = box.make();\n\tint n = b.secret;\n\tint m = b.open;\n}\n",
-		"box.wsp":   "#standalone\npublic struct Box {\n\tprivate int secret;\n\tint open;\n}\npublic func make() Box => Box{secret: 1, open: 2};\n",
+		"box.wsp":   "#standalone\npublic struct Box {\n\tprivate int secret;\n\tpublic int open;\n}\npublic func make() Box => Box{secret: 1, open: 2};\n",
 	})
 	got := errorsOf(field)
 	if len(got) != 1 || !strings.Contains(got[0], "field secret of Box is private to box.wsp") {

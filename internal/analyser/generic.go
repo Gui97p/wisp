@@ -15,19 +15,20 @@ import (
 const maxInstanceDepth = 64
 
 type GenericDecl struct {
-	Name      string
-	Module    string
-	File      string
-	Scope     *Scope
-	Params    []ast.TypeParam
-	Struct    *ast.StructDecl
-	Func      *ast.FuncDecl
-	Alias     *ast.TypeDecl
-	Sum       *ast.TypeDecl
-	Interface *ast.InterfaceDecl
-	Methods   []*ast.FuncDecl
-	Exported  bool
-	Symbol    *Symbol
+	ModuleFiles map[string]bool
+	Name        string
+	Module      string
+	File        string
+	Scope       *Scope
+	Params      []ast.TypeParam
+	Struct      *ast.StructDecl
+	Func        *ast.FuncDecl
+	Alias       *ast.TypeDecl
+	Sum         *ast.TypeDecl
+	Interface   *ast.InterfaceDecl
+	Methods     []*ast.FuncDecl
+	Exported    bool
+	Symbol      *Symbol
 }
 
 type TypeValue struct {
@@ -176,9 +177,9 @@ func isGenericDecl(fd *ast.FuncDecl) bool {
 }
 
 func (a *Analyser) registerGenericStruct(sd *ast.StructDecl) {
-	g := &GenericDecl{Name: sd.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: sd.TypeParams, Struct: sd, Exported: sd.Exported}
+	g := &GenericDecl{Name: sd.Name, Module: a.module, File: a.currentFile, ModuleFiles: a.moduleFileSet(), Scope: a.moduleScope, Params: sd.TypeParams, Struct: sd, Exported: sd.Exported}
 	line, col := sd.Position()
-	symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: sd.Doc, Generic: g}
+	symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: sd.Doc, Generic: g, Private: sd.Reach == ast.ReachFile}
 	g.Symbol = symbol
 	if !a.scope.Define(symbol) {
 		a.errorAlreadyDeclared(sd, STRUCT, sd.Name)
@@ -188,7 +189,7 @@ func (a *Analyser) registerGenericStruct(sd *ast.StructDecl) {
 func (a *Analyser) registerGenericAlias(td *ast.TypeDecl) {
 	g := &GenericDecl{Name: td.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: td.TypeParams, Alias: td, Exported: td.Exported}
 	line, col := td.Position()
-	symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: td.Doc, Generic: g}
+	symbol := &Symbol{Name: td.Name, Kind: TYPE, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: td.Doc, Generic: g, Private: td.Reach == ast.ReachFile}
 	g.Symbol = symbol
 	if !a.scope.Define(symbol) {
 		a.errorAlreadyDeclared(td, TYPE, td.Name)
@@ -198,7 +199,7 @@ func (a *Analyser) registerGenericAlias(td *ast.TypeDecl) {
 func (a *Analyser) registerGenericSum(td *ast.TypeDecl) {
 	g := &GenericDecl{Name: td.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: td.TypeParams, Sum: td, Exported: td.Exported}
 	line, col := td.Position()
-	symbol := &Symbol{Name: td.Name, Kind: STRUCT, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: td.Doc, Generic: g}
+	symbol := &Symbol{Name: td.Name, Kind: STRUCT, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: td.Doc, Generic: g, Private: td.Reach == ast.ReachFile}
 	g.Symbol = symbol
 	if !a.scope.Define(symbol) {
 		a.errorAlreadyDeclared(td, STRUCT, td.Name)
@@ -208,7 +209,7 @@ func (a *Analyser) registerGenericSum(td *ast.TypeDecl) {
 func (a *Analyser) registerGenericFunc(fd *ast.FuncDecl) {
 	g := &GenericDecl{Name: fd.Name, Module: a.module, File: a.currentFile, Scope: a.moduleScope, Params: fd.TypeParams, Func: fd, Exported: fd.Exported}
 	line, col := fd.Position()
-	symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc, Generic: g}
+	symbol := &Symbol{Name: fd.Name, Kind: FUNC, Type: GenericType{Decl: g}, Line: line, Col: col, File: a.currentFile, Module: a.module, Doc: fd.Doc, Generic: g, Private: fd.Reach == ast.ReachFile}
 	g.Symbol = symbol
 	if !a.scope.Define(symbol) {
 		a.errorAlreadyDeclared(fd, FUNC, fd.Name)
@@ -518,7 +519,7 @@ func (a *Analyser) instantiateStruct(node ast.Node, g *GenericDecl, args []TypeV
 		}
 		st.Fields[member.Name] = fieldType
 		st.FieldDocs[member.Name] = member.Doc
-		restrictField(st, member, g.File)
+		restrictField(st, member, g.File, g.ModuleFiles)
 		st.Order = append(st.Order, member.Name)
 	}
 	a.currentFile = savedFile
@@ -585,7 +586,7 @@ func (a *Analyser) registerInstanceMethods(g *GenericDecl, st *StructType, args 
 		st.Methods[fd.Name] = &FuncType{
 			Name: fd.Name, Params: params, ParamNames: paramNames, ReceiverName: receiverName, Returns: returns,
 			Variadic: variadic, Fallible: fd.Fallible, Receiver: recvType, Exported: fd.Exported,
-			InternalDir: reachDir(fd.Reach, g.File), Module: g.Module, DeclFile: g.File, DeclLine: line, Decl: fd,
+			InternalDir: reachDir(fd.Reach, g.File), Private: fd.Reach == ast.ReachFile, Module: g.Module, DeclFile: g.File, DeclLine: line, Decl: fd,
 			Scope: scope, Inline: fd.Inline,
 			Template: &MethodTemplate{Decl: fd, Scope: scope, Owner: owner, Struct: st, Gen: g},
 		}

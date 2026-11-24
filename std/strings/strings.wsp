@@ -70,18 +70,18 @@ public func cut(string s, sep) ?Cut {
 /// The two parts of a string split by `cut`. Both share memory with the original
 /// string.
 public struct Cut {
-	string before, after;
+	public string before, after;
 }
 
 /// Walks the pieces of a string between separators, from the left. Make one with
 /// `splitter` or `tokens` and call `next` until it returns null. Pieces are slices
 /// of the original string and nothing is allocated.
 public struct Splitter {
-	internal string s, sep;
-	internal bool done, skipEmpty;
+	string s, sep;
+	bool done, skipEmpty;
 }
 
-internal func (*Splitter s) nextStep() ?string {
+func (*Splitter s) nextStep() ?string {
 	return null if s.done;
 
 	if s.sep == "" {

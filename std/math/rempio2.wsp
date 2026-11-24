@@ -215,7 +215,7 @@ func kernelRemPio2([]float x, []float y, int e0, int nx) int {
 	return n & 7;
 }
 
-internal func remPio2(float x, []float y) int {
+func remPio2(float x, []float y) int {
 	uint uhx = highWord(x);
 	int hx = signed32(uhx);
 	int ix = int(uhx & 0x7fffffff);

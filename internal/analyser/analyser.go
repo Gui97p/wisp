@@ -55,6 +55,7 @@ type Analyser struct {
 
 	universe    *Scope
 	moduleScope *Scope
+	moduleFiles map[string]bool
 
 	declFiles   map[ast.Declaration]string
 	arraySizes  map[ast.Expression]arraySizeResult
@@ -256,6 +257,10 @@ func (a *Analyser) resolveTypeRef(node ast.Node, scope *Scope, ref ast.TypeRef) 
 			a.suggest(d, ref.Name, append(scope.names(func(sym *Symbol) bool {
 				return sym.Kind == STRUCT || sym.Kind == TYPE
 			}), "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float", "float32", "float64", "byte", "string", "bool"))
+			return InvalidType{}
+		}
+		if a.privateElsewhere(symbol) {
+			a.reportPrivate(node, symbol)
 			return InvalidType{}
 		}
 		switch symbol.Kind {

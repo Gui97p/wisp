@@ -1,16 +1,16 @@
 import "std/strings";
 
-internal const<windows> sep = "\\";
-internal const<!windows> sep = "/";
+const<windows> sep = "\\";
+const<!windows> sep = "/";
 
-internal inline func<windows> isSep(byte c) bool => c == '\\' || c == '/';
-internal inline func<!windows> isSep(byte c) bool => c == '/';
+inline func<windows> isSep(byte c) bool => c == '\\' || c == '/';
+inline func<!windows> isSep(byte c) bool => c == '/';
 
-internal func<windows> isLetter(byte c) bool {
+func<windows> isLetter(byte c) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
-internal func<windows> volumeLen(string p) int {
+func<windows> volumeLen(string p) int {
 	int l = len(p);
 	return 2 if l >= 2 && p[1] == ':' && isLetter(p[0]);
 	if l >= 5 && isSep(p[0]) && isSep(p[1]) && !isSep(p[2]) && p[2] != '.' {
@@ -33,7 +33,7 @@ internal func<windows> volumeLen(string p) int {
 	return 0;
 }
 
-internal inline func<!windows> volumeLen(string _p) int => 0;
+inline func<!windows> volumeLen(string _p) int => 0;
 
 /// Reports whether `p` is absolute. On Windows that means a drive letter
 /// followed by a separator, or a UNC path.
@@ -51,7 +51,7 @@ public inline func<!windows> isAbs(string p) bool {
 
 /// An iterator over the elements of a path, made by `elements`.
 public struct Elements {
-	internal string rest;
+	string rest;
 }
 
 /// Returns the next element of the path, or null at the end. Separators are
@@ -79,7 +79,7 @@ public func elements(string p) Elements {
 	return Elements{rest: p[volumeLen(p):]};
 }
 
-internal func elementsAfterVolume(string s) Elements {
+func elementsAfterVolume(string s) Elements {
 	return Elements{rest: s};
 }
 

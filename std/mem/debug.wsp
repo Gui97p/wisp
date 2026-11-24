@@ -28,13 +28,13 @@ struct Header {
 /// returned. Dirty blocks start filled with `0xCD`. It is only built with the
 /// `debug` profile, and the heap uses it there.
 public struct Debug implements Allocator {
-	?Allocator parent;
-	internal ?*Header head;
-	internal []uint table;
-	internal int entries, tombs;
-	internal int liveBlocks;
-	internal [256]?*Header ring;
-	internal int ringStart, ringCount;
+	public ?Allocator parent;
+	?*Header head;
+	[]uint table;
+	int entries, tombs;
+	int liveBlocks;
+	[256]?*Header ring;
+	int ringStart, ringCount;
 }
 
 inline func headerOf(*void p) *Header {
@@ -297,7 +297,7 @@ public func (*Debug d) release() {
 	}
 }
 
-internal func (*Debug d) sizeOf(*void p) int {
+func (*Debug d) sizeOf(*void p) int {
 	if d.find(uint(p) - HEAD) < 0 {
 		d.reject(p, "use of a freed block", "a pointer into the middle of a block", "a pointer that is not a block of this allocator");
 	}

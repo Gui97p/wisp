@@ -1,7 +1,7 @@
 import "std/conv";
 import "std/errors";
 
-internal struct Piece {
+struct Piece {
 	string sign;
 	string radix;
 	string body;
@@ -29,7 +29,7 @@ func number([]byte buf, uint mag, bool neg, Spec s) !Piece {
 	return piece;
 }
 
-internal func renderInt([]byte buf, int v, Spec s) !Piece {
+func renderInt([]byte buf, int v, Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		errors.ensure(v in 0..255, errors.Kind.Range)!;
@@ -43,7 +43,7 @@ internal func renderInt([]byte buf, int v, Spec s) !Piece {
 	return number(buf, uint(-(v + 1)) + 1, true, s)!;
 }
 
-internal func renderUint([]byte buf, uint v, Spec s) !Piece {
+func renderUint([]byte buf, uint v, Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		errors.ensure(v < 256, errors.Kind.Range)!;
@@ -54,18 +54,18 @@ internal func renderUint([]byte buf, uint v, Spec s) !Piece {
 	return number(buf, v, false, s)!;
 }
 
-internal func renderPointer([]byte buf, *void v, Spec s) !Piece {
+func renderPointer([]byte buf, *void v, Spec s) !Piece {
 	Spec t = s;
 	t.kind = 'x';
 	t.alt = true;
 	return number(buf, uint(v), false, t)!;
 }
 
-internal func renderBool(bool b) Piece {
+func renderBool(bool b) Piece {
 	return Piece{body: b ? "true" : "false"};
 }
 
-internal func renderString(string t, Spec s) Piece {
+func renderString(string t, Spec s) Piece {
 	Piece piece = Piece{body: t};
 	if s.precision >= 0 && s.precision < len(t) {
 		piece.body = t[:s.precision];
@@ -73,7 +73,7 @@ internal func renderString(string t, Spec s) Piece {
 	return piece;
 }
 
-internal func renderFloat([]byte buf, float x, Spec s, bool single) !Piece {
+func renderFloat([]byte buf, float x, Spec s, bool single) !Piece {
 	Piece piece;
 	int prec = s.precision == -1 ? 6 : s.precision;
 	string view = switch s.kind {

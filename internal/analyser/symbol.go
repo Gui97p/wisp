@@ -53,6 +53,7 @@ type Symbol struct {
 	Doc    string
 
 	ScopeDir string
+	Private  bool
 
 	ImportPath string
 

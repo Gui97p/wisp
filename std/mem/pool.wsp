@@ -16,11 +16,11 @@ struct PoolChunk {
 /// `release`. Blocks are 16-byte aligned. A `size` of zero or less makes every
 /// allocation fail.
 public struct Pool implements Allocator {
-	int size;
-	?Allocator parent;
-	internal ?*void spare;
-	internal ?*PoolChunk chunks;
-	internal int liveBlocks;
+	public int size;
+	public ?Allocator parent;
+	?*void spare;
+	?*PoolChunk chunks;
+	int liveBlocks;
 }
 
 func (*Pool p) source() Allocator {

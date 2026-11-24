@@ -45,7 +45,7 @@ func (a *Analyser) registerStructNames() {
 		st.Impl = a.newImplSet(sd.Implements, st, sd, a.moduleScope, nil)
 
 		line, col := sd.Position()
-		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: sd.Doc}
+		symbol := &Symbol{Name: sd.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: sd.Doc, Private: sd.Reach == ast.ReachFile}
 
 		if !a.scope.Define(symbol) {
 			a.errorAlreadyDeclared(sd, STRUCT, sd.Name)
@@ -103,7 +103,7 @@ func (a *Analyser) registerFieldsOf(sd *ast.StructDecl) {
 
 		st.Fields[member.Name] = fieldType
 		st.FieldDocs[member.Name] = member.Doc
-		restrictField(st, member, a.currentFile)
+		restrictField(st, member, a.currentFile, a.moduleFileSet())
 		st.Order = append(st.Order, member.Name)
 	}
 	st.complete = true
@@ -141,6 +141,10 @@ func (a *Analyser) checkStructLiteral(expr *ast.StructLiteral) Type {
 		}
 	}
 	symbol, ok := a.lookupType(a.scope, expr.Module, expr.Name)
+	if ok && a.privateElsewhere(symbol) {
+		a.reportPrivate(expr, symbol)
+		return InvalidType{}
+	}
 	if ok {
 		a.noteUse(expr, symbol)
 	}
@@ -224,8 +228,14 @@ func (a *Analyser) checkFieldInits(expr *ast.StructLiteral, st *StructType) Type
 	return st
 }
 
-func restrictField(st *StructType, member ast.Param, file string) {
+func restrictField(st *StructType, member ast.Param, file string, moduleFiles map[string]bool) {
 	switch member.Reach {
+	case ast.ReachNone:
+		if st.FieldModuleOnly == nil {
+			st.FieldModuleOnly = map[string]bool{}
+		}
+		st.FieldModuleOnly[member.Name] = true
+		st.ModuleFiles = moduleFiles
 	case ast.ReachFile:
 		if st.FieldFiles == nil {
 			st.FieldFiles = map[string]string{}
@@ -238,8 +248,23 @@ func restrictField(st *StructType, member ast.Param, file string) {
 	}
 }
 
+func (a *Analyser) moduleFileSet() map[string]bool {
+	if a.moduleFiles == nil {
+		a.moduleFiles = map[string]bool{}
+		for _, file := range a.declFiles {
+			if file != "" {
+				a.moduleFiles[filepath.Clean(file)] = true
+			}
+		}
+	}
+	return a.moduleFiles
+}
+
 func FieldAccessible(st *StructType, field, file string) bool {
 	if owner := st.FieldFiles[field]; owner != "" && file != "" && filepath.Clean(owner) != filepath.Clean(file) {
+		return false
+	}
+	if st.FieldModuleOnly[field] && file != "" && len(st.ModuleFiles) > 0 && !st.ModuleFiles[filepath.Clean(file)] {
 		return false
 	}
 	dir := st.FieldDirs[field]
@@ -249,6 +274,10 @@ func FieldAccessible(st *StructType, field, file string) bool {
 func (a *Analyser) checkFieldReach(node ast.Node, st *StructType, field string) bool {
 	if FieldAccessible(st, field, a.currentFile) {
 		return true
+	}
+	if st.FieldModuleOnly[field] && len(st.ModuleFiles) > 0 && !st.ModuleFiles[filepath.Clean(a.currentFile)] {
+		a.errorf(node, "field %s of %s belongs to the module %q", field, st.Name, st.Module).WithHelp("only the files of that module can use it: write public in front of the field to share it with everyone, or internal to share it with the project")
+		return false
 	}
 	if owner := st.FieldFiles[field]; owner != "" {
 		name := filepath.Base(owner)

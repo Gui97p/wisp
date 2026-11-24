@@ -14,7 +14,7 @@ func (a *Analyser) registerSumName(td *ast.TypeDecl) {
 	st.Impl = a.newImplSet(td.Implements, st, td, a.moduleScope, nil)
 
 	line, col := td.Position()
-	symbol := &Symbol{Name: td.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: td.Doc}
+	symbol := &Symbol{Name: td.Name, Kind: STRUCT, Type: st, Line: line, Col: col, File: a.currentFile, Doc: td.Doc, Private: td.Reach == ast.ReachFile}
 	if !a.scope.Define(symbol) {
 		a.errorAlreadyDeclared(td, STRUCT, td.Name)
 	}

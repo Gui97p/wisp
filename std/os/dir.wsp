@@ -41,16 +41,16 @@ public func createDirAll(string p) ! {
 /// An open directory, read one entry at a time with `next`. Get one from
 /// `openDir` and call `close` when done.
 public struct Dir {
-	internal sys.Dir state;
-	internal sys.Entry entry;
+	sys.Dir state;
+	sys.Entry entry;
 }
 
 /// One item of a directory. `name` is only the last component, not a path, and
 /// it points into the buffer of the `Dir`, so it is valid until the next call to
 /// `next` or `close`.
 public struct Entry {
-	string name;
-	FileKind kind;
+	public string name;
+	public FileKind kind;
 }
 
 /// Returns the next entry of the directory, or null when there are no more. The
