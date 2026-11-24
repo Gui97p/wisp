@@ -96,12 +96,12 @@ struct FindData {
 	[14]uint16 alternate;
 }
 
-shared struct Env {
+internal struct Env {
 	?*void block;
 	?*uint16 cursor;
 }
 
-shared struct Dir {
+internal struct Dir {
 	int handle;
 	int started;
 	FindData data;
@@ -314,7 +314,7 @@ internal func readConsole(*byte buf, int n) int {
 	}
 }
 
-shared func read(int fd, *byte buf, int n) int {
+internal func read(int fd, *byte buf, int n) int {
 	return readConsole(buf, n) if fd == 0 && isConsole(0);
 	uint32 got;
 	if ReadFile(handleOf(fd), buf, uint32(n), &got, null) == 0 {
@@ -409,7 +409,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 	return n;
 }
 
-shared func write(int fd, *byte buf, int n) int {
+internal func write(int fd, *byte buf, int n) int {
 	if (fd == 1 || fd == 2) && isConsole(fd) {
 		return writeConsole(fd, buf, n);
 	}
@@ -418,7 +418,7 @@ shared func write(int fd, *byte buf, int n) int {
 	return int(done);
 }
 
-shared func open(string path, int flags) int {
+internal func open(string path, int flags) int {
 	int n = widePath(path);
 	return n if n < 0;
 
@@ -456,30 +456,30 @@ shared func open(string path, int flags) int {
 	return int(h);
 }
 
-shared func close(int fd) int {
+internal func close(int fd) int {
 	return 0 if fd >= 0 && fd <= 2;
 	return lastError() if CloseHandle((*void)(fd)) == 0;
 	return 0;
 }
 
-shared func seek(int fd, offset, whence) int {
+internal func seek(int fd, offset, whence) int {
 	int position;
 	return lastError() if SetFilePointerEx(handleOf(fd), int64(offset), &position, uint32(whence)) == 0;
 	return position;
 }
 
-shared func sync(int fd) int {
+internal func sync(int fd) int {
 	return lastError() if FlushFileBuffers(handleOf(fd)) == 0;
 	return 0;
 }
 
-shared func size(int fd) int {
+internal func size(int fd) int {
 	int total;
 	return lastError() if GetFileSizeEx(handleOf(fd), &total) == 0;
 	return total;
 }
 
-shared func remove(string path) int {
+internal func remove(string path) int {
 	int n = widePath(path);
 	return n if n < 0;
 	if DeleteFileW(wideA()) == 0 {
@@ -490,21 +490,21 @@ shared func remove(string path) int {
 	return 0;
 }
 
-shared func rmdir(string path) int {
+internal func rmdir(string path) int {
 	int n = widePath(path);
 	return n if n < 0;
 	return lastError() if RemoveDirectoryW(wideA()) == 0;
 	return 0;
 }
 
-shared func mkdir(string path) int {
+internal func mkdir(string path) int {
 	int n = widePath(path);
 	return n if n < 0;
 	return lastError() if CreateDirectoryW(wideA(), null) == 0;
 	return 0;
 }
 
-shared func rename(string from, string to) int {
+internal func rename(string from, string to) int {
 	int n = widePath(from);
 	return n if n < 0;
 	n = towide(to, wideB());
@@ -513,7 +513,7 @@ shared func rename(string from, string to) int {
 	return 0;
 }
 
-shared func stat(string path, *sys.Stat out) int {
+internal func stat(string path, *sys.Stat out) int {
 	int n = widePath(path);
 	return n if n < 0;
 	AttributeData d;
@@ -532,7 +532,7 @@ shared func stat(string path, *sys.Stat out) int {
 	return 0;
 }
 
-shared func dirOpen(string path, *Dir d) int {
+internal func dirOpen(string path, *Dir d) int {
 	int n = widePath(path);
 	return n if n < 0;
 	uint32 attributes = GetFileAttributesW(wideA());
@@ -553,7 +553,7 @@ shared func dirOpen(string path, *Dir d) int {
 	return 0;
 }
 
-shared func dirNext(*Dir d, *sys.Entry e) int {
+internal func dirNext(*Dir d, *sys.Entry e) int {
 	loop {
 		if d.started == 0 {
 			d.started = 1;
@@ -574,11 +574,11 @@ shared func dirNext(*Dir d, *sys.Entry e) int {
 	}
 }
 
-shared func dirClose(*Dir d) {
+internal func dirClose(*Dir d) {
 	FindClose((*void)(d.handle));
 }
 
-shared func getcwd([]byte buf) int {
+internal func getcwd([]byte buf) int {
 	int fault = buffers();
 	return fault if fault < 0;
 	int n = int(GetCurrentDirectoryW(uint32(WIDE_MAX), wideA()));
@@ -589,7 +589,7 @@ shared func getcwd([]byte buf) int {
 	return r;
 }
 
-shared func getenv(string name) ?string {
+internal func getenv(string name) ?string {
 	return null if widePath(name) < 0;
 	SetLastError(0);
 	int n = int(GetEnvironmentVariableW(wideA(), wideValue(), uint32(WIDE_MAX)));
@@ -603,7 +603,7 @@ shared func getenv(string name) ?string {
 	return string(envBuffer()[:r]);
 }
 
-shared native args() []string s {
+internal native args() []string s {
 	extern __wisp_args_ptr;
 	extern __wisp_args_len;
 	mov rax, [rel __wisp_args_ptr];
@@ -612,7 +612,7 @@ shared native args() []string s {
 	mov s.len, rax;
 }
 
-shared func time(int clock) (int, int) {
+internal func time(int clock) (int, int) {
 	if clock == sys.CLOCK_REALTIME {
 		int ft;
 		GetSystemTimePreciseAsFileTime(&ft);
@@ -625,7 +625,7 @@ shared func time(int clock) (int, int) {
 	return count / frequency, (count % frequency) * 1_000_000_000 / frequency;
 }
 
-shared func sleep(int sec, nsec) int {
+internal func sleep(int sec, nsec) int {
 	int ms = sec * 1000 + (nsec + 999_999) / 1_000_000;
 	loop ms > 0 {
 		int step = ms > 0x7fffffff ? 0x7fffffff : ms;
@@ -635,35 +635,35 @@ shared func sleep(int sec, nsec) int {
 	return 0;
 }
 
-shared func random(*void buf, int n) int {
+internal func random(*void buf, int n) int {
 	return -sys.EIO if BCryptGenRandom(null, buf, uint32(n), RANDOM_SYSTEM) != 0;
 	return n;
 }
 
-shared func isatty(int fd) bool {
+internal func isatty(int fd) bool {
 	uint32 mode;
 	return GetConsoleMode(handleOf(fd), &mode) != 0;
 }
 
-shared func exit(int code) {
+internal func exit(int code) {
 	ExitProcess(uint32(code));
 }
 
-shared func mmap(int n) ?*void {
+internal func mmap(int n) ?*void {
 	return VirtualAlloc(null, int64(n), MEM_COMMIT_RESERVE, PAGE_READWRITE);
 }
 
-shared func munmap(*void addr, int _n) int {
+internal func munmap(*void addr, int _n) int {
 	return -sys.EINVAL if VirtualFree(addr, 0, MEM_RELEASE) == 0;
 	return 0;
 }
 
-shared func envOpen(*Env e) {
+internal func envOpen(*Env e) {
 	e.block = GetEnvironmentStringsW();
 	e.cursor = (?*uint16)(e.block);
 }
 
-shared func envNext(*Env e) ?string {
+internal func envNext(*Env e) ?string {
 	*uint16 cursor = e.cursor ?? return null;
 	return null if buffers() < 0;
 	loop {
@@ -685,7 +685,7 @@ shared func envNext(*Env e) ?string {
 	}
 }
 
-shared func envClose(*Env e) {
+internal func envClose(*Env e) {
 	if e.block |block| {
 		FreeEnvironmentStringsW(block);
 	}

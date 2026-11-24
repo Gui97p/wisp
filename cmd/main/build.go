@@ -33,18 +33,18 @@ var (
 )
 
 var buildCmd = &cobra.Command{
-	Use:          "build [program...]",
+	Use:          "build [program or file...]",
 	Short:        "Compile the programs of the project for a system (the machine's by default)",
-	Long:         "Compile the programs of the project. Without names it builds every [program.<name>] of wisp.toml, or the one program of a project that declares none.",
+	Long:         "Compile the programs of the project. Without names it builds every [program.<name>] of wisp.toml, or the one program of a project that declares none. A path to a .wsp file, or to a folder with a main.wsp, builds the program that starts there.",
 	Args:         cobra.ArbitraryArgs,
 	RunE:         runBuild,
 	SilenceUsage: true,
 }
 
 var runCmd = &cobra.Command{
-	Use:          "run [program] [flags] [-- program arguments]",
+	Use:          "run [program or file] [flags] [-- program arguments]",
 	Short:        "Compile a program of the project and run it",
-	Long:         "Compile a program of the project and run it. The name is only needed when wisp.toml declares several [program.<name>]. Whatever follows -- is passed to the program as its arguments: wisp run tools -- input.txt",
+	Long:         "Compile a program of the project and run it. The name is only needed when wisp.toml declares several [program.<name>]. A path works too, with or without a wisp.toml: wisp run src/main.wsp, or wisp run tools/ for the folder's main.wsp. Whatever follows -- is passed to the program as its arguments: wisp run tools -- input.txt",
 	Args:         cobra.ArbitraryArgs,
 	RunE:         runRun,
 	SilenceUsage: true,
@@ -91,6 +91,7 @@ func openProject(cmd *cobra.Command) (string, *module.Config, error) {
 	if err != nil {
 		return "", nil, err
 	}
+	applyPathPrograms(cfg)
 
 	if err := configureStdlib(cmd, root, cfg); err != nil {
 		return "", nil, err
@@ -406,7 +407,11 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 }
 
 func runBuild(cmd *cobra.Command, args []string) error {
-	_, err := build(cmd, args, false)
+	args, err := resolvePathTargets(args)
+	if err != nil {
+		return err
+	}
+	_, err = build(cmd, args, false)
 	return err
 }
 
@@ -414,6 +419,9 @@ func runRun(cmd *cobra.Command, args []string) error {
 	start := time.Now()
 	names, programArgs, err := splitRunArguments(cmd, args)
 	if err != nil {
+		return err
+	}
+	if names, err = resolvePathTargets(names); err != nil {
 		return err
 	}
 

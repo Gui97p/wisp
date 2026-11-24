@@ -413,7 +413,7 @@
                 },
                 {
                     "name": "keyword.control.import.wisp",
-                    "match": "\\b(import|public|internal|shared|extern|inline|var|as)\\b"
+                    "match": "\\b(import|public|internal|private|extern|inline|var|as)\\b"
                 },
                 {
                     "begin": "(\\bnative\\b)((?:\\s*<[^<>]*>)?[^{};]*)(\\{)",

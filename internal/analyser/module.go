@@ -209,13 +209,20 @@ func MethodAccessible(recv Type, ft *FuncType, module, file string) bool {
 }
 
 func reachDir(reach int, file string) string {
-	if reach == ast.ReachNone || file == "" {
+	if reach != ast.ReachProject || file == "" {
 		return ""
 	}
-	if reach == ast.ReachShared {
-		return folders.UnitRoot(file)
+	if root := folders.UnitRoot(file); root != "" {
+		return root
 	}
-	return filepath.Dir(file)
+	if strings.HasPrefix(filepath.Base(file), "<") {
+		return filepath.Dir(file)
+	}
+	return ""
+}
+
+func ReachDir(reach int, file string) string {
+	return reachDir(reach, file)
 }
 
 func insideDir(file, dir string) bool {
@@ -334,7 +341,7 @@ func (a *Analyser) applyLink(link *importLink, check bool) {
 			folder = f
 			break
 		}
-		a.error(link.imp, fmt.Sprintf("module %q is internal to %q", link.imp.Path, folder)).WithHelp("everything it exports is only visible under the folder %s", folder)
+		a.error(link.imp, fmt.Sprintf("module %q is internal to the project %q", link.imp.Path, folder)).WithHelp("everything it exports is only visible to the files of %s", folder)
 		link.symbol.Type = InvalidType{}
 		link.symbol.Used = true
 	}

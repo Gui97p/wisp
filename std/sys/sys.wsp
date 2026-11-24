@@ -1,4 +1,4 @@
-shared const {
+internal const {
 	O_RDONLY = 0;
 	O_WRONLY = 1;
 	O_RDWR = 2;
@@ -40,25 +40,25 @@ shared const {
 	ENOTEMPTY = 39;
 }
 
-shared struct Timespec {
+internal struct Timespec {
 	int tv_sec;
 	int tv_nsec;
 }
 
-shared struct Stat {
+internal struct Stat {
 	int kind;
 	int size;
 	int modified;
 	int mode;
 }
 
-shared struct Entry {
+internal struct Entry {
 	int kind;
 	int len;
 	[1024]byte name;
 }
 
-shared func errno(int raw) int {
+internal func errno(int raw) int {
 	return -raw if raw < 0 && raw >= -4095;
 	return 0;
 }

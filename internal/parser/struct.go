@@ -59,12 +59,16 @@ func (p *Parser) parseStructParamList() []ast.Param {
 		p.advance()
 		doc := p.docBefore(p.current.Line)
 		reach := ast.ReachNone
+		if p.oldSharedWord(true) {
+			reach = ast.ReachProject
+			p.advance()
+		}
 		switch p.current.Type {
 		case lexer.TOKEN_INTERNAL:
-			reach = ast.ReachInternal
+			reach = ast.ReachProject
 			p.advance()
-		case lexer.TOKEN_SHARED:
-			reach = ast.ReachShared
+		case lexer.TOKEN_PRIVATE:
+			reach = ast.ReachFile
 			p.advance()
 		}
 		if !p.isPointerType() {

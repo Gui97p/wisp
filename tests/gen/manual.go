@@ -1048,7 +1048,7 @@ public func corners(int n) int {
 public func quadruple(int n) int {
     return deep.twice(deep.twice(n));
 }
-`, "shapes/deep/deep.wsp": `shared func twice(int n) int {
+`, "shapes/deep/deep.wsp": `internal func twice(int n) int {
     return n * 2;
 }
 `, "shapes/sides.wsp": `public func count(int n) int {
@@ -1083,6 +1083,54 @@ func main() {
     check(shapes.boxArea(3) == 6, "an internal field is used by the files of its package");
 }
 `, expected: []string{"a shared declaration reaches the whole project", "a package entry reaches its internal files", "a package exposes what its files make public", "an internal method works inside its package", "an internal field is used by the files of its package"}},
+	{dir: "visibility_words", files: map[string]string{"counter/counter.wsp": `public struct Counter {
+    private int hits;
+    internal int step;
+    int label;
+}
+
+public func start(int step, int label) Counter {
+    return Counter{hits: 0, step: step, label: label};
+}
+
+public func (*Counter c) bump() {
+    c.hits += c.step;
+}
+
+public func (*Counter c) total() int {
+    return c.hits;
+}
+
+private func secret() int {
+    return 41;
+}
+
+internal func shared() int {
+    return secret() + 1;
+}
+
+public func answer() int {
+    return shared();
+}
+`, "tools/tools.wsp": `import "counter/counter";
+
+public func double(int n) int {
+    return n * 2 + counter.answer() - counter.answer();
+}
+`}, src: `import "counter/counter";
+import "tools";
+
+func main() {
+    counter.Counter c = counter.start(3, 7);
+    c.bump();
+    c.bump();
+    check(c.total() == 6, "a private field is updated through its own methods");
+    check(c.step == 3, "an internal field is used by the project");
+    check(c.label == 7, "a field with no word is open");
+    check(counter.answer() == 42, "a private function helps an internal one");
+    check(tools.double(21) == 42, "another folder of the project works with it");
+}
+`, expected: []string{"a private field is updated through its own methods", "an internal field is used by the project", "a field with no word is open", "a private function helps an internal one", "another folder of the project works with it"}},
 	{dir: "array_to_slice", src: `struct Box {
     [3]int items;
 }

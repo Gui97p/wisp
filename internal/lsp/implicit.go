@@ -19,7 +19,7 @@ var (
 	switchWord     = regexp.MustCompile(`\bswitch\b`)
 	returnBefore   = regexp.MustCompile(`\breturn\b[^;]*$`)
 	coalesceBefore = regexp.MustCompile(`([A-Za-z_][\w.]*\s*\((?:[^()]|\([^()]*\))*\))\s*\?\?\s*(?:\|\w+\|\s*)?$`)
-	functionHeader = regexp.MustCompile(`^\s*(?:(?:public|internal|shared)\s+)*func\b`)
+	functionHeader = regexp.MustCompile(`^\s*(?:(?:public|internal|private)\s+)*func\b`)
 )
 
 func implicitDotItems(path string, pos protocol.Position, info *analyser.Info) ([]protocol.CompletionItem, bool) {
@@ -279,7 +279,7 @@ func returnIndex(before string) int {
 
 func functionReturnTypes(header string) []string {
 	rest := strings.TrimSpace(header)
-	for _, word := range []string{"public", "internal", "shared"} {
+	for _, word := range []string{"public", "internal", "private"} {
 		rest = strings.TrimSpace(strings.TrimPrefix(rest, word))
 	}
 	rest = strings.TrimSpace(strings.TrimPrefix(rest, "func"))

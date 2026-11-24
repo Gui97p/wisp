@@ -153,12 +153,15 @@ func (p *Parser) parseDeclarationInner() []ast.Declaration {
 	case lexer.TOKEN_PUBLIC:
 		return p.parseExportDeclaration(ast.ReachNone)
 	case lexer.TOKEN_INTERNAL:
-		return p.parseExportDeclaration(ast.ReachInternal)
-	case lexer.TOKEN_SHARED:
-		return p.parseExportDeclaration(ast.ReachShared)
+		return p.parseExportDeclaration(ast.ReachProject)
+	case lexer.TOKEN_PRIVATE:
+		return p.parsePrivateDeclaration()
 	case lexer.TOKEN_ENUM:
 		return p.parseEnumDeclaration()
 	default:
+		if p.oldSharedWord(false) {
+			return p.parseExportDeclaration(ast.ReachProject)
+		}
 		if p.current.Type == lexer.TOKEN_IDENT && p.current.Literal == "staticAssert" && p.peek.Type == lexer.TOKEN_LPAREN {
 			call, ok := p.parseExpression().(*ast.CallExpr)
 			if !ok || !p.expect(lexer.TOKEN_SEMICOLON) {
@@ -274,6 +277,27 @@ func (p *Parser) parseImportDeclaration() *ast.ImportDecl {
 	return decl
 }
 
+func (p *Parser) parsePrivateDeclaration() []ast.Declaration {
+	decls := p.parseExported()
+	for _, d := range decls {
+		switch d := d.(type) {
+		case *ast.ConstDecl:
+			d.Exported, d.Reach = false, ast.ReachFile
+		case *ast.VarDecl:
+			d.Exported, d.Reach = false, ast.ReachFile
+		case *ast.FuncDecl:
+			d.Exported, d.Reach = false, ast.ReachFile
+		case *ast.StructDecl:
+			d.Exported, d.Reach = false, ast.ReachFile
+		case *ast.TypeDecl:
+			d.Exported, d.Reach = false, ast.ReachFile
+		case *ast.InterfaceDecl:
+			d.Exported, d.Reach = false, ast.ReachFile
+		}
+	}
+	return decls
+}
+
 func (p *Parser) parseExportDeclaration(reach int) []ast.Declaration {
 	decls := p.parseExported()
 	if reach == ast.ReachNone {
@@ -299,6 +323,7 @@ func (p *Parser) parseExportDeclaration(reach int) []ast.Declaration {
 }
 
 func (p *Parser) parseExported() []ast.Declaration {
+	word := p.current.Literal
 	p.advance()
 	decls := []ast.Declaration{}
 
@@ -403,7 +428,7 @@ func (p *Parser) parseExported() []ast.Declaration {
 			break
 		}
 
-		p.errorf("expected declaration after public, got %s", p.current.Literal)
+		p.errorf("expected a declaration after %s, got %s", word, p.current.Literal)
 		return nil
 
 	default:
@@ -416,7 +441,7 @@ func (p *Parser) parseExported() []ast.Declaration {
 			decls = append(decls, decl)
 			break
 		}
-		p.error("expected declaration after public")
+		p.errorf("expected a declaration after %s", word)
 		return nil
 	}
 
@@ -665,4 +690,21 @@ func commentText(raw string) string {
 	text := strings.TrimPrefix(raw, "///")
 	text = strings.TrimPrefix(text, " ")
 	return strings.TrimRight(text, " \r")
+}
+
+func (p *Parser) oldSharedWord(field bool) bool {
+	if p.current.Type != lexer.TOKEN_IDENT || p.current.Literal != "shared" {
+		return false
+	}
+	next := p.peek.Type
+	declaration := next == lexer.TOKEN_FUNC || next == lexer.TOKEN_STRUCT || next == lexer.TOKEN_ENUM || next == lexer.TOKEN_TYPE ||
+		next == lexer.TOKEN_INTERFACE || next == lexer.TOKEN_CONST || next == lexer.TOKEN_INLINE || next == lexer.TOKEN_NATIVE ||
+		next == lexer.TOKEN_EXTERN || next == lexer.TOKEN_VAR
+	typed := next >= lexer.TOKEN_INT && next <= lexer.TOKEN_STRING || next == lexer.TOKEN_STAR || next == lexer.TOKEN_QUESTION_MARK || next == lexer.TOKEN_LBRACKET
+	if !declaration && !(field && typed) {
+		return false
+	}
+	endLine, endCol := p.currentEnd()
+	p.errors.Add("", p.current.Line, p.current.Column, endLine, endCol, "shared was replaced by internal, which now means the whole project").WithHelp("write internal where you wrote shared")
+	return true
 }

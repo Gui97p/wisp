@@ -45,7 +45,7 @@ func isKeyword(k lexer.TokenType) bool {
 	case lexer.TOKEN_LET, lexer.TOKEN_CONST, lexer.TOKEN_FUNC, lexer.TOKEN_EXTERN, lexer.TOKEN_STRUCT, lexer.TOKEN_TYPE,
 		lexer.TOKEN_ENUM, lexer.TOKEN_SWITCH, lexer.TOKEN_CASE, lexer.TOKEN_DEFAULT, lexer.TOKEN_IF, lexer.TOKEN_ELSE,
 		lexer.TOKEN_FOR, lexer.TOKEN_IN, lexer.TOKEN_LOOP, lexer.TOKEN_UNTIL, lexer.TOKEN_RETURN, lexer.TOKEN_BREAK,
-		lexer.TOKEN_CONTINUE, lexer.TOKEN_IMPORT, lexer.TOKEN_PUBLIC, lexer.TOKEN_INTERNAL, lexer.TOKEN_SHARED,
+		lexer.TOKEN_CONTINUE, lexer.TOKEN_IMPORT, lexer.TOKEN_PUBLIC, lexer.TOKEN_INTERNAL, lexer.TOKEN_PRIVATE,
 		lexer.TOKEN_AS, lexer.TOKEN_NATIVE, lexer.TOKEN_DEFER, lexer.TOKEN_YIELD, lexer.TOKEN_INLINE, lexer.TOKEN_VAR,
 		lexer.TOKEN_STATIC, lexer.TOKEN_INTERFACE, lexer.TOKEN_IMPLEMENTS:
 		return true

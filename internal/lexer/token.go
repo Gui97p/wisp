@@ -63,7 +63,7 @@ const (
 	TOKEN_IMPORT
 	TOKEN_PUBLIC
 	TOKEN_INTERNAL
-	TOKEN_SHARED
+	TOKEN_PRIVATE
 	TOKEN_AS
 	TOKEN_NATIVE
 
@@ -168,7 +168,7 @@ var keywords = map[string]TokenType{
 	"import":     TOKEN_IMPORT,
 	"public":     TOKEN_PUBLIC,
 	"internal":   TOKEN_INTERNAL,
-	"shared":     TOKEN_SHARED,
+	"private":    TOKEN_PRIVATE,
 	"as":         TOKEN_AS,
 	"native":     TOKEN_NATIVE,
 	"defer":      TOKEN_DEFER,

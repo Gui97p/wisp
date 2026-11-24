@@ -1,10 +1,12 @@
 // A package: the file named after its folder is what `import "geometry"`
 // resolves to. Other files in the folder are internal to the package: only
 // files under geometry/ can import them, so an `import "geometry/constants"`
-// from outside is an error. `internal` does the same for one declaration:
-// it is public to the folder and everything under it, and hidden from the
-// rest of the project. `shared` reaches one folder further up, for a package
-// that lends something to the package around it.
+// from outside is an error.
+//
+// Visibility has three steps. A declaration with no word stays in its file, and
+// `private` says so out loud. `internal` lends it to every file of this
+// project and hides it from the projects that depend on this one. `public`
+// gives it to everyone.
 //
 // What the files of a package make `public` is the package's own API, as if
 // they were all one file: `geo.Sides` comes from constants.wsp and
@@ -18,14 +20,13 @@ public func area(int width, height) int => width * height;
 
 public func perimeter(int side) int => constants.scale(side);
 
-// A field can carry `internal` or `shared` too. This one is only visible to
-// the files of this folder, so code outside cannot read it, write it or name
-// it in a literal. It can still hold a struct that was made by a function of
-// the package.
+// A field can carry `private` or `internal` too. This one is private, so only
+// this file can read it, write it or name it in a literal. Code elsewhere can
+// still hold a struct that was made by a function of this file.
 public struct Rect {
   int width;
   int height;
-  internal int cachedArea;
+  private int cachedArea;
 }
 
 public func newRect(int width, height) Rect {

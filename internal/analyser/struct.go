@@ -103,9 +103,7 @@ func (a *Analyser) registerFieldsOf(sd *ast.StructDecl) {
 
 		st.Fields[member.Name] = fieldType
 		st.FieldDocs[member.Name] = member.Doc
-		if dir := reachDir(member.Reach, a.currentFile); dir != "" {
-			st.FieldDirs[member.Name] = dir
-		}
+		restrictField(st, member, a.currentFile)
 		st.Order = append(st.Order, member.Name)
 	}
 	st.complete = true
@@ -226,7 +224,24 @@ func (a *Analyser) checkFieldInits(expr *ast.StructLiteral, st *StructType) Type
 	return st
 }
 
+func restrictField(st *StructType, member ast.Param, file string) {
+	switch member.Reach {
+	case ast.ReachFile:
+		if st.FieldFiles == nil {
+			st.FieldFiles = map[string]string{}
+		}
+		st.FieldFiles[member.Name] = file
+	case ast.ReachProject:
+		if dir := reachDir(member.Reach, file); dir != "" {
+			st.FieldDirs[member.Name] = dir
+		}
+	}
+}
+
 func FieldAccessible(st *StructType, field, file string) bool {
+	if owner := st.FieldFiles[field]; owner != "" && file != "" && filepath.Clean(owner) != filepath.Clean(file) {
+		return false
+	}
 	dir := st.FieldDirs[field]
 	return dir == "" || insideDir(file, dir)
 }
@@ -235,7 +250,12 @@ func (a *Analyser) checkFieldReach(node ast.Node, st *StructType, field string) 
 	if FieldAccessible(st, field, a.currentFile) {
 		return true
 	}
-	folder := filepath.Base(st.FieldDirs[field])
-	a.errorf(node, "field %s of %s is internal to %q", field, st.Name, folder).WithHelp("it is only visible to files under the folder %s", folder)
+	if owner := st.FieldFiles[field]; owner != "" {
+		name := filepath.Base(owner)
+		a.errorf(node, "field %s of %s is private to %s", field, st.Name, name).WithHelp("only %s can use it: mark it internal to share it with the project, or public to share it with everyone", name)
+		return false
+	}
+	project := filepath.Base(st.FieldDirs[field])
+	a.errorf(node, "field %s of %s is internal to the project %q", field, st.Name, project).WithHelp("only the files of %s can use it", project)
 	return false
 }

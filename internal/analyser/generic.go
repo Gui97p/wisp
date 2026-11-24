@@ -518,9 +518,7 @@ func (a *Analyser) instantiateStruct(node ast.Node, g *GenericDecl, args []TypeV
 		}
 		st.Fields[member.Name] = fieldType
 		st.FieldDocs[member.Name] = member.Doc
-		if dir := reachDir(member.Reach, g.File); dir != "" {
-			st.FieldDirs[member.Name] = dir
-		}
+		restrictField(st, member, g.File)
 		st.Order = append(st.Order, member.Name)
 	}
 	a.currentFile = savedFile

@@ -12,7 +12,6 @@ import (
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
-	"github.com/Gui97p/wisp/internal/folders"
 	"github.com/Gui97p/wisp/internal/lexer"
 	"github.com/Gui97p/wisp/internal/module"
 	"github.com/Gui97p/wisp/internal/parser"
@@ -379,13 +378,7 @@ func shortWord(uri protocol.DocumentUri, pos protocol.Position) bool {
 }
 
 func reachFolder(reach int, file string) string {
-	if reach == ast.ReachNone {
-		return ""
-	}
-	if reach == ast.ReachShared {
-		return folders.UnitRoot(file)
-	}
-	return filepath.Dir(file)
+	return analyser.ReachDir(reach, file)
 }
 
 func pathIndex(candidates []module.ImportCandidate) map[string]string {

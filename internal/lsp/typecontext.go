@@ -28,7 +28,7 @@ var (
 	declarationHead = regexp.MustCompile(`^(?:(?:public|extern)\s+)*`)
 )
 
-var topLevelKeywords = []string{"func", "struct", "enum", "type", "interface", "const", "import", "public", "internal", "shared", "extern", "var"}
+var topLevelKeywords = []string{"func", "struct", "enum", "type", "interface", "const", "import", "public", "internal", "private", "extern", "var"}
 
 type typeContext struct {
 	typing     bool

@@ -1453,3 +1453,97 @@ func TestWorkspaceMembersInTheEditor(t *testing.T) {
 		t.Errorf("the definition should be in the member geometry: %+v", defs)
 	}
 }
+
+func errorsOf(p *project) []string {
+	var out []string
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			out = append(out, d.Message)
+		}
+	}
+	return out
+}
+
+func TestInternalMeansTheWholeProject(t *testing.T) {
+	c := start(t)
+
+	same := c.open(map[string]string{
+		"wisp.toml":   "",
+		"main.wsp":    "import \"lib\";\nfunc main() {\n\tint n = lib.helper();\n}\n",
+		"lib/lib.wsp": "internal func helper() int => 1;\n",
+	})
+	if got := errorsOf(same); len(got) != 0 {
+		t.Errorf("another folder of the same project may use an internal function: %q", got)
+	}
+
+	dependent := c.open(map[string]string{
+		"wisp.toml":             "[dependencies]\ngeo = { path = \"geometry\" }\n",
+		"main.wsp":              "import \"geo\";\nfunc main() {\n\tint n = geo.hidden();\n\tint m = geo.shown();\n}\n",
+		"geometry/wisp.toml":    "",
+		"geometry/geometry.wsp": "internal func hidden() int => 1;\npublic func shown() int => hidden();\n",
+	})
+	got := errorsOf(dependent)
+	if len(got) != 1 || !strings.Contains(got[0], `hidden is internal to the project "geometry"`) {
+		t.Errorf("a project that depends on another cannot see its internal names: %q", got)
+	}
+
+	field := c.open(map[string]string{
+		"wisp.toml":             "[dependencies]\ngeo = { path = \"geometry\" }\n",
+		"main.wsp":              "import \"geo\";\nfunc main() {\n\tgeo.Box b = geo.make();\n\tint n = b.cache;\n\tint w = b.w;\n}\n",
+		"geometry/wisp.toml":    "",
+		"geometry/geometry.wsp": "public struct Box {\n\tint w;\n\tinternal int cache;\n}\npublic func make() Box => Box{w: 1, cache: 2};\n",
+	})
+	got = errorsOf(field)
+	if len(got) != 1 || !strings.Contains(got[0], `field cache of Box is internal to the project "geometry"`) {
+		t.Errorf("an internal field is hidden from the projects that depend on it: %q", got)
+	}
+}
+
+func TestPrivateKeepsANameInItsFile(t *testing.T) {
+	c := start(t)
+
+	field := c.open(map[string]string{
+		"wisp.toml": "",
+		"main.wsp":  "import \"box\";\nfunc main() {\n\tbox.Box b = box.make();\n\tint n = b.secret;\n\tint m = b.open;\n}\n",
+		"box.wsp":   "public struct Box {\n\tprivate int secret;\n\tint open;\n}\npublic func make() Box => Box{secret: 1, open: 2};\n",
+	})
+	got := errorsOf(field)
+	if len(got) != 1 || !strings.Contains(got[0], "field secret of Box is private to box.wsp") {
+		t.Errorf("a private field is only for its own file: %q", got)
+	}
+
+	own := c.open(map[string]string{
+		"wisp.toml": "",
+		"main.wsp":  "struct Box {\n\tprivate int secret;\n}\nfunc main() {\n\tBox b = Box{secret: 1};\n\tint n = b.secret;\n}\n",
+	})
+	if got := errorsOf(own); len(got) != 0 {
+		t.Errorf("its own file uses it freely: %q", got)
+	}
+
+	function := c.open(map[string]string{
+		"wisp.toml": "",
+		"main.wsp":  "import \"util\";\nfunc main() {\n\tint n = util.helper();\n}\n",
+		"util.wsp":  "private func helper() int => 1;\npublic func shown() int => helper();\n",
+	})
+	got = errorsOf(function)
+	if len(got) != 1 || !strings.Contains(got[0], "module has no public helper") {
+		t.Errorf("a private function is not exported: %q", got)
+	}
+}
+
+func TestSharedPointsToInternal(t *testing.T) {
+	c := start(t)
+	p := c.open(map[string]string{
+		"wisp.toml": "",
+		"main.wsp":  "shared func f() int => 1;\nstruct S {\n\tshared int x;\n}\nfunc main() {}\n",
+	})
+	got := errorsOf(p)
+	if len(got) != 2 {
+		t.Fatalf("one error for the function and one for the field: %q", got)
+	}
+	for _, message := range got {
+		if !strings.Contains(message, "shared was replaced by internal, which now means the whole project") {
+			t.Errorf("unexpected message: %q", message)
+		}
+	}
+}

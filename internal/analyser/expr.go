@@ -469,7 +469,7 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 				if ft.Module != a.module && !viaBound && !(ft.Exported && ownerExported) {
 					a.errorf(expr, "method %s of %s is not public", member.Field, owner)
 				} else if ft.Module != a.module && !viaBound && ft.InternalDir != "" && !insideDir(a.currentFile, ft.InternalDir) {
-					a.errorf(expr, "method %s of %s is internal to %q", member.Field, owner, filepath.Base(ft.InternalDir))
+					a.errorf(expr, "method %s of %s is internal to the project %q", member.Field, owner, filepath.Base(ft.InternalDir))
 				}
 				symbolModule := ft.Module
 				if ft.Template != nil && !ft.Inline {
@@ -786,7 +786,7 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 		sym, ok := mod.Exports[expr.Field]
 		if !ok {
 			if folder, hidden := mod.Hidden[expr.Field]; hidden {
-				a.errorf(expr, "%s is internal to %q", expr.Field, folder).WithHelp("it is only visible to files under the folder %s", folder)
+				a.errorf(expr, "%s is internal to the project %q", expr.Field, folder).WithHelp("only the files of %s can use it: make it public to share it with the projects that depend on it", folder)
 				return InvalidType{}
 			}
 			a.suggest(a.errorf(expr, "module has no public %s", expr.Field), expr.Field, exportNames(mod.Exports))

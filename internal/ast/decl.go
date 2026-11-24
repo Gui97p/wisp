@@ -257,8 +257,8 @@ func (i *ImportDecl) Tree(indent string) string {
 
 const (
 	ReachNone = iota
-	ReachInternal
-	ReachShared
+	ReachProject
+	ReachFile
 )
 
 type StaticAssertDecl struct {

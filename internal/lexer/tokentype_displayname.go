@@ -97,8 +97,8 @@ func (t TokenType) DisplayName() string {
 		return "public"
 	case TOKEN_INTERNAL:
 		return "internal"
-	case TOKEN_SHARED:
-		return "shared"
+	case TOKEN_PRIVATE:
+		return "private"
 	case TOKEN_AS:
 		return "as"
 	case TOKEN_NATIVE:

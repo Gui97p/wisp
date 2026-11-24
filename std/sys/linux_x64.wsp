@@ -77,17 +77,17 @@ struct StatBuf {
 	int __reserved2;
 }
 
-shared struct Env {
+internal struct Env {
 	int index;
 }
 
-shared struct Dir {
+internal struct Dir {
 	int fd;
 	int pos, len;
 	[4096]byte buf;
 }
 
-shared native read(int fd, *byte buf, int n) int r {
+internal native read(int fd, *byte buf, int n) int r {
 	mov eax, SYS_READ;
 	mov rdi, fd;
 	mov rsi, buf;
@@ -96,7 +96,7 @@ shared native read(int fd, *byte buf, int n) int r {
 	mov r, rax;
 }
 
-shared native write(int fd, *byte buf, int n) int r {
+internal native write(int fd, *byte buf, int n) int r {
 	mov eax, SYS_WRITE;
 	mov rdi, fd;
 	mov rsi, buf;
@@ -115,14 +115,14 @@ internal native rawOpen(*byte path, int flags, int mode) int fd {
 	mov fd, rax;
 }
 
-shared native close(int fd) int r {
+internal native close(int fd) int r {
 	mov eax, SYS_CLOSE;
 	mov rdi, fd;
 	syscall;
 	mov r, rax;
 }
 
-shared native seek(int fd, offset, whence) int off {
+internal native seek(int fd, offset, whence) int off {
 	mov eax, SYS_LSEEK;
 	mov rdi, fd;
 	mov rsi, offset;
@@ -131,14 +131,14 @@ shared native seek(int fd, offset, whence) int off {
 	mov off, rax;
 }
 
-shared native sync(int fd) int r {
+internal native sync(int fd) int r {
 	mov eax, SYS_FSYNC;
 	mov rdi, fd;
 	syscall;
 	mov r, rax;
 }
 
-shared func size(int fd) int {
+internal func size(int fd) int {
 	StatBuf stat;
 	int r;
 	native {
@@ -172,13 +172,13 @@ internal native rawMmap(int len) *void r {
 	mov r, rax;
 }
 
-shared func mmap(int len) ?*void {
+internal func mmap(int len) ?*void {
 	*void r = rawMmap(len);
 	return null if int(r) in -4095..-1;
 	return r;
 }
 
-shared native munmap(*void addr, int len) int r {
+internal native munmap(*void addr, int len) int r {
 	mov eax, SYS_MUNMAP;
 	mov rdi, addr;
 	mov rsi, len;
@@ -186,7 +186,7 @@ shared native munmap(*void addr, int len) int r {
 	mov r, rax;
 }
 
-shared func time(int clock) (int, int) {
+internal func time(int clock) (int, int) {
 	sys.Timespec ts;
 	native {
 		mov eax, SYS_CLOCK_GETTIME;
@@ -197,7 +197,7 @@ shared func time(int clock) (int, int) {
 	return ts.tv_sec, ts.tv_nsec;
 }
 
-shared func sleep(int sec, nsec) int {
+internal func sleep(int sec, nsec) int {
 	sys.Timespec req = sys.Timespec{tv_sec: sec, tv_nsec: nsec};
 	int r;
 	native {
@@ -210,7 +210,7 @@ shared func sleep(int sec, nsec) int {
 	return r;
 }
 
-shared native random(*void buf, int n) int r {
+internal native random(*void buf, int n) int r {
 	mov eax, SYS_GETRANDOM;
 	mov rdi, buf;
 	mov rsi, n;
@@ -219,7 +219,7 @@ shared native random(*void buf, int n) int r {
 	mov r, rax;
 }
 
-shared func isatty(int fd) bool {
+internal func isatty(int fd) bool {
 	[64]byte termios;
 	int r;
 	native {
@@ -233,7 +233,7 @@ shared func isatty(int fd) bool {
 	return r == 0;
 }
 
-shared native exit(int code) {
+internal native exit(int code) {
 	mov eax, SYS_EXIT_GROUP;
 	mov rdi, code;
 	syscall;
@@ -291,7 +291,7 @@ internal native environ() ?*?*byte r {
 	mov r, rax;
 }
 
-shared native args() []string s {
+internal native args() []string s {
 	extern __wisp_args_ptr;
 	extern __wisp_args_len;
 	mov rax, [rel __wisp_args_ptr];
@@ -309,35 +309,35 @@ internal func cpath(*byte buf, string p) int {
 	return 0;
 }
 
-shared func open(string path, int flags) int {
+internal func open(string path, int flags) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
 	return r if r < 0;
 	return rawOpen((*byte)(buf), flags | O_CLOEXEC, 0o644);
 }
 
-shared func remove(string path) int {
+internal func remove(string path) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
 	return r if r < 0;
 	return rawRemove((*byte)(buf), 0);
 }
 
-shared func rmdir(string path) int {
+internal func rmdir(string path) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
 	return r if r < 0;
 	return rawRemove((*byte)(buf), AT_REMOVEDIR);
 }
 
-shared func mkdir(string path) int {
+internal func mkdir(string path) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
 	return r if r < 0;
 	return rawMkdir((*byte)(buf), 0o755);
 }
 
-shared func rename(string from, string to) int {
+internal func rename(string from, string to) int {
 	[4096]byte fromBuf, toBuf;
 	int r = cpath((*byte)(fromBuf), from);
 	return r if r < 0;
@@ -346,7 +346,7 @@ shared func rename(string from, string to) int {
 	return rawRename((*byte)(fromBuf), (*byte)(toBuf));
 }
 
-shared func stat(string path, *sys.Stat out) int {
+internal func stat(string path, *sys.Stat out) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
 	return r if r < 0;
@@ -365,7 +365,7 @@ shared func stat(string path, *sys.Stat out) int {
 	return 0;
 }
 
-shared func dirOpen(string path, *Dir d) int {
+internal func dirOpen(string path, *Dir d) int {
 	int fd = open(path, sys.O_RDONLY | O_DIRECTORY);
 	return fd if fd < 0;
 	d.fd = fd;
@@ -374,7 +374,7 @@ shared func dirOpen(string path, *Dir d) int {
 	return 0;
 }
 
-shared func dirNext(*Dir d, *sys.Entry e) int {
+internal func dirNext(*Dir d, *sys.Entry e) int {
 	loop {
 		if d.pos >= d.len {
 			int r = getdents(d.fd, (*byte)(d.buf), len(d.buf));
@@ -410,16 +410,16 @@ shared func dirNext(*Dir d, *sys.Entry e) int {
 	}
 }
 
-shared func dirClose(*Dir d) {
+internal func dirClose(*Dir d) {
 	close(d.fd);
 }
 
-shared func getcwd([]byte buf) int {
+internal func getcwd([]byte buf) int {
 	int r = rawGetcwd((*byte)(buf), len(buf));
 	return r < 0 ? r : r - 1;
 }
 
-shared func getenv(string name) ?string {
+internal func getenv(string name) ?string {
 	if environ() |env| {
 		for i in 0..1000000 {
 			if env[i] |entry| {
@@ -437,11 +437,11 @@ shared func getenv(string name) ?string {
 	return null;
 }
 
-shared func envOpen(*Env e) {
+internal func envOpen(*Env e) {
 	e.index = 0;
 }
 
-shared func envNext(*Env e) ?string {
+internal func envNext(*Env e) ?string {
 	if environ() |env| {
 		if env[e.index] |entry| {
 			e.index++;
@@ -455,5 +455,5 @@ shared func envNext(*Env e) ?string {
 	return null;
 }
 
-shared func envClose(*Env _e) {
+internal func envClose(*Env _e) {
 }
