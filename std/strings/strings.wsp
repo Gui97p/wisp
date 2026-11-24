@@ -2,10 +2,14 @@ import "std/strings/search";
 
 const spaceCharset = " \t\n\r\v\f";
 
+/// Returns `s` without the leading and trailing bytes that are in `charset`. The
+/// result is a slice of `s`, nothing is copied.
 #must_use
 public func trim(string s, charset) string {
 	return trimLeft(trimRight(s, charset), charset);
 }
+/// Returns `s` without the leading bytes that are in `charset`. The result is a
+/// slice of `s`, nothing is copied.
 #must_use
 public func trimLeft(string s, charset) string {
 	return "" if s == "";
@@ -16,6 +20,8 @@ public func trimLeft(string s, charset) string {
 
 	return s;
 }
+/// Returns `s` without the trailing bytes that are in `charset`. The result is a
+/// slice of `s`, nothing is copied.
 #must_use
 public func trimRight(string s, charset) string {
 	return "" if s == "";
@@ -26,17 +32,24 @@ public func trimRight(string s, charset) string {
 
 	return s;
 }
+/// Returns `s` without leading and trailing ASCII white space (space, tab,
+/// newline, carriage return, vertical tab and form feed). The result is a slice of
+/// `s`, nothing is copied.
 #must_use
 public func trimSpace(string s) string {
 	return "" if s == "";
 	return trim(s, spaceCharset);
 }
+/// Returns `s` without the leading `prefix`, or `s` itself when it does not start
+/// with it. Only one copy of `prefix` is removed. The result is a slice of `s`.
 #must_use
 public func trimPrefix(string s, prefix) string {
 	return s if !search.startsWith(s, prefix);
 
 	return s[len(prefix):];
 }
+/// Returns `s` without the trailing `suffix`, or `s` itself when it does not end
+/// with it. Only one copy of `suffix` is removed. The result is a slice of `s`.
 #must_use
 public func trimSuffix(string s, suffix) string {
 	return s if !search.endsWith(s, suffix);
@@ -44,6 +57,10 @@ public func trimSuffix(string s, suffix) string {
 	return s[:len(s) - len(suffix)];
 }
 
+/// Splits `s` around the first occurrence of `sep`. Returns null when `sep` is not
+/// found. Both parts are slices of `s`, nothing is copied, and `sep` is in neither
+/// of them. An empty `sep` matches at the start, so `before` is empty and `after`
+/// is `s`.
 #must_use
 public func cut(string s, sep) ?Cut {
 	int idx = search.indexOf(s, sep) ?? return null;
@@ -51,10 +68,15 @@ public func cut(string s, sep) ?Cut {
 	return Cut{before: s[:idx], after: s[idx + len(sep):]};
 }
 
+/// The two parts of a string split by `cut`. Both share memory with the original
+/// string.
 public struct Cut {
 	string before, after;
 }
 
+/// Walks the pieces of a string between separators, from the left. Make one with
+/// `splitter` or `tokens` and call `next` until it returns null. Pieces are slices
+/// of the original string and nothing is allocated.
 public struct Splitter {
 	internal string s, sep;
 	internal bool done, skipEmpty;
@@ -82,6 +104,10 @@ internal func (*Splitter s) nextStep() ?string {
 	return s.s;
 }
 
+/// Returns the next piece, or null when the string is used up. A string with
+/// `n` separators gives `n + 1` pieces, and consecutive separators give empty
+/// pieces, which a `tokens` splitter skips. With an empty separator each piece is
+/// one byte.
 public func (*Splitter s) next() ?string {
 	loop {
 		string str = s.nextStep() ?? return null;
@@ -89,14 +115,22 @@ public func (*Splitter s) next() ?string {
 	}
 }
 
+/// Returns the part of the string that `next` has not consumed yet. After the
+/// last piece it is the last piece itself, because that one is not consumed from
+/// the remainder.
 public func (*Splitter s) rest() string {
 	return s.s;
 }
 
+/// Returns a `Splitter` over `s` that yields the pieces between occurrences of
+/// `sep`, empty pieces included. An empty `sep` yields one byte at a time. An empty
+/// `s` yields a single empty piece, or none when `sep` is empty.
 public func splitter(string s, sep) Splitter {
 	return Splitter{s: s, sep: sep};
 }
 
+/// Returns a `Splitter` over `s` like `splitter`, except that empty pieces are
+/// skipped, so runs of separators count as one.
 public func tokens(string s, sep) Splitter {
 	return Splitter{s: s, sep: sep, skipEmpty: true};
 }

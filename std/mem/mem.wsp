@@ -77,18 +77,30 @@ func<debug> source() Allocator {
 	return &checked;
 }
 
+/// Allocates `n` zeroed bytes from the process heap. Fails with `OutOfMemory`
+/// when the system has no more memory or `n` is too large. In a debug build the
+/// block is tracked, with guard bytes around it.
 public func (*Heap) alloc(int n) !*void {
 	return source().alloc(n)!;
 }
 
+/// Allocates `n` bytes from the process heap without clearing them. In a debug
+/// build the bytes start filled with `0xCD`, to make reads before writes visible.
 public func (*Heap) allocDirty(int n) !*void {
 	return source().allocDirty(n)!;
 }
 
+/// Resizes a block of the process heap, which currently has `old` bytes, to `n`
+/// bytes. The block may move, so use the returned pointer and not the old one.
+/// Bytes past `old` are zeroed. A null `p` allocates. In a debug build an `old`
+/// that is not the real size of the block is a panic.
 public func (*Heap) realloc(?*void p, int old, int n) !*void {
 	return source().realloc(p, old, n)!;
 }
 
+/// Gives a block back to the process heap. Null is ignored. In a debug build a
+/// double free, a pointer into the middle of a block or an overflowed block is a
+/// panic, and blocks never freed are reported when the program exits.
 public func (*Heap) free(?*void p) {
 	source().free(p);
 }

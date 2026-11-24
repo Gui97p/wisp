@@ -140,6 +140,8 @@ func kernelTan(float x, float y, int iy) float {
 	return t + a * (s + t * v);
 }
 
+/// Returns the sine of `x`, given in radians. It is NaN for infinities and NaN,
+/// and the sign of zero is kept.
 public func sin(float x) float {
 	int ix = int(ieee.highWord(x) & 0x7fffffff);
 	if ix <= 0x3fe921fb {
@@ -163,6 +165,7 @@ public func sin(float x) float {
 	return -kernelCos(y[0], y[1]);
 }
 
+/// Returns the cosine of `x`, given in radians. It is NaN for infinities and NaN.
 public func cos(float x) float {
 	int ix = int(ieee.highWord(x) & 0x7fffffff);
 	if ix <= 0x3fe921fb {
@@ -186,6 +189,9 @@ public func cos(float x) float {
 	return kernelSin(y[0], y[1], 1);
 }
 
+/// Returns the tangent of `x`, given in radians. It is NaN for infinities and NaN,
+/// and the sign of zero is kept. Near odd multiples of pi/2 the result is very
+/// large rather than infinite, because pi/2 is not exactly representable.
 public func tan(float x) float {
 	int ix = int(ieee.highWord(x) & 0x7fffffff);
 	if ix <= 0x3fe921fb {

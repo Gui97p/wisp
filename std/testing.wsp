@@ -3,11 +3,15 @@ import "std/math";
 import "std/mem";
 import "std/os";
 
+/// The errors that the test helpers return: `Failed` when an expectation does not
+/// hold, and `Leaked` when `finish` finds memory that was not freed.
 public enum Kind {
 	Failed = 1,
 	Leaked
 }
 
+/// The exit status of a test that called `skip`, which the test runner reads as
+/// skipped.
 public const SKIP_CODE = 77;
 
 mem.Arena store;
@@ -18,6 +22,9 @@ func warn(string format, ...args) {
 	fmt.fprintf(2, format, args...) ?? return;
 }
 
+/// Prints a message to standard error. The first argument is a format string,
+/// used with the others as in `fmt.fprintf`, and a newline is added. Does
+/// nothing if there are no arguments or the first is not a string.
 public func report(...args) {
 	return if len(args) == 0;
 
@@ -29,6 +36,8 @@ public func report(...args) {
 	}
 }
 
+/// Returns `ok`. If it is false, prints the message given by `args` as `report`
+/// does. It does not stop the test.
 public func holds(bool ok, ...args) bool {
 	return true if ok;
 
@@ -36,6 +45,8 @@ public func holds(bool ok, ...args) bool {
 	return false;
 }
 
+/// Reports whether `e` is an error whose `code` is `kind`, and prints what was
+/// expected and what was found if not. A null error never matches.
 public func sameKind(Error e, int kind) bool {
 	if e == null {
 		warn("expected an error of kind {}, got no error\n", kind);
@@ -47,6 +58,8 @@ public func sameKind(Error e, int kind) bool {
 	return false;
 }
 
+/// Reports whether `want` and `got` differ by at most `tolerance`, and prints
+/// the values and the difference if not.
 public func isClose(float want, float got, float tolerance) bool {
 	float diff = want > got ? want - got : got - want;
 	return true if diff <= tolerance;
@@ -63,6 +76,8 @@ func firstDifference(string a, string b) int {
 	return n;
 }
 
+/// Reports whether the two strings are equal, and prints both and the position
+/// of the first differing byte if not.
 public func sameText(string want, string got) bool {
 	return true if want == got;
 
@@ -70,32 +85,44 @@ public func sameText(string want, string got) bool {
 	return false;
 }
 
+/// Fails the test if `ok` is false, printing the message given by `args` as
+/// `report` does. Returns an error of kind `Failed`, so use it as `expect(...)!`.
 public inline func expect(bool ok, ...args) ! {
 	return Error(Kind.Failed, "expectation failed") if !holds(ok, args...);
 }
 
+/// Prints the message given by `args` as `report` does and returns an error of
+/// kind `Failed`.
 public inline func fail(...args) ! {
 	report(args...);
 	return Error(Kind.Failed, "test failed");
 }
 
+/// Fails the test with `Failed` unless `e` is an error whose `code` is `kind`.
 public inline func expectKind(Error e, int kind) ! {
 	return Error(Kind.Failed, "wrong kind of error") if !sameKind(e, kind);
 }
 
+/// Fails the test with `Failed` unless `want` and `got` differ by at most
+/// `tolerance`.
 public inline func expectApprox(float want, float got, float tolerance) ! {
 	return Error(Kind.Failed, "values are not close") if !isClose(want, got, tolerance);
 }
 
+/// Fails the test with `Failed` unless the two strings are equal.
 public inline func expectEqualStrings(string want, string got) ! {
 	return Error(Kind.Failed, "strings differ") if !sameText(want, got);
 }
 
+/// Prints the message given by `args` as `report` does and ends the program
+/// with `SKIP_CODE`, marking the test as skipped.
 public func skip(...args) {
 	report(args...);
 	os.exit(SKIP_CODE);
 }
 
+/// Returns the allocator a test should use. It tracks every block so `finish`
+/// can find leaks, and it takes its memory from an arena that `finish` releases.
 public func allocator() mem.Allocator {
 	if !tracking {
 		tracker.parent = &store;
@@ -104,6 +131,9 @@ public func allocator() mem.Allocator {
 	return &tracker;
 }
 
+/// Checks the allocator of `allocator` at the end of a test. Prints a report and
+/// returns an error of kind `Leaked` if blocks were not freed, and releases the
+/// memory either way. Does nothing if `allocator` was never called.
 public func finish() ! {
 	return if !tracking;
 

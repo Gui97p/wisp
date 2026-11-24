@@ -2,17 +2,26 @@ import "std/errors";
 import "std/math";
 import "std/mem";
 
+/// An allocator over a buffer you provide, such as a stack array: `mem.Fixed f =
+/// .{buffer: buf}`. Blocks are 16-byte aligned and are taken in a row; nothing is
+/// freed one by one and nothing is allocated from the heap. When the buffer is
+/// full, allocation fails with `NoSpace`.
 public struct Fixed implements mem.Allocator {
 	[]byte buffer;
 	internal int bUsed;
 }
 
+/// Allocates `n` zeroed bytes from the buffer. Fails with `Invalid` for a
+/// negative `n` and with `NoSpace` when they do not fit.
 public func (*Fixed f) alloc(int n) !*void {
 	*byte p = f.allocDirty(n)!;
 	mem.fill(p, 0, n);
 	return p;
 }
 
+/// Allocates `n` bytes from the buffer without clearing them, rounded up to 16.
+/// Fails with `Invalid` for a negative `n` and with `NoSpace` when they do not
+/// fit; then nothing is used.
 public func (*Fixed f) allocDirty(int n) !*void {
 	int base = int((*byte)(f.buffer));
 	int start = (base + f.bUsed + 15) & ~15;
@@ -24,20 +33,29 @@ public func (*Fixed f) allocDirty(int n) !*void {
 	return (*byte)(f.buffer) + off;
 }
 
+/// Makes the whole buffer free again. All blocks become invalid, and the memory
+/// is not cleared.
 public inline func (*Fixed f) reset() {
 	f.bUsed = 0;
 }
 
+/// The number of bytes left in the buffer, before alignment of the next block.
 public inline func (*Fixed f) remaining() int {
 	return len(f.buffer) - f.bUsed;
 }
 
+/// The number of bytes taken from the buffer, alignment included.
 public inline func (*Fixed f) used() int {
 	return f.bUsed;
 }
 
+/// Does nothing: space comes back only with `reset`.
 public func (*Fixed) free(?*void _p) {}
 
+/// Resizes a block. The block of the last allocation grows or shrinks in place;
+/// any other block is copied to a new one, and the old space stays used. Bytes
+/// past `old` are zeroed. Fails with `Invalid` for a negative size and with
+/// `NoSpace` when the buffer is full.
 public func (*Fixed f) realloc(?*void p, int old, int n) !*void {
 	errors.ensure(old >= 0 && n >= 0, errors.Kind.Invalid)!;
 	*void block = p ?? return f.alloc(n)!;

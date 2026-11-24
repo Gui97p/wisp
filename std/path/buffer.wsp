@@ -2,6 +2,11 @@ import "std/math";
 import "std/path";
 import "std/strings";
 
+/// Joins the `parts` with the separator of the platform into `buf` and returns
+/// the result, which points into `buf`. Empty parts are skipped, repeated
+/// separators collapse, and a part that starts with a root keeps it only if it
+/// is the first. The result is not cleaned of `.` and `..`. Fails with `NoSpace` if
+/// `buf` is too small.
 public func join([]byte buf, string ...parts) !string {
 	int total;
 	bool seen, firstPassed;
@@ -32,6 +37,11 @@ public func join([]byte buf, string ...parts) !string {
 	return string(buf[:total]);
 }
 
+/// Writes into `buf` the shortest form of `p` that names the same place:
+/// repeated separators and `.` are dropped, and `..` cancels the element before
+/// it. A `..` at the root is dropped, and one at the start of a relative path is
+/// kept. An empty result becomes `.`. The result points into `buf`. Fails with
+/// `NoSpace` if `buf` is too small.
 public func clean([]byte buf, string p) !string {
 	int total, depth;
 	int v = path.volumeLen(p);

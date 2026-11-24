@@ -23,26 +23,36 @@ internal func fromWords(uint high, low) float {
 	return f;
 }
 
+/// Returns the largest whole number not greater than `x`. The sign of zero is kept,
+/// and NaN and infinities are returned unchanged.
 public native<x64> floor(float x) float r {
 	roundsd xmm0, x, 1;
 	movsd r, xmm0;
 }
 
+/// Returns the smallest whole number not less than `x`. The sign of zero is kept
+/// (`ceil(-0.5)` is -0), and NaN and infinities are returned unchanged.
 public native<x64> ceil(float x) float r {
 	roundsd xmm0, x, 2;
 	movsd r, xmm0;
 }
 
+/// Returns `x` with the fractional part removed, rounding toward zero. The sign of
+/// zero is kept, and NaN and infinities are returned unchanged.
 public native<x64> trunc(float x) float r {
 	roundsd xmm0, x, 3;
 	movsd r, xmm0;
 }
 
+/// Returns the square root of `x`, using the hardware instruction. It is NaN for
+/// negative `x` and for NaN, and `fsqrt(-0.0)` is -0.
 public native<x64> fsqrt(float x) float r {
 	sqrtsd xmm0, x;
 	movsd r, xmm0;
 }
 
+/// Returns the smaller of `x` and `y`. It is NaN when either is NaN, and -0 is
+/// treated as smaller than +0.
 public func fmin(float x, y) float {
 	if (isNaN(x) || isNaN(y)) {
 		return nan();
@@ -61,6 +71,8 @@ public func fmin(float x, y) float {
 	return y;
 }
 
+/// Returns the larger of `x` and `y`. It is NaN when either is NaN, and +0 is
+/// treated as larger than -0.
 public func fmax(float x, y) float {
 	if (isNaN(x) || isNaN(y)) {
 		return nan();
@@ -79,6 +91,9 @@ public func fmax(float x, y) float {
 	return y;
 }
 
+/// Returns `x` rounded to the nearest whole number, with halves rounded away from
+/// zero (`round(2.5)` is 3 and `round(-2.5)` is -3). See `roundEven` for the other
+/// tie rule.
 public func round(float x) float {
 	float r = trunc(x);
 	if fabs(x - r) >= .5 {
@@ -86,11 +101,15 @@ public func round(float x) float {
 	}
 	return r;
 }
+/// Returns `x` rounded to the nearest whole number, with halves rounded to the even
+/// neighbor (`roundEven(2.5)` is 2 and `roundEven(3.5)` is 4).
 public func roundEven(float x) float {
 	float t = floor(x);
 	float d = x - t;
 	return d < .5 ? t : (d == .5 && fmod(t, 2) == 0 ? t : t + 1);
 }
+/// Returns `x` limited to the range `low` to `high`, using `fmin` and `fmax`. It is
+/// NaN when any argument is NaN.
 public inline func fclamp(float x, low, high) float {
 	return fmin(fmax(x, low), high);
 }
@@ -99,12 +118,16 @@ const FLOAT64_SIGN_MASK = 0x80000000;
 const FLOAT64_EXP_MASK = 0x7FF00000;
 const FLOAT64_FRAC_MASK = 0x000FFFFF;
 
+/// Reports whether `x` is NaN. This is the only reliable test, since NaN is not
+/// equal to itself.
 public inline func isNaN(float x) bool {
 	uint high, low = words(x);
 	return (high & FLOAT64_EXP_MASK) == FLOAT64_EXP_MASK &&
 		((high & FLOAT64_FRAC_MASK) != 0 || low != 0);
 }
 
+/// Reports whether `x` is an infinity. A positive `sign` matches only +infinity, a
+/// negative one matches only -infinity, and 0 matches either.
 public func isInf(float x, int sign) bool {
 	uint high, low = words(x);
 
@@ -121,20 +144,25 @@ public func isInf(float x, int sign) bool {
 	return true;
 }
 
+/// Reports whether `x` is neither an infinity nor NaN.
 public inline func isFinite(float x) bool {
 	uint high, _ = words(x);
 	return (high & FLOAT64_EXP_MASK) != FLOAT64_EXP_MASK;
 }
 
+/// Reports whether the sign bit of `x` is set. It is true for -0 and for negative
+/// NaNs, which `x < 0` is not.
 public inline func signbit(float x) bool {
 	uint high, _ = words(x);
 	return (high & FLOAT64_SIGN_MASK) != 0;
 }
 
+/// Reports whether `x` is finite and has no fractional part.
 public inline func isInteger(float x) bool {
 	return isFinite(x) && x == trunc(x);
 }
 
+/// Returns -infinity when `sign` is negative and +infinity otherwise.
 public func inf(int sign) float {
 	uint high = FLOAT64_EXP_MASK;
 	if (sign < 0) {
@@ -143,16 +171,21 @@ public func inf(int sign) float {
 	return fromWords(high, 0);
 }
 
+/// Returns a quiet NaN.
 public inline func nan() float {
 	return fromWords(0x7FF80000, 0);
 }
 
+/// Returns the absolute value of `x` by clearing its sign bit, so `fabs(-0.0)` is 0
+/// and the sign of NaN is cleared too.
 public inline func fabs(float x) float {
 	uint high, low = words(x);
 	high &= 0x7FFFFFFF;
 	return fromWords(high, low);
 }
 
+/// Returns the magnitude of `x` with the sign of `y`, taking the sign bit of `y`
+/// even when it is zero or NaN.
 public inline func copysign(float x, y) float {
 	uint xhigh, xlow = words(x);
 	uint yhigh, _ = words(y);
@@ -161,6 +194,8 @@ public inline func copysign(float x, y) float {
 	return fromWords(xhigh, xlow);
 }
 
+/// Splits `x` into its whole part and its fractional part, both with the sign of
+/// `x`, so that they add up to `x`. `modf(-1.5)` is (-1, -0.5).
 public func modf(float x) (float, float) {
 	float integer = trunc(x);
 	float fraction = x - integer;
@@ -179,6 +214,9 @@ const {
 	tiny = 1.0e-300;
 }
 
+/// Returns `x` times 2 raised to `n`. It overflows to an infinity of the sign of
+/// `x`, underflows to a zero of that sign, and returns zero, infinities and NaN
+/// unchanged.
 public func ldexp(float x, int n) float {
 	uint hx, lx = words(x);
 	int k = int((hx & 0x7ff00000) >> 20);
@@ -221,6 +259,9 @@ public func ldexp(float x, int n) float {
 	return fromWords(hx, lx) * twom54;
 }
 
+/// Splits `x` into a fraction `f` and an exponent `e` so that `x` is `f * 2^e`,
+/// with the magnitude of `f` in 0.5 up to but not including 1. Zero, infinities and
+/// NaN return `x` and an exponent of 0. `ldexp` is the inverse.
 public func frexp(float x) (float, int) {
 	uint hx, lx = words(x);
 	int ix = int(hx & 0x7fffffff);
@@ -242,6 +283,11 @@ public func frexp(float x) (float, int) {
 	return fromWords(hx, lx), e;
 }
 
+/// Splits the magnitude of `x` into an integer mantissa and an exponent so that
+/// `abs(x)` is `mantissa * 2^exponent`; the sign is dropped. Normal numbers have
+/// bit 52 set in the mantissa, subnormals use the exponent -1074, and zero returns
+/// (0, 0). For infinities and NaN the mantissa is the raw fraction bits and the
+/// exponent is 0, so check with `isFinite` first.
 public func decompose(float x) (uint, int) {
 	uint hx, lx = words(x);
 	int biased = int((hx >> 20) & 0x7ff);
@@ -312,6 +358,9 @@ internal func exponentOf(uint h, l) int {
 	return e;
 }
 
+/// Returns the remainder of `x` divided by `y`, computed exactly, with the sign of
+/// `x` and a magnitude below `abs(y)`. It is NaN when `y` is 0, when `x` is
+/// infinite and when either is NaN, and `x` when `y` is infinite.
 public func fmod(float x, y) float {
 	uint hx, lx = words(x);
 	uint hy, ly = words(y);

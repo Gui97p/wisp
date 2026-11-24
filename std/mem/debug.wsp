@@ -21,6 +21,15 @@ struct Header {
 	?*Header prev, next;
 }
 
+/// An allocator that finds mistakes in how blocks are used, and forwards the
+/// memory to `parent`, or to `mem.heap` when `parent` is null. Every block has a
+/// header that records where it was allocated, and guard bytes after it. It
+/// panics on a double free, on a free or realloc of a pointer that is not a block
+/// of this allocator, on a write past the end of a block, on a write to a freed
+/// block, and on a `realloc` given a wrong `old` size. Freed blocks are poisoned
+/// with `0xDD` and kept in a ring of the last 256 until they are checked and
+/// returned. Dirty blocks start filled with `0xCD`. It is only built with the
+/// `debug` profile, and the heap uses it there.
 public struct Debug implements mem.Allocator {
 	?mem.Allocator parent;
 	internal ?*Header head;
@@ -190,10 +199,14 @@ func (*Debug d) obtain(int n, bool zero) !*void {
 	return dataOf(h);
 }
 
+/// Allocates `n` zeroed bytes with a header and guard bytes. Fails with
+/// `OutOfMemory` for a negative `n`, for more than 2^47 bytes, or when the
+/// bookkeeping cannot grow, and with the error of the parent.
 public func (*Debug d) alloc(int n) !*void {
 	return d.obtain(n, true)!;
 }
 
+/// Like `alloc`, but the bytes start filled with `0xCD`.
 public func (*Debug d) allocDirty(int n) !*void {
 	return d.obtain(n, false)!;
 }
@@ -206,6 +219,11 @@ func (*Debug d) evict() {
 	d.source().free(old);
 }
 
+/// Gives a block back. Null is ignored. The guard bytes are checked first, then
+/// the block is filled with `0xDD` and kept in the ring of freed blocks; when the
+/// ring is full, the oldest one is checked for writes and returned to the parent.
+/// Panics on a double free, on a pointer into the middle of a block, and on a
+/// pointer that is not a block of this allocator.
 public func (*Debug d) free(?*void p) {
 	*void block = p ?? return;
 	uint at = uint(block) - HEAD;
@@ -233,6 +251,10 @@ public func (*Debug d) free(?*void p) {
 	d.ringCount++;
 }
 
+/// Resizes a block by allocating a new one, copying and freeing the old one, so
+/// the address always changes unless `n` equals `old`. Bytes past `old` are
+/// zeroed. A null `p` allocates. Panics when `p` is not a live block of this
+/// allocator or when `old` is not its size. When it fails the block is unchanged.
 public func (*Debug d) realloc(?*void p, int old, int n) !*void {
 	*void block = p ?? return d.obtain(n, true)!;
 	if d.find(uint(block) - HEAD) < 0 {
@@ -249,6 +271,9 @@ public func (*Debug d) realloc(?*void p, int old, int n) !*void {
 	return next;
 }
 
+/// Checks the guard bytes of every live block and the poison of every block in
+/// the ring of freed ones. Panics at the first one that was written to, naming
+/// where the block was allocated and, if freed, where.
 public func (*Debug d) check() {
 	for i in 0..d.ringCount - 1 {
 		verifyPoison(d.ring[(d.ringStart + i) % len(d.ring)]!!);
@@ -260,6 +285,9 @@ public func (*Debug d) check() {
 	}
 }
 
+/// Checks and returns the freed blocks held in the ring, and frees the tables
+/// used for tracking. Live blocks are not touched, and they stay checked if the
+/// allocator is used again.
 public func (*Debug d) release() {
 	loop d.ringCount > 0 {
 		d.evict();
@@ -279,10 +307,14 @@ internal func (*Debug d) sizeOf(*void p) int {
 	return headerOf(p).size;
 }
 
+/// The number of blocks allocated and not freed yet.
 public inline func (*Debug d) blocks() int {
 	return d.liveBlocks;
 }
 
+/// Runs `check`, then prints to standard error the live blocks grouped by the
+/// place that allocated them, as leaks, up to 64 places and a count of the rest.
+/// Returns the number of live blocks, so zero means no leaks.
 public func (*Debug d) report() int {
 	d.check();
 

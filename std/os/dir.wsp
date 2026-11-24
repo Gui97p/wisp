@@ -5,21 +5,31 @@ import "std/os/global";
 import "std/path";
 import "std/sys";
 
+/// Reports whether `p` exists and is a directory. A path that cannot be examined,
+/// for any reason, gives `false`.
 public inline func isDir(string p) bool {
 	let s = files.stat(p) ?? return false;
 	return s.kind == .Dir;
 }
 
+/// Removes the directory `p`, which has to be empty. Fails with `NotEmpty` or
+/// `NotDir` from `IOError`, or `NotFound` and `Permission` from `errors.Kind`.
 public func removeDir(string p) ! {
 	int r = sys.rmdir(p);
 	return global.errorIO(sys.errno(r)) if r < 0;
 }
 
+/// Creates the directory `p`, whose parent must already exist. Fails with
+/// `Exists` if something is already there and `NotFound` if the parent is missing.
 public func createDir(string p) ! {
 	int r = sys.mkdir(p);
 	return global.errorIO(sys.errno(r)) if r < 0;
 }
 
+/// Creates the directory `p` and any missing parents. It is not an error if
+/// `p` is already a directory. Fails with `NotDir` from `IOError` if `p` exists
+/// as something else, or with the error of the first directory that could not be
+/// created.
 public func createDirAll(string p) ! {
 	let s = os.stat(p) ?? |e| {
 		return e if e != errors.Kind.NotFound;
@@ -31,16 +41,24 @@ public func createDirAll(string p) ! {
 	return Error(global.IOError.NotDir) if s.kind != .Dir;
 }
 
+/// An open directory, read one entry at a time with `next`. Get one from
+/// `openDir` and call `close` when done.
 public struct Dir {
 	internal sys.Dir state;
 	internal sys.Entry entry;
 }
 
+/// One item of a directory. `name` is only the last component, not a path, and
+/// it points into the buffer of the `Dir`, so it is valid until the next call to
+/// `next` or `close`.
 public struct Entry {
 	string name;
 	global.FileKind kind;
 }
 
+/// Returns the next entry of the directory, or null when there are no more. The
+/// entries `.` and `..` are not skipped, and the order is up to the system.
+/// Fails with the error of the system if reading fails.
 public func (*Dir d) next() !?Entry {
 	int r = sys.dirNext(&d.state, &d.entry);
 	return global.errorIO(sys.errno(r)) if r < 0;
@@ -54,10 +72,14 @@ public func (*Dir d) next() !?Entry {
 	return Entry{name: string(d.entry.name[:d.entry.len]), kind: kind};
 }
 
+/// Closes the directory. It must not be used afterwards.
 public func (*Dir d) close() {
 	sys.dirClose(&d.state);
 }
 
+/// Opens the directory `p` for reading its entries. Fails with `NotFound`,
+/// `Permission` or `NotDir` from `IOError`. The result has to be closed with
+/// `close`.
 public func openDir(string p) !Dir {
 	Dir d;
 	int r = sys.dirOpen(p, &d.state);

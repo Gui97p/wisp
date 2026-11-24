@@ -1,6 +1,9 @@
 import "std/errors";
 import "std/math";
 
+/// Buffer sizes for formatting. `MaxDigits` holds any integer in any base,
+/// including the sign. `MaxFloat` holds any float printed by `ftoa`, `ftoa32`,
+/// `formatFixed` or `formatExp` for the digit counts the formatter uses.
 public const {
 	MaxDigits = 65;
 	MaxFloat = 1400;
@@ -41,6 +44,10 @@ func formatUnsigned([]byte buf, uint n, int base, bool upper) !string {
 	return string(buf[0:i]);
 }
 
+/// Writes `n` in `base` (2 to 36) into `buf` and returns the text, which shares
+/// memory with `buf`. Negative numbers get a leading `-`. Digits above 9 are
+/// lowercase, or uppercase when `upper` is true. Fails with `Invalid` when `base`
+/// is out of range and `NoSpace` when `buf` is too small.
 public func formatInt([]byte buf, int n, base, bool upper) !string {
 	errors.ensure(base in 2..36, errors.Kind.Invalid)!;
 	return formatUnsigned(buf, uint(n), base, upper)! if n >= 0;
@@ -52,15 +59,23 @@ public func formatInt([]byte buf, int n, base, bool upper) !string {
 	return string(buf[0:len(digits) + 1]);
 }
 
+/// Writes `n` in `base` (2 to 36) into `buf` and returns the text, which shares
+/// memory with `buf`. Digits above 9 are lowercase, or uppercase when `upper` is
+/// true. Fails with `Invalid` when `base` is out of range and `NoSpace` when `buf`
+/// is too small.
 public func formatUint([]byte buf, uint n, int base, bool upper) !string {
 	errors.ensure(base in 2..36, errors.Kind.Invalid)!;
 	return formatUnsigned(buf, n, base, upper)!;
 }
 
+/// Writes `n` in base 10 into `buf` and returns the text, which shares memory with
+/// `buf`. Fails with `NoSpace` when `buf` is too small.
 public func itoa([]byte buf, int n) !string {
 	return formatInt(buf, n, 10, false)!;
 }
 
+/// Writes `n` in base 10 into `buf` and returns the text, which shares memory with
+/// `buf`. Fails with `NoSpace` when `buf` is too small.
 public func utoa([]byte buf, uint n) !string {
 	return formatUint(buf, n, 10, false)!;
 }
@@ -77,6 +92,10 @@ func digitValue(byte c) ?int {
 	return null;
 }
 
+/// Parses `s` as an unsigned number in `base` (2 to 36). Letters of either case
+/// are digits above 9. No sign, prefix, underscore or white space is accepted.
+/// Fails with `Invalid` for an empty string, a bad base or a byte that is not a
+/// digit of `base`, and with `Overflow` when the value does not fit in `uint`.
 #must_use
 public func parseUint(string s, int base) !uint {
 	errors.ensure(base in 2..36 && len(s) > 0, errors.Kind.Invalid)!;
@@ -97,6 +116,10 @@ public func parseUint(string s, int base) !uint {
 	return n;
 }
 
+/// Parses `s` as a signed number in `base` (2 to 36), with an optional leading `+`
+/// or `-`. Otherwise it follows `parseUint`. Fails with `Invalid` for an empty
+/// string, a bad base or a byte that is not a digit of `base`, and with `Overflow`
+/// when the value does not fit in `int`.
 #must_use
 public func parseInt(string s, int base) !int {
 	errors.ensure(len(s) > 0, errors.Kind.Invalid)!;
@@ -121,10 +144,12 @@ public func parseInt(string s, int base) !int {
 	return int(mag);
 }
 
+/// Parses `s` as a base 10 `int`. Same as `parseInt(s, 10)`.
 public func atoi(string s) !int {
 	return parseInt(s, 10)!;
 }
 
+/// Parses `s` as a base 10 `uint`. Same as `parseUint(s, 10)`.
 public func atou(string s) !uint {
 	return parseUint(s, 10)!;
 }

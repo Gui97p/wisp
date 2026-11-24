@@ -28,11 +28,19 @@ func newChunk(mem.Allocator source, int need) !*Chunk {
 	return p;
 }
 
+/// A position in an `Arena`, taken with `mark` and given back to `rewind`. It is
+/// only valid for the arena that made it, and only while that arena has not been
+/// rewound or reset past it.
 public struct Mark {
 	internal ?*Chunk chunk;
 	internal int used;
 }
 
+/// An allocator that hands out memory in a row and frees it all at once. Blocks
+/// are 16-byte aligned and are never freed one by one. The memory comes in chunks
+/// of 64 KiB (more for a bigger request) from `parent`, or from `mem.heap` when
+/// `parent` is null. An arena needs no setup: the zero value is empty and ready.
+/// Call `release` when done with it, or the chunks stay allocated.
 public struct Arena implements mem.Allocator {
 	?mem.Allocator parent;
 	internal ?*Chunk head;
@@ -42,12 +50,18 @@ func (*Arena a) source() mem.Allocator {
 	return a.parent ?? mem.heap;
 }
 
+/// Allocates `n` zeroed bytes in the arena. Fails with `Invalid` for a negative
+/// `n` and with the error of the parent when it cannot give a new chunk.
 public func (*Arena a) alloc(int n) !*void {
 	*byte p = a.allocDirty(n)!;
 	mem.fill(p, 0, n);
 	return p;
 }
 
+/// Allocates `n` bytes in the arena without clearing them, rounded up to 16.
+/// Fails with `Invalid` for a negative `n` and with the error of the parent when
+/// it cannot give a new chunk. A request bigger than a chunk gets a chunk of its
+/// own.
 public func (*Arena a) allocDirty(int n) !*void {
 	errors.ensure(n >= 0, errors.Kind.Invalid)!;
 	n = (n + 15) & ~15;
@@ -74,6 +88,8 @@ public func (*Arena a) allocDirty(int n) !*void {
 	return p.data();
 }
 
+/// Returns every chunk to the parent. All blocks of the arena become invalid. The
+/// arena is empty afterwards and can be used again.
 public func (*Arena a) release() {
 	mem.Allocator source = a.source();
 	?*Chunk c = a.head;
@@ -85,8 +101,12 @@ public func (*Arena a) release() {
 	a.head = null;
 }
 
+/// Does nothing: an arena frees all at once, with `reset`, `rewind` or `release`.
 public func (*Arena) free(?*void _p) {}
 
+/// Forgets every block and keeps the newest chunk for reuse; the others go back
+/// to the parent. Pointers from before the reset are invalid, and the memory is
+/// not cleared.
 public func (*Arena a) reset() {
 	mem.Allocator source = a.source();
 	if a.head |head| {
@@ -101,6 +121,7 @@ public func (*Arena a) reset() {
 	}
 }
 
+/// Remembers the current position of the arena, to go back to it with `rewind`.
 public inline func (*Arena a) mark() Mark {
 	int used;
 	if a.head |head| {
@@ -109,6 +130,9 @@ public inline func (*Arena a) mark() Mark {
 	return Mark{chunk: a.head, used: used};
 }
 
+/// Frees everything allocated after `m` was taken, returning the extra chunks to
+/// the parent. Blocks allocated after the mark are invalid. A mark taken from an
+/// empty arena empties it, but keeps no chunk.
 public func (*Arena a) rewind(Mark m) {
 	mem.Allocator source = a.source();
 	?*Chunk c = a.head;
@@ -124,6 +148,9 @@ public func (*Arena a) rewind(Mark m) {
 	}
 }
 
+/// Resizes a block. The block of the last allocation grows or shrinks in place;
+/// any other block is copied to a new one, and the old one stays in the arena
+/// unused. Bytes past `old` are zeroed. Fails with `Invalid` for a negative size.
 public func (*Arena a) realloc(?*void p, int old, int n) !*void {
 	errors.ensure(old >= 0 && n >= 0, errors.Kind.Invalid)!;
 	*void block = p ?? return a.alloc(n)!;

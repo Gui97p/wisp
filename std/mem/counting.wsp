@@ -4,6 +4,11 @@ import "std/mem";
 
 const HEADER = 16;
 
+/// An allocator that counts what goes through it and forwards the work to
+/// `parent`, or to `mem.heap` when `parent` is null. Each block carries a 16-byte
+/// header that holds its size. Use it in tests to check how much a piece of code
+/// allocates and that it frees all of it. The counters are read with `blocks`,
+/// `bytes`, `peak`, `allocations` and `allocated`.
 public struct Counting implements mem.Allocator {
 	?mem.Allocator parent;
 	internal int liveBlocks, liveBytes, peakBytes, totalBlocks, totalBytes;
@@ -26,6 +31,9 @@ func (*Counting c) check(int n) ! {
 	errors.ensure(n <= 1 << 47, errors.Kind.OutOfMemory)!;
 }
 
+/// Allocates `n` zeroed bytes through the parent and counts them. Fails with
+/// `Invalid` for a negative `n`, with `OutOfMemory` for more than 2^47 bytes, and
+/// with the error of the parent.
 public func (*Counting c) alloc(int n) !*void {
 	c.check(n)!;
 	*void raw = c.source().alloc(n + HEADER)!;
@@ -34,6 +42,7 @@ public func (*Counting c) alloc(int n) !*void {
 	return (*byte)(raw) + HEADER;
 }
 
+/// Like `alloc`, but the bytes are not cleared.
 public func (*Counting c) allocDirty(int n) !*void {
 	c.check(n)!;
 	*void raw = c.source().allocDirty(n + HEADER)!;
@@ -42,6 +51,9 @@ public func (*Counting c) allocDirty(int n) !*void {
 	return (*byte)(raw) + HEADER;
 }
 
+/// Resizes a block, using the size recorded in its header: `old` is ignored. The
+/// change in size is added to the live bytes, and the growth to the total. A null
+/// `p` allocates. Fails like `alloc`, and then the block is unchanged.
 public func (*Counting c) realloc(?*void p, int _old, int n) !*void {
 	c.check(n)!;
 	*void block = p ?? return c.alloc(n)!;
@@ -57,6 +69,8 @@ public func (*Counting c) realloc(?*void p, int _old, int n) !*void {
 	return (*byte)(grown) + HEADER;
 }
 
+/// Gives a block back to the parent and removes it from the live counts. Null is
+/// ignored. The block must come from this allocator.
 public func (*Counting c) free(?*void p) {
 	*void block = p ?? return;
 	*byte raw = (*byte)(block) - HEADER;
@@ -65,22 +79,28 @@ public func (*Counting c) free(?*void p) {
 	c.source().free(raw);
 }
 
+/// The number of blocks allocated and not freed yet.
 public inline func (*Counting c) blocks() int {
 	return c.liveBlocks;
 }
 
+/// The number of bytes in the blocks not freed yet, without the headers.
 public inline func (*Counting c) bytes() int {
 	return c.liveBytes;
 }
 
+/// The most `bytes` ever had at one time.
 public inline func (*Counting c) peak() int {
 	return c.peakBytes;
 }
 
+/// The number of blocks allocated since the start, freed or not.
 public inline func (*Counting c) allocations() int {
 	return c.totalBlocks;
 }
 
+/// The number of bytes allocated since the start, freed or not. A `realloc` that
+/// grows a block adds the growth.
 public inline func (*Counting c) allocated() int {
 	return c.totalBytes;
 }

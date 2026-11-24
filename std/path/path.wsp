@@ -35,6 +35,8 @@ internal func<windows> volumeLen(string p) int {
 
 internal inline func<!windows> volumeLen(string _p) int => 0;
 
+/// Reports whether `p` is absolute. On Windows that means a drive letter
+/// followed by a separator, or a UNC path.
 public func<windows> isAbs(string p) bool {
 	int v = volumeLen(p);
 	return false if v == 0;
@@ -42,14 +44,18 @@ public func<windows> isAbs(string p) bool {
 	return v < len(p) && isSep(p[v]);
 }
 
+/// Reports whether `p` is absolute, which is when it starts with `/`.
 public inline func<!windows> isAbs(string p) bool {
 	return len(p) > 0 && p[0] == '/';
 }
 
+/// An iterator over the elements of a path, made by `elements`.
 public struct Elements {
 	internal string rest;
 }
 
+/// Returns the next element of the path, or null at the end. Separators are
+/// skipped, so no element is empty. The string points into the original path.
 public func (*Elements e) next() ?string {
 	string s = e.rest;
 	loop s != "" && isSep(s[0]) {
@@ -67,6 +73,8 @@ public func (*Elements e) next() ?string {
 	return s[:i];
 }
 
+/// Starts an iteration over the elements of `p`, without any volume name. `.`
+/// and `..` are returned as they are.
 public func elements(string p) Elements {
 	return Elements{rest: p[volumeLen(p):]};
 }
@@ -75,6 +83,9 @@ internal func elementsAfterVolume(string s) Elements {
 	return Elements{rest: s};
 }
 
+/// Returns the last element of `p`, without trailing separators. An empty path
+/// gives `.`, and a path of only separators gives the separator. The result
+/// points into `p`.
 #must_use
 public func base(string p) string {
 	return "." if p == "";
@@ -91,6 +102,9 @@ public func base(string p) string {
 	return p[i + 1:end];
 }
 
+/// Returns everything but the last element of `p`, without trailing separators.
+/// An empty path or one with no directory part gives `.`, and a root stays the
+/// root. The result points into `p` and is not cleaned.
 #must_use
 public func dir(string p) string {
 	return "." if p == "";
@@ -114,6 +128,8 @@ public func dir(string p) string {
 	return p[:head];
 }
 
+/// Returns the extension of the last element of `p`, with its dot, or an empty
+/// string. A name that only starts with a dot, or ends with one, has none.
 #must_use
 public func ext(string p) string {
 	p = base(p);
@@ -122,6 +138,7 @@ public func ext(string p) string {
 	return idx == 0 || idx == len(p) - 1 ? "" : p[idx:];
 }
 
+/// Returns the last element of `p` without its extension.
 #must_use
 public inline func stem(string p) string {
 	return strings.trimSuffix(base(p), ext(p));

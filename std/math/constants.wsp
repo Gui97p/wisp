@@ -1,3 +1,6 @@
+/// Integer limits. `MAX_INT` and `MIN_INT` are the extremes of `int`, which is 64
+/// bits; the sized `MAX_INT8` to `MAX_INT64` and `MIN_INT8` to `MIN_INT64` are the
+/// extremes of the signed integer types of that width.
 public const int{
 	MAX_INT = 0x7FFFFFFFFFFFFFFF;
 	MIN_INT = -0x8000000000000000;
@@ -13,6 +16,9 @@ public const int{
 	MIN_INT64 = MIN_INT;
 }
 
+/// Unsigned integer limits. `MAX_UINT` is the largest `uint`, which is 64 bits; the
+/// sized `MAX_UINT8` to `MAX_UINT64` are the largest values of the unsigned types
+/// of that width.
 public const uint{
 	MAX_UINT = ~(0);
 	MAX_UINT8 = 0xFF;
@@ -21,6 +27,16 @@ public const uint{
 	MAX_UINT64 = MAX_UINT;
 }
 
+/// Floating point limits and mathematical constants. `MAX_FLOAT64` is the largest
+/// finite `float`, `MIN_FLOAT64` the smallest positive normal one and
+/// `SMALLEST_FLOAT64` the smallest positive subnormal one. `EPSILON` and
+/// `FLOAT32_EPSILON` are the gaps between 1 and the next representable `float` and
+/// `float32`, and `MAX_FLOAT32` is the largest finite `float32`.
+///
+/// `PI`, `PI_2`, `PI_4`, `TAU` (2 pi), `E`, `PHI` (golden ratio), the square roots
+/// `SQRT2`, `SQRT_E`, `SQRT_PI` and `SQRT_PHI`, the logarithms `LN2`, `LN10`,
+/// `LOG2E` and `LOG10E`, and the conversion factors `DEG_TO_RAD` and `RAD_TO_DEG`
+/// are rounded to the nearest `float`.
 public const float{
 	MAX_FLOAT64 = 1.7976931348623157e308;
 	MIN_FLOAT64 = 2.2250738585072014e-308;

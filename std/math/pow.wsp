@@ -44,6 +44,11 @@ const {
 [2]float dp_h = .{0.0, 5.84962487220764160156e-01};
 [2]float dp_l = .{0.0, 1.35003920212974897128e-08};
 
+/// Returns `x` raised to the power `y`. Anything to the power 0 is 1, including
+/// NaN, and 1 to any power is 1, including NaN. A negative `x` with a non-integer
+/// `y` is NaN, and an odd integer `y` keeps the sign of `x`. Overflow gives an
+/// infinity, underflow gives a zero, and any other NaN input returns NaN. For
+/// integers use `pow`.
 public func fpow(float x, float y) float {
 	uint uhx = ieee.highWord(x);
 	uint lx = ieee.lowWord(x);

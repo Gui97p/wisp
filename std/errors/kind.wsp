@@ -1,3 +1,8 @@
+/// The kinds of error that the standard library reports, found in the `code` of
+/// an `Error`. The values are grouped by what went wrong: resources (`NoSpace`,
+/// `OutOfMemory`, `Busy`), arguments (`Invalid`, `Range`, `Overflow`,
+/// `Unsupported`) and the world outside (`NotFound`, `Exists`, `Permission`,
+/// `Interrupted`, `WouldBlock`, `BrokenPipe`).
 public enum Kind {
 	NoSpace = 1,
 	OutOfMemory,

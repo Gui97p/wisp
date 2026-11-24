@@ -3,21 +3,28 @@ import "std/sys";
 
 internal inline func toNs(int s, ns) int => s * 1_000_000_000 + ns;
 
+/// Returns the wall clock time, in nanoseconds since the Unix epoch. It can jump
+/// if the clock of the system is changed, so use `ticks` to measure durations.
 public func now() int {
 	int s, ns = sys.time(sys.CLOCK_REALTIME);
 	return toNs(s, ns);
 }
 
+/// Returns a monotonic time in nanoseconds. Only differences between two calls
+/// mean anything, and it never goes back.
 public func ticks() int {
 	int s, ns = sys.time(sys.CLOCK_MONOTONIC);
 	return toNs(s, ns);
 }
 
+/// Blocks the program for `ms` milliseconds. Fails with `Interrupted` if a
+/// signal ends the wait early.
 public func sleep(int ms) ! {
 	int r = sys.sleep(ms / 1000, (ms % 1000) * 1_000_000);
 	return global.errorIO(sys.errno(r)) if r < 0;
 }
 
+/// Ends the program with the status `code`. Deferred calls are not run.
 public inline func exit(int code) {
 	sys.exit(code);
 }

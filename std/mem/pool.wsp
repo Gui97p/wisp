@@ -11,6 +11,12 @@ struct Chunk {
 	?*Chunk next;
 }
 
+/// An allocator of blocks that all have the same size, `size` bytes, set when the
+/// pool is made. Freed blocks are reused by the next allocation, so a pool suits
+/// many objects that come and go. Memory is taken from `parent`, or from
+/// `mem.heap` when `parent` is null, 32 blocks at a time, and goes back only with
+/// `release`. Blocks are 16-byte aligned. A `size` of zero or less makes every
+/// allocation fail.
 public struct Pool implements mem.Allocator {
 	int size;
 	?mem.Allocator parent;
@@ -39,6 +45,9 @@ func (*Pool p) grow() ! {
 	}
 }
 
+/// Takes a block of the pool without clearing it. `n` must be between 0 and
+/// `size`, otherwise it fails with `Invalid`; the block always has `size` bytes.
+/// Fails with the error of the parent when it needs memory and cannot get it.
 public func (*Pool p) allocDirty(int n) !*void {
 	errors.ensure(p.size > 0 && n >= 0 && n <= p.size, errors.Kind.Invalid)!;
 	if p.spare == null {
@@ -50,12 +59,16 @@ public func (*Pool p) allocDirty(int n) !*void {
 	return block;
 }
 
+/// Like `allocDirty`, but the whole block is zeroed.
 public func (*Pool p) alloc(int n) !*void {
 	*void block = p.allocDirty(n)!;
 	mem.fill(block, 0, p.stride());
 	return block;
 }
 
+/// Puts a block back in the pool for reuse. Null is ignored. The block must come
+/// from this pool, and freeing it twice corrupts the pool. The pool does not
+/// check this.
 public func (*Pool p) free(?*void b) {
 	*void block = b ?? return;
 	((*?*void)(block))@ = p.spare;
@@ -63,6 +76,9 @@ public func (*Pool p) free(?*void b) {
 	p.liveBlocks--;
 }
 
+/// A block cannot change size, so this only checks that `n` fits in `size`, and
+/// fails with `Invalid` when it does not or when a size is negative. It returns
+/// the same block, with bytes past `old` zeroed. A null `b` allocates.
 public func (*Pool p) realloc(?*void b, int old, int n) !*void {
 	errors.ensure(old >= 0 && n >= 0, errors.Kind.Invalid)!;
 	*void block = b ?? return p.alloc(n)!;
@@ -73,6 +89,8 @@ public func (*Pool p) realloc(?*void b, int old, int n) !*void {
 	return block;
 }
 
+/// Returns all the memory of the pool to the parent, whether its blocks were
+/// freed or not. Every block becomes invalid and the pool can be used again.
 public func (*Pool p) release() {
 	?*Chunk c = p.chunks;
 	loop c |chunk| {
@@ -84,6 +102,7 @@ public func (*Pool p) release() {
 	p.liveBlocks = 0;
 }
 
+/// The number of blocks allocated and not freed yet.
 public inline func (*Pool p) blocks() int {
 	return p.liveBlocks;
 }

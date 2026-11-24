@@ -1,6 +1,12 @@
 import "std/errors";
 import "std/mem";
 
+/// An allocator that fails on purpose, to test the error paths of code that
+/// allocates. It counts the calls to `alloc`, `allocDirty` and `realloc`; when
+/// `after` is set, the call number `after + 1` and every later one fail with
+/// `OutOfMemory`. When `after` is null it never fails. Calls that pass are
+/// forwarded to `parent`, or to `mem.heap` when `parent` is null, and `free` is
+/// always forwarded.
 public struct Failing implements mem.Allocator {
 	?mem.Allocator parent;
 	?int after;
@@ -18,29 +24,39 @@ func (*Failing f) permit() ! {
 	}
 }
 
+/// Counts the call, then fails with `OutOfMemory` if the limit is passed;
+/// otherwise allocates zeroed bytes from the parent.
 public func (*Failing f) alloc(int n) !*void {
 	f.permit()!;
 	return f.source().alloc(n)!;
 }
 
+/// Counts the call, then fails with `OutOfMemory` if the limit is passed;
+/// otherwise allocates from the parent without clearing.
 public func (*Failing f) allocDirty(int n) !*void {
 	f.permit()!;
 	return f.source().allocDirty(n)!;
 }
 
+/// Counts the call, then fails with `OutOfMemory` if the limit is passed;
+/// otherwise resizes through the parent. When it fails the block is unchanged.
 public func (*Failing f) realloc(?*void p, int old, int n) !*void {
 	f.permit()!;
 	return f.source().realloc(p, old, n)!;
 }
 
+/// Forwards to the parent. It never fails and is not counted.
 public func (*Failing f) free(?*void p) {
 	f.source().free(p);
 }
 
+/// The number of allocation calls made since the start or the last `reset`,
+/// failed ones included.
 public inline func (*Failing f) calls() int {
 	return f.attempts;
 }
 
+/// Sets the call count back to zero, so `after` counts again from the start.
 public inline func (*Failing f) reset() {
 	f.attempts = 0;
 }

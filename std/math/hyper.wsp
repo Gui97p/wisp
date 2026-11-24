@@ -21,6 +21,8 @@ const {
 	tiny = 1.0e-300;
 }
 
+/// Returns the hyperbolic sine of `x`. It overflows to an infinity of the sign of
+/// `x` for large magnitudes, and NaN returns NaN.
 public func sinh(float x) float {
 	uint ujx = ieee.highWord(x);
 	int jx = ieee.signed32(ujx);
@@ -58,6 +60,8 @@ public func sinh(float x) float {
 	return x * shuge;
 }
 
+/// Returns the hyperbolic cosine of `x`, always at least 1. It overflows to
+/// +infinity for large magnitudes, and NaN returns NaN.
 public func cosh(float x) float {
 	int ix = int(ieee.highWord(x) & 0x7fffffff);
 	if ix >= 0x7ff00000 {
@@ -89,6 +93,8 @@ public func cosh(float x) float {
 	return huge * huge;
 }
 
+/// Returns the hyperbolic tangent of `x`, in the range -1 to 1. It is exactly 1 or
+/// -1 for large magnitudes and infinities, and NaN returns NaN.
 public func tanh(float x) float {
 	uint ujx = ieee.highWord(x);
 	int jx = ieee.signed32(ujx);

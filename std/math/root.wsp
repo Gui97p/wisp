@@ -22,6 +22,8 @@ const {
 	G = 3.57142857142857150787e-01;
 }
 
+/// Returns the cube root of `x`. Unlike `fpow(x, 1.0 / 3.0)` it accepts negative
+/// `x` and keeps its sign. Zero, infinities and NaN are returned unchanged.
 public func cbrt(float x) float {
 	uint uhx = ieee.highWord(x);
 	uint sign = uhx & 0x80000000;
@@ -57,6 +59,9 @@ public func cbrt(float x) float {
 	return ieee.setHighWord(t, ieee.highWord(t) | sign);
 }
 
+/// Returns the square root of `x * x + y * y` without intermediate overflow or
+/// underflow. It is +infinity when either argument is an infinity, even if the
+/// other is NaN, and NaN when one is NaN and neither is infinite.
 public func hypot(float x, float y) float {
 	int ha = int(ieee.highWord(x) & 0x7fffffff);
 	int hb = int(ieee.highWord(y) & 0x7fffffff);

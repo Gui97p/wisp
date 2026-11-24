@@ -40,6 +40,8 @@ const {
 [4]float atanlo = .{2.26987774529616870924e-17, 3.06161699786838301793e-17, 1.39033110312309984516e-17, 6.12323399573676603587e-17};
 [11]float aT = .{3.33333333333329318027e-01, -1.99999999998764832476e-01, 1.42857142725034663711e-01, -1.11111104054623557880e-01, 9.09088713343650656196e-02, -7.69187620504482999495e-02, 6.66107313738753120669e-02, -5.83357013379057348645e-02, 4.97687799461593236017e-02, -3.65315727442169155270e-02, 1.62858201153657823623e-02};
 
+/// Returns the arc tangent of `x` in radians, in the range -pi/2 to pi/2. NaN
+/// returns NaN and infinities return plus or minus pi/2.
 public func atan(float x) float {
 	uint uhx = ieee.highWord(x);
 	int hx = ieee.signed32(uhx);
@@ -98,6 +100,10 @@ public func atan(float x) float {
 	return z;
 }
 
+/// Returns the angle in radians, in the range -pi to pi, of the point (`x`, `y`)
+/// measured from the positive x axis; note that `y` comes first. The signs of
+/// zeros are honored, so `atan2(0.0, -1.0)` is pi, `atan2(-0.0, -1.0)` is -pi and
+/// `atan2(0.0, 0.0)` is 0. NaN in either argument returns NaN.
 public func atan2(float y, float x) float {
 	uint uhx = ieee.highWord(x);
 	int hx = ieee.signed32(uhx);
@@ -192,6 +198,8 @@ public func atan2(float y, float x) float {
 	return (z - pi_lo) - pi;
 }
 
+/// Returns the arc sine of `x` in radians, in the range -pi/2 to pi/2. It is NaN
+/// when `x` is outside -1 to 1 and when `x` is NaN.
 public func asin(float x) float {
 	uint uhx = ieee.highWord(x);
 	int hx = ieee.signed32(uhx);
@@ -238,6 +246,8 @@ public func asin(float x) float {
 	return -t;
 }
 
+/// Returns the arc cosine of `x` in radians, in the range 0 to pi. It is NaN when
+/// `x` is outside -1 to 1 and when `x` is NaN.
 public func acos(float x) float {
 	uint uhx = ieee.highWord(x);
 	int hx = ieee.signed32(uhx);

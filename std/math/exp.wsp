@@ -36,6 +36,9 @@ const {
 [2]float ln2HI = .{6.93147180369123816490e-01, -6.93147180369123816490e-01};
 [2]float ln2LO = .{1.90821492927058770002e-10, -1.90821492927058770002e-10};
 
+/// Returns e raised to `x`. It overflows to +infinity for `x` above about 709.78,
+/// underflows to 0 below about -745.13, and `exp(-infinity)` is 0. NaN returns
+/// NaN.
 public func exp(float x) float {
 	uint hx = ieee.highWord(x);
 	int xsb = int((hx >> 31) & 1);
@@ -92,6 +95,9 @@ public func exp(float x) float {
 	return ieee.addExponent(y, k + 1000) * twom1000;
 }
 
+/// Returns e raised to `x`, minus 1. It is accurate for small `x`, where
+/// subtracting 1 from `exp(x)` loses precision. It overflows to +infinity for large
+/// `x`, and `expm1(-infinity)` is -1.
 public func expm1(float x) float {
 	uint hx = ieee.highWord(x);
 	uint xsb = hx & 0x80000000;
@@ -190,6 +196,8 @@ public func expm1(float x) float {
 	return y;
 }
 
+/// Returns 2 raised to `x`. It is +infinity for `x` of 1024 or more and 0 for
+/// `x` of -1075 or less. NaN returns NaN.
 public func exp2(float x) float {
 	if ieee.isNaN(x) {
 		return x;

@@ -1,5 +1,6 @@
 import "std/math/constants";
 
+/// Returns `a + b`, or null when the sum overflows `int`.
 #must_use
 public func checkedAdd(int a, b) ?int {
 	int r = a +% b;
@@ -7,6 +8,7 @@ public func checkedAdd(int a, b) ?int {
 	return r;
 }
 
+/// Returns `a - b`, or null when the difference overflows `int`.
 #must_use
 public func checkedSub(int a, b) ?int {
 	int r = a -% b;
@@ -14,6 +16,7 @@ public func checkedSub(int a, b) ?int {
 	return r;
 }
 
+/// Returns `a * b`, or null when the product overflows `int`.
 #must_use
 public func checkedMul(int a, b) ?int {
 	return 0 if a == 0 || b == 0;
@@ -23,12 +26,15 @@ public func checkedMul(int a, b) ?int {
 	return r;
 }
 
+/// Returns the absolute value of `x`, or null for `MIN_INT`, whose absolute value
+/// does not fit in an `int`.
 #must_use
 public inline func checkedAbs(int x) ?int {
 	return null if x == constants.MIN_INT;
 	return x < 0 ? -x : x;
 }
 
+/// Returns `a + b`, or null when the sum overflows `uint`.
 #must_use
 public func checkedAddUnsigned(uint a, b) ?uint {
 	uint r = a +% b;
@@ -36,12 +42,14 @@ public func checkedAddUnsigned(uint a, b) ?uint {
 	return r;
 }
 
+/// Returns `a - b`, or null when `b` is greater than `a`.
 #must_use
 public func checkedSubUnsigned(uint a, b) ?uint {
 	return null if b > a;
 	return a -% b;
 }
 
+/// Returns `a * b`, or null when the product overflows `uint`.
 #must_use
 public func checkedMulUnsigned(uint a, b) ?uint {
 	return 0 if a == 0 || b == 0;
@@ -50,10 +58,13 @@ public func checkedMulUnsigned(uint a, b) ?uint {
 	return r;
 }
 
+/// Returns the absolute value of `x`. The absolute value of `MIN_INT` does not fit
+/// in an `int`; use `checkedAbs` to detect that case.
 public inline func abs(int x) int {
 	return x < 0 ? -x : x;
 }
 
+/// Returns the smallest of the arguments, or 0 when there are none.
 public func min(int ...args) int {
 	return 0 if len(args) == 0;
 	int m = args[0];
@@ -67,6 +78,7 @@ public func min(int ...args) int {
 	return m;
 }
 
+/// Returns the largest of the arguments, or 0 when there are none.
 public func max(int ...args) int {
 	return 0 if len(args) == 0;
 	int m = args[0];
@@ -80,10 +92,16 @@ public func max(int ...args) int {
 	return m;
 }
 
+/// Returns `x` limited to the range `low` to `high`. The result is `low` when `x`
+/// is below it and `high` when `x` is above it; when `low` is greater than `high`
+/// the result is `high` for every `x` that is not below `low`.
 public inline func clamp(int x, low, high) int {
 	return x < low ? low : (x > high ? high : x);
 }
 
+/// Returns the remainder of `a` divided by `b`, always in the range 0 up to but not
+/// including `abs(b)`, unlike `%`, which takes the sign of `a`. `mod(-1, 5)` is 4.
+/// Dividing by zero is a runtime error, as with `%`.
 public func mod(int a, b) int {
 	int r = a % b;
 
@@ -98,6 +116,8 @@ public func mod(int a, b) int {
 	return r;
 }
 
+/// Returns the greatest common divisor of `a` and `b`, never negative. `gcd(a, 0)`
+/// is `abs(a)` and `gcd(0, 0)` is 0.
 public func gcd(int a, b) int {
 	loop b != 0 {
 		a, b = b, a % b;
@@ -105,11 +125,16 @@ public func gcd(int a, b) int {
 	return abs(a);
 }
 
+/// Returns the least common multiple of `a` and `b`, never negative. It is 0 when
+/// either is 0, and null when the result overflows `int`.
 public func lcm(int a, b) ?int {
 	return 0 if a == 0 || b == 0;
 	return abs(checkedMul(a / gcd(a, b), b) ?? return null);
 }
 
+/// Returns `base` raised to the integer power `exp`, or null when an intermediate
+/// or the final product overflows `int`. Anything to the power 0 is 1, including 0.
+/// For floating point use `fpow`.
 public func pow(int base, uint exp) ?int {
 	return 1 if exp == 0;
 
@@ -127,6 +152,8 @@ public func pow(int base, uint exp) ?int {
 	return r;
 }
 
+/// Returns the integer square root of `n`, rounded down. Values of `n` below 1
+/// return 0. For floating point use `fsqrt`.
 public func sqrt(int n) int {
 	return max(0, n) if n <= 1;
 
@@ -143,6 +170,7 @@ public func sqrt(int n) int {
 	return 0;
 }
 
+/// Returns the number of bits set in `x`.
 public func popCount(uint x) uint {
 	uint n;
 	loop x != 0 {
@@ -152,10 +180,14 @@ public func popCount(uint x) uint {
 	return n;
 }
 
+/// Returns the number of zero bits below the lowest set bit of `x`, or 64 when `x`
+/// is 0.
 public func trailingZeros(uint x) uint {
 	return x == 0 ? 64 : popCount((x & (~x + 1)) - 1);
 }
 
+/// Returns the number of zero bits above the highest set bit of `x`, or 64 when `x`
+/// is 0.
 public func leadingZeros(uint x) uint {
 	return 64 if x == 0;
 

@@ -3,12 +3,17 @@ import "std/errors";
 import "std/math";
 import "std/strings";
 
+/// Converts `x` to `int`, truncating toward zero. Fails with `Invalid` for NaN and
+/// with `Overflow` when the truncated value does not fit, including infinities.
 public func floatToInt(float x) !int {
 	errors.ensure(!math.isNaN(x), errors.Kind.Invalid)!;
 	errors.ensure(x < 9223372036854775808.0 && x >= -9223372036854775808.0, errors.Kind.Overflow)!;
 	return int(x);
 }
 
+/// Converts `x` to `uint`, truncating toward zero, so values in `(-1, 0]` give 0.
+/// Fails with `Invalid` for NaN and with `Overflow` when the value is negative
+/// below that range or too large, including infinities.
 public func floatToUint(float x) !uint {
 	errors.ensure(!math.isNaN(x), errors.Kind.Invalid)!;
 	errors.ensure(x > -1.0 && x < 18446744073709551616.0, errors.Kind.Overflow)!;
@@ -115,14 +120,26 @@ func shortestText([]byte buf, float x, bool single) !string {
 	return layoutExp(buf, neg, &dec, dec.n - 1, false)!;
 }
 
+/// Writes the shortest decimal text of `x` that reads back as the same `float` into
+/// `buf` and returns it, sharing memory with `buf`. Plain notation is used for
+/// exponents from -5 to 20 and `e` notation otherwise. NaN, `inf` and `-inf` are
+/// written by name, and negative zero keeps its sign. Fails with `NoSpace` when
+/// `buf` is too small; `MaxFloat` bytes always suffice.
 public func ftoa([]byte buf, float x) !string {
 	return shortestText(buf, x, false)!;
 }
 
+/// Like `ftoa`, but the text is the shortest one that reads back as the same
+/// `float32`, so it is shorter for values that come from single precision.
 public func ftoa32([]byte buf, float32 x) !string {
 	return shortestText(buf, x, true)!;
 }
 
+/// Writes `x` with exactly `n` digits after the decimal point into `buf` and
+/// returns the text, sharing memory with `buf`. The value is rounded from its exact
+/// decimal expansion, with exact ties going to the even digit. With `n` of zero no
+/// point is written. NaN, `inf` and `-inf` are written by name. Fails with
+/// `NoSpace` when `buf` is too small.
 public func formatFixed([]byte buf, float x, int n) !string {
 	if special(buf, x)! |view| {
 		return view;
@@ -135,6 +152,12 @@ public func formatFixed([]byte buf, float x, int n) !string {
 	return layoutFixed(buf, neg, &dec, n)!;
 }
 
+/// Writes `x` in `e` notation with `n` digits after the decimal point, such as
+/// `1.50e+03`, into `buf` and returns the text, sharing memory with `buf`. The
+/// exponent has at least two digits and `E` replaces `e` when `upper` is true. The
+/// value is rounded from its exact decimal expansion, with exact ties going to the
+/// even digit. NaN, `inf` and `-inf` are written by name. Fails with `NoSpace` when
+/// `buf` is too small.
 public func formatExp([]byte buf, float x, int n, bool upper) !string {
 	if special(buf, x)! |view| {
 		return view;

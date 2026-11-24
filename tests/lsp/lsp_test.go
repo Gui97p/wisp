@@ -357,6 +357,23 @@ func TestImportQuickFixes(t *testing.T) {
 	})
 }
 
+func TestAddImportStaysAboveDocComments(t *testing.T) {
+	c := start(t)
+	src := "// header\n\n/// Doc of main.\nfunc main() {\n  int n = math.max(1, 2);\n}\n"
+	p := c.open(map[string]string{"main.wsp": src})
+	for _, a := range p.codeActions() {
+		if a.Title != `Add import "std/math"` {
+			continue
+		}
+		want := "// header\n\nimport \"std/math\";\n\n/// Doc of main.\nfunc main() {\n  int n = math.max(1, 2);\n}\n"
+		if got := a.apply(p, src); got != want {
+			t.Errorf("got:\n%s\nwant:\n%s", got, want)
+		}
+		return
+	}
+	t.Error("no quick fix to add the import")
+}
+
 func TestAutoImportCompletion(t *testing.T) {
 	c := start(t)
 	t.Run("a module name brings its import", func(t *testing.T) {
