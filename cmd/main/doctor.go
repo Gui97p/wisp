@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/Gui97p/wisp/internal/module"
+	"github.com/Gui97p/wisp/internal/native"
 	"github.com/Gui97p/wisp/internal/toolchain"
 	"github.com/Gui97p/wisp/internal/version"
 	"github.com/spf13/cobra"
@@ -106,6 +108,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		report("win libs", state, "import libraries not found (needed to build for Windows)")
 	}
 
+	problems += reportNatives(report)
+
 	if problems == 0 {
 		fmt.Println("\neverything needed is in place")
 		return nil
@@ -119,4 +123,47 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		fmt.Printf("fix: this installation is incomplete. Reinstall it from %s.\n", releasesURL)
 	}
 	return errors.New("the environment is not ready")
+}
+
+func reportNatives(report func(label, state, detail string)) int {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return 0
+	}
+	root := module.FindProjectRoot(cwd)
+	if _, err := os.Stat(filepath.Join(root, "wisp.toml")); err != nil {
+		return 0
+	}
+	cfg, err := module.LoadConfig(root)
+	if err != nil {
+		return 0
+	}
+
+	format := "elf64"
+	if runtime.GOOS == "windows" {
+		format = "win64"
+	}
+	spec := cfg.NativeSpec(runtime.GOOS)
+	if len(spec.Libs) == 0 {
+		return 0
+	}
+
+	fmt.Println()
+	problems := 0
+	for _, lib := range spec.Libs {
+		single := spec
+		single.Libs = []string{lib}
+		res, err := native.Resolve(format, single, root, false)
+		if err != nil {
+			report("native "+lib, "MISSING", err.Error())
+			problems++
+			continue
+		}
+		detail := "found"
+		if res.Interpreter != "" {
+			detail += ", loader " + res.Interpreter
+		}
+		report("native "+lib, "ok", detail)
+	}
+	return problems
 }

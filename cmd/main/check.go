@@ -44,14 +44,14 @@ func runCheck(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	for _, name := range cfg.LibraryNames() {
-		roots, err := libraryRoots(root, name, cfg.Libraries[name].Modules)
+	for _, name := range cfg.ExportNames() {
+		roots, err := exportRoots(root, name, cfg.Exports[name].Modules)
 		if err != nil {
 			return err
 		}
 		probe := *proj
 		if err := probe.restrict(roots); err != nil {
-			return fmt.Errorf("the library %s: %w", name, err)
+			return fmt.Errorf("the export %s: %w", name, err)
 		}
 	}
 

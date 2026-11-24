@@ -27,11 +27,17 @@ func configSection(parts []string) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	if parts[0] == "library" {
+	if parts[0] == "export" {
 		if len(parts) >= 3 && parts[2] == "output" {
-			return "library.output"
+			return "export.output"
 		}
-		return "library"
+		return "export"
+	}
+	if parts[0] == "native" {
+		if len(parts) >= 2 && slices.Contains(target.OSNames(), parts[1]) {
+			return "native.system"
+		}
+		return "native"
 	}
 	if parts[0] == "program" {
 		if len(parts) >= 3 && slices.Contains(target.OSNames(), parts[2]) {
@@ -96,8 +102,8 @@ func configContextAt(lines []string, line int) configContext {
 			if i != line {
 				ctx.headers[strings.Join(parts, ".")] = true
 			}
-			if i != line && len(parts) >= 2 && parts[0] == "library" && !seen["library."+parts[1]] {
-				seen["library."+parts[1]] = true
+			if i != line && len(parts) >= 2 && parts[0] == "export" && !seen["export."+parts[1]] {
+				seen["export."+parts[1]] = true
 				ctx.libs = append(ctx.libs, parts[1])
 			}
 			if i != line && len(parts) >= 2 && parts[0] == "program" && !seen["program."+parts[1]] {
@@ -231,9 +237,16 @@ func headerItems(declared, declaredBins, declaredLibs []string, headers map[stri
 	addNew("output", "where the programs write")
 	addNew("run.env", "environment variables for wisp run")
 	add("program.<name>", "program.${1:name}", "a new program")
-	add("library.<name>", "library.${1:name}", "a new library")
+	add("export.<name>", "export.${1:name}", "a new export for C")
 	for _, n := range declaredLibs {
-		addNew("library."+n+".output", "output of "+n)
+		addNew("export."+n+".output", "output of "+n)
+	}
+	addNew("native", "native libraries to link")
+	addNew("dependencies", "projects this one imports from")
+	addNew("project", "facts about this project")
+	addNew("workspace", "several projects that import each other by name")
+	for _, osName := range target.OSNames() {
+		addNew("native."+osName, "native libraries on "+osName)
 	}
 	add("targets.<os>", "targets.${1:os}", "a new system")
 	for _, name := range target.Profiles() {

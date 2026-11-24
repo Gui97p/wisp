@@ -192,17 +192,12 @@ type testOutcome struct {
 	took    time.Duration
 }
 
-func runOneTest(bin string, env []module.EnvVar, test module.TestFunc) testOutcome {
+func runOneTest(bin string, env []string, test module.TestFunc) testOutcome {
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, resolveExecutable(bin), test.ID())
-	cmd.Env = os.Environ()
-	for _, v := range env {
-		if _, set := os.LookupEnv(v.Name); !set {
-			cmd.Env = append(cmd.Env, v.Name+"="+v.Value)
-		}
-	}
+	cmd.Env = env
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
 
@@ -328,7 +323,7 @@ func runTests(cmd *cobra.Command, args []string) error {
 	if jobs <= 0 {
 		jobs = runtime.NumCPU()
 	}
-	env := cfg.RunEnv()
+	env := processEnv(cfg.RunEnv(), cfg.NativeSearchDirs(root, tgt.OS), tgt.OS)
 
 	fmt.Printf("Running %s\n", count(len(tests), "test"))
 	slots := make(chan struct{}, jobs)

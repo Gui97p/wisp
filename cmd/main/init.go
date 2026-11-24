@@ -56,7 +56,7 @@ bin = "bin"
 # asm = "build/asm"
 `
 
-const libTomlContent = `[library.lib]
+const libTomlContent = `[export.lib]
 modules = ["lib"]
 `
 

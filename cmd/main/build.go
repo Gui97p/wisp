@@ -13,6 +13,7 @@ import (
 
 	"github.com/Gui97p/wisp/internal/ast"
 	"github.com/Gui97p/wisp/internal/module"
+	"github.com/Gui97p/wisp/internal/native"
 	"github.com/Gui97p/wisp/internal/target"
 	"github.com/Gui97p/wisp/internal/target/x64"
 	"github.com/spf13/cobra"
@@ -189,6 +190,8 @@ type buildResult struct {
 	product string
 	binPath string
 	env     []module.EnvVar
+	libDirs []string
+	osName  string
 }
 
 func projectName(root string) string {
@@ -238,14 +241,14 @@ func pickPath(root string, tgt target.Target, name, flag string, layers ...strin
 }
 
 type buildJob struct {
-	name    string
-	library bool
-	tests   bool
+	name   string
+	export bool
+	tests  bool
 }
 
 func jobConfig(base *module.Config, job buildJob) *module.Config {
-	if job.library {
-		return base.ForLibrary(job.name)
+	if job.export {
+		return base.ForExport(job.name)
 	}
 	return base.ForProgram(job.name)
 }
@@ -257,8 +260,8 @@ func selectJobs(root string, cfg *module.Config, names []string) ([]buildJob, er
 		for _, name := range cfg.ProgramNames(project) {
 			jobs = append(jobs, buildJob{name: name})
 		}
-		for _, name := range cfg.LibraryNames() {
-			jobs = append(jobs, buildJob{name: name, library: true})
+		for _, name := range cfg.ExportNames() {
+			jobs = append(jobs, buildJob{name: name, export: true})
 		}
 		return jobs, nil
 	}
@@ -269,11 +272,11 @@ func selectJobs(root string, cfg *module.Config, names []string) ([]buildJob, er
 		switch {
 		case cfg.HasProgram(name, project):
 			job = buildJob{name: name}
-		case cfg.HasLibrary(name):
-			job = buildJob{name: name, library: true}
+		case cfg.HasExport(name):
+			job = buildJob{name: name, export: true}
 		default:
-			known := append(cfg.ProgramNames(project), cfg.LibraryNames()...)
-			return nil, fmt.Errorf("unknown program or library %q (there are %s)", name, strings.Join(known, ", "))
+			known := append(cfg.ProgramNames(project), cfg.ExportNames()...)
+			return nil, fmt.Errorf("unknown program or export %q (there are %s)", name, strings.Join(known, ", "))
 		}
 		if !seen[name] {
 			seen[name] = true
@@ -307,7 +310,7 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 	if len(jobs) > 1 {
 		for _, flag := range []string{"bin", "obj", "asm"} {
 			if cmd.Flags().Changed(flag) {
-				return nil, fmt.Errorf("--%s names one place, and %d programs and libraries are being built: name one", flag, len(jobs))
+				return nil, fmt.Errorf("--%s names one place, and %d programs and exports are being built: name one", flag, len(jobs))
 			}
 		}
 	}
@@ -329,7 +332,7 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 				t := resolveBuildTargets(root, eff, tgt, forRun)
 				dirs = []string{t.objDir, t.asmDir}
 				product = t.binPath
-				if job.library {
+				if job.export {
 					product = archivePath(product)
 				}
 			}
@@ -337,7 +340,7 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 				return nil, fmt.Errorf("the programs %s and %s would both write %s: give one of them another name", other, name, relPath(product))
 			}
 			products[product] = name
-			if job.library && tgt.Arch == "x64" && eff.Libraries[name].Shared {
+			if job.export && tgt.Arch == "x64" && eff.Exports[name].Shared {
 				shared := sharedPath(strings.TrimSuffix(product, ".a"))
 				if other, taken := products[shared]; taken {
 					return nil, fmt.Errorf("the programs %s and %s would both write %s: give one of them another name", other, name, relPath(shared))
@@ -361,7 +364,7 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 	}
 
 	for _, job := range jobs {
-		if job.library {
+		if job.export {
 			continue
 		}
 		if err := validateEntry(root, base.ForProgram(job.name)); err != nil {
@@ -392,6 +395,8 @@ func build(cmd *cobra.Command, names []string, forRun bool) ([]*buildResult, err
 		res.name = name
 		res.target = tgt.Name
 		res.env = cfg.RunEnv()
+		res.libDirs = cfg.NativeSearchDirs(root, tgt.OS)
+		res.osName = tgt.OS
 		if !forRun {
 			status("Finished %s %s -> %s in %s", res.name, res.target, relPath(res.product), elapsed(jobStart))
 		}
@@ -427,8 +432,8 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 	var bins []string
 	for _, job := range jobs {
-		if job.library {
-			return fmt.Errorf("%s is a library, and a library is not run", job.name)
+		if job.export {
+			return fmt.Errorf("%s is an export (a C library), and an export is not run", job.name)
 		}
 		bins = append(bins, job.name)
 	}
@@ -448,10 +453,9 @@ func runRun(cmd *cobra.Command, args []string) error {
 
 	run := exec.Command(resolveExecutable(res.binPath), programArgs...)
 
-	run.Env = os.Environ()
+	run.Env = processEnv(res.env, res.libDirs, res.osName)
 	for _, v := range res.env {
 		if _, set := os.LookupEnv(v.Name); !set {
-			run.Env = append(run.Env, v.Name+"="+v.Value)
 			detail("Setting %s from wisp.toml", v.Name)
 		}
 	}
@@ -544,15 +548,15 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 	if job.tests {
 		targets = testTargets(root, tgt)
 	}
-	shared := job.library && cfg.Libraries[job.name].Shared
+	shared := job.export && cfg.Exports[job.name].Shared
 	if shared {
 		if tgt.OS != "linux" {
-			return nil, fmt.Errorf("the library %s asks for a shared library (shared = true), which only exists for linux", job.name)
+			return nil, fmt.Errorf("the export %s asks for a shared library (shared = true), which only exists for linux", job.name)
 		}
 		tgt.PIC = true
 	}
 	var exports []string
-	if job.library {
+	if job.export {
 		targets.binPath = archivePath(targets.binPath)
 	}
 
@@ -570,13 +574,13 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 	}
 	codegenStart := time.Now()
 
-	if job.library {
-		roots, err := libraryRoots(root, job.name, cfg.Libraries[job.name].Modules)
+	if job.export {
+		roots, err := exportRoots(root, job.name, cfg.Exports[job.name].Modules)
 		if err != nil {
 			return nil, err
 		}
 		if err := proj.restrict(roots); err != nil {
-			return nil, fmt.Errorf("the library %s: %w", job.name, err)
+			return nil, fmt.Errorf("the export %s: %w", job.name, err)
 		}
 	} else {
 		if targets.wantBin {
@@ -723,7 +727,7 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		if err := makeOutputDir(filepath.Dir(targets.binPath)); err != nil {
 			return nil, err
 		}
-		if job.library {
+		if job.export {
 			prof := cfg.ProfileFacts(tgt.Profile)
 			archiveStart := time.Now()
 			if err := x64.Archive(tgt, append(append([]string{}, objPaths...), libPaths...), targets.binPath, prof.Trace); err != nil {
@@ -745,7 +749,12 @@ func buildX64(root string, cfg *module.Config, tgt target.Target, forRun bool, j
 		}
 		linkStart := time.Now()
 		prof := cfg.ProfileFacts(tgt.Profile)
-		opts := x64.LinkOptions{Extra: append(append(append([]string{}, cfg.Link...), cfg.ProgramLink...), linkOpt...), Libc: useLibc(cfg, tgt), Strip: prof.Strip, Trace: prof.Trace}
+		natives, err := native.Resolve(tgt.Format, cfg.NativeSpec(tgt.OS), root, useLibc(cfg, tgt))
+		if err != nil {
+			return nil, err
+		}
+		extra := append(append([]string{}, natives.Args...), cfg.Link...)
+		opts := x64.LinkOptions{Extra: append(append(extra, cfg.ProgramLink...), linkOpt...), Libc: useLibc(cfg, tgt), Strip: prof.Strip, Trace: prof.Trace}
 		if err := x64.Link(tgt, root, objPaths, libPaths, targets.binPath, targets.wantObj, opts); err != nil {
 			return nil, err
 		}

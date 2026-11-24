@@ -20,6 +20,46 @@
 # std = "kernel/std"
 # std = "none"
 
+# Other projects. A dependency is a folder with Wisp code, written
+# name = { path = "../folder" } relative to this file. `import "name"` is the
+# module file of its root folder (folder/folder.wsp) and `import "name/util"`
+# a module inside it; the project keeps its own imports and dependencies. A
+# build uses one folder per name, and a name cannot also be a folder or file of
+# this project.
+#
+# [dependencies]
+# geometry = { path = "../geometry" }
+
+# Several projects that import each other by name, with no path written. An
+# empty [workspace] is enough: every folder next to this file that has a
+# wisp.toml of its own is a member, so a new project joins by itself. Members
+# can also be listed, with patterns ("crates/*"), and `exclude` leaves folders
+# out. A project is called after its folder unless [project] name says
+# otherwise. At the root of a workspace without code of its own, check, build,
+# test, fmt and clean run in every member.
+#
+# [workspace]
+# members = ["crates/*", "tools"]
+# exclude = ["examples"]
+#
+# [project]
+# name = "geo"
+
+# Native (C) libraries. Name them without lib or extension and the compiler
+# finds them in the system folders (/usr/lib and friends), links them and asks
+# for the dynamic linker by itself: "SDL3" works with just libSDL3.so.0
+# installed. `search` adds folders (relative to this file) for libraries kept
+# elsewhere, and `wisp run` points the loader at them. A system table, such as
+# [native.windows], adds to these for that system only. Declare the functions
+# with `extern func`. `wisp doctor` says whether each library is found.
+#
+# [native]
+# libs = ["SDL3"]
+# search = ["vendor/lib"]
+#
+# [native.windows]
+# search = ["vendor/win/lib"]
+
 # Extra arguments for the linker, in order: object files, archives, -L and -l.
 # Run from this folder. See the _c folder for a project that uses it.
 # link = ["lib.o"]
@@ -42,7 +82,7 @@ bin = "bin"
 # asm = "build/asm"
 
 # Profiles. A build uses one of two profiles, debug (the default) or release,
-# chosen with `profile`, for a program or library with its own `profile` key,
+# chosen with `profile`, for a program or export with its own `profile` key,
 # or on the command line with --profile release or --release. Each profile is a
 # set of switches, and [profiles.debug] and [profiles.release] change only the
 # ones written there:
@@ -94,19 +134,19 @@ bin = "bin"
 # link = ["-lpthread"]
 # name = "mytools-linux"
 
-# Libraries. A library has no entry, so what it is made of is written down: the
+# Exports, for C and other languages. An export has no entry, so what it is made of is written down: the
 # modules it lists, by import path, and everything they import. Whatever nobody
-# reaches stays out, for libraries and for programs alike. `wisp build` builds
-# the libraries along with the programs. An x86-64 library is an archive,
+# reaches stays out, for exports and for programs alike. `wisp build` builds
+# the exports along with the programs. An x86-64 export is an archive,
 # <name>.a in the `bin` folder, that holds those modules, the standard library
 # modules they use and the runtime of the system, so it links on its own; name it
 # libgeo if you want to link it with -lgeo. Ask for `obj` alone and only the
 # object files are written.
 #
-# [library.geo]
+# [export.geo]
 # modules = ["geometry", "shapes"]
 #
-# [library.geo.output]
+# [export.geo.output]
 # bin = "dist"
 
 # A system of your own, for instance a userspace for a kernel. A system says how

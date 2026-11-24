@@ -62,9 +62,9 @@ func runClean(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	for _, name := range cfg.LibraryNames() {
+	for _, name := range cfg.ExportNames() {
 		for _, t := range targetsAndProfiles() {
-			eff := cfg.ForLibrary(name).ForSystem(t.OS, t.Arch)
+			eff := cfg.ForExport(name).ForSystem(t.OS, t.Arch)
 			switch t.Arch {
 			case "x64":
 				out := resolveBuildTargets(root, eff, t, false)

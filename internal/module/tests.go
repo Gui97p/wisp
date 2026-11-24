@@ -71,7 +71,7 @@ func testFunctions(mods []*Module) []TestFunc {
 	var tests []TestFunc
 	testsOfOtherTargets = 0
 	for _, mod := range mods {
-		if strings.HasPrefix(mod.Path, "std/") || mod.Path == TestMainPath {
+		if strings.HasPrefix(mod.Path, "std/") || mod.Path == TestMainPath || mod.Dependency != "" {
 			continue
 		}
 		for i, file := range mod.Files {

@@ -280,12 +280,12 @@ func (p *project) restrict(roots []string) error {
 	return nil
 }
 
-func libraryRoots(root, name string, modules []string) ([]string, error) {
+func exportRoots(root, name string, modules []string) ([]string, error) {
 	keys := make([]string, 0, len(modules))
 	for _, path := range modules {
 		key, err := module.ImportKey(root, path)
 		if err != nil {
-			return nil, fmt.Errorf("the library %s lists the module %q, which cannot be imported: %w", name, path, err)
+			return nil, fmt.Errorf("the export %s lists the module %q, which cannot be imported: %w", name, path, err)
 		}
 		keys = append(keys, key)
 	}

@@ -14770,7 +14770,7 @@ func main() ! {
 }
 `},
 
-	{dir: "library_archive", system: "linux", library: "geo", files: map[string]string{"wisp.toml": "[library.geo]\nmodules = [\"lib\"]\n", "lib.wsp": `public func twice(int32 n) int32 as wisp_twice {
+	{dir: "library_archive", system: "linux", library: "geo", files: map[string]string{"wisp.toml": "[export.geo]\nmodules = [\"lib\"]\n", "lib.wsp": `public func twice(int32 n) int32 as wisp_twice {
     return n * 2;
 }
 
@@ -14788,7 +14788,7 @@ int main(void) {
 }
 `}, expected: []string{"42 42"}},
 
-	{dir: "library_shared", system: "linux", library: "geo", files: map[string]string{"shared-lib": "yes\n", "wisp.toml": "[library.geo]\nmodules = [\"lib\"]\nshared = true\n", "lib.wsp": `import "std/fmt";
+	{dir: "library_shared", system: "linux", library: "geo", files: map[string]string{"shared-lib": "yes\n", "wisp.toml": "[export.geo]\nmodules = [\"lib\"]\nshared = true\n", "lib.wsp": `import "std/fmt";
 
 public func twice(int32 n) int32 as wisp_twice {
     return n * 2;

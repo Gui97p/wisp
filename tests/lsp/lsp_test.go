@@ -1379,3 +1379,77 @@ func TestMethodTypeParametersAreOneClearError(t *testing.T) {
 		}
 	}
 }
+
+func TestDependencyProjectsInTheEditor(t *testing.T) {
+	c := start(t)
+	files := map[string]string{
+		"wisp.toml":             "[dependencies]\ngeo = { path = \"geometry\" }\n",
+		"main.wsp":              "import \"geo\";\nfunc main() {\n\tint n = geo.ar¦ea(2, 3);\n\tint m = geo.double(n);\n}\n",
+		"geometry/geometry.wsp": "import \"util\";\npublic func area(int w, h) int => util.mul(w, h);\npublic func double(int n) int => n * 2;\n",
+		"geometry/util.wsp":     "public func mul(int a, b) int => a * b;\n",
+	}
+	p := c.open(files)
+
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("unexpected error: %s", d.Message)
+		}
+	}
+
+	defs := p.definition()
+	if len(defs) != 1 || !strings.HasSuffix(defs[0].URI, "geometry/geometry.wsp") || defs[0].Range.Start.Line != 1 {
+		t.Errorf("the definition should be area in the dependency: %+v", defs)
+	}
+
+	if got := p.hover(); !strings.Contains(got, "func area(int w, int h) int") {
+		t.Errorf("hover: %q", got)
+	}
+
+	typed := c.open(map[string]string{
+		"wisp.toml":             files["wisp.toml"],
+		"main.wsp":              "import \"geo\";\nfunc main() {\n\tgeo.¦\n}\n",
+		"geometry/geometry.wsp": files["geometry/geometry.wsp"],
+		"geometry/util.wsp":     files["geometry/util.wsp"],
+	})
+	got := strings.Join(typed.completion(), " ")
+	if !strings.Contains(got, "area") || !strings.Contains(got, "double") {
+		t.Errorf("completion after geo.: %s", got)
+	}
+}
+
+func TestMissingDependencyIsAnImportError(t *testing.T) {
+	c := start(t)
+	p := c.open(map[string]string{
+		"wisp.toml": "[dependencies]\ngeo = { path = \"nowhere\" }\n",
+		"main.wsp":  "import \"geo\";\nfunc main() {}\n",
+	})
+	found := false
+	for _, d := range p.diagnostics() {
+		if strings.Contains(d.Message, "which is not a folder") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("diagnostics: %+v", p.diagnostics())
+	}
+}
+
+func TestWorkspaceMembersInTheEditor(t *testing.T) {
+	c := start(t)
+	p := c.openAs("tools/main.wsp", map[string]string{
+		"wisp.toml":             "[workspace]\nmembers = [\"geometry\", \"tools\"]\n",
+		"geometry/wisp.toml":    "[project]\nname = \"geo\"\n",
+		"geometry/geometry.wsp": "public func area(int w, h) int => w * h;\n",
+		"tools/wisp.toml":       "",
+		"tools/main.wsp":        "import \"geo\";\nfunc main() {\n\tint n = geo.ar¦ea(2, 3);\n}\n",
+	})
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("unexpected error: %s", d.Message)
+		}
+	}
+	defs := p.definition()
+	if len(defs) != 1 || !strings.HasSuffix(defs[0].URI, "geometry/geometry.wsp") {
+		t.Errorf("the definition should be in the member geometry: %+v", defs)
+	}
+}

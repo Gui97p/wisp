@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/module"
 )
@@ -40,4 +41,26 @@ func resolveEntry(args []string) (string, error) {
 	}
 
 	return filepath.Join(root, cfg.Entry), nil
+}
+
+func processEnv(vars []module.EnvVar, libDirs []string, osName string) []string {
+	env := os.Environ()
+	for _, v := range vars {
+		if _, set := os.LookupEnv(v.Name); !set {
+			env = append(env, v.Name+"="+v.Value)
+		}
+	}
+	if len(libDirs) == 0 {
+		return env
+	}
+
+	name := "LD_LIBRARY_PATH"
+	if osName == "windows" {
+		name = "PATH"
+	}
+	value := strings.Join(libDirs, string(os.PathListSeparator))
+	if current := os.Getenv(name); current != "" {
+		value += string(os.PathListSeparator) + current
+	}
+	return append(env, name+"="+value)
 }

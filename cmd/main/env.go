@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/module"
@@ -51,11 +52,11 @@ func runEnv(cmd *cobra.Command, args []string) error {
 	}
 
 	programs := base.ProgramNames(projectName(root))
-	libraries := base.LibraryNames()
+	libraries := base.ExportNames()
 	var cfg *module.Config
 	program := ""
 	if len(programs) == 0 {
-		cfg = base.ForLibrary(libraries[0])
+		cfg = base.ForExport(libraries[0])
 		program = libraries[0]
 	} else {
 		program = programs[0]
@@ -66,11 +67,11 @@ func runEnv(cmd *cobra.Command, args []string) error {
 			switch {
 			case base.HasProgram(envProgram, projectName(root)):
 				program = envProgram
-			case base.HasLibrary(envProgram):
+			case base.HasExport(envProgram):
 				program = ""
-				cfg = base.ForLibrary(envProgram)
+				cfg = base.ForExport(envProgram)
 			default:
-				return fmt.Errorf("unknown program or library %q (there are %s)", envProgram, strings.Join(append(append([]string{}, programs...), libraries...), ", "))
+				return fmt.Errorf("unknown program or export %q (there are %s)", envProgram, strings.Join(append(append([]string{}, programs...), libraries...), ", "))
 			}
 		}
 		if cfg == nil {
@@ -87,15 +88,18 @@ func runEnv(cmd *cobra.Command, args []string) error {
 		{"version", version.Version()},
 		{"codename", version.Codename()},
 		{"root", root},
+		{"project", base.ProjectName(root)},
+		{"workspace", workspaceDescription(base, root)},
 		{"config", configPath(root)},
 		{"programs", strings.Join(programs, ", ")},
-		{"libraries", strings.Join(libraries, ", ")},
+		{"exports", strings.Join(libraries, ", ")},
 		{"program", program},
 		{"entry", orDefault(cfg.Entry, "(the only main)")},
 		{"os", tgt.OS},
 		{"arch", tgt.Arch},
 		{"profile", tgt.Profile},
 		{"std", stdDescription()},
+		{"dependencies", dependenciesDescription(root)},
 		{"cache", cacheDescription()},
 	}
 
@@ -108,6 +112,7 @@ func runEnv(cmd *cobra.Command, args []string) error {
 			envEntry{"asm", out.asmDir},
 			envEntry{"libc", fmt.Sprint(useLibc(cfg, tgt))},
 			envEntry{"link", strings.Join(append(append(append([]string{}, tgt.LinkArgs...), cfg.Link...), cfg.ProgramLink...), " ")},
+			envEntry{"native", nativeDescription(cfg, tgt)},
 			envEntry{"nasm", toolDescription("nasm")},
 			envEntry{"linker", toolDescription(linkerNames(useLibc(cfg, tgt))...)},
 			envEntry{"archiver", toolDescription("llvm-ar", "ar")},
@@ -230,4 +235,29 @@ func runTargets(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Println("\n* default for this project")
 	return nil
+}
+
+func nativeDescription(cfg *module.Config, tgt target.Target) string {
+	spec := cfg.NativeSpec(tgt.OS)
+	if len(spec.Libs) == 0 {
+		return "(none)"
+	}
+	return strings.Join(spec.Libs, ", ")
+}
+
+func dependenciesDescription(root string) string {
+	roots := module.DependencyRoots(root)
+	if len(roots) == 0 {
+		return "(none)"
+	}
+	names := make([]string, 0, len(roots))
+	for name := range roots {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	parts := make([]string, len(names))
+	for i, name := range names {
+		parts[i] = name + " = " + roots[name]
+	}
+	return strings.Join(parts, ", ")
 }

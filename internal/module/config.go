@@ -14,24 +14,29 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/Gui97p/wisp/internal/diag"
+	"github.com/Gui97p/wisp/internal/native"
 	"github.com/Gui97p/wisp/internal/target"
 )
 
 type Config struct {
-	Default   string                   `toml:"default" doc:"The program that wisp run and wisp env use when no name is given. Without it a project with several programs asks for the name."`
-	OS        string                   `toml:"os" doc:"The system to build for: linux, windows, or a name declared in [targets.<name>]. Defaults to the system of the machine."`
-	Arch      string                   `toml:"arch" doc:"The architecture to build for. Only needed when the system has more than one; otherwise it is a check."`
-	Std       string                   `toml:"std" doc:"The standard library. Leave it out for the one that ships with the compiler, write a folder to replace it, or \"none\" to build without any (a folder called none is written ./none)."`
-	Link      []string                 `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`
-	Libc      bool                     `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
-	Output    OutputConfig             `toml:"output" doc:"Where build artifacts are written."`
-	Run       RunConfig                `toml:"run" doc:"How wisp run starts the program."`
-	Fmt       FmtConfig                `toml:"fmt" doc:"What wisp fmt leaves alone."`
-	Programs  map[string]ProgramConfig `toml:"program" doc:"The programs of the project, declared as [program.<name>]. Without any, the project is one program named after its folder."`
-	Libraries map[string]LibraryConfig `toml:"library" doc:"The libraries of the project, declared as [library.<name>]. A library has no entry: it is the modules it lists and everything they import."`
-	Targets   map[string]TargetConfig  `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
-	Profile   string                   `toml:"profile" doc:"The profile to build with: debug (the default), release (optimized, with the run-time checks) or fast (optimized, without the checks). A program or library can choose its own, and --profile overrides it."`
-	Profiles  map[string]ProfileConfig `toml:"profiles" doc:"Adjusts what a profile turns on, declared as [profiles.debug], [profiles.release] or [profiles.fast]. Only the keys that differ from the built-in profile are written."`
+	Default      string                      `toml:"default" doc:"The program that wisp run and wisp env use when no name is given. Without it a project with several programs asks for the name."`
+	OS           string                      `toml:"os" doc:"The system to build for: linux, windows, or a name declared in [targets.<name>]. Defaults to the system of the machine."`
+	Arch         string                      `toml:"arch" doc:"The architecture to build for. Only needed when the system has more than one; otherwise it is a check."`
+	Std          string                      `toml:"std" doc:"The standard library. Leave it out for the one that ships with the compiler, write a folder to replace it, or \"none\" to build without any (a folder called none is written ./none)."`
+	Link         []string                    `toml:"link" doc:"Extra arguments passed to the linker (libraries, object files, flags)."`
+	Libc         bool                        `toml:"libc" doc:"Link against the C library instead of the Wisp runtime start code."`
+	Native       NativeConfig                `toml:"native" doc:"The native (C) libraries the program links against."`
+	Dependencies map[string]DependencyConfig `toml:"dependencies" doc:"The projects this one imports from, declared as name = { path = \"../folder\" }. A module of one is imported as import \"name/folder\", and import \"name\" is the module file of its root folder."`
+	Project      ProjectConfig               `toml:"project" doc:"Facts about this project."`
+	Workspace    WorkspaceConfig             `toml:"workspace" doc:"Makes this folder a workspace of several projects that import each other by name. An empty [workspace] is enough: every folder next to it with a wisp.toml is a member."`
+	Output       OutputConfig                `toml:"output" doc:"Where build artifacts are written."`
+	Run          RunConfig                   `toml:"run" doc:"How wisp run starts the program."`
+	Fmt          FmtConfig                   `toml:"fmt" doc:"What wisp fmt leaves alone."`
+	Programs     map[string]ProgramConfig    `toml:"program" doc:"The programs of the project, declared as [program.<name>]. Without any, the project is one program named after its folder."`
+	Exports      map[string]ExportConfig     `toml:"export" doc:"What the project exports to C and other languages, declared as [export.<name>]. An export has no entry: it is the modules it lists and everything they import, built as <name>.a (and <name>.so with shared = true)."`
+	Targets      map[string]TargetConfig     `toml:"targets" doc:"Custom targets, declared as [targets.<name>]. Used for kernels and other bare-metal environments."`
+	Profile      string                      `toml:"profile" doc:"The profile to build with: debug (the default), release (optimized, with the run-time checks) or fast (optimized, without the checks). A program or export can choose its own, and --profile overrides it."`
+	Profiles     map[string]ProfileConfig    `toml:"profiles" doc:"Adjusts what a profile turns on, declared as [profiles.debug], [profiles.release] or [profiles.fast]. Only the keys that differ from the built-in profile are written."`
 
 	Entry         string       `toml:"-"`
 	ProgramName   string       `toml:"-"`
@@ -39,6 +44,34 @@ type Config struct {
 	ProgramLink   []string     `toml:"-"`
 	ProgramLibc   *bool        `toml:"-"`
 	ProgramOutput OutputConfig `toml:"-"`
+}
+
+type ProjectConfig struct {
+	Name string `toml:"name" doc:"The name other projects of the workspace import this one by. Defaults to the name of the folder."`
+}
+
+type WorkspaceConfig struct {
+	Members []string `toml:"members" doc:"Where the projects of the workspace are: folders or patterns such as [\"compiler\", \"crates/*\"]. Leave it out and every folder next to this wisp.toml that has a wisp.toml of its own is a member. Members import each other by project name, with no path written."`
+	Exclude []string `toml:"exclude" doc:"Folders (or patterns) that are not members even though they have a wisp.toml, such as [\"examples\"]. A name without a slash matches the folder name."`
+
+	defined bool
+}
+
+type DependencyConfig struct {
+	Path string `toml:"path" doc:"The folder of the project, relative to this wisp.toml."`
+}
+
+type NativeConfig struct {
+	Libs        []string `toml:"libs" doc:"Native libraries to link, by name without lib or extension: \"SDL3\" links libSDL3.so. The system folders (/usr/lib and friends) are searched by themselves."`
+	Search      []string `toml:"search" doc:"Extra folders to look for the libraries in, relative to the project root."`
+	Interpreter string   `toml:"interpreter" doc:"The dynamic linker the program asks for when it links a shared library (Linux). Found by itself on glibc and musl systems."`
+
+	Systems map[string]NativeSystem `toml:"-"`
+}
+
+type NativeSystem struct {
+	Libs   []string `toml:"libs" doc:"Native libraries to link on this system, added to the ones of [native]."`
+	Search []string `toml:"search" doc:"Extra folders to look for libraries in on this system, added to the ones of [native]."`
 }
 
 type FmtConfig struct {
@@ -53,12 +86,12 @@ type ProfileConfig struct {
 	Checks   *bool `toml:"checks" doc:"Keep the run-time safety checks: index bounds, division by zero and null pointers."`
 }
 
-type LibraryConfig struct {
-	Modules []string     `toml:"modules" doc:"The modules the library is made of, by import path, such as \"geometry\". Whatever they import goes along."`
-	OS      string       `toml:"os" doc:"The system to build this library for. Defaults to the top-level os."`
-	Arch    string       `toml:"arch" doc:"The architecture to build this library for."`
-	Output  OutputConfig `toml:"output" doc:"Where this library writes its artifacts. {profile}, {target}, {os}, {arch} and {name} are replaced."`
-	Profile string       `toml:"profile" doc:"The profile to build this library with. Defaults to the top-level profile."`
+type ExportConfig struct {
+	Modules []string     `toml:"modules" doc:"The modules the export is made of, by import path, such as \"geometry\". Whatever they import goes along."`
+	OS      string       `toml:"os" doc:"The system to build this export for. Defaults to the top-level os."`
+	Arch    string       `toml:"arch" doc:"The architecture to build this export for."`
+	Output  OutputConfig `toml:"output" doc:"Where this export writes its artifacts. {profile}, {target}, {os}, {arch} and {name} are replaced."`
+	Profile string       `toml:"profile" doc:"The profile to build this export with. Defaults to the top-level profile."`
 	Shared  bool         `toml:"shared" doc:"Also write <name>.so, a shared library (Linux only). Only the functions exported with as are visible from outside."`
 }
 
@@ -159,9 +192,17 @@ func ConfigFields(section string) []ConfigField {
 		t = reflect.TypeFor[FmtConfig]()
 	case "run", "program.run", "program.system.run":
 		t = reflect.TypeFor[RunConfig]()
-	case "library":
-		t = reflect.TypeFor[LibraryConfig]()
-	case "library.output":
+	case "project":
+		t = reflect.TypeFor[ProjectConfig]()
+	case "workspace":
+		t = reflect.TypeFor[WorkspaceConfig]()
+	case "native":
+		t = reflect.TypeFor[NativeConfig]()
+	case "native.system":
+		t = reflect.TypeFor[NativeSystem]()
+	case "export":
+		t = reflect.TypeFor[ExportConfig]()
+	case "export.output":
 		t = reflect.TypeFor[OutputConfig]()
 	case "profiles":
 		t = reflect.TypeFor[ProfileConfig]()
@@ -463,6 +504,8 @@ func decodeConfigSource(path, text string) (*Config, error) {
 		return nil, &ConfigError{File: path, Source: text, Issues: []ConfigIssue{{Message: diag.Reason(err)}}}
 	}
 
+	cfg.Workspace.defined = md.IsDefined("workspace")
+
 	var issues []ConfigIssue
 	var reported []toml.Key
 	for _, key := range md.Undecoded() {
@@ -471,6 +514,14 @@ func decodeConfigSource(path, text string) (*Config, error) {
 		}
 		reported = append(reported, key)
 
+		if key[0] == "library" {
+			issues = append(issues, ConfigIssue{
+				Line:    locateKey(text, key),
+				Message: "library was renamed to export",
+				Help:    "write [export.<name>] instead of [library.<name>]",
+			})
+			continue
+		}
 		if len(key) == 1 && key[0] == "entry" {
 			issues = append(issues, ConfigIssue{
 				Line:    locateKey(text, key),
@@ -487,7 +538,7 @@ func decodeConfigSource(path, text string) (*Config, error) {
 			})
 			continue
 		}
-		if isArchTable(md, key) || isSystemTable(md, key) {
+		if isArchTable(md, key) || isSystemTable(md, key) || isNativeSystem(md, key) {
 			continue
 		}
 
@@ -502,6 +553,7 @@ func decodeConfigSource(path, text string) (*Config, error) {
 		return nil, err
 	}
 	decodeSystemTables(text, md, &cfg, &issues)
+	decodeNativeTables(text, &cfg, &issues)
 
 	if cfg.Default != "" {
 		if _, declared := cfg.Programs[cfg.Default]; !declared {
@@ -536,20 +588,37 @@ func decodeConfigSource(path, text string) (*Config, error) {
 		}
 	}
 
-	for name, lib := range cfg.Libraries {
+	for name, lib := range cfg.Exports {
 		if lib.Profile != "" {
 			if err := target.ValidateProfile(lib.Profile); err != nil {
-				issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"library", name, "profile"}), Message: fmt.Sprintf("%q is not a profile", lib.Profile), Help: profileHelp(err)})
+				issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"export", name, "profile"}), Message: fmt.Sprintf("%q is not a profile", lib.Profile), Help: profileHelp(err)})
 			}
 		}
 		if !programNamePattern.MatchString(name) {
-			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"library", name}), Message: fmt.Sprintf("%q is not a valid library name", name), Help: "use lowercase letters, digits and underscores, starting with a letter"})
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"export", name}), Message: fmt.Sprintf("%q is not a valid export name", name), Help: "use lowercase letters, digits and underscores, starting with a letter"})
 		}
 		if _, clash := cfg.Programs[name]; clash {
-			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"library", name}), Message: fmt.Sprintf("%q is both a program and a library", name), Help: "programs and libraries share their names, pick another one"})
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"export", name}), Message: fmt.Sprintf("%q is both a program and an export", name), Help: "programs and exports share their names, pick another one"})
 		}
 		if len(lib.Modules) == 0 {
-			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"library", name}), Message: fmt.Sprintf("the library %s lists no modules", name), Help: "write modules = [\"geometry\"], with the import paths of the modules it is made of"})
+			issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"export", name}), Message: fmt.Sprintf("the export %s lists no modules", name), Help: "write modules = [\"geometry\"], with the import paths of the modules it is made of"})
+		}
+	}
+
+	if cfg.Project.Name != "" && !programNamePattern.MatchString(cfg.Project.Name) {
+		issues = append(issues, ConfigIssue{Line: locateKey(text, toml.Key{"project", "name"}), Message: fmt.Sprintf("%q is not a valid project name", cfg.Project.Name), Help: "use lowercase letters, digits and underscores, starting with a letter"})
+	}
+	issues = append(issues, checkWorkspace(text, filepath.Dir(path), &cfg)...)
+
+	for name, dep := range cfg.Dependencies {
+		key := func(field ...string) int { return locateKey(text, append(toml.Key{"dependencies", name}, field...)) }
+		switch {
+		case name == "std":
+			issues = append(issues, ConfigIssue{Line: key(), Message: "std is the standard library, not a dependency", Help: "to replace it write std = \"folder\" at the top"})
+		case !programNamePattern.MatchString(name):
+			issues = append(issues, ConfigIssue{Line: key(), Message: fmt.Sprintf("%q is not a valid dependency name", name), Help: "use lowercase letters, digits and underscores, starting with a letter"})
+		case dep.Path == "":
+			issues = append(issues, ConfigIssue{Line: key(), Message: fmt.Sprintf("the dependency %s has no path", name), Help: fmt.Sprintf("write %s = { path = \"../%s\" }", name, name)})
 		}
 	}
 
@@ -601,12 +670,20 @@ func knownKeys(key toml.Key) []string {
 		return tomlTags(reflect.TypeOf(TargetConfig{}))
 	case len(key) >= 2 && key[0] == "output":
 		return tomlTags(reflect.TypeOf(OutputConfig{}))
+	case len(key) >= 2 && key[0] == "native":
+		return tomlTags(reflect.TypeOf(NativeConfig{}))
+	case len(key) >= 2 && key[0] == "project":
+		return tomlTags(reflect.TypeOf(ProjectConfig{}))
+	case len(key) >= 2 && key[0] == "workspace":
+		return tomlTags(reflect.TypeOf(WorkspaceConfig{}))
+	case len(key) >= 3 && key[0] == "dependencies":
+		return tomlTags(reflect.TypeOf(DependencyConfig{}))
 	case len(key) >= 2 && key[0] == "run":
 		return tomlTags(reflect.TypeOf(RunConfig{}))
-	case len(key) >= 4 && key[0] == "library" && key[2] == "output":
+	case len(key) >= 4 && key[0] == "export" && key[2] == "output":
 		return tomlTags(reflect.TypeOf(OutputConfig{}))
-	case len(key) >= 3 && key[0] == "library":
-		return tomlTags(reflect.TypeOf(LibraryConfig{}))
+	case len(key) >= 3 && key[0] == "export":
+		return tomlTags(reflect.TypeOf(ExportConfig{}))
 	case len(key) >= 4 && key[0] == "program" && key[2] == "output":
 		return tomlTags(reflect.TypeOf(OutputConfig{}))
 	case len(key) >= 4 && key[0] == "program" && key[2] == "run":
@@ -769,6 +846,73 @@ func isProgramField(name string) bool {
 	return slices.Contains(tomlTags(reflect.TypeOf(ProgramConfig{})), name)
 }
 
+func isNativeSystem(md toml.MetaData, key toml.Key) bool {
+	if len(key) < 2 || key[0] != "native" || slices.Contains(tomlTags(reflect.TypeOf(NativeConfig{})), key[1]) {
+		return false
+	}
+	return len(key) >= 3 || md.Type(key[0], key[1]) == "Hash"
+}
+
+func decodeNativeTables(text string, cfg *Config, issues *[]ConfigIssue) {
+	var raw struct {
+		Native map[string]toml.Primitive
+	}
+	meta, err := toml.Decode(text, &raw)
+	if err != nil {
+		return
+	}
+
+	own := tomlTags(reflect.TypeOf(NativeConfig{}))
+	systems := target.OSNames()
+	valid := map[string]bool{}
+	for name, prim := range raw.Native {
+		if slices.Contains(own, name) || meta.Type("native", name) != "Hash" {
+			continue
+		}
+		if !slices.Contains(systems, name) {
+			*issues = append(*issues, ConfigIssue{Line: locateKey(text, toml.Key{"native", name}), Message: fmt.Sprintf("%q is not a system", name), Help: target.Suggestion(name, append(append([]string{}, own...), systems...), "keys")})
+			continue
+		}
+		var ns NativeSystem
+		if err := meta.PrimitiveDecode(prim, &ns); err != nil {
+			*issues = append(*issues, ConfigIssue{Line: locateKey(text, toml.Key{"native", name}), Message: diag.Reason(err)})
+			continue
+		}
+		valid[name] = true
+		if cfg.Native.Systems == nil {
+			cfg.Native.Systems = map[string]NativeSystem{}
+		}
+		cfg.Native.Systems[name] = ns
+	}
+
+	known := tomlTags(reflect.TypeOf(NativeSystem{}))
+	for _, key := range meta.Undecoded() {
+		if len(key) >= 3 && key[0] == "native" && valid[key[1]] {
+			*issues = append(*issues, ConfigIssue{Line: locateKey(text, key), Message: fmt.Sprintf("unknown key %q", key.String()), Help: target.Suggestion(key[len(key)-1], known, "keys")})
+		}
+	}
+}
+
+func (c *Config) NativeSearchDirs(root, osName string) []string {
+	var dirs []string
+	for _, dir := range c.NativeSpec(osName).Search {
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(root, dir)
+		}
+		dirs = append(dirs, dir)
+	}
+	return dirs
+}
+
+func (c *Config) NativeSpec(osName string) native.Spec {
+	spec := native.Spec{Libs: c.Native.Libs, Search: c.Native.Search, Interpreter: c.Native.Interpreter}
+	if ns, ok := c.Native.Systems[osName]; ok {
+		spec.Libs = append(append([]string{}, spec.Libs...), ns.Libs...)
+		spec.Search = append(append([]string{}, spec.Search...), ns.Search...)
+	}
+	return spec
+}
+
 func isSystemTable(md toml.MetaData, key toml.Key) bool {
 	if len(key) < 3 || key[0] != "program" || isProgramField(key[2]) {
 		return false
@@ -886,7 +1030,7 @@ var binaryNamePattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]*$`)
 
 func (c *Config) ProgramNames(project string) []string {
 	if len(c.Programs) == 0 {
-		if len(c.Libraries) > 0 {
+		if len(c.Exports) > 0 {
 			return nil
 		}
 		return []string{project}
@@ -913,8 +1057,8 @@ func (c *Config) HasProgram(name, project string) bool {
 	return slices.Contains(c.ProgramNames(project), name)
 }
 
-func (c *Config) HasLibrary(name string) bool {
-	_, ok := c.Libraries[name]
+func (c *Config) HasExport(name string) bool {
+	_, ok := c.Exports[name]
 	return ok
 }
 
@@ -1004,16 +1148,16 @@ func isTargetOutput(key toml.Key) bool {
 	return len(key) >= 3 && key[0] == "targets" && (key[2] == "output" || (len(key) >= 4 && key[3] == "output"))
 }
 
-func (c *Config) LibraryNames() []string {
-	names := make([]string, 0, len(c.Libraries))
-	for name := range c.Libraries {
+func (c *Config) ExportNames() []string {
+	names := make([]string, 0, len(c.Exports))
+	for name := range c.Exports {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	return names
 }
 
-func (c *Config) ForLibrary(name string) *Config {
+func (c *Config) ForExport(name string) *Config {
 	eff := *c
 	eff.ProgramName = name
 	eff.BinaryName = name
@@ -1021,7 +1165,7 @@ func (c *Config) ForLibrary(name string) *Config {
 	eff.ProgramLink = nil
 	eff.ProgramLibc = nil
 
-	lib := c.Libraries[name]
+	lib := c.Exports[name]
 	if lib.OS != "" {
 		eff.OS = lib.OS
 		eff.Arch = ""

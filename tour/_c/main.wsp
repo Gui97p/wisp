@@ -31,7 +31,7 @@ extern func scale_by_three(int32 value) int32;
 
 // The other direction: `public func ... as name` gives a public function
 // a C-visible name that does not depend on the module's path. A library
-// (`[library.name]` in wisp.toml) with `shared = true` also builds name.so, a
+// (`[export.name]` in wisp.toml) with `shared = true` also builds name.so, a
 // shared library whose only visible symbols are those names. lib.c declares
 // `wisp_scale` and calls it.
 public func scale(int32 value, int32 factor) int32 as wisp_scale => value * factor;
