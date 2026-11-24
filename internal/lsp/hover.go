@@ -48,7 +48,7 @@ var errorFieldDocs = map[string]string{
 	"line":    "The line where the error was raised.",
 }
 
-const errorDoc = "Creates an error value. The enum gives it its domain and the member's number is its code. The message is optional, and the file and line are recorded where it is raised. `null` means no error, and the fields `domain`, `code`, `message`, `file` and `line` can be read."
+const errorDoc = "Creates an error value. `Error(\"message\")` is a plain error with the code 1 and no enum. `Error(Enum.Member)` gives it the enum as its domain and the member's number as its code, and a message after it is optional. The file and line are recorded where it is raised. `null` means no error, an error compares with null, with enum members and with other errors (the same record), and the fields `domain`, `code`, `message`, `file` and `line` can be read. A message with values is made by `fmt.errorf`."
 
 func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	path := uriToPath(uri)
@@ -116,6 +116,9 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		}
 		text = hoverText(expr, program, info, line, col)
 		rng = exprRange(expr)
+		if narrow := literalHoverRange(expr, line, col); narrow != nil {
+			rng = narrow
+		}
 		if block, isBlock := expr.(*ast.BlockExpr); isBlock && block.Static {
 			startLine, startCol := block.Position()
 			rng = positionRange(ast.Position{Line: startLine, Col: startCol, EndLine: startLine, EndCol: startCol + len("static") - 1})
@@ -603,7 +606,7 @@ func structHover(st *analyser.StructType, doc string) string {
 func typeHover(sym *analyser.Symbol) string {
 	switch t := sym.Type.(type) {
 	case analyser.ErrorType:
-		return renderDoc("Error(Enum.Member, \"message\")", errorDoc)
+		return renderDoc("Error(\"message\")\nError(Enum.Member, \"message\")", errorDoc)
 	case analyser.NamedType:
 		if t.Enum {
 			return renderDoc(analyser.EnumText(t), joinDocs(sym.Doc, fmt.Sprintf("Enum with %d members.", len(t.MemberOrder))))
@@ -847,4 +850,37 @@ func interfaceKindDoc(it *analyser.InterfaceType) string {
 		return "A constraint: it names types, so it limits a type parameter and is not the type of a value."
 	}
 	return "A contract. A type declares it with `implements`, a pointer to it becomes a value of the interface (`Writer w = &x;`), and `<" + it.Name + " T>` limits a type parameter to the types that implement it."
+}
+
+func literalHoverRange(expr ast.Expression, line, col int) *protocol.Range {
+	switch e := expr.(type) {
+	case *ast.StructLiteral:
+		for _, at := range e.KeyAt {
+			if positionContains(at, line, col) {
+				return positionRange(at)
+			}
+		}
+		if e.Dot || e.Name == "" {
+			return nil
+		}
+		startLine, startCol := e.Position()
+		name := e.Name
+		if e.Module != "" {
+			name = e.Module + "." + e.Name
+		}
+		if e.Variant != "" {
+			name += "." + e.Variant
+		}
+		at := ast.Position{Line: startLine, Col: startCol, EndLine: startLine, EndCol: startCol + len(name) - 1}
+		if positionContains(at, line, col) {
+			return positionRange(at)
+		}
+	case *ast.AnonLiteral:
+		for _, at := range e.KeyAt {
+			if positionContains(at, line, col) {
+				return positionRange(at)
+			}
+		}
+	}
+	return nil
 }

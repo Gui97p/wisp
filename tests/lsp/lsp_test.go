@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -1802,6 +1803,71 @@ func TestFormatStringsInTheEditor(t *testing.T) {
 	for _, d := range clean.diagnostics() {
 		if d.Severity == 1 {
 			t.Errorf("valid format string reported: %s", d.Message)
+		}
+	}
+}
+
+func TestCallerTagInTheEditor(t *testing.T) {
+	c := start(t)
+	head := "import \"std/errors\";\nfunc f(string path) ! {\n\t"
+	tail := ";\n}\nfunc main() {\n\tlet _ = f(\"x\");\n}\n"
+
+	hover := c.open(map[string]string{"main.wsp": head + "return errors.erro¦rf(\"no file {path}\")" + tail}).hover()
+	if !strings.Contains(hover, "func errorf(string format, ...args) Error") {
+		t.Errorf("hover shows %q", hover)
+	}
+
+	label, _ := c.open(map[string]string{"main.wsp": head + "return errors.errorf(¦" + tail}).signature()
+	if label != "errorf(string format, ...args) Error" {
+		t.Errorf("signature help shows %q", label)
+	}
+
+	for _, call := range []string{"errors.errorf(\"no file {path}\")", "errors.annotate(Error(errors.Kind.NotFound), \"no file {path}\")"} {
+		src := head + "return " + call + tail
+		for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
+			if d.Severity == 1 {
+				t.Errorf("%s: %s", call, d.Message)
+			}
+		}
+	}
+
+	wrong := c.open(map[string]string{"main.wsp": "#caller\nfunc here(int n) {}\nfunc main() {\n\there(1);\n}\n"})
+	found := false
+	for _, d := range wrong.diagnostics() {
+		if d.Severity == 1 && strings.Contains(d.Message, "#caller needs the first parameter") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("#caller without a Here parameter was not reported")
+	}
+}
+
+func TestHoverRangeInStructLiterals(t *testing.T) {
+	c := start(t)
+	cases := []struct {
+		name, src string
+		start, to int
+		want      string
+	}{
+		{"a key", "struct P { int x; int y; }\nfunc main() {\n\tP p = P{¦x: 1, y: 2};\n\tint n = p.x + p.y;\n\tn++;\n}\n", 9, 10, "int x"},
+		{"the name", "struct P { int x; int y; }\nfunc main() {\n\tP p = ¦P{x: 1, y: 2};\n\tint n = p.x + p.y;\n\tn++;\n}\n", 7, 8, "struct P"},
+		{"a longer key", "struct Pt { int width; int y; }\nfunc main() {\n\tPt p = Pt{wi¦dth: 1, y: 2};\n\tint n = p.width + p.y;\n\tn++;\n}\n", 11, 16, "int width"},
+	}
+	for _, tc := range cases {
+		p := c.open(map[string]string{"main.wsp": tc.src})
+		var h struct {
+			Contents struct {
+				Value string `json:"value"`
+			} `json:"contents"`
+			Range struct {
+				Start struct{ Character int } `json:"start"`
+				End   struct{ Character int } `json:"end"`
+			} `json:"range"`
+		}
+		json.Unmarshal(c.call("textDocument/hover", p.at()), &h)
+		if !strings.Contains(h.Contents.Value, tc.want) || h.Range.Start.Character != tc.start || h.Range.End.Character != tc.to {
+			t.Errorf("%s: hover %q range %d-%d, want %q range %d-%d", tc.name, h.Contents.Value, h.Range.Start.Character, h.Range.End.Character, tc.want, tc.start, tc.to)
 		}
 	}
 }

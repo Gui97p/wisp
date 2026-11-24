@@ -39,6 +39,7 @@ func (a *Analyser) registerBuiltins() {
 	}
 
 	a.universe.Define(&Symbol{Name: "Error", Kind: TYPE, Type: ErrorType{}})
+	a.universe.Define(&Symbol{Name: "Here", Kind: TYPE, Type: ErrorType{}, Doc: "The place of a call: the first parameter of a function marked #caller, which the compiler fills in at every call. It is an Error with no kind, so `at.file`, `at.line` and `at.message` can be read, and it can be the base of an error."})
 
 	a.registerRange()
 	a.registerCTypes()

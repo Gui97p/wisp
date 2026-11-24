@@ -120,6 +120,10 @@ func (a *Analyser) constantInitializer(expr ast.Expression) bool {
 		return true
 	case *ast.FuncLiteral:
 		return true
+	case *ast.CallExpr:
+		if a.info.ErrorLiterals[e] != nil {
+			return true
+		}
 	case *ast.ConvExpr:
 		if e.Cast != nil && len(e.Args) == 1 {
 			if _, isNull := e.Args[0].(*ast.NullLiteral); isNull {

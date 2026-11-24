@@ -159,6 +159,19 @@ func (t *X64Target) emitData(expr ast.Expression, tp analyser.Type) error {
 	case analyser.PointerType:
 		t.data.printlnt("dq 0")
 		return nil
+	case analyser.ErrorType:
+		if call, isCall := expr.(*ast.CallExpr); isCall {
+			if literal, ok := t.info.ErrorLiterals[call]; ok {
+				label, err := t.errorRecord(literal)
+				if err != nil {
+					return err
+				}
+				t.data.printft("dq %s\n", label)
+				return nil
+			}
+		}
+		t.data.printlnt("dq 0")
+		return nil
 	case *analyser.InterfaceType:
 		return t.emitInterfaceData(expr)
 	case analyser.ArrayType:

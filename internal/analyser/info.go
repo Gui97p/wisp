@@ -165,6 +165,9 @@ func (i *Info) RenderErrorBlocks(buffers map[string][]byte) {
 			continue
 		}
 		header := fmt.Sprintf("error[%s]: %s", lit.Domain, lit.Message)
+		if lit.Domain == "" {
+			header = fmt.Sprintf("error: %s", lit.Message)
+		}
 		lit.Block = diag.RuntimeBlock(header, lit.File, source, lit.Line, lit.Col, lit.EndLine, lit.EndCol, "raised here")
 	}
 }

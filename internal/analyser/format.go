@@ -189,3 +189,67 @@ func splitSpec(inner string) (string, string, bool) {
 	}
 	return inner, "", false
 }
+
+func (a *Analyser) errorCall(near ast.Node, args ...ast.Expression) *ast.CallExpr {
+	name := &ast.IdentLiteral{Value: "Error", Synthetic: true}
+	a.at(near, name)
+	call := &ast.CallExpr{Name: name, Args: args}
+	a.at(near, call)
+	return call
+}
+
+func messageTemplate(text string) string {
+	var out strings.Builder
+	for i := 0; i < len(text); {
+		c := text[i]
+		switch {
+		case c == '{' && i+1 < len(text) && text[i+1] == '{':
+			out.WriteByte('{')
+			i += 2
+		case c == '}' && i+1 < len(text) && text[i+1] == '}':
+			out.WriteByte('}')
+			i += 2
+		case c == '{':
+			end := closingBrace(text, i+1)
+			if end < 0 {
+				out.WriteString(text[i:])
+				return out.String()
+			}
+			out.WriteString("...")
+			i = end + 1
+		default:
+			out.WriteByte(c)
+			i++
+		}
+	}
+	return out.String()
+}
+
+func isHereParam(fd *ast.FuncDecl) bool {
+	return len(fd.Params) > 0 && fd.Params[0].Type.Name == "Here" && len(fd.Params[0].Type.Layers) == 0 && fd.Params[0].Type.Module == ""
+}
+
+func (a *Analyser) supplyHere(expr *ast.CallExpr, ft *FuncType) {
+	if ft == nil || ft.Decl == nil || ft.Decl.TagNamed("caller") == nil || !isHereParam(ft.Decl) {
+		return
+	}
+	if len(expr.Args) > 0 {
+		if call, ok := expr.Args[0].(*ast.CallExpr); ok {
+			if name, isIdent := call.Name.(*ast.IdentLiteral); isIdent && name.Synthetic && name.Value == "Error" {
+				return
+			}
+		}
+	}
+	template := "here"
+	if index := formatParam(ft.Decl); index == 1 && len(expr.Args) > 0 {
+		if literal, isLiteral := expr.Args[0].(*ast.StringLiteral); isLiteral {
+			template = messageTemplate(literal.Value)
+			if strings.Trim(template, ".") == "" {
+				template = "error"
+			}
+		}
+	}
+	text := &ast.StringLiteral{Value: template}
+	a.at(expr, text)
+	expr.Args = append([]ast.Expression{a.errorCall(expr, text)}, expr.Args...)
+}

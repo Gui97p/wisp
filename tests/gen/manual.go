@@ -15164,7 +15164,8 @@ func main() {
     check(text(buf[..], "{{{sum}}}") == "{3}", "a brace around an expression");
 }
 `, expected: []string{"an expression takes its spec after the colon", "braces, specs, fields, indexes and positional arguments", "inline expressions and written arguments become one list", "a ternary in parentheses", "a ternary without parentheses, and the spec after it", "escaped braces alone change nothing", "a brace inside a string or a character of the expression", "one argument for each placeholder", "the values are written by the runtime format", "positional arguments keep their order between expressions", "any expression", "a brace around an expression"}},
-	{dir: "error_runtime_message", src: `import "std/fmt";
+	{dir: "error_runtime_message", src: `import "std/errors";
+import "std/mem";
 
 enum E {
     Bad = 3,
@@ -15174,21 +15175,21 @@ enum E {
 const FIXED = "fixed text";
 
 func inner(int n) !int {
-    return fmt.errorf(Error(E.Bad), "inner failed with {n}");
+    return errors.annotate(Error(E.Bad), "inner failed with {n}");
 }
 
 func outer(int n) !int {
     let _, e = inner(n);
-    return fmt.errorf(Error(E.Other), "outer wraps: {e}");
+    return errors.annotate(e, "outer wraps: {e}");
 }
 
 func open(string path, int n) !int {
-    return fmt.errorf(Error(E.Bad), "no file {path} (try {n + 1})") if n > 5;
+    return errors.annotate(Error(E.Bad), "no file {path} (try {n + 1})") if n > 5;
     return Error(E.Other, "plain");
 }
 
 func dynamic(string why) Error {
-    return fmt.errorf(Error(E.Other), "{}", why);
+    return errors.errorf("{}", why);
 }
 
 func long() Error {
@@ -15196,7 +15197,7 @@ func long() Error {
     for i in 0..300 {
         filler[i] = 'x';
     }
-    return fmt.errorf(Error(E.Bad, "too long"), "{}", string(filler[..]));
+    return errors.annotate(Error(E.Bad), "{}", string(filler[..]));
 }
 
 func propagate(int n) !int {
@@ -15213,7 +15214,10 @@ func main() {
     string why = "because";
     check(dynamic(why).message == "because", "a string that is not constant is the message");
     check(Error(E.Bad, FIXED).message == "fixed text", "a constant string is still static");
-    check(fmt.errorf(Error(E.Bad), "{{kept}} {1 + 2}").message == "{kept} 3", "escaped braces beside an expression");
+    check(errors.annotate(Error(E.Bad), "{{kept}} {1 + 2}").message == "{kept} 3", "escaped braces beside an expression");
+    check(errors.errorf("plain {why}").code == 1 && errors.errorf("plain {why}").domain == "", "a message alone makes a plain error");
+    let _, kept = outer(5);
+    check(kept == E.Bad && kept.code == 3, "an error given more words keeps its kind");
 
     let _, o = outer(5);
     check(o.message == "outer wraps: inner failed with 5", "an error inside the message of another");
@@ -15221,7 +15225,7 @@ func main() {
     let _, p = propagate(8);
     check(p != null && p.message == "no file deep (try 9)" && p.domain == "main.E", "the error crosses a call with its message");
 
-    check(long().message == "too long", "a message that does not fit falls back to the text of the error");
+    check(long().message == "E.Bad", "a message that does not fit falls back to the message the error had");
 
     Error last;
     for i in 0..20 {
@@ -15229,10 +15233,25 @@ func main() {
         last = w;
     }
     check(last.message == "no file x (try 26)", "the last error is intact after more than eight others");
+    mem.Arena arena;
+    defer arena.release();
+    let _, early = open("early", 7);
+    Error saved = errors.keep(&arena, early);
+    Error nothing = errors.keep(&arena, null);
+    for i in 0..30 {
+        let _, _ = open("noise", i + 6);
+    }
+    check(saved.message == "no file early (try 8)" && saved.code == 3 && saved == E.Bad && saved.line == early.line, "a kept error stays as it was after many others");
+    check(early.message != "no file early (try 8)", "an error that was not kept is overwritten");
+    check(nothing == null, "keeping null gives null");
+    mem.Fixed none = mem.Fixed{};
+    Error refused = errors.keep(&none, saved);
+    check(refused == errors.Kind.OutOfMemory, "keeping with no memory gives an OutOfMemory error");
+
     let _, again = open("fresh", 7);
     check(again.message == "no file fresh (try 8)" && again.line == a.line, "a new error after the ring went round");
 }
-`, expected: []string{"a message made at run time keeps the kind", "a constant message is untouched", "a string that is not constant is the message", "a constant string is still static", "escaped braces beside an expression", "an error inside the message of another", "the error crosses a call with its message", "a message that does not fit falls back to the text of the error", "the last error is intact after more than eight others", "a new error after the ring went round"}},
+`, expected: []string{"a message made at run time keeps the kind", "a constant message is untouched", "a string that is not constant is the message", "a constant string is still static", "escaped braces beside an expression", "a message alone makes a plain error", "an error given more words keeps its kind", "an error inside the message of another", "the error crosses a call with its message", "a message that does not fit falls back to the message the error had", "the last error is intact after more than eight others", "a kept error stays as it was after many others", "an error that was not kept is overwritten", "keeping null gives null", "keeping with no memory gives an OutOfMemory error", "a new error after the ring went round"}},
 	{dir: "nested_array_index", src: `[4][8]byte rows;
 [3][4][2]int cube;
 int pick = 2;
@@ -15280,6 +15299,82 @@ func main() {
     check(cells[2].values[2] == 7 && cells[i].values[j - 1] == 7, "an array inside the elements of an array");
 }
 `, expected: []string{"a variable index in both levels", "a compound assignment through two variable indexes", "a slice of a row picked by a variable", "a slice of a row with variable bounds", "writing through the slice of a row", "the end of a row slice", "three levels of arrays", "an array inside the elements of an array"}},
+	{dir: "error_basic", src: `import "std/fmt";
+
+enum Kind {
+    Missing = 2
+}
+
+Error unreachable = Error("the other side is gone");
+Error nothing;
+
+func connect(int n) !int {
+    return unreachable if n == 0;
+    return Error("plain failure") if n == 1;
+    return Error(Kind.Missing, "typed failure") if n == 2;
+    return n;
+}
+
+func main() {
+    let _, a = connect(0);
+    let _, b = connect(1);
+    let _, c = connect(2);
+
+    check(a != null && a.message == "the other side is gone" && a.code == 1, "an Error made from a message alone");
+    check(a.domain == "" && b.domain == "", "it belongs to no enum");
+    check(a == unreachable && b != unreachable && c != unreachable, "a global error works as a sentinel");
+    check(b != c && !(b == c) && a == a, "two errors are equal when they are the same record");
+    check(a != Kind.Missing && b != Kind.Missing && c == Kind.Missing, "a message-only error matches no enum member");
+    check(nothing == null && !(nothing != null), "an error global starts as null");
+    check(b.line > 0 && b.file != "", "it records where it was raised");
+
+    string seen = switch c {
+        case null => "none";
+        case Kind.Missing => "missing";
+        default => c.message;
+    };
+    string plain = switch b {
+        case null => "none";
+        case Kind.Missing => "missing";
+        default => b.message;
+    };
+    check(seen == "missing" && plain == "plain failure", "a switch sorts both kinds of error");
+
+    [64]byte buf;
+    let n, problem = fmt.sprintf(buf[..], "{}", b);
+    check(problem == null && string(buf[..n]) == "plain failure", "it prints as its message");
+}
+`, expected: []string{"an Error made from a message alone", "it belongs to no enum", "a global error works as a sentinel", "two errors are equal when they are the same record", "a message-only error matches no enum member", "an error global starts as null", "it records where it was raised", "a switch sorts both kinds of error", "it prints as its message"}},
+	{dir: "caller_here", src: `import "std/fmt";
+
+#caller
+func where(Here at) int {
+    return at.line;
+}
+
+#caller
+func fileOf(Here at, int unused) string {
+    return at.file;
+}
+
+#caller
+#format
+func note(Here at, string format, ...args) string {
+    [64]byte buf;
+    let n, _ = fmt.sprintf(buf[..], format, args...);
+    return at.line > 0 ? string(buf[..n]) : "";
+}
+
+func main() {
+    int first = where();
+    int second = where();
+    check(first > 0 && second == first + 1, "the call gives its own line");
+    check(len(fileOf(1)) > 0, "the file of the call");
+    int n = 5;
+    check(note("n is {n}") == "n is 5", "a caller function that formats");
+    check(where() == second + 3 || where() > second, "a call inside an expression");
+}
+`, expected: []string{"the call gives its own line", "the file of the call", "a caller function that formats", "a call inside an expression"}},
 	{dir: "interop_ergonomics", system: "linux", files: map[string]string{"lib.c": `#include <stddef.h>
 typedef struct counter { int value; } counter;
 static counter the_counter = {0};

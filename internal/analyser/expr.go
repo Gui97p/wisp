@@ -579,6 +579,7 @@ func (a *Analyser) receiverArgument(object ast.Expression, objType Type, pointer
 }
 
 func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
+	a.supplyHere(expr, ft)
 	a.expandFormat(expr, ft)
 	a.checkCallArgsWith(expr, ft, a.evalArgTypes(expr))
 }
@@ -1274,12 +1275,39 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 	}
 
 	if len(expr.Args) < 1 || len(expr.Args) > 2 {
-		a.error(expr, "Error expects an enum member and an optional message")
+		a.error(expr, "Error expects an enum member and an optional message, or just a message")
 		a.evalArgTypes(expr)
 		return ErrorType{}
 	}
 
 	codeType := a.checkExpr(expr.Args[0])
+	if _, isPtr := underlyingOf(codeType).(PointerType); isPtr && len(expr.Args) == 1 {
+		cast := &ast.CastExpr{Value: expr.Args[0]}
+		a.at(expr, cast)
+		a.info.Types[cast] = ErrorType{}
+		expr.Cast = cast
+		return ErrorType{}
+	}
+	if isString(underlyingOf(codeType)) && len(expr.Args) == 1 {
+		text, isConst := a.evalConst(expr.Args[0])
+		if !isConst || text.Kind != ConstString {
+			a.error(expr.Args[0], "the message of an Error must be a constant string").
+				WithHelp("a message with values is made at run time by fmt.errorf(\"no file {path}\")")
+			return ErrorType{}
+		}
+		line, col := expr.Position()
+		endLine, endCol := expr.EndPosition()
+		a.info.ErrorLiterals[expr] = &ErrorLiteral{
+			Code:    1,
+			Message: text.Str,
+			File:    a.errorFile(),
+			Line:    line,
+			Col:     col,
+			EndLine: endLine,
+			EndCol:  endCol,
+		}
+		return ErrorType{}
+	}
 	if dot, isDot := codeType.(ImplicitEnumType); isDot {
 		a.dropDot(expr.Args[0])
 		a.errorf(expr.Args[0], "cannot infer the enum of .%s inside Error: write Enum.%s", dot.Name, dot.Name)
@@ -1316,7 +1344,8 @@ func (a *Analyser) checkErrorConstructor(expr *ast.CallExpr) Type {
 		if _, bad := messageType.(InvalidType); !bad {
 			text, isConst := a.evalConst(expr.Args[1])
 			if !messageType.Equals(PrimitiveType{Name: "string"}) || !isConst || text.Kind != ConstString {
-				a.error(expr.Args[1], "the message of Error must be a constant string")
+				a.error(expr.Args[1], "the message of Error must be a constant string").
+					WithHelp("a message with values is made at run time by fmt.errorf(Enum.Member, \"no file {path}\")")
 				return ErrorType{}
 			}
 			message = text.Str
@@ -1408,7 +1437,6 @@ func (a *Analyser) checkErrorComparison(expr *ast.BinaryExpr, left, right Type) 
 
 	boolType := PrimitiveType{Name: "bool"}
 	if leftErr && rightErr {
-		a.error(expr, "two errors cannot be compared: compare an Error with null or with an enum member")
 		return boolType, true
 	}
 

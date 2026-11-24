@@ -50,7 +50,14 @@ func ParamLabels(ft *FuncType, decl *ast.FuncDecl) []string {
 		return genericMethodParams(fd)
 	}
 	labels := make([]string, 0, len(ft.Params)+1)
+	first := 0
+	if ft.Decl != nil && ft.Decl.TagNamed("caller") != nil && isHereParam(ft.Decl) {
+		first = 1
+	}
 	for i, p := range ft.Params {
+		if i < first {
+			continue
+		}
 		label := TypeText(p)
 		paramName := ""
 		switch {

@@ -68,6 +68,11 @@ var Tags = []TagSpec{
 		Targets: []string{"function", "method"},
 	},
 	{
+		Name: "caller", Usage: "#caller",
+		Doc:     "A function that wants to know where it was called from. Its first parameter has the type `Here`, and a call does not write it: the compiler fills it with the file, the line and the code of the call, as an error with no kind. `at.file`, `at.line` and `at.block` can be read, and `at` can be the base of an error made at run time.",
+		Targets: []string{"function", "method"},
+	},
+	{
 		Name: "noreturn", Usage: "#noreturn",
 		Doc:     "A function that never returns, such as one that ends the program. Its body must not return, and the code after a call to it is unreachable.",
 		Targets: []string{"function", "method", "native function"},
@@ -234,6 +239,10 @@ func (a *Analyser) checkTagArgs(spec TagSpec, tag *ast.Tag, decl ast.Declaration
 					a.errorRange(tag.At, "#fails(null, ...) is for a function that returns a pointer, and %s does not", fd.Name)
 				}
 			}
+		}
+	case "caller":
+		if fd, ok := decl.(*ast.FuncDecl); ok && !isHereParam(fd) {
+			a.errorRange(tag.At, "#caller needs the first parameter of %s to be a `Here`", fd.Name)
 		}
 	case "format":
 		if fd, ok := decl.(*ast.FuncDecl); ok && formatParam(fd) < 0 {

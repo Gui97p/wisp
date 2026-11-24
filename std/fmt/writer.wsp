@@ -215,9 +215,13 @@ func (*Writer w) putError([]byte buf, Error e, Spec s) !bool {
 			w.writePiece(piece, s, false)!;
 		}
 		default => {
-			w.write("error[")!;
-			w.write(e.domain)!;
-			w.write("]: ")!;
+			if len(e.domain) == 0 {
+				w.write("error: ")!;
+			} else {
+				w.write("error[")!;
+				w.write(e.domain)!;
+				w.write("]: ")!;
+			}
 			w.write(e.message)!;
 			w.write(" (")!;
 			w.write(e.file)!;

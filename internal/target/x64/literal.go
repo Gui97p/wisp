@@ -67,21 +67,31 @@ func (t *X64Target) resolveStringLiteral(value string) (Operand, error) {
 }
 
 func (t *X64Target) compileErrorLiteral(e *analyser.ErrorLiteral) (Operand, error) {
-	dl, dn, err := t.stringData(e.Domain)
+	l, err := t.errorRecord(e)
 	if err != nil {
 		return nil, err
+	}
+	reg := t.ctx.AllocFreeRegister()
+	t.text.printft("lea %s, [rel %s]\n", t.ctx.GetRegister(reg, 8), l)
+	return Reg{reg, 8}, nil
+}
+
+func (t *X64Target) errorRecord(e *analyser.ErrorLiteral) (string, error) {
+	dl, dn, err := t.stringData(e.Domain)
+	if err != nil {
+		return "", err
 	}
 	ml, mn, err := t.stringData(e.Message)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	fl, fn, err := t.stringData(displayFile(e.File))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	el, en, err := t.stringData(e.Block)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
 	key := fmt.Sprintf("%s|%d|%s|%s|%d", e.Domain, e.Code, e.Message, displayFile(e.File), e.Line)
@@ -89,10 +99,7 @@ func (t *X64Target) compileErrorLiteral(e *analyser.ErrorLiteral) (Operand, erro
 	if !ok {
 		t.rodata.printf("%s: dq %s, %d, %d, %s, %d, %s, %d, %d, %s, %d\n", l, dl, dn, e.Code, ml, mn, fl, fn, e.Line, el, en)
 	}
-
-	reg := t.ctx.AllocFreeRegister()
-	t.text.printft("lea %s, [rel %s]\n", t.ctx.GetRegister(reg, 8), l)
-	return Reg{reg, 8}, nil
+	return l, nil
 }
 
 type pendingLambda struct {

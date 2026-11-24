@@ -1,0 +1,132 @@
+import "std/fmt";
+import "std/mem";
+
+struct Record {
+	string domain;
+	int code;
+	string message;
+	string file;
+	int line;
+	string block;
+}
+
+const Slots = 8;
+const SlotText = 256;
+const SlotBlock = 1024;
+
+[8]Record records;
+[2048]byte texts;
+[8192]byte blocks;
+int cursor;
+
+/// Makes an error whose message is written at run time, with the values of the
+/// format in it: `errors.errorf("no file {path}")`. It is a plain error, with
+/// the code 1, and it records where it was raised. The message is cut at 256
+/// bytes, and the error is valid until 8 more like it are made: to keep one
+/// longer, use `keep`. A message that does not fit loses its end, and one with
+/// nothing written keeps the text of the format.
+#caller
+#format
+public inline func errorf(Here at, string format, ...args) Error => annotate(at, format, args...);
+
+/// Gives an error a message written at run time and keeps its kind and the place
+/// it was raised: `errors.annotate(e, "loading {path}: {e}")` says more about
+/// `e`, and `errors.annotate(Error(Kind.NotFound), "no file {path}")` makes an
+/// error of a kind with a message of its own. The message is cut at 256 bytes,
+/// and the error is valid until 8 more like it are made: to keep one longer, use
+/// `keep`. A message that does not fit loses its end, and one with nothing
+/// written keeps the message it had.
+#format
+public func annotate(Error base, string format, ...args) Error {
+	fmt.Writer w = fmt.Writer{fd: -1, buf: begin(), mode: fmt.BufMode.Full};
+	let _, _ = w.format(format, args...);
+	return commit(base, w.buffered() > 0 ? w.buffered() : -1);
+}
+
+/// Copies an error into memory of `a`, so that it stays as it is for as long as
+/// the allocator keeps it, however many errors are made after it. It never fails:
+/// when there is no memory the result is an `OutOfMemory` error. A null error
+/// stays null. Give the copy back with `release`, or let an arena do it.
+public func keep(mem.Allocator a, Error e) Error {
+	return e if e == null;
+	*Record from = (*Record)(e);
+	int shown = len(from.message);
+	int total = sizeof(Record) + len(from.message) + len(from.block);
+	*void space = a.alloc(total) ?? return Error(Kind.OutOfMemory, "out of memory while keeping an error");
+	*Record to = (*Record)(space);
+	*byte text = (*byte)(space) + sizeof(Record);
+	mem.copy(text, (*byte)(from.message), len(from.message));
+	mem.copy(text + shown, (*byte)(from.block), len(from.block));
+	to.domain = from.domain;
+	to.code = from.code;
+	to.file = from.file;
+	to.line = from.line;
+	to.message = string(text[..shown]);
+	to.block = string((text + shown)[..len(from.block)]);
+	return Error(to);
+}
+
+/// Gives back an error made by `keep`, to the allocator it was kept in.
+public func release(mem.Allocator a, Error e) {
+	return if e == null;
+	mem.free(a, (*void)(e));
+}
+
+func begin() []byte {
+	return texts[cursor * SlotText..(cursor + 1) * SlotText];
+}
+
+func commit(Error base, int n) Error {
+	*Record from = (*Record)(base);
+	int length = n;
+	if n < 0 {
+		length = len(from.message) > SlotText ? SlotText : len(from.message);
+		for i in 0..length {
+			texts[cursor * SlotText + i] = from.message[i];
+		}
+	} else if n > SlotText {
+		length = SlotText;
+	}
+	string message = string(texts[cursor * SlotText..cursor * SlotText + length]);
+	records[cursor] = Record{domain: from.domain, code: from.code, message: message, file: from.file, line: from.line, block: shown(from, message)};
+	Error made = Error(&records[cursor]);
+	cursor = (cursor + 1) % Slots;
+	return made;
+}
+
+func put([]byte out, int at, string text) int {
+	int n = len(text);
+	if at + n > len(out) {
+		n = len(out) - at;
+	}
+	for i in 0..n {
+		out[at + i] = text[i];
+	}
+	return at + n;
+}
+
+func shown(*Record from, string message) string {
+	if len(from.block) == 0 || (*void)(from) == (*void)(&records[cursor]) {
+		return from.block;
+	}
+	int start = 0;
+	for i in 0..len(from.block) {
+		if from.block[i] == '\n' {
+			start = i + 1;
+			break;
+		}
+	}
+	[]byte out = blocks[cursor * SlotBlock..(cursor + 1) * SlotBlock];
+	int at = 0;
+	if len(from.domain) == 0 {
+		at = put(out, at, "error: ");
+	} else {
+		at = put(out, at, "error[");
+		at = put(out, at, from.domain);
+		at = put(out, at, "]: ");
+	}
+	at = put(out, at, message);
+	at = put(out, at, "\n");
+	at = put(out, at, from.block[start..]);
+	return string(out[..at]);
+}

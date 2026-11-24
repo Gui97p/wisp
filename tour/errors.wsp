@@ -3,6 +3,7 @@
 
 import "std/errors";
 import "std/fmt";
+import "std/mem";
 
 // An enum is the family of an error: each member is one kind of failure. The
 // member's number is the exit code if the error ends the program, so the
@@ -20,6 +21,35 @@ func divide(int a, b) !int {
 		return Error(DivError.DivByZero, "cannot divide by zero");
 	}
 	return a / b;
+}
+
+// An error does not have to belong to an enum. `Error("message")` is a plain
+// error: no enum, the code 1, and the message. It compares with null and with
+// other errors, and an error kept in a global works as a sentinel to look for:
+// two errors are equal when they are the very same record.
+Error missing = Error("nothing there");
+
+func lookup(int key) !int {
+	return missing if key == 0;
+	return Error("the key is negative") if key < 0;
+	return key * 2;
+}
+
+// An Error is a constant, so a message that holds a value, such as a path, is
+// made at run time instead: `errors.errorf("no file {path}")` is a plain error
+// with the values written into its message, and `errors.annotate(e, "loading
+// {path}: {e}")` gives an error a new message and keeps its kind, and where it
+// was raised. `errors.annotate(Error(Kind.NotFound), "no file {path}")` makes an
+// error of a kind with a message of its own.
+func open(string path) !int {
+	return errors.errorf("cannot open {path}") if len(path) == 0;
+	return errors.annotate(Error(errors.Kind.NotFound), "no file {path}") if path == "missing.txt";
+	return len(path);
+}
+
+func openAndLoad(string path) !int {
+	let n = open(path) ?? |e| return errors.annotate(e, "loading {path}: {e}");
+	return n;
 }
 
 // A postfix `!` passes the error up: if the call fails, this function fails
@@ -139,6 +169,26 @@ public func demo() {
 	// An error prints with `{}` as its message, and `{v}` adds the enum and
 	// where it was raised. An error that is null prints as <null error>.
 	fmt.printf("{} | {v}\n", err, err);
+
+	let _, notThere = openAndLoad("missing.txt");
+	fmt.printf("{} | NotFound: {}\n", notThere, notThere == errors.Kind.NotFound);
+
+	// An error made at run time is valid until eight more like it are made, which
+	// is plenty to handle it or pass it up. To keep one longer, `errors.keep`
+	// copies it into an allocator, and an arena clears it with everything else.
+	mem.Arena arena;
+	defer arena.release();
+	Error saved = errors.keep(&arena, notThere);
+	for _ in 0..20 {
+		let _, _ = openAndLoad("missing.txt");
+	}
+	fmt.printf("kept: {}\n", saved);
+
+	// A plain error has no enum to match, so a sentinel or its message tells
+	// it apart: `err == missing` is true only for the error raised from `missing`.
+	let _, gone = lookup(0);
+	let _, negative = lookup(-4);
+	fmt.printf("{} | {} | sentinel: {}, {}\n", gone, negative, gone == missing, negative == missing);
 
 	// A function with no result hands its error to `let`, which holds null when
 	// it worked. `temporary` and `missing` tell families of kinds apart: a

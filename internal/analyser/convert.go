@@ -622,6 +622,9 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 		}
 		return result
 	}
+	if _, toError := result.(ErrorType); toError {
+		return a.checkErrorConv(expr, result)
+	}
 	pointer, isPointer := result.(PointerType)
 	if !isPointer {
 		a.errorf(expr, "%s is not a pointer type: write a conversion to it as %s(x)", result, result)
@@ -649,6 +652,7 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 		a.fixUntyped(arg, PrimitiveType{Name: "uint64"})
 	case isNullType(from) && a.retypeNull(arg, from, result):
 	case isInterfaceValue(from) && isVoidPointer(pointer):
+	case isErrorType(from):
 	case isWideInteger(underlyingOf(from)):
 	case isString(underlyingOf(from)) && isByteLike(pointer.Element):
 	case sequenceMatches(underlyingOf(from), pointer.Element):
@@ -795,4 +799,36 @@ func (a *Analyser) insertInterfaceConversion(slot *ast.Expression, from PointerT
 func isInterfaceValue(t Type) bool {
 	_, ok := t.(*InterfaceType)
 	return ok
+}
+
+func isErrorType(t Type) bool {
+	_, ok := t.(ErrorType)
+	return ok
+}
+
+func (a *Analyser) checkErrorConv(expr *ast.ConvExpr, result Type) Type {
+	if len(expr.Args) != 1 {
+		a.errorf(expr, "conversion to Error expects 1 argument, got %d", len(expr.Args))
+		for _, arg := range expr.Args {
+			a.checkExpr(arg)
+		}
+		return result
+	}
+	arg := expr.Args[0]
+	from := a.checkExpr(arg)
+	if isInvalidType(from) {
+		return result
+	}
+	if _, isPtr := underlyingOf(from).(PointerType); !isPtr {
+		a.errorf(expr, "an Error is made from a pointer to its record, and the argument is %s", from.String())
+		return InvalidType{}
+	}
+	cast := &ast.CastExpr{Value: arg}
+	line, col := expr.Position()
+	cast.SetPos(line, col)
+	endLine, endCol := expr.EndPosition()
+	cast.SetEndPos(endLine, endCol)
+	a.info.Types[cast] = result
+	expr.Cast = cast
+	return result
 }
