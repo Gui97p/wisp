@@ -7,16 +7,10 @@
 // `release`, `fast`), joined with `&`, `|`, `!` and parentheses:
 // `#target x64 & linux`, or `#target x64 & !windows`.
 //
-// `#target` only filters. The file is still a module of its own, with its own
-// names. Here linux.wsp and windows.wsp are two such modules, and this file picks
-// the one that exists with an import that has the same kind of condition in
-// angle brackets and a common name:
-//
-//     import<linux> "platform/linux" as system;
-//     import<windows> "platform/windows" as system;
-//
-// Whatever `system.` reaches is the module of the target being built, and what
-// they make public is also part of this package, as with any file in the folder.
+// `#target` only filters. The files of a folder are one module, so linux.wsp
+// and windows.wsp both declare `name` and `separator`, and in each build only
+// the file for that target exists: this file just calls them, with no import
+// and no condition.
 //
 // The same expressions work after `func`, `struct`, `enum`, `type`, `const`,
 // `native` and `let` or `var` (for a global), for one declaration instead of a
@@ -27,17 +21,15 @@
 // A name that exists only for other targets gets an error that says so.
 
 import "std/fmt";
-import<linux> "platform/linux" as system;
-import<windows> "platform/windows" as system;
 
 func lineEnd() string => "\n";
 
 func<windows> lineEnd() string => "\r\n";
 
 public func describe() string {
-  return system.name();
+  return name();
 }
 
 public func demo() {
-  fmt.printf("this build is for {}, paths are separated with \"{}\", and a line ends with {} byte(s)\n", system.name(), system.separator(), len(lineEnd()));
+  fmt.printf("this build is for {}, paths are separated with \"{}\", and a line ends with {} byte(s)\n", name(), separator(), len(lineEnd()));
 }

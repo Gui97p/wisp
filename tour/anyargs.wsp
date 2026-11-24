@@ -1,3 +1,4 @@
+#standalone
 // Tour - Variadics of any type.
 //
 // `...name` with no type before it takes any number of arguments of any type.

@@ -1,3 +1,4 @@
+#standalone
 // Tour - Enums with data.
 //
 // An enum member can carry data of its own. The members are the variants of

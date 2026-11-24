@@ -1,10 +1,9 @@
-import "std/fmt/writer";
 import "std/os";
 
 /// Writes `text` to the file descriptor `fd`. Errors are ignored.
 public func fprint(int fd, string text) {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: fd, buf: buf, mode: .Full};
+	Writer w = Writer{fd: fd, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.flush() ?? return;
@@ -13,7 +12,7 @@ public func fprint(int fd, string text) {
 /// Writes `text` and a newline to the file descriptor `fd`. Errors are ignored.
 public func fprintln(int fd, string text) {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: fd, buf: buf, mode: .Full};
+	Writer w = Writer{fd: fd, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.writeByte('\n') ?? return;
@@ -27,7 +26,7 @@ public func fprintln(int fd, string text) {
 /// with the error of the write.
 public func fprintf(int fd, string format, ...args) !int {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: fd, buf: buf, mode: .Full};
+	Writer w = Writer{fd: fd, buf: buf, mode: .Full};
 
 	let r, p = w.format(format, args...);
 	let fp = w.flush();
@@ -39,7 +38,7 @@ public func fprintf(int fd, string format, ...args) !int {
 /// Writes `text` to standard output. Errors are ignored.
 public func print(string text) {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf, mode: .Full};
+	Writer w = Writer{fd: os.STDOUT, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.flush() ?? return;
@@ -48,7 +47,7 @@ public func print(string text) {
 /// Writes `text` and a newline to standard output. Errors are ignored.
 public func println(string text) {
 	[512]byte buf;
-	writer.Writer w = writer.Writer{fd: os.STDOUT, buf: buf, mode: .Full};
+	Writer w = Writer{fd: os.STDOUT, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.writeByte('\n') ?? return;
@@ -64,7 +63,7 @@ public func printf(string format, ...args) {
 /// Copies `text` into `buf`. Fails with `NoSpace` when it does not fit, and then
 /// `buf` holds only what fit before. Nothing is added after the text.
 public func sprint([]byte buf, string text) ! {
-	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
+	Writer w = Writer{fd: -1, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.flush() ?? return;
@@ -73,7 +72,7 @@ public func sprint([]byte buf, string text) ! {
 /// Copies `text` and a newline into `buf`. It does nothing more when they do not
 /// fit, and errors are ignored.
 public func sprintln([]byte buf, string text) {
-	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
+	Writer w = Writer{fd: -1, buf: buf, mode: .Full};
 
 	w.write(text) ?? return;
 	w.writeByte('\n') ?? return;
@@ -84,7 +83,7 @@ public func sprintln([]byte buf, string text) {
 /// Fails with `NoSpace` when the result does not fit, or with a `FormatError`.
 /// Nothing is added after the text.
 public func sprintf([]byte buf, string format, ...args) !int {
-	writer.Writer w = writer.Writer{fd: -1, buf: buf, mode: .Full};
+	Writer w = Writer{fd: -1, buf: buf, mode: .Full};
 
 	let r, p = w.format(format, args...);
 	let fp = w.flush();

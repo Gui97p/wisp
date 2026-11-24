@@ -332,7 +332,7 @@ func checkWorkspace(text, root string, cfg *Config) []ConfigIssue {
 }
 
 func HasOwnSources(root string) bool {
-	roots, err := discoverModuleRoots(root)
+	roots, err := discoverModuleRoots(root, nil)
 	return err == nil && len(roots) > 0
 }
 

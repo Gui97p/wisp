@@ -9,23 +9,21 @@
  * ====================================================
  */
 
-import "std/math/exp";
-import "std/math/ieee";
 
 const {
-	one = 1.0;
+	hyper_one = 1.0;
 	shuge = 1.0e307;
-	half = 0.5;
-	huge = 1.0e300;
-	two = 2.0;
-	tiny = 1.0e-300;
+	hyper_half = 0.5;
+	hyper_huge = 1.0e300;
+	hyper_two = 2.0;
+	hyper_tiny = 1.0e-300;
 }
 
 /// Returns the hyperbolic sine of `x`. It overflows to an infinity of the sign of
 /// `x` for large magnitudes, and NaN returns NaN.
 public func sinh(float x) float {
-	uint ujx = ieee.highWord(x);
-	int jx = ieee.signed32(ujx);
+	uint ujx = highWord(x);
+	int jx = signed32(ujx);
 	int ix = int(ujx & 0x7fffffff);
 	if ix >= 0x7ff00000 {
 		return x + x;
@@ -37,23 +35,23 @@ public func sinh(float x) float {
 	}
 	if ix < 0x40360000 {
 		if ix < 0x3e300000 {
-			if shuge + x > one {
+			if shuge + x > hyper_one {
 				return x;
 			}
 		}
-		float t = exp.expm1(ieee.fabs(x));
+		float t = expm1(fabs(x));
 		if ix < 0x3ff00000 {
-			return h * (2.0 * t - t * t / (t + one));
+			return h * (2.0 * t - t * t / (t + hyper_one));
 		}
-		return h * (t + t / (t + one));
+		return h * (t + t / (t + hyper_one));
 	}
 	if ix < 0x40862E42 {
-		return h * exp.exp(ieee.fabs(x));
+		return h * exp(fabs(x));
 	}
 
-	uint lx = ieee.lowWord(x);
+	uint lx = lowWord(x);
 	if ix < 0x408633CE || (ix == 0x408633ce && lx <= 0x8fb9f87d) {
-		float w = exp.exp(0.5 * ieee.fabs(x));
+		float w = exp(0.5 * fabs(x));
 		float t = h * w;
 		return t * w;
 	}
@@ -63,64 +61,64 @@ public func sinh(float x) float {
 /// Returns the hyperbolic cosine of `x`, always at least 1. It overflows to
 /// +infinity for large magnitudes, and NaN returns NaN.
 public func cosh(float x) float {
-	int ix = int(ieee.highWord(x) & 0x7fffffff);
+	int ix = int(highWord(x) & 0x7fffffff);
 	if ix >= 0x7ff00000 {
 		return x * x;
 	}
 
 	if ix < 0x3fd62e43 {
-		float t = exp.expm1(ieee.fabs(x));
-		float w = one + t;
+		float t = expm1(fabs(x));
+		float w = hyper_one + t;
 		if ix < 0x3c800000 {
 			return w;
 		}
-		return one + (t * t) / (w + w);
+		return hyper_one + (t * t) / (w + w);
 	}
 	if ix < 0x40360000 {
-		float t = exp.exp(ieee.fabs(x));
-		return half * t + half / t;
+		float t = exp(fabs(x));
+		return hyper_half * t + hyper_half / t;
 	}
 	if ix < 0x40862E42 {
-		return half * exp.exp(ieee.fabs(x));
+		return hyper_half * exp(fabs(x));
 	}
 
-	uint lx = ieee.lowWord(x);
+	uint lx = lowWord(x);
 	if ix < 0x408633CE || (ix == 0x408633ce && lx <= 0x8fb9f87d) {
-		float w = exp.exp(half * ieee.fabs(x));
-		float t = half * w;
+		float w = exp(hyper_half * fabs(x));
+		float t = hyper_half * w;
 		return t * w;
 	}
-	return huge * huge;
+	return hyper_huge * hyper_huge;
 }
 
 /// Returns the hyperbolic tangent of `x`, in the range -1 to 1. It is exactly 1 or
 /// -1 for large magnitudes and infinities, and NaN returns NaN.
 public func tanh(float x) float {
-	uint ujx = ieee.highWord(x);
-	int jx = ieee.signed32(ujx);
+	uint ujx = highWord(x);
+	int jx = signed32(ujx);
 	int ix = int(ujx & 0x7fffffff);
 
 	if ix >= 0x7ff00000 {
 		if jx >= 0 {
-			return one / x + one;
+			return hyper_one / x + hyper_one;
 		}
-		return one / x - one;
+		return hyper_one / x - hyper_one;
 	}
 
 	float z;
 	if ix < 0x40360000 {
 		if ix < 0x3c800000 {
-			return x * (one + x);
+			return x * (hyper_one + x);
 		}
 		if ix >= 0x3ff00000 {
-			float t = exp.expm1(two * ieee.fabs(x));
-			z = one - two / (t + two);
+			float t = expm1(hyper_two * fabs(x));
+			z = hyper_one - hyper_two / (t + hyper_two);
 		} else {
-			float t = exp.expm1(-two * ieee.fabs(x));
-			z = -t / (t + two);
+			float t = expm1(-hyper_two * fabs(x));
+			z = -t / (t + hyper_two);
 		}
 	} else {
-		z = one - tiny;
+		z = hyper_one - hyper_tiny;
 	}
 	if jx >= 0 {
 		return z;

@@ -1032,16 +1032,15 @@ func main() {
 }
 `},
 
-	{dir: "internal_package", files: map[string]string{"shapes/shapes.wsp": `import "shapes/sides";
-import "shapes/deep";
+	{dir: "internal_package", files: map[string]string{"shapes/shapes.wsp": `import "shapes/deep";
 
 public func boxArea(int w) int {
-    sides.Box b = sides.Box{w: w, scale: 2};
+    Box b = Box{w: w, scale: 2};
     return b.w * b.scale;
 }
 
 public func corners(int n) int {
-    return deep.twice(sides.count(n)) + sides.hidden() - 1;
+    return deep.twice(count(n)) + hidden() - 1;
 }
 `, "far/far.wsp": `import "shapes/deep";
 
@@ -1112,12 +1111,12 @@ internal func shared() int {
 public func answer() int {
     return shared();
 }
-`, "tools/tools.wsp": `import "counter/counter";
+`, "tools/tools.wsp": `import "counter";
 
 public func double(int n) int {
     return n * 2 + counter.answer() - counter.answer();
 }
-`}, src: `import "counter/counter";
+`}, src: `import "counter";
 import "tools";
 
 func main() {
@@ -1255,22 +1254,19 @@ func main() {
     check(world.isEven(10) && !world.isEven(7), "functions call each other across modules");
 }
 `, expected: []string{"two modules that import each other share their types", "a struct points at a type from the module that imports it", "functions call each other across modules"}},
-	{dir: "methods_across_files", files: map[string]string{"shapes/shapes.wsp": `import "shapes/shape";
-`, "shapes/shape.wsp": `public struct Shape {
+	{dir: "methods_across_files", files: map[string]string{"shapes/shape.wsp": `public struct Shape {
     int w;
     int h;
 }
-`, "shapes/area.wsp": `import "shapes/shape";
-
-public func (*shape.Shape s) area() int {
+`, "shapes/area.wsp": `public func (*Shape s) area() int {
     return s.w * s.h;
 }
 
-func (*shape.Shape s) double() int {
+func (*Shape s) double() int {
     return s.area() * 2;
 }
 
-public func (*shape.Shape s) twiceArea() int {
+public func (*Shape s) twiceArea() int {
     return s.double();
 }
 `}, src: `import "shapes";
@@ -7606,35 +7602,33 @@ func main() {
 }
 `, expected: []string{"a native replaces the plain function of its architecture", "a native function returns several named results", "a native function with no result", "native statements pick their architecture"}},
 
-	{dir: "target_directive", system: "linux", files: map[string]string{"platform/platform.wsp": `import<x64> "platform/x64" as impl;
-
-const SIZE = 1;
+	{dir: "target_directive", system: "linux", files: map[string]string{"platform/platform.wsp": `const SIZE = 1;
 
 public func base() int {
     return 10;
 }
 
 public func described() int {
-    return impl.kind() + 1;
+    return kind() + 1;
 }
 
 public func bumped(int a) int {
-    return impl.bump(a) + impl.bumpTwice(a);
+    return bump(a) + bumpTwice(a);
 }
 
 public func sizes() int {
-    return SIZE + impl.size();
+    return SIZE + size();
 }
 `, "platform/x64.wsp": `#target x64
 
-const SIZE = 2;
+const X64_SIZE = 2;
 
 internal func kind() int {
     return 3;
 }
 
 internal func size() int {
-    return SIZE;
+    return X64_SIZE;
 }
 
 internal native bump(int a) int r {
@@ -9223,7 +9217,7 @@ func main() ! {
     *int p = mem.heap.alloc(-1)!;
     mem.heap.free(p);
 }
-`, expected: []string{"oom before the failure"}, abort: "error[std/errors/kind.Kind]: Kind.OutOfMemory"},
+`, expected: []string{"oom before the failure"}, abort: "error[std/errors.Kind]: Kind.OutOfMemory"},
 
 	{dir: "ptr_index", src: `import "std/mem";
 struct P {
@@ -9263,6 +9257,7 @@ func main() ! {
 `, expected: []string{"pointer index first", "pointer index second", "pointer index last", "pointer index compound assign", "pointer index through a converted pointer", "pointer index on bytes", "pointer index with a variable", "pointer index struct field a", "pointer index struct field b"}},
 
 	{dir: "strings_core", src: `import "std/mem";
+import "std/slices";
 import "std/strings";
 
 func main() ! {
@@ -9339,13 +9334,13 @@ func main() ! {
     strings.toUpper(word);
     check(string(word) == "ABC", "toUpper in place");
     [4]byte even = .{'a', 'b', 'c', 'd'};
-    strings.reverse(even);
+    slices.reverse(even);
     check(string(even) == "dcba", "reverse even length");
     [5]byte odd = .{'a', 'b', 'c', 'd', 'e'};
-    strings.reverse(odd);
+    slices.reverse(odd);
     check(string(odd) == "edcba", "reverse odd length");
     [0]byte nothing;
-    strings.reverse(nothing);
+    slices.reverse(nothing);
     check(len(nothing) == 0, "reverse empty");
 
     []byte copy = strings.clone("hey")!;
@@ -10305,15 +10300,13 @@ func main() {
 `, expected: []string{"two modules call each other", "a function reaches the other module through the cycle", "a constant of the other module is read after loading"}},
 
 	{dir: "target_files", system: "linux", files: map[string]string{"where/where.wsp": `import "std/math";
-import<x64> "where/x64" as arch;
-import<windows> "where/windows" as arch;
 
 public func name() int {
-    return arch.which() + arch.extra() + math.min(0, 1);
+    return which() + extra() + math.min(0, 1);
 }
 
 public func pieces() int {
-    return arch.both();
+    return both();
 }
 `, "where/x64.wsp": `#target linux & x64
 

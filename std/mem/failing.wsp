@@ -1,20 +1,18 @@
 import "std/errors";
-import "std/mem";
-
 /// An allocator that fails on purpose, to test the error paths of code that
 /// allocates. It counts the calls to `alloc`, `allocDirty` and `realloc`; when
 /// `after` is set, the call number `after + 1` and every later one fail with
 /// `OutOfMemory`. When `after` is null it never fails. Calls that pass are
-/// forwarded to `parent`, or to `mem.heap` when `parent` is null, and `free` is
+/// forwarded to `parent`, or to `heap` when `parent` is null, and `free` is
 /// always forwarded.
-public struct Failing implements mem.Allocator {
-	?mem.Allocator parent;
+public struct Failing implements Allocator {
+	?Allocator parent;
 	?int after;
 	internal int attempts;
 }
 
-func (*Failing f) source() mem.Allocator {
-	return f.parent ?? mem.heap;
+func (*Failing f) source() Allocator {
+	return f.parent ?? heap;
 }
 
 func (*Failing f) permit() ! {

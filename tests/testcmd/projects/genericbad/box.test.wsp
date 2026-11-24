@@ -1,3 +1,4 @@
+#standalone
 import "box";
 
 #test("a generic test")

@@ -1,3 +1,4 @@
+#standalone
 // Tour - Branching: `if` and `switch`.
 
 import "std/fmt";

@@ -1,3 +1,4 @@
+#standalone
 // Tour - Integer overflow: wrapping, saturating and truncating.
 //
 // An integer has a fixed size, and the result of an operation can be too big

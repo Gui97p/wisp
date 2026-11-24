@@ -1,3 +1,4 @@
+#standalone
 #test("never ends")
 func forever() {
   loop {

@@ -1,3 +1,4 @@
+#standalone
 import "std/fmt";
 import "std/math";
 import "std/mem";

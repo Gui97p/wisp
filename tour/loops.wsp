@@ -1,3 +1,4 @@
+#standalone
 // Tour - Loops: `for` and `loop`.
 
 import "std/fmt";

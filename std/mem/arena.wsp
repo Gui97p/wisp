@@ -2,8 +2,6 @@
 
 import "std/errors";
 import "std/math";
-import "std/mem";
-
 const {
 	HEADER = 32;
 	ARENA_CHUNK_SIZE = 64 * 1024;
@@ -19,7 +17,7 @@ inline func (*Chunk c) data() *byte {
 	return (*byte)(c) + HEADER;
 }
 
-func newChunk(mem.Allocator source, int need) !*Chunk {
+func newChunk(Allocator source, int need) !*Chunk {
 	int size = math.max(ARENA_CHUNK_SIZE - HEADER, need);
 	*Chunk p = source.allocDirty(HEADER + size)!;
 	p.size = size;
@@ -38,23 +36,23 @@ public struct Mark {
 
 /// An allocator that hands out memory in a row and frees it all at once. Blocks
 /// are 16-byte aligned and are never freed one by one. The memory comes in chunks
-/// of 64 KiB (more for a bigger request) from `parent`, or from `mem.heap` when
+/// of 64 KiB (more for a bigger request) from `parent`, or from `heap` when
 /// `parent` is null. An arena needs no setup: the zero value is empty and ready.
 /// Call `release` when done with it, or the chunks stay allocated.
-public struct Arena implements mem.Allocator {
-	?mem.Allocator parent;
+public struct Arena implements Allocator {
+	?Allocator parent;
 	internal ?*Chunk head;
 }
 
-func (*Arena a) source() mem.Allocator {
-	return a.parent ?? mem.heap;
+func (*Arena a) source() Allocator {
+	return a.parent ?? heap;
 }
 
 /// Allocates `n` zeroed bytes in the arena. Fails with `Invalid` for a negative
 /// `n` and with the error of the parent when it cannot give a new chunk.
 public func (*Arena a) alloc(int n) !*void {
 	*byte p = a.allocDirty(n)!;
-	mem.fill(p, 0, n);
+	fill(p, 0, n);
 	return p;
 }
 
@@ -91,7 +89,7 @@ public func (*Arena a) allocDirty(int n) !*void {
 /// Returns every chunk to the parent. All blocks of the arena become invalid. The
 /// arena is empty afterwards and can be used again.
 public func (*Arena a) release() {
-	mem.Allocator source = a.source();
+	Allocator source = a.source();
 	?*Chunk c = a.head;
 	loop c |chunk| {
 		?*Chunk next = chunk.next;
@@ -108,7 +106,7 @@ public func (*Arena) free(?*void _p) {}
 /// to the parent. Pointers from before the reset are invalid, and the memory is
 /// not cleared.
 public func (*Arena a) reset() {
-	mem.Allocator source = a.source();
+	Allocator source = a.source();
 	if a.head |head| {
 		?*Chunk c = head.next;
 		loop c |chunk| {
@@ -134,7 +132,7 @@ public inline func (*Arena a) mark() Mark {
 /// the parent. Blocks allocated after the mark are invalid. A mark taken from an
 /// empty arena empties it, but keeps no chunk.
 public func (*Arena a) rewind(Mark m) {
-	mem.Allocator source = a.source();
+	Allocator source = a.source();
 	?*Chunk c = a.head;
 	loop c |chunk| {
 		break if c == m.chunk;
@@ -160,12 +158,12 @@ public func (*Arena a) realloc(?*void p, int old, int n) !*void {
 		if (*byte)(block) + was == head.data() + head.used && head.used - was + want <= head.size {
 			head.used = head.used - was + want;
 			if n > old {
-				mem.fill((*byte)(block) + old, 0, n - old);
+				fill((*byte)(block) + old, 0, n - old);
 			}
 			return block;
 		}
 	}
 	*void next = a.alloc(n)!;
-	mem.copy(next, block, math.min(old, n));
+	copy(next, block, math.min(old, n));
 	return next;
 }

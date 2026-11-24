@@ -53,6 +53,7 @@ type Program struct {
 	Declarations []Declaration
 	Target       string
 	TargetAt     Position
+	Standalone   bool
 }
 
 func (p *Program) Tree(indent string) string {

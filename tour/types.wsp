@@ -1,3 +1,4 @@
+#standalone
 // Tour - Types: aliases, enums, sizes and conversions.
 
 import "std/fmt";

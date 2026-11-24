@@ -1,10 +1,7 @@
-#target x64
+#target debug & x64
 
 import "std/errors";
 import "std/fmt";
-import "std/mem";
-import "std/mem/heap" as raw;
-import "std/mem/x64" as impl;
 import "std/strings";
 
 const {
@@ -22,7 +19,7 @@ struct Header {
 }
 
 /// An allocator that finds mistakes in how blocks are used, and forwards the
-/// memory to `parent`, or to `mem.heap` when `parent` is null. Every block has a
+/// memory to `parent`, or to `heap` when `parent` is null. Every block has a
 /// header that records where it was allocated, and guard bytes after it. It
 /// panics on a double free, on a free or realloc of a pointer that is not a block
 /// of this allocator, on a write past the end of a block, on a write to a freed
@@ -30,8 +27,8 @@ struct Header {
 /// with `0xDD` and kept in a ring of the last 256 until they are checked and
 /// returned. Dirty blocks start filled with `0xCD`. It is only built with the
 /// `debug` profile, and the heap uses it there.
-public struct Debug implements mem.Allocator {
-	?mem.Allocator parent;
+public struct Debug implements Allocator {
+	?Allocator parent;
 	internal ?*Header head;
 	internal []uint table;
 	internal int entries, tombs;
@@ -48,8 +45,8 @@ inline func dataOf(*Header h) *byte {
 	return (*byte)(h) + HEAD;
 }
 
-func (*Debug d) source() mem.Allocator {
-	return d.parent ?? mem.heap;
+func (*Debug d) source() Allocator {
+	return d.parent ?? heap;
 }
 
 func fail(*Header h, string what) {
@@ -123,7 +120,7 @@ func (*Debug d) rebuild() ! {
 		want *= 2;
 	}
 	[]uint old = d.table;
-	*void block = raw.allocate(want * 8, true) ?? return Error(errors.Kind.OutOfMemory);
+	*void block = allocate(want * 8, true) ?? return Error(errors.Kind.OutOfMemory);
 	d.table = (*uint)(block)[0:want];
 	d.entries = 0;
 	d.tombs = 0;
@@ -133,7 +130,7 @@ func (*Debug d) rebuild() ! {
 		}
 	}
 	if len(old) > 0 {
-		raw.release(old);
+		release(old);
 	}
 }
 
@@ -175,11 +172,11 @@ func (*Debug d) obtain(int n, bool zero) !*void {
 	int total = HEAD + n + CANARY;
 	*void raw = d.source().allocDirty(total)!;
 	if zero {
-		mem.fill(raw, 0, total);
+		fill(raw, 0, total);
 	}
 	*Header h = (*Header)(raw);
 	h.size = n;
-	h.site = impl.site();
+	h.site = site();
 	h.freed = "";
 	h.prev = null;
 	h.next = d.head;
@@ -192,9 +189,9 @@ func (*Debug d) obtain(int n, bool zero) !*void {
 	}
 	d.head = h;
 	if !zero {
-		mem.fill(dataOf(h), 0xCD, n);
+		fill(dataOf(h), 0xCD, n);
 	}
-	mem.fill(dataOf(h) + n, 0xFD, CANARY);
+	fill(dataOf(h) + n, 0xFD, CANARY);
 	d.liveBlocks++;
 	return dataOf(h);
 }
@@ -241,8 +238,8 @@ public func (*Debug d) free(?*void p) {
 		after.prev = h.prev;
 	}
 	d.untrack(at);
-	h.freed = impl.site();
-	mem.fill(dataOf(h), 0xDD, h.size);
+	h.freed = site();
+	fill(dataOf(h), 0xDD, h.size);
 	d.liveBlocks--;
 	if d.ringCount == len(d.ring) {
 		d.evict();
@@ -266,7 +263,7 @@ public func (*Debug d) realloc(?*void p, int old, int n) !*void {
 	}
 	return block if n == old;
 	*void next = d.obtain(n, true)!;
-	mem.copy(next, block, old < n ? old : n);
+	copy(next, block, old < n ? old : n);
 	d.free(block);
 	return next;
 }
@@ -293,7 +290,7 @@ public func (*Debug d) release() {
 		d.evict();
 	}
 	if len(d.table) > 0 {
-		raw.release(d.table);
+		release(d.table);
 		d.table = .{};
 		d.entries = 0;
 		d.tombs = 0;

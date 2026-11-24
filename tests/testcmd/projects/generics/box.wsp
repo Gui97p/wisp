@@ -1,3 +1,4 @@
+#standalone
 public struct Box<T> {
 	T value;
 }

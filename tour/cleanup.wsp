@@ -1,3 +1,4 @@
+#standalone
 // Tour - Defer.
 //
 // `defer` runs a statement when the block it is written in is left, however

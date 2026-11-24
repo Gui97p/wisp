@@ -1,7 +1,5 @@
 #target linux & x64
 
-import "std/sys";
-
 const {
 	SYS_READ = 0;
 	SYS_WRITE = 1;
@@ -68,9 +66,9 @@ struct StatBuf {
 	int st_blksize;
 	int st_blocks;
 
-	sys.Timespec st_atim;
-	sys.Timespec st_mtim;
-	sys.Timespec st_ctim;
+	Timespec st_atim;
+	Timespec st_mtim;
+	Timespec st_ctim;
 
 	int __reserved0;
 	int __reserved1;
@@ -187,7 +185,7 @@ internal native munmap(*void addr, int len) int r {
 }
 
 internal func time(int clock) (int, int) {
-	sys.Timespec ts;
+	Timespec ts;
 	native {
 		mov eax, SYS_CLOCK_GETTIME;
 		mov rdi, clock;
@@ -198,7 +196,7 @@ internal func time(int clock) (int, int) {
 }
 
 internal func sleep(int sec, nsec) int {
-	sys.Timespec req = sys.Timespec{tv_sec: sec, tv_nsec: nsec};
+	Timespec req = Timespec{tv_sec: sec, tv_nsec: nsec};
 	int r;
 	native {
 		mov eax, SYS_NANOSLEEP;
@@ -301,7 +299,7 @@ internal native args() []string s {
 }
 
 internal func cpath(*byte buf, string p) int {
-	return -sys.ENAMETOOLONG if len(p) >= PATH_MAX;
+	return -ENAMETOOLONG if len(p) >= PATH_MAX;
 	for i, c in p {
 		buf[i] = c;
 	}
@@ -346,7 +344,7 @@ internal func rename(string from, string to) int {
 	return rawRename((*byte)(fromBuf), (*byte)(toBuf));
 }
 
-internal func stat(string path, *sys.Stat out) int {
+internal func stat(string path, *Stat out) int {
 	[4096]byte buf;
 	int r = cpath((*byte)(buf), path);
 	return r if r < 0;
@@ -354,10 +352,10 @@ internal func stat(string path, *sys.Stat out) int {
 	r = rawStat((*byte)(buf), &s);
 	return r if r < 0;
 	out.kind = switch int(s.st_mode) & S_IFMT {
-		case S_IFREG => sys.KIND_FILE;
-		case S_IFDIR => sys.KIND_DIR;
-		case S_IFLNK => sys.KIND_LINK;
-		default => sys.KIND_OTHER;
+		case S_IFREG => KIND_FILE;
+		case S_IFDIR => KIND_DIR;
+		case S_IFLNK => KIND_LINK;
+		default => KIND_OTHER;
 	};
 	out.size = s.st_size;
 	out.modified = s.st_mtim.tv_sec * 1_000_000_000 + s.st_mtim.tv_nsec;
@@ -366,7 +364,7 @@ internal func stat(string path, *sys.Stat out) int {
 }
 
 internal func dirOpen(string path, *Dir d) int {
-	int fd = open(path, sys.O_RDONLY | O_DIRECTORY);
+	int fd = open(path, O_RDONLY | O_DIRECTORY);
 	return fd if fd < 0;
 	d.fd = fd;
 	d.pos = 0;
@@ -374,7 +372,7 @@ internal func dirOpen(string path, *Dir d) int {
 	return 0;
 }
 
-internal func dirNext(*Dir d, *sys.Entry e) int {
+internal func dirNext(*Dir d, *Entry e) int {
 	loop {
 		if d.pos >= d.len {
 			int r = getdents(d.fd, (*byte)(d.buf), len(d.buf));
@@ -401,10 +399,10 @@ internal func dirNext(*Dir d, *sys.Entry e) int {
 		}
 		e.len = n;
 		e.kind = switch kind {
-			case DT_REG => sys.KIND_FILE;
-			case DT_DIR => sys.KIND_DIR;
-			case DT_LNK => sys.KIND_LINK;
-			default => sys.KIND_OTHER;
+			case DT_REG => KIND_FILE;
+			case DT_DIR => KIND_DIR;
+			case DT_LNK => KIND_LINK;
+			default => KIND_OTHER;
 		};
 		return 1;
 	}

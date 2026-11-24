@@ -1,3 +1,4 @@
+#standalone
 // Tour - Variadic functions.
 //
 // A variadic parameter is written `type ...name`. Inside the body it is a

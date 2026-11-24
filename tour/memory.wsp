@@ -1,3 +1,4 @@
+#standalone
 // Tour - Allocators.
 //
 // `mem.heap` hands out one block at a time, and the blocks are freed one by

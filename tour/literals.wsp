@@ -1,3 +1,4 @@
+#standalone
 // Tour - Literals: `T{...}`, `.{...}` and `[_]`.
 //
 // A literal builds a value, and a brace always means construction. Brackets

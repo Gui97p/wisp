@@ -19,18 +19,16 @@
  * ====================================================
  */
 
-import "std/math/ieee";
-import "std/math/rempio2";
 
 const {
-	half = 5.00000000000000000000e-01;
+	trig_half = 5.00000000000000000000e-01;
 	S1 = -1.66666666666666324348e-01;
 	S2 = 8.33333333332248946124e-03;
 	S3 = -1.98412698298579493134e-04;
 	S4 = 2.75573137070700676789e-06;
 	S5 = -2.50507602534068634195e-08;
 	S6 = 1.58969099521155010221e-10;
-	one = 1.00000000000000000000e+00;
+	trig_one = 1.00000000000000000000e+00;
 	C1 = 4.16666666666666019037e-02;
 	C2 = -1.38888888888741095749e-03;
 	C3 = 2.48015872894767294178e-05;
@@ -44,7 +42,7 @@ const {
 [13]float T = .{3.33333333333334091986e-01, 1.33333333333201242699e-01, 5.39682539762260521377e-02, 2.18694882948595424599e-02, 8.86323982359930005737e-03, 3.59207910759131235356e-03, 1.45620945432529025516e-03, 5.88041240820264096874e-04, 2.46463134818469906812e-04, 7.81794442939557092300e-05, 7.14072491382608190305e-05, -1.85586374855275456654e-05, 2.59073051863633712884e-05};
 
 func kernelSin(float x, float y, int iy) float {
-	int ix = int(ieee.highWord(x) & 0x7fffffff);
+	int ix = int(highWord(x) & 0x7fffffff);
 	if ix < 0x3e400000 {
 		if int(x) == 0 {
 			return x;
@@ -56,50 +54,50 @@ func kernelSin(float x, float y, int iy) float {
 	if iy == 0 {
 		return x + v * (S1 + z * r);
 	}
-	return x - ((z * (half * y - v * r) - y) - v * S1);
+	return x - ((z * (trig_half * y - v * r) - y) - v * S1);
 }
 
 func kernelCos(float x, float y) float {
-	int ix = int(ieee.highWord(x) & 0x7fffffff);
+	int ix = int(highWord(x) & 0x7fffffff);
 	if ix < 0x3e400000 {
 		if int(x) == 0 {
-			return one;
+			return trig_one;
 		}
 	}
 	float z = x * x;
 	float r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
 	if ix < 0x3FD33333 {
-		return one - (0.5 * z - (z * r - x * y));
+		return trig_one - (0.5 * z - (z * r - x * y));
 	}
 	float qx;
 	if ix > 0x3fe90000 {
 		qx = 0.28125;
 	} else {
-		qx = ieee.fromWords(uint(ix - 0x00200000), 0);
+		qx = fromWords(uint(ix - 0x00200000), 0);
 	}
 	float hz = 0.5 * z - qx;
-	float a = one - qx;
+	float a = trig_one - qx;
 	return a - (hz - (z * r - x * y));
 }
 
 func kernelTan(float x, float y, int iy) float {
-	uint uhx = ieee.highWord(x);
-	int hx = ieee.signed32(uhx);
+	uint uhx = highWord(x);
+	int hx = signed32(uhx);
 	int ix = hx & 0x7fffffff;
 	if ix < 0x3e300000 {
 		if int(x) == 0 {
-			if (uint(ix) | ieee.lowWord(x) | uint(iy + 1)) == 0 {
-				return one / ieee.fabs(x);
+			if (uint(ix) | lowWord(x) | uint(iy + 1)) == 0 {
+				return trig_one / fabs(x);
 			}
 			if iy == 1 {
 				return x;
 			}
 			float w = x + y;
-			float z = ieee.setLowWord(w, 0);
+			float z = setLowWord(w, 0);
 			float v = y - (z - x);
-			float a = -one / w;
-			float t = ieee.setLowWord(a, 0);
-			float s = one + t * z;
+			float a = -trig_one / w;
+			float t = setLowWord(a, 0);
+			float s = trig_one + t * z;
 			return t + a * (s + t * v);
 		}
 	}
@@ -132,10 +130,10 @@ func kernelTan(float x, float y, int iy) float {
 	if iy == 1 {
 		return w;
 	}
-	z = ieee.setLowWord(w, 0);
+	z = setLowWord(w, 0);
 	v = r - (z - x);
 	float a = -1.0 / w;
-	float t = ieee.setLowWord(a, 0);
+	float t = setLowWord(a, 0);
 	s = 1.0 + t * z;
 	return t + a * (s + t * v);
 }
@@ -143,7 +141,7 @@ func kernelTan(float x, float y, int iy) float {
 /// Returns the sine of `x`, given in radians. It is NaN for infinities and NaN,
 /// and the sign of zero is kept.
 public func sin(float x) float {
-	int ix = int(ieee.highWord(x) & 0x7fffffff);
+	int ix = int(highWord(x) & 0x7fffffff);
 	if ix <= 0x3fe921fb {
 		return kernelSin(x, 0.0, 0);
 	}
@@ -151,7 +149,7 @@ public func sin(float x) float {
 		return x - x;
 	}
 	[2]float y;
-	int n = rempio2.remPio2(x, y[:]);
+	int n = remPio2(x, y[:]);
 	int quadrant = n & 3;
 	if quadrant == 0 {
 		return kernelSin(y[0], y[1], 1);
@@ -167,7 +165,7 @@ public func sin(float x) float {
 
 /// Returns the cosine of `x`, given in radians. It is NaN for infinities and NaN.
 public func cos(float x) float {
-	int ix = int(ieee.highWord(x) & 0x7fffffff);
+	int ix = int(highWord(x) & 0x7fffffff);
 	if ix <= 0x3fe921fb {
 		return kernelCos(x, 0.0);
 	}
@@ -175,7 +173,7 @@ public func cos(float x) float {
 		return x - x;
 	}
 	[2]float y;
-	int n = rempio2.remPio2(x, y[:]);
+	int n = remPio2(x, y[:]);
 	int quadrant = n & 3;
 	if quadrant == 0 {
 		return kernelCos(y[0], y[1]);
@@ -193,7 +191,7 @@ public func cos(float x) float {
 /// and the sign of zero is kept. Near odd multiples of pi/2 the result is very
 /// large rather than infinite, because pi/2 is not exactly representable.
 public func tan(float x) float {
-	int ix = int(ieee.highWord(x) & 0x7fffffff);
+	int ix = int(highWord(x) & 0x7fffffff);
 	if ix <= 0x3fe921fb {
 		return kernelTan(x, 0.0, 1);
 	}
@@ -201,6 +199,6 @@ public func tan(float x) float {
 		return x - x;
 	}
 	[2]float y;
-	int n = rempio2.remPio2(x, y[:]);
+	int n = remPio2(x, y[:]);
 	return kernelTan(y[0], y[1], 1 - ((n & 1) << 1));
 }

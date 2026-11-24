@@ -1,3 +1,4 @@
+#standalone
 import "calc";
 
 #test("an internal function is visible to the file next to it")

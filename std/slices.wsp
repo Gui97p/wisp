@@ -1,3 +1,4 @@
+#standalone
 import "std/math";
 
 /// The position of the first element equal to `want`, or -1 when there is none.

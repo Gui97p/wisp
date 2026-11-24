@@ -1,12 +1,10 @@
 import "std/errors";
 import "std/math";
-import "std/mem";
-
-/// An allocator over a buffer you provide, such as a stack array: `mem.Fixed f =
+/// An allocator over a buffer you provide, such as a stack array: `Fixed f =
 /// .{buffer: buf}`. Blocks are 16-byte aligned and are taken in a row; nothing is
 /// freed one by one and nothing is allocated from the heap. When the buffer is
 /// full, allocation fails with `NoSpace`.
-public struct Fixed implements mem.Allocator {
+public struct Fixed implements Allocator {
 	[]byte buffer;
 	internal int bUsed;
 }
@@ -15,7 +13,7 @@ public struct Fixed implements mem.Allocator {
 /// negative `n` and with `NoSpace` when they do not fit.
 public func (*Fixed f) alloc(int n) !*void {
 	*byte p = f.allocDirty(n)!;
-	mem.fill(p, 0, n);
+	fill(p, 0, n);
 	return p;
 }
 
@@ -65,11 +63,11 @@ public func (*Fixed f) realloc(?*void p, int old, int n) !*void {
 	if int(block) + was == base + f.bUsed && f.bUsed - was + want <= len(f.buffer) {
 		f.bUsed = f.bUsed - was + want;
 		if n > old {
-			mem.fill((*byte)(block) + old, 0, n - old);
+			fill((*byte)(block) + old, 0, n - old);
 		}
 		return block;
 	}
 	*void next = f.alloc(n)!;
-	mem.copy(next, block, math.min(old, n));
+	copy(next, block, math.min(old, n));
 	return next;
 }

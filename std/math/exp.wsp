@@ -8,23 +8,22 @@
  * ====================================================
  */
 
-import "std/math/ieee";
 
 const {
-	one = 1.0;
-	huge = 1.0e+300;
+	exp_one = 1.0;
+	exp_huge = 1.0e+300;
 	twom1000 = 9.33263618503218878990e-302;
 	o_threshold = 7.09782712893383973096e+02;
 	u_threshold = -7.45133219101941108420e+02;
 	invln2 = 1.44269504088896338700e+00;
-	P1 = 1.66666666666666019037e-01;
-	P2 = -2.77777777770155933842e-03;
-	P3 = 6.61375632143793436117e-05;
-	P4 = -1.65339022054652515390e-06;
-	P5 = 4.13813679705723846039e-08;
-	tiny = 1.0e-300;
-	ln2_hi = 6.93147180369123816490e-01;
-	ln2_lo = 1.90821492927058770002e-10;
+	exp_P1 = 1.66666666666666019037e-01;
+	exp_P2 = -2.77777777770155933842e-03;
+	exp_P3 = 6.61375632143793436117e-05;
+	exp_P4 = -1.65339022054652515390e-06;
+	exp_P5 = 4.13813679705723846039e-08;
+	exp_tiny = 1.0e-300;
+	exp_ln2_hi = 6.93147180369123816490e-01;
+	exp_ln2_lo = 1.90821492927058770002e-10;
 	Q1 = -3.33333333333331316428e-02;
 	Q2 = 1.58730158725481460165e-03;
 	Q3 = -7.93650757867487942473e-05;
@@ -40,13 +39,13 @@ const {
 /// underflows to 0 below about -745.13, and `exp(-infinity)` is 0. NaN returns
 /// NaN.
 public func exp(float x) float {
-	uint hx = ieee.highWord(x);
+	uint hx = highWord(x);
 	int xsb = int((hx >> 31) & 1);
 	hx = hx & 0x7fffffff;
 
 	if hx >= 0x40862E42 {
 		if hx >= 0x7ff00000 {
-			if ((hx & 0xfffff) | ieee.lowWord(x)) != 0 {
+			if ((hx & 0xfffff) | lowWord(x)) != 0 {
 				return x + x;
 			}
 			if xsb == 0 {
@@ -55,7 +54,7 @@ public func exp(float x) float {
 			return 0.0;
 		}
 		if x > o_threshold {
-			return huge * huge;
+			return exp_huge * exp_huge;
 		}
 		if x < u_threshold {
 			return twom1000 * twom1000;
@@ -78,35 +77,35 @@ public func exp(float x) float {
 		}
 		x = hi - lo;
 	} else if hx < 0x3e300000 {
-		if huge + x > one {
-			return one + x;
+		if exp_huge + x > exp_one {
+			return exp_one + x;
 		}
 	}
 
 	float sq = x * x;
-	float c = x - sq * (P1 + sq * (P2 + sq * (P3 + sq * (P4 + sq * P5))));
+	float c = x - sq * (exp_P1 + sq * (exp_P2 + sq * (exp_P3 + sq * (exp_P4 + sq * exp_P5))));
 	if k == 0 {
-		return one - ((x * c) / (c - 2.0) - x);
+		return exp_one - ((x * c) / (c - 2.0) - x);
 	}
-	float y = one - ((lo - (x * c) / (2.0 - c)) - hi);
+	float y = exp_one - ((lo - (x * c) / (2.0 - c)) - hi);
 	if k >= -1021 {
-		return ieee.addExponent(y, k);
+		return addExponent(y, k);
 	}
-	return ieee.addExponent(y, k + 1000) * twom1000;
+	return addExponent(y, k + 1000) * twom1000;
 }
 
 /// Returns e raised to `x`, minus 1. It is accurate for small `x`, where
 /// subtracting 1 from `exp(x)` loses precision. It overflows to +infinity for large
 /// `x`, and `expm1(-infinity)` is -1.
 public func expm1(float x) float {
-	uint hx = ieee.highWord(x);
+	uint hx = highWord(x);
 	uint xsb = hx & 0x80000000;
 	hx = hx & 0x7fffffff;
 
 	if hx >= 0x4043687A {
 		if hx >= 0x40862E42 {
 			if hx >= 0x7ff00000 {
-				if ((hx & 0xfffff) | ieee.lowWord(x)) != 0 {
+				if ((hx & 0xfffff) | lowWord(x)) != 0 {
 					return x + x;
 				}
 				if xsb == 0 {
@@ -115,12 +114,12 @@ public func expm1(float x) float {
 				return -1.0;
 			}
 			if x > o_threshold {
-				return huge * huge;
+				return exp_huge * exp_huge;
 			}
 		}
 		if xsb != 0 {
-			if x + tiny < 0.0 {
-				return tiny - one;
+			if x + exp_tiny < 0.0 {
+				return exp_tiny - exp_one;
 			}
 		}
 	}
@@ -132,12 +131,12 @@ public func expm1(float x) float {
 	if hx > 0x3fd62e42 {
 		if hx < 0x3FF0A2B2 {
 			if xsb == 0 {
-				hi = x - ln2_hi;
-				lo = ln2_lo;
+				hi = x - exp_ln2_hi;
+				lo = exp_ln2_lo;
 				k = 1;
 			} else {
-				hi = x + ln2_hi;
-				lo = -ln2_lo;
+				hi = x + exp_ln2_hi;
+				lo = -exp_ln2_lo;
 				k = -1;
 			}
 		} else {
@@ -147,19 +146,19 @@ public func expm1(float x) float {
 			}
 			k = int(invln2 * x + bias);
 			float t = float(k);
-			hi = x - t * ln2_hi;
-			lo = t * ln2_lo;
+			hi = x - t * exp_ln2_hi;
+			lo = t * exp_ln2_lo;
 		}
 		x = hi - lo;
 		c = (hi - x) - lo;
 	} else if hx < 0x3c900000 {
-		float t = huge + x;
-		return x - (t - (huge + x));
+		float t = exp_huge + x;
+		return x - (t - (exp_huge + x));
 	}
 
 	float hfx = 0.5 * x;
 	float hxs = x * hfx;
-	float r1 = one + hxs * (Q1 + hxs * (Q2 + hxs * (Q3 + hxs * (Q4 + hxs * Q5))));
+	float r1 = exp_one + hxs * (Q1 + hxs * (Q2 + hxs * (Q3 + hxs * (Q4 + hxs * Q5))));
 	float t3 = 3.0 - r1 * hfx;
 	float e = hxs * ((r1 - t3) / (6.0 - x * t3));
 	if k == 0 {
@@ -174,24 +173,24 @@ public func expm1(float x) float {
 		if x < -0.25 {
 			return -2.0 * (e - (x + 0.5));
 		}
-		return one + 2.0 * (x - e);
+		return exp_one + 2.0 * (x - e);
 	}
 	float y;
 	if k <= -2 || k > 56 {
-		y = one - (e - x);
-		y = ieee.addExponent(y, k);
-		return y - one;
+		y = exp_one - (e - x);
+		y = addExponent(y, k);
+		return y - exp_one;
 	}
-	float tt = one;
+	float tt = exp_one;
 	if k < 20 {
-		tt = ieee.setHighWord(tt, uint(0x3ff00000 - (0x200000 >> k)));
+		tt = setHighWord(tt, uint(0x3ff00000 - (0x200000 >> k)));
 		y = tt - (e - x);
-		y = ieee.addExponent(y, k);
+		y = addExponent(y, k);
 	} else {
-		tt = ieee.setHighWord(tt, uint((0x3ff - k) << 20));
+		tt = setHighWord(tt, uint((0x3ff - k) << 20));
 		y = x - (e + tt);
-		y += one;
-		y = ieee.addExponent(y, k);
+		y += exp_one;
+		y = addExponent(y, k);
 	}
 	return y;
 }
@@ -199,16 +198,16 @@ public func expm1(float x) float {
 /// Returns 2 raised to `x`. It is +infinity for `x` of 1024 or more and 0 for
 /// `x` of -1075 or less. NaN returns NaN.
 public func exp2(float x) float {
-	if ieee.isNaN(x) {
+	if isNaN(x) {
 		return x;
 	}
 	if x >= 1024.0 {
-		return ieee.inf(1);
+		return inf(1);
 	}
 	if x <= -1075.0 {
 		return 0.0;
 	}
-	float k = ieee.floor(x + 0.5);
+	float k = floor(x + 0.5);
 	float r = x - k;
-	return ieee.ldexp(exp(r * 0.6931471805599453), int(k));
+	return ldexp(exp(r * 0.6931471805599453), int(k));
 }

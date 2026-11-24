@@ -59,10 +59,10 @@ func write(t *testing.T, root, name, content string) {
 func tree(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
-	write(t, root, "src/main.wsp", "import \"std/fmt\";\nimport \"src/util\";\nfunc main() { fmt.printf(\"{}\\n\", util.twice(21)); }\n")
-	write(t, root, "src/util.wsp", "public func twice(int n) int => n * 2;\n")
+	write(t, root, "src/main.wsp", "import \"std/fmt\";\nfunc main() { fmt.printf(\"{}\\n\", twice(21)); }\n")
+	write(t, root, "src/util.wsp", "func twice(int n) int => n * 2;\n")
 	write(t, root, "tools/main.wsp", "import \"std/os\";\nimport \"std/fmt\";\nfunc main() { fmt.printf(\"{}\\n\", len(os.args())); }\n")
-	write(t, root, "other.wsp", "import \"std/fmt\";\nfunc main() { fmt.println(\"other\"); }\n")
+	write(t, root, "other.wsp", "#standalone\nimport \"std/fmt\";\nfunc main() { fmt.println(\"other\"); }\n")
 	return root
 }
 

@@ -1,8 +1,5 @@
 import "std/errors";
 import "std/mem";
-import "std/strings";
-import "std/strings/character";
-
 /// Copies `s` into the start of `buf` and returns the copied bytes as a string.
 /// The result shares memory with `buf`, so it changes when `buf` does. Fails with
 /// `NoSpace` when `buf` is shorter than `s`.
@@ -72,7 +69,7 @@ public func replace([]byte buf, string s, old, new, int n) !string {
 		return string(buf[:len(s)]);
 	}
 
-	strings.Splitter sp = strings.splitter(s, old);
+	Splitter sp = splitter(s, old);
 	int total, count;
 	loop sp.next() |next| {
 		if count > 0 {
@@ -95,7 +92,7 @@ public func replace([]byte buf, string s, old, new, int n) !string {
 public func upper([]byte buf, string s) !string {
 	errors.ensure(len(s) <= len(buf), errors.Kind.NoSpace)!;
 	for i, c in s {
-		buf[i] = character.upperByte(c);
+		buf[i] = upperByte(c);
 	}
 	return string(buf[:len(s)]);
 }
@@ -110,7 +107,7 @@ public func toUpper([]byte buf) {
 public func lower([]byte buf, string s) !string {
 	errors.ensure(len(s) <= len(buf), errors.Kind.NoSpace)!;
 	for i, c in s {
-		buf[i] = character.lowerByte(c);
+		buf[i] = lowerByte(c);
 	}
 	return string(buf[:len(s)]);
 }

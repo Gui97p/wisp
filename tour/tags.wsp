@@ -1,3 +1,4 @@
+#standalone
 // Tour - Tags: `#name` and `#name(arguments)` before a declaration.
 //
 // A tag says something about the declaration that follows it, and does not

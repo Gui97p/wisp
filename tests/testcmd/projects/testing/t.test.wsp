@@ -1,3 +1,4 @@
+#standalone
 import "std/mem";
 import "std/errors";
 import "std/testing";

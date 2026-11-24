@@ -1,3 +1,4 @@
+#standalone
 // Tour - Pointers and manual memory.
 //
 // The star is always a prefix of the type: *int, **int, *Point. It is never

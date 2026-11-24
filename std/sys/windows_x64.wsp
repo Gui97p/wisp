@@ -1,7 +1,5 @@
 #target windows & x64
 
-import "std/sys";
-
 extern func GetStdHandle(int32 which) *void;
 extern func ReadFile(*void file, *byte buf, uint32 n, *void read, ?*void overlapped) int32;
 extern func ReadConsoleW(*void console, *uint16 text, uint32 n, *void read, ?*void control) int32;
@@ -130,20 +128,20 @@ var int inReturn;
 
 internal func winerr(int code) int {
 	return switch code {
-		case 2, 3, 15 => sys.ENOENT;
-		case 5, 19, 33 => sys.EACCES;
-		case 6 => sys.EBADF;
-		case 8, 14 => sys.ENOMEM;
-		case 32 => sys.EBUSY;
-		case 80, 183 => sys.EEXIST;
-		case 87, 123, 161 => sys.EINVAL;
-		case 109, 232, 233 => sys.EPIPE;
-		case 112 => sys.ENOSPC;
-		case 145 => sys.ENOTEMPTY;
-		case 206 => sys.ENAMETOOLONG;
-		case 267 => sys.ENOTDIR;
-		case 1314 => sys.EPERM;
-		default => sys.EIO;
+		case 2, 3, 15 => ENOENT;
+		case 5, 19, 33 => EACCES;
+		case 6 => EBADF;
+		case 8, 14 => ENOMEM;
+		case 32 => EBUSY;
+		case 80, 183 => EEXIST;
+		case 87, 123, 161 => EINVAL;
+		case 109, 232, 233 => EPIPE;
+		case 112 => ENOSPC;
+		case 145 => ENOTEMPTY;
+		case 206 => ENAMETOOLONG;
+		case 267 => ENOTDIR;
+		case 1314 => EPERM;
+		default => EIO;
 	};
 }
 
@@ -159,7 +157,7 @@ internal func handleOf(int fd) *void {
 internal func buffers() int {
 	return 0 if wideAp != null;
 	int unit = WIDE_MAX * 2;
-	*void block = VirtualAlloc(null, int64(unit * 4 + ENV_BYTES * 2 + CONV_BYTES), MEM_COMMIT_RESERVE, PAGE_READWRITE) ?? return -sys.ENOMEM;
+	*void block = VirtualAlloc(null, int64(unit * 4 + ENV_BYTES * 2 + CONV_BYTES), MEM_COMMIT_RESERVE, PAGE_READWRITE) ?? return -ENOMEM;
 	*byte base = (*byte)(block);
 	wideAp = (*uint16)(base);
 	wideBp = (*uint16)(base + unit);
@@ -182,10 +180,10 @@ internal func isDevicePath(*uint16 p) bool {
 }
 
 internal func towide(string s, *uint16 dst) int {
-	return -sys.ENOENT if len(s) == 0;
-	return -sys.ENAMETOOLONG if len(s) >= WIDE_MAX - 16;
+	return -ENOENT if len(s) == 0;
+	return -ENAMETOOLONG if len(s) >= WIDE_MAX - 16;
 	int n = MultiByteToWideChar(CP_UTF8, 0, (*byte)(s), int32(len(s)), dst, int32(WIDE_MAX - 16));
-	return -sys.EINVAL if n <= 0;
+	return -EINVAL if n <= 0;
 	dst[n] = 0;
 	return n if isDevicePath(dst);
 
@@ -194,7 +192,7 @@ internal func towide(string s, *uint16 dst) int {
 	if m == 0 || m < LONG_PATH {
 		return n;
 	}
-	return -sys.ENAMETOOLONG if m >= room;
+	return -ENAMETOOLONG if m >= room;
 
 	int total;
 	if wideScratch()[0] == 92 && wideScratch()[1] == 92 {
@@ -230,9 +228,9 @@ internal func isDirectory(*uint16 path) bool {
 }
 
 internal func kindOf(uint32 attributes) int {
-	return sys.KIND_LINK if (attributes & ATTRIBUTE_REPARSE_POINT) != 0;
-	return sys.KIND_DIR if (attributes & ATTRIBUTE_DIRECTORY) != 0;
-	return sys.KIND_FILE;
+	return KIND_LINK if (attributes & ATTRIBUTE_REPARSE_POINT) != 0;
+	return KIND_DIR if (attributes & ATTRIBUTE_DIRECTORY) != 0;
+	return KIND_FILE;
 }
 
 internal func readConsole(*byte buf, int n) int {
@@ -252,7 +250,7 @@ internal func readConsole(*byte buf, int n) int {
 		inLeft = rest;
 		return k;
 	}
-	return -sys.ENOMEM if buffers() < 0;
+	return -ENOMEM if buffers() < 0;
 
 	loop {
 		int want = n / 3;
@@ -300,7 +298,7 @@ internal func readConsole(*byte buf, int n) int {
 		continue if kept == 0;
 
 		int m = WideCharToMultiByte(CP_UTF8, 0, wideScratch(), int32(kept), convBuffer(), int32(CONV_BYTES), null, null);
-		return -sys.EINVAL if m <= 0;
+		return -EINVAL if m <= 0;
 		int copied = m > n ? n : m;
 		for i in 0..copied - 1 {
 			buf[i] = convBuffer()[i];
@@ -339,9 +337,9 @@ internal func sequenceLength(byte lead) int {
 
 internal func emitWide(int fd, *byte p, int n) int {
 	return 0 if n == 0;
-	return -sys.ENOMEM if buffers() < 0;
+	return -ENOMEM if buffers() < 0;
 	int m = MultiByteToWideChar(CP_UTF8, 0, p, int32(n), wideScratch(), int32(WIDE_MAX - 16));
-	return -sys.EINVAL if m <= 0;
+	return -EINVAL if m <= 0;
 	uint32 done;
 	return lastError() if WriteConsoleW(handleOf(fd), wideScratch(), uint32(m), &done, null) == 0;
 	return 0;
@@ -424,20 +422,20 @@ internal func open(string path, int flags) int {
 
 	int mode = flags & 3;
 	int access = 0;
-	if mode == sys.O_RDONLY || mode == sys.O_RDWR {
+	if mode == O_RDONLY || mode == O_RDWR {
 		access |= GENERIC_READ;
 	}
-	if mode == sys.O_WRONLY || mode == sys.O_RDWR {
+	if mode == O_WRONLY || mode == O_RDWR {
 		access |= GENERIC_WRITE;
 	}
-	if (flags & sys.O_APPEND) != 0 && mode != sys.O_RDONLY {
+	if (flags & O_APPEND) != 0 && mode != O_RDONLY {
 		access = (access & ~GENERIC_WRITE) | FILE_APPEND_DATA;
 	}
 
-	bool create = (flags & sys.O_CREAT) != 0;
-	bool truncate = (flags & sys.O_TRUNC) != 0;
+	bool create = (flags & O_CREAT) != 0;
+	bool truncate = (flags & O_TRUNC) != 0;
 	int disposition = OPEN_EXISTING;
-	if create && (flags & sys.O_EXCL) != 0 {
+	if create && (flags & O_EXCL) != 0 {
 		disposition = CREATE_NEW;
 	} else if create && truncate {
 		disposition = CREATE_ALWAYS;
@@ -450,7 +448,7 @@ internal func open(string path, int flags) int {
 	*void h = CreateFileW(wideA(), uint32(access), SHARE_ALL, null, uint32(disposition), ATTRIBUTE_NORMAL, null);
 	if int(h) == -1 {
 		int code = int(GetLastError());
-		return -sys.EISDIR if code == 5 && isDirectory(wideA());
+		return -EISDIR if code == 5 && isDirectory(wideA());
 		return -winerr(code);
 	}
 	return int(h);
@@ -484,7 +482,7 @@ internal func remove(string path) int {
 	return n if n < 0;
 	if DeleteFileW(wideA()) == 0 {
 		int code = int(GetLastError());
-		return -sys.EISDIR if code == 5 && isDirectory(wideA());
+		return -EISDIR if code == 5 && isDirectory(wideA());
 		return -winerr(code);
 	}
 	return 0;
@@ -513,7 +511,7 @@ internal func rename(string from, string to) int {
 	return 0;
 }
 
-internal func stat(string path, *sys.Stat out) int {
+internal func stat(string path, *Stat out) int {
 	int n = widePath(path);
 	return n if n < 0;
 	AttributeData d;
@@ -522,7 +520,7 @@ internal func stat(string path, *sys.Stat out) int {
 	out.size = (int(d.sizeHigh) << 32) | int(d.sizeLow);
 	int written = ((int(d.writeHigh) << 32) | int(d.writeLow)) - EPOCH_DIFFERENCE;
 	out.modified = written * 100;
-	if out.kind == sys.KIND_DIR {
+	if out.kind == KIND_DIR {
 		out.mode = 0o755;
 	} else if (d.attributes & ATTRIBUTE_READONLY) != 0 {
 		out.mode = 0o444;
@@ -537,8 +535,8 @@ internal func dirOpen(string path, *Dir d) int {
 	return n if n < 0;
 	uint32 attributes = GetFileAttributesW(wideA());
 	return lastError() if attributes == INVALID_ATTRIBUTES;
-	return -sys.ENOTDIR if (attributes & ATTRIBUTE_DIRECTORY) == 0;
-	return -sys.ENAMETOOLONG if n + 2 >= WIDE_MAX;
+	return -ENOTDIR if (attributes & ATTRIBUTE_DIRECTORY) == 0;
+	return -ENAMETOOLONG if n + 2 >= WIDE_MAX;
 	if wideA()[n - 1] != 92 && wideA()[n - 1] != 47 {
 		wideA()[n] = 92;
 		n++;
@@ -553,7 +551,7 @@ internal func dirOpen(string path, *Dir d) int {
 	return 0;
 }
 
-internal func dirNext(*Dir d, *sys.Entry e) int {
+internal func dirNext(*Dir d, *Entry e) int {
 	loop {
 		if d.started == 0 {
 			d.started = 1;
@@ -563,7 +561,7 @@ internal func dirNext(*Dir d, *sys.Entry e) int {
 		}
 
 		int n = WideCharToMultiByte(CP_UTF8, 0, (*uint16)(d.data.name), -1, (*byte)(e.name), 1024, null, null);
-		return -sys.EIO if n <= 0;
+		return -EIO if n <= 0;
 		int size = n - 1;
 		continue if size == 1 && e.name[0] == '.';
 		continue if size == 2 && e.name[0] == '.' && e.name[1] == '.';
@@ -583,9 +581,9 @@ internal func getcwd([]byte buf) int {
 	return fault if fault < 0;
 	int n = int(GetCurrentDirectoryW(uint32(WIDE_MAX), wideA()));
 	return lastError() if n == 0;
-	return -sys.ERANGE if n >= WIDE_MAX;
+	return -ERANGE if n >= WIDE_MAX;
 	int r = WideCharToMultiByte(CP_UTF8, 0, wideA(), int32(n), (*byte)(buf), int32(len(buf)), null, null);
-	return -sys.ERANGE if r == 0;
+	return -ERANGE if r == 0;
 	return r;
 }
 
@@ -613,7 +611,7 @@ internal native args() []string s {
 }
 
 internal func time(int clock) (int, int) {
-	if clock == sys.CLOCK_REALTIME {
+	if clock == CLOCK_REALTIME {
 		int ft;
 		GetSystemTimePreciseAsFileTime(&ft);
 		int t = ft - EPOCH_DIFFERENCE;
@@ -636,7 +634,7 @@ internal func sleep(int sec, nsec) int {
 }
 
 internal func random(*void buf, int n) int {
-	return -sys.EIO if BCryptGenRandom(null, buf, uint32(n), RANDOM_SYSTEM) != 0;
+	return -EIO if BCryptGenRandom(null, buf, uint32(n), RANDOM_SYSTEM) != 0;
 	return n;
 }
 
@@ -654,7 +652,7 @@ internal func mmap(int n) ?*void {
 }
 
 internal func munmap(*void addr, int _n) int {
-	return -sys.EINVAL if VirtualFree(addr, 0, MEM_RELEASE) == 0;
+	return -EINVAL if VirtualFree(addr, 0, MEM_RELEASE) == 0;
 	return 0;
 }
 

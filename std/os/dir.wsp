@@ -1,14 +1,11 @@
 import "std/errors";
-import "std/os";
-import "std/os/files";
-import "std/os/global";
 import "std/path";
 import "std/sys";
 
 /// Reports whether `p` exists and is a directory. A path that cannot be examined,
 /// for any reason, gives `false`.
 public inline func isDir(string p) bool {
-	let s = files.stat(p) ?? return false;
+	let s = stat(p) ?? return false;
 	return s.kind == .Dir;
 }
 
@@ -16,14 +13,14 @@ public inline func isDir(string p) bool {
 /// `NotDir` from `IOError`, or `NotFound` and `Permission` from `errors.Kind`.
 public func removeDir(string p) ! {
 	int r = sys.rmdir(p);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 }
 
 /// Creates the directory `p`, whose parent must already exist. Fails with
 /// `Exists` if something is already there and `NotFound` if the parent is missing.
 public func createDir(string p) ! {
 	int r = sys.mkdir(p);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 }
 
 /// Creates the directory `p` and any missing parents. It is not an error if
@@ -31,14 +28,14 @@ public func createDir(string p) ! {
 /// as something else, or with the error of the first directory that could not be
 /// created.
 public func createDirAll(string p) ! {
-	let s = os.stat(p) ?? |e| {
+	let s = stat(p) ?? |e| {
 		return e if e != errors.Kind.NotFound;
 		createDirAll(path.dir(p))!;
 		createDir(p) ?? |err| return isDir(p) ? null : err;
 		return;
 	};
 
-	return Error(global.IOError.NotDir) if s.kind != .Dir;
+	return Error(IOError.NotDir) if s.kind != .Dir;
 }
 
 /// An open directory, read one entry at a time with `next`. Get one from
@@ -53,7 +50,7 @@ public struct Dir {
 /// `next` or `close`.
 public struct Entry {
 	string name;
-	global.FileKind kind;
+	FileKind kind;
 }
 
 /// Returns the next entry of the directory, or null when there are no more. The
@@ -61,9 +58,9 @@ public struct Entry {
 /// Fails with the error of the system if reading fails.
 public func (*Dir d) next() !?Entry {
 	int r = sys.dirNext(&d.state, &d.entry);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 	return null if r == 0;
-	global.FileKind kind = switch d.entry.kind {
+	FileKind kind = switch d.entry.kind {
 		case sys.KIND_FILE => .File;
 		case sys.KIND_DIR => .Dir;
 		case sys.KIND_LINK => .Link;
@@ -83,6 +80,6 @@ public func (*Dir d) close() {
 public func openDir(string p) !Dir {
 	Dir d;
 	int r = sys.dirOpen(p, &d.state);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 	return d;
 }

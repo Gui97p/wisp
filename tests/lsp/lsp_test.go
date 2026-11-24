@@ -145,7 +145,7 @@ func TestCompletion(t *testing.T) {
 
 func TestTestFiles(t *testing.T) {
 	c := start(t)
-	calc := "public func add(int a, int b) int { return a + b; }\ninternal func secret(int n) int { return n * 7; }\n"
+	calc := "#standalone\npublic func add(int a, int b) int { return a + b; }\ninternal func secret(int n) int { return n * 7; }\n"
 	cases := []struct {
 		name   string
 		test   string
@@ -163,7 +163,7 @@ func TestTestFiles(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			p := c.openAs("calc.test.wsp", map[string]string{"calc.wsp": calc, "calc.test.wsp": tc.test})
+			p := c.openAs("calc.test.wsp", map[string]string{"calc.wsp": calc, "calc.test.wsp": "#standalone\n" + tc.test})
 			var errors []string
 			for _, d := range p.diagnostics() {
 				if d.Severity == 1 {
@@ -781,7 +781,7 @@ func TestInterfaceVisibilityAcrossModules(t *testing.T) {
 	c := start(t)
 	shapes := "public interface Shape {\n\tfunc area() int;\n}\n"
 	main := "import \"shapes\";\n\npublic struct Open implements shapes.Shape {\n\tint side;\n}\n\nfunc (*Open o) area() int {\n\treturn o.side;\n}\n\nstruct Closed implements shapes.Shape {\n\tint side;\n}\n\nfunc (*Closed o) area() int {\n\treturn o.side;\n}\n\nfunc main() {\n}\n"
-	p := c.open(map[string]string{"main.wsp": main, "shapes.wsp": shapes})
+	p := c.open(map[string]string{"main.wsp": main, "shapes.wsp": "#standalone\n" + shapes})
 	var messages []string
 	for _, d := range p.diagnostics() {
 		if d.Severity == 1 {
@@ -1505,7 +1505,7 @@ func TestPrivateKeepsANameInItsFile(t *testing.T) {
 	field := c.open(map[string]string{
 		"wisp.toml": "",
 		"main.wsp":  "import \"box\";\nfunc main() {\n\tbox.Box b = box.make();\n\tint n = b.secret;\n\tint m = b.open;\n}\n",
-		"box.wsp":   "public struct Box {\n\tprivate int secret;\n\tint open;\n}\npublic func make() Box => Box{secret: 1, open: 2};\n",
+		"box.wsp":   "#standalone\npublic struct Box {\n\tprivate int secret;\n\tint open;\n}\npublic func make() Box => Box{secret: 1, open: 2};\n",
 	})
 	got := errorsOf(field)
 	if len(got) != 1 || !strings.Contains(got[0], "field secret of Box is private to box.wsp") {
@@ -1523,7 +1523,7 @@ func TestPrivateKeepsANameInItsFile(t *testing.T) {
 	function := c.open(map[string]string{
 		"wisp.toml": "",
 		"main.wsp":  "import \"util\";\nfunc main() {\n\tint n = util.helper();\n}\n",
-		"util.wsp":  "private func helper() int => 1;\npublic func shown() int => helper();\n",
+		"util.wsp":  "#standalone\nprivate func helper() int => 1;\npublic func shown() int => helper();\n",
 	})
 	got = errorsOf(function)
 	if len(got) != 1 || !strings.Contains(got[0], "module has no public helper") {
@@ -1545,5 +1545,48 @@ func TestSharedPointsToInternal(t *testing.T) {
 		if !strings.Contains(message, "shared was replaced by internal, which now means the whole project") {
 			t.Errorf("unexpected message: %q", message)
 		}
+	}
+}
+
+func TestAFolderIsOneModuleInTheEditor(t *testing.T) {
+	c := start(t)
+	files := map[string]string{
+		"wisp.toml":     "",
+		"main.wsp":      "import \"net\";\nfunc main() {\n\tint n = net.pi¦ng(1);\n\tint m = helper();\n}\n",
+		"util.wsp":      "func helper() int => 7;\n",
+		"net/net.wsp":   "public func ping(int n) int => encode(n) + 1;\n",
+		"net/codec.wsp": "func encode(int n) int => n * 10;\n",
+	}
+	p := c.open(files)
+	if got := errorsOf(p); len(got) != 0 {
+		t.Errorf("sibling files and a folder module need no import: %q", got)
+	}
+	defs := p.definition()
+	if len(defs) != 1 || !strings.HasSuffix(defs[0].URI, "net/net.wsp") {
+		t.Errorf("the definition of net.ping: %+v", defs)
+	}
+
+	inFolder := c.openAs("net/net.wsp", map[string]string{
+		"wisp.toml":     "",
+		"main.wsp":      files["main.wsp"],
+		"util.wsp":      files["util.wsp"],
+		"net/net.wsp":   "public func ping(int n) int => enc¦ode(n) + 1;\n",
+		"net/codec.wsp": files["net/codec.wsp"],
+	})
+	if got := errorsOf(inFolder); len(got) != 0 {
+		t.Errorf("a file uses the names of its sibling: %q", got)
+	}
+	if defs := inFolder.definition(); len(defs) != 1 || !strings.HasSuffix(defs[0].URI, "net/codec.wsp") {
+		t.Errorf("the definition of a name from a sibling file: %+v", defs)
+	}
+
+	alone := c.open(map[string]string{
+		"wisp.toml": "",
+		"main.wsp":  "import \"util\";\nfunc main() {}\n",
+		"util.wsp":  "func helper() int => 7;\n",
+	})
+	got := errorsOf(alone)
+	if len(got) != 1 || !strings.Contains(got[0], "is one of the files of the module of its folder") || !strings.Contains(got[0], "#standalone") {
+		t.Errorf("importing a file of the same folder: %q", got)
 	}
 }

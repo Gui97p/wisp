@@ -153,7 +153,7 @@ func unimportedMembers(path string, scope *analyser.Scope, word, suffix string, 
 	var items []protocol.CompletionItem
 	for _, c := range candidates {
 		alias := moduleAlias(c.Path)
-		if c.File == path || imported[c.Path] || cyclic[c.File] || alias == "" || !module.CanImport(path, c.File) {
+		if c.Contains(path) || imported[c.Path] || cyclic[c.File] || alias == "" {
 			continue
 		}
 		if _, taken := scope.Resolve(alias); taken {
@@ -164,7 +164,7 @@ func unimportedMembers(path string, scope *analyser.Scope, word, suffix string, 
 		if !ok {
 			continue
 		}
-		for _, e := range moduleExports(c.File, byPath, map[string]bool{}, 0) {
+		for _, e := range candidateExports(c, byPath) {
 			if !matchesWord(e.name, word) || (e.internalDir != "" && !module.InsideFolder(path, e.internalDir)) {
 				continue
 			}
@@ -329,10 +329,6 @@ func moduleExports(file string, byPath map[string]string, seen map[string]bool, 
 		}
 	}
 
-	if depth == 0 {
-		entries = append(entries, packagePartExports(file, byPath, seen)...)
-	}
-
 	if _, open := fileBuffer[file]; !open && depth == 0 {
 		exportCacheMu.Lock()
 		exportCache[file] = exportCacheEntry{modified: modified, size: size, entries: entries}
@@ -390,7 +386,7 @@ func pathIndex(candidates []module.ImportCandidate) map[string]string {
 }
 
 func exportsNothing(importer string, c module.ImportCandidate, byPath map[string]string) bool {
-	for _, e := range moduleExports(c.File, byPath, map[string]bool{}, 0) {
+	for _, e := range candidateExports(c, byPath) {
 		if e.internalDir == "" || module.InsideFolder(importer, e.internalDir) {
 			return false
 		}
@@ -437,13 +433,13 @@ func unimportedModules(path string, scope *analyser.Scope, word string) []protoc
 	var items []protocol.CompletionItem
 	for _, c := range candidates {
 		alias := moduleAlias(c.Path)
-		if c.File == path || imported[c.Path] || cyclic[c.File] || alias == "" || !matchesWord(alias, word) {
+		if c.Contains(path) || imported[c.Path] || cyclic[c.File] || alias == "" || !matchesWord(alias, word) {
 			continue
 		}
 		if _, taken := scope.Resolve(alias); taken {
 			continue
 		}
-		if !module.CanImport(path, c.File) || exportsNothing(path, c, byPath) {
+		if exportsNothing(path, c, byPath) {
 			continue
 		}
 		edit, ok := importEdit(path, c.Path)
@@ -459,23 +455,11 @@ func unimportedModules(path string, scope *analyser.Scope, word string) []protoc
 	return items
 }
 
-func packagePartExports(file string, byPath map[string]string, seen map[string]bool) []exportEntry {
-	dir := filepath.Dir(file)
-	if file != filepath.Join(dir, filepath.Base(dir)+".wsp") {
-		return nil
-	}
-	items, err := os.ReadDir(dir)
-	if err != nil {
-		return nil
-	}
-
+func candidateExports(c module.ImportCandidate, byPath map[string]string) []exportEntry {
 	var entries []exportEntry
-	for _, item := range items {
-		part := filepath.Join(dir, item.Name())
-		if item.IsDir() || !strings.HasSuffix(part, ".wsp") || part == file {
-			continue
-		}
-		entries = append(entries, moduleExports(part, byPath, seen, 1)...)
+	seen := map[string]bool{}
+	for _, file := range c.Files {
+		entries = append(entries, moduleExports(file, byPath, seen, 0)...)
 	}
 	return entries
 }

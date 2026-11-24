@@ -1,3 +1,4 @@
+#standalone
 import "std/errors";
 
 public func add(int a, int b) int {

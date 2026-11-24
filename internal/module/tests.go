@@ -111,7 +111,7 @@ func testFunctions(mods []*Module) []TestFunc {
 }
 
 func DiscoverProjectWithTests(root string, keep func(TestFunc) bool, generate func([]TestFunc) string) ([]*Module, []TestFunc, int, error) {
-	roots, err := discoverModuleRoots(root)
+	roots, err := discoverModuleRoots(root, nil)
 	if err != nil {
 		return nil, nil, 0, err
 	}

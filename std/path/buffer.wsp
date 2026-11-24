@@ -1,5 +1,4 @@
 import "std/math";
-import "std/path";
 import "std/strings";
 
 /// Joins the `parts` with the separator of the platform into `buf` and returns
@@ -16,19 +15,19 @@ public func join([]byte buf, string ...parts) !string {
 		string rest = p;
 		if !seen {
 			seen = true;
-			int v = path.volumeLen(p);
+			int v = volumeLen(p);
 			total += len(strings.copy(buf[total:], p[:v])!);
-			if v < len(p) && path.isSep(p[v]) {
-				total += len(strings.copy(buf[total:], path.sep)!);
+			if v < len(p) && isSep(p[v]) {
+				total += len(strings.copy(buf[total:], sep)!);
 			} else if v > 2 {
 				firstPassed = true;
 			}
 			rest = p[v:];
 		}
-		let elems = path.elementsAfterVolume(rest);
+		let elems = elementsAfterVolume(rest);
 		loop elems.next() |n| {
 			if firstPassed {
-				total += len(strings.copy(buf[total:], path.sep)!);
+				total += len(strings.copy(buf[total:], sep)!);
 			}
 			total += len(strings.copy(buf[total:], n)!);
 			firstPassed = true;
@@ -44,21 +43,21 @@ public func join([]byte buf, string ...parts) !string {
 /// `NoSpace` if `buf` is too small.
 public func clean([]byte buf, string p) !string {
 	int total, depth;
-	int v = path.volumeLen(p);
+	int v = volumeLen(p);
 	total += len(strings.copy(buf, p[:v])!);
-	bool rooted = v < len(p) && path.isSep(p[v]);
+	bool rooted = v < len(p) && isSep(p[v]);
 	if rooted {
-		total += len(strings.copy(buf[total:], path.sep)!);
+		total += len(strings.copy(buf[total:], sep)!);
 	}
 	int rootLen = total;
 
-	let elems = path.elementsAfterVolume(p[v:]);
+	let elems = elementsAfterVolume(p[v:]);
 	loop elems.next() |n| {
 		switch n {
 			case "." => continue;
 			case ".." => {
 				if depth > 0 {
-					total = math.max(strings.lastIndexOf(string(buf[:total]), path.sep) ?? rootLen, rootLen);
+					total = math.max(strings.lastIndexOf(string(buf[:total]), sep) ?? rootLen, rootLen);
 					depth--;
 					continue;
 				} else if rooted {
@@ -69,7 +68,7 @@ public func clean([]byte buf, string p) !string {
 		}
 
 		if total > rootLen {
-			total += len(strings.copy(buf[total:], path.sep)!);
+			total += len(strings.copy(buf[total:], sep)!);
 		}
 		total += len(strings.copy(buf[total:], n)!);
 	}

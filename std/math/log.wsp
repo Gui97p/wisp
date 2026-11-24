@@ -9,12 +9,11 @@
  * ====================================================
  */
 
-import "std/math/ieee";
 
 const {
-	ln2_hi = 6.93147180369123816490e-01;
-	ln2_lo = 1.90821492927058770002e-10;
-	two54 = 1.80143985094819840000e+16;
+	log_ln2_hi = 6.93147180369123816490e-01;
+	log_ln2_lo = 1.90821492927058770002e-10;
+	log_two54 = 1.80143985094819840000e+16;
 	Lg1 = 6.666666666666735130e-01;
 	Lg2 = 3.999999999940941908e-01;
 	Lg3 = 2.857142874366239149e-01;
@@ -32,26 +31,26 @@ const {
 	ivln10 = 4.34294481903251816668e-01;
 	log10_2hi = 3.01029995663611771306e-01;
 	log10_2lo = 3.69423907715893078616e-13;
-	zero = 0.0;
+	log_zero = 0.0;
 }
 
 /// Returns the natural logarithm of `x`. It is -infinity for 0 (of either sign),
 /// NaN for negative `x` and for NaN, and +infinity for +infinity.
 public func log(float x) float {
-	uint hx = ieee.highWord(x);
-	uint lx = ieee.lowWord(x);
+	uint hx = highWord(x);
+	uint lx = lowWord(x);
 	int k = 0;
 
 	if hx < 0x00100000 || hx >= 0x80000000 {
 		if ((hx & 0x7fffffff) | lx) == 0 {
-			return ieee.inf(-1);
+			return inf(-1);
 		}
 		if hx >= 0x80000000 {
-			return ieee.nan();
+			return nan();
 		}
 		k -= 54;
-		x *= two54;
-		hx = ieee.highWord(x);
+		x *= log_two54;
+		hx = highWord(x);
 	}
 	if hx >= 0x7ff00000 {
 		return x + x;
@@ -60,23 +59,23 @@ public func log(float x) float {
 	k += int(hx >> 20) - 1023;
 	hx = hx & 0x000fffff;
 	uint i = (hx + 0x95f64) & 0x100000;
-	x = ieee.setHighWord(x, hx | (i ^ 0x3ff00000));
+	x = setHighWord(x, hx | (i ^ 0x3ff00000));
 	k += int(i >> 20);
 	float dk = float(k);
 	float f = x - 1.0;
 
 	if (0x000fffff & (2 + hx)) < 3 {
-		if f == zero {
+		if f == log_zero {
 			if k == 0 {
-				return zero;
+				return log_zero;
 			}
-			return dk * ln2_hi + dk * ln2_lo;
+			return dk * log_ln2_hi + dk * log_ln2_lo;
 		}
 		float r = f * f * (0.5 - 0.33333333333333333 * f);
 		if k == 0 {
 			return f - r;
 		}
-		return dk * ln2_hi - ((r - dk * ln2_lo) - f);
+		return dk * log_ln2_hi - ((r - dk * log_ln2_lo) - f);
 	}
 
 	float s = f / (2.0 + f);
@@ -93,19 +92,19 @@ public func log(float x) float {
 		if k == 0 {
 			return f - (hfsq - s * (hfsq + r));
 		}
-		return dk * ln2_hi - ((hfsq - (s * (hfsq + r) + dk * ln2_lo)) - f);
+		return dk * log_ln2_hi - ((hfsq - (s * (hfsq + r) + dk * log_ln2_lo)) - f);
 	}
 	if k == 0 {
 		return f - s * (f - r);
 	}
-	return dk * ln2_hi - ((s * (f - r) - dk * ln2_lo) - f);
+	return dk * log_ln2_hi - ((s * (f - r) - dk * log_ln2_lo) - f);
 }
 
 /// Returns the natural logarithm of 1 plus `x`. It is accurate for small `x`,
 /// where `log(1 + x)` loses precision. It is -infinity for -1 and NaN below -1.
 public func log1p(float x) float {
-	uint hxu = ieee.highWord(x);
-	int hx = ieee.signed32(hxu);
+	uint hxu = highWord(x);
+	int hx = signed32(hxu);
 	int ax = int(hxu & 0x7fffffff);
 	int k = 1;
 	float f = 0.0;
@@ -115,12 +114,12 @@ public func log1p(float x) float {
 	if hx < 0x3FDA827A {
 		if ax >= 0x3ff00000 {
 			if x == -1.0 {
-				return ieee.inf(-1);
+				return inf(-1);
 			}
-			return ieee.nan();
+			return nan();
 		}
 		if ax < 0x3e200000 {
-			if two54 + x > zero && ax < 0x3c900000 {
+			if log_two54 + x > log_zero && ax < 0x3c900000 {
 				return x;
 			}
 			return x - x * x * 0.5;
@@ -139,7 +138,7 @@ public func log1p(float x) float {
 		float u;
 		if hx < 0x43400000 {
 			u = 1.0 + x;
-			hu = int(ieee.highWord(u));
+			hu = int(highWord(u));
 			k = (hu >> 20) - 1023;
 			if k > 0 {
 				c = 1.0 - (u - x);
@@ -149,16 +148,16 @@ public func log1p(float x) float {
 			c /= u;
 		} else {
 			u = x;
-			hu = int(ieee.highWord(u));
+			hu = int(highWord(u));
 			k = (hu >> 20) - 1023;
 			c = 0.0;
 		}
 		hu = hu & 0x000fffff;
 		if hu < 0x6a09e {
-			u = ieee.setHighWord(u, uint(hu | 0x3ff00000));
+			u = setHighWord(u, uint(hu | 0x3ff00000));
 		} else {
 			k += 1;
-			u = ieee.setHighWord(u, uint(hu | 0x3fe00000));
+			u = setHighWord(u, uint(hu | 0x3fe00000));
 			hu = (0x00100000 - hu) >> 2;
 		}
 		f = u - 1.0;
@@ -167,18 +166,18 @@ public func log1p(float x) float {
 	float dk = float(k);
 	float hfsq = 0.5 * f * f;
 	if hu == 0 {
-		if f == zero {
+		if f == log_zero {
 			if k == 0 {
-				return zero;
+				return log_zero;
 			}
-			c += dk * ln2_lo;
-			return dk * ln2_hi + c;
+			c += dk * log_ln2_lo;
+			return dk * log_ln2_hi + c;
 		}
 		float r = hfsq * (1.0 - 0.66666666666666666 * f);
 		if k == 0 {
 			return f - r;
 		}
-		return dk * ln2_hi - ((r - (dk * ln2_lo + c)) - f);
+		return dk * log_ln2_hi - ((r - (dk * log_ln2_lo + c)) - f);
 	}
 
 	float s = f / (2.0 + f);
@@ -187,26 +186,26 @@ public func log1p(float x) float {
 	if k == 0 {
 		return f - (hfsq - s * (hfsq + r));
 	}
-	return dk * ln2_hi - ((hfsq - (s * (hfsq + r) + (dk * ln2_lo + c))) - f);
+	return dk * log_ln2_hi - ((hfsq - (s * (hfsq + r) + (dk * log_ln2_lo + c))) - f);
 }
 
 /// Returns the base 10 logarithm of `x`. It is -infinity for 0, NaN for negative
 /// `x` and for NaN, and +infinity for +infinity.
 public func log10(float x) float {
-	uint hx = ieee.highWord(x);
-	uint lx = ieee.lowWord(x);
+	uint hx = highWord(x);
+	uint lx = lowWord(x);
 	int k = 0;
 
 	if hx < 0x00100000 || hx >= 0x80000000 {
 		if ((hx & 0x7fffffff) | lx) == 0 {
-			return ieee.inf(-1);
+			return inf(-1);
 		}
 		if hx >= 0x80000000 {
-			return ieee.nan();
+			return nan();
 		}
 		k -= 54;
-		x *= two54;
-		hx = ieee.highWord(x);
+		x *= log_two54;
+		hx = highWord(x);
 	}
 	if hx >= 0x7ff00000 {
 		return x + x;
@@ -219,7 +218,7 @@ public func log10(float x) float {
 	}
 	hx = (hx & 0x000fffff) | uint((0x3ff - i) << 20);
 	float y = float(k + i);
-	x = ieee.setHighWord(x, hx);
+	x = setHighWord(x, hx);
 	float z = y * log10_2lo + ivln10 * log(x);
 	return z + y * log10_2hi;
 }
@@ -227,16 +226,16 @@ public func log10(float x) float {
 /// Returns the base 2 logarithm of `x`. It is -infinity for 0, NaN for negative
 /// `x` and for NaN, and +infinity for +infinity.
 public func log2(float x) float {
-	if ieee.isNaN(x) || x < 0.0 {
-		return ieee.nan();
+	if isNaN(x) || x < 0.0 {
+		return nan();
 	}
 	if x == 0.0 {
-		return ieee.inf(-1);
+		return inf(-1);
 	}
-	if ieee.isInf(x, 1) {
+	if isInf(x, 1) {
 		return x;
 	}
-	let f, e = ieee.frexp(x);
+	let f, e = frexp(x);
 	if f < 0.7071067811865476 {
 		f *= 2.0;
 		e -= 1;

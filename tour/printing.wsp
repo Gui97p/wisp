@@ -1,3 +1,4 @@
+#standalone
 // Tour - Printing.
 //
 // `std/fmt` writes text. `print` and `println` take a string; `printf` takes

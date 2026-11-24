@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -151,9 +150,6 @@ func resolveImport(scope projectScope, path string, registry map[string]string) 
 		}
 	}
 	key, dir, files, err = resolveIn(scope.root, scope.prefix, path)
-	if err == nil && scope.prefix != "" && len(files) == 1 && files[0] == filepath.Join(scope.root, filepath.Base(scope.root)+".wsp") {
-		key = strings.TrimSuffix(scope.prefix, "/")
-	}
 	return key, dir, files, scope, err
 }
 
@@ -176,11 +172,11 @@ func resolveDependency(scope, next projectScope, name, rest string, hasRest bool
 	}
 
 	if !hasRest {
-		entry := filepath.Join(next.root, filepath.Base(next.root)+".wsp")
-		if info, statErr := os.Stat(entry); statErr != nil || info.IsDir() {
-			return "", "", nil, fmt.Errorf("the dependency %s has no module file %s.wsp: import one of its folders, such as %q", name, filepath.Base(next.root), name+"/…")
+		moduleFiles, _ := folderFiles(next.root, nil)
+		if len(moduleFiles) == 0 {
+			return "", "", nil, fmt.Errorf("the dependency %s has no Wisp files in its root folder: import one of its folders, such as %q", name, name+"/…")
 		}
-		return name, next.root, []string{entry}, nil
+		return name, next.root, moduleFiles, nil
 	}
 	return resolveIn(next.root, next.prefix, rest)
 }
@@ -190,9 +186,6 @@ func scopedKey(scope projectScope, target string) string {
 		if rel, err := filepath.Rel(stdRoot, target); err == nil && !strings.HasPrefix(rel, "..") {
 			return "std/" + filepath.ToSlash(rel)
 		}
-	}
-	if scope.prefix != "" && target == filepath.Join(scope.root, filepath.Base(scope.root)) {
-		return strings.TrimSuffix(scope.prefix, "/")
 	}
 	rel, err := filepath.Rel(scope.root, target)
 	if err != nil {
@@ -227,30 +220,35 @@ func resolveIn(projectRoot, prefix, path string) (key, dir string, files []strin
 		return "", "", nil, fmt.Errorf("import %q is ambiguous: both %s.wsp and %s/ exist", path, base, base)
 	case fileExists:
 		file := base + ".wsp"
+		if !isStandalone(file, nil) {
+			return "", "", nil, fmt.Errorf("%s.wsp is one of the files of the module of its folder: import the folder, or write #standalone at the top of the file to make it a module of its own", filepath.Base(base))
+		}
 		key = path
 		if !isStd {
-			if key, err = canonicalModulePath(projectRoot, file); err != nil {
-				return "", "", nil, err
-			}
-			key = prefix + key
+			key = prefix + filepath.ToSlash(strings.TrimSuffix(mustRel(projectRoot, file), ".wsp"))
 		}
 		return key, filepath.Dir(base), []string{file}, nil
 	case dirExists:
-		modFile := filepath.Join(base, filepath.Base(base)+".wsp")
-		if info, statErr := os.Stat(modFile); statErr != nil || info.IsDir() {
-			return "", "", nil, fmt.Errorf("directory %q has no module file %s.wsp", path, filepath.Base(base))
+		moduleFiles, _ := folderFiles(base, nil)
+		if len(moduleFiles) == 0 {
+			return "", "", nil, fmt.Errorf("the folder %q has no Wisp files of its own to make a module", path)
 		}
 		key = path
 		if !isStd {
-			if key, err = canonicalModulePath(projectRoot, modFile); err != nil {
-				return "", "", nil, err
-			}
-			key = prefix + key
+			key = prefix + filepath.ToSlash(mustRel(projectRoot, base))
 		}
-		return key, base, []string{modFile}, nil
+		return key, base, moduleFiles, nil
 	default:
 		return "", "", nil, fmt.Errorf("cannot resolve import %q", path)
 	}
+}
+
+func mustRel(root, target string) string {
+	rel, err := filepath.Rel(root, target)
+	if err != nil {
+		return target
+	}
+	return rel
 }
 
 func BuildGraph(entryFile string) ([]*Module, error) {
@@ -266,7 +264,6 @@ func BuildGraphWithOverrides(entryFile string, overrides map[string][]byte) ([]*
 func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []*Module {
 	visiting := map[string]bool{}
 	visited := map[string]bool{}
-	foreign := map[string]bool{}
 	registry := map[string]string{}
 	var order []*Module
 
@@ -290,13 +287,6 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 				mod.FailImport(imp.Path, message)
 				continue
 			}
-			if len(depFiles) == 1 && len(mod.FilePaths) > 0 && mod.Path != TestMainPath {
-				if folder := packageFolder(depFiles[0]); folder != "" && !InsideFolder(mod.FilePaths[0], folder) {
-					pkg := scopedKey(depScope, folder)
-					mod.FailImport(imp.Path, fmt.Sprintf("module %q is internal to %q\nimport %q instead", scopedKey(depScope, strings.TrimSuffix(depFiles[0], ".wsp")), pkg, pkg))
-					continue
-				}
-			}
 			if key == path {
 				mod.FailImport(imp.Path, fmt.Sprintf("module %q imports itself", key))
 				continue
@@ -306,15 +296,6 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 				continue
 			}
 			visit(key, depDir, depFiles, depScope)
-		}
-
-		for _, sibling := range methodSiblings(scope, mod, overrides, foreign) {
-			visit(sibling.path, sibling.dir, sibling.files, scope)
-		}
-
-		for _, part := range packageParts(scope, mod) {
-			mod.Parts = append(mod.Parts, part.path)
-			visit(part.path, part.dir, part.files, scope)
 		}
 
 		visiting[path] = false
@@ -331,26 +312,6 @@ func buildOrder(root string, roots []moduleRoot, overrides map[string][]byte) []
 	}
 
 	return order
-}
-
-func packageFolder(file string) string {
-	dir := filepath.Dir(file)
-	entry := filepath.Join(dir, filepath.Base(dir)+".wsp")
-	if file == entry {
-		return ""
-	}
-	if info, err := os.Stat(entry); err != nil || info.IsDir() {
-		return ""
-	}
-	return dir
-}
-
-func CanImport(importer, candidate string) bool {
-	folder := packageFolder(candidate)
-	if folder == "" {
-		return true
-	}
-	return importer != "" && InsideFolder(importer, folder)
 }
 
 func InsideFolder(file, folder string) bool {
@@ -395,36 +356,33 @@ type moduleRoot struct {
 	scope projectScope
 }
 
-func discoverModuleRoots(root string) ([]moduleRoot, error) {
+func discoverModuleRoots(root string, overrides map[string][]byte) ([]moduleRoot, error) {
 	var roots []moduleRoot
 
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
-			name := d.Name()
-			if p != root && (strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
+		if !d.IsDir() {
+			return nil
+		}
+		name := d.Name()
+		if p != root && (strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
+			return filepath.SkipDir
+		}
+		if p != root {
+			if _, err := os.Stat(filepath.Join(p, "wisp.toml")); err == nil {
 				return filepath.SkipDir
 			}
-			if p != root {
-				if _, err := os.Stat(filepath.Join(p, "wisp.toml")); err == nil {
-					return filepath.SkipDir
-				}
-			}
-			return nil
 		}
-		if !strings.HasSuffix(p, ".wsp") || skipFile(d.Name()) {
-			return nil
+
+		files, standalone := folderFiles(p, overrides)
+		if len(files) > 0 {
+			roots = append(roots, moduleRoot{path: folderKey(root, p), dir: p, files: files})
 		}
-		path, err := canonicalModulePath(root, p)
-		if err != nil {
-			return err
+		for _, file := range standalone {
+			roots = append(roots, moduleRoot{path: fileKey(root, file), dir: p, files: []string{file}})
 		}
-		if stdPath, ok := stdModulePath(p); ok {
-			path = stdPath
-		}
-		roots = append(roots, moduleRoot{path: path, dir: filepath.Dir(p), files: []string{p}})
 		return nil
 	})
 	if err != nil {
@@ -439,7 +397,7 @@ func DiscoverProject(root string) ([]*Module, error) {
 }
 
 func DiscoverProjectWithOverrides(root string, overrides map[string][]byte) ([]*Module, error) {
-	roots, err := discoverModuleRoots(root)
+	roots, err := discoverModuleRoots(root, overrides)
 	if err != nil {
 		return nil, err
 	}
@@ -500,16 +458,21 @@ func loadModule(path, dir string, files []string, overrides map[string][]byte) *
 }
 
 type ImportCandidate struct {
-	Path string
-	File string
+	Path  string
+	File  string
+	Files []string
+}
+
+func (c ImportCandidate) Contains(file string) bool {
+	return slices.Contains(c.Files, file)
 }
 
 func ImportablePaths(projectRoot string) []ImportCandidate {
-	candidates := importableUnder(projectRoot, "", true)
+	candidates := importableUnder(projectRoot, "", true, "")
 
 	if !stdlibDisabled {
 		if stdRoot, err := StdlibRoot(); err == nil {
-			candidates = append(candidates, importableUnder(stdRoot, "std/", false)...)
+			candidates = append(candidates, importableUnder(stdRoot, "std/", false, "")...)
 		}
 	}
 
@@ -520,49 +483,44 @@ func ImportablePaths(projectRoot string) []ImportCandidate {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		entry := filepath.Join(deps[name], filepath.Base(deps[name])+".wsp")
-		for _, c := range importableUnder(deps[name], name+"/", false) {
-			if c.File == entry {
-				c.Path = name
-			}
-			candidates = append(candidates, c)
-		}
+		candidates = append(candidates, importableUnder(deps[name], name+"/", false, name)...)
 	}
-
 	return candidates
 }
 
-func importableUnder(root, prefix string, skipNested bool) []ImportCandidate {
+func importableUnder(root, prefix string, skipNested bool, rootName string) []ImportCandidate {
 	var out []ImportCandidate
 
 	filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
-		if d.IsDir() {
-			name := d.Name()
-			if p != root && (strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
+		if !d.IsDir() {
+			return nil
+		}
+		name := d.Name()
+		if p != root && (strings.HasPrefix(name, ".") || strings.HasPrefix(name, "_")) {
+			return filepath.SkipDir
+		}
+		if skipNested && p != root {
+			if _, err := os.Stat(filepath.Join(p, "wisp.toml")); err == nil {
 				return filepath.SkipDir
 			}
-			if skipNested && p != root {
-				if _, err := os.Stat(filepath.Join(p, "wisp.toml")); err == nil {
-					return filepath.SkipDir
-				}
-			}
-			return nil
-		}
-		if !strings.HasSuffix(p, ".wsp") || skipFile(d.Name()) {
-			return nil
 		}
 
-		path, err := canonicalModulePath(root, p)
-		if err != nil {
-			return nil
+		files, standalone := folderFiles(p, nil)
+		if len(files) > 0 {
+			switch {
+			case p != root:
+				out = append(out, ImportCandidate{Path: prefix + filepath.ToSlash(mustRel(root, p)), File: files[0], Files: files})
+			case rootName != "":
+				out = append(out, ImportCandidate{Path: rootName, File: files[0], Files: files})
+			}
 		}
-		if dir, base := filepath.Split(path); strings.HasSuffix(dir, base+"/") {
-			path = strings.TrimSuffix(dir, "/")
+		for _, file := range standalone {
+			rel := strings.TrimSuffix(filepath.ToSlash(mustRel(root, file)), ".wsp")
+			out = append(out, ImportCandidate{Path: prefix + rel, File: file, Files: []string{file}})
 		}
-		out = append(out, ImportCandidate{Path: prefix + path, File: p})
 		return nil
 	})
 
@@ -593,98 +551,6 @@ func (m *Module) methodTargets() []string {
 		}
 	}
 	return targets
-}
-
-func packageParts(scope projectScope, mod *Module) []moduleRoot {
-	if len(mod.FilePaths) == 0 || mod.Dir == "" {
-		return nil
-	}
-	entryFile := filepath.Join(mod.Dir, filepath.Base(mod.Dir)+".wsp")
-	if mod.FilePaths[0] != entryFile {
-		return nil
-	}
-	entries, err := os.ReadDir(mod.Dir)
-	if err != nil {
-		return nil
-	}
-
-	var parts []moduleRoot
-	for _, entry := range entries {
-		file := filepath.Join(mod.Dir, entry.Name())
-		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || file == entryFile || skipFile(entry.Name()) {
-			continue
-		}
-		key := scopedKey(scope, strings.TrimSuffix(file, ".wsp"))
-		parts = append(parts, moduleRoot{path: key, dir: mod.Dir, files: []string{file}})
-	}
-	return parts
-}
-
-func methodSiblings(scope projectScope, mod *Module, overrides map[string][]byte, foreign map[string]bool) []moduleRoot {
-	if len(mod.FilePaths) == 0 || mod.Dir == "" {
-		return nil
-	}
-	entries, err := os.ReadDir(mod.Dir)
-	if err != nil {
-		return nil
-	}
-
-	var found []moduleRoot
-	for _, entry := range entries {
-		file := filepath.Join(mod.Dir, entry.Name())
-		if entry.IsDir() || !strings.HasSuffix(file, ".wsp") || slices.Contains(mod.FilePaths, file) || skipFile(entry.Name()) {
-			continue
-		}
-
-		may, known := foreign[file]
-		if !known {
-			may = mayDeclareForeignMethods(file, overrides)
-			foreign[file] = may
-		}
-		if !may {
-			continue
-		}
-
-		sibling := loadModule("", mod.Dir, []string{file}, overrides)
-		resolved := map[string]string{}
-		for _, imp := range sibling.Imports {
-			if key, _, _, _, err := resolveImport(scope, imp.Path, nil); err == nil {
-				resolved[imp.Alias] = key
-			}
-		}
-		contributes := false
-		for _, f := range sibling.Files {
-			for _, d := range f.Declarations {
-				fd, ok := d.(*ast.FuncDecl)
-				if ok && fd.Receiver != nil && fd.Receiver.Type.Module != "" && resolved[fd.Receiver.Type.Module] == mod.Path {
-					contributes = true
-				}
-			}
-		}
-		if !contributes {
-			continue
-		}
-
-		key := scopedKey(scope, strings.TrimSuffix(file, ".wsp"))
-		if base := filepath.Base(mod.Dir); entry.Name() == base+".wsp" {
-			key = scopedKey(scope, mod.Dir)
-		}
-		found = append(found, moduleRoot{path: key, dir: mod.Dir, files: []string{file}})
-	}
-	return found
-}
-
-var foreignReceiver = regexp.MustCompile(`func\s*\(\s*[*?]*\s*[A-Za-z_]\w*\.[A-Za-z_]`)
-
-func mayDeclareForeignMethods(file string, overrides map[string][]byte) bool {
-	buffer, ok := overrides[file]
-	if !ok {
-		var err error
-		if buffer, err = os.ReadFile(file); err != nil {
-			return false
-		}
-	}
-	return foreignReceiver.Match(buffer)
 }
 
 func Groups(modules []*Module) [][]*Module {

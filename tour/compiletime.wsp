@@ -1,3 +1,4 @@
+#standalone
 // Tour - Compile time: sizeof, alignof, offsetof, staticAssert and `static`.
 //
 // Some things are known before the program runs, and the compiler can check

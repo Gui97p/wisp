@@ -1,3 +1,4 @@
+#standalone
 // Tour - Basics: constants, variables and operators.
 //
 // Every file in this tour exports a `demo` function. main.wsp imports them

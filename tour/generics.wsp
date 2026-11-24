@@ -1,3 +1,4 @@
+#standalone
 // Tour - Generics: functions, structs and methods that work for any type.
 //
 // A type parameter goes between `<>` after the name: `func biggest<T>(...)`,

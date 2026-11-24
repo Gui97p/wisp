@@ -1,14 +1,13 @@
-import "std/errors/kind";
 
 /// Returns an `Error` of kind `k` if `condition` is false, and nothing
 /// otherwise. Meant for use as `ensure(ok, kind)!`.
-public inline func ensure(bool condition, const kind.Kind k) ! {
+public inline func ensure(bool condition, const Kind k) ! {
 	return Error(k) if !condition;
 }
 
 /// Like `ensure`, with `message` attached to the error. The message must be a
 /// constant.
-public inline func ensureMessage(bool condition, const kind.Kind k, const string message) ! {
+public inline func ensureMessage(bool condition, const Kind k, const string message) ! {
 	return Error(k, message) if !condition;
 }
 
@@ -35,12 +34,12 @@ public inline func todo(const string message) {
 /// again: `Interrupted`, `WouldBlock` or `Busy`. A null error gives `false`.
 public inline func temporary(Error e) bool {
 	return e == null ? false : switch e.code {
-		case kind.Kind.Interrupted, kind.Kind.WouldBlock, kind.Kind.Busy => true;
+		case Kind.Interrupted, Kind.WouldBlock, Kind.Busy => true;
 		default => false;
 	};
 }
 
 /// Reports whether `e` is a `NotFound` error. A null error gives `false`.
 public inline func missing(Error e) bool {
-	return e == null ? false : e.code == kind.Kind.NotFound;
+	return e == null ? false : e.code == Kind.NotFound;
 }

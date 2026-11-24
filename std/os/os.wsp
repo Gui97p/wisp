@@ -1,4 +1,3 @@
-import "std/os/global";
 import "std/sys";
 
 func writeRaw(int fd, *byte buf, int n) !int {
@@ -6,7 +5,7 @@ func writeRaw(int fd, *byte buf, int n) !int {
 	loop total < n {
 		int r = sys.write(fd, buf + total, n - total);
 		continue if r == -4;
-		return global.errorIO(sys.errno(r)) if r <= 0;
+		return errorIO(sys.errno(r)) if r <= 0;
 		total += r;
 	}
 	return total;
@@ -33,7 +32,7 @@ public func read(int fd, []byte buf) !int {
 	loop {
 		r = sys.read(fd, (*byte)(buf), len(buf));
 	} until r != -4;
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 	return r;
 }
 
@@ -48,7 +47,7 @@ public func close(int fd) {
 /// seek.
 public func seek(int fd, offset, whence) !int {
 	int r = sys.seek(fd, offset, whence);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 	return r;
 }
 
@@ -56,7 +55,7 @@ public func seek(int fd, offset, whence) !int {
 /// the system.
 public func size(int fd) !int {
 	int r = sys.size(fd);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 	return r;
 }
 
@@ -64,7 +63,7 @@ public func size(int fd) !int {
 /// of the system.
 public func sync(int fd) ! {
 	int r = sys.sync(fd);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 }
 
 /// Reports whether `fd` is a terminal.

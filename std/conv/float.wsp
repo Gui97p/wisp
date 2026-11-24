@@ -1,4 +1,3 @@
-import "std/conv/decimal";
 import "std/errors";
 import "std/math";
 import "std/strings";
@@ -27,7 +26,7 @@ func special([]byte buf, float x) !?string {
 	return null;
 }
 
-func layoutFixed([]byte buf, bool neg, *decimal.Decimal dec, int decimals) !string {
+func layoutFixed([]byte buf, bool neg, *Decimal dec, int decimals) !string {
 	int size = (neg ? 1 : 0) + math.max(1, dec.dp) + (decimals > 0 ? 1 + decimals : 0);
 	errors.ensure(len(buf) >= size, errors.Kind.NoSpace)!;
 	int i;
@@ -58,7 +57,7 @@ func layoutFixed([]byte buf, bool neg, *decimal.Decimal dec, int decimals) !stri
 	return string(buf[:size]);
 }
 
-func layoutExp([]byte buf, bool neg, *decimal.Decimal dec, int decimals, bool upper) !string {
+func layoutExp([]byte buf, bool neg, *Decimal dec, int decimals, bool upper) !string {
 	int exp = 0;
 	if dec.n > 0 {
 		exp = dec.dp - 1;
@@ -109,7 +108,7 @@ func shortestText([]byte buf, float x, bool single) !string {
 	}
 
 	bool neg = math.signbit(x);
-	decimal.Decimal dec;
+	Decimal dec;
 	if single {
 		dec.setShortest32(math.absf(float32(x)));
 	} else {
@@ -146,7 +145,7 @@ public func formatFixed([]byte buf, float x, int n) !string {
 	}
 
 	bool neg = math.signbit(x);
-	decimal.Decimal dec;
+	Decimal dec;
 	dec.setFixed(math.fabs(x), n);
 
 	return layoutFixed(buf, neg, &dec, n)!;
@@ -164,7 +163,7 @@ public func formatExp([]byte buf, float x, int n, bool upper) !string {
 	}
 
 	bool neg = math.signbit(x);
-	decimal.Decimal dec;
+	Decimal dec;
 	dec.setSignificant(math.fabs(x), n + 1);
 
 	return layoutExp(buf, neg, &dec, n, upper)!;

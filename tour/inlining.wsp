@@ -1,3 +1,4 @@
+#standalone
 // Tour - Inline functions.
 //
 // `inline func` asks for the body to be written at every call, instead of

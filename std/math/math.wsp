@@ -1,4 +1,3 @@
-import "std/math/constants";
 
 /// Returns `a + b`, or null when the sum overflows `int`.
 #must_use
@@ -20,7 +19,7 @@ public func checkedSub(int a, b) ?int {
 #must_use
 public func checkedMul(int a, b) ?int {
 	return 0 if a == 0 || b == 0;
-	return null if (a == -1 && b == constants.MIN_INT) || (b == -1 && a == constants.MIN_INT);
+	return null if (a == -1 && b == MIN_INT) || (b == -1 && a == MIN_INT);
 	int r = a *% b;
 	return null if r / b != a;
 	return r;
@@ -30,7 +29,7 @@ public func checkedMul(int a, b) ?int {
 /// does not fit in an `int`.
 #must_use
 public inline func checkedAbs(int x) ?int {
-	return null if x == constants.MIN_INT;
+	return null if x == MIN_INT;
 	return x < 0 ? -x : x;
 }
 

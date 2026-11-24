@@ -35,14 +35,17 @@
 //   interop       native blocks and functions (assembly)
 //   tags          `#packed`, `#naked`, `#noreturn`, `#deprecated`, `#must_use`, `#test`
 //   platform      #target, per-system files and declarations
-//   geometry/     modules: public, internal and imported names
+//   geometry/     a folder as a module: public, internal and imported names
 //   _c/           calling C with extern (a project of its own)
 //
-// Every file is its own module. `import "basics"` loads basics.wsp and binds
-// it to the name `basics`; `as` picks another name. A module reaches the
-// others through the project root, so even files in subfolders write their
-// imports the same way. Two modules may import each other, since every
-// declaration is known before any body is checked.
+// A folder is a module: its files see each other's names with no import, and
+// the folder is imported by its path (`import "geometry"`). A file that starts
+// with `#standalone` is a module of its own instead, which is how the lessons
+// next to this file are written: `import "basics"` loads basics.wsp and binds
+// it to the name `basics`; `as` picks another name. Imports start at the
+// project root, so even files in subfolders write them the same way. Two
+// modules may import each other, since every declaration is known before any
+// body is checked.
 
 import "std/fmt";
 import "anyargs";

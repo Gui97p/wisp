@@ -67,7 +67,7 @@ func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem,
 	candidates := module.ImportablePaths(root)
 	byPath := pathIndex(candidates)
 	for _, c := range candidates {
-		if c.File == path || imported[c.Path] || cyclic[c.File] || !strings.HasPrefix(c.Path, dir) || !module.CanImport(path, c.File) || exportsNothing(path, c, byPath) {
+		if c.Contains(path) || imported[c.Path] || cyclic[c.File] || !strings.HasPrefix(c.Path, dir) || exportsNothing(path, c, byPath) {
 			continue
 		}
 

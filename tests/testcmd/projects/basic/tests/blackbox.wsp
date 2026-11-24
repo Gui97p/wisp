@@ -1,3 +1,4 @@
+#standalone
 import "calc";
 
 #test("public api from another folder")

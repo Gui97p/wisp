@@ -1,8 +1,5 @@
 import "std/conv";
 import "std/errors";
-import "std/fmt/cursor";
-import "std/fmt/render";
-import "std/fmt/spec";
 import "std/math";
 import "std/mem";
 import "std/os";
@@ -122,7 +119,7 @@ public func (*Writer w) flush() ! {
 	w.len = 0;
 }
 
-func (*Writer w) writePiece(render.Piece p, spec.Spec s, bool numeric) ! {
+func (*Writer w) writePiece(Piece p, Spec s, bool numeric) ! {
 	int used = len(p.sign) + len(p.radix) + len(p.body);
 	int pad = math.max(0, s.width - used);
 
@@ -133,7 +130,7 @@ func (*Writer w) writePiece(render.Piece p, spec.Spec s, bool numeric) ! {
 		w.write(p.body)!;
 	} else {
 		if s.align == .Default {
-			s.align = numeric ? spec.Align.Right : spec.Align.Left;
+			s.align = numeric ? Align.Right : Align.Left;
 		}
 		switch s.align {
 			case .Left => {
@@ -160,45 +157,45 @@ func (*Writer w) writePiece(render.Piece p, spec.Spec s, bool numeric) ! {
 	}
 }
 
-func (*Writer w) putInt([]byte buf, int v, spec.Spec s) !bool {
-	spec.validate(s, spec.Value.Int) ?? return false;
-	render.Piece piece = render.renderInt(buf, v, s)!;
+func (*Writer w) putInt([]byte buf, int v, Spec s) !bool {
+	validate(s, Value.Int) ?? return false;
+	Piece piece = renderInt(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putUint([]byte buf, uint v, spec.Spec s) !bool {
-	spec.validate(s, spec.Value.Uint) ?? return false;
-	render.Piece piece = render.renderUint(buf, v, s)!;
+func (*Writer w) putUint([]byte buf, uint v, Spec s) !bool {
+	validate(s, Value.Uint) ?? return false;
+	Piece piece = renderUint(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putBool(bool v, spec.Spec s) !bool {
-	spec.validate(s, spec.Value.Bool) ?? return false;
-	render.Piece piece = render.renderBool(v);
+func (*Writer w) putBool(bool v, Spec s) !bool {
+	validate(s, Value.Bool) ?? return false;
+	Piece piece = renderBool(v);
 	w.writePiece(piece, s, false)!;
 	return true;
 }
 
-func (*Writer w) putString(string v, spec.Spec s) !bool {
-	spec.validate(s, spec.Value.String) ?? return false;
-	render.Piece piece = render.renderString(v, s);
+func (*Writer w) putString(string v, Spec s) !bool {
+	validate(s, Value.String) ?? return false;
+	Piece piece = renderString(v, s);
 	w.writePiece(piece, s, false)!;
 	return true;
 }
 
-func (*Writer w) putPointer([]byte buf, *void v, spec.Spec s) !bool {
-	spec.validate(s, spec.Value.Pointer) ?? return false;
-	render.Piece piece = render.renderPointer(buf, v, s)!;
+func (*Writer w) putPointer([]byte buf, *void v, Spec s) !bool {
+	validate(s, Value.Pointer) ?? return false;
+	Piece piece = renderPointer(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putFloat([]byte buf, float x, spec.Spec s, bool single) !bool {
-	spec.validate(s, spec.Value.Float) ?? return false;
-	render.Piece piece = render.renderFloat(buf, x, s, single)!;
-	spec.Spec copy = s;
+func (*Writer w) putFloat([]byte buf, float x, Spec s, bool single) !bool {
+	validate(s, Value.Float) ?? return false;
+	Piece piece = renderFloat(buf, x, s, single)!;
+	Spec copy = s;
 	if !math.isFinite(x) {
 		copy.zero = false;
 	}
@@ -206,15 +203,15 @@ func (*Writer w) putFloat([]byte buf, float x, spec.Spec s, bool single) !bool {
 	return true;
 }
 
-func (*Writer w) putError([]byte buf, Error e, spec.Spec s) !bool {
-	spec.validate(s, spec.Value.Error) ?? return false;
+func (*Writer w) putError([]byte buf, Error e, Spec s) !bool {
+	validate(s, Value.Error) ?? return false;
 	if e == null {
 		w.write("<null error>")!;
 		return true;
 	}
 	switch s.kind {
 		case 0 => {
-			render.Piece piece = render.renderString(e.message, s);
+			Piece piece = renderString(e.message, s);
 			w.writePiece(piece, s, false)!;
 		}
 		default => {
@@ -225,7 +222,7 @@ func (*Writer w) putError([]byte buf, Error e, spec.Spec s) !bool {
 			w.write(" (")!;
 			w.write(e.file)!;
 			w.writeByte(':')!;
-			render.Piece piece = render.renderInt(buf, e.line, spec.Spec{fill: ' ', precision: -1})!;
+			Piece piece = renderInt(buf, e.line, Spec{fill: ' ', precision: -1})!;
 			w.writePiece(piece, s, false)!;
 			w.writeByte(')')!;
 		}
@@ -247,7 +244,7 @@ public func (*Writer w) format(string format, ...args) !int {
 	[conv.MaxDigits]byte buf;
 	int argIndex;
 	Error problem;
-	cursor.Cursor c = cursor.Cursor{text: format};
+	Cursor c = Cursor{text: format};
 	int start = w.total;
 
 	loop !c.done() {
@@ -288,7 +285,7 @@ public func (*Writer w) format(string format, ...args) !int {
 		c.advance();
 		string all = c.since(open);
 
-		spec.Spec s = spec.parse(text) ?? {
+		Spec s = parse(text) ?? {
 			w.write(all)!;
 			argIndex++;
 			if problem == null {

@@ -1,3 +1,4 @@
+#standalone
 // Tour - Files, paths and the environment.
 //
 // `std/os` is the way into the system and `std/path` is for the names of

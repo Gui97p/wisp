@@ -1,3 +1,4 @@
+#standalone
 public func one() int {
   return 1;
 }

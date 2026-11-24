@@ -10,13 +10,12 @@
  *
  */
 
-import "std/math/ieee";
 
 const {
-	one = 1.0;
-	huge = 1.0e300;
-	tiny = 1.0e-300;
-	zero = 0.0;
+	atan_one = 1.0;
+	atan_huge = 1.0e300;
+	atan_tiny = 1.0e-300;
+	atan_zero = 0.0;
 	pi_o_4 = 7.8539816339744827900E-01;
 	pi_o_2 = 1.5707963267948965580E+00;
 	pi = 3.1415926535897931160E+00;
@@ -43,13 +42,13 @@ const {
 /// Returns the arc tangent of `x` in radians, in the range -pi/2 to pi/2. NaN
 /// returns NaN and infinities return plus or minus pi/2.
 public func atan(float x) float {
-	uint uhx = ieee.highWord(x);
-	int hx = ieee.signed32(uhx);
+	uint uhx = highWord(x);
+	int hx = signed32(uhx);
 	int ix = int(uhx & 0x7fffffff);
 	int id;
 
 	if ix >= 0x44100000 {
-		if ix > 0x7ff00000 || (ix == 0x7ff00000 && ieee.lowWord(x) != 0) {
+		if ix > 0x7ff00000 || (ix == 0x7ff00000 && lowWord(x) != 0) {
 			return x + x;
 		}
 		if hx > 0 {
@@ -60,25 +59,25 @@ public func atan(float x) float {
 
 	if ix < 0x3fdc0000 {
 		if ix < 0x3e200000 {
-			if huge + x > one {
+			if atan_huge + x > atan_one {
 				return x;
 			}
 		}
 		id = -1;
 	} else {
-		x = ieee.fabs(x);
+		x = fabs(x);
 		if ix < 0x3ff30000 {
 			if ix < 0x3fe60000 {
 				id = 0;
-				x = (2.0 * x - one) / (2.0 + x);
+				x = (2.0 * x - atan_one) / (2.0 + x);
 			} else {
 				id = 1;
-				x = (x - one) / (x + one);
+				x = (x - atan_one) / (x + atan_one);
 			}
 		} else {
 			if ix < 0x40038000 {
 				id = 2;
-				x = (x - 1.5) / (one + 1.5 * x);
+				x = (x - 1.5) / (atan_one + 1.5 * x);
 			} else {
 				id = 3;
 				x = -1.0 / x;
@@ -105,16 +104,16 @@ public func atan(float x) float {
 /// zeros are honored, so `atan2(0.0, -1.0)` is pi, `atan2(-0.0, -1.0)` is -pi and
 /// `atan2(0.0, 0.0)` is 0. NaN in either argument returns NaN.
 public func atan2(float y, float x) float {
-	uint uhx = ieee.highWord(x);
-	int hx = ieee.signed32(uhx);
+	uint uhx = highWord(x);
+	int hx = signed32(uhx);
 	int ix = int(uhx & 0x7fffffff);
-	uint lx = ieee.lowWord(x);
-	uint uhy = ieee.highWord(y);
-	int hy = ieee.signed32(uhy);
+	uint lx = lowWord(x);
+	uint uhy = highWord(y);
+	int hy = signed32(uhy);
 	int iy = int(uhy & 0x7fffffff);
-	uint ly = ieee.lowWord(y);
+	uint ly = lowWord(y);
 
-	if ieee.isNaN(x) || ieee.isNaN(y) {
+	if isNaN(x) || isNaN(y) {
 		return x + y;
 	}
 	if hx == 0x3ff00000 && lx == 0 {
@@ -134,46 +133,46 @@ public func atan2(float y, float x) float {
 			return y;
 		}
 		if m == 2 {
-			return pi + tiny;
+			return pi + atan_tiny;
 		}
-		return -pi - tiny;
+		return -pi - atan_tiny;
 	}
 	if (uint(ix) | lx) == 0 {
 		if hy < 0 {
-			return -pi_o_2 - tiny;
+			return -pi_o_2 - atan_tiny;
 		}
-		return pi_o_2 + tiny;
+		return pi_o_2 + atan_tiny;
 	}
 
 	if ix == 0x7ff00000 {
 		if iy == 0x7ff00000 {
 			if m == 0 {
-				return pi_o_4 + tiny;
+				return pi_o_4 + atan_tiny;
 			}
 			if m == 1 {
-				return -pi_o_4 - tiny;
+				return -pi_o_4 - atan_tiny;
 			}
 			if m == 2 {
-				return 3.0 * pi_o_4 + tiny;
+				return 3.0 * pi_o_4 + atan_tiny;
 			}
-			return -3.0 * pi_o_4 - tiny;
+			return -3.0 * pi_o_4 - atan_tiny;
 		}
 		if m == 0 {
-			return zero;
+			return atan_zero;
 		}
 		if m == 1 {
-			return -zero;
+			return -atan_zero;
 		}
 		if m == 2 {
-			return pi + tiny;
+			return pi + atan_tiny;
 		}
-		return -pi - tiny;
+		return -pi - atan_tiny;
 	}
 	if iy == 0x7ff00000 {
 		if hy < 0 {
-			return -pi_o_2 - tiny;
+			return -pi_o_2 - atan_tiny;
 		}
-		return pi_o_2 + tiny;
+		return pi_o_2 + atan_tiny;
 	}
 
 	int k = (iy - ix) >> 20;
@@ -183,7 +182,7 @@ public func atan2(float y, float x) float {
 	} else if hx < 0 && k < -60 {
 		z = 0.0;
 	} else {
-		z = atan(ieee.fabs(y / x));
+		z = atan(fabs(y / x));
 	}
 
 	if m == 0 {
@@ -201,39 +200,39 @@ public func atan2(float y, float x) float {
 /// Returns the arc sine of `x` in radians, in the range -pi/2 to pi/2. It is NaN
 /// when `x` is outside -1 to 1 and when `x` is NaN.
 public func asin(float x) float {
-	uint uhx = ieee.highWord(x);
-	int hx = ieee.signed32(uhx);
+	uint uhx = highWord(x);
+	int hx = signed32(uhx);
 	int ix = int(uhx & 0x7fffffff);
 
 	if ix >= 0x3ff00000 {
-		if ix == 0x3ff00000 && ieee.lowWord(x) == 0 {
+		if ix == 0x3ff00000 && lowWord(x) == 0 {
 			return x * pio2_hi + x * pio2_lo;
 		}
-		return ieee.nan();
+		return nan();
 	}
 	if ix < 0x3fe00000 {
 		if ix < 0x3e400000 {
-			if huge + x > one {
+			if atan_huge + x > atan_one {
 				return x;
 			}
 		}
 		float t = x * x;
 		float p = t * (pS0 + t * (pS1 + t * (pS2 + t * (pS3 + t * (pS4 + t * pS5)))));
-		float q = one + t * (qS1 + t * (qS2 + t * (qS3 + t * qS4)));
+		float q = atan_one + t * (qS1 + t * (qS2 + t * (qS3 + t * qS4)));
 		float w = p / q;
 		return x + x * w;
 	}
 
-	float w = one - ieee.fabs(x);
+	float w = atan_one - fabs(x);
 	float t = w * 0.5;
 	float p = t * (pS0 + t * (pS1 + t * (pS2 + t * (pS3 + t * (pS4 + t * pS5)))));
-	float q = one + t * (qS1 + t * (qS2 + t * (qS3 + t * qS4)));
-	float s = ieee.fsqrt(t);
+	float q = atan_one + t * (qS1 + t * (qS2 + t * (qS3 + t * qS4)));
+	float s = fsqrt(t);
 	if ix >= 0x3FEF3333 {
 		w = p / q;
 		t = pio2_hi - (2.0 * (s + s * w) - pio2_lo);
 	} else {
-		w = ieee.setLowWord(s, 0);
+		w = setLowWord(s, 0);
 		float c = (t - w * w) / (s + w);
 		float r = p / q;
 		p = 2.0 * s * r - (pio2_lo - 2.0 * c);
@@ -249,18 +248,18 @@ public func asin(float x) float {
 /// Returns the arc cosine of `x` in radians, in the range 0 to pi. It is NaN when
 /// `x` is outside -1 to 1 and when `x` is NaN.
 public func acos(float x) float {
-	uint uhx = ieee.highWord(x);
-	int hx = ieee.signed32(uhx);
+	uint uhx = highWord(x);
+	int hx = signed32(uhx);
 	int ix = int(uhx & 0x7fffffff);
 
 	if ix >= 0x3ff00000 {
-		if ix == 0x3ff00000 && ieee.lowWord(x) == 0 {
+		if ix == 0x3ff00000 && lowWord(x) == 0 {
 			if hx > 0 {
 				return 0.0;
 			}
 			return pi + 2.0 * pio2_lo;
 		}
-		return ieee.nan();
+		return nan();
 	}
 	if ix < 0x3fe00000 {
 		if ix <= 0x3c600000 {
@@ -268,25 +267,25 @@ public func acos(float x) float {
 		}
 		float z = x * x;
 		float p = z * (pS0 + z * (pS1 + z * (pS2 + z * (pS3 + z * (pS4 + z * pS5)))));
-		float q = one + z * (qS1 + z * (qS2 + z * (qS3 + z * qS4)));
+		float q = atan_one + z * (qS1 + z * (qS2 + z * (qS3 + z * qS4)));
 		float r = p / q;
 		return pio2_hi - (x - (pio2_lo - x * r));
 	}
 	if hx < 0 {
-		float z = (one + x) * 0.5;
+		float z = (atan_one + x) * 0.5;
 		float p = z * (pS0 + z * (pS1 + z * (pS2 + z * (pS3 + z * (pS4 + z * pS5)))));
-		float q = one + z * (qS1 + z * (qS2 + z * (qS3 + z * qS4)));
-		float s = ieee.fsqrt(z);
+		float q = atan_one + z * (qS1 + z * (qS2 + z * (qS3 + z * qS4)));
+		float s = fsqrt(z);
 		float r = p / q;
 		float w = r * s - pio2_lo;
 		return pi - 2.0 * (s + w);
 	}
-	float z = (one - x) * 0.5;
-	float s = ieee.fsqrt(z);
-	float df = ieee.setLowWord(s, 0);
+	float z = (atan_one - x) * 0.5;
+	float s = fsqrt(z);
+	float df = setLowWord(s, 0);
 	float c = (z - df * df) / (s + df);
 	float p = z * (pS0 + z * (pS1 + z * (pS2 + z * (pS3 + z * (pS4 + z * pS5)))));
-	float q = one + z * (qS1 + z * (qS2 + z * (qS3 + z * qS4)));
+	float q = atan_one + z * (qS1 + z * (qS2 + z * (qS3 + z * qS4)));
 	float r = p / q;
 	float w = r * s + c;
 	return 2.0 * (df + w);

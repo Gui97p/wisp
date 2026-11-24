@@ -1,3 +1,4 @@
+#standalone
 // Tour - Structs and methods.
 
 import "std/fmt";

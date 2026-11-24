@@ -1,3 +1,4 @@
+#standalone
 // Tour - Error handling.
 
 import "std/errors";

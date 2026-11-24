@@ -1,3 +1,4 @@
+#standalone
 import "box";
 
 #test("an instance of a generic struct and of a generic function")

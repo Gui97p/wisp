@@ -36,9 +36,9 @@ func layout(t *testing.T) (app, geometry, mathx string) {
 	app, geometry, mathx = filepath.Join(base, "app"), filepath.Join(base, "geometry"), filepath.Join(base, "mathx")
 	write(t, mathx, "mathx.wsp", "public func twice(int n) int => n * 2;\n")
 	write(t, geometry, "wisp.toml", "[dependencies]\nmathx = { path = \"../mathx\" }\n")
-	write(t, geometry, "geometry.wsp", "import \"util\";\nimport \"mathx\";\npublic func area(int w, h) int => util.mul(w, h);\n")
-	write(t, geometry, "util.wsp", "public func mul(int a, b) int => a * b;\n")
-	write(t, geometry, "shapes/shapes.wsp", "import \"geometry\";\npublic func f() int => geometry.area(1, 2);\n")
+	write(t, geometry, "geometry.wsp", "import \"mathx\";\npublic func area(int w, h) int => mul(w, h);\n")
+	write(t, geometry, "util.wsp", "func mul(int a, b) int => a * b;\n")
+	write(t, geometry, "shapes/shapes.wsp", "public func f() int => 3;\n")
 	write(t, app, "wisp.toml", "[dependencies]\ngeo = { path = \"../geometry\" }\nmathx = { path = \"../mathx\" }\n")
 	write(t, app, "main.wsp", "import \"geo\";\nimport \"geo/shapes\";\nimport \"mathx\";\nfunc main() {}\n")
 	return app, geometry, mathx
@@ -51,7 +51,7 @@ func TestDependenciesGetOneModuleEach(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := keys(mods)
-	want := []string{"geo", "geo/shapes/shapes", "geo/util", "main", "mathx"}
+	want := []string{"geo", "geo/shapes", "main", "mathx"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("modules %v, want %v", got, want)
 	}
@@ -113,10 +113,10 @@ func TestMissingDependencyFolderAndEntryExplainThemselves(t *testing.T) {
 
 	app2, _, mathx := layout(t)
 	os.Remove(filepath.Join(mathx, "mathx.wsp"))
-	write(t, mathx, "other.wsp", "public func x() int => 1;\n")
+	write(t, mathx, "readme.txt", "no code here\n")
 	mods, _ = DiscoverProject(app2)
 	for _, m := range mods {
-		if m.Path == "main" && !strings.Contains(m.ImportErrors["mathx"], "has no module file mathx.wsp") {
+		if m.Path == "main" && !strings.Contains(m.ImportErrors["mathx"], "has no Wisp files in its root folder") {
 			t.Errorf("got %q", m.ImportErrors["mathx"])
 		}
 	}
@@ -132,7 +132,7 @@ func TestDependenciesAreOfferedToAutoImport(t *testing.T) {
 	}
 	sort.Strings(paths)
 	joined := strings.Join(paths, ",")
-	for _, want := range []string{"geo", "geo/util", "mathx", "main"} {
+	for _, want := range []string{"geo", "geo/shapes", "mathx"} {
 		if !strings.Contains(","+joined+",", ","+want+",") {
 			t.Errorf("%q is not offered: %s", want, joined)
 		}
@@ -141,7 +141,7 @@ func TestDependenciesAreOfferedToAutoImport(t *testing.T) {
 
 func TestDependencyTestsAreNotRun(t *testing.T) {
 	app, geometry, _ := layout(t)
-	write(t, geometry, "geometry.wsp", "import \"std/testing\";\nimport \"util\";\nimport \"mathx\";\npublic func area(int w, h) int => util.mul(w, h);\n#test\nfunc depTest() ! { testing.expect(true)!; }\n")
+	write(t, geometry, "geometry.wsp", "import \"std/testing\";\nimport \"mathx\";\npublic func area(int w, h) int => mul(w, h);\n#test\nfunc depTest() ! { testing.expect(true)!; }\n")
 	ConfigureTests(true)
 	defer ConfigureTests(false)
 	_, tests, _, err := DiscoverProjectWithTests(app, nil, func([]TestFunc) string { return "func main() {}\n" })

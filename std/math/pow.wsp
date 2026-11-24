@@ -8,26 +8,25 @@
  * ====================================================
  */
 
-import "std/math/ieee";
 
 const {
-	zero = 0.0;
-	one = 1.0;
-	two = 2.0;
+	pow_zero = 0.0;
+	pow_one = 1.0;
+	pow_two = 2.0;
 	two53 = 9007199254740992.0;
-	huge = 1.0e300;
-	tiny = 1.0e-300;
+	pow_huge = 1.0e300;
+	pow_tiny = 1.0e-300;
 	L1 = 5.99999999999994648725e-01;
 	L2 = 4.28571428578550184252e-01;
 	L3 = 3.33333329818377432918e-01;
 	L4 = 2.72728123808534006489e-01;
 	L5 = 2.30660745775561754067e-01;
 	L6 = 2.06975017800338417784e-01;
-	P1 = 1.66666666666666019037e-01;
-	P2 = -2.77777777770155933842e-03;
-	P3 = 6.61375632143793436117e-05;
-	P4 = -1.65339022054652515390e-06;
-	P5 = 4.13813679705723846039e-08;
+	pow_P1 = 1.66666666666666019037e-01;
+	pow_P2 = -2.77777777770155933842e-03;
+	pow_P3 = 6.61375632143793436117e-05;
+	pow_P4 = -1.65339022054652515390e-06;
+	pow_P5 = 4.13813679705723846039e-08;
 	lg2 = 6.93147180559945286227e-01;
 	lg2_h = 6.93147182464599609375e-01;
 	lg2_l = -1.90465429995776804525e-09;
@@ -47,24 +46,24 @@ const {
 /// Returns `x` raised to the power `y`. Anything to the power 0 is 1, including
 /// NaN, and 1 to any power is 1, including NaN. A negative `x` with a non-integer
 /// `y` is NaN, and an odd integer `y` keeps the sign of `x`. Overflow gives an
-/// infinity, underflow gives a zero, and any other NaN input returns NaN. For
+/// infinity, underflow gives a pow_zero, and any other NaN input returns NaN. For
 /// integers use `pow`.
 public func fpow(float x, float y) float {
-	uint uhx = ieee.highWord(x);
-	uint lx = ieee.lowWord(x);
-	uint uhy = ieee.highWord(y);
-	uint ly = ieee.lowWord(y);
-	int hx = ieee.signed32(uhx);
-	int hy = ieee.signed32(uhy);
+	uint uhx = highWord(x);
+	uint lx = lowWord(x);
+	uint uhy = highWord(y);
+	uint ly = lowWord(y);
+	int hx = signed32(uhx);
+	int hy = signed32(uhy);
 	int ix = int(uhx & 0x7fffffff);
 	int iy = int(uhy & 0x7fffffff);
 
 	if (uint(iy) | ly) == 0 {
-		return one;
+		return pow_one;
 	}
 
 	if hx == 0x3ff00000 && lx == 0 {
-		return one;
+		return pow_one;
 	}
 
 	if ix > 0x7ff00000 || (ix == 0x7ff00000 && lx != 0) || iy > 0x7ff00000 || (iy == 0x7ff00000 && ly != 0) {
@@ -94,22 +93,22 @@ public func fpow(float x, float y) float {
 	if ly == 0 {
 		if iy == 0x7ff00000 {
 			if ix == 0x3ff00000 && lx == 0 {
-				return one;
+				return pow_one;
 			}
 			if ix >= 0x3ff00000 {
 				if hy >= 0 {
 					return y;
 				}
-				return zero;
+				return pow_zero;
 			}
 			if hy < 0 {
 				return -y;
 			}
-			return zero;
+			return pow_zero;
 		}
 		if iy == 0x3ff00000 {
 			if hy < 0 {
-				return one / x;
+				return pow_one / x;
 			}
 			return x;
 		}
@@ -118,21 +117,21 @@ public func fpow(float x, float y) float {
 		}
 		if hy == 0x3fe00000 {
 			if hx >= 0 {
-				return ieee.fsqrt(x);
+				return fsqrt(x);
 			}
 		}
 	}
 
-	float ax = ieee.fabs(x);
+	float ax = fabs(x);
 	if lx == 0 {
 		if ix == 0x7ff00000 || ix == 0 || ix == 0x3ff00000 {
 			float z = ax;
 			if hy < 0 {
-				z = one / z;
+				z = pow_one / z;
 			}
 			if hx < 0 {
 				if ix == 0x3ff00000 && yisint == 0 {
-					z = ieee.nan();
+					z = nan();
 				} else if yisint == 1 {
 					z = -z;
 				}
@@ -143,12 +142,12 @@ public func fpow(float x, float y) float {
 
 	int n = (hx >> 31) + 1;
 	if (n | yisint) == 0 {
-		return ieee.nan();
+		return nan();
 	}
 
-	float s = one;
+	float s = pow_one;
 	if n == 0 && yisint == 1 {
-		s = -one;
+		s = -pow_one;
 	}
 
 	float t1;
@@ -157,41 +156,41 @@ public func fpow(float x, float y) float {
 		if iy > 0x43f00000 {
 			if ix <= 0x3fefffff {
 				if hy < 0 {
-					return huge * huge;
+					return pow_huge * pow_huge;
 				}
-				return tiny * tiny;
+				return pow_tiny * pow_tiny;
 			}
 			if ix >= 0x3ff00000 {
 				if hy > 0 {
-					return huge * huge;
+					return pow_huge * pow_huge;
 				}
-				return tiny * tiny;
+				return pow_tiny * pow_tiny;
 			}
 		}
 		if ix < 0x3fefffff {
 			if hy < 0 {
-				return s * huge * huge;
+				return s * pow_huge * pow_huge;
 			}
-			return s * tiny * tiny;
+			return s * pow_tiny * pow_tiny;
 		}
 		if ix > 0x3ff00000 {
 			if hy > 0 {
-				return s * huge * huge;
+				return s * pow_huge * pow_huge;
 			}
-			return s * tiny * tiny;
+			return s * pow_tiny * pow_tiny;
 		}
-		float t = ax - one;
+		float t = ax - pow_one;
 		float w = (t * t) * (0.5 - t * (0.3333333333333333333333 - t * 0.25));
 		float u = ivln2_h * t;
 		float v = t * ivln2_l - w * ivln2;
-		t1 = ieee.setLowWord(u + v, 0);
+		t1 = setLowWord(u + v, 0);
 		t2 = v - (t1 - u);
 	} else {
 		n = 0;
 		if ix < 0x00100000 {
 			ax *= two53;
 			n -= 53;
-			ix = int(ieee.highWord(ax));
+			ix = int(highWord(ax));
 		}
 		n += (ix >> 20) - 0x3ff;
 		int j = ix & 0x000fffff;
@@ -206,51 +205,51 @@ public func fpow(float x, float y) float {
 			n += 1;
 			ix -= 0x00100000;
 		}
-		ax = ieee.setHighWord(ax, uint(ix));
+		ax = setHighWord(ax, uint(ix));
 
 		float u = ax - bp[k];
-		float v = one / (ax + bp[k]);
+		float v = pow_one / (ax + bp[k]);
 		float ss = u * v;
-		float s_h = ieee.setLowWord(ss, 0);
-		float t_h = ieee.fromWords(uint(((ix >> 1) | 0x20000000) + 0x00080000 + (k << 18)), 0);
+		float s_h = setLowWord(ss, 0);
+		float t_h = fromWords(uint(((ix >> 1) | 0x20000000) + 0x00080000 + (k << 18)), 0);
 		float t_l = ax - (t_h - bp[k]);
 		float s_l = v * ((u - s_h * t_h) - s_h * t_l);
 		float s2 = ss * ss;
 		float r = s2 * s2 * (L1 + s2 * (L2 + s2 * (L3 + s2 * (L4 + s2 * (L5 + s2 * L6)))));
 		r += s_l * (s_h + ss);
 		s2 = s_h * s_h;
-		t_h = ieee.setLowWord(3.0 + s2 + r, 0);
+		t_h = setLowWord(3.0 + s2 + r, 0);
 		t_l = r - ((t_h - 3.0) - s2);
 		u = s_h * t_h;
 		v = s_l * t_h + t_l * ss;
-		float p_h = ieee.setLowWord(u + v, 0);
+		float p_h = setLowWord(u + v, 0);
 		float p_l = v - (p_h - u);
 		float z_h = cp_h * p_h;
 		float z_l = cp_l * p_h + p_l * cp + dp_l[k];
 		float t = float(n);
-		t1 = ieee.setLowWord(((z_h + z_l) + dp_h[k]) + t, 0);
+		t1 = setLowWord(((z_h + z_l) + dp_h[k]) + t, 0);
 		t2 = z_l - (((t1 - t) - dp_h[k]) - z_h);
 	}
 
-	float y1 = ieee.setLowWord(y, 0);
+	float y1 = setLowWord(y, 0);
 	float p_l = (y - y1) * t1 + y * t2;
 	float p_h = y1 * t1;
 	float z = p_l + p_h;
-	int j = ieee.signed32(ieee.highWord(z));
-	int i = int(ieee.lowWord(z));
+	int j = signed32(highWord(z));
+	int i = int(lowWord(z));
 	if j >= 0x40900000 {
 		if j != 0x40900000 || i != 0 {
-			return s * huge * huge;
+			return s * pow_huge * pow_huge;
 		}
 		if p_l + ovt > z - p_h {
-			return s * huge * huge;
+			return s * pow_huge * pow_huge;
 		}
 	} else if (j & 0x7fffffff) >= 0x4090cc00 {
 		if j != -1064252416 || i != 0 {
-			return s * tiny * tiny;
+			return s * pow_tiny * pow_tiny;
 		}
 		if p_l <= z - p_h {
-			return s * tiny * tiny;
+			return s * pow_tiny * pow_tiny;
 		}
 	}
 
@@ -264,28 +263,28 @@ public func fpow(float x, float y) float {
 		if high < 0 {
 			high += 0x100000000;
 		}
-		float t = ieee.fromWords(uint(high), 0);
+		float t = fromWords(uint(high), 0);
 		n = ((n & 0x000fffff) | 0x00100000) >> (20 - k);
 		if j < 0 {
 			n = -n;
 		}
 		p_h -= t;
 	}
-	float t = ieee.setLowWord(p_l + p_h, 0);
+	float t = setLowWord(p_l + p_h, 0);
 	float u = t * lg2_h;
 	float v = (p_l - (t - p_h)) * lg2 + t * lg2_l;
 	z = u + v;
 	float w = v - (z - u);
 	t = z * z;
-	t1 = z - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
-	float r = (z * t1) / (t1 - two) - (w + z * w);
-	z = one - (r - z);
-	j = ieee.signed32(ieee.highWord(z));
+	t1 = z - t * (pow_P1 + t * (pow_P2 + t * (pow_P3 + t * (pow_P4 + t * pow_P5))));
+	float r = (z * t1) / (t1 - pow_two) - (w + z * w);
+	z = pow_one - (r - z);
+	j = signed32(highWord(z));
 	j += (n << 20);
 	if (j >> 20) <= 0 {
-		z = ieee.ldexp(z, n);
+		z = ldexp(z, n);
 	} else {
-		z = ieee.addExponent(z, n);
+		z = addExponent(z, n);
 	}
 	return s * z;
 }

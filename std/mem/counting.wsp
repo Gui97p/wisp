@@ -1,21 +1,19 @@
 import "std/errors";
 import "std/math";
-import "std/mem";
-
-const HEADER = 16;
+const counting_HEADER = 16;
 
 /// An allocator that counts what goes through it and forwards the work to
-/// `parent`, or to `mem.heap` when `parent` is null. Each block carries a 16-byte
+/// `parent`, or to `heap` when `parent` is null. Each block carries a 16-byte
 /// header that holds its size. Use it in tests to check how much a piece of code
 /// allocates and that it frees all of it. The counters are read with `blocks`,
 /// `bytes`, `peak`, `allocations` and `allocated`.
-public struct Counting implements mem.Allocator {
-	?mem.Allocator parent;
+public struct Counting implements Allocator {
+	?Allocator parent;
 	internal int liveBlocks, liveBytes, peakBytes, totalBlocks, totalBytes;
 }
 
-func (*Counting c) source() mem.Allocator {
-	return c.parent ?? mem.heap;
+func (*Counting c) source() Allocator {
+	return c.parent ?? heap;
 }
 
 func (*Counting c) take(int n) {
@@ -36,19 +34,19 @@ func (*Counting c) check(int n) ! {
 /// with the error of the parent.
 public func (*Counting c) alloc(int n) !*void {
 	c.check(n)!;
-	*void raw = c.source().alloc(n + HEADER)!;
+	*void raw = c.source().alloc(n + counting_HEADER)!;
 	(*int)(raw)@ = n;
 	c.take(n);
-	return (*byte)(raw) + HEADER;
+	return (*byte)(raw) + counting_HEADER;
 }
 
 /// Like `alloc`, but the bytes are not cleared.
 public func (*Counting c) allocDirty(int n) !*void {
 	c.check(n)!;
-	*void raw = c.source().allocDirty(n + HEADER)!;
+	*void raw = c.source().allocDirty(n + counting_HEADER)!;
 	(*int)(raw)@ = n;
 	c.take(n);
-	return (*byte)(raw) + HEADER;
+	return (*byte)(raw) + counting_HEADER;
 }
 
 /// Resizes a block, using the size recorded in its header: `old` is ignored. The
@@ -57,23 +55,23 @@ public func (*Counting c) allocDirty(int n) !*void {
 public func (*Counting c) realloc(?*void p, int _old, int n) !*void {
 	c.check(n)!;
 	*void block = p ?? return c.alloc(n)!;
-	*byte raw = (*byte)(block) - HEADER;
+	*byte raw = (*byte)(block) - counting_HEADER;
 	int was = (*int)(raw)@;
-	*void grown = c.source().realloc(raw, was + HEADER, n + HEADER)!;
+	*void grown = c.source().realloc(raw, was + counting_HEADER, n + counting_HEADER)!;
 	(*int)(grown)@ = n;
 	c.liveBytes += n - was;
 	if n > was {
 		c.totalBytes += n - was;
 	}
 	c.peakBytes = math.max(c.peakBytes, c.liveBytes);
-	return (*byte)(grown) + HEADER;
+	return (*byte)(grown) + counting_HEADER;
 }
 
 /// Gives a block back to the parent and removes it from the live counts. Null is
 /// ignored. The block must come from this allocator.
 public func (*Counting c) free(?*void p) {
 	*void block = p ?? return;
-	*byte raw = (*byte)(block) - HEADER;
+	*byte raw = (*byte)(block) - counting_HEADER;
 	c.liveBlocks--;
 	c.liveBytes -= (*int)(raw)@;
 	c.source().free(raw);

@@ -1,7 +1,4 @@
 import "std/errors";
-import<debug> "std/mem/debug" as dbg;
-import "std/mem/heap" as raw;
-import "std/mem/x64" as impl;
 
 /// Where blocks of memory come from. A block is a number of bytes: `alloc`
 /// gives it zeroed, `allocDirty` leaves it as it was, `realloc` resizes a block
@@ -29,18 +26,18 @@ Heap heapState;
 public Allocator heap = &heapState;
 
 func (*Raw) alloc(int n) !*void {
-	*void p = raw.allocate(n, true) ?? return Error(errors.Kind.OutOfMemory);
+	*void p = allocate(n, true) ?? return Error(errors.Kind.OutOfMemory);
 	return p;
 }
 
 func (*Raw) allocDirty(int n) !*void {
-	*void p = raw.allocate(n, false) ?? return Error(errors.Kind.OutOfMemory);
+	*void p = allocate(n, false) ?? return Error(errors.Kind.OutOfMemory);
 	return p;
 }
 
 func (*Raw r) realloc(?*void p, int old, int n) !*void {
 	*void block = p ?? return r.alloc(n)!;
-	*void grown = raw.realloc(block, n) ?? return Error(errors.Kind.OutOfMemory);
+	*void grown = realloc(block, n) ?? return Error(errors.Kind.OutOfMemory);
 	if n > old {
 		fill((*byte)(grown) + old, 0, n - old);
 	}
@@ -49,11 +46,11 @@ func (*Raw r) realloc(?*void p, int old, int n) !*void {
 
 func (*Raw) free(?*void p) {
 	if p |block| {
-		raw.release(block);
+		release(block);
 	}
 }
 
-var<debug> dbg.Debug checked;
+var<debug> Debug checked;
 let<debug> hookPending = true;
 
 func<debug> leakReport() {
@@ -63,7 +60,7 @@ func<debug> leakReport() {
 func<debug> arm() {
 	if hookPending {
 		checked.parent = &rawState;
-		impl.setExitHook(leakReport);
+		setExitHook(leakReport);
 		hookPending = false;
 	}
 }
@@ -142,19 +139,19 @@ public inline func free<Allocator A>(A a, ?*void p) {
 /// Copies n bytes from src to dst. The blocks must not overlap: use `move` when
 /// they can.
 public inline func copy(*void dst, src, int n) {
-	impl.rawCopy(dst, src, n);
+	rawCopy(dst, src, n);
 }
 
 /// Copies n bytes from src to dst, also when they overlap.
 public func move(*void dst, src, int n) {
 	if dst > src && dst < (*byte)(src) + n {
-		impl.rawCopyBackward(dst, src, n);
+		rawCopyBackward(dst, src, n);
 	} else {
-		impl.rawCopy(dst, src, n);
+		rawCopy(dst, src, n);
 	}
 }
 
 /// Sets n bytes from dst to the value.
 public inline func fill(*void dst, byte value, int n) {
-	impl.rawSet(dst, value, n);
+	rawSet(dst, value, n);
 }

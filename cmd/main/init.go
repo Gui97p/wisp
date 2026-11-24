@@ -65,7 +65,8 @@ const nativeMainContent = `func main() {
 }
 `
 
-const libContent = `public func add(int a, b) int => a + b;
+const libContent = `#standalone
+public func add(int a, b) int => a + b;
 `
 
 const targetTomlContent = `

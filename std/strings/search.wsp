@@ -1,5 +1,4 @@
 import "std/math";
-import "std/strings/character";
 
 /// Returns the byte index of the first occurrence of `sub` in `s`, or null when
 /// there is none. An empty `sub` is found at index 0.
@@ -129,7 +128,7 @@ public func equalFold(string a, b) bool {
 	return false if len(a) != len(b);
 
 	for i, c in a {
-		return false if character.lowerByte(c) != character.lowerByte(b[i]);
+		return false if lowerByte(c) != lowerByte(b[i]);
 	}
 
 	return true;

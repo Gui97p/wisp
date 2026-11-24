@@ -1,3 +1,4 @@
+#standalone
 // Tour - Functions.
 
 import "std/fmt";

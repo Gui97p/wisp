@@ -1,3 +1,4 @@
+#standalone
 // Tour - Arrays, slices and strings.
 
 import "std/fmt";

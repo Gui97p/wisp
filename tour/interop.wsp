@@ -1,3 +1,4 @@
+#standalone
 // Tour - Native code.
 //
 // `native` embeds code written for one architecture. What is in angle brackets

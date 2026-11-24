@@ -1,29 +1,27 @@
 import "std/mem";
-import "std/os";
-import "std/os/global";
 import "std/sys";
 
 /// Opens the file `p` with the `flags` of `os/global` (`READ`, `WRITE`, `CREATE`
 /// and the others, combined with `|`) and returns its descriptor. Fails with
 /// `NotFound`, `Permission`, `Exists` and the like. The descriptor has to be
-/// closed with `os.close`.
+/// closed with `close`.
 public func open(string p, int flags) !int {
 	int r = sys.open(p, flags);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 	return r;
 }
 
 /// Opens the file `p` for writing, creating it if it does not exist and
 /// emptying it if it does. Returns the descriptor, which the caller closes.
 public func create(string p) !int {
-	return open(p, global.WRITE | global.CREATE | global.TRUNCATE)!;
+	return open(p, WRITE | CREATE | TRUNCATE)!;
 }
 
 /// Removes the file `p`. Fails with `NotFound` or `Permission`, and with `IsDir`
 /// from `IOError` if `p` is a directory (use `removeDir` for those).
 public func remove(string p) ! {
 	int r = sys.remove(p);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 }
 
 /// Reads the whole file `p` and returns its bytes. The buffer comes from
@@ -31,15 +29,15 @@ public func remove(string p) ! {
 /// file gives an empty slice with nothing allocated. Fails with the errors of
 /// `open` and `read`, or `OutOfMemory`.
 public func readFile(string p) ![]byte {
-	int fd = open(p, global.READ)!;
-	defer os.close(fd);
-	int size = os.size(fd)!;
+	int fd = open(p, READ)!;
+	defer close(fd);
+	int size = size(fd)!;
 	return .{} if size == 0;
 	[]byte buf = mem.make<byte>(mem.heap, size)!;
 	defer !mem.free(mem.heap, buf);
 	int total;
 	loop {
-		int r = os.read(fd, buf[total:])!;
+		int r = read(fd, buf[total:])!;
 		total += r;
 	} until r == 0 || total >= size;
 	return buf[:total];
@@ -49,23 +47,23 @@ public func readFile(string p) ![]byte {
 /// `NotFound`, `Permission` and the like.
 public func rename(string from, to) ! {
 	int r = sys.rename(from, to);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 }
 
 /// Returns what the system knows about `p`: kind, size, modification time and
 /// mode. A link is reported as `Link`, it is not followed. Fails with `NotFound`
 /// or `Permission`.
-public func stat(string p) !global.Stat {
+public func stat(string p) !Stat {
 	sys.Stat s;
 	int r = sys.stat(p, &s);
-	return global.errorIO(sys.errno(r)) if r < 0;
-	global.FileKind kind = switch s.kind {
+	return errorIO(sys.errno(r)) if r < 0;
+	FileKind kind = switch s.kind {
 		case sys.KIND_FILE => .File;
 		case sys.KIND_LINK => .Link;
 		case sys.KIND_DIR => .Dir;
 		default => .Other;
 	};
-	return global.Stat{mode: s.mode, kind: kind, modified: s.modified, size: s.size};
+	return Stat{mode: s.mode, kind: kind, modified: s.modified, size: s.size};
 }
 
 /// Reports whether `p` can be examined with `stat`. A path that fails for any
@@ -79,6 +77,6 @@ public inline func exists(string p) bool {
 /// that points into `buf`. Fails with `Overflow` if `buf` is too small.
 public func cwd([]byte buf) !string {
 	int r = sys.getcwd(buf);
-	return global.errorIO(sys.errno(r)) if r < 0;
+	return errorIO(sys.errno(r)) if r < 0;
 	return string(buf[:r]);
 }

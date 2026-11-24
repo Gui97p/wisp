@@ -1,24 +1,18 @@
-// A package: the file named after its folder is what `import "geometry"`
-// resolves to. Other files in the folder are internal to the package: only
-// files under geometry/ can import them, so an `import "geometry/constants"`
-// from outside is an error.
+// A package: every file of a folder is one module, imported by the name of the
+// folder, and its files see each other's names with no import. The `public`
+// names of all of them are the API of the package: `geo.Sides` comes from
+// constants.wsp and `geo.area` from this file, and a name two files both make
+// public is an error. A file that should be a module of its own starts with
+// `#standalone`, which is how the files next to main.wsp are written. A folder
+// inside a package is a package of its own, imported by its own path.
 //
-// Visibility has three steps. A declaration with no word stays in its file, and
-// `private` says so out loud. `internal` lends it to every file of this
-// project and hides it from the projects that depend on this one. `public`
-// gives it to everyone.
-//
-// What the files of a package make `public` is the package's own API, as if
-// they were all one file: `geo.Sides` comes from constants.wsp and
-// `geo.area` from this one, and a name two files both make public is an error.
-// Nothing needs to be listed or re-exported here. A folder inside a package is
-// a package of its own, imported by its own path.
-
-import "geometry/constants";
+// Visibility has three steps. A name with no word belongs to its module, the
+// folder. `internal` lends it to every file of this project and hides it from
+// the projects that depend on this one. `public` gives it to everyone.
 
 public func area(int width, height) int => width * height;
 
-public func perimeter(int side) int => constants.scale(side);
+public func perimeter(int side) int => scale(side);
 
 // A field can carry `private` or `internal` too. This one is private, so only
 // this file can read it, write it or name it in a literal. Code elsewhere can

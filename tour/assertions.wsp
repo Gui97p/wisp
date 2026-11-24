@@ -1,3 +1,4 @@
+#standalone
 // Tour - Asserting that a call works.
 //
 // A postfix `!` passes an error up, and only a fallible function can do that.

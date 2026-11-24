@@ -17,6 +17,7 @@ type Directive struct {
 
 var Directives = []Directive{
 	{Name: "target", Doc: "Restricts the file to the targets that match the expression that follows, such as #target x64 & linux."},
+	{Name: "standalone", Doc: "Makes the file a module of its own, imported by its path, instead of one of the files that make the module of its folder."},
 }
 
 func directiveNames() string {
@@ -168,6 +169,16 @@ func (p *Parser) parseDirectives(program *ast.Program) {
 		if !isDirective(name) {
 			p.errorAt(p.currentAt(), "unknown directive #%s", name).WithHelp("the known directives are %s", directiveNames())
 			p.skipLine(line)
+			p.advance()
+			continue
+		}
+
+		if name == "standalone" {
+			if p.peek.Line == line && p.peek.Type != lexer.TOKEN_EOF {
+				p.errorAt(p.currentAt(), "#standalone takes nothing after it")
+				p.skipLine(line)
+			}
+			program.Standalone = true
 			p.advance()
 			continue
 		}

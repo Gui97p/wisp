@@ -586,6 +586,9 @@ func main() {
 			os.Exit(1)
 		}
 		for name, content := range c.files {
+			if !strings.Contains(name, "/") && name != "main.wsp" && strings.HasSuffix(name, ".wsp") && !strings.HasPrefix(content, "#standalone") {
+				content = "#standalone\n" + content
+			}
 			if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0755); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				os.Exit(1)
