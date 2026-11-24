@@ -63,6 +63,11 @@ var Tags = []TagSpec{
 		Args:    2,
 	},
 	{
+		Name: "format", Usage: "#format",
+		Doc:     "A function that takes a format string and the values to write in it: its last parameters are `string format, ...args`. A call whose format is a string literal may write expressions in it, `{sum}`, `{items[i]:X}`, `{a + b:>8}`: the compiler takes each one out of the text, leaves `{}` or `{:spec}` in its place and passes the expression as the next argument. `{}` and `{:spec}` still take the arguments written after the string, in order, and `{{` and `}}` write a brace. A ternary works too, `{ok ? 1 : 2}`, and a `:` after it starts the spec: `{ok ? 1 : 2:>4}`.",
+		Targets: []string{"function", "method"},
+	},
+	{
 		Name: "noreturn", Usage: "#noreturn",
 		Doc:     "A function that never returns, such as one that ends the program. Its body must not return, and the code after a call to it is unreachable.",
 		Targets: []string{"function", "method", "native function"},
@@ -229,6 +234,10 @@ func (a *Analyser) checkTagArgs(spec TagSpec, tag *ast.Tag, decl ast.Declaration
 					a.errorRange(tag.At, "#fails(null, ...) is for a function that returns a pointer, and %s does not", fd.Name)
 				}
 			}
+		}
+	case "format":
+		if fd, ok := decl.(*ast.FuncDecl); ok && formatParam(fd) < 0 {
+			a.errorRange(tag.At, "#format needs the parameters `string format, ...args` at the end of %s", fd.Name)
 		}
 	case "symbol":
 		if len(tag.Args) == 0 {

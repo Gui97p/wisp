@@ -41,6 +41,14 @@ func (t *X64Target) baseMem(expr ast.Expression) (Mem, Operand, error) {
 			reg := t.ctx.AllocFreeRegister()
 			t.loadWord(reg, Addr{Of: mem})
 			mem = Mem{Base: reg}
+		} else if mem.Index != x64context.NoReg {
+			reg := t.ctx.AllocFreeRegister()
+			if reg == x64context.NoReg {
+				return Mem{}, nil, fmt.Errorf("x86-64: no available registers")
+			}
+			t.loadWord(reg, Addr{Of: mem})
+			t.freeOp(mem)
+			mem = Mem{Base: reg}
 		}
 		base = mem
 		limit = Imm(tp.Size)

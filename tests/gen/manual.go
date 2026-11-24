@@ -15120,6 +15120,166 @@ func main() ! {
     check(sizeof(c_int) == 4 && sizeof(c_size) == 8, "the other C types keep their size");
 }
 `, expected: []string{"long is 32 bits on Windows", "the other C types keep their size"}},
+	{dir: "format_inline", src: `import "std/fmt";
+
+#format
+func shape(string format, ...args) string {
+    return format;
+}
+
+#format
+func count(string format, ...args) int {
+    return len(args);
+}
+
+#format
+func text([]byte buf, string format, ...args) string {
+    let n, err = fmt.sprintf(buf, format, args...);
+    return err == null ? string(buf[..n]) : "failed";
+}
+
+struct P {
+    int x;
+}
+
+func main() {
+    int sum = 3;
+    P p = P{x: 4};
+    [3]int xs = .{1, 2, 3};
+    int i = 1;
+    [64]byte buf;
+
+    check(shape("test {sum:X} and {sum}") == "test {:X} and {}", "an expression takes its spec after the colon");
+    check(shape("a {{b}} {p.x + 1:>8} {xs[i]} {} {:x}", 7, 8) == "a {{b}} {:>8} {} {} {:x}", "braces, specs, fields, indexes and positional arguments");
+    check(count("a {sum} b {} c {p.x}", 5) == 3, "inline expressions and written arguments become one list");
+    check(shape("{(sum > 1 ? 10 : 20)}") == "{}", "a ternary in parentheses");
+    check(shape("{sum > 1 ? 10 : 20}|{sum > 1 ? 10 : 20:>4}|{p.x:x}") == "{}|{:>4}|{:x}", "a ternary without parentheses, and the spec after it");
+    check(shape("no placeholders {{}}") == "no placeholders {{}}", "escaped braces alone change nothing");
+    check(shape("{\"}\"}{'}'}") == "{}{}", "a brace inside a string or a character of the expression");
+    check(count("{sum}{sum}{sum}") == 3 && count("plain") == 0, "one argument for each placeholder");
+
+    check(text(buf[..], "sum={sum} p={p.x} first={xs[0]}") == "sum=3 p=4 first=1", "the values are written by the runtime format");
+    check(text(buf[..], "{sum} + {} = {}", 4, 7) == "3 + 4 = 7", "positional arguments keep their order between expressions");
+    check(text(buf[..], "{sum + p.x} {xs[i] * 10}") == "7 20", "any expression");
+    check(text(buf[..], "{{{sum}}}") == "{3}", "a brace around an expression");
+}
+`, expected: []string{"an expression takes its spec after the colon", "braces, specs, fields, indexes and positional arguments", "inline expressions and written arguments become one list", "a ternary in parentheses", "a ternary without parentheses, and the spec after it", "escaped braces alone change nothing", "a brace inside a string or a character of the expression", "one argument for each placeholder", "the values are written by the runtime format", "positional arguments keep their order between expressions", "any expression", "a brace around an expression"}},
+	{dir: "error_runtime_message", src: `import "std/fmt";
+
+enum E {
+    Bad = 3,
+    Other
+}
+
+const FIXED = "fixed text";
+
+func inner(int n) !int {
+    return fmt.errorf(Error(E.Bad), "inner failed with {n}");
+}
+
+func outer(int n) !int {
+    let _, e = inner(n);
+    return fmt.errorf(Error(E.Other), "outer wraps: {e}");
+}
+
+func open(string path, int n) !int {
+    return fmt.errorf(Error(E.Bad), "no file {path} (try {n + 1})") if n > 5;
+    return Error(E.Other, "plain");
+}
+
+func dynamic(string why) Error {
+    return fmt.errorf(Error(E.Other), "{}", why);
+}
+
+func long() Error {
+    [300]byte filler;
+    for i in 0..300 {
+        filler[i] = 'x';
+    }
+    return fmt.errorf(Error(E.Bad, "too long"), "{}", string(filler[..]));
+}
+
+func propagate(int n) !int {
+    let v = open("deep", n)!;
+    return v;
+}
+
+func main() {
+    let _, a = open("a.txt", 9);
+    check(a.message == "no file a.txt (try 10)" && a.code == 4 - 1, "a message made at run time keeps the kind");
+    let _, b = open("b.txt", 1);
+    check(b.message == "plain" && b.code == 4, "a constant message is untouched");
+
+    string why = "because";
+    check(dynamic(why).message == "because", "a string that is not constant is the message");
+    check(Error(E.Bad, FIXED).message == "fixed text", "a constant string is still static");
+    check(fmt.errorf(Error(E.Bad), "{{kept}} {1 + 2}").message == "{kept} 3", "escaped braces beside an expression");
+
+    let _, o = outer(5);
+    check(o.message == "outer wraps: inner failed with 5", "an error inside the message of another");
+
+    let _, p = propagate(8);
+    check(p != null && p.message == "no file deep (try 9)" && p.domain == "main.E", "the error crosses a call with its message");
+
+    check(long().message == "too long", "a message that does not fit falls back to the text of the error");
+
+    Error last;
+    for i in 0..20 {
+        let _, w = open("x", i + 6);
+        last = w;
+    }
+    check(last.message == "no file x (try 26)", "the last error is intact after more than eight others");
+    let _, again = open("fresh", 7);
+    check(again.message == "no file fresh (try 8)" && again.line == a.line, "a new error after the ring went round");
+}
+`, expected: []string{"a message made at run time keeps the kind", "a constant message is untouched", "a string that is not constant is the message", "a constant string is still static", "escaped braces beside an expression", "an error inside the message of another", "the error crosses a call with its message", "a message that does not fit falls back to the text of the error", "the last error is intact after more than eight others", "a new error after the ring went round"}},
+	{dir: "nested_array_index", src: `[4][8]byte rows;
+[3][4][2]int cube;
+int pick = 2;
+
+struct Cell {
+    [3]int values;
+}
+
+func rowOf(int i) []byte {
+    return rows[i][..];
+}
+
+func main() {
+    for i in 0..4 {
+        for j in 0..8 {
+            rows[i][j] = byte(i * 10 + j);
+        }
+    }
+    int i = 2;
+    int j = 3;
+    check(rows[i][j] == 23 && rows[1][j] == 13 && rows[pick][pick + 1] == 23, "a variable index in both levels");
+    rows[i][j] += 5;
+    check(rows[2][3] == 28, "a compound assignment through two variable indexes");
+    check(len(rowOf(1)) == 8 && rowOf(3)[7] == 37, "a slice of a row picked by a variable");
+    []byte part = rows[i][j..6];
+    check(len(part) == 3 && part[0] == 28 && part[2] == 25, "a slice of a row with variable bounds");
+    part[1] = 99;
+    check(rows[2][4] == 99, "writing through the slice of a row");
+    check(len(rows[i][..j]) == 3, "the end of a row slice");
+
+    for a in 0..3 {
+        for b in 0..4 {
+            for c in 0..2 {
+                cube[a][b][c] = a * 100 + b * 10 + c;
+            }
+        }
+    }
+    int a = 2;
+    int b = 3;
+    int c = 1;
+    check(cube[a][b][c] == 231 && cube[1][b][0] == 130 && cube[a][2][c] == 221, "three levels of arrays");
+
+    [3]Cell cells;
+    cells[i].values[j - 1] = 7;
+    check(cells[2].values[2] == 7 && cells[i].values[j - 1] == 7, "an array inside the elements of an array");
+}
+`, expected: []string{"a variable index in both levels", "a compound assignment through two variable indexes", "a slice of a row picked by a variable", "a slice of a row with variable bounds", "writing through the slice of a row", "the end of a row slice", "three levels of arrays", "an array inside the elements of an array"}},
 	{dir: "interop_ergonomics", system: "linux", files: map[string]string{"lib.c": `#include <stddef.h>
 typedef struct counter { int value; } counter;
 static counter the_counter = {0};

@@ -579,6 +579,7 @@ func (a *Analyser) receiverArgument(object ast.Expression, objType Type, pointer
 }
 
 func (a *Analyser) checkCallArgs(expr *ast.CallExpr, ft *FuncType) {
+	a.expandFormat(expr, ft)
 	a.checkCallArgsWith(expr, ft, a.evalArgTypes(expr))
 }
 

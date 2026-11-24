@@ -1775,3 +1775,33 @@ func TestCInteropInTheEditor(t *testing.T) {
 		t.Errorf("hover on an extern block function: %q", hover)
 	}
 }
+
+func TestFormatStringsInTheEditor(t *testing.T) {
+	c := start(t)
+	cases := []struct {
+		name, src, want string
+	}{
+		{"unclosed brace", "#format\nfunc say(string format, ...args) {}\nfunc main() {\n\tint n = 1;\n\tsay(\"a {n\");\n}\n", "never closed"},
+		{"bad expression", "#format\nfunc say(string format, ...args) {}\nfunc main() {\n\tsay(\"a {1 + } b\");\n}\n", "is not valid"},
+		{"unknown name", "#format\nfunc say(string format, ...args) {}\nfunc main() {\n\tsay(\"a {missing}\");\n}\n", "not declared"},
+		{"tag without parameters", "#format\nfunc say(string format) {}\nfunc main() {\n\tsay(\"a\");\n}\n", "#format needs the parameters"},
+	}
+	for _, tc := range cases {
+		found := false
+		for _, d := range c.open(map[string]string{"main.wsp": tc.src}).diagnostics() {
+			if d.Severity == 1 && strings.Contains(d.Message, tc.want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s: no error with %q", tc.name, tc.want)
+		}
+	}
+
+	clean := c.open(map[string]string{"main.wsp": "#format\nfunc say(string format, ...args) {}\nfunc main() {\n\tint n = 1;\n\tsay(\"a {n} {n > 0 ? 1 : 2:>4}\");\n}\n"})
+	for _, d := range clean.diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("valid format string reported: %s", d.Message)
+		}
+	}
+}
