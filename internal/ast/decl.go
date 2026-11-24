@@ -102,6 +102,7 @@ type FuncDecl struct {
 	CVariadic   bool
 	Generated   bool
 	Instance    string
+	MethodOf    string
 	Inline      bool
 	Native      bool
 	Selector    string

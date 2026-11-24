@@ -172,12 +172,16 @@ func (a *Analyser) registerMethods() {
 	for _, d := range a.program.Declarations {
 		a.currentFile = a.declFiles[d]
 		fd, ok := d.(*ast.FuncDecl)
-		if !ok || fd.Receiver == nil || isGenericMethod(fd) || len(fd.TypeParams) > 0 {
+		if !ok || fd.Receiver == nil || isGenericMethod(fd) {
 			continue
 		}
 
 		recvType := a.resolveTypeRef(fd, a.scope, fd.Receiver.Type)
 		if recvType == nil {
+			continue
+		}
+		if len(fd.TypeParams) > 0 {
+			a.registerGenericMethodEntry(fd, recvType)
 			continue
 		}
 

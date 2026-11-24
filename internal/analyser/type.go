@@ -326,30 +326,31 @@ func (s *StructType) Equals(other Type) bool {
 }
 
 type FuncType struct {
-	Name         string
-	Params       []Type
-	ParamNames   []string
-	ReceiverName string
-	Returns      []Type
-	Variadic     bool
-	CVariadic    bool
-	Fallible     bool
-	Receiver     Type
-	Exported     bool
-	InternalDir  string
-	Private      bool
-	Module       string
-	DeclFile     string
-	DeclLine     int
-	Decl         *ast.FuncDecl
-	Scope        *Scope
-	Inline       bool
-	Nullable     bool
-	Template     *MethodTemplate
-	Generic      *InstanceInfo
-	Source       string
-	Iface        *InterfaceType
-	Slot         int
+	Name          string
+	Params        []Type
+	ParamNames    []string
+	ReceiverName  string
+	Returns       []Type
+	Variadic      bool
+	CVariadic     bool
+	Fallible      bool
+	Receiver      Type
+	Exported      bool
+	InternalDir   string
+	Private       bool
+	Module        string
+	DeclFile      string
+	DeclLine      int
+	Decl          *ast.FuncDecl
+	Scope         *Scope
+	Inline        bool
+	Nullable      bool
+	Template      *MethodTemplate
+	Generic       *InstanceInfo
+	Source        string
+	Iface         *InterfaceType
+	Slot          int
+	GenericMethod *Symbol
 }
 
 func (f *FuncType) String() string {

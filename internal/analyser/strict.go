@@ -43,7 +43,16 @@ func (a *Analyser) instantiatePhantoms() {
 		a.currentFile = a.declFiles[d]
 		switch decl := d.(type) {
 		case *ast.FuncDecl:
-			if len(decl.TypeParams) == 0 || decl.Receiver != nil {
+			if len(decl.TypeParams) == 0 {
+				continue
+			}
+			if decl.Receiver != nil {
+				if sym := a.genericMethodSyms[decl]; sym != nil && sym.Generic != nil {
+					for _, combo := range a.combinations(sym.Generic) {
+						a.phantomNote = combo.note
+						a.instantiateFunc(decl, sym.Generic, combo.args)
+					}
+				}
 				continue
 			}
 			if g := a.genericOf(decl.Name, decl); g != nil {

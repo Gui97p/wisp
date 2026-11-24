@@ -19,7 +19,10 @@
 //
 // A method of a generic struct lists the type parameters in its receiver:
 // `func (*List<T> l) push(T value)`. The names between `<>` there are new each
-// time, so a method may call its parameter `E` if it likes.
+// time, so a method may call its parameter `E` if it likes. A method can also
+// have type parameters of its own, after its name, with constraints like any
+// other: `func (*List<T> l) fold<U>(...)`. They are inferred from the arguments
+// or named at the call: `list.fold<int>(0, add)`.
 //
 // A parameter can also be a value that is known at compile time, written with
 // `const`: `struct Ring<T, const int N>`. It works as a constant in the
@@ -53,6 +56,16 @@ func (*List<T> l) sum() T {
 	}
 	return total;
 }
+
+func (*List<T> l) fold<U>(U start, (U, T) => U step) U {
+	U acc = start;
+	for i in 0..l.count {
+		acc = step(acc, l.items[i]);
+	}
+	return acc;
+}
+
+func addLength(int acc, int n) int => acc * 10 + n;
 
 struct Pair<A, B> {
 	A first;
@@ -144,6 +157,8 @@ public func demo() {
 	weights.push(1.5);
 	weights.push(2.5);
 	fmt.printf("sum of the numbers {}, of the weights {}\n", numbers.sum(), weights.sum());
+
+	fmt.printf("folded: {}\n", numbers.fold(0, addLength));
 
 	Pair<int, string> pair = Pair<int, string>{first: 1, second: "one"};
 	Pair<string, int> flipped = swap(pair);

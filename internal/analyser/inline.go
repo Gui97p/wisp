@@ -152,7 +152,7 @@ func (a *Analyser) expandInlineWith(expr *ast.CallExpr, ft *FuncType, force bool
 				}
 			case *ast.CallExpr:
 				if n.Generic != nil {
-					restored := &ast.CallExpr{Name: cloneUnwrapped(n.Generic, options).(ast.Expression), Spread: n.Spread, Range: n.Range}
+					restored := &ast.CallExpr{Name: cloneUnwrapped(n.Generic, options).(ast.Expression), Spread: n.Spread, Range: n.Range, RangeOpen: n.RangeOpen}
 					for _, arg := range n.Args {
 						restored.Args = append(restored.Args, cloneUnwrapped(arg, options).(ast.Expression))
 					}

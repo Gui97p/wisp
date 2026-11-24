@@ -544,6 +544,16 @@ func funcHover(sym *analyser.Symbol, program *ast.Program) string {
 	}
 
 	name, decl := sym.Name, funcDecl(program, sym)
+	if ft.Decl != nil && ft.Decl.MethodOf != "" && len(ft.Params) > 0 && len(ft.Decl.Params) == len(ft.Params) {
+		method := *ft
+		method.Receiver = ft.Params[0]
+		method.ReceiverName = ft.Decl.Params[0].Name
+		method.Params = ft.Params[1:]
+		method.ParamNames = nil
+		shown := *ft.Decl
+		shown.Params = ft.Decl.Params[1:]
+		return renderDoc(analyser.FuncSignature(ft.Decl.MethodOf, &method, &shown), joinDocs(sym.Doc, doc))
+	}
 	if ft.Decl != nil && ft.Decl.Instance != "" && ft.Receiver == nil {
 		name, decl = ft.Decl.Instance, ft.Decl
 	}

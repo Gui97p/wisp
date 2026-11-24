@@ -53,11 +53,12 @@ type Analyser struct {
 	module       string
 	home         string
 
-	universe    *Scope
-	moduleScope *Scope
-	moduleFiles map[string]bool
-	collisions  map[string]bool
-	mangled     map[string]string
+	universe          *Scope
+	moduleScope       *Scope
+	moduleFiles       map[string]bool
+	collisions        map[string]bool
+	mangled           map[string]string
+	genericMethodSyms map[*ast.FuncDecl]*Symbol
 
 	declFiles   map[ast.Declaration]string
 	arraySizes  map[ast.Expression]arraySizeResult

@@ -27,6 +27,9 @@ func TypeText(t Type) string {
 }
 
 func FuncSignature(name string, ft *FuncType, decl *ast.FuncDecl) string {
+	if text, ok := genericMethodSignature(name, ft); ok {
+		return text
+	}
 	receiver := ""
 	if ft.Receiver != nil {
 		receiver = "(" + TypeText(ft.Receiver)
@@ -43,6 +46,9 @@ func FuncSignature(name string, ft *FuncType, decl *ast.FuncDecl) string {
 }
 
 func ParamLabels(ft *FuncType, decl *ast.FuncDecl) []string {
+	if fd := genericMethodDecl(ft); fd != nil {
+		return genericMethodParams(fd)
+	}
 	labels := make([]string, 0, len(ft.Params)+1)
 	for i, p := range ft.Params {
 		label := TypeText(p)
@@ -162,4 +168,81 @@ func StructText(st *StructType) string {
 	}
 
 	return b.String()
+}
+
+func genericMethodDecl(ft *FuncType) *ast.FuncDecl {
+	if ft == nil || ft.GenericMethod == nil || ft.GenericMethod.Generic == nil {
+		return nil
+	}
+	fd := ft.GenericMethod.Generic.Func
+	if fd == nil || len(fd.Params) == 0 {
+		return nil
+	}
+	return fd
+}
+
+func genericMethodParams(fd *ast.FuncDecl) []string {
+	labels := make([]string, 0, len(fd.Params)-1)
+	for _, p := range fd.Params[1:] {
+		label := p.Type.String()
+		switch {
+		case p.Any:
+			label = "..." + p.Name
+		case p.Variadic:
+			label += " ..." + p.Name
+		default:
+			label += " " + p.Name
+		}
+		labels = append(labels, label)
+	}
+	return labels
+}
+
+func genericMethodSignature(name string, ft *FuncType) (string, bool) {
+	fd := genericMethodDecl(ft)
+	if fd == nil {
+		return "", false
+	}
+	return GenericMethodText(name, fd, TypeText(ft.Receiver)), true
+}
+
+func GenericMethodText(name string, fd *ast.FuncDecl, receiverText string) string {
+	own := len(fd.TypeParams)
+	for _, arg := range fd.Params[0].Type.Args {
+		if arg.Type != nil {
+			own--
+		}
+	}
+	if own < 0 {
+		own = 0
+	}
+	params := make([]string, own)
+	for i, p := range fd.TypeParams[:own] {
+		params[i] = p.Name
+		if p.Constraint != nil {
+			params[i] = p.Constraint.String() + " " + p.Name
+		}
+	}
+	generics := ""
+	if own > 0 {
+		generics = "<" + strings.Join(params, ", ") + ">"
+	}
+	receiver := receiverText
+	if fd.Params[0].Name != "" && fd.Params[0].Name != hiddenSelf {
+		receiver += " " + fd.Params[0].Name
+	}
+	results := make([]string, len(fd.ReturnTypes))
+	for i := range fd.ReturnTypes {
+		results[i] = fd.ReturnTypes[i].String()
+	}
+	text := fmt.Sprintf("func (%s) %s%s(%s)", receiver, name, generics, strings.Join(genericMethodParams(fd), ", "))
+	switch {
+	case fd.Fallible && len(results) == 0:
+		text += " !"
+	case fd.Fallible:
+		text += " !" + strings.Join(results, ", ")
+	case len(results) > 0:
+		text += " " + strings.Join(results, ", ")
+	}
+	return text
 }

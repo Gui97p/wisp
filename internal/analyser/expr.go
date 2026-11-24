@@ -466,6 +466,9 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 			}
 		}
 		if methods := MethodsOf(objType); methods != nil {
+			if ft, ok := methods[member.Field]; ok && ft.GenericMethod != nil {
+				return a.callGenericMethod(expr, member, objType, ft, nil)
+			}
 			if ft, ok := methods[member.Field]; ok {
 				_, pointerRecv := ft.Receiver.(PointerType)
 				_, objectPtr := objType.(PointerType)
@@ -510,6 +513,14 @@ func (a *Analyser) checkCallTypes(expr *ast.CallExpr) []Type {
 	}
 
 	if generic, ok := expr.Name.(*ast.GenericExpr); ok {
+		if member, isMember := generic.Base.(*ast.MemberExpr); isMember {
+			objType := a.checkExpr(member.Object)
+			if methods := MethodsOf(objType); methods != nil {
+				if ft, found := methods[member.Field]; found && ft.GenericMethod != nil {
+					return a.callGenericMethod(expr, member, objType, ft, generic.Args)
+				}
+			}
+		}
 		a.callee = generic.Base
 		baseType := a.checkExpr(generic.Base)
 		return a.callGeneric(expr, baseType, generic.Args)

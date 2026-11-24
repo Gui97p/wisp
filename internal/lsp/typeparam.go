@@ -218,6 +218,9 @@ func genericHover(sym *analyser.Symbol) string {
 	switch {
 	case g.Func != nil:
 		fd := g.Func
+		if g.MethodName != "" && len(fd.Params) > 0 {
+			return renderDoc(analyser.GenericMethodText(g.MethodName, fd, refText(fd.Params[0].Type)), joinDocs(sym.Doc, "Generic method: each use picks its types."))
+		}
 		text := fmt.Sprintf("func %s%s(%s)", fd.Name, typeParamsText(fd.TypeParams), paramsText(fd.Params))
 		results := make([]string, len(fd.ReturnTypes))
 		for i := range fd.ReturnTypes {

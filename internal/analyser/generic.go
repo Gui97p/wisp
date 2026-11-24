@@ -15,20 +15,22 @@ import (
 const maxInstanceDepth = 64
 
 type GenericDecl struct {
-	ModuleFiles map[string]bool
-	Name        string
-	Module      string
-	File        string
-	Scope       *Scope
-	Params      []ast.TypeParam
-	Struct      *ast.StructDecl
-	Func        *ast.FuncDecl
-	Alias       *ast.TypeDecl
-	Sum         *ast.TypeDecl
-	Interface   *ast.InterfaceDecl
-	Methods     []*ast.FuncDecl
-	Exported    bool
-	Symbol      *Symbol
+	MethodName     string
+	GenericMethods map[string]*Symbol
+	ModuleFiles    map[string]bool
+	Name           string
+	Module         string
+	File           string
+	Scope          *Scope
+	Params         []ast.TypeParam
+	Struct         *ast.StructDecl
+	Func           *ast.FuncDecl
+	Alias          *ast.TypeDecl
+	Sum            *ast.TypeDecl
+	Interface      *ast.InterfaceDecl
+	Methods        []*ast.FuncDecl
+	Exported       bool
+	Symbol         *Symbol
 }
 
 type TypeValue struct {
@@ -218,13 +220,19 @@ func (a *Analyser) registerGenericFunc(fd *ast.FuncDecl) {
 
 func (a *Analyser) attachGenericMethods() {
 	for _, d := range a.program.Declarations {
+		a.currentFile = a.declFiles[d]
+		if fd, ok := d.(*ast.FuncDecl); ok && fd.Receiver != nil && len(fd.TypeParams) > 0 {
+			a.registerGenericMethod(fd)
+		}
+	}
+	for _, d := range a.program.Declarations {
 		a.attachGenericMethod(d)
 	}
 }
 
 func (a *Analyser) attachGenericMethod(d ast.Declaration) {
 	fd, ok := d.(*ast.FuncDecl)
-	if !ok || !isGenericMethod(fd) || len(fd.TypeParams) > 0 {
+	if !ok || !isGenericMethod(fd) {
 		return
 	}
 	a.currentFile = a.declFiles[d]
@@ -244,6 +252,15 @@ func (a *Analyser) attachGenericMethod(d ast.Declaration) {
 			a.errorAtRef(fd, ref, "the names between <> in a receiver declare the type parameters: write func (*%s<T> value) ...", g.Name)
 			return
 		}
+	}
+	if len(fd.TypeParams) > 0 {
+		if sym := a.genericMethodSyms[fd]; sym != nil {
+			if g.GenericMethods == nil {
+				g.GenericMethods = map[string]*Symbol{}
+			}
+			g.GenericMethods[fd.Name] = sym
+		}
+		return
 	}
 	g.Methods = append(g.Methods, fd)
 }
@@ -561,6 +578,18 @@ func (a *Analyser) registerInstanceMethods(g *GenericDecl, st *StructType, args 
 	a.currentFile = g.File
 
 	owner := mangle(st.Name, st.key)
+	for name, sym := range g.GenericMethods {
+		if _, exists := st.Methods[name]; exists {
+			continue
+		}
+		fd := sym.Generic.Func
+		line, _ := fd.Position()
+		st.Methods[name] = &FuncType{
+			Name: name, Receiver: PointerType{Element: st}, Exported: fd.Exported,
+			InternalDir: reachDir(fd.Reach, g.File), Private: fd.Reach == ast.ReachFile, Module: g.Module, DeclFile: g.File, DeclLine: line,
+			GenericMethod: sym,
+		}
+	}
 	for _, fd := range g.Methods {
 		names := make([]string, len(fd.Receiver.Type.Args))
 		for i, arg := range fd.Receiver.Type.Args {
