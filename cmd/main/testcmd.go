@@ -417,6 +417,9 @@ func runTests(cmd *cobra.Command, args []string) error {
 	if skipped > 0 {
 		summary += fmt.Sprintf(", %d skipped", skipped)
 	}
+	if other := module.TestsOfOtherTargets(); other > 0 {
+		summary += fmt.Sprintf(", %d left out for other targets", other)
+	}
 	summary += " in " + elapsed(start)
 	if failed > 0 {
 		fmt.Println("Test result: FAILED. " + summary)

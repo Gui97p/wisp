@@ -60,8 +60,8 @@ const libTomlContent = `[library.lib]
 modules = ["lib"]
 `
 
-const nativeMainContent = `func main() int {
-    return 0;
+const nativeMainContent = `func main() {
+    emit("Hello, World!");
 }
 `
 

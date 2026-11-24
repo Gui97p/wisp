@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Gui97p/wisp/internal/ast"
+	"github.com/Gui97p/wisp/internal/target"
 )
 
 const TestMainPath = ".wisp-test-main"
@@ -12,6 +13,12 @@ const TestMainPath = ".wisp-test-main"
 const testSuffix = ".test.wsp"
 
 var testsEnabled bool
+
+var testsOfOtherTargets int
+
+func TestsOfOtherTargets() int {
+	return testsOfOtherTargets
+}
 
 func ConfigureTests(on bool) {
 	testsEnabled = on
@@ -62,6 +69,7 @@ func dropTests(program *ast.Program) {
 
 func testFunctions(mods []*Module) []TestFunc {
 	var tests []TestFunc
+	testsOfOtherTargets = 0
 	for _, mod := range mods {
 		if strings.HasPrefix(mod.Path, "std/") || mod.Path == TestMainPath {
 			continue
@@ -74,6 +82,10 @@ func testFunctions(mods []*Module) []TestFunc {
 				}
 				tag := fd.TagNamed("test")
 				if tag == nil {
+					continue
+				}
+				if fd.Selector != "" && !target.MatchesText(currentTarget(), fd.Selector) {
+					testsOfOtherTargets++
 					continue
 				}
 				line, _ := fd.Position()

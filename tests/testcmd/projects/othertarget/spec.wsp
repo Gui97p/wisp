@@ -1,0 +1,16 @@
+import "std/testing";
+
+#test
+func<linux> onlyLinux() ! {
+	testing.expect(true)!;
+}
+
+#test
+func<windows> onlyWindows() ! {
+	testing.expect(true)!;
+}
+
+#test
+func always() ! {
+	testing.expect(true)!;
+}

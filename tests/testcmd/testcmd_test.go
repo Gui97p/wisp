@@ -288,3 +288,12 @@ func TestQuietPrintsDots(t *testing.T) {
 	expect(t, out, "Running 5 tests", "FAIL  calc.test: failsWithError", "panic: index out of range", "Test result: FAILED. 3 passed, 2 failed")
 	refuse(t, out, "Failed:", "ok    calc: add works in the file itself")
 }
+
+func TestTestOfAnotherTargetIsLeftOut(t *testing.T) {
+	out, code := run(t, "othertarget", "test", "--os", "linux")
+	if code != 0 {
+		t.Errorf("exit code %d, want 0\n%s", code, out)
+	}
+	expect(t, out, "Running 2 tests", "Test result: ok. 2 passed, 0 failed, 1 left out for other targets")
+	refuse(t, out, "onlyWindows")
+}
