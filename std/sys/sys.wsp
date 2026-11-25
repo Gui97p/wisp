@@ -62,3 +62,9 @@ internal func errno(int raw) int {
 	return -raw if raw < 0 && raw >= -4095;
 	return 0;
 }
+
+internal native setExitHook(() => () hook) {
+	extern __wisp_exit_hook;
+	mov rax, hook;
+	mov [rel __wisp_exit_hook], rax;
+}

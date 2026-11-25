@@ -1,11 +1,5 @@
 #target x64
 
-native<debug> setExitHook(() => () hook) {
-	extern __wisp_exit_hook;
-	mov rax, hook;
-	mov [rel __wisp_exit_hook], rax;
-}
-
 native<debug> siteOf(*void f) string s {
 	extern __wisp_site;
 	mov rdi, f;

@@ -10,6 +10,7 @@
 // cleanup can report it.
 //
 import "std/fmt";
+import "std/os";
 
 enum Fail {
 	Ok,
@@ -43,7 +44,18 @@ func build(bool fail) !int {
 	return 10;
 }
 
+// `defer` cleans up when a block is left. To clean up when the whole program
+// ends, `os.atExit` registers a function that runs after `main` returns, when
+// `os.exit` is called, and when a panic ends the program. Hooks run in the
+// opposite order of the registration, up to 32 of them. A crash by a signal, such
+// as a stack overflow, runs none.
+func goodbye() {
+	fmt.printf("the program is over, so the exit hook runs now\n");
+}
+
 public func demo() {
+	let _ = os.atExit(goodbye);
+
 	fmt.printf("order():\n");
 	order();
 

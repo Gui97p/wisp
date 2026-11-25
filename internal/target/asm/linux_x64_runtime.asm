@@ -128,11 +128,13 @@ __wisp_panic_at:
 	pop rdx
 	pop rsi
 	call __wisp_write_error
-
+	
 %if WISP_TRACE
 	call __wisp_trace
 %endif
 
+	and rsp, -16
+	call __wisp_run_exit_hook
 	mov edi, 1
 	mov eax, 60
 	syscall
@@ -257,6 +259,8 @@ __wisp_panic:
 	call __wisp_trace
 %endif
 
+	and rsp, -16
+	call __wisp_run_exit_hook
 	mov edi, 1
 	mov eax, 60
 	syscall
@@ -280,6 +284,19 @@ __wisp_utoa:
 	mov rdx, r8
 	sub rdx, rsi
 
+	ret
+
+__wisp_run_exit_hook:
+	push rax
+	push rbp
+	mov rax, [rel __wisp_exit_hook]
+	test rax, rax
+	jz .nohook
+	xor ebp, ebp
+	call rax
+.nohook:
+	pop rbp
+	pop rax
 	ret
 
 %if WISP_TRACE
@@ -400,16 +417,8 @@ main:
 	mov [rel __wisp_args_len], rdi
 	call __wisp_main
 __wisp_after_main:
-	push rax
-	push rbp
-	mov rax, [rel __wisp_exit_hook]
-	test rax, rax
-	jz .nohook
-	xor ebp, ebp
-	call rax
-.nohook:
-	pop rbp
-	pop rax
+	and rsp, -16
+	call __wisp_run_exit_hook
 	leave
 	ret
 %endif

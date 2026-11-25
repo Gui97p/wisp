@@ -1,4 +1,5 @@
 import "std/errors";
+import "std/os";
 
 /// Where blocks of memory come from. A block is a number of bytes: `alloc`
 /// gives it zeroed, `allocDirty` leaves it as it was, `realloc` resizes a block
@@ -60,7 +61,7 @@ func<debug> leakReport() {
 func<debug> arm() {
 	if hookPending {
 		checked.parent = &rawState;
-		setExitHook(leakReport);
+		let _ = os.atExit(leakReport);
 		hookPending = false;
 	}
 }

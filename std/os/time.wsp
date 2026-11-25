@@ -22,8 +22,3 @@ public func sleep(int ms) ! {
 	int r = sys.sleep(ms / 1000, (ms % 1000) * 1_000_000);
 	return errorIO(sys.errno(r)) if r < 0;
 }
-
-/// Ends the program with the status `code`. Deferred calls are not run.
-public inline func exit(int code) {
-	sys.exit(code);
-}

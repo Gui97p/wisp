@@ -15375,6 +15375,60 @@ func main() {
     check(where() == second + 3 || where() > second, "a call inside an expression");
 }
 `, expected: []string{"the call gives its own line", "the file of the call", "a caller function that formats", "a call inside an expression"}},
+	{dir: "at_exit_normal", src: `import "std/os";
+
+func first() {
+    emit("first registered, runs last");
+}
+
+func second() {
+    emit("second registered, runs first");
+}
+
+func nested() {
+    emit("a hook that asks for the hooks again");
+    os.runExitHooks();
+}
+
+func main() ! {
+    os.atExit(first)!;
+    os.atExit(second)!;
+    os.atExit(nested)!;
+    emit("main ends");
+}
+`, expected: []string{"main ends", "a hook that asks for the hooks again", "second registered, runs first", "first registered, runs last"}},
+	{dir: "at_exit_os_exit", src: `import "std/os";
+
+func report() {
+    emit("the hook runs before os.exit leaves");
+}
+
+func main() ! {
+    os.atExit(report)!;
+    emit("about to exit");
+    os.exit(0);
+    emit("never printed");
+}
+`, expected: []string{"about to exit", "the hook runs before os.exit leaves"}},
+	{dir: "at_exit_full", src: `import "std/errors";
+import "std/os";
+
+func nothing() {}
+
+func main() {
+    int accepted = 0;
+    for _ in 0..40 {
+        let e = os.atExit(nothing);
+        if e == null {
+            accepted++;
+        } else {
+            check(e == errors.Kind.NoSpace, "a full list fails with NoSpace");
+            break;
+        }
+    }
+    check(accepted == 32, "thirty-two hooks fit");
+}
+`, expected: []string{"a full list fails with NoSpace", "thirty-two hooks fit"}},
 	{dir: "interop_ergonomics", system: "linux", files: map[string]string{"lib.c": `#include <stddef.h>
 typedef struct counter { int value; } counter;
 static counter the_counter = {0};

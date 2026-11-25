@@ -1871,3 +1871,16 @@ func TestHoverRangeInStructLiterals(t *testing.T) {
 		}
 	}
 }
+
+func TestNativeBlocksOfOtherFilesAreNotHovered(t *testing.T) {
+	c := start(t)
+	native := "#target x64\n\nnative copy(*void dst, src, int n) {\n\tmov rdi, dst;\n\tmov rsi, src;\n\tmov rcx, n;\n\trep movsb;\n}\n"
+	p := c.open(map[string]string{
+		"main.wsp": "func run() {\n\tint n = 1;\n\tn++;\n\tint z = 2;\n\tz++;\n\tlet ¦_ = 2;\n}\n",
+		"x64.wsp":  native,
+	})
+	hover := p.hover()
+	if strings.Contains(hover, "register") || strings.Contains(hover, "assembler") {
+		t.Errorf("a native block of another file of the module answered the hover: %q", hover)
+	}
+}
