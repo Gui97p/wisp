@@ -71,7 +71,7 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	if program == nil || info == nil {
 		return nil
 	}
-	if h := nativeHover(info, line, col); h != nil {
+	if h := nativeHover(info, path, line, col); h != nil {
 		return h
 	}
 	local := declarationsOf(program, declarationFiles(path), path)
@@ -138,7 +138,7 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	}
 
 	if text == "" {
-		if sym := symbolAt(local, info, fileBuffer[path], line, col); sym != nil {
+		if sym := symbolAt(local, info, path, fileBuffer[path], line, col); sym != nil {
 			text = symbolHover(sym, program)
 			rng = nil
 		}

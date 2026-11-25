@@ -49,6 +49,7 @@ type NativeInstrInfo struct {
 }
 
 type NativeInfo struct {
+	File      string
 	Instrs    []NativeInstrInfo
 	Registers []string
 	Stack     bool
@@ -96,6 +97,7 @@ func (a *Analyser) checkNativeStmt(s *ast.NativeStmt) {
 	}
 
 	b.info.Registers = arch.Canonical(b.touched)
+	b.info.File = a.currentFile
 	a.info.Natives[s] = b.info
 }
 

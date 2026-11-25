@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -263,8 +264,11 @@ func refHelp(ref analyser.NativeRef) string {
 	return ""
 }
 
-func nativeHover(info *analyser.Info, line, col int) *protocol.Hover {
+func nativeHover(info *analyser.Info, file string, line, col int) *protocol.Hover {
 	for stmt, native := range info.Natives {
+		if !sameFile(native.File, file) {
+			continue
+		}
 		for i, instr := range stmt.Instrs {
 			if !positionHas(instr.At, line, col) {
 				continue
@@ -363,7 +367,7 @@ type nativeSite struct {
 	sym       *analyser.Symbol
 }
 
-func nativeSites(info *analyser.Info) []nativeSite {
+func nativeSites(info *analyser.Info, file string) []nativeSite {
 	var sites []nativeSite
 	add := func(ref analyser.NativeRef, path []string, at ast.Position, addr bool) {
 		if ref.Sym == nil || (ref.Kind != analyser.RefVariable && ref.Kind != analyser.RefFunction) {
@@ -379,6 +383,9 @@ func nativeSites(info *analyser.Info) []nativeSite {
 		sites = append(sites, nativeSite{at.Line, col, ref.Sym})
 	}
 	for stmt, native := range info.Natives {
+		if !sameFile(native.File, file) {
+			continue
+		}
 		for i, instr := range stmt.Instrs {
 			if i >= len(native.Instrs) {
 				break
@@ -403,11 +410,15 @@ func nativeSites(info *analyser.Info) []nativeSite {
 	return sites
 }
 
-func nativeSymbolAt(info *analyser.Info, line, col int) *analyser.Symbol {
-	for _, s := range nativeSites(info) {
+func nativeSymbolAt(info *analyser.Info, file string, line, col int) *analyser.Symbol {
+	for _, s := range nativeSites(info, file) {
 		if s.line == line && col >= s.col && col < s.col+len(s.sym.Name) {
 			return s.sym
 		}
 	}
 	return nil
+}
+
+func sameFile(a, b string) bool {
+	return a == "" || b == "" || filepath.Clean(a) == filepath.Clean(b)
 }

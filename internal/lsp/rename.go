@@ -127,7 +127,7 @@ func wordIndex(text, word string) int {
 	}
 }
 
-func symbolAt(program *ast.Program, info *analyser.Info, src []byte, line, col int) *analyser.Symbol {
+func symbolAt(program *ast.Program, info *analyser.Info, file string, src []byte, line, col int) *analyser.Symbol {
 	if expr := exprInProgram(program, line, col); expr != nil {
 		if id, ok := expr.(*ast.IdentLiteral); ok && !id.Synthetic {
 			if sym := info.Idents[id]; sym != nil {
@@ -135,7 +135,7 @@ func symbolAt(program *ast.Program, info *analyser.Info, src []byte, line, col i
 			}
 		}
 	}
-	if sym := nativeSymbolAt(info, line, col); sym != nil {
+	if sym := nativeSymbolAt(info, file, line, col); sym != nil {
 		return sym
 	}
 	for sym := range allSymbols(info) {
@@ -207,7 +207,7 @@ func prepareRename(uri protocol.DocumentUri, pos protocol.Position) *protocol.Ra
 		r := rangeOf(hit.rng.Line, hit.rng.Col, hit.rng.EndLine, hit.rng.EndCol)
 		return &r
 	}
-	sym := symbolAt(own, info, fileBuffer[path], line, col)
+	sym := symbolAt(own, info, path, fileBuffer[path], line, col)
 	if sym == nil || renamable(path, sym, program) != nil {
 		return nil
 	}
@@ -244,7 +244,7 @@ func rename(uri protocol.DocumentUri, pos protocol.Position, newName string) (*p
 	if hit := typeParamAt(own, int(pos.Line)+1, int(pos.Character)+1); hit != nil {
 		return typeParamRename(uri, hit, newName)
 	}
-	sym := symbolAt(own, info, src, int(pos.Line)+1, int(pos.Character)+1)
+	sym := symbolAt(own, info, path, src, int(pos.Line)+1, int(pos.Character)+1)
 	if sym == nil {
 		return nil, fmt.Errorf("nothing to rename here")
 	}
@@ -273,7 +273,7 @@ func rename(uri protocol.DocumentUri, pos protocol.Position, newName string) (*p
 			add(l, c)
 		}
 	}
-	for _, s := range nativeSites(info) {
+	for _, s := range nativeSites(info, path) {
 		if s.sym == sym {
 			add(s.line, s.col)
 		}

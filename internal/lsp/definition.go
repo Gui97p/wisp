@@ -41,7 +41,7 @@ func definition(uri protocol.DocumentUri, pos protocol.Position) []protocol.Loca
 		return typeParamLocation(path, hit)
 	}
 
-	if sym := nativeSymbolAt(m.info, line, col); sym != nil {
+	if sym := nativeSymbolAt(m.info, path, line, col); sym != nil {
 		if loc := symbolLocation(sym); loc != nil {
 			return []protocol.Location{*loc}
 		}
