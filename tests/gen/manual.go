@@ -15564,6 +15564,75 @@ func main() ! {
     check(e2 == null && second == null, "a null is not an error");
 }
 `, expected: []string{".? gives the value of an optional", ".? in an expression, beside ??", ".? on a field", ".? before an index", "!! stops on an error and .? on a null, with no parentheses", "! passes the error up and .? takes the value out", "! then ?? gives a default for the null", "a chain inside an expression", "let still shows the error and the optional apart", "a null is not an error"}},
+	{dir: "string_to_bytes", src: `func sum([]byte data) int {
+    int t = 0;
+    for b in data {
+        t += int(b);
+    }
+    return t;
+}
+
+func first([]byte data) byte {
+    return data[0];
+}
+
+func main() {
+    string text = "abc";
+    []byte view = []byte(text);
+    check(len(view) == 3 && view[1] == 'b', "a string seen as bytes");
+    check(sum([]byte(text)) == 97 + 98 + 99, "the conversion in an argument");
+    check(sum([]byte("xyz")) == 120 + 121 + 122, "a literal seen as bytes");
+    check(string(view[1..]) == "bc", "and back to a string");
+    check(first([]byte(text[1..])) == 'b', "a part of a string");
+    [4]byte buffer = .{1, 2, 3, 4};
+    check(sum(buffer) == 10, "an array still becomes a slice without writing anything");
+}
+`, expected: []string{"a string seen as bytes", "the conversion in an argument", "a literal seen as bytes", "and back to a string", "a part of a string", "an array still becomes a slice without writing anything"}},
+	{dir: "slice_views", src: `type Meters int;
+
+func total([]Meters lengths) int {
+    int t = 0;
+    for m in lengths {
+        t += int(m);
+    }
+    return t;
+}
+
+func bump([]uint32 values) {
+    for i, _ in values {
+        values[i] = values[i] +% 1;
+    }
+}
+
+func main() {
+    [3]int plain = .{1, 2, 3};
+    check(total([]Meters(plain)) == 6, "a slice of ints seen as a slice of a named type");
+
+    [3]Meters named = .{4, 5, 6};
+    []int back = []int(named);
+    back[0] = 40;
+    check(named[0] == 40 && len(back) == 3, "and back, over the same memory");
+
+    [3]int32 signed = .{-1, 7, 9};
+    []uint32 unsigned = []uint32(signed);
+    check(unsigned[0] == 4294967295 && len(unsigned) == 3, "integers of the same size change their kind");
+    bump([]uint32(signed));
+    check(signed[0] == 0 && signed[1] == 8 && signed[2] == 10, "a write through the view is seen by the original");
+
+    []int32 whole = signed[..];
+    []uint32 again = []uint32(whole);
+    again[2] = 100;
+    check(whole[2] == 100, "a slice seen as another slice");
+
+    [4]byte raw = .{1, 2, 3, 4};
+    []int8 small = []int8(raw);
+    small[3] = -1;
+    check(raw[3] == 255, "bytes seen as signed bytes");
+
+    string text = "hey";
+    check(len([]byte(text)) == 3, "a string is still a view of bytes");
+}
+`, expected: []string{"a slice of ints seen as a slice of a named type", "and back, over the same memory", "integers of the same size change their kind", "a write through the view is seen by the original", "a slice seen as another slice", "bytes seen as signed bytes", "a string is still a view of bytes"}},
 	{dir: "interop_ergonomics", system: "linux", files: map[string]string{"lib.c": `#include <stddef.h>
 typedef struct counter { int value; } counter;
 static counter the_counter = {0};

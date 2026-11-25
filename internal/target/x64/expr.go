@@ -621,6 +621,10 @@ func (t *X64Target) compileCastExpr(expr *ast.CastExpr) (Operand, error) {
 		return Wide{Words: []Operand{Reg{ptr.Reg, 8}, Imm(1)}, Size: 16}, nil
 	case isSpan(srcType) && isString(dstType):
 		return t.compileExpr(expr.Value)
+	case isString(srcType) && isSpan(dstType):
+		return t.compileExpr(expr.Value)
+	case isSpan(srcType) && isSpan(dstType):
+		return t.compileExpr(expr.Value)
 	case (isString(srcType) || isSpan(srcType)) && isPointer(dstType):
 		op, err := t.compileExpr(expr.Value)
 		if err != nil {

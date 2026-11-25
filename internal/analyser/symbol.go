@@ -176,6 +176,13 @@ func (s *Scope) BindFile(file *string) (restore func()) {
 	return func() { s.file = saved }
 }
 
+func (s *Scope) BoundFile() string {
+	if s.file == nil {
+		return ""
+	}
+	return *s.file
+}
+
 func (s *Scope) hasPrivate(name string) bool {
 	return s.privateFiles[name] > 0
 }

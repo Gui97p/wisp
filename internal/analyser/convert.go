@@ -625,6 +625,9 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 	if _, toError := result.(ErrorType); toError {
 		return a.checkErrorConv(expr, result)
 	}
+	if span, toSpan := result.(SpanType); toSpan {
+		return a.checkSpanConv(expr, span)
+	}
 	pointer, isPointer := result.(PointerType)
 	if !isPointer {
 		a.errorf(expr, "%s is not a pointer type: write a conversion to it as %s(x)", result, result)
@@ -831,4 +834,63 @@ func (a *Analyser) checkErrorConv(expr *ast.ConvExpr, result Type) Type {
 	a.info.Types[cast] = result
 	expr.Cast = cast
 	return result
+}
+
+func (a *Analyser) notAView(expr *ast.ConvExpr, from Type, span SpanType) Type {
+	a.errorf(expr, "cannot convert %s to %s", from.String(), span.String()).
+		WithHelp("a conversion to a slice is a view of the same memory: it takes a string (for []byte), or a slice or array whose elements have the same size and kind")
+	return InvalidType{}
+}
+
+func viewCompatible(from, to Type) bool {
+	if from.Equals(to) || underlyingOf(from).Equals(underlyingOf(to)) {
+		return true
+	}
+	return isInteger(from) && isInteger(to) && SizeOf(underlyingOf(from)) == SizeOf(underlyingOf(to))
+}
+
+func (a *Analyser) checkSpanConv(expr *ast.ConvExpr, span SpanType) Type {
+	if len(expr.Args) != 1 {
+		a.errorf(expr, "conversion to %s expects 1 argument, got %d", span.String(), len(expr.Args))
+		for _, arg := range expr.Args {
+			a.checkExpr(arg)
+		}
+		return span
+	}
+	arg := expr.Args[0]
+	from := a.checkExpr(arg)
+	if isInvalidType(from) {
+		return span
+	}
+	switch source := underlyingOf(from).(type) {
+	case PrimitiveType:
+		if !isString(source) || !isByteLike(span.Element) {
+			return a.notAView(expr, from, span)
+		}
+	case SpanType:
+		if !viewCompatible(source.Element, span.Element) {
+			return a.notAView(expr, from, span)
+		}
+	case ArrayType:
+		if !viewCompatible(source.Element, span.Element) {
+			return a.notAView(expr, from, span)
+		}
+		if !isAddressable(arg) {
+			a.errorf(arg, "this array has no address to look at").
+				WithHelp("store it in a variable first, then convert the variable")
+			return InvalidType{}
+		}
+		a.insertSlice(&expr.Args[0], SpanType{Element: source.Element})
+		arg = expr.Args[0]
+	default:
+		return a.notAView(expr, from, span)
+	}
+	cast := &ast.CastExpr{Value: arg}
+	line, col := expr.Position()
+	cast.SetPos(line, col)
+	endLine, endCol := expr.EndPosition()
+	cast.SetEndPos(endLine, endCol)
+	a.info.Types[cast] = span
+	expr.Cast = cast
+	return span
 }

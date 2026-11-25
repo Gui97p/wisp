@@ -259,8 +259,12 @@ func patchedInfo(path string, pos protocol.Position) *analyser.Info {
 	if semicolon >= 0 {
 		repairs = append(repairs, semicolon)
 	}
+	fillers := []string{"_", "_;", "_ {}", "_ {};"}
+	if startsWithCondition(text, offset) {
+		fillers = []string{"_ {}", "_", "_;", "_ {};"}
+	}
 	for _, repair := range repairs {
-		for _, filler := range []string{"_", "_;"} {
+		for _, filler := range fillers {
 			patched := make([]byte, 0, len(text)+len(filler)+1)
 			if repair >= 0 {
 				patched = append(patched, text[:repair]...)
@@ -284,6 +288,17 @@ func patchedInfo(path string, pos protocol.Position) *analyser.Info {
 		}
 	}
 	return nil
+}
+
+func startsWithCondition(text []byte, offset int) bool {
+	lineStart := bytes.LastIndexByte(text[:offset], '\n') + 1
+	line := bytes.TrimLeft(text[lineStart:offset], " \t")
+	for _, word := range []string{"loop ", "if ", "for ", "switch ", "until ", "else if "} {
+		if bytes.HasPrefix(line, []byte(word)) {
+			return true
+		}
+	}
+	return false
 }
 
 func missingSemicolonOffset(text []byte, offset int) int {

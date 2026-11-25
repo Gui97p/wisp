@@ -545,6 +545,15 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 		p.error("a literal that starts with [ needs an array or slice type, such as [3]int{1, 2, 3}")
 		return nil
 	}
+	if p.peek.Type == lexer.TOKEN_LPAREN && len(ref.Layers) == 1 && ref.Layers[0].IsSpan {
+		p.advance()
+		args := p.parseCallArgs()
+		p.spread = false
+		if args == nil {
+			return nil
+		}
+		return &ast.ConvExpr{Type: *ref, Args: args}
+	}
 	if p.peek.Type != lexer.TOKEN_LBRACE {
 		p.errorf("expected { after the type %s: write %s{...}", ref.String(), ref.String())
 		return nil

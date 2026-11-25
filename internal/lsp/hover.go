@@ -67,6 +67,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		return h
 	}
 
+	if onPunctuation(fileBuffer[path], line, col) {
+		return nil
+	}
+
 	program, info := analyseEntry(path)
 	if program == nil || info == nil {
 		return nil
@@ -104,6 +108,13 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	}
 
 	if expr := exprInProgram(local, line, col); expr != nil {
+		if prop, isPropagate := expr.(*ast.PropagateExpr); isPropagate {
+			at, onOperator := propagateOperatorAt(prop, line, col)
+			if !onOperator {
+				return nil
+			}
+			return markdownHover(propagateHover(prop, info), positionRange(at))
+		}
 		if coalesce, isCoalesce := expr.(*ast.CoalesceExpr); isCoalesce {
 			switch at, onOperator := coalesceOperatorAt(fileBuffer[path], line, col); {
 			case coalesce.ErrorBind != "" && positionContains(coalesce.ErrorBindAt, line, col):
@@ -883,4 +894,53 @@ func literalHoverRange(expr ast.Expression, line, col int) *protocol.Range {
 		}
 	}
 	return nil
+}
+
+func onPunctuation(src []byte, line, col int) bool {
+	lines := splitLines(src)
+	if line < 1 || line > len(lines) || col < 1 || col > len(lines[line-1]) {
+		return false
+	}
+	switch lines[line-1][col-1] {
+	case ',', ';', ':':
+		return true
+	}
+	return false
+}
+
+func propagateOperatorAt(prop *ast.PropagateExpr, line, col int) (ast.Position, bool) {
+	width := 1
+	if prop.Assert {
+		width = 2
+	}
+	endLine, endCol := prop.EndPosition()
+	at := ast.Position{Line: endLine, Col: endCol - width + 1, EndLine: endLine, EndCol: endCol}
+	return at, positionContains(at, line, col)
+}
+
+func propagateHover(prop *ast.PropagateExpr, info *analyser.Info) string {
+	value := ""
+	if t, ok := info.Types[prop]; ok {
+		value = analyser.TypeText(t)
+	}
+	var text string
+	switch {
+	case prop.Null:
+		text = "Stops the program, naming the place, if the value is null. Otherwise it is the value."
+	case prop.Assert:
+		text = "Stops the program, naming the place, if the call fails. Otherwise it is the value."
+	default:
+		text = "Passes the error up: if the call fails, this function fails with the same error. Otherwise it is the value."
+	}
+	operator := "!"
+	switch {
+	case prop.Null:
+		operator = ".?"
+	case prop.Assert:
+		operator = "!!"
+	}
+	if value != "" {
+		text += "\n\nThe value here is `" + value + "`."
+	}
+	return renderDoc(operator, text)
 }

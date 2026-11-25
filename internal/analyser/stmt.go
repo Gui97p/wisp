@@ -11,6 +11,7 @@ import (
 func (a *Analyser) checkBlock(block *ast.BlockStmt) {
 	if a.currentInline == nil {
 		a.info.Scopes[block] = a.scope
+		a.info.ScopeFiles[block] = a.currentFile
 	}
 
 	a.checkStatements(block.Statements)

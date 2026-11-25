@@ -63,6 +63,15 @@ public func demo() {
 	fmt.printf("\"apple\" < \"apricot\": {}\n", "apple" < "apricot");
 	fmt.printf("\"b\" > \"abc\": {}\n", "b" > "abc");
 
+	// A string is read-only, so it does not go where a `[]byte` is expected on
+	// its own. `[]byte(greeting)` asks for its bytes on purpose, as a view of the
+	// same memory: nothing is copied, and the bytes are not to be written. A
+	// conversion to a slice is always a view like that, and also works from an
+	// array or a slice whose elements have the same size and kind: `[]uint32(signed)`
+	// sees `int32` values as unsigned ones, `[]Meters(plain)` sees `int` values as
+	// the named type, and a write through one is seen through the other.
+	fmt.printf("the bytes of the greeting: {}, the first is {}\n", len([]byte(greeting)), []byte(greeting)[0]);
+
 	// `in` asks whether a string holds another, or whether a collection holds
 	// an element.
 	fmt.printf("\"ell\" in greeting: {}\n", "ell" in greeting);

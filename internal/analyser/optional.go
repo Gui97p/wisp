@@ -592,6 +592,9 @@ func mismatchHelp(got, want Type) string {
 	if element, optional := optionalElement(got); optional && element.Equals(want) {
 		return "the value can be null: unwrap it with `x ?? default`, `x.?` or `if x |v| { ... }`"
 	}
+	if span, isSpan := want.(SpanType); isSpan && isString(underlyingOf(got)) && isByteLike(span.Element) {
+		return "a string is read-only, so its bytes are asked for on purpose: write []byte(text)"
+	}
 	return ""
 }
 

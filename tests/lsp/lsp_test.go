@@ -1993,3 +1993,130 @@ func TestUnwrappingOptionalsInTheEditor(t *testing.T) {
 		}
 	}
 }
+
+func TestStringToBytesInTheEditor(t *testing.T) {
+	c := start(t)
+	head := "func sum([]byte data) int {\n\treturn len(data);\n}\nfunc main() {\n\tstring text = \"abc\";\n\t"
+	tail := "\n}\n"
+	cases := []struct{ name, line, want string }{
+		{"implicit", "int n = sum(text);\n\tn++;", "write []byte(text)"},
+		{"not a string", "int k = 5;\n\tint n = sum([]byte(k));\n\tn++;", "cannot convert int to []uint8"},
+		{"not bytes", "[]int wide = []int(text);\n\twide[0] = 1;", "cannot convert string to []int"},
+	}
+	for _, tc := range cases {
+		found := false
+		for _, d := range c.open(map[string]string{"main.wsp": head + tc.line + tail}).diagnostics() {
+			if d.Severity == 1 && strings.Contains(d.Message, tc.want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s: no error with %q", tc.name, tc.want)
+		}
+	}
+	for _, d := range c.open(map[string]string{"main.wsp": head + "int n = sum([]byte(text));\n\tn++;" + tail}).diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("a valid conversion was reported: %s", d.Message)
+		}
+	}
+}
+
+func TestHoverOnOperatorsAndPunctuation(t *testing.T) {
+	c := start(t)
+	type result struct {
+		Contents struct {
+			Value string `json:"value"`
+		} `json:"contents"`
+		Range struct {
+			Start struct{ Character int } `json:"start"`
+			End   struct{ Character int } `json:"end"`
+		} `json:"range"`
+	}
+	hoverOf := func(src string) (result, bool) {
+		p := c.open(map[string]string{"main.wsp": src})
+		raw := c.call("textDocument/hover", p.at())
+		var h result
+		if string(raw) == "null" || len(raw) == 0 {
+			return h, false
+		}
+		json.Unmarshal(raw, &h)
+		return h, h.Contents.Value != ""
+	}
+	head := "struct P { int x; int y; }\nfunc g(int a, int b) !int {\n\treturn a;\n}\nfunc main() ! {\n\t"
+
+	h, ok := hoverOf(head + "int n = g(1, 2)¦!;\n\tn++;\n}\n")
+	if !ok || !strings.Contains(h.Contents.Value, "Passes the error up") || h.Range.End.Character-h.Range.Start.Character != 1 {
+		t.Errorf("hover on !: %q range %d-%d", h.Contents.Value, h.Range.Start.Character, h.Range.End.Character)
+	}
+	if h, ok := hoverOf(head + "int n = g(1, 2)!¦!;\n\tn++;\n}\n"); !ok || !strings.Contains(h.Contents.Value, "Stops the program") || h.Range.End.Character-h.Range.Start.Character != 2 {
+		t.Errorf("hover on !!: %q range %d-%d", h.Contents.Value, h.Range.Start.Character, h.Range.End.Character)
+	}
+	if h, ok := hoverOf(head + "int n = g(1¦, 2)!;\n\tn++;\n}\n"); ok {
+		t.Errorf("hover on a comma of a call showed %q", h.Contents.Value)
+	}
+	if h, ok := hoverOf(head + "P p = P{¦x: 1, y: 2};\n\tint n = p.x + p.y;\n\tn++;\n}\n"); !ok || !strings.Contains(h.Contents.Value, "int x") {
+		t.Errorf("hover on a key showed %q", h.Contents.Value)
+	}
+	if h, ok := hoverOf(head + "P p = P{x¦: 1, y: 2};\n\tint n = p.x + p.y;\n\tn++;\n}\n"); ok {
+		t.Errorf("hover on the colon of a struct literal showed %q", h.Contents.Value)
+	}
+}
+
+func TestCompletionAfterADotInALoopCondition(t *testing.T) {
+	c := start(t)
+	ioFile := "public interface Reader {\n\tfunc read([]byte buf) !?int;\n}\n\npublic interface Writer {\n\tfunc write([]byte data) !int;\n}\n"
+	writer := "import \"std/mem\";\n\npublic struct BufWriter implements Writer {\n\tWriter out;\n\t[]byte buf;\n\tint count;\n\t?mem.Allocator source;\n}\n\npublic func (*BufWriter w) write([]byte data) !int {\n\tmem.copy(w.buf, data, len(data));\n\tw.count += len(data);\n\treturn len(data);\n}\n\npublic func (*BufWriter w) release() {\n\tif w.source |s| {\n\t\tmem.free(s, w.buf);\n\t}\n}\n"
+	for name, line := range map[string]string{"loop": "loop r.¦", "if": "if r.¦", "for": "for r.¦"} {
+		reader := "import \"std/mem\";\n\npublic struct BufReader implements Reader {\n\tReader inp;\n\t[]byte buf;\n\tint start;\n\t?mem.Allocator source;\n}\n\npublic func (*BufReader r) read([]byte out) !?int {\n\t" + line + "\n}\n"
+		files := map[string]string{"main.wsp": "func main() {\n}\n", "io/io.wsp": ioFile, "io/reader.wsp": reader, "io/writer.wsp": writer}
+		got := c.openAs("io/reader.wsp", files).completion()
+		if !slices.Contains(got, "inp") || !slices.Contains(got, "start") {
+			t.Errorf("%s: the members of r are missing: %v", name, got)
+		}
+	}
+}
+
+func TestSliceViewsInTheEditor(t *testing.T) {
+	c := start(t)
+	head := "type Meters int;\nfunc main() {\n\t[3]int values = .{1, 2, 3};\n\t[3]int16 shorts = .{1, 2, 3};\n\tfloat scale = 1.5;\n\t"
+	tail := "\n}\n"
+	bad := []struct{ name, line, want string }{
+		{"another size", "[]int small = []int(shorts);\n\tsmall[0] = 1;", "cannot convert [3]int16 to []int"},
+		{"another kind", "[]float wide = []float(values);\n\twide[0] = scale;", "cannot convert [3]int to []float"},
+		{"a number", "[]int none = []int(scale);\n\tnone[0] = 1;", "cannot convert float to []int"},
+		{"a temporary array", "[]int part = []int(.{1, 2});\n\tpart[0] = 1;", "cannot convert"},
+	}
+	for _, tc := range bad {
+		found := false
+		for _, d := range c.open(map[string]string{"main.wsp": head + tc.line + tail}).diagnostics() {
+			if d.Severity == 1 && strings.Contains(d.Message, tc.want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s: no error with %q", tc.name, tc.want)
+		}
+	}
+	for _, d := range c.open(map[string]string{"main.wsp": head + "[]Meters lengths = []Meters(values);\n\tlengths[0] = 2;" + tail}).diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("a valid view was reported: %s", d.Message)
+		}
+	}
+}
+
+func TestCompletionIgnoresTheScopesOfOtherFiles(t *testing.T) {
+	c := start(t)
+	other := "func spread(int a) int {\n\tint total = 0;\n\tif a > 0 {\n\t\ttotal = 1;\n\t\tif a > 1 {\n\t\t\ttotal = 2;\n\t\t\tif a > 2 {\n\t\t\t\ttotal = 3;\n\t\t\t}\n\t\t}\n\t}\n\treturn total;\n}\n"
+	reader := "public struct Reader {\n\tint start;\n\tint end;\n}\n\npublic func (*Reader r) read() int {\n\tif star¦\n}\n"
+	files := map[string]string{"main.wsp": "func main() {\n}\n", "lib/other.wsp": other, "lib/reader.wsp": reader}
+	got := c.openAs("lib/reader.wsp", files).completion()
+	if !slices.Contains(got, "r.start") {
+		t.Errorf("the fields of the receiver are missing when another file has scopes in the same place: %d items", len(got))
+	}
+
+	files["lib/reader.wsp"] = "public struct Reader {\n\tint start;\n\tint end;\n}\n\npublic func (*Reader r) read() int {\n\tint n = min(1, r.¦)\n}\n"
+	got = c.openAs("lib/reader.wsp", files).completion()
+	if !slices.Contains(got, "start") || !slices.Contains(got, "end") {
+		t.Errorf("the members of r inside a call are missing: %v", got)
+	}
+}

@@ -4,6 +4,7 @@ import (
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
 	protocol "github.com/tliron/glsp/protocol_3_16"
+	"path/filepath"
 )
 
 func refContains(ref *ast.TypeRef, line, col int) bool {
@@ -176,8 +177,15 @@ func typeRefInStmt(stmt ast.Statement, line, col int) *ast.TypeRef {
 func innermostScope(info *analyser.Info, line, col int) *analyser.Scope {
 	var best *analyser.Scope
 	var bestLine, bestCol, bestEndLine, bestEndCol int
+	file := ""
+	if info.Module != nil {
+		file = info.Module.BoundFile()
+	}
 	for node, scope := range info.Scopes {
 		if !contains(node, line, col) {
+			continue
+		}
+		if owner := info.ScopeFiles[node]; owner != "" && file != "" && filepath.Clean(owner) != filepath.Clean(file) {
 			continue
 		}
 		sl, sc := node.Position()
