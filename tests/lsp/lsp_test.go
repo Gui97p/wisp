@@ -2137,3 +2137,38 @@ func TestCompletionRanksWhatYouUseFirst(t *testing.T) {
 		}
 	}
 }
+
+func TestBlockErrorsPointAtTheEnd(t *testing.T) {
+	c := start(t)
+	src := "func f(int n) int {\n\treturn switch n {\n\t\tcase 1 => {\n\n\t\t};\n\t\tdefault => 0;\n\t};\n}\nfunc main() {\n\tint a = f(1);\n\ta++;\n}\n"
+	found := false
+	for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
+		if d.Severity == 1 && strings.Contains(d.Message, "must end with yield, return, break or continue") || strings.Contains(d.Message, "never yields a value") {
+			found = true
+			if d.Range.End.Line != d.Range.Start.Line {
+				t.Errorf("the error covers lines %d to %d, and should point at the end of the block", d.Range.Start.Line, d.Range.End.Line)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no error about the block")
+	}
+}
+
+func TestDiagnosticsNeverCoverSeveralLines(t *testing.T) {
+	c := start(t)
+	src := "struct P { int x; int y; }\nfunc main() {\n\tP p = P{\n\t\tx: \"text\",\n\t\ty: 2,\n\t};\n\tint n = p.x;\n\tn++;\n}\n"
+	count := 0
+	for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
+		if d.Severity != 1 {
+			continue
+		}
+		count++
+		if d.Range.End.Line != d.Range.Start.Line {
+			t.Errorf("%q covers lines %d to %d", d.Message, d.Range.Start.Line, d.Range.End.Line)
+		}
+	}
+	if count == 0 {
+		t.Errorf("the mismatch in the literal was not reported")
+	}
+}

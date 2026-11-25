@@ -4,11 +4,12 @@ import "std/math";
 /// The position of the first element equal to `want`, or -1 when there is none.
 /// The elements are compared with ==: numbers, strings, enums, pointers, and
 /// structs that have an eq method.
-public func indexOf<Comparable T>([]T items, T want) int {
+#must_use
+public func indexOf<Comparable T>([]T items, T want) ?int {
 	for i, item in items {
 		return i if item == want;
 	}
-	return -1;
+	return null;
 }
 
 /// Whether some element is equal to `want`.

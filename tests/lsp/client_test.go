@@ -49,6 +49,7 @@ type diagnostic struct {
 	Severity int    `json:"severity"`
 	Range    struct {
 		Start struct{ Line, Character int }
+		End   struct{ Line, Character int }
 	} `json:"range"`
 }
 

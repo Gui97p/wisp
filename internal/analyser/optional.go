@@ -640,12 +640,12 @@ func (a *Analyser) checkBlockExpr(expr *ast.BlockExpr) Type {
 	a.exitScope()
 
 	if len(frame.values) == 0 {
-		a.error(expr, "this block never yields a value").
+		a.errorAtEnd(expr.Block, "this block never yields a value").
 			WithHelp("end it with `yield value;`")
 		return InvalidType{}
 	}
 	if !a.blockDiverges(expr.Block) {
-		a.error(expr, "the block must end with yield, return, break or continue")
+		a.errorAtEnd(expr.Block, "the block must end with yield, return, break or continue")
 		return InvalidType{}
 	}
 	if expr.Static && a.errorCount() == errorsBefore {

@@ -1,0 +1,87 @@
+import "std/errors";
+import "std/math";
+import "std/mem";
+import "std/slices";
+
+public struct BufReader implements Reader {
+	Reader inp;
+	[]byte buf;
+	int start;
+	int end;
+	?mem.Allocator source;
+}
+
+public func newBufReader(Reader inp, []byte buf) BufReader {
+	return .{inp: inp, buf: buf};
+}
+public func newBufReaderIn(Reader inp, int size, ?mem.Allocator a) !BufReader {
+	mem.Allocator source = a ?? mem.heap;
+	return .{inp: inp, buf: mem.make<byte>(source, size)!, source: source};
+}
+
+func (*BufReader r) fill() !?int {
+	if r.start > 0 {
+		mem.move(r.buf, r.buf[r.start..r.end], r.end - r.start);
+		r.end -= r.start;
+		r.start = 0;
+	}
+	return Error(errors.Kind.NoSpace) if r.end == len(r.buf);
+	int n = r.inp.read(r.buf[r.end..])! ?? return null;
+	r.end += n;
+	return n;
+}
+
+public func (*BufReader r) read([]byte out) !?int {
+	return 0 if len(out) == 0;
+	if r.start < r.end {
+		int n = math.min(len(out), r.end - r.start);
+		mem.copy(out, r.buf[r.start..], n);
+		r.start += n;
+		return n;
+	}
+
+	return r.inp.read(out)! if len(out) >= len(r.buf);
+	int n = math.min(len(out), r.fill()! ?? return null);
+	mem.copy(out, r.buf[r.start..], n);
+	r.start += n;
+	return n;
+}
+
+public func (*BufReader r) readByte() !?byte {
+	if r.start == r.end {
+		r.fill()! ?? return null;
+	}
+	defer r.start++;
+	return r.buf[r.start];
+}
+
+public func (*BufReader r) readLine() !?string {
+	int scanned;
+	loop {
+		int from = r.start + scanned;
+		if slices.indexOf(r.buf[from..r.end], '\n') |i| {
+			[]byte line = r.buf[r.start..from + i];
+			if len(line) > 0 && line[len(line) - 1] == '\r' {
+				line = line[..len(line) - 1];
+			}
+			defer r.start = from + i + 1;
+			return string(line);
+		}
+		scanned = r.end - r.start;
+		r.fill()! ?? {
+			if r.end > r.start {
+				defer r.start = r.end;
+				return string(r.buf[r.start..r.end]);
+			}
+			return null;
+		};
+	}
+}
+
+public func (*BufReader r) release() {
+	if r.source |s| {
+		mem.free(s, r.buf);
+	}
+	r.start, r.end = 0, 0;
+	r.buf = .{};
+}

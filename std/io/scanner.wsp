@@ -1,0 +1,74 @@
+import "std/errors";
+import "std/math";
+import "std/mem";
+import "std/strings";
+
+public enum Split { Lines, Words }
+
+public struct Scanner {
+	BufReader reader;
+	Split by;
+	int limit;
+}
+
+public func newScanner(Reader inp, []byte buf) Scanner {
+	return .{reader: newBufReader(inp, buf)};
+}
+public func newScannerIn(Reader inp, int size, int limit, ?mem.Allocator a) !Scanner {
+	return .{reader: newBufReaderIn(inp, size, a)!, limit: math.max(limit, size)};
+}
+
+public func (*Scanner s) words() *Scanner {
+	s.by = .Words;
+	return s;
+}
+public func (*Scanner s) next() !?string {
+	let r = &s.reader;
+	if s.by == .Words {
+		loop {
+			loop r.start < r.end && strings.isSpace(r.buf[r.start]) {
+				r.start++;
+			}
+			break if r.start < r.end;
+			s.fill()! ?? return null;
+		}
+		int scanned;
+		loop {
+			for i in r.start + scanned..r.end {
+				if strings.isSpace(r.buf[i]) {
+					defer r.start = i;
+					return string(r.buf[r.start..i]);
+				}
+			}
+			scanned = r.end - r.start;
+			s.fill()! ?? {
+				defer r.start = r.end;
+				return string(r.buf[r.start..r.end]);
+			};
+		}
+	}
+	loop {
+		return r.readLine() ?? |e| switch e {
+			case errors.Kind.NoSpace => {
+				continue if s.grow()!;
+				return e;
+			}
+			default => return e;
+		};
+	}
+}
+
+public inline func (*Scanner s) release() => s.reader.release();
+
+func (*Scanner s) grow() !bool {
+	let r = &s.reader;
+	return false if r.source == null || len(r.buf) >= s.limit;
+	r.buf = mem.resize(r.source.?, r.buf, math.min(len(r.buf) * 2, s.limit))!;
+	return true;
+}
+
+func (*Scanner s) fill() !?int {
+	let r = &s.reader;
+	return Error(errors.Kind.NoSpace) if r.start == 0 && r.end == len(r.buf) && !(s.grow()!);
+	return r.fill()!;
+}

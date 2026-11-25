@@ -1,0 +1,72 @@
+import "std/mem";
+
+public enum Whence {
+	Start,
+	Current,
+	End
+}
+
+public interface Reader {
+	func read([]byte buf) !?int;
+}
+
+public interface Writer {
+	func write([]byte data) !int;
+}
+
+public interface Closer {
+	func close() !;
+}
+
+public interface Seeker {
+	func seek(int offset, Whence whence) !int;
+}
+
+public interface ReadWriter { Reader & Writer }
+public interface ReadCloser { Reader & Closer }
+public interface WriteCloser { Writer & Closer }
+
+public func copy<Writer W, Reader R>(W dst, R src) !int {
+	[4096]byte buf;
+	int total;
+	loop src.read(buf)! |n| {
+		dst.write(buf[..n])!;
+		total += n;
+	}
+	return total;
+}
+public func copyBuffer<Writer W, Reader R>(W dst, R src, []byte buf) !int {
+	int total;
+	loop src.read(buf)! |n| {
+		dst.write(buf[..n])!;
+		total += n;
+	}
+	return total;
+}
+
+public func readAll<mem.Allocator A, Reader R>(A a, R r) ![]byte {
+	[]byte buf = mem.makeDirty<byte>(a, 256)!;
+	int total;
+	loop {
+		if total == len(buf) {
+			buf = mem.resize(a, buf, len(buf) * 2)!;
+		}
+
+		total += r.read(buf[total..])! ?? break;
+	}
+	return buf[..total];
+}
+public func readFull<Reader R>(R r, []byte buf) !int {
+	int total;
+	loop total < len(buf) {
+		total += r.read(buf[total..])! ?? break;
+	}
+	return total;
+}
+
+public inline func writeString<Writer W>(W w, string text) ! {
+	w.write([]byte(text))!;
+}
+public inline func writeByte<Writer W>(W w, byte c) ! {
+	w.write(.{c})!;
+}

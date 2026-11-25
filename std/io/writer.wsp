@@ -1,0 +1,48 @@
+import "std/mem";
+
+public struct BufWriter implements Writer {
+	Writer out;
+	[]byte buf;
+	int count;
+	?mem.Allocator source;
+}
+
+public func newBufWriter(Writer out, []byte buf) BufWriter {
+	return .{out: out, buf: buf};
+}
+
+public func newBufWriterIn(Writer out, int size, ?mem.Allocator a) !BufWriter {
+	mem.Allocator source = a ?? mem.heap;
+	return .{out: out, buf: mem.make<byte>(source, size)!, source: source};
+}
+
+public func (*BufWriter w) write([]byte data) !int {
+	int need = len(data) + w.count;
+	if need > len(w.buf) {
+		w.flush()!;
+	}
+
+	if len(data) >= len(w.buf) {
+		w.out.write(data)!;
+		return len(data);
+	}
+
+	mem.copy(w.buf, data, len(data));
+	w.count += len(data);
+	return len(data);
+}
+
+public func (*BufWriter w) flush() ! {
+	return if w.count == 0;
+	w.out.write(w.buf[..w.count])!;
+	w.count = 0;
+}
+
+public inline func (*BufWriter w) buffered() int => w.count;
+public func (*BufWriter w) release() {
+	if w.source |s| {
+		mem.free(s, w.buf);
+	}
+	w.count = 0;
+	w.buf = .{};
+}

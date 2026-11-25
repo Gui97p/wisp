@@ -93,6 +93,15 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 		if d.Severity == diag.SeverityWarning {
 			severity = protocol.DiagnosticSeverityWarning
 		}
+		if endLine > line {
+			endLine = line
+			endCol = col + 1
+			if lines := splitLines(fileBuffer[file]); int(line) < len(lines) {
+				if length := uint32(utf16Len(lines[line])); length > col {
+					endCol = length
+				}
+			}
+		}
 		rng := protocol.Range{
 			Start: protocol.Position{Line: line, Character: col},
 			End:   protocol.Position{Line: endLine, Character: endCol},

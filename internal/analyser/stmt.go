@@ -116,6 +116,11 @@ func (a *Analyser) checkReturnStmt(stmt *ast.ReturnStmt) {
 	}
 
 	if len(types) != len(a.currentReturns) {
+		if len(types) == 1 {
+			if _, bad := types[0].(InvalidType); bad {
+				return
+			}
+		}
 		a.errorf(stmt, "expected %d return values, got %d", len(a.currentReturns), len(types))
 		return
 	}
