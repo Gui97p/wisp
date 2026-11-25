@@ -51,7 +51,7 @@ func missingAlias(message string) (string, bool) {
 }
 
 func importActions(uri protocol.DocumentUri, d protocol.Diagnostic) []protocol.CodeAction {
-	alias, ok := missingAlias(d.Message)
+	alias, ok := missingAlias(diagnosticText(d))
 	if !ok {
 		return nil
 	}
@@ -103,7 +103,7 @@ func codeActions(uri protocol.DocumentUri, diagnostics []protocol.Diagnostic, on
 			actions = append(actions, *action)
 		}
 
-		m := suggestionPattern.FindStringSubmatch(d.Message)
+		m := suggestionPattern.FindStringSubmatch(diagnosticText(d))
 		if m == nil {
 			continue
 		}
@@ -122,7 +122,7 @@ func codeActions(uri protocol.DocumentUri, diagnostics []protocol.Diagnostic, on
 }
 
 func implementsActions(uri protocol.DocumentUri, d protocol.Diagnostic) []protocol.CodeAction {
-	m := missingImplements.FindStringSubmatch(d.Message)
+	m := missingImplements.FindStringSubmatch(diagnosticText(d))
 	if m == nil {
 		return nil
 	}

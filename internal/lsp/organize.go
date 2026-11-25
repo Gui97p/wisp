@@ -23,7 +23,7 @@ func importLineRange(lines []string, d protocol.Diagnostic) (protocol.Range, boo
 }
 
 func removeImportAction(uri protocol.DocumentUri, d protocol.Diagnostic) *protocol.CodeAction {
-	m := unusedImportPattern.FindStringSubmatch(d.Message)
+	m := unusedImportPattern.FindStringSubmatch(diagnosticText(d))
 	if m == nil {
 		return nil
 	}
@@ -65,14 +65,14 @@ func organizeImportsAction(uri protocol.DocumentUri) *protocol.CodeAction {
 	var missing []string
 	seen := map[string]bool{}
 	for _, d := range diagnoseFile(path)[path] {
-		if unusedImportPattern.MatchString(d.Message) {
+		if unusedImportPattern.MatchString(diagnosticText(d)) {
 			if rng, ok := importLineRange(lines, d); ok && !removed[rng.Start.Line] {
 				removed[rng.Start.Line] = true
 				edits = append(edits, protocol.TextEdit{Range: rng})
 			}
 			continue
 		}
-		alias, isMissing := missingAlias(d.Message)
+		alias, isMissing := missingAlias(diagnosticText(d))
 		if !isMissing {
 			continue
 		}

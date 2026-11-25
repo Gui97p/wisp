@@ -1884,3 +1884,23 @@ func TestNativeBlocksOfOtherFilesAreNotHovered(t *testing.T) {
 		t.Errorf("a native block of another file of the module answered the hover: %q", hover)
 	}
 }
+
+func TestDiagnosticsKeepTheLineShort(t *testing.T) {
+	c := start(t)
+	p := c.open(map[string]string{"main.wsp": "func f(string s) ! {\n\treturn Error(s);\n}\nfunc main() {\n\tlet _ = f(\"x\");\n}\n"})
+	found := false
+	for _, d := range p.diagnostics() {
+		if strings.Contains(d.Primary, "constant string") {
+			found = true
+			if strings.Contains(d.Primary, "\n") || strings.Contains(d.Primary, "help") {
+				t.Errorf("the message of the diagnostic carries more than the problem: %q", d.Primary)
+			}
+			if !strings.Contains(d.Message, "help: ") {
+				t.Errorf("the help is lost: %q", d.Message)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("no diagnostic about the message of the error")
+	}
+}

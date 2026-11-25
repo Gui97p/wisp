@@ -2,10 +2,8 @@ package lsp
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
 	"slices"
-	"strings"
 
 	"github.com/Gui97p/wisp/internal/diag"
 	"github.com/Gui97p/wisp/internal/module"
@@ -95,22 +93,42 @@ func addDiagnostics(result map[string][]protocol.Diagnostic, fallbackFile string
 		if d.Severity == diag.SeverityWarning {
 			severity = protocol.DiagnosticSeverityWarning
 		}
-		var message strings.Builder
-		message.WriteString(d.Message)
+		rng := protocol.Range{
+			Start: protocol.Position{Line: line, Character: col},
+			End:   protocol.Position{Line: endLine, Character: endCol},
+		}
+		var related []protocol.DiagnosticRelatedInformation
 		for _, n := range d.Notes {
-			fmt.Fprintf(&message, "\nnote: %s (%d:%d)", n.Message, n.Line, n.Col)
+			noteFile := n.File
+			if noteFile == "" {
+				noteFile = file
+			}
+			noteLine, noteCol := uint32(0), uint32(0)
+			if n.Line > 0 {
+				noteLine = uint32(n.Line - 1)
+			}
+			if n.Col > 0 {
+				noteCol = uint32(n.Col - 1)
+			}
+			related = append(related, protocol.DiagnosticRelatedInformation{
+				Location: protocol.Location{
+					URI:   pathToURI(noteFile),
+					Range: protocol.Range{Start: protocol.Position{Line: noteLine, Character: noteCol}, End: protocol.Position{Line: noteLine, Character: noteCol + 1}},
+				},
+				Message: n.Message,
+			})
 		}
 		if d.Help != "" {
-			message.WriteString("\nhelp: ")
-			message.WriteString(d.Help)
+			related = append(related, protocol.DiagnosticRelatedInformation{
+				Location: protocol.Location{URI: pathToURI(file), Range: rng},
+				Message:  "help: " + d.Help,
+			})
 		}
 		result[file] = append(result[file], protocol.Diagnostic{
-			Range: protocol.Range{
-				Start: protocol.Position{Line: line, Character: col},
-				End:   protocol.Position{Line: endLine, Character: endCol},
-			},
-			Severity: &severity,
-			Message:  message.String(),
+			Range:              rng,
+			Severity:           &severity,
+			Message:            d.Message,
+			RelatedInformation: related,
 		})
 	}
 }
@@ -147,14 +165,25 @@ func configDiagnostics(path string) (string, []protocol.Diagnostic, bool) {
 
 	if configErr, ok := errors.AsType[*module.ConfigError](err); ok {
 		for _, i := range configErr.Issues {
-			message := i.Message
+			problem := issue(i.Line, i.Message)
 			if i.Help != "" {
-				message += "\nhelp: " + i.Help
+				problem.RelatedInformation = []protocol.DiagnosticRelatedInformation{{
+					Location: protocol.Location{URI: pathToURI(s.tomlPath), Range: problem.Range},
+					Message:  "help: " + i.Help,
+				}}
 			}
-			diags = append(diags, issue(i.Line, message))
+			diags = append(diags, problem)
 		}
 		return s.tomlPath, diags, true
 	}
 
 	return s.tomlPath, append(diags, issue(0, err.Error())), true
+}
+
+func diagnosticText(d protocol.Diagnostic) string {
+	text := d.Message
+	for _, related := range d.RelatedInformation {
+		text += "\n" + related.Message
+	}
+	return text
 }

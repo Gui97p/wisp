@@ -41,7 +41,11 @@ type client struct {
 }
 
 type diagnostic struct {
-	Message  string `json:"message"`
+	Message            string `json:"message"`
+	RelatedInformation []struct {
+		Message string `json:"message"`
+	} `json:"relatedInformation"`
+	Primary  string `json:"-"`
 	Severity int    `json:"severity"`
 	Range    struct {
 		Start struct{ Line, Character int }
@@ -138,6 +142,13 @@ func (c *client) read(r *bufio.Reader) {
 				Diagnostics []diagnostic `json:"diagnostics"`
 			}
 			json.Unmarshal(msg.Params, &p)
+			for i := range p.Diagnostics {
+				p.Diagnostics[i].Primary = p.Diagnostics[i].Message
+				for _, related := range p.Diagnostics[i].RelatedInformation {
+					p.Diagnostics[i].Message += "\n" + related.Message
+				}
+				p.Diagnostics[i].RelatedInformation = nil
+			}
 			c.mu.Lock()
 			c.diags[p.URI] = p.Diagnostics
 			c.mu.Unlock()
