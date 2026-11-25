@@ -34,6 +34,7 @@ type Info struct {
 	InlinePropagates map[*ast.PropagateExpr]*InlineCall
 	ConstRefs        map[*ast.ConstRef]ConstRefInfo
 	Boxes            map[ast.Expression]Type
+	DynamicImpls     []*IfaceConversion
 	TypeCases        map[*ast.BinaryExpr]*TypeCase
 	Narrowed         map[*Symbol]*Symbol
 	SwitchValues     map[*ast.SwitchExpr][]Type
@@ -60,6 +61,8 @@ type TypeCase struct {
 	Type  Type
 	Group bool
 	Iface *InterfaceType
+
+	Dynamic *InterfaceType
 }
 
 type VtableEntry struct {

@@ -45,6 +45,35 @@ func (t *X64Target) useErreq() string {
 	return "__wisp_erreq"
 }
 
+func (t *X64Target) useDyn() string {
+	if !t.postlude.define("dyn") {
+		return "__wisp_dyn"
+	}
+	t.postlude.print(`__wisp_dyn:
+	xor eax, eax
+	cmp rdi, 4096
+	jb .done
+	mov rcx, [rdi+8]
+	test rcx, rcx
+	jz .done
+	mov rdx, [rcx]
+	add rcx, 8
+.loop:
+	test rdx, rdx
+	jz .done
+	cmp [rcx], rsi
+	je .found
+	add rcx, 16
+	dec rdx
+	jmp .loop
+.found:
+	mov rax, [rcx+8]
+.done:
+	ret
+`)
+	return "__wisp_dyn"
+}
+
 func (t *X64Target) useStreq() string {
 	if !t.postlude.define("streq") {
 		return "__wisp_streq"

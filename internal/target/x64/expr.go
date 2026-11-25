@@ -80,6 +80,11 @@ func (t *X64Target) compileExprNode(expr ast.Expression) (Operand, error) {
 		}
 		if orig, ok := t.info.Narrowed[sym]; ok {
 			off, _ := t.ctx.Get(orig)
+			if held, dynamic := sym.Type.(*analyser.InterfaceType); dynamic {
+				if _, fromBox := orig.Type.(analyser.BoxedType); fromBox {
+					return t.dynamicValue(slot(off, 24), held)
+				}
+			}
 			if _, fromInterface := orig.Type.(*analyser.InterfaceType); fromInterface {
 				return slot(off, 16).at(0, 8), nil
 			}
@@ -382,6 +387,9 @@ func (t *X64Target) compileBinaryExpr(expr *ast.BinaryExpr) (Operand, error) {
 }
 
 func (t *X64Target) compileTypeCase(expr *ast.BinaryExpr, tc *analyser.TypeCase) (Operand, error) {
+	if tc.Dynamic != nil {
+		return t.compileDynamicCase(expr, tc)
+	}
 	if tc.Iface != nil {
 		return t.compileInterfaceTypeCase(expr, tc)
 	}

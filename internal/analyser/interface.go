@@ -21,7 +21,7 @@ func (a *Analyser) registerInterfaceNames() {
 		}
 
 		interfaceName := a.emitFor(decl.Name, decl.Reach)
-		it := &InterfaceType{Name: interfaceName, Module: a.module, Exported: decl.Exported, Doc: decl.Doc, key: qualifiedName(a.module, interfaceName)}
+		it := &InterfaceType{Name: interfaceName, Module: a.module, Exported: decl.Exported, Dynamic: decl.TagNamed("dynamic") != nil, Doc: decl.Doc, key: qualifiedName(a.module, interfaceName)}
 		file := a.currentFile
 		scope := a.moduleScope
 		it.fill = func() { a.fillInterface(it, decl, scope, file) }
@@ -334,6 +334,13 @@ func (a *Analyser) verifyImpl(set *ImplSet) {
 		if len(problems) > 0 {
 			a.errorAtRef(set.node, entry.ref, "%s declares implements %s, but it does not", elementName(set.typ), entry.iface.Name).
 				WithHelp("%s", strings.Join(problems, "\n"))
+			continue
+		}
+		if entry.iface.Dynamic {
+			pointer := PointerType{Element: set.typ}
+			if entries, ok := a.vtableEntries(set.node, pointer, entry.iface); ok {
+				a.info.DynamicImpls = append(a.info.DynamicImpls, &IfaceConversion{Iface: entry.iface, From: pointer, Entries: entries})
+			}
 		}
 	}
 }

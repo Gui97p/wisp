@@ -31,6 +31,17 @@
 // type can be a case, since that is what the interface holds, and the type has
 // to implement the interface.
 //
+// An interface can also be picked out of a value that was passed as an untyped
+// variadic argument (`...args`), where all that is known is the type of each
+// value. For that the interface is declared `#dynamic`, and the types that
+// implement it have to say so with `implements`: a type that only has the
+// methods is not found. Then `case Shape s` in a switch on types matches the
+// values of those types, and `s` is the interface value, as in `Shape s =
+// &square`. A value of a struct is passed by its address, so what the method
+// sees is the struct itself. An interface that is not `#dynamic` cannot be a
+// case there, and the compiler says so; one that is costs nothing to the types
+// that do not implement it.
+//
 // Interfaces compose with `&`: `interface Solid { Shape & Scalable }` asks for
 // the methods of both, and a type that declares `implements Solid` keeps both.
 
@@ -137,6 +148,25 @@ func same<Comparable T>(T a, T b) bool {
 // interface, and an `inline` method cannot sit behind one, because it has no
 // address to put in the table.
 
+#dynamic
+interface Describable {
+	func describe() int;
+}
+
+struct Crate implements Describable {
+	int items;
+}
+
+func (*Crate c) describe() int => c.items * 10;
+
+func summary(...args) int {
+	switch type args[0] {
+		case Describable d => return d.describe();
+		case int n => return n;
+		default => return -1;
+	}
+}
+
 public func demo() {
 	Square square = Square{side: 3};
 	Disk disk = Disk{radius: 2};
@@ -167,4 +197,7 @@ public func demo() {
 	fmt.printf("double: {} {} {}\n", double(21), double(1.5), int(double(Meters(4))));
 	fmt.printf("negate: {}\n", negate(int16(7)));
 	fmt.printf("same: {} {}\n", same(3, 3), same("a", "b"));
+
+	Crate crate = Crate{items: 4};
+	fmt.printf("summary: {} {} {}\n", summary(&crate), summary(crate), summary(5));
 }

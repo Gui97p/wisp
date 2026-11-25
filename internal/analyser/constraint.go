@@ -50,6 +50,7 @@ type InterfaceType struct {
 	Methods  []MethodSig
 	Expr     *ConstraintExpr
 	Exported bool
+	Dynamic  bool
 	Doc      string
 	Instance *InstanceInfo
 

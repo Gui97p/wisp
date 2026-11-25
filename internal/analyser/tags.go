@@ -68,6 +68,11 @@ var Tags = []TagSpec{
 		Targets: []string{"function", "method"},
 	},
 	{
+		Name: "dynamic", Usage: "#dynamic",
+		Doc:     "An interface whose values can be told apart at run time. A value that is passed as an untyped variadic argument (`...args`) and whose type declares `implements` this interface can be picked out with `case Interface v` in a switch on types, and `v` is then the interface value. The interface has to be declared with #dynamic for that: without it a `case` cannot name it. It takes nothing for the types that do not implement it, and cannot be generic.",
+		Targets: []string{"interface"},
+	},
+	{
 		Name: "caller", Usage: "#caller",
 		Doc:     "A function that wants to know where it was called from. Its first parameter has the type `Here`, and a call does not write it: the compiler fills it with the file, the line and the code of the call, as an error with no kind. `at.file`, `at.line` and `at.block` can be read, and `at` can be the base of an error made at run time.",
 		Targets: []string{"function", "method"},
@@ -110,6 +115,8 @@ func declTarget(decl ast.Declaration) string {
 		return "function"
 	case *ast.StructDecl:
 		return "struct"
+	case *ast.InterfaceDecl:
+		return "interface"
 	case *ast.TypeDecl:
 		switch {
 		case d.Data:
@@ -140,6 +147,8 @@ func (a *Analyser) checkTags() {
 		case *ast.FuncDecl:
 			tags = decl.Tags
 		case *ast.StructDecl:
+			tags = decl.Tags
+		case *ast.InterfaceDecl:
 			tags = decl.Tags
 		case *ast.TypeDecl:
 			tags = decl.Tags
@@ -239,6 +248,10 @@ func (a *Analyser) checkTagArgs(spec TagSpec, tag *ast.Tag, decl ast.Declaration
 					a.errorRange(tag.At, "#fails(null, ...) is for a function that returns a pointer, and %s does not", fd.Name)
 				}
 			}
+		}
+	case "dynamic":
+		if decl, ok := decl.(*ast.InterfaceDecl); ok && len(decl.TypeParams) > 0 {
+			a.errorRange(tag.At, "a generic interface cannot be #dynamic")
 		}
 	case "caller":
 		if fd, ok := decl.(*ast.FuncDecl); ok && !isHereParam(fd) {

@@ -15429,6 +15429,99 @@ func main() {
     check(accepted == 32, "thirty-two hooks fit");
 }
 `, expected: []string{"a full list fails with NoSpace", "thirty-two hooks fit"}},
+	{dir: "dynamic_interfaces", files: map[string]string{"shapes/shapes.wsp": `#dynamic
+public interface Shape {
+    func area() int;
+}
+
+#dynamic
+public interface Named {
+    func tag() int;
+}
+
+public struct Circle implements Shape, Named {
+    public int r;
+}
+
+public func (*Circle c) area() int => 3 * c.r * c.r;
+public func (*Circle c) tag() int => 7;
+`}, src: `import "shapes";
+
+interface Quiet {
+    func hush() int;
+}
+
+#dynamic
+interface Local {
+    func local() int;
+}
+
+struct Square implements shapes.Shape, Local {
+    int side;
+}
+
+func (*Square s) area() int => s.side * s.side;
+func (*Square s) local() int => 5;
+
+type Meters int implements shapes.Shape;
+
+func (*Meters m) area() int => int(m@) * 100;
+
+struct Plain {
+    int x;
+}
+
+struct Structural {
+    int x;
+}
+
+func (*Structural s) area() int => 1000;
+
+func shapeArea(...args) int {
+    switch type args[0] {
+        case shapes.Shape s => return s.area();
+        case int n => return -n;
+        case string => return -1;
+        default => return 0;
+    }
+}
+
+func kinds(...args) int {
+    int total = 0;
+    switch type args[0] {
+        case shapes.Shape s => total += s.area();
+        default => total += 0;
+    }
+    switch type args[0] {
+        case shapes.Named n => total += n.tag();
+        default => total += 0;
+    }
+    switch type args[0] {
+        case Local l => total += l.local();
+        default => total += 0;
+    }
+    return total;
+}
+
+func main() {
+    shapes.Circle c = shapes.Circle{r: 2};
+    Square sq = Square{side: 4};
+    Meters m = 3;
+    Plain p = Plain{x: 9};
+    Structural st = Structural{x: 1};
+
+    check(shapeArea(&sq) == 16 && shapeArea(sq) == 16, "a pointer to a type that declares the interface, and the type itself");
+    check(shapeArea(&c) == 12 && shapeArea(c) == 12, "an interface of another module");
+    check(shapeArea(m) == 300, "a named type with a value held in the argument");
+    check(shapeArea(7) == -7 && shapeArea("text") == -1, "other cases of the same switch still work");
+    check(shapeArea(&p) == 0 && shapeArea(p) == 0, "a type that does not implement it goes to default");
+    check(shapeArea(&st) == 0, "a method with the right name is not enough: the type has to declare implements");
+    check(kinds(&c) == 12 + 7, "a type that implements two dynamic interfaces");
+    check(kinds(&sq) == 16 + 5, "a dynamic interface of the module and one of another");
+    check(kinds(&p) == 0, "none of them");
+    check(kinds(5) == 0, "a value that is not a type with methods");
+}
+`, expected: []string{"a pointer to a type that declares the interface, and the type itself", "an interface of another module", "a named type with a value held in the argument", "other cases of the same switch still work", "a type that does not implement it goes to default", "a method with the right name is not enough: the type has to declare implements", "a type that implements two dynamic interfaces", "a dynamic interface of the module and one of another", "none of them", "a value that is not a type with methods"}},
 	{dir: "interop_ergonomics", system: "linux", files: map[string]string{"lib.c": `#include <stddef.h>
 typedef struct counter { int value; } counter;
 static counter the_counter = {0};

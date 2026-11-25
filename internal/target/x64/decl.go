@@ -61,7 +61,7 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		}
 		key := analyser.TypeKey(t.module, structName)
 		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
-		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
+		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1, %s\n", sym, sym, t.dynamicTable(key))
 	case *ast.TypeDecl:
 		if len(d.TypeParams) > 0 {
 			return nil
@@ -72,14 +72,19 @@ func (t *X64Target) compileDeclaration(decl ast.Declaration) error {
 		}
 		key := analyser.TypeKey(t.module, typeName)
 		sym := "__wisp_type_" + re.ReplaceAllString(key, "_")
-		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
+		t.data.printft("global %s\nalign 8\n%s:\n\tdq 1, %s\n", sym, sym, t.dynamicTable(key))
 	case *ast.ConstDecl:
 		for _, sym := range t.info.VarSymbols[d] {
 			if err := t.emitConstSymbol(sym, true); err != nil {
 				return err
 			}
 		}
-	case *ast.ImportDecl, *ast.StaticAssertDecl, *ast.InterfaceDecl:
+	case *ast.InterfaceDecl:
+		if d.TagNamed("dynamic") != nil && len(d.TypeParams) == 0 {
+			sym := "__wisp_iface_" + re.ReplaceAllString(analyser.TypeKey(t.module, d.Name), "_")
+			t.data.printft("global %s\nalign 8\n%s:\n\tdq 1\n", sym, sym)
+		}
+	case *ast.ImportDecl, *ast.StaticAssertDecl:
 	default:
 		return fmt.Errorf("x86-64: unsupported declaration %T", d)
 	}

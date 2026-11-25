@@ -1904,3 +1904,24 @@ func TestDiagnosticsKeepTheLineShort(t *testing.T) {
 		t.Errorf("no diagnostic about the message of the error")
 	}
 }
+
+func TestDynamicInterfacesInTheEditor(t *testing.T) {
+	c := start(t)
+	src := "interface Plain {\n\tfunc area() int;\n}\n\nfunc describe(...args) int {\n\tswitch type args[0] {\n\t\tcase Plain s => return s.area();\n\t\tdefault => return 0;\n\t}\n}\n\nfunc main() {\n\tint n = describe(1);\n\tn++;\n}\n"
+	var messages []string
+	for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
+		if d.Severity == 1 {
+			messages = append(messages, d.Message)
+		}
+	}
+	if len(messages) != 1 || !strings.Contains(messages[0], "interface Plain needs to be dynamic to be used in a case") || !strings.Contains(messages[0], "#dynamic") {
+		t.Errorf("errors %q", messages)
+	}
+
+	good := strings.Replace(src, "interface Plain", "#dynamic\ninterface Plain", 1)
+	for _, d := range c.open(map[string]string{"main.wsp": good}).diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("a dynamic interface in a case was reported: %s", d.Message)
+		}
+	}
+}

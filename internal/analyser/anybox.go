@@ -155,6 +155,15 @@ func (a *Analyser) checkBoxedArgs(expr *ast.CallExpr, argTypes []Type, fixed int
 			a.fixUntyped(arg, t)
 		}
 
+		if st, isStruct := t.(*StructType); isStruct && st.Optional == nil && isAddressable(arg) {
+			address := &ast.UnaryExpr{Operator: "&", Value: arg}
+			a.at(arg, address)
+			t = PointerType{Element: t}
+			a.info.Types[address] = t
+			expr.Args[i] = address
+			arg = address
+		}
+
 		ok, hint := boxable(t)
 		if !ok {
 			d := a.errorf(arg, "cannot pass %s as an untyped variadic argument", t.String())
@@ -182,6 +191,20 @@ func (a *Analyser) checkTypeCase(expr *ast.BinaryExpr) Type {
 	t, ok := a.labelType(expr.Right)
 	if !ok {
 		return InvalidType{}
+	}
+
+	if it, isInterface := t.(*InterfaceType); isInterface {
+		switch {
+		case it.builtin != "" || it.ConstraintOnly():
+			a.errorf(expr.Right, "%s is a constraint, so it cannot be used in a case", it.Name)
+			return InvalidType{}
+		case !it.Dynamic:
+			a.errorf(expr.Right, "interface %s needs to be dynamic to be used in a case", it.Name).
+				WithHelp("write #dynamic before its declaration: the values of the types that implement it can then be told apart here")
+			return InvalidType{}
+		}
+		a.info.TypeCases[expr] = &TypeCase{Type: t, Dynamic: it}
+		return PrimitiveType{Name: "bool"}
 	}
 
 	if okType, hint := boxable(t); !okType {
@@ -222,6 +245,10 @@ func (a *Analyser) labelType(label ast.Expression) (Type, bool) {
 		return t, true
 	case *ast.IdentLiteral:
 		sym, found := a.scope.Resolve(l.Value)
+		if found && sym.Kind == INTERFACE {
+			sym.Used = true
+			return sym.Type, true
+		}
 		if !found || !isTypeSymbol(sym) {
 			a.errorf(l, "%s is not a type", l.Value).WithHelp("a case of a switch on types names a type, or one of the groups signed and unsigned")
 			return nil, false
@@ -230,7 +257,7 @@ func (a *Analyser) labelType(label ast.Expression) (Type, bool) {
 		return sym.Type, true
 	case *ast.MemberExpr:
 		if module, isIdent := l.Object.(*ast.IdentLiteral); isIdent {
-			if sym, found := a.lookupType(a.scope, module.Value, l.Field); found && isTypeSymbol(sym) {
+			if sym, found := a.lookupType(a.scope, module.Value, l.Field); found && (isTypeSymbol(sym) || sym.Kind == INTERFACE) {
 				return sym.Type, true
 			}
 		}
@@ -252,6 +279,7 @@ func (a *Analyser) narrowSwitchVariable(condition ast.Expression) {
 	}
 	tc := a.info.TypeCases[match]
 	if tc == nil {
+		a.scope.Define(&Symbol{Name: match.Bind.Name, Kind: VAR, Type: InvalidType{}, Used: true, Line: match.Bind.Line, Col: match.Bind.Col})
 		return
 	}
 	id, ok := match.Left.(*ast.IdentLiteral)
