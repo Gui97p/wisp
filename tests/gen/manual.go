@@ -1529,7 +1529,7 @@ public func attach(*Entity e, *world.World w) {
 }
 
 public func worldCount(Entity e) int {
-    return e.owner!!.count;
+    return e.owner.?.count;
 }
 
 public func isOdd(int n) bool {
@@ -2232,7 +2232,7 @@ func main() {
     ?*Node hit = find(&a, 2);
     ?*Node miss = find(&a, 8);
     check(hit != null && miss == null, "a function returns a pointer or null");
-    check(hit!!.value == 2, "!! gives the pointer");
+    check(hit.?.value == 2, "!! gives the pointer");
     if hit |node| {
         check(node.next == &c, "a pointer compares with an optional pointer");
     }
@@ -2258,7 +2258,7 @@ func main() {
     ?*int p;
     int v = 5;
     p = &v;
-    p!!@ = 6;
+    p.?@ = 6;
     check(v == 6, "writing through an unwrapped pointer");
 }
 `, expected: []string{"a pointer field that can be null", "walking a list until the pointer is null", "a function returns a pointer or null", "!! gives the pointer", "a pointer compares with an optional pointer", "a pointer widens to an optional pointer", "an optional pointer is set back to null", "an optional function value", "a captured function value is called", "?? on a function value", "a function variable is set to null", "writing through an unwrapped pointer"}},
@@ -2323,8 +2323,8 @@ func main() {
 }
 
 func main() {
-    check(find(3)!! == 3, "!! passes a value");
-    int v = find(0)!!;
+    check(find(3).? == 3, "!! passes a value");
+    int v = find(0).?;
     check(false, "never printed");
 }
 `, expected: []string{"!! passes a value"}, abort: "panic: unwrapped null"},
@@ -3116,7 +3116,7 @@ func main() {
     check(n.p == null, "omitted pointer field is null");
     n.p = &v;
     check(n.p != null, "assigned pointer field is not null");
-    n.p!!@ = 8;
+    n.p.?@ = 8;
     check(v == 8, "write through a pointer field");
     check(pick(false, &v) == null, "returned null");
     check(pick(true, &v) != null, "returned pointer");
@@ -4222,7 +4222,7 @@ func main() {
     	mov p, rax;
     }
     check(n == 3, "the length of a string constant");
-    *byte text = p!!;
+    *byte text = p.?;
     check(string(text[..n]) == "hey", "the address of a string constant");
 }
 `}, expected: []string{"a constant of another module is an immediate", "a negative constant keeps its sign", "a bool constant is 1 or 0", "the length of a string constant", "the address of a string constant"}},
@@ -8807,7 +8807,7 @@ func main() {
     check(head == null, "a global pointer starts as a converted null");
     head = &holder;
     holder.a = 9;
-    check(head!!.a == 9, "the pointer can be set later");
+    check(head.?.a == 9, "the pointer can be set later");
     ?*Entry local = (?*Entry)(null);
     check(local == null, "null converts to a pointer type in a local too");
 }
@@ -10133,19 +10133,19 @@ func main() {
     check(math.leadingZeros(1) == 63 && math.leadingZeros(0) == 64 && math.leadingZeros(0x8000000000000000) == 0 && math.leadingZeros(255) == 56, "leadingZeros");
     check(math.MIN_INT8 == -128 && math.MAX_INT8 == 127 && math.MIN_INT16 == -32768 && math.MAX_INT16 == 32767 && math.MIN_INT32 == -2147483648 && math.MAX_INT32 == 2147483647, "the signed limits");
     check(math.MAX_UINT8 == 255 && math.MAX_UINT16 == 65535 && math.MAX_UINT32 == 4294967295 && math.MAX_UINT64 == 0xFFFFFFFFFFFFFFFF && math.MAX_UINT == math.MAX_UINT64, "the unsigned limits");
-    check(math.checkedAdd(math.MAX_INT, -1)!! == 9223372036854775806, "checkedAdd inside the range");
-    check(math.checkedSub(5, 7)!! == -2, "checkedSub inside the range");
-    check(math.checkedMul(3037000499, 3037000499)!! == 9223372030926249001, "checkedMul at the top of the range");
-    check(math.checkedMul(-3037000499, 3037000499)!! == -9223372030926249001, "checkedMul of mixed signs");
-    check(math.checkedMul(-4611686018427387904, 2)!! == math.MIN_INT, "checkedMul that lands on the minimum");
-    check(math.checkedMul(0, math.MIN_INT)!! == 0, "checkedMul by zero");
-    check(math.checkedAbs(-5)!! == 5, "checkedAbs");
-    check(math.pow(2, 62)!! == 4611686018427387904, "pow 2 to the 62");
-    check(math.pow(10, 18)!! == 1000000000000000000, "pow 10 to the 18");
-    check(math.pow(-2, 63)!! == math.MIN_INT, "pow -2 to the 63 is the minimum");
-    check(math.pow(0, 0)!! == 1 && math.pow(5, 0)!! == 1 && math.pow(0, 5)!! == 0 && math.pow(3, 4)!! == 81, "pow with a zero");
-    check(math.lcm(4, 6)!! == 12 && math.lcm(-4, 6)!! == 12, "lcm is not negative");
-    check(math.lcm(0, 5)!! == 0 && math.lcm(0, 0)!! == 0 && math.lcm(5, 0)!! == 0, "lcm with a zero");
+    check(math.checkedAdd(math.MAX_INT, -1).? == 9223372036854775806, "checkedAdd inside the range");
+    check(math.checkedSub(5, 7).? == -2, "checkedSub inside the range");
+    check(math.checkedMul(3037000499, 3037000499).? == 9223372030926249001, "checkedMul at the top of the range");
+    check(math.checkedMul(-3037000499, 3037000499).? == -9223372030926249001, "checkedMul of mixed signs");
+    check(math.checkedMul(-4611686018427387904, 2).? == math.MIN_INT, "checkedMul that lands on the minimum");
+    check(math.checkedMul(0, math.MIN_INT).? == 0, "checkedMul by zero");
+    check(math.checkedAbs(-5).? == 5, "checkedAbs");
+    check(math.pow(2, 62).? == 4611686018427387904, "pow 2 to the 62");
+    check(math.pow(10, 18).? == 1000000000000000000, "pow 10 to the 18");
+    check(math.pow(-2, 63).? == math.MIN_INT, "pow -2 to the 63 is the minimum");
+    check(math.pow(0, 0).? == 1 && math.pow(5, 0).? == 1 && math.pow(0, 5).? == 0 && math.pow(3, 4).? == 81, "pow with a zero");
+    check(math.lcm(4, 6).? == 12 && math.lcm(-4, 6).? == 12, "lcm is not negative");
+    check(math.lcm(0, 5).? == 0 && math.lcm(0, 0).? == 0 && math.lcm(5, 0).? == 0, "lcm with a zero");
     ?int ve30 = math.checkedAdd(math.MAX_INT, 1);
     check(ve30 == null, "checkedAdd past the top is null");
     ?int ve38 = math.checkedMul(math.MIN_INT, -1);
@@ -10182,19 +10182,19 @@ func main() {
     check(math.MIN_INT == -0x8000000000000000 && math.MAX_INT == 0x7FFFFFFFFFFFFFFF && math.MIN_INT -% 1 == math.MAX_INT, "the 64-bit limits wrap around");
     check(math.MIN_INT8 == -128 && math.MAX_INT8 == 127 && math.MIN_INT16 == -32768 && math.MAX_INT16 == 32767 && math.MIN_INT32 == -2147483648 && math.MAX_INT32 == 2147483647, "the signed limits");
     check(math.MAX_UINT8 == 255 && math.MAX_UINT16 == 65535 && math.MAX_UINT32 == 4294967295 && math.MAX_UINT64 == 0xFFFFFFFFFFFFFFFF && math.MAX_UINT == math.MAX_UINT64, "the unsigned limits");
-    check(math.checkedAdd(math.MAX_INT, -1)!! == 9223372036854775806, "checkedAdd inside the range");
-    check(math.checkedSub(5, 7)!! == -2, "checkedSub inside the range");
-    check(math.checkedMul(3037000499, 3037000499)!! == 9223372030926249001, "checkedMul at the top of the range");
-    check(math.checkedMul(-3037000499, 3037000499)!! == -9223372030926249001, "checkedMul of mixed signs");
-    check(math.checkedMul(-4611686018427387904, 2)!! == math.MIN_INT, "checkedMul that lands on the minimum");
-    check(math.checkedMul(0, math.MIN_INT)!! == 0, "checkedMul by zero");
-    check(math.checkedAbs(-5)!! == 5, "checkedAbs");
-    check(math.pow(2, 62)!! == 4611686018427387904, "pow 2 to the 62");
-    check(math.pow(10, 18)!! == 1000000000000000000, "pow 10 to the 18");
-    check(math.pow(-2, 63)!! == math.MIN_INT, "pow -2 to the 63 is the minimum");
-    check(math.pow(0, 0)!! == 1 && math.pow(5, 0)!! == 1 && math.pow(0, 5)!! == 0 && math.pow(3, 4)!! == 81, "pow with a zero");
-    check(math.lcm(4, 6)!! == 12 && math.lcm(-4, 6)!! == 12, "lcm is not negative");
-    check(math.lcm(0, 5)!! == 0 && math.lcm(0, 0)!! == 0 && math.lcm(5, 0)!! == 0, "lcm with a zero");
+    check(math.checkedAdd(math.MAX_INT, -1).? == 9223372036854775806, "checkedAdd inside the range");
+    check(math.checkedSub(5, 7).? == -2, "checkedSub inside the range");
+    check(math.checkedMul(3037000499, 3037000499).? == 9223372030926249001, "checkedMul at the top of the range");
+    check(math.checkedMul(-3037000499, 3037000499).? == -9223372030926249001, "checkedMul of mixed signs");
+    check(math.checkedMul(-4611686018427387904, 2).? == math.MIN_INT, "checkedMul that lands on the minimum");
+    check(math.checkedMul(0, math.MIN_INT).? == 0, "checkedMul by zero");
+    check(math.checkedAbs(-5).? == 5, "checkedAbs");
+    check(math.pow(2, 62).? == 4611686018427387904, "pow 2 to the 62");
+    check(math.pow(10, 18).? == 1000000000000000000, "pow 10 to the 18");
+    check(math.pow(-2, 63).? == math.MIN_INT, "pow -2 to the 63 is the minimum");
+    check(math.pow(0, 0).? == 1 && math.pow(5, 0).? == 1 && math.pow(0, 5).? == 0 && math.pow(3, 4).? == 81, "pow with a zero");
+    check(math.lcm(4, 6).? == 12 && math.lcm(-4, 6).? == 12, "lcm is not negative");
+    check(math.lcm(0, 5).? == 0 && math.lcm(0, 0).? == 0 && math.lcm(5, 0).? == 0, "lcm with a zero");
     ?int ve30 = math.checkedAdd(math.MAX_INT, 1);
     check(ve30 == null, "checkedAdd past the top is null");
     ?int ve32 = math.checkedAdd(math.MIN_INT, -1);
@@ -11573,10 +11573,10 @@ func main() {
 func main() {
     check(cell == null, "global null pointer");
     cell = &slot;
-    cell!!@ = 6;
+    cell.?@ = 6;
     check(slot == 6, "write through a global pointer");
     cell = &buffer[2];
-    cell!!@ = 7;
+    cell.?@ = 7;
     check(buffer[2] == 7, "global pointer to a global array element");
 }
 `, expected: []string{"global null pointer", "write through a global pointer", "global pointer to a global array element"}},
@@ -12961,7 +12961,7 @@ func main() {
 
     Node<int> tail = Node<int>{value: 2};
     Node<int> head = Node<int>{value: 1, next: &tail};
-    check(head.next!!.value == 2, "a generic struct that points to itself");
+    check(head.next.?.value == 2, "a generic struct that points to itself");
 
     Counter c;
     c.seen.push(5);
@@ -13656,19 +13656,19 @@ func (*Raw r) get() int { return r.n; }
 
 struct D implements A { ?A parent; }
 
-func (*D d) get() int { return (d.parent!!).get() + 1; }
+func (*D d) get() int { return (d.parent.?).get() + 1; }
 
 struct Big { int a; int b; int c; }
 
 struct Holder { ?Big big; string name; }
 
 func viaPointer(*D d) int {
-    A p = d.parent!!;
+    A p = d.parent.?;
     return p.get();
 }
 
 func sum(*Holder h) int {
-    Big b = h.big!!;
+    Big b = h.big.?;
     return b.a + b.b + b.c;
 }
 
@@ -15522,6 +15522,48 @@ func main() {
     check(kinds(5) == 0, "a value that is not a type with methods");
 }
 `, expected: []string{"a pointer to a type that declares the interface, and the type itself", "an interface of another module", "a named type with a value held in the argument", "other cases of the same switch still work", "a type that does not implement it goes to default", "a method with the right name is not enough: the type has to declare implements", "a type that implements two dynamic interfaces", "a dynamic interface of the module and one of another", "none of them", "a value that is not a type with methods"}},
+	{dir: "optional_unwrap", src: `func read(int n) !?int {
+    return Error("broken") if n == 0;
+    return null if n == 1;
+    return n * 10;
+}
+
+struct Box {
+    ?int value;
+    ?[]int items;
+}
+
+func viaBang(int n) !int {
+    return read(n)! ?? -1;
+}
+
+func taken(int n) !int {
+    return read(n)!.? + 1;
+}
+
+func main() ! {
+    ?int present = 5;
+    ?int absent = null;
+    check(present.? == 5, ".? gives the value of an optional");
+    check(present.? + 1 == 6 && (absent ?? 9) == 9, ".? in an expression, beside ??");
+
+    Box box = Box{value: 3};
+    check(box.value.? == 3, ".? on a field");
+    [3]int numbers = .{4, 5, 6};
+    box.items = numbers[..];
+    check(box.items.?[1] == 5, ".? before an index");
+
+    check(read(2)!!.? == 20, "!! stops on an error and .? on a null, with no parentheses");
+    check(read(3)!.? == 30, "! passes the error up and .? takes the value out");
+    check(viaBang(2)! == 20 && viaBang(1)! == -1, "! then ?? gives a default for the null");
+    check(taken(4)! == 41, "a chain inside an expression");
+
+    let first, e = read(0);
+    check(e != null && first == null, "let still shows the error and the optional apart");
+    let second, e2 = read(1);
+    check(e2 == null && second == null, "a null is not an error");
+}
+`, expected: []string{".? gives the value of an optional", ".? in an expression, beside ??", ".? on a field", ".? before an index", "!! stops on an error and .? on a null, with no parentheses", "! passes the error up and .? takes the value out", "! then ?? gives a default for the null", "a chain inside an expression", "let still shows the error and the optional apart", "a null is not an error"}},
 	{dir: "interop_ergonomics", system: "linux", files: map[string]string{"lib.c": `#include <stddef.h>
 typedef struct counter { int value; } counter;
 static counter the_counter = {0};

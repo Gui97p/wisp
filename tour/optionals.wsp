@@ -9,11 +9,14 @@
 //
 // A plain value goes into a `?T` without ceremony, and `null` is the only way
 // to say it is absent. Going the other way takes a decision, because the
-// compiler cannot know there is a value: use `??`, `!!` or a capture, below.
+// compiler cannot know there is a value: use `??`, `.?` or a capture, below.
 //
-// It is the same family as errors: `!` is for a call that can fail, `?` is for
-// a value that may not exist, and `??` and `!!` work on both. A `?T` has no
-// error to bind, so `?? |e|` is only for calls that can fail.
+// It is the same family as errors, and each kind has its own operators: `!` and
+// `!!` are for a call that can fail, `.?` is for a value that may not exist, and
+// `??` works on both. A `?T` has no error to bind, so `?? |e|` is only for calls
+// that can fail. A call can give both, `!?T`: `read(buf)!` passes the error up
+// and leaves a `?T`, and `.?` then takes the value out, so `read(buf)!.?` does
+// both and no parentheses are needed.
 
 import "std/fmt";
 
@@ -65,9 +68,9 @@ public func demo() {
 	int y = b ?? -1;
 	fmt.printf("a ?? 0 = {}, b ?? -1 = {}\n", x, y);
 
-	// `!!` says the value cannot be missing here: it gives the value, and stops
+	// `.?` says the value cannot be missing here: it gives the value, and stops
 	// the program, naming the place, if it is null.
-	fmt.printf("a!! = {}\n", a.?);
+	fmt.printf("a.? = {}\n", a.?);
 
 	// A capture opens a block only when there is a value, and names it there.
 	// `v` has the plain type inside, and `else` is for the missing case.

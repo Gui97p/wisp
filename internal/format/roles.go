@@ -70,7 +70,7 @@ func isBinaryOperator(k lexer.TokenType) bool {
 func operandEnd(t token, r role) bool {
 	switch t.kind {
 	case lexer.TOKEN_IDENT, lexer.TOKEN_INT_LITERAL, lexer.TOKEN_FLOAT_LITERAL, lexer.TOKEN_STRING_LITERAL,
-		lexer.TOKEN_CHAR_LITERAL, lexer.TOKEN_TRUE, lexer.TOKEN_FALSE, lexer.TOKEN_NULL, lexer.TOKEN_AT:
+		lexer.TOKEN_CHAR_LITERAL, lexer.TOKEN_TRUE, lexer.TOKEN_FALSE, lexer.TOKEN_NULL, lexer.TOKEN_AT, lexer.TOKEN_DOT_QUESTION:
 		return true
 	case lexer.TOKEN_RPAREN:
 		return r != roleParamClose
@@ -220,7 +220,7 @@ func classify(tokens []token) []role {
 			} else {
 				r = roleSpreadDots
 			}
-		case k == lexer.TOKEN_AT || k == lexer.TOKEN_INCREMENT || k == lexer.TOKEN_DECREMENT:
+		case k == lexer.TOKEN_AT || k == lexer.TOKEN_INCREMENT || k == lexer.TOKEN_DECREMENT || k == lexer.TOKEN_DOT_QUESTION:
 			r = rolePostfix
 		case k == lexer.TOKEN_NOT:
 			switch {

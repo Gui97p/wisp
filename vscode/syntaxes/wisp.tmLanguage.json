@@ -591,6 +591,10 @@
                     "match": "\\.\\.=?"
                 },
                 {
+                    "name": "keyword.operator.unwrap.wisp",
+                    "match": "\\.\\?"
+                },
+                {
                     "name": "punctuation.accessor.wisp",
                     "match": "\\."
                 },

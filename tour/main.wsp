@@ -26,7 +26,7 @@
 //   interfaces    `interface`, `implements`, interface values, `<Shape S>`, type sets, `Comparable`
 //   collections   arrays, slices, strings
 //   errors        `!` functions, Error, `!`, `??`, `|e|`, handlers
-//   optionals     `?T`, null, `??`, `!!`, `if x |v|`, `loop x |v|`
+//   optionals     `?T`, null, `??`, `.?`, `if x |v|`, `loop x |v|`
 //   assertions    `!!` on a call that cannot fail here
 //   pointers      `*T`, `&`, `@`, indexing and slicing pointers
 //   memory        allocators: Fixed, Arena, marks and reset, `mem.make`, `mem.makeDirty`, `mem.create`

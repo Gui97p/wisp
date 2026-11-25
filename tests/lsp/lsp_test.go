@@ -1962,3 +1962,34 @@ func TestImportsBelongToTheirFile(t *testing.T) {
 		t.Errorf("an import used only by another file should warn once, warned %d times", warned)
 	}
 }
+
+func TestUnwrappingOptionalsInTheEditor(t *testing.T) {
+	c := start(t)
+	cases := []struct {
+		name, line, want string
+	}{
+		{"!! on an optional", "int a = value!!;", "!! stops on an error, and ?int has none: use .? to stop when it is null"},
+		{"! on an optional", "int a = value!;", "! passes an error up, and ?int has none"},
+		{".? on a plain value", "int a = plain.?;", ".? expects an optional (?T), got int"},
+		{".? on a call that can fail", "int a = risky().?;", ".? is for an optional, and this call can fail"},
+	}
+	for _, tc := range cases {
+		src := "func risky() !?int {\n\treturn 1;\n}\nfunc main() {\n\t?int value = 1;\n\tint plain = 2;\n\t" + tc.line + "\n\ta++;\n}\n"
+		found := false
+		for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
+			if d.Severity == 1 && strings.Contains(d.Message, tc.want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s: no error with %q", tc.name, tc.want)
+		}
+	}
+
+	good := "func main() {\n\t?int value = 1;\n\tint a = value.?;\n\ta++;\n}\n"
+	for _, d := range c.open(map[string]string{"main.wsp": good}).diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("a valid .? was reported: %s", d.Message)
+		}
+	}
+}
