@@ -1061,17 +1061,30 @@ func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
 	}
 
 	if element, optional := optionalElement(operand); optional {
-		if !expr.Assert {
-			a.errorf(expr, "! propagates an error, and %s has none: use !! to stop when it is null, or ?? to give a value", operand.String())
-			return []Type{InvalidType{}}
+		if expr.Null {
+			return []Type{element}
 		}
-		return []Type{element}
+		if expr.Assert {
+			a.errorRange(operatorAt(expr, 2), "!! stops on an error, and %s has none: use .? to stop when it is null", operand.String())
+		} else {
+			a.errorRange(operatorAt(expr, 1), "! passes an error up, and %s has none: use .? to stop when it is null, or ?? to give a value", operand.String())
+		}
+		return []Type{InvalidType{}}
+	}
+
+	if expr.Null {
+		if _, fallible := operand.(FallibleType); fallible {
+			a.errorRange(operatorAt(expr, 2), ".? is for an optional, and this call can fail: handle the error first with ! or !!")
+		} else {
+			a.errorRange(operatorAt(expr, 2), ".? expects an optional (?T), got %s", operand.String())
+		}
+		return []Type{InvalidType{}}
 	}
 
 	ft, ok := operand.(FallibleType)
 	if !ok {
 		if expr.Assert {
-			a.errorf(expr, "!! expects a call that can fail or an optional (?T), got %s", operand.String())
+			a.errorf(expr, "!! expects a call that can fail, got %s", operand.String())
 		} else {
 			a.errorf(expr, "! expects a call that can fail, got %s", operand.String())
 		}
@@ -1572,4 +1585,9 @@ func signatureHelp(ft *FuncType) string {
 
 func (a *Analyser) isBuiltinFunc(ft *FuncType, name string) bool {
 	return ft.Name == name && ft.Decl == nil && ft.Receiver == nil && ft.Template == nil && ft.DeclFile == ""
+}
+
+func operatorAt(expr ast.Node, width int) ast.Position {
+	endLine, endCol := expr.EndPosition()
+	return ast.Position{Line: endLine, Col: endCol - width + 1, EndLine: endLine, EndCol: endCol}
 }

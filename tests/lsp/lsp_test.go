@@ -1925,3 +1925,40 @@ func TestDynamicInterfacesInTheEditor(t *testing.T) {
 		}
 	}
 }
+
+func TestImportsBelongToTheirFile(t *testing.T) {
+	c := start(t)
+	files := map[string]string{
+		"wisp.toml": "",
+		"a.wsp":     "import \"std/fmt\";\n\nfunc a() {\n\tfmt.printf(\"a\\n\");\n}\n",
+		"main.wsp":  "func b() {\n\tfmt.printf(\"b\\n\");\n}\n\nfunc main() {\n\ta();\n\tb();\n}\n",
+	}
+	found := false
+	for _, d := range c.open(files).diagnostics() {
+		if d.Severity == 1 && strings.Contains(d.Message, "fmt") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("a file used an import of another file of its folder without an error")
+	}
+
+	files["main.wsp"] = "import \"std/fmt\";\n" + files["main.wsp"]
+	for _, d := range c.open(files).diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("each file importing for itself was reported: %s", d.Message)
+		}
+	}
+
+	files["main.wsp"] = "import \"std/os\";\n\nfunc main() {\n\ta();\n}\n"
+	files["extra.wsp"] = "import \"std/os\";\n\nfunc extra() int {\n\treturn os.now();\n}\n"
+	warned := 0
+	for _, d := range c.open(files).diagnostics() {
+		if strings.Contains(d.Message, "import os is never used") {
+			warned++
+		}
+	}
+	if warned != 1 {
+		t.Errorf("an import used only by another file should warn once, warned %d times", warned)
+	}
+}

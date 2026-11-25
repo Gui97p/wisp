@@ -220,7 +220,7 @@ func layerDoc(ref *ast.TypeRef) string {
 	inner := ast.TypeRef{Module: ref.Module, Name: ref.Name, Layers: ref.Layers[1:]}
 	switch layer := ref.Layers[0]; {
 	case layer.Optional:
-		return fmt.Sprintf("`%s` or `null`. Read it with `??`, `!!`, or `if x |v|`.", inner.String())
+		return fmt.Sprintf("`%s` or `null`. Read it with `??`, `.?`, or `if x |v|`.", inner.String())
 	case layer.Pointer:
 		return fmt.Sprintf("A pointer to a `%s`. It is never null: `?*%s` is the pointer that can be.", inner.String(), inner.String())
 	case layer.IsSpan:

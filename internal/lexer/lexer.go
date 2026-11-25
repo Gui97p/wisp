@@ -237,6 +237,9 @@ func (l *Lexer) NextToken() Token {
 			} else {
 				t = l.token(TOKEN_RANGE_OPEN, "..")
 			}
+		} else if l.peek() == '?' {
+			l.advance()
+			t = l.token(TOKEN_DOT_QUESTION, ".?")
 		} else if isNumeric(l.peek()) {
 			var builder strings.Builder
 			builder.WriteString("0.")

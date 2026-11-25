@@ -335,6 +335,8 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 			expr.Assert = true
 		}
 		return expr
+	case lexer.TOKEN_DOT_QUESTION:
+		return &ast.PropagateExpr{Value: left, Assert: true, Null: true}
 	case lexer.TOKEN_AT:
 		return &ast.DerefExpr{Value: left}
 	case lexer.TOKEN_IN:

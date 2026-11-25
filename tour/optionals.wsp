@@ -67,7 +67,7 @@ public func demo() {
 
 	// `!!` says the value cannot be missing here: it gives the value, and stops
 	// the program, naming the place, if it is null.
-	fmt.printf("a!! = {}\n", a!!);
+	fmt.printf("a!! = {}\n", a.?);
 
 	// A capture opens a block only when there is a value, and names it there.
 	// `v` has the plain type inside, and `else` is for the missing case.

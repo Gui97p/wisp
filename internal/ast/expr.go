@@ -392,6 +392,7 @@ func (i *InExpr) Tree(indent string) string {
 type PropagateExpr struct {
 	Value     Expression
 	Assert    bool
+	Null      bool
 	Unchecked bool
 
 	NodePos

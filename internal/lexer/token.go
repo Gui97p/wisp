@@ -119,10 +119,11 @@ const (
 	TOKEN_QUESTION_MARK // ?
 	TOKEN_COALESCE      // ??
 
-	TOKEN_DOT        // .
-	TOKEN_RANGE      // ..=
-	TOKEN_RANGE_OPEN // ..
-	TOKEN_VARIADIC   // ...
+	TOKEN_DOT          // .
+	TOKEN_DOT_QUESTION // .?
+	TOKEN_RANGE        // ..=
+	TOKEN_RANGE_OPEN   // ..
+	TOKEN_VARIADIC     // ...
 
 	TOKEN_LPAREN // (
 	TOKEN_RPAREN // )

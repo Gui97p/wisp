@@ -262,7 +262,7 @@ func (a *Analyser) rejectOptionalUse(node ast.Node, t Type, what string) bool {
 		return false
 	}
 	a.errorf(node, "%s can be null, so it cannot be used for %s", t.String(), what).
-		WithHelp("unwrap it first: `x ?? default`, `x!!` (stops if it is null) or `if x |v| { ... }`")
+		WithHelp("unwrap it first: `x ?? default`, `x.?` (stops if it is null) or `if x |v| { ... }`")
 	return true
 }
 
@@ -471,7 +471,7 @@ func (a *Analyser) lowerCapture(stmt *ast.IfStmt) {
 		stmt.Condition = test
 	}
 
-	unwrap := &ast.PropagateExpr{Value: a.copyIdent(src), Assert: true, Unchecked: true}
+	unwrap := &ast.PropagateExpr{Value: a.copyIdent(src), Assert: true, Null: true, Unchecked: true}
 	a.at(src, unwrap)
 
 	bind := &ast.VarStmt{}
@@ -590,7 +590,7 @@ func mismatchHelp(got, want Type) string {
 		return ""
 	}
 	if element, optional := optionalElement(got); optional && element.Equals(want) {
-		return "the value can be null: unwrap it with `x ?? default`, `x!!` or `if x |v| { ... }`"
+		return "the value can be null: unwrap it with `x ?? default`, `x.?` or `if x |v| { ... }`"
 	}
 	return ""
 }

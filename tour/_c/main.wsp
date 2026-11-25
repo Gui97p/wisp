@@ -105,7 +105,7 @@ func main() int {
   let _, missing = find(1);
   check(missing != null, "a null result is an error");
   let text, none = find(7);
-  check(none == null && text!![0] == 's', "and any other result is a pointer");
+  check(none == null && text.?[0] == 's', "and any other result is a pointer");
 
   [3]c_int numbers = .{1, 2, 3};
   check(sum_ints(numbers[..]) == 6, "a slice goes to C as a pointer and a length");
