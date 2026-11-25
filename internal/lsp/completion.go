@@ -216,6 +216,8 @@ func completionItems(uri protocol.DocumentUri, pos protocol.Position, trigger st
 			it := symbolItem(sym, suffix)
 			if (sym.Kind == analyser.VAR || sym.Kind == analyser.PARAM) && !sym.Global {
 				it.SortText = ptr("0" + string(rune('0'+min(depths[sym], 9))) + sym.Name)
+			} else if sym.Builtin && sym.Name != "Error" {
+				it.SortText = ptr(builtinRank(sym.Name) + sym.Name)
 			}
 			items = append(items, it)
 		}
@@ -1122,4 +1124,12 @@ func genericTypeItems(path string, pos protocol.Position, info *analyser.Info, l
 		items = append(items, unimportedTypeItems(path, scopeAt(info, line, col), typedWord(before))...)
 	}
 	return items
+}
+
+func builtinRank(name string) string {
+	switch name {
+	case "alignof", "offsetof", "staticAssert", "saturate", "truncate":
+		return "8y"
+	}
+	return "7"
 }

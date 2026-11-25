@@ -65,8 +65,8 @@ func receiverMembers(path string, scope *analyser.Scope, word, suffix string) []
 					continue
 				}
 				it := item(sym.Name+"."+field, protocol.CompletionItemKindField, analyser.TypeText(st.Fields[field]))
-				it.FilterText = ptr(field)
-				it.SortText = ptr("8" + field)
+				it.FilterText = new(field)
+				it.SortText = new("0a" + field)
 				items = append(items, it)
 			}
 		}
@@ -83,8 +83,8 @@ func receiverMembers(path string, scope *analyser.Scope, word, suffix string) []
 			}
 			ft := methods[name]
 			it := item(sym.Name+"."+name, protocol.CompletionItemKindMethod, analyser.FuncSignature(name, ft, nil))
-			it.FilterText = ptr(name)
-			it.SortText = ptr("8" + name)
+			it.FilterText = new(name)
+			it.SortText = new("0b" + name)
 			items = append(items, callable(it, len(ft.Params), suffix))
 		}
 	}
@@ -111,7 +111,7 @@ func importedMembers(scope *analyser.Scope, word, suffix string) []protocol.Comp
 			qualified.Name = sym.Name + "." + name
 			it := symbolItem(&qualified, suffix)
 			it.FilterText = ptr(name)
-			it.SortText = ptr("9" + name)
+			it.SortText = ptr("6" + name)
 			items = append(items, it)
 		}
 	}

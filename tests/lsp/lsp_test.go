@@ -2120,3 +2120,20 @@ func TestCompletionIgnoresTheScopesOfOtherFiles(t *testing.T) {
 		t.Errorf("the members of r inside a call are missing: %v", got)
 	}
 }
+
+func TestCompletionRanksWhatYouUseFirst(t *testing.T) {
+	c := start(t)
+	src := "import \"std/strings\";\n\npublic struct Reader {\n\tint start;\n}\n\nfunc startOver() int {\n\treturn 1;\n}\n\npublic func (*Reader r) read(int stack) int {\n\tint state = 1;\n\tsta¦\n}\n"
+	items := c.open(map[string]string{"main.wsp": src}).completionItems()
+	rank := map[string]string{}
+	for _, it := range items {
+		rank[it.Label] = it.SortText
+	}
+	order := []string{"state", "r.start", "startOver", "strings.startsWith", "static", "staticAssert"}
+	for i := 0; i+1 < len(order); i++ {
+		a, b := rank[order[i]], rank[order[i+1]]
+		if a == "" || b == "" || a >= b {
+			t.Errorf("%s (%q) should come before %s (%q)", order[i], a, order[i+1], b)
+		}
+	}
+}

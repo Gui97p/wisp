@@ -360,6 +360,7 @@ type textEdit struct {
 
 type completionItem struct {
 	Label               string     `json:"label"`
+	SortText            string     `json:"sortText"`
 	Detail              string     `json:"detail"`
 	AdditionalTextEdits []textEdit `json:"additionalTextEdits"`
 }
