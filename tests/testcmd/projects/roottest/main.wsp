@@ -1,0 +1,15 @@
+import "util";
+
+func main() {
+	int n = util.add(1, 1);
+	n++;
+}
+
+func helper() int => 2;
+
+#test("a test in the main file")
+func inMain() ! {
+	if helper() != 2 {
+		return Error("bad");
+	}
+}

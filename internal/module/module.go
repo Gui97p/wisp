@@ -199,6 +199,17 @@ func resolveIn(projectRoot, prefix, path string) (key, dir string, files []strin
 	if isStd && stdlibDisabled {
 		return "", "", nil, fmt.Errorf("import %q: this build does not use the standard library (std = \"none\"); provide one with --std <path>", path)
 	}
+	if path == "." && !isStd {
+		moduleFiles, _ := folderFiles(projectRoot, nil)
+		if len(moduleFiles) == 0 {
+			return "", "", nil, fmt.Errorf("the root folder has no Wisp files of its own to make a module")
+		}
+		key = rootModule
+		if prefix != "" {
+			key = strings.TrimSuffix(prefix, "/")
+		}
+		return key, projectRoot, moduleFiles, nil
+	}
 	base := filepath.Join(projectRoot, path)
 	if after, ok := strings.CutPrefix(path, "std/"); ok {
 		stdRoot, err := StdlibRoot()

@@ -297,3 +297,12 @@ func TestTestOfAnotherTargetIsLeftOut(t *testing.T) {
 	expect(t, out, "Running 2 tests", "Test result: ok. 2 passed, 0 failed, 1 left out for other targets")
 	refuse(t, out, "onlyWindows")
 }
+
+func TestTestsInTheMainFileOfTheRoot(t *testing.T) {
+	out, code := run(t, "roottest", "test")
+	if code != 0 {
+		t.Fatalf("exit code %d, want 0:\n%s", code, out)
+	}
+	expect(t, out, "a test in the main file", "a test in a folder", "standalone file", "sibling in the tools folder", "4 passed")
+	refuse(t, out, "one of the files of the module")
+}

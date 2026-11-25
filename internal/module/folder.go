@@ -59,6 +59,8 @@ func folderFiles(dir string, overrides map[string][]byte) (files, standalone []s
 
 const rootModule = "main"
 
+const RootModule = rootModule
+
 func folderKey(root, dir string) string {
 	if stdRoot, err := StdlibRoot(); err == nil {
 		if rel, err := filepath.Rel(stdRoot, dir); err == nil && !strings.HasPrefix(rel, "..") {

@@ -41,7 +41,9 @@ curl -fsSL https://raw.githubusercontent.com/Gui97p/wisp/main/scripts/install.sh
 irm https://raw.githubusercontent.com/Gui97p/wisp/main/scripts/install.ps1 | iex
 ```
 
-`wisp update` installs the newest release (`--check` only looks), and `wisp doctor` says what is missing when something does not work.
+The installers put Wisp in `~/.wisp` (Linux) or `%LOCALAPPDATA%\wisp` (Windows) and add its `bin` folder to the `PATH`. `WISP_HOME` chooses another folder, as in `curl -fsSL .../install.sh | WISP_HOME=/usr/local/wisp sh`, and `WISP_VERSION=v0.40.0` picks a release instead of the latest.
+
+`wisp update` installs the newest release (`--check` only looks, `--version` picks one) in the folder where the running `wisp` is, so it follows wherever it was installed, and `wisp doctor` says what is missing when something does not work.
 
 From source you need Go. The assembler and the linker (`nasm`, `lld`, and for Windows the import libraries) come bundled: `make toolchain` runs `scripts/fetch-toolchain.sh`, which downloads them with fixed versions and checksums into `dependencies/` (ignored by git), and `make prod` copies them into the package. Without a bundle `wisp` falls back to `nasm` and `ld.lld` (or `ld`) in the `PATH`. `cc` is only for `--libc` and the C tests on Linux. Native libraries are one line of `wisp.toml`, `[native] libs = ["SDL3"]`, and the linker and the dynamic loader are set up for you. Projects import each other with `[dependencies]` (by path) or, in a `[workspace]`, by project name.
 

@@ -85,7 +85,11 @@ func generateTestMain(tests []module.TestFunc) string {
 	var b strings.Builder
 	b.WriteString("import \"std/os\";\nimport \"std/fmt\";\nimport \"std/testing\";\n")
 	for _, path := range order {
-		fmt.Fprintf(&b, "import %q as %s;\n", path, aliases[path])
+		importPath := path
+		if path == module.RootModule {
+			importPath = "."
+		}
+		fmt.Fprintf(&b, "import %q as %s;\n", importPath, aliases[path])
 	}
 	b.WriteString("\nfunc main() ! {\n")
 	b.WriteString("  []string args = os.args();\n")

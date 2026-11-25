@@ -14,6 +14,13 @@ case "$(uname -m)" in
 x86_64 | amd64) ;;
 *) fail "there is no release for $(uname -m) yet" ;;
 esac
+HOME_DIR="${HOME_DIR%/}"
+case "$HOME_DIR" in
+"" | / | /usr | /usr/local | /opt | /bin | /etc | /home | "$HOME") fail "WISP_HOME=$HOME_DIR would replace a system folder: choose a folder of its own, such as /usr/local/wisp" ;;
+esac
+if [ -e "$HOME_DIR" ] && ! { [ -x "$HOME_DIR/bin/wisp" ] && [ -d "$HOME_DIR/std" ]; }; then
+    fail "$HOME_DIR exists and is not a Wisp installation: choose a folder that does not exist, or one that already holds Wisp"
+fi
 command -v curl >/dev/null 2>&1 || fail "curl is needed"
 command -v tar >/dev/null 2>&1 || fail "tar is needed"
 command -v sha256sum >/dev/null 2>&1 || fail "sha256sum is needed"

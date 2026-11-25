@@ -8,6 +8,15 @@ if (-not [Environment]::Is64BitOperatingSystem) {
     throw "install: there is no release for 32-bit Windows"
 }
 
+$Target = $Target.TrimEnd('\', '/')
+$systemFolders = @($env:SystemRoot, $env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:USERPROFILE, $env:LOCALAPPDATA, (Split-Path $env:SystemRoot), $env:SystemDrive + "\") | Where-Object { $_ }
+if (($Target -eq "") -or ($systemFolders | Where-Object { $_.TrimEnd('\', '/') -ieq $Target })) {
+    throw "install: WISP_HOME=$Target would replace a system folder: choose a folder of its own"
+}
+if ((Test-Path $Target) -and -not ((Test-Path (Join-Path $Target "bin\wisp.exe")) -and (Test-Path (Join-Path $Target "std")))) {
+    throw "install: $Target exists and is not a Wisp installation: choose a folder that does not exist, or one that already holds Wisp"
+}
+
 $tag = $env:WISP_VERSION
 if (-not $tag) {
     try {

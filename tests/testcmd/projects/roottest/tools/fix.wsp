@@ -1,0 +1,15 @@
+#standalone
+
+func twice(int n) int => n * 2;
+
+func main() {
+	int n = twice(2);
+	n++;
+}
+
+#test("standalone file")
+func check() ! {
+	if twice(2) != 4 {
+		return Error("bad");
+	}
+}

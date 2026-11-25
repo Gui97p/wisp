@@ -1,0 +1,8 @@
+func three() int => 3;
+
+#test("sibling in the tools folder")
+func checkThree() ! {
+	if three() != 3 {
+		return Error("bad");
+	}
+}
