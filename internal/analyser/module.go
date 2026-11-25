@@ -284,17 +284,12 @@ func (a *Analyser) registerImports() {
 			if help != "" {
 				d.WithHelp("%s", help)
 			}
-			a.scope.Define(&Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
-			continue
-		}
-		if a.repeatsImport(imp) {
+			a.defineImport(imp, &Symbol{Name: imp.Alias, Kind: MODULE, Type: InvalidType{}, Line: line, Col: col, File: a.currentFile, Used: true})
 			continue
 		}
 		mt := &ModuleType{}
 		symbol := &Symbol{Name: imp.Alias, Kind: MODULE, Type: mt, Line: line, Col: col, File: a.currentFile, ImportPath: imp.Path}
-		if !a.scope.Define(symbol) {
-			a.errorAlreadyDeclared(imp, MODULE, imp.Alias)
-		}
+		a.defineImport(imp, symbol)
 		link := &importLink{imp: imp, symbol: symbol, mt: mt, target: mod, file: a.currentFile}
 		link.pendingAtStart = mod.Pending
 		a.links = append(a.links, link)
@@ -304,13 +299,13 @@ func (a *Analyser) registerImports() {
 	}
 }
 
-func (a *Analyser) repeatsImport(imp *ast.ImportDecl) bool {
-	for _, l := range a.links {
-		if l.imp.Alias == imp.Alias && l.imp.Path == imp.Path && l.file != a.currentFile {
-			return true
-		}
+func (a *Analyser) defineImport(imp *ast.ImportDecl, symbol *Symbol) {
+	file := filepath.Clean(a.currentFile)
+	if _, repeated := a.moduleScope.privates[file][symbol.Name]; repeated {
+		a.errorAlreadyDeclared(imp, MODULE, imp.Alias)
+		return
 	}
-	return false
+	a.moduleScope.addPrivate(symbol)
 }
 
 type importLink struct {

@@ -1,6 +1,7 @@
 package analyser
 
 import (
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -386,11 +387,11 @@ func (a *Analyser) warnUnusedImports() {
 		if !ok {
 			continue
 		}
-		sym, ok := a.scope.symbols[imp.Alias]
+		a.currentFile = a.declFiles[d]
+		sym, ok := a.moduleScope.privates[filepath.Clean(a.currentFile)][imp.Alias]
 		if !ok || sym.Used || sym.Kind != MODULE || silencesUnused(imp.Alias) {
 			continue
 		}
-		a.currentFile = a.declFiles[d]
 		a.warnf(imp, "import %s is never used", imp.Alias)
 	}
 }
