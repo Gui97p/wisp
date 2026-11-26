@@ -615,6 +615,7 @@ func isWideInteger(t Type) bool {
 }
 
 func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
+	expr.Lowered = nil
 	result := a.resolveTypeRef(expr, a.scope, expr.Type)
 	if isInvalidType(result) {
 		for _, arg := range expr.Args {
@@ -647,6 +648,11 @@ func (a *Analyser) checkConvExpr(expr *ast.ConvExpr) Type {
 
 	arg := expr.Args[0]
 	from := a.checkExpr(arg)
+	if held, isHeld := from.(*InterfaceType); isHeld {
+		if t, handled := a.lowerInterfaceCast(expr, arg, held, pointer, result); handled {
+			return t
+		}
+	}
 	switch {
 	case isInvalidType(from):
 		return result

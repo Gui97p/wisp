@@ -588,6 +588,26 @@ func TestYieldLeavesBlocksAndBreakLeavesLoops(t *testing.T) {
 	})
 }
 
+func TestConvertingAnInterfaceBackToItsType(t *testing.T) {
+	c := start(t)
+	head := "interface Shape {\n\tfunc area() int;\n}\n\nstruct Square implements Shape {\n\tint side;\n}\n\nstruct Plain {\n\tint x;\n}\n\nfunc (*Square s) area() int => s.side;\n\n"
+	errorsOf := func(body string) []string {
+		var out []string
+		for _, d := range c.open(map[string]string{"main.wsp": head + body}).diagnostics() {
+			if d.Severity == 1 {
+				out = append(out, d.Message)
+			}
+		}
+		return out
+	}
+	if got := errorsOf("func main() {\n\tSquare sq = Square{side: 1};\n\tShape sh = &sq;\n\t?*Square a = (?*Square)(sh);\n\t*Square b = (*Square)(sh);\n}\n"); len(got) != 0 {
+		t.Errorf("valid conversions: %v", got)
+	}
+	if got := errorsOf("func main() {\n\tSquare sq = Square{side: 1};\n\tShape sh = &sq;\n\t?*Plain p = (?*Plain)(sh);\n}\n"); len(got) != 1 || !strings.Contains(got[0], "can never be what Shape holds") {
+		t.Errorf("a type that cannot be held: %v", got)
+	}
+}
+
 func TestSemanticTokensGenerics(t *testing.T) {
 	c := start(t)
 	src := "struct Pair<A, B> {\n\tA first;\n\tB second;\n}\n\nfunc swap<A, B>(Pair<A, B> p) Pair<B, A> {\n\treturn Pair<B, A>{first: p.second, second: p.first};\n}\n\nfunc main() {\n\tPair<int, string> p = Pair<int, string>{first: 1, second: \"a\"};\n\tPair<string, int> q = swap(p);\n}\n"

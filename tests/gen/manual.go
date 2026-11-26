@@ -10482,6 +10482,95 @@ func main() {
 }
 `, expected: []string{"a defer that succeeds changes nothing", "a failing defer becomes the error of the function", "the value is still returned next to the error of the defer", "an error the function already had is kept, and the defer still runs", "the first defer to run decides the error, and both run", "the other defers run after one fails", "a defer of an inner block that fails does not stop the function", "an early return still reports the error of the defer", "no error when every defer succeeds", "a defer in a loop body runs on every turn", "a block stops at its first failing call", "and a later call without an error is clean", "an unused handle is untouched"}},
 
+	{dir: "fixed_packing", src: `import "std/mem";
+
+func main() ! {
+    [256]byte store;
+    mem.Fixed f = mem.fixed(store);
+
+    *byte one = (*byte)(f.alloc(1)!);
+    *byte two = (*byte)(f.alloc(1)!);
+    *byte four = (*byte)(f.alloc(4)!);
+    *byte eight = (*byte)(f.alloc(8)!);
+    *byte sixteen = (*byte)(f.alloc(16)!);
+    check(two == one + 1, "one-byte blocks sit next to each other");
+    check(int(four) % 4 == 0 && int(eight) % 8 == 0 && int(sixteen) % 16 == 0, "each block is aligned for its size");
+    check(f.used() <= 40, "small blocks do not waste a whole 16 bytes");
+
+    f.reset();
+    *byte a = (*byte)(f.alloc(5)!);
+    *byte b = (*byte)(f.alloc(8)!);
+    for i in 0..8 {
+        b[i] = 7;
+    }
+    *byte grown = (*byte)(f.realloc(a, 5, 40)!);
+    int clobbered;
+    for i in 0..8 {
+        if b[i] != 7 {
+            clobbered++;
+        }
+    }
+    check(clobbered == 0, "growing a block that is not the last one leaves its neighbour alone");
+    check(grown != a && int(grown) % 16 == 0, "a block that changes size class moves to an aligned place");
+
+    f.reset();
+    *byte last = (*byte)(f.alloc(40)!);
+    int before = f.used();
+    *byte shrunk = (*byte)(f.realloc(last, 40, 3)!);
+    check(shrunk == last && f.used() < before, "the last block shrinks in place");
+    *byte same = (*byte)(f.realloc(shrunk, 3, 4)!);
+    check(same == shrunk, "the last block grows in place inside its size class");
+
+    f.reset();
+    let _, tooBig = f.alloc(1000);
+    check(tooBig != null && f.used() == 0, "a block that does not fit uses nothing");
+}
+`, expected: []string{"one-byte blocks sit next to each other", "each block is aligned for its size", "small blocks do not waste a whole 16 bytes", "growing a block that is not the last one leaves its neighbour alone", "a block that changes size class moves to an aligned place", "the last block shrinks in place", "the last block grows in place inside its size class", "a block that does not fit uses nothing"}},
+
+	{dir: "interface_cast", src: `interface Shape {
+    func area() int;
+}
+
+struct Square implements Shape {
+    int side;
+}
+
+struct Disc implements Shape {
+    int r;
+}
+
+func (*Square s) area() int => s.side * s.side;
+func (*Disc d) area() int => 3 * d.r * d.r;
+
+func asSquare(Shape sh) ?*Square => (?*Square)(sh);
+
+func main() {
+    Square sq = Square{side: 3};
+    Disc d = Disc{r: 2};
+    Shape a = &sq;
+    Shape b = &d;
+
+    ?*Square first = (?*Square)(a);
+    ?*Square second = (?*Square)(b);
+    check(first != null && second == null, "the optional form tells the types apart");
+
+    if (?*Square)(a) |s| {
+        check(s.side == 3, "the pointer reaches the same object");
+        s.side = 4;
+    }
+    check(sq.side == 4, "it is a pointer to the original, not a copy");
+
+    *Disc back = (*Disc)(b);
+    check(back.r == 2 && back == &d, "the asserted form gives the pointer");
+
+    check(asSquare(b) == null && asSquare(a) == &sq, "a function can return the optional form");
+    let fallback = (?*Square)(b) ?? &sq;
+    check(fallback == &sq, "?? gives a default when the type is another");
+    int total = (*Square)(a).area() + (*Disc)(b).area();
+    check(total == 16 + 12, "the result is usable in an expression");
+}
+`, expected: []string{"the optional form tells the types apart", "the pointer reaches the same object", "it is a pointer to the original, not a copy", "the asserted form gives the pointer", "a function can return the optional form", "?? gives a default when the type is another", "the result is usable in an expression"}},
+
 	{dir: "os_mkdirall", src: `import "std/errors";
 import "std/os";
 import "std/paths";

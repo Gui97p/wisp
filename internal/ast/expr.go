@@ -320,9 +320,10 @@ func (t *TupleExpr) Tree(indent string) string {
 }
 
 type ConvExpr struct {
-	Type TypeRef
-	Args []Expression
-	Cast *CastExpr
+	Type    TypeRef
+	Args    []Expression
+	Cast    *CastExpr
+	Lowered Expression
 
 	NodePos
 }

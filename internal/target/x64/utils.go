@@ -62,6 +62,9 @@ func regsNeeded(expr ast.Expression) int {
 	case *ast.CastExpr:
 		return max(regsNeeded(e.Value), 2)
 	case *ast.ConvExpr:
+		if e.Lowered != nil {
+			return regsNeeded(e.Lowered)
+		}
 		return regsNeeded(e.Cast)
 	case *ast.CallExpr:
 		maxRegs := 1

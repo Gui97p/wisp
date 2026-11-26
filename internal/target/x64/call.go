@@ -1007,6 +1007,9 @@ func hasCall(exprs []ast.Expression) bool {
 		case *ast.CastExpr:
 			return hasCall([]ast.Expression{e.Value})
 		case *ast.ConvExpr:
+			if e.Lowered != nil {
+				return true
+			}
 			return hasCall([]ast.Expression{e.Cast.Value})
 		case *ast.DerefExpr:
 			return hasCall([]ast.Expression{e.Value})
