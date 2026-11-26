@@ -1,0 +1,163 @@
+import "std/errors";
+import "std/io";
+import "std/mem";
+import "std/sys";
+
+/// What `open` is asked to do, built by combining the flags below with `|`.
+public type Flags int;
+
+public const {
+	/// Open for reading only.
+	Flags READ = sys.O_RDONLY;
+	/// Open for writing only.
+	Flags WRITE = sys.O_WRONLY;
+	/// Open for reading and writing.
+	Flags READ_WRITE = sys.O_RDWR;
+	/// Create the file if it does not exist.
+	Flags CREATE = sys.O_CREAT;
+	/// With `CREATE`, fail with `Exists` if the file is already there.
+	Flags EXCLUSIVE = sys.O_EXCL;
+	/// Empty the file when it is opened for writing.
+	Flags TRUNCATE = sys.O_TRUNC;
+	/// Every write goes to the end of the file.
+	Flags APPEND = sys.O_APPEND;
+}
+
+/// An open file, or one of the standard streams. It reads, writes, seeks and
+/// closes through the contracts of `io`, so it goes wherever a `Reader`, a
+/// `Writer`, a `Closer` or a `Seeker` is expected.
+public struct File implements io.Reader, io.Writer, io.Closer, io.Seeker {
+	int fd;
+}
+
+/// Standard input of the program.
+public File stdin = .{fd: 0};
+/// Standard output of the program.
+public File stdout = .{fd: 1};
+/// Standard error of the program.
+public File stderr = .{fd: 2};
+
+/// Opens the file at `path` with the `flags` (`READ`, `WRITE`, `CREATE` and the
+/// others, combined with `|`) and returns it. Fails with `NotFound`,
+/// `Permission`, `Exists` and the like. The file has to be closed with `close`.
+public func open(string path, Flags flags) !File {
+	int r = sys.open(path, int(flags));
+	return errorIO(sys.errno(r)) if r < 0;
+	return .{fd: r};
+}
+
+/// Opens the file at `path` for writing, creating it if it does not exist and
+/// emptying it if it does. The caller closes the returned file.
+public inline func create(string path) !File => open(path, WRITE | CREATE | TRUNCATE)!;
+
+inline func (*File f) check() ! => errors.ensure(f.fd >= 0, errors.Kind.Invalid)!;
+
+/// Reads at most `len(buf)` bytes into `buf` and returns how many were read, or
+/// null at the end of the file. Retries if interrupted. Fails with `Invalid` if
+/// the file is closed, or with the error of the system.
+public func (*File f) read([]byte buf) !?int {
+	f.check()!;
+	int r;
+	loop {
+		r = sys.read(f.fd, (*byte)(buf), len(buf));
+	} until r != -4;
+	return errorIO(sys.errno(r)) if r < 0;
+	return null if r == 0 && len(buf) > 0;
+	return r;
+}
+
+/// Writes all of `data` and returns its length. It keeps going until everything
+/// is written, retrying if interrupted, so a count smaller than `len(data)` is
+/// never returned. Fails with `Invalid` if the file is closed, or with the error
+/// of the system, such as `BrokenPipe` or `NoSpace`.
+public func (*File f) write([]byte data) !int {
+	f.check()!;
+	int total;
+	loop total < len(data) {
+		int r = sys.write(f.fd, (*byte)(data) + total, len(data) - total);
+		continue if r == -4;
+		return errorIO(sys.errno(r)) if r <= 0;
+		total += r;
+	}
+	return total;
+}
+
+/// Closes the file. Closing a file that is already closed does nothing. The
+/// file is closed even when the system reports an error.
+public func (*File f) close() ! {
+	return if f.fd < 0;
+	int r = sys.close(f.fd);
+	f.fd = -1;
+	return errorIO(sys.errno(r)) if r < 0;
+}
+
+/// Moves the position by `offset` from `whence` and returns the new position
+/// counted from the start. Fails with `Invalid` or `Unsupported` for a file that
+/// cannot seek, such as a terminal or a pipe.
+public func (*File f) seek(int offset, io.Whence whence) !int {
+	f.check()!;
+	int origin = switch whence {
+		case .Start => sys.SEEK_SET;
+		case .Current => sys.SEEK_CUR;
+		case .End => sys.SEEK_END;
+	};
+	int r = sys.seek(f.fd, offset, origin);
+	return errorIO(sys.errno(r)) if r < 0;
+	return r;
+}
+
+/// Returns the size of the file in bytes. Fails with `Invalid` if the file is
+/// closed, or with the error of the system.
+public func (*File f) size() !int {
+	f.check()!;
+	int r = sys.size(f.fd);
+	return errorIO(sys.errno(r)) if r < 0;
+	return r;
+}
+
+/// Flushes what was written to the storage device. Fails with `Invalid` if the
+/// file is closed, or with the error of the system.
+public func (*File f) sync() ! {
+	f.check()!;
+	int r = sys.sync(f.fd);
+	return errorIO(sys.errno(r)) if r < 0;
+}
+
+/// Returns what the file is: a regular file, a pipe, a device and so on. Fails
+/// with `Invalid` if the file is closed, or with the error of the system.
+public func (*File f) kind() !FileKind {
+	f.check()!;
+	int r = sys.kind(f.fd);
+	return errorIO(sys.errno(r)) if r < 0;
+	return kindOf(r);
+}
+
+/// Reports whether the file is a terminal.
+public inline func (*File f) isatty() bool => f.fd >= 0 && sys.isatty(f.fd);
+
+/// Reads the whole file at `path` and returns its bytes. The buffer comes from
+/// `mem.heap` and belongs to the caller, who frees it with `mem.free`. An empty
+/// file gives an empty slice with nothing allocated. Fails with the errors of
+/// `open` and `read`, or `OutOfMemory`.
+public func readFile(string path) ![]byte {
+	File f = open(path, READ)!;
+	defer f.close() ?? {};
+	int size = f.size()!;
+	return .{} if size == 0;
+	[]byte buf = mem.make<byte>(mem.heap, size)!;
+	defer !mem.free(mem.heap, buf);
+	int total;
+	loop {
+		int r = f.read(buf[total..])! ?? 0;
+		total += r;
+	} until r == 0 || total >= size;
+	return buf[..total];
+}
+
+/// Writes `data` to the file at `path`, creating it or emptying it. Fails with
+/// the errors of `create` and `write`.
+public func writeFile(string path, []byte data) ! {
+	File f = create(path)!;
+	defer f.close() ?? {};
+	f.write(data)!;
+}

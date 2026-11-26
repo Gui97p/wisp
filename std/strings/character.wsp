@@ -1,56 +1,36 @@
 /// Reports whether `c` is an ASCII decimal digit, `0` to `9`.
-public inline func isDigit(byte c) bool {
-	return c in '0'..='9';
-}
+public inline func isDigit(byte c) bool => c in '0'..='9';
 
 /// Reports whether `c` is an ASCII hexadecimal digit: `0` to `9`, `a` to `f`
 /// or `A` to `F`.
-public inline func isHex(byte c) bool {
-	return c in '0'..='9' || lowerByte(c) in 'a'..='f';
-}
+public inline func isHex(byte c) bool => c in '0'..='9' || lowerByte(c) in 'a'..='f';
 
 /// Reports whether `c` is an ASCII letter. Bytes above 127 are never letters.
-public inline func isAlpha(byte c) bool {
-	return lowerByte(c) in 'a'..='z';
-}
+public inline func isAlpha(byte c) bool => lowerByte(c) in 'a'..='z';
 
 /// Reports whether `c` is an ASCII letter or digit.
-public inline func isAlphaNumeric(byte c) bool {
-	return isAlpha(c) || isDigit(c);
-}
+public inline func isAlphaNumeric(byte c) bool => isAlpha(c) || isDigit(c);
 
 /// Reports whether `c` is an ASCII uppercase letter.
-public inline func isUpper(byte c) bool {
-	return c in 'A'..='Z';
-}
+public inline func isUpper(byte c) bool => c in 'A'..='Z';
 
 /// Reports whether `c` is an ASCII lowercase letter.
-public inline func isLower(byte c) bool {
-	return c in 'a'..='z';
-}
+public inline func isLower(byte c) bool => c in 'a'..='z';
 
 /// Reports whether `c` is ASCII white space: space, tab, newline, carriage
 /// return, vertical tab or form feed.
-public inline func isSpace(byte c) bool {
-	return c in " \t\n\r\v\f";
-}
+public inline func isSpace(byte c) bool => c in " \t\n\r\v\f";
 
 /// Reports whether `c` is a printable ASCII byte, from space (32) to `~` (126).
-public inline func isPrint(byte c) bool {
-	return c >= ' ' && c <= '~';
-}
+public inline func isPrint(byte c) bool => c >= ' ' && c <= '~';
 
 /// Returns `c` converted to uppercase when it is an ASCII lowercase letter, and
 /// `c` unchanged otherwise.
-public inline func upperByte(byte c) byte {
-	return c in 'a'..='z' ? c - 32 : c;
-}
+public inline func upperByte(byte c) byte => c in 'a'..='z' ? c - 32 : c;
 
 /// Returns `c` converted to lowercase when it is an ASCII uppercase letter, and
 /// `c` unchanged otherwise.
-public inline func lowerByte(byte c) byte {
-	return c in 'A'..='Z' ? c + 32 : c;
-}
+public inline func lowerByte(byte c) byte => c in 'A'..='Z' ? c + 32 : c;
 
 /// Returns the value of `c` as a digit in `base`, where `0` to `9` are 0 to 9 and
 /// letters of either case are 10 to 35. The result is null when `c` is not a

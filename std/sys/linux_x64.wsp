@@ -42,10 +42,18 @@ const {
 	S_IFREG = 0o100000;
 	S_IFDIR = 0o040000;
 	S_IFLNK = 0o120000;
+	S_IFIFO = 0o010000;
+	S_IFCHR = 0o020000;
+	S_IFBLK = 0o060000;
+	S_IFSOCK = 0o140000;
 
+	DT_FIFO = 1;
+	DT_CHR = 2;
 	DT_DIR = 4;
+	DT_BLK = 6;
 	DT_REG = 8;
 	DT_LNK = 10;
+	DT_SOCK = 12;
 	PATH_MAX = 4096;
 
 	NO_FD = -1;
@@ -136,17 +144,36 @@ internal native sync(int fd) int r {
 	mov r, rax;
 }
 
+internal native fstat(int fd, *StatBuf out) int r {
+	mov eax, SYS_FSTAT;
+	mov rdi, fd;
+	mov rsi, out;
+	syscall;
+	mov r, rax;
+}
+
 internal func size(int fd) int {
 	StatBuf stat;
-	int r;
-	native {
-		mov eax, SYS_FSTAT;
-		mov rdi, fd;
-		lea rsi, &stat;
-		syscall;
-		mov r, rax;
-	}
+	int r = fstat(fd, &stat);
 	return r < 0 ? r : stat.st_size;
+}
+
+internal func kind(int fd) int {
+	StatBuf stat;
+	int r = fstat(fd, &stat);
+	return r < 0 ? r : kindOfMode(int(stat.st_mode));
+}
+
+func kindOfMode(int mode) int {
+	return switch mode & S_IFMT {
+		case S_IFREG => KIND_FILE;
+		case S_IFDIR => KIND_DIR;
+		case S_IFLNK => KIND_LINK;
+		case S_IFIFO => KIND_PIPE;
+		case S_IFSOCK => KIND_SOCKET;
+		case S_IFCHR, S_IFBLK => KIND_DEVICE;
+		default => KIND_OTHER;
+	};
 }
 
 internal native rawRemove(*byte path, int flags) int r {
@@ -351,12 +378,7 @@ internal func stat(string path, *Stat out) int {
 	StatBuf s;
 	r = rawStat((*byte)(buf), &s);
 	return r if r < 0;
-	out.kind = switch int(s.st_mode) & S_IFMT {
-		case S_IFREG => KIND_FILE;
-		case S_IFDIR => KIND_DIR;
-		case S_IFLNK => KIND_LINK;
-		default => KIND_OTHER;
-	};
+	out.kind = kindOfMode(int(s.st_mode));
 	out.size = s.st_size;
 	out.modified = s.st_mtim.tv_sec * 1_000_000_000 + s.st_mtim.tv_nsec;
 	out.mode = int(s.st_mode) & 0o7777;
@@ -402,15 +424,16 @@ internal func dirNext(*Dir d, *Entry e) int {
 			case DT_REG => KIND_FILE;
 			case DT_DIR => KIND_DIR;
 			case DT_LNK => KIND_LINK;
+			case DT_FIFO => KIND_PIPE;
+			case DT_SOCK => KIND_SOCKET;
+			case DT_CHR, DT_BLK => KIND_DEVICE;
 			default => KIND_OTHER;
 		};
 		return 1;
 	}
 }
 
-internal func dirClose(*Dir d) {
-	close(d.fd);
-}
+internal inline func dirClose(*Dir d) int => close(d.fd);
 
 internal func getcwd([]byte buf) int {
 	int r = rawGetcwd((*byte)(buf), len(buf));

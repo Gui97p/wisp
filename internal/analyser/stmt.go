@@ -174,9 +174,24 @@ func (a *Analyser) checkForStmt(stmt *ast.ForStmt) {
 	}
 
 	if stmt.Range != nil {
-		probe := ast.Clone(stmt.Range, ast.CloneOptions{})
+		source, failing := stmt.Range, (*ast.PropagateExpr)(nil)
+		if p, ok := stmt.Range.(*ast.PropagateExpr); ok && !p.Null {
+			inner := ast.Clone(p.Value, ast.CloneOptions{})
+			innerType := a.viewAsBase(inner, a.checkExpr(inner))
+			switch {
+			case a.iterableFails(innerType):
+				source, failing = p.Value, p
+			case a.iterates(innerType):
+				a.errorf(p, "next of %s cannot fail, so there is nothing for `!` to check", innerType.String()).
+					WithHelp("remove the `!`")
+				a.emptyLowering(stmt)
+				a.checkStmt(stmt.Lowered)
+				return
+			}
+		}
+		probe := ast.Clone(source, ast.CloneOptions{})
 		probeType := a.viewAsBase(probe, a.checkExpr(probe))
-		if a.lowerPointerFor(stmt, probeType) || a.lowerIteratorFor(stmt, probeType) {
+		if a.lowerPointerFor(stmt, probeType) || a.lowerIteratorFor(stmt, probeType, source, failing) {
 			a.checkStmt(stmt.Lowered)
 			return
 		}

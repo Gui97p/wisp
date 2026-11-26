@@ -1,5 +1,5 @@
 import "std/errors";
-import "std/os";
+import<debug> "std/os";
 
 /// Where blocks of memory come from. A block is a number of bytes: `alloc`
 /// gives it zeroed, `allocDirty` leaves it as it was, `realloc` resizes a block
@@ -66,9 +66,7 @@ func<debug> arm() {
 	}
 }
 
-inline func source() Allocator {
-	return &rawState;
-}
+inline func source() Allocator => &rawState;
 
 func<debug> source() Allocator {
 	arm();

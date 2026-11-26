@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 
@@ -61,13 +60,12 @@ func importItems(path string, pos protocol.Position) ([]protocol.CompletionItem,
 	}
 
 	root := module.FindProjectRoot(filepath.Dir(path))
-	cyclic := dependentFiles(path)
 
 	segments := map[string]*importSegment{}
 	candidates := module.ImportablePaths(root)
 	byPath := pathIndex(candidates)
 	for _, c := range candidates {
-		if c.Contains(path) || imported[c.Path] || cyclic[c.File] || !strings.HasPrefix(c.Path, dir) || exportsNothing(path, c, byPath) {
+		if c.Contains(path) || imported[c.Path] || !strings.HasPrefix(c.Path, dir) || exportsNothing(path, c, byPath) {
 			continue
 		}
 
@@ -169,50 +167,4 @@ func importHover(path string, pos protocol.Position) *protocol.Hover {
 			End:   protocol.Position{Line: pos.Line, Character: uint32(end)},
 		},
 	}
-}
-
-func dependentFiles(path string) map[string]bool {
-	files := map[string]bool{}
-
-	pa, err := analyseProject(path)
-	if err != nil || pa == nil {
-		return files
-	}
-
-	modules := make([]*module.Module, len(pa.modules))
-	for i, m := range pa.modules {
-		modules[i] = m.mod
-	}
-
-	dependents := map[string]bool{}
-	for _, mod := range modules {
-		if slices.Contains(mod.FilePaths, path) {
-			dependents[mod.Path] = true
-		}
-	}
-
-	for changed := true; changed; {
-		changed = false
-		for _, mod := range modules {
-			if dependents[mod.Path] {
-				continue
-			}
-			for _, imp := range mod.Imports {
-				if dependents[imp.Path] {
-					dependents[mod.Path] = true
-					changed = true
-					break
-				}
-			}
-		}
-	}
-
-	for _, mod := range modules {
-		if dependents[mod.Path] {
-			for _, f := range mod.FilePaths {
-				files[f] = true
-			}
-		}
-	}
-	return files
 }

@@ -411,6 +411,33 @@ func TestAutoImportCompletion(t *testing.T) {
 	})
 }
 
+func TestAutoImportOffersModulesThatDependOnTheFile(t *testing.T) {
+	c := start(t)
+	p := c.openAs("low/low.wsp", map[string]string{
+		"low/low.wsp": "public struct File implements Rea¦\n",
+		"high/high.wsp": "import \"low\";\n\npublic interface Reader { func read(); }\npublic func use(low.File f) {}\n",
+	})
+	for _, it := range p.completionItems() {
+		if it.Label == "high.Reader" {
+			return
+		}
+	}
+	t.Errorf("an interface of a module that imports this one is not offered: %v", p.completion())
+}
+
+func TestImportsOfOtherFilesAreNotVersionsOfEachOther(t *testing.T) {
+	c := start(t)
+	p := c.open(map[string]string{
+		"main.wsp":  "import \"std/math\";\n\nfunc main() {\n\tint n = math.abs(-1);\n}\n",
+		"other.wsp": "import<debug> \"std/math\";\n\nfunc other() int {\n\treturn math.abs(-2);\n}\n",
+	})
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("an import with a selector in another file broke this one: %s", d.Message)
+		}
+	}
+}
+
 func TestSemanticTokensGenerics(t *testing.T) {
 	c := start(t)
 	src := "struct Pair<A, B> {\n\tA first;\n\tB second;\n}\n\nfunc swap<A, B>(Pair<A, B> p) Pair<B, A> {\n\treturn Pair<B, A>{first: p.second, second: p.first};\n}\n\nfunc main() {\n\tPair<int, string> p = Pair<int, string>{first: 1, second: \"a\"};\n\tPair<string, int> q = swap(p);\n}\n"
@@ -1951,7 +1978,7 @@ func TestImportsBelongToTheirFile(t *testing.T) {
 	}
 
 	files["main.wsp"] = "import \"std/os\";\n\nfunc main() {\n\ta();\n}\n"
-	files["extra.wsp"] = "import \"std/os\";\n\nfunc extra() int {\n\treturn os.now();\n}\n"
+	files["extra.wsp"] = "import \"std/time\";\n\nfunc extra() int {\n\treturn time.now();\n}\n"
 	warned := 0
 	for _, d := range c.open(files).diagnostics() {
 		if strings.Contains(d.Message, "import os is never used") {

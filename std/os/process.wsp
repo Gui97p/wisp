@@ -1,0 +1,124 @@
+import "std/errors";
+import "std/mem";
+import "std/sys";
+
+/// Returns the value of the environment variable `name`, or null if it is not
+/// set. The string belongs to the environment and must not be freed.
+public inline func env(string name) ?string => sys.getenv(name);
+
+/// Returns the arguments of the program, with the name of the program first.
+/// The strings belong to the runtime and must not be freed.
+public inline func args() []string => sys.args();
+
+/// An iterator over the environment variables. Get one from `environ`, read it
+/// with `next` and call `close` when done.
+public struct Environ {
+	sys.Env state;
+}
+
+/// Starts an iteration over the environment variables of the process.
+public func environ() Environ {
+	Environ e;
+	sys.envOpen(&e.state);
+	return e;
+}
+
+/// One environment variable. Both strings point into the environment and must
+/// not be freed.
+public struct Variable {
+	public string name;
+	public string value;
+}
+
+/// Returns the next variable, or null when there are no more. Entries without a
+/// name or without an `=` are skipped.
+public func (*Environ e) next() ?Variable {
+	loop {
+		string entry = sys.envNext(&e.state) ?? return null;
+		int eq;
+		loop eq < len(entry) && entry[eq] != '=' {
+			eq++;
+		}
+		continue if eq == 0 || eq == len(entry);
+		return Variable{name: entry[..eq], value: entry[eq + 1..]};
+	}
+}
+
+/// Ends the iteration. The `Environ` must not be used afterwards.
+public func (*Environ e) close() {
+	sys.envClose(&e.state);
+}
+
+/// Writes the current working directory into `buf` and returns it as a string
+/// that points into `buf`. Fails with `Overflow` if `buf` is too small.
+public func cwd([]byte buf) !string {
+	int r = sys.getcwd(buf);
+	return errorIO(sys.errno(r)) if r < 0;
+	return string(buf[..r]);
+}
+
+/// Like `cwd`, into a new byte slice allocated from `a`. The caller frees it with
+/// `mem.free`. Fails with the allocator error when memory runs out.
+public func cwdIn(mem.Allocator a) ![]byte {
+	int size = 256;
+	loop {
+		[]byte buf = mem.makeDirty<byte>(a, size)!;
+		int r = sys.getcwd(buf);
+		if r >= 0 {
+			return buf[..r];
+		}
+		mem.free(a, buf);
+		Error e = errorIO(sys.errno(r));
+		return e if e != errors.Kind.Overflow;
+		size *= 2;
+	}
+}
+
+struct Hook {
+	?() => () run;
+}
+
+const MaxHooks = 32;
+
+[MaxHooks]Hook hooks;
+int pending;
+bool installed, running;
+
+/// Registers a function to run when the program ends: when `main` returns, when
+/// `os.exit` is called, and when a panic ends it (a crash by a signal, such as a
+/// stack overflow, runs none). Hooks run in the opposite order of the
+/// registration, so what was set up last is torn down first. A hook takes no
+/// parameters and gives no result, and may be a function or a lambda that
+/// captures nothing. Fails with `NoSpace` when 32 are registered. A hook that
+/// calls `os.exit` or panics ends the program without running the rest.
+public func atExit(() => () hook) ! {
+	errors.ensure(pending < MaxHooks, errors.Kind.NoSpace)!;
+	if !installed {
+		sys.setExitHook(runExitHooks);
+		installed = true;
+	}
+	hooks[pending].run = hook;
+	pending++;
+}
+
+/// Runs the registered hooks now, last registered first, and forgets them. The
+/// end of the program does it, so a program does not have to. A call made while
+/// the hooks are already running does nothing.
+public func runExitHooks() {
+	return if running;
+	running = true;
+	loop pending > 0 {
+		pending--;
+		if hooks[pending].run |hook| {
+			hook();
+		}
+	}
+	running = false;
+}
+
+/// Ends the program with the status `code`, after running the hooks of
+/// `atExit`. Deferred calls are not run.
+public func exit(int code) {
+	runExitHooks();
+	sys.exit(code);
+}

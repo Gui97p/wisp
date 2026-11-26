@@ -1,198 +1,132 @@
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `exp`.
-public func expf(float32 x) float32 {
-	return float32(exp(x));
-}
+public inline func expf(float32 x) float32 => float32(exp(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `expm1`.
-public func expm1f(float32 x) float32 {
-	return float32(expm1(x));
-}
+public inline func expm1f(float32 x) float32 => float32(expm1(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `exp2`.
-public func exp2f(float32 x) float32 {
-	return float32(exp2(x));
-}
+public inline func exp2f(float32 x) float32 => float32(exp2(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `log`.
-public func logf(float32 x) float32 {
-	return float32(log(x));
-}
+public inline func logf(float32 x) float32 => float32(log(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `log1p`.
-public func log1pf(float32 x) float32 {
-	return float32(log1p(x));
-}
+public inline func log1pf(float32 x) float32 => float32(log1p(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `log2`.
-public func log2f(float32 x) float32 {
-	return float32(log2(x));
-}
+public inline func log2f(float32 x) float32 => float32(log2(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `log10`.
-public func log10f(float32 x) float32 {
-	return float32(log10(x));
-}
+public inline func log10f(float32 x) float32 => float32(log10(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `sin`.
-public func sinf(float32 x) float32 {
-	return float32(sin(x));
-}
+public inline func sinf(float32 x) float32 => float32(sin(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `cos`.
-public func cosf(float32 x) float32 {
-	return float32(cos(x));
-}
+public inline func cosf(float32 x) float32 => float32(cos(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `tan`.
-public func tanf(float32 x) float32 {
-	return float32(tan(x));
-}
+public inline func tanf(float32 x) float32 => float32(tan(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `asin`.
-public func asinf(float32 x) float32 {
-	return float32(asin(x));
-}
+public inline func asinf(float32 x) float32 => float32(asin(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `acos`.
-public func acosf(float32 x) float32 {
-	return float32(acos(x));
-}
+public inline func acosf(float32 x) float32 => float32(acos(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `atan`.
-public func atanf(float32 x) float32 {
-	return float32(atan(x));
-}
+public inline func atanf(float32 x) float32 => float32(atan(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `sinh`.
-public func sinhf(float32 x) float32 {
-	return float32(sinh(x));
-}
+public inline func sinhf(float32 x) float32 => float32(sinh(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `cosh`.
-public func coshf(float32 x) float32 {
-	return float32(cosh(x));
-}
+public inline func coshf(float32 x) float32 => float32(cosh(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `tanh`.
-public func tanhf(float32 x) float32 {
-	return float32(tanh(x));
-}
+public inline func tanhf(float32 x) float32 => float32(tanh(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `cbrt`.
-public func cbrtf(float32 x) float32 {
-	return float32(cbrt(x));
-}
+public inline func cbrtf(float32 x) float32 => float32(cbrt(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `fabs`.
-public func fabsf(float32 x) float32 {
-	return float32(fabs(x));
-}
+public inline func fabsf(float32 x) float32 => float32(fabs(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `floor`.
-public func floorf(float32 x) float32 {
-	return float32(floor(x));
-}
+public inline func floorf(float32 x) float32 => float32(floor(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `ceil`.
-public func ceilf(float32 x) float32 {
-	return float32(ceil(x));
-}
+public inline func ceilf(float32 x) float32 => float32(ceil(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `trunc`.
-public func truncf(float32 x) float32 {
-	return float32(trunc(x));
-}
+public inline func truncf(float32 x) float32 => float32(trunc(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `round`.
-public func roundf(float32 x) float32 {
-	return float32(round(x));
-}
+public inline func roundf(float32 x) float32 => float32(round(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `roundEven`.
-public func roundEvenf(float32 x) float32 {
-	return float32(roundEven(x));
-}
+public inline func roundEvenf(float32 x) float32 => float32(roundEven(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `fsqrt`.
-public func fsqrtf(float32 x) float32 {
-	return float32(fsqrt(x));
-}
+public inline func fsqrtf(float32 x) float32 => float32(fsqrt(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `fpow`.
-public func fpowf(float32 x, y) float32 {
-	return float32(fpow(x, y));
-}
+public inline func fpowf(float32 x, y) float32 => float32(fpow(x, y));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases follow
 /// `atan2`. The first parameter is the y coordinate and the second is x, even
 /// though they are named the other way round.
-public func atan2f(float32 x, y) float32 {
-	return float32(atan2(x, y));
-}
+public inline func atan2f(float32 x, y) float32 => float32(atan2(x, y));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `hypot`.
-public func hypotf(float32 x, y) float32 {
-	return float32(hypot(x, y));
-}
+public inline func hypotf(float32 x, y) float32 => float32(hypot(x, y));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `fmod`.
-public func fmodf(float32 x, y) float32 {
-	return float32(fmod(x, y));
-}
+public inline func fmodf(float32 x, y) float32 => float32(fmod(x, y));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `copysign`.
-public func copysignf(float32 x, y) float32 {
-	return float32(copysign(x, y));
-}
+public inline func copysignf(float32 x, y) float32 => float32(copysign(x, y));
 
 /// Same as `fabsf`.
-public func absf(float32 x) float32 {
-	return float32(fabs(x));
-}
+public inline func absf(float32 x) float32 => float32(fabs(x));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `fmin`.
-public func fminf(float32 x, y) float32 {
-	return float32(fmin(x, y));
-}
+public inline func fminf(float32 x, y) float32 => float32(fmin(x, y));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `fmax`.
-public func fmaxf(float32 x, y) float32 {
-	return float32(fmax(x, y));
-}
+public inline func fmaxf(float32 x, y) float32 => float32(fmax(x, y));
 
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `fclamp`.
-public func fclampf(float32 x, low, high) float32 {
-	return float32(fclamp(x, low, high));
-}
+public inline func fclampf(float32 x, low, high) float32 => float32(fclamp(x, low, high));

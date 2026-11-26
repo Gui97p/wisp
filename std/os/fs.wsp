@@ -1,0 +1,79 @@
+import "std/sys";
+
+/// What a path or an open file is. `Device` is a character or block device, a
+/// terminal included, and `Other` is whatever has no kind of its own. On Windows
+/// a path is only told apart as `File`, `Dir` or `Link`; `Pipe` and `Device`
+/// show up for an open `File`.
+public enum FileKind { File, Dir, Link, Pipe, Socket, Device, Other }
+
+/// What `stat` knows about a path. `size` is in bytes, `modified` is the
+/// last modification time as the system gives it, and `mode` holds the permission
+/// bits.
+public struct Stat {
+	public FileKind kind;
+	public int size, modified, mode;
+}
+
+/// Removes the file at `path`. Fails with `NotFound` or `Permission`, and with `IsDir`
+/// from `IOError` if `path` is a directory (use `removeDir` for those).
+public func remove(string path) ! {
+	int r = sys.remove(path);
+	return errorIO(sys.errno(r)) if r < 0;
+}
+
+/// Renames or moves `from` to `to`, replacing `to` if it is a file. Fails with
+/// `NotFound`, `Permission` and the like.
+public func rename(string from, to) ! {
+	int r = sys.rename(from, to);
+	return errorIO(sys.errno(r)) if r < 0;
+}
+
+/// Returns what the system knows about `path`: kind, size, modification time and
+/// mode. A link is reported as `Link`, it is not followed. Fails with `NotFound`
+/// or `Permission`.
+public func stat(string path) !Stat {
+	sys.Stat s;
+	int r = sys.stat(path, &s);
+	return errorIO(sys.errno(r)) if r < 0;
+	FileKind kind = kindOf(s.kind);
+	return Stat{mode: s.mode, kind: kind, modified: s.modified, size: s.size};
+}
+
+/// Reports whether `path` can be examined with `stat`. A path that fails for any
+/// reason, not only `NotFound`, gives `false`.
+public inline func exists(string path) bool {
+	stat(path) ?? return false;
+	return true;
+}
+
+func kindOf(int code) FileKind {
+	return switch code {
+		case sys.KIND_FILE => .File;
+		case sys.KIND_DIR => .Dir;
+		case sys.KIND_LINK => .Link;
+		case sys.KIND_PIPE => .Pipe;
+		case sys.KIND_SOCKET => .Socket;
+		case sys.KIND_DEVICE => .Device;
+		default => .Other;
+	};
+}
+
+/// Returns what `path` is, or null if it cannot be examined for any reason. A
+/// link is reported as `Link`, it is not followed.
+public func kind(string path) ?FileKind {
+	let s = stat(path) ?? return null;
+	return s.kind;
+}
+
+/// Reports whether `path` is a regular file.
+public inline func isFile(string path) bool => (kind(path) ?? FileKind.Other) == FileKind.File;
+/// Reports whether `path` is a directory.
+public inline func isDir(string path) bool => (kind(path) ?? FileKind.Other) == FileKind.Dir;
+/// Reports whether `path` is a link.
+public inline func isLink(string path) bool => (kind(path) ?? FileKind.Other) == FileKind.Link;
+/// Reports whether `path` is a pipe.
+public inline func isPipe(string path) bool => (kind(path) ?? FileKind.Other) == FileKind.Pipe;
+/// Reports whether `path` is a socket.
+public inline func isSocket(string path) bool => (kind(path) ?? FileKind.Other) == FileKind.Socket;
+/// Reports whether `path` is a character or block device.
+public inline func isDevice(string path) bool => (kind(path) ?? FileKind.Other) == FileKind.Device;

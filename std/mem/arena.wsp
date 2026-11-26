@@ -13,9 +13,7 @@ struct Chunk {
 	int used;
 }
 
-inline func (*Chunk c) data() *byte {
-	return (*byte)(c) + HEADER;
-}
+inline func (*Chunk c) data() *byte => (*byte)(c) + HEADER;
 
 func newChunk(Allocator source, int need) !*Chunk {
 	int size = math.max(ARENA_CHUNK_SIZE - HEADER, need);
@@ -44,9 +42,7 @@ public struct Arena implements Allocator {
 	?*Chunk head;
 }
 
-func (*Arena a) source() Allocator {
-	return a.parent ?? heap;
-}
+inline func (*Arena a) source() Allocator => a.parent ?? heap;
 
 /// Allocates `n` zeroed bytes in the arena. Fails with `Invalid` for a negative
 /// `n` and with the error of the parent when it cannot give a new chunk.

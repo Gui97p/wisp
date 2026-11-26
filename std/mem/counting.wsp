@@ -12,9 +12,7 @@ public struct Counting implements Allocator {
 	int liveBlocks, liveBytes, peakBytes, totalBlocks, totalBytes;
 }
 
-func (*Counting c) source() Allocator {
-	return c.parent ?? heap;
-}
+inline func (*Counting c) source() Allocator => c.parent ?? heap;
 
 func (*Counting c) take(int n) {
 	c.liveBlocks++;
@@ -78,27 +76,17 @@ public func (*Counting c) free(?*void p) {
 }
 
 /// The number of blocks allocated and not freed yet.
-public inline func (*Counting c) blocks() int {
-	return c.liveBlocks;
-}
+public inline func (*Counting c) blocks() int => c.liveBlocks;
 
 /// The number of bytes in the blocks not freed yet, without the headers.
-public inline func (*Counting c) bytes() int {
-	return c.liveBytes;
-}
+public inline func (*Counting c) bytes() int => c.liveBytes;
 
 /// The most `bytes` ever had at one time.
-public inline func (*Counting c) peak() int {
-	return c.peakBytes;
-}
+public inline func (*Counting c) peak() int => c.peakBytes;
 
 /// The number of blocks allocated since the start, freed or not.
-public inline func (*Counting c) allocations() int {
-	return c.totalBlocks;
-}
+public inline func (*Counting c) allocations() int => c.totalBlocks;
 
 /// The number of bytes allocated since the start, freed or not. A `realloc` that
 /// grows a block adds the growth.
-public inline func (*Counting c) allocated() int {
-	return c.totalBytes;
-}
+public inline func (*Counting c) allocated() int => c.totalBytes;

@@ -124,15 +124,11 @@ func shortestText([]byte buf, float x, bool single) !string {
 /// exponents from -5 to 20 and `e` notation otherwise. NaN, `inf` and `-inf` are
 /// written by name, and negative zero keeps its sign. Fails with `NoSpace` when
 /// `buf` is too small; `MaxFloat` bytes always suffice.
-public func ftoa([]byte buf, float x) !string {
-	return shortestText(buf, x, false)!;
-}
+public inline func ftoa([]byte buf, float x) !string => shortestText(buf, x, false)!;
 
 /// Like `ftoa`, but the text is the shortest one that reads back as the same
 /// `float32`, so it is shorter for values that come from single precision.
-public func ftoa32([]byte buf, float32 x) !string {
-	return shortestText(buf, x, true)!;
-}
+public inline func ftoa32([]byte buf, float32 x) !string => shortestText(buf, x, true)!;
 
 /// Writes `x` with exactly `n` digits after the decimal point into `buf` and
 /// returns the text, sharing memory with `buf`. The value is rounded from its exact

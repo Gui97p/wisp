@@ -1,31 +1,49 @@
 import "std/mem";
 
+/// Where the offset of a `Seeker` counts from: the start of the stream, the
+/// current position, or the end.
 public enum Whence {
 	Start,
 	Current,
 	End
 }
 
+/// Something bytes can be read from. `read` fills `buf` with at most `len(buf)`
+/// bytes and returns how many it put there. It returns null at the end of the
+/// stream, and never zero unless `buf` is empty, so a loop on it ends. It may
+/// read less than `buf` can hold. Fails with the error of the source.
 public interface Reader {
 	func read([]byte buf) !?int;
 }
 
+/// Something bytes can be written to. `write` takes all of `data` and returns
+/// its length, or fails: a count smaller than `len(data)` is never returned.
 public interface Writer {
 	func write([]byte data) !int;
 }
 
+/// Something that holds a resource and gives it back with `close`. Closing twice
+/// must be harmless.
 public interface Closer {
 	func close() !;
 }
 
+/// Something whose position can be moved. `seek` moves it by `offset` from
+/// `whence` and returns the new position counted from the start.
 public interface Seeker {
 	func seek(int offset, Whence whence) !int;
 }
 
+/// A `Reader` that is also a `Writer`.
 public interface ReadWriter { Reader & Writer }
+/// A `Reader` that is also a `Closer`.
 public interface ReadCloser { Reader & Closer }
+/// A `Writer` that is also a `Closer`.
 public interface WriteCloser { Writer & Closer }
 
+/// Copies everything `src` has to `dst`, through a buffer of 4096 bytes on the
+/// stack, and returns the number of bytes copied. Stops at the end of `src`, or
+/// at the first error of either side.
 public func copy<Writer W, Reader R>(W dst, R src) !int {
 	[4096]byte buf;
 	int total;
@@ -35,6 +53,7 @@ public func copy<Writer W, Reader R>(W dst, R src) !int {
 	}
 	return total;
 }
+/// Like `copy`, through the buffer you give. An empty `buf` copies nothing.
 public func copyBuffer<Writer W, Reader R>(W dst, R src, []byte buf) !int {
 	int total;
 	loop src.read(buf)! |n| {
@@ -44,6 +63,9 @@ public func copyBuffer<Writer W, Reader R>(W dst, R src, []byte buf) !int {
 	return total;
 }
 
+/// Reads `r` to the end into a new byte slice allocated from `a`, growing it as
+/// needed. The caller frees the result with `mem.free`. Fails with the error of
+/// `r` or of the allocator.
 public func readAll<mem.Allocator A, Reader R>(A a, R r) ![]byte {
 	[]byte buf = mem.makeDirty<byte>(a, 256)!;
 	int total;
@@ -56,6 +78,8 @@ public func readAll<mem.Allocator A, Reader R>(A a, R r) ![]byte {
 	}
 	return buf[..total];
 }
+/// Reads from `r` until `buf` is full or `r` ends, and returns how many bytes
+/// were read. Fewer than `len(buf)` means the end of the stream came first.
 public func readFull<Reader R>(R r, []byte buf) !int {
 	int total;
 	loop total < len(buf) {
@@ -64,9 +88,11 @@ public func readFull<Reader R>(R r, []byte buf) !int {
 	return total;
 }
 
+/// Writes the bytes of `text` to `w`.
 public inline func writeString<Writer W>(W w, string text) ! {
 	w.write([]byte(text))!;
 }
+/// Writes the single byte `c` to `w`.
 public inline func writeByte<Writer W>(W w, byte c) ! {
 	w.write(.{c})!;
 }

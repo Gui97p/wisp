@@ -28,9 +28,6 @@ func<debug> callerSite(*void f) string {
 	return first;
 }
 
-inline func site() string {
-	return "";
-}
 func<debug> site() string {
 	?*void f;
 	native {

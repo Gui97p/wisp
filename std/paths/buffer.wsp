@@ -1,4 +1,5 @@
 import "std/math";
+import "std/mem";
 import "std/strings";
 
 /// Joins the `parts` with the separator of the platform into `buf` and returns
@@ -79,4 +80,25 @@ public func clean([]byte buf, string p) !string {
 	}
 
 	return string(buf[..total]);
+}
+
+/// Like `join`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. An empty result
+/// allocates nothing. Fails with the allocator error when memory runs out.
+public func joinIn(mem.Allocator a, string ...parts) ![]byte {
+	int room = len(sep) * (len(parts) + 1);
+	for _, p in parts {
+		room += len(p);
+	}
+	[]byte buf = mem.makeDirty<byte>(a, room)!;
+	string joined = join(buf, parts...)!;
+	return .{} if len(joined) == 0;
+	return buf[..len(joined)];
+}
+
+/// Like `clean`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. Fails with the
+/// allocator error when memory runs out.
+public func cleanIn(mem.Allocator a, string p) ![]byte {
+	[]byte buf = mem.makeDirty<byte>(a, len(p) + len(sep) + 1)!;
+	string cleaned = clean(buf, p)!;
+	return buf[..len(cleaned)];
 }

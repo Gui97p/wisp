@@ -154,9 +154,7 @@ func (*Decimal dec) round(int nd) {
 	}
 }
 
-func (*Decimal dec) digitAt(int i) uint {
-	return i < 0 || i >= dec.n ? 0 : dec.d[i];
-}
+inline func (*Decimal dec) digitAt(int i) uint => i < 0 || i >= dec.n ? 0 : dec.d[i];
 
 func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive) {
 	int upperDelta;

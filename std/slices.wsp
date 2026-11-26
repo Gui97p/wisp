@@ -13,9 +13,7 @@ public func indexOf<Comparable T>([]T items, T want) ?int {
 }
 
 /// Whether some element is equal to `want`.
-public func contains<Comparable T>([]T items, T want) bool {
-	return indexOf(items, want) >= 0;
-}
+public inline func contains<Comparable T>([]T items, T want) bool => (indexOf(items, want) ?? -1) >= 0;
 
 func siftDown<Orderable T>([]T items, int start, int end) {
 	int root = start;

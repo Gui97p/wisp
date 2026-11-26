@@ -11,9 +11,7 @@ public struct Failing implements Allocator {
 	int attempts;
 }
 
-func (*Failing f) source() Allocator {
-	return f.parent ?? heap;
-}
+inline func (*Failing f) source() Allocator => f.parent ?? heap;
 
 func (*Failing f) permit() ! {
 	f.attempts++;
@@ -50,9 +48,7 @@ public func (*Failing f) free(?*void p) {
 
 /// The number of allocation calls made since the start or the last `reset`,
 /// failed ones included.
-public inline func (*Failing f) calls() int {
-	return f.attempts;
-}
+public inline func (*Failing f) calls() int => f.attempts;
 
 /// Sets the call count back to zero, so `after` counts again from the start.
 public inline func (*Failing f) reset() {

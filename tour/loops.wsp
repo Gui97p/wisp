@@ -8,7 +8,9 @@ struct Countdown {
 }
 
 // Anything with a `next() ?T` method can be walked by `for`: it gives the
-// items until it answers null.
+// items until it answers null. When `next` can fail, `next() !?T`, the `for`
+// takes a `!` after the iterator, `for item in reader! { ... }`, and an error
+// leaves the function like any other `!`. `!!` stops the program instead.
 func (*Countdown c) next() ?int {
 	if c.left == 0 {
 		return null;

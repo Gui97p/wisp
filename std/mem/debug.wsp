@@ -2,6 +2,7 @@
 
 import "std/errors";
 import "std/fmt";
+import "std/os";
 import "std/strings";
 
 const {
@@ -37,17 +38,11 @@ public struct Debug implements Allocator {
 	int ringStart, ringCount;
 }
 
-inline func headerOf(*void p) *Header {
-	return (*Header)((*byte)(p) - HEAD);
-}
+inline func headerOf(*void p) *Header => (*Header)((*byte)(p) - HEAD);
 
-inline func dataOf(*Header h) *byte {
-	return (*byte)(h) + HEAD;
-}
+inline func dataOf(*Header h) *byte => (*byte)(h) + HEAD;
 
-func (*Debug d) source() Allocator {
-	return d.parent ?? heap;
-}
+inline func (*Debug d) source() Allocator => d.parent ?? heap;
 
 func fail(*Header h, string what) {
 	[2048]byte buf;
@@ -305,9 +300,7 @@ func (*Debug d) sizeOf(*void p) int {
 }
 
 /// The number of blocks allocated and not freed yet.
-public inline func (*Debug d) blocks() int {
-	return d.liveBlocks;
-}
+public inline func (*Debug d) blocks() int => d.liveBlocks;
 
 /// Runs `check`, then prints to standard error the live blocks grouped by the
 /// place that allocated them, as leaks, up to 64 places and a count of the rest.
@@ -340,12 +333,12 @@ public func (*Debug d) report() int {
 
 	int k;
 	loop k < groups {
-		fmt.fprintf(2, "leak: {} blocks, {} bytes, allocated at\n", counts[k], bytes[k])!!;
-		fmt.fprint(2, sites[k]);
+		fmt.fprintf(&os.stderr, "leak: {} blocks, {} bytes, allocated at\n", counts[k], bytes[k])!!;
+		fmt.fprint(&os.stderr, sites[k]);
 		k++;
 	}
 	if others > 0 {
-		fmt.fprintf(2, "leak: {} more blocks from other places\n", others)!!;
+		fmt.fprintf(&os.stderr, "leak: {} more blocks from other places\n", others)!!;
 	}
 	return d.liveBlocks;
 }

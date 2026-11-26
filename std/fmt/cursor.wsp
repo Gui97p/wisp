@@ -10,9 +10,7 @@ inline func (*Cursor c) peekAt(int k) byte {
 	return c.text[c.pos + k];
 }
 
-inline func (*Cursor c) peek() byte {
-	return c.peekAt(0);
-}
+inline func (*Cursor c) peek() byte => c.peekAt(0);
 
 inline func (*Cursor c) advance() {
 	c.pos++;
@@ -38,13 +36,9 @@ func (*Cursor c) advanceUntil(byte ...chs) bool {
 	return true;
 }
 
-inline func (*Cursor c) since(int mark) string {
-	return c.text[mark..c.pos];
-}
+inline func (*Cursor c) since(int mark) string => c.text[mark..c.pos];
 
-inline func (*Cursor c) done() bool {
-	return c.pos >= len(c.text);
-}
+inline func (*Cursor c) done() bool => c.pos >= len(c.text);
 
 struct Number {
 	int value;

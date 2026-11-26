@@ -1,3 +1,4 @@
+import "std/errors";
 import "std/sys";
 
 inline func toNs(int s, ns) int => s * 1_000_000_000 + ns;
@@ -20,5 +21,5 @@ public func ticks() int {
 /// signal ends the wait early.
 public func sleep(int ms) ! {
 	int r = sys.sleep(ms / 1000, (ms % 1000) * 1_000_000);
-	return errorIO(sys.errno(r)) if r < 0;
+	return Error(errors.Kind.Interrupted) if r < 0;
 }

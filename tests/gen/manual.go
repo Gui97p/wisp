@@ -9732,45 +9732,45 @@ func main() {
 }
 `, expected: []string{"getenv finds a variable that is always set", "getenv of a missing variable is null", "getenv does not match a prefix of a name"}},
 
-	{dir: "path_core", system: "linux", src: `import "std/path";
+	{dir: "path_core", system: "linux", src: `import "std/paths";
 import "std/strings";
 
 func main() ! {
     [64]byte buf;
 
-    check(path.base("a/b") == "b", "base takes the last element");
-    check(path.base("a/b/") == "b", "base ignores trailing separators");
-    check(path.base("/") == "/" && path.base("///") == "/", "base of only separators is the root");
-    check(path.base("") == ".", "base of an empty path is a dot");
-    check(path.base("my file ") == "my file ", "base keeps a trailing space");
-    check(path.dir("a/b") == "a" && path.dir("a//b") == "a", "dir drops the last element");
-    check(path.dir("/a") == "/" && path.dir("//a") == "/", "dir of a path under the root is the root");
-    check(path.dir("/") == "/" && path.dir("///") == "/", "dir of the root is the root");
-    check(path.dir("a") == "." && path.dir("") == ".", "dir of a single name is a dot");
-    check(path.dir("/a/b/") == "/a", "dir ignores trailing separators");
-    check(path.dir("../a") == "..", "dir does not clean");
-    check(path.ext("a.tar.gz") == ".gz" && path.stem("a.tar.gz") == "a.tar", "ext is the last dot and stem is the rest");
-    check(path.ext(".gitignore") == "" && path.stem(".gitignore") == ".gitignore", "a leading dot is part of the name");
-    check(path.ext("b.") == "" && path.stem("b.") == "b.", "a trailing dot is part of the name");
-    check(path.ext("d/x.y/z") == "", "ext looks only at the base");
-    check(path.isAbs("/a") && !path.isAbs("a") && !path.isAbs(""), "isAbs");
+    check(paths.base("a/b") == "b", "base takes the last element");
+    check(paths.base("a/b/") == "b", "base ignores trailing separators");
+    check(paths.base("/") == "/" && paths.base("///") == "/", "base of only separators is the root");
+    check(paths.base("") == ".", "base of an empty path is a dot");
+    check(paths.base("my file ") == "my file ", "base keeps a trailing space");
+    check(paths.dir("a/b") == "a" && paths.dir("a//b") == "a", "dir drops the last element");
+    check(paths.dir("/a") == "/" && paths.dir("//a") == "/", "dir of a path under the root is the root");
+    check(paths.dir("/") == "/" && paths.dir("///") == "/", "dir of the root is the root");
+    check(paths.dir("a") == "." && paths.dir("") == ".", "dir of a single name is a dot");
+    check(paths.dir("/a/b/") == "/a", "dir ignores trailing separators");
+    check(paths.dir("../a") == "..", "dir does not clean");
+    check(paths.ext("a.tar.gz") == ".gz" && paths.stem("a.tar.gz") == "a.tar", "ext is the last dot and stem is the rest");
+    check(paths.ext(".gitignore") == "" && paths.stem(".gitignore") == ".gitignore", "a leading dot is part of the name");
+    check(paths.ext("b.") == "" && paths.stem("b.") == "b.", "a trailing dot is part of the name");
+    check(paths.ext("d/x.y/z") == "", "ext looks only at the base");
+    check(paths.isAbs("/a") && !paths.isAbs("a") && !paths.isAbs(""), "isAbs");
 
-    check(path.join(buf, "a", "b")!! == "a/b", "join puts one separator between parts");
-    check(path.join(buf, "a//", "//b")!! == "a/b", "join collapses repeated separators");
-    check(path.join(buf, "", "a", "", "b")!! == "a/b", "join skips empty parts");
-    check(path.join(buf, "/", "a")!! == "/a" && path.join(buf, "/a", "b")!! == "/a/b", "join keeps the root of the first part");
-    check(path.join(buf, "/", "/", "a", "b")!! == "/a/b", "join writes the root once");
-    check(path.join(buf, "", "/a")!! == "/a", "join takes the root from the first part that is not empty");
-    check(path.join(buf, "a", "/")!! == "a", "join of a name and the root is the name");
-    check(path.join(buf)!! == "" && path.join(buf, "")!! == "", "join of nothing is empty");
-    check(path.join(buf, "/")!! == "/", "join of the root is the root");
+    check(paths.join(buf, "a", "b")!! == "a/b", "join puts one separator between parts");
+    check(paths.join(buf, "a//", "//b")!! == "a/b", "join collapses repeated separators");
+    check(paths.join(buf, "", "a", "", "b")!! == "a/b", "join skips empty parts");
+    check(paths.join(buf, "/", "a")!! == "/a" && paths.join(buf, "/a", "b")!! == "/a/b", "join keeps the root of the first part");
+    check(paths.join(buf, "/", "/", "a", "b")!! == "/a/b", "join writes the root once");
+    check(paths.join(buf, "", "/a")!! == "/a", "join takes the root from the first part that is not empty");
+    check(paths.join(buf, "a", "/")!! == "a", "join of a name and the root is the name");
+    check(paths.join(buf)!! == "" && paths.join(buf, "")!! == "", "join of nothing is empty");
+    check(paths.join(buf, "/")!! == "/", "join of the root is the root");
     [3]byte tiny;
-    string cut = path.join(tiny, "abc", "d") ?? "full";
+    string cut = paths.join(tiny, "abc", "d") ?? "full";
     check(cut == "full", "join reports NoSpace");
-    string cutRoot = path.join(tiny, "/ab", "c") ?? "full";
+    string cutRoot = paths.join(tiny, "/ab", "c") ?? "full";
     check(cutRoot == "full", "join with a root reports NoSpace");
 
-    path.Elements el = path.elements("/a//b/");
+    paths.Elements el = paths.elements("/a//b/");
     int count;
     string joined = "";
     loop el.next() |piece| {
@@ -9778,9 +9778,9 @@ func main() ! {
         joined = piece;
     }
     check(count == 2 && joined == "b", "elements skips empty pieces");
-    path.Elements rootEl = path.elements("/");
+    paths.Elements rootEl = paths.elements("/");
     ?string none = rootEl.next();
-    path.Elements emptyEl = path.elements("");
+    paths.Elements emptyEl = paths.elements("");
     ?string nothing = emptyEl.next();
     check(none == null && nothing == null, "elements of a root or an empty path is nothing");
     strings.Splitter toks = strings.tokens("a,b,", ",");
@@ -9790,48 +9790,48 @@ func main() ! {
     }
     check(tokCount == 2, "tokens skips the empty piece at the end");
 
-    check(path.clean(buf, "")!! == "." && path.clean(buf, "./")!! == ".", "clean of an empty path is a dot");
-    check(path.clean(buf, "a//b")!! == "a/b", "clean collapses separators");
-    check(path.clean(buf, "a/./b")!! == "a/b", "clean drops dots");
-    check(path.clean(buf, "a/b/../c")!! == "a/c", "clean resolves dot dot");
-    check(path.clean(buf, "a/..")!! == ".", "clean can end in a dot");
-    check(path.clean(buf, "../../a")!! == "../../a", "clean keeps leading dot dots in a relative path");
-    check(path.clean(buf, "a/../..")!! == "..", "clean keeps the dot dot that has nothing to undo");
-    check(path.clean(buf, "/..")!! == "/" && path.clean(buf, "/a/../..")!! == "/", "clean never goes above the root");
-    check(path.clean(buf, "/a/b/")!! == "/a/b", "clean drops the trailing separator");
-    check(path.clean(buf, "a/b/c/../../d")!! == "a/d", "clean undoes several elements");
-    string cutClean = path.clean(tiny, "abcd/e") ?? "full";
+    check(paths.clean(buf, "")!! == "." && paths.clean(buf, "./")!! == ".", "clean of an empty path is a dot");
+    check(paths.clean(buf, "a//b")!! == "a/b", "clean collapses separators");
+    check(paths.clean(buf, "a/./b")!! == "a/b", "clean drops dots");
+    check(paths.clean(buf, "a/b/../c")!! == "a/c", "clean resolves dot dot");
+    check(paths.clean(buf, "a/..")!! == ".", "clean can end in a dot");
+    check(paths.clean(buf, "../../a")!! == "../../a", "clean keeps leading dot dots in a relative path");
+    check(paths.clean(buf, "a/../..")!! == "..", "clean keeps the dot dot that has nothing to undo");
+    check(paths.clean(buf, "/..")!! == "/" && paths.clean(buf, "/a/../..")!! == "/", "clean never goes above the root");
+    check(paths.clean(buf, "/a/b/")!! == "/a/b", "clean drops the trailing separator");
+    check(paths.clean(buf, "a/b/c/../../d")!! == "a/d", "clean undoes several elements");
+    string cutClean = paths.clean(tiny, "abcd/e") ?? "full";
     check(cutClean == "full", "clean reports NoSpace");
 }
 `, expected: []string{"base takes the last element", "base ignores trailing separators", "base of only separators is the root", "base of an empty path is a dot", "base keeps a trailing space", "dir drops the last element", "dir of a path under the root is the root", "dir of the root is the root", "dir of a single name is a dot", "dir ignores trailing separators", "dir does not clean", "ext is the last dot and stem is the rest", "a leading dot is part of the name", "a trailing dot is part of the name", "ext looks only at the base", "isAbs", "join puts one separator between parts", "join collapses repeated separators", "join skips empty parts", "join keeps the root of the first part", "join writes the root once", "join takes the root from the first part that is not empty", "join of a name and the root is the name", "join of nothing is empty", "join of the root is the root", "join reports NoSpace", "join with a root reports NoSpace", "elements skips empty pieces", "elements of a root or an empty path is nothing", "tokens skips the empty piece at the end", "clean of an empty path is a dot", "clean collapses separators", "clean drops dots", "clean resolves dot dot", "clean can end in a dot", "clean keeps leading dot dots in a relative path", "clean keeps the dot dot that has nothing to undo", "clean never goes above the root", "clean drops the trailing separator", "clean undoes several elements", "clean reports NoSpace"}},
 
-	{dir: "path_windows", system: "windows", src: `import "std/path";
+	{dir: "path_windows", system: "windows", src: `import "std/paths";
 
 func main() ! {
     [64]byte buf;
 
-    check(path.isAbs("C:\\a") && path.isAbs("C:/a") && path.isAbs("c:\\"), "a drive and a separator make a path absolute");
-    check(!path.isAbs("C:a") && !path.isAbs("\\a") && !path.isAbs("a") && !path.isAbs(""), "a drive alone, a rooted path or a relative one is not absolute");
-    check(path.isAbs("\\\\srv\\share\\x") && !path.isAbs("\\\\srv"), "a UNC path with a share is absolute");
+    check(paths.isAbs("C:\\a") && paths.isAbs("C:/a") && paths.isAbs("c:\\"), "a drive and a separator make a path absolute");
+    check(!paths.isAbs("C:a") && !paths.isAbs("\\a") && !paths.isAbs("a") && !paths.isAbs(""), "a drive alone, a rooted path or a relative one is not absolute");
+    check(paths.isAbs("\\\\srv\\share\\x") && !paths.isAbs("\\\\srv"), "a UNC path with a share is absolute");
 
-    check(path.base("C:\\a\\b.txt") == "b.txt" && path.base("a/b") == "b" && path.base("a\\b") == "b", "base takes the last element after either separator");
-    check(path.base("C:\\") == "\\" && path.base("C:") == "\\" && path.base("") == ".", "base of a root or a bare drive");
-    check(path.dir("C:\\a\\b") == "C:\\a" && path.dir("C:\\a") == "C:\\" && path.dir("C:\\") == "C:\\", "dir keeps the drive and the root");
-    check(path.dir("C:a") == "C:" && path.dir("a\\b") == "a" && path.dir("a/b") == "a" && path.dir("a") == ".", "dir of relative paths");
-    check(path.ext("a\\b.tar.gz") == ".gz" && path.stem("a\\b.tar.gz") == "b.tar", "ext and stem look at the last element");
+    check(paths.base("C:\\a\\b.txt") == "b.txt" && paths.base("a/b") == "b" && paths.base("a\\b") == "b", "base takes the last element after either separator");
+    check(paths.base("C:\\") == "\\" && paths.base("C:") == "\\" && paths.base("") == ".", "base of a root or a bare drive");
+    check(paths.dir("C:\\a\\b") == "C:\\a" && paths.dir("C:\\a") == "C:\\" && paths.dir("C:\\") == "C:\\", "dir keeps the drive and the root");
+    check(paths.dir("C:a") == "C:" && paths.dir("a\\b") == "a" && paths.dir("a/b") == "a" && paths.dir("a") == ".", "dir of relative paths");
+    check(paths.ext("a\\b.tar.gz") == ".gz" && paths.stem("a\\b.tar.gz") == "b.tar", "ext and stem look at the last element");
 
-    check(path.join(buf, "C:\\", "a", "b")!! == "C:\\a\\b", "join keeps the drive and the root");
-    check(path.join(buf, "a/b", "c\\d")!! == "a\\b\\c\\d", "join writes the canonical separator");
-    check(path.join(buf, "C:", "a")!! == "C:a", "join of a bare drive and a name is drive relative");
-    check(path.join(buf, "\\\\srv\\share", "x")!! == "\\\\srv\\share\\x", "join keeps a UNC volume");
-    check(path.join(buf, "\\a", "b")!! == "\\a\\b", "join keeps a rooted path rooted");
+    check(paths.join(buf, "C:\\", "a", "b")!! == "C:\\a\\b", "join keeps the drive and the root");
+    check(paths.join(buf, "a/b", "c\\d")!! == "a\\b\\c\\d", "join writes the canonical separator");
+    check(paths.join(buf, "C:", "a")!! == "C:a", "join of a bare drive and a name is drive relative");
+    check(paths.join(buf, "\\\\srv\\share", "x")!! == "\\\\srv\\share\\x", "join keeps a UNC volume");
+    check(paths.join(buf, "\\a", "b")!! == "\\a\\b", "join keeps a rooted path rooted");
 
-    check(path.clean(buf, "C:/a/./b/../c")!! == "C:\\a\\c", "clean writes the canonical separator and resolves dots");
-    check(path.clean(buf, "C:\\..")!! == "C:\\" && path.clean(buf, "C:\\a\\..\\..")!! == "C:\\", "clean never goes above the root");
-    check(path.clean(buf, "a\\..\\..\\b")!! == "..\\b", "clean keeps the dot dot that has nothing to undo");
-    check(path.clean(buf, "")!! == "." && path.clean(buf, "C:")!! == "C:", "clean of an empty path and of a bare drive");
+    check(paths.clean(buf, "C:/a/./b/../c")!! == "C:\\a\\c", "clean writes the canonical separator and resolves dots");
+    check(paths.clean(buf, "C:\\..")!! == "C:\\" && paths.clean(buf, "C:\\a\\..\\..")!! == "C:\\", "clean never goes above the root");
+    check(paths.clean(buf, "a\\..\\..\\b")!! == "..\\b", "clean keeps the dot dot that has nothing to undo");
+    check(paths.clean(buf, "")!! == "." && paths.clean(buf, "C:")!! == "C:", "clean of an empty path and of a bare drive");
 
-    path.Elements el = path.elements("C:\\a\\\\b/c");
+    paths.Elements el = paths.elements("C:\\a\\\\b/c");
     int count;
     string last = "";
     loop el.next() |piece| {
@@ -9843,21 +9843,21 @@ func main() ! {
 `, expected: []string{"a drive and a separator make a path absolute", "a drive alone, a rooted path or a relative one is not absolute", "a UNC path with a share is absolute", "base takes the last element after either separator", "base of a root or a bare drive", "dir keeps the drive and the root", "dir of relative paths", "ext and stem look at the last element", "join keeps the drive and the root", "join writes the canonical separator", "join of a bare drive and a name is drive relative", "join keeps a UNC volume", "join keeps a rooted path rooted", "clean writes the canonical separator and resolves dots", "clean never goes above the root", "clean keeps the dot dot that has nothing to undo", "clean of an empty path and of a bare drive", "elements skips the drive and splits on both separators"}},
 
 	{dir: "os_dir", src: `import "std/os";
-import "std/path";
+import "std/paths";
 import "std/conv";
 
 func main() ! {
     [256]byte buf;
     [32]byte num;
     string root = "/tmp/wisp_t_dir";
-    os.createDirAll(path.join(buf, root, "sub")!!)!;
-    int fd = os.create(path.join(buf, root, "aa")!!)!;
-    os.close(fd);
+    os.createDir(paths.join(buf, root, "sub")!!)!;
+    os.File fd = os.create(paths.join(buf, root, "aa")!!)!;
+    fd.close()!;
 
     os.Dir d = os.openDir(root)!;
     int files, dirs, other;
     bool dots;
-    loop d.next()! |entry| {
+    for entry in d! {
         if entry.name == "." || entry.name == ".." {
             dots = true;
         }
@@ -9869,39 +9869,39 @@ func main() ! {
             other++;
         }
     }
-    d.close();
+    d.close()!;
     check(files == 1 && dirs == 1 && other == 0, "a directory lists its files and subdirectories with their kinds");
     check(!dots, "the entries . and .. are not listed");
 
-    os.Dir empty = os.openDir(path.join(buf, root, "sub")!!)!;
+    os.Dir empty = os.openDir(paths.join(buf, root, "sub")!!)!;
     ?os.Entry nothing = empty.next()!;
     check(nothing == null, "an empty directory lists nothing");
-    empty.close();
+    empty.close()!;
 
-    let notDir, problem = os.openDir(path.join(buf, root, "aa")!!);
+    let notDir, problem = os.openDir(paths.join(buf, root, "aa")!!);
     check(problem == os.IOError.NotDir, "openDir on a file is NotDir");
 
-    os.createDirAll(path.join(buf, root, "many")!!)!;
+    os.createDir(paths.join(buf, root, "many")!!)!;
     for i in 1..=300 {
         [256]byte full;
-        int made = os.create(path.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
-        os.close(made);
+        os.File made = os.create(paths.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
+        made.close()!;
     }
-    os.Dir many = os.openDir(path.join(buf, root, "many")!!)!;
+    os.Dir many = os.openDir(paths.join(buf, root, "many")!!)!;
     int seen;
-    loop many.next()! |_entry| {
+    for _ in many! {
         seen++;
     }
-    many.close();
+    many.close()!;
     check(seen == 300, "a listing that needs several reads finds every entry");
 
     for i in 1..=300 {
         [256]byte full;
-        os.remove(path.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
+        os.remove(paths.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
     }
-    os.removeDir(path.join(buf, root, "many")!!)!;
-    os.remove(path.join(buf, root, "aa")!!)!;
-    os.removeDir(path.join(buf, root, "sub")!!)!;
+    os.removeDir(paths.join(buf, root, "many")!!)!;
+    os.remove(paths.join(buf, root, "aa")!!)!;
+    os.removeDir(paths.join(buf, root, "sub")!!)!;
     os.removeDir(root)!;
 }
 `, expected: []string{"a directory lists its files and subdirectories with their kinds", "the entries . and .. are not listed", "an empty directory lists nothing", "openDir on a file is NotDir", "a listing that needs several reads finds every entry"}},
@@ -9940,8 +9940,8 @@ func main() ! {
     second[9] = 195;
     second[10] = 188;
     second[11] = 10;
-    os.writeBytes(os.STDOUT, first)!;
-    os.writeBytes(os.STDOUT, second)!;
+    os.stdout.write(first)!;
+    os.stdout.write(second)!;
     emit("ñü é");
 
     [16]uint16 line;
@@ -10018,12 +10018,12 @@ func main() ! {
     [1]byte one;
     [8]byte seq;
     for i in 0..=6 {
-        int r = os.read(os.STDIN, one)!;
+        int r = os.stdin.read(one)! ?? 0;
         seq[i] = r == 1 ? one[0] : 0;
     }
     [64]byte big;
-    int n = os.read(os.STDIN, big)!;
-    int end = os.read(os.STDIN, big)!;
+    int n = os.stdin.read(big)! ?? 0;
+    int end = os.stdin.read(big)! ?? 0;
 
     SetStdHandle(0xFFFFFFF6, original);
 
@@ -10038,22 +10038,22 @@ func main() ! {
 `, expected: []string{"the key events reached the console", "a console read starts with the first character", "a two byte character comes out one byte per read", "a three byte character comes out one byte per read", "Enter is a single line feed, not a carriage return and a line feed", "the next line arrives whole with a single line feed", "Control Z ends the input"}},
 
 	{dir: "os_long_path", src: `import "std/os";
-import "std/path";
+import "std/paths";
 
 func main() ! {
     string root = "/tmp/wisp_t_long";
     string part = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
     [2048]byte a, b, c;
 
-    string deep = path.join(a, root, part, part, part, part)!!;
+    string deep = paths.join(a, root, part, part, part, part)!!;
     check(len(deep) > 400, "the test path is longer than any legacy limit");
-    os.createDirAll(deep)!;
+    os.createDir(deep)!;
     check(os.isDir(deep), "mkdirAll creates a path longer than 260 characters");
 
-    string file = path.join(b, deep, "file.txt")!!;
-    int fd = os.create(file)!;
-    os.write(fd, "long")!;
-    os.close(fd);
+    string file = paths.join(b, deep, "file.txt")!!;
+    os.File fd = os.create(file)!;
+    fd.write([]byte("long"))!;
+    fd.close()!;
     let info = os.stat(file)!;
     check(info.size == 4 && info.kind == .File, "stat sees a file inside a long path");
     []byte data = os.readFile(file)!;
@@ -10062,55 +10062,274 @@ func main() ! {
     os.Dir d = os.openDir(deep)!;
     os.Entry first = d.next()! ?? os.Entry{name: "", kind: .Other};
     check(first.name == "file.txt" && first.kind == .File, "a directory inside a long path lists its entries");
-    d.close();
+    d.close()!;
 
-    string moved = path.join(c, deep, "moved.txt")!!;
+    string moved = paths.join(c, deep, "moved.txt")!!;
     os.rename(file, moved)!;
     check(os.exists(moved) && !os.exists(file), "rename inside a long path");
     os.remove(moved)!;
 
     os.removeDir(deep)!;
-    os.removeDir(path.join(a, root, part, part, part)!!)!;
-    os.removeDir(path.join(a, root, part, part)!!)!;
-    os.removeDir(path.join(a, root, part)!!)!;
+    os.removeDir(paths.join(a, root, part, part, part)!!)!;
+    os.removeDir(paths.join(a, root, part, part)!!)!;
+    os.removeDir(paths.join(a, root, part)!!)!;
     os.removeDir(root)!;
     check(!os.exists(root), "everything created for the test is gone");
 }
 `, expected: []string{"the test path is longer than any legacy limit", "mkdirAll creates a path longer than 260 characters", "stat sees a file inside a long path", "a file inside a long path reads back", "a directory inside a long path lists its entries", "rename inside a long path", "everything created for the test is gone"}},
 
+	{dir: "os_file_kind", src: `import "std/errors";
+import "std/os";
+
+func main() ! {
+    string root = "/tmp/wisp_t_kind";
+    string file = "/tmp/wisp_t_kind/file.txt";
+    os.createDir(root)!;
+    os.writeFile(file, []byte("kind"))!;
+
+    ?os.FileKind ofFile = os.kind(file);
+    ?os.FileKind ofRoot = os.kind(root);
+    ?os.FileKind ofMissing = os.kind("/tmp/wisp_t_kind/missing");
+    check(ofFile == os.FileKind.File, "a file has the kind File");
+    check(ofRoot == os.FileKind.Dir, "a directory has the kind Dir");
+    check(ofMissing == null, "a missing path has no kind");
+    check(os.isFile(file) && !os.isDir(file), "isFile and isDir tell a file apart");
+    check(os.isDir(root) && !os.isFile(root), "isDir and isFile tell a directory apart");
+    check(!os.isLink(file) && !os.isPipe(file) && !os.isSocket(file) && !os.isDevice(file), "a file is none of the other kinds");
+
+    os.File open = os.open(file, os.READ)!;
+    check(open.kind()! == os.FileKind.File, "an open file has the kind File");
+    check(open.size()! == 4, "an open file knows its size");
+    open.close()!;
+    let _, closedKind = open.kind();
+    check(closedKind == errors.Kind.Invalid, "a closed file has no kind");
+
+    os.remove(file)!;
+    os.removeDir(root)!;
+}
+`, expected: []string{"a file has the kind File", "a directory has the kind Dir", "a missing path has no kind", "isFile and isDir tell a file apart", "isDir and isFile tell a directory apart", "a file is none of the other kinds", "an open file has the kind File", "an open file knows its size", "a closed file has no kind"}},
+
+	{dir: "alloc_text_in", src: `import "std/mem";
+import "std/os";
+import "std/paths";
+import "std/strings";
+
+func main() ! {
+    []byte joined = strings.concatIn(mem.heap, "ab", "", "cd")!;
+    check(string(joined) == "abcd", "concatIn joins the parts");
+    mem.free(mem.heap, joined);
+
+    []string words = .{"red", "green", "blue"};
+    []byte list = strings.joinIn(mem.heap, words, ", ")!;
+    check(string(list) == "red, green, blue", "joinIn puts the separator between parts");
+    mem.free(mem.heap, list);
+
+    []byte stars = strings.repIn(mem.heap, "*-", 3)!;
+    check(string(stars) == "*-*-*-", "repIn repeats the text");
+    mem.free(mem.heap, stars);
+
+    []byte up = strings.upperIn(mem.heap, "Wisp 1")!;
+    check(string(up) == "WISP 1", "upperIn changes the case");
+    mem.free(mem.heap, up);
+    []byte low = strings.lowerIn(mem.heap, "Wisp 1")!;
+    check(string(low) == "wisp 1", "lowerIn changes the case");
+    mem.free(mem.heap, low);
+
+    []byte none = strings.concatIn(mem.heap)!;
+    check(len(none) == 0, "concatIn of nothing is empty");
+
+    [4096]byte store;
+    []byte made = paths.joinIn(mem.heap, "/tmp", "a", "b.txt")!;
+    check(string(made) == paths.join(store, "/tmp", "a", "b.txt")!, "paths.joinIn gives the same answer as paths.join");
+    mem.free(mem.heap, made);
+    []byte tidy = paths.cleanIn(mem.heap, "/tmp//a/./b/../c")!;
+    check(string(tidy) == paths.clean(store, "/tmp//a/./b/../c")!, "paths.cleanIn gives the same answer as paths.clean");
+    mem.free(mem.heap, tidy);
+
+    []byte here = os.cwdIn(mem.heap)!;
+    check(string(here) == os.cwd(store)!, "cwdIn gives the same answer as cwd");
+    mem.free(mem.heap, here);
+
+    mem.Counting counting;
+    []byte counted = strings.repIn(&counting, "x", 10)!;
+    check(counting.blocks() == 1 && counting.bytes() == 10, "the allocator that was passed is the one used");
+    mem.free(&counting, counted);
+    check(counting.blocks() == 0, "the result is freed through the same allocator");
+}
+`, expected: []string{"concatIn joins the parts", "joinIn puts the separator between parts", "repIn repeats the text", "upperIn changes the case", "lowerIn changes the case", "concatIn of nothing is empty", "paths.joinIn gives the same answer as paths.join", "paths.cleanIn gives the same answer as paths.clean", "cwdIn gives the same answer as cwd", "the allocator that was passed is the one used", "the result is freed through the same allocator"}},
+
+	{dir: "os_file_io", src: `import "std/errors";
+import "std/io";
+import "std/mem";
+import "std/os";
+
+func main() ! {
+    string path = "/tmp/wisp_t_fileio.txt";
+    string copyPath = "/tmp/wisp_t_fileio_copy.txt";
+    os.writeFile(path, []byte("alpha beta\ngamma\n\ndelta"))!;
+
+    os.File f = os.open(path, os.READ)!;
+    io.Scanner sc = io.newScannerIn(mem.heap, &f, 8, 64)!;
+    int lines;
+    for line in sc! {
+        lines++;
+    }
+    sc.release();
+    check(lines == 4, "a scanner over a file sees every line, empty ones too");
+    check(f.size()! == 23, "size of an open file");
+    f.seek(6, io.Whence.Start)!;
+    [4]byte four;
+    int n = f.read(four)! ?? 0;
+    check(n == 4 && string(four[..n]) == "beta", "seek moves the position that read uses");
+    f.close()!;
+    f.close()!;
+    let _, closedRead = f.read(four);
+    check(closedRead == errors.Kind.Invalid, "a closed file refuses to read");
+
+    os.File a = os.open(path, os.WRITE | os.APPEND)!;
+    io.writeString(&a, "\nappended")!;
+    a.close()!;
+    []byte all = os.readFile(path)!;
+    check(len(all) == 32 && string(all[len(all) - 8..]) == "appended", "append adds to the end");
+    mem.free(mem.heap, all);
+
+    os.File ro = os.open(path, os.READ)!;
+    let _, writeError = ro.write([]byte("x"));
+    check(writeError == errors.Kind.Invalid, "writing to a file opened for reading fails");
+    ro.close()!;
+
+    let _, exclusive = os.open(path, os.WRITE | os.CREATE | os.EXCLUSIVE);
+    check(exclusive == errors.Kind.Exists, "exclusive creation of an existing file fails");
+    let _, missing = os.open("/tmp/wisp_t_fileio_missing.txt", os.READ);
+    check(missing == errors.Kind.NotFound, "opening a missing file is NotFound");
+
+    os.File src = os.open(path, os.READ)!;
+    os.File dst = os.create(copyPath)!;
+    check(io.copy(&dst, &src)! == 32, "io.copy copies every byte between files");
+    src.close()!;
+    dst.close()!;
+    []byte same = os.readFile(copyPath)!;
+    check(len(same) == 32, "the copy has the same size");
+    mem.free(mem.heap, same);
+
+    os.remove(path)!;
+    os.remove(copyPath)!;
+    check(!os.exists(path) && !os.exists(copyPath), "removed files are gone");
+}
+`, expected: []string{"a scanner over a file sees every line, empty ones too", "size of an open file", "seek moves the position that read uses", "a closed file refuses to read", "append adds to the end", "writing to a file opened for reading fails", "exclusive creation of an existing file fails", "opening a missing file is NotFound", "io.copy copies every byte between files", "the copy has the same size", "removed files are gone"}},
+
+	{dir: "for_fallible_next", src: `import "std/errors";
+import "std/io";
+
+struct Countdown {
+    int left;
+    int failAt;
+}
+
+func (*Countdown c) next() !?int {
+    if c.left == c.failAt {
+        return Error(errors.Kind.Invalid);
+    }
+    return null if c.left == 0;
+    c.left--;
+    return c.left;
+}
+
+struct Wrapper {
+    Countdown inner;
+}
+
+func (*Wrapper w) iter() *Countdown {
+    return &w.inner;
+}
+
+func total(*Countdown c) !int {
+    int sum;
+    for v in c! {
+        sum += v;
+    }
+    return sum;
+}
+
+func indexed(*Countdown c) !int {
+    int last;
+    for i, v in c! {
+        last = i * 100 + v;
+    }
+    return last;
+}
+
+func wrapped(*Wrapper w) !int {
+    int sum;
+    for v in w! {
+        sum += v;
+    }
+    return sum;
+}
+
+func stopped(*Countdown c) int {
+    int sum;
+    for v in c!! {
+        sum += v;
+    }
+    return sum;
+}
+
+func main() ! {
+    Countdown plain = Countdown{left: 4, failAt: -1};
+    check(total(&plain)! == 6, "for over a next that can fail visits every item");
+
+    Countdown pairs = Countdown{left: 3, failAt: -1};
+    check(indexed(&pairs)! == 200, "the index counts the items of a failing iterator");
+
+    Wrapper holder = Wrapper{inner: Countdown{left: 4, failAt: -1}};
+    check(wrapped(&holder)! == 6, "for over a value whose iter gives a failing next");
+
+    Countdown broken = Countdown{left: 5, failAt: 2};
+    let _, failure = total(&broken);
+    check(failure == errors.Kind.Invalid, "the error of next leaves the function");
+
+    Countdown fine = Countdown{left: 3, failAt: -1};
+    check(stopped(&fine) == 3, "the double bang form walks it too");
+
+    Countdown empty = Countdown{left: 0, failAt: -1};
+    check(total(&empty)! == 0, "an iterator that ends at once runs the body zero times");
+}
+`, expected: []string{"for over a next that can fail visits every item", "the index counts the items of a failing iterator", "for over a value whose iter gives a failing next", "the error of next leaves the function", "the double bang form walks it too", "an iterator that ends at once runs the body zero times"}},
+
 	{dir: "os_mkdirall", src: `import "std/errors";
 import "std/os";
-import "std/path";
+import "std/paths";
 
 func main() ! {
     [256]byte buf;
     string root = "/tmp/wisp_t_mkdirall";
-    os.createDirAll(path.join(buf, root, "a", "b", "c")!!)!;
-    check(os.isDir(path.join(buf, root, "a", "b", "c")!!), "mkdirAll creates every missing level");
-    os.createDirAll(path.join(buf, root, "a", "b", "c")!!)!;
-    check(os.isDir(path.join(buf, root, "a", "b")!!), "mkdirAll of an existing directory is not an error");
-    os.createDirAll(path.join(buf, root, "a", "b", "d", "e")!!)!;
-    check(os.isDir(path.join(buf, root, "a", "b", "d", "e")!!), "mkdirAll creates only what is missing");
-    os.createDirAll(path.join(buf, root, "x", "y")!!)!;
-    check(os.isDir(path.join(buf, root, "x", "y")!!), "mkdirAll accepts a trailing separator");
+    os.createDir(paths.join(buf, root, "a", "b", "c")!!)!;
+    check(os.isDir(paths.join(buf, root, "a", "b", "c")!!), "mkdirAll creates every missing level");
+    os.createDir(paths.join(buf, root, "a", "b", "c")!!)!;
+    check(os.isDir(paths.join(buf, root, "a", "b")!!), "mkdirAll of an existing directory is not an error");
+    os.createDir(paths.join(buf, root, "a", "b", "d", "e")!!)!;
+    check(os.isDir(paths.join(buf, root, "a", "b", "d", "e")!!), "mkdirAll creates only what is missing");
+    os.createDir(paths.join(buf, root, "x", "y")!!)!;
+    check(os.isDir(paths.join(buf, root, "x", "y")!!), "mkdirAll accepts a trailing separator");
 
-    int fd = os.create(path.join(buf, root, "file")!!)!;
-    os.close(fd);
-    let onFile = os.createDirAll(path.join(buf, root, "file")!!);
+    os.File fd = os.create(paths.join(buf, root, "file")!!)!;
+    fd.close()!;
+    let onFile = os.createDir(paths.join(buf, root, "file")!!);
     check(onFile == os.IOError.NotDir, "mkdirAll over a file is NotDir");
-    let underFile = os.createDirAll(path.join(buf, root, "file", "sub")!!);
+    let underFile = os.createDir(paths.join(buf, root, "file", "sub")!!);
     check(underFile == os.IOError.NotDir, "mkdirAll under a file is NotDir");
-    let empty = os.createDirAll("");
+    let empty = os.createDir("");
     check(empty == errors.Kind.NotFound, "mkdirAll of an empty path is NotFound");
 
-    os.removeDir(path.join(buf, root, "a", "b", "d", "e")!!)!;
-    os.removeDir(path.join(buf, root, "a", "b", "d")!!)!;
-    os.removeDir(path.join(buf, root, "a", "b", "c")!!)!;
-    os.removeDir(path.join(buf, root, "a", "b")!!)!;
-    os.removeDir(path.join(buf, root, "a")!!)!;
-    os.removeDir(path.join(buf, root, "x", "y")!!)!;
-    os.removeDir(path.join(buf, root, "x")!!)!;
-    os.remove(path.join(buf, root, "file")!!)!;
+    os.removeDir(paths.join(buf, root, "a", "b", "d", "e")!!)!;
+    os.removeDir(paths.join(buf, root, "a", "b", "d")!!)!;
+    os.removeDir(paths.join(buf, root, "a", "b", "c")!!)!;
+    os.removeDir(paths.join(buf, root, "a", "b")!!)!;
+    os.removeDir(paths.join(buf, root, "a")!!)!;
+    os.removeDir(paths.join(buf, root, "x", "y")!!)!;
+    os.removeDir(paths.join(buf, root, "x")!!)!;
+    os.remove(paths.join(buf, root, "file")!!)!;
     os.removeDir(root)!;
 }
 `, expected: []string{"mkdirAll creates every missing level", "mkdirAll of an existing directory is not an error", "mkdirAll creates only what is missing", "mkdirAll accepts a trailing separator", "mkdirAll over a file is NotDir", "mkdirAll under a file is NotDir", "mkdirAll of an empty path is NotFound"}},
@@ -10964,13 +11183,13 @@ func eq(string got, string want, string what) {
 type Meters int;
 
 func fl(string format, ...args) string {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[..], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{buf: scratch[..], mode: fmt.BufMode.Full};
     let _, _ = w.format(format, args...);
     return string(scratch[0..w.buffered()]);
 }
 
 func fe(string format, ...args) Error {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[..], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{buf: scratch[..], mode: fmt.BufMode.Full};
     let _, err = w.format(format, args...);
     return err;
 }
@@ -11047,59 +11266,59 @@ func main() {
     check(e2 == errors.Kind.NoSpace, "sprintf into a buffer that is too small is NoSpace");
 
     [32]byte mem;
-    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[..], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{buf: mem[..], mode: fmt.BufMode.Full};
     let k, _ = w.format("x={}", 5);
     check(k == 3 && w.buffered() == 3 && string(mem[0..3]) == "x=5", "a memory writer collects the text");
     let _, _ = w.format("y");
     check(w.buffered() == 4 && string(mem[0..4]) == "x=5y", "a second call appends");
     [4]byte narrow;
-    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[..], mode: fmt.BufMode.Full};
+    fmt.Writer ws = fmt.Writer{buf: narrow[..], mode: fmt.BufMode.Full};
     let _, e3 = ws.format("abcde");
     check(e3 == errors.Kind.NoSpace, "a memory writer that fills up is NoSpace");
 
     let file, _ = os.create("fmt_core.txt");
     [64]byte store;
-    fmt.Writer full = fmt.Writer{fd: file, buf: store[..], mode: fmt.BufMode.Full};
+    fmt.Writer full = fmt.Writer{out: &file, buf: store[..], mode: fmt.BufMode.Full};
     let _, _ = full.format("hello");
-    let held, _ = os.size(file);
+    let held, _ = file.size();
     check(held == 0, "a full writer holds the text until flush");
     let _ = full.flush();
-    let flushed, _ = os.size(file);
+    let flushed, _ = file.size();
     check(flushed == 5, "flush writes the text");
 
     let lineFile, _ = os.create("fmt_line.txt");
     [64]byte lineStore;
-    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[..], mode: fmt.BufMode.Line};
+    fmt.Writer line = fmt.Writer{out: &lineFile, buf: lineStore[..], mode: fmt.BufMode.Line};
     let _, _ = line.format("ab");
-    let beforeNewline, _ = os.size(lineFile);
+    let beforeNewline, _ = lineFile.size();
     check(beforeNewline == 0, "a line writer holds the text until a newline");
     let _, _ = line.format("c\n");
-    let afterNewline, _ = os.size(lineFile);
+    let afterNewline, _ = lineFile.size();
     check(afterNewline == 4, "a line writer flushes at the newline");
 
     let rawFile, _ = os.create("fmt_none.txt");
     [8]byte rawStore;
-    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[..], mode: fmt.BufMode.None};
+    fmt.Writer raw = fmt.Writer{out: &rawFile, buf: rawStore[..], mode: fmt.BufMode.None};
     let _, _ = raw.format("xyz");
-    let atOnce, _ = os.size(rawFile);
+    let atOnce, _ = rawFile.size();
     check(atOnce == 3, "a writer with no buffering writes at once");
 
     let streamFile, _ = os.create("fmt_stream.txt");
     [4]byte streamStore;
-    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[..], mode: fmt.BufMode.Full};
+    fmt.Writer stream = fmt.Writer{out: &streamFile, buf: streamStore[..], mode: fmt.BufMode.Full};
     let _, _ = stream.format("abcdefghij");
     let _ = stream.flush();
-    let streamed, _ = os.size(streamFile);
+    let streamed, _ = streamFile.size();
     check(streamed == 10, "a small buffer is flushed as it fills");
 
     let again, _ = os.create("fmt_call.txt");
-    let _, _ = fmt.fprintf(again, "n={}", 42);
-    let wrote, _ = os.size(again);
+    let _, _ = fmt.fprintf(&again, "n={}", 42);
+    let wrote, _ = again.size();
     check(wrote == 4, "fprintf writes everything in one call");
 
     let badFile, _ = os.create("fmt_bad.txt");
-    let _, problem = fmt.fprintf(badFile, "a{b", 1);
-    let written, _ = os.size(badFile);
+    let _, problem = fmt.fprintf(&badFile, "a{b", 1);
+    let written, _ = badFile.size();
     check(problem == fmt.FormatError.Unmatched && written == 3, "fprintf still writes the text when the format has a problem");
     let _ = os.remove("fmt_bad.txt");
 
@@ -11137,13 +11356,13 @@ func eq(string got, string want, string what) {
 type Meters int;
 
 func fl(string format, ...args) string {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[..], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{buf: scratch[..], mode: fmt.BufMode.Full};
     let _, _ = w.format(format, args...);
     return string(scratch[0..w.buffered()]);
 }
 
 func fe(string format, ...args) Error {
-    fmt.Writer w = fmt.Writer{fd: -1, buf: scratch[..], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{buf: scratch[..], mode: fmt.BufMode.Full};
     let _, err = w.format(format, args...);
     return err;
 }
@@ -11221,59 +11440,59 @@ func main() {
     check(e2 == errors.Kind.NoSpace, "sprintf into a buffer that is too small is NoSpace");
 
     [32]byte mem;
-    fmt.Writer w = fmt.Writer{fd: -1, buf: mem[..], mode: fmt.BufMode.Full};
+    fmt.Writer w = fmt.Writer{buf: mem[..], mode: fmt.BufMode.Full};
     let k, _ = w.format("x={}", 5);
     check(k == 3 && w.buffered() == 3 && string(mem[0..3]) == "x=5", "a memory writer collects the text");
     let _, _ = w.format("y");
     check(w.buffered() == 4 && string(mem[0..4]) == "x=5y", "a second call appends");
     [4]byte narrow;
-    fmt.Writer ws = fmt.Writer{fd: -1, buf: narrow[..], mode: fmt.BufMode.Full};
+    fmt.Writer ws = fmt.Writer{buf: narrow[..], mode: fmt.BufMode.Full};
     let _, e3 = ws.format("abcde");
     check(e3 == errors.Kind.NoSpace, "a memory writer that fills up is NoSpace");
 
     let file, _ = os.create("fmt_core.txt");
     [64]byte store;
-    fmt.Writer full = fmt.Writer{fd: file, buf: store[..], mode: fmt.BufMode.Full};
+    fmt.Writer full = fmt.Writer{out: &file, buf: store[..], mode: fmt.BufMode.Full};
     let _, _ = full.format("hello");
-    let held, _ = os.size(file);
+    let held, _ = file.size();
     check(held == 0, "a full writer holds the text until flush");
     let _ = full.flush();
-    let flushed, _ = os.size(file);
+    let flushed, _ = file.size();
     check(flushed == 5, "flush writes the text");
 
     let lineFile, _ = os.create("fmt_line.txt");
     [64]byte lineStore;
-    fmt.Writer line = fmt.Writer{fd: lineFile, buf: lineStore[..], mode: fmt.BufMode.Line};
+    fmt.Writer line = fmt.Writer{out: &lineFile, buf: lineStore[..], mode: fmt.BufMode.Line};
     let _, _ = line.format("ab");
-    let beforeNewline, _ = os.size(lineFile);
+    let beforeNewline, _ = lineFile.size();
     check(beforeNewline == 0, "a line writer holds the text until a newline");
     let _, _ = line.format("c\n");
-    let afterNewline, _ = os.size(lineFile);
+    let afterNewline, _ = lineFile.size();
     check(afterNewline == 4, "a line writer flushes at the newline");
 
     let rawFile, _ = os.create("fmt_none.txt");
     [8]byte rawStore;
-    fmt.Writer raw = fmt.Writer{fd: rawFile, buf: rawStore[..], mode: fmt.BufMode.None};
+    fmt.Writer raw = fmt.Writer{out: &rawFile, buf: rawStore[..], mode: fmt.BufMode.None};
     let _, _ = raw.format("xyz");
-    let atOnce, _ = os.size(rawFile);
+    let atOnce, _ = rawFile.size();
     check(atOnce == 3, "a writer with no buffering writes at once");
 
     let streamFile, _ = os.create("fmt_stream.txt");
     [4]byte streamStore;
-    fmt.Writer stream = fmt.Writer{fd: streamFile, buf: streamStore[..], mode: fmt.BufMode.Full};
+    fmt.Writer stream = fmt.Writer{out: &streamFile, buf: streamStore[..], mode: fmt.BufMode.Full};
     let _, _ = stream.format("abcdefghij");
     let _ = stream.flush();
-    let streamed, _ = os.size(streamFile);
+    let streamed, _ = streamFile.size();
     check(streamed == 10, "a small buffer is flushed as it fills");
 
     let again, _ = os.create("fmt_call.txt");
-    let _, _ = fmt.fprintf(again, "n={}", 42);
-    let wrote, _ = os.size(again);
+    let _, _ = fmt.fprintf(&again, "n={}", 42);
+    let wrote, _ = again.size();
     check(wrote == 4, "fprintf writes everything in one call");
 
     let badFile, _ = os.create("fmt_bad.txt");
-    let _, problem = fmt.fprintf(badFile, "a{b", 1);
-    let written, _ = os.size(badFile);
+    let _, problem = fmt.fprintf(&badFile, "a{b", 1);
+    let written, _ = badFile.size();
     check(problem == fmt.FormatError.Unmatched && written == 3, "fprintf still writes the text when the format has a problem");
     let _ = os.remove("fmt_bad.txt");
 
@@ -14006,14 +14225,14 @@ func sorted<Orderable T>([]T items) bool {
 
 func main() {
     [5]int numbers = .{40, 10, 30, 20, 10};
-    check(slices.indexOf(numbers, 30) == 2 && slices.indexOf(numbers, 10) == 1 && slices.indexOf(numbers, 99) == -1, "indexOf finds the first and says -1 when there is none");
+    check((slices.indexOf(numbers, 30) ?? -1) == 2 && (slices.indexOf(numbers, 10) ?? -1) == 1 && (slices.indexOf(numbers, 99) ?? -1) == -1, "indexOf finds the first and says -1 when there is none");
     check(slices.contains(numbers, 20) && !slices.contains(numbers, 21), "contains");
     [3]string words = .{"pear", "apple", "fig"};
-    check(slices.indexOf(words, "fig") == 2 && !slices.contains(words, "plum"), "it compares strings by content");
+    check((slices.indexOf(words, "fig") ?? -1) == 2 && !slices.contains(words, "plum"), "it compares strings by content");
     [3]Color colors = .{.Green, .Blue, .Red};
-    check(slices.indexOf(colors, Color.Red) == 2, "and enums");
+    check((slices.indexOf(colors, Color.Red) ?? -1) == 2, "and enums");
     [3]Version versions = .{.{major: 1, minor: 2}, .{major: 1, minor: 0}, .{major: 0, minor: 9}};
-    check(slices.indexOf(versions, Version{major: 1, minor: 0}) == 1 && !slices.contains(versions, Version{major: 2, minor: 0}), "and structs through eq");
+    check((slices.indexOf(versions, Version{major: 1, minor: 0}) ?? -1) == 1 && !slices.contains(versions, Version{major: 2, minor: 0}), "and structs through eq");
 
     slices.sort(numbers);
     check(numbers[0] == 10 && numbers[1] == 10 && numbers[2] == 20 && numbers[3] == 30 && numbers[4] == 40, "sort puts numbers in order");

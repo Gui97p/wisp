@@ -38,7 +38,7 @@ public inline func errorf(Here at, string format, ...args) Error => annotate(at,
 /// written keeps the message it had.
 #format
 public func annotate(Error base, string format, ...args) Error {
-	fmt.Writer w = fmt.Writer{fd: -1, buf: begin(), mode: fmt.BufMode.Full};
+	fmt.Writer w = fmt.Writer{buf: begin(), mode: fmt.BufMode.Full};
 	let _, _ = w.format(format, args...);
 	return commit(base, w.buffered() > 0 ? w.buffered() : -1);
 }
@@ -72,9 +72,7 @@ public func release(mem.Allocator a, Error e) {
 	mem.free(a, (*void)(e));
 }
 
-func begin() []byte {
-	return texts[cursor * SlotText..(cursor + 1) * SlotText];
-}
+inline func begin() []byte => texts[cursor * SlotText..(cursor + 1) * SlotText];
 
 func commit(Error base, int n) Error {
 	*Record from = (*Record)(base);

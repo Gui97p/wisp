@@ -16,7 +16,7 @@ func (a *Analyser) elementOnly(stmt *ast.ForStmt) {
 
 func iteratorNext(t Type) (*FuncType, bool) {
 	next := MethodsOf(t)["next"]
-	if next == nil || len(next.Params) != 0 || len(next.Returns) != 1 {
+	if next == nil || next.Fallible || len(next.Params) != 0 || len(next.Returns) != 1 {
 		return nil, false
 	}
 	if !isOptionalType(next.Returns[0]) {
@@ -25,33 +25,87 @@ func iteratorNext(t Type) (*FuncType, bool) {
 	return next, true
 }
 
-func (a *Analyser) lowerIteratorFor(stmt *ast.ForStmt, rangeType Type) bool {
+func failingNext(t Type) bool {
+	next := MethodsOf(t)["next"]
+	if next == nil || !next.Fallible || len(next.Params) != 0 || len(next.Returns) != 1 {
+		return false
+	}
+	return isOptionalType(next.Returns[0])
+}
+
+func walkable(t Type) bool {
+	if _, ok := iteratorNext(t); ok {
+		return true
+	}
+	return failingNext(t)
+}
+
+func (a *Analyser) iterates(t Type) bool {
+	if MethodsOf(t) == nil {
+		return false
+	}
+	if walkable(t) {
+		return true
+	}
+	iter := MethodsOf(t)["iter"]
+	return iter != nil && len(iter.Params) == 0 && len(iter.Returns) == 1 && walkable(iter.Returns[0])
+}
+
+func (a *Analyser) emptyLowering(stmt *ast.ForStmt) {
+	empty := &ast.BlockStmt{}
+	a.synthetic(stmt, empty)
+	stmt.Lowered = empty
+}
+
+func (a *Analyser) iterableFails(t Type) bool {
+	if MethodsOf(t) == nil {
+		return false
+	}
+	if walkable(t) {
+		return failingNext(t)
+	}
+	iter := MethodsOf(t)["iter"]
+	if iter == nil || len(iter.Params) != 0 || len(iter.Returns) != 1 {
+		return false
+	}
+	return failingNext(iter.Returns[0])
+}
+
+func (a *Analyser) lowerIteratorFor(stmt *ast.ForStmt, rangeType Type, source ast.Expression, failing *ast.PropagateExpr) bool {
 	if MethodsOf(rangeType) == nil {
 		return false
 	}
 
-	source := stmt.Range
 	direct := true
-	if _, ok := iteratorNext(rangeType); !ok {
-		if next := MethodsOf(rangeType)["next"]; next != nil {
-			if _, fallible := next.Returns[0].(FallibleType); len(next.Returns) == 1 && fallible {
-				a.errorf(stmt.Range, "next of %s can fail, so `for` cannot walk it", rangeType.String()).
-					WithHelp("use loop value.next()! |item| { ... } for an iterator that can fail")
-				return false
-			}
-		}
+	iterType := rangeType
+	if !walkable(rangeType) {
 		iter := MethodsOf(rangeType)["iter"]
 		if iter == nil || len(iter.Params) != 0 || len(iter.Returns) != 1 {
 			return false
 		}
-		if _, ok := iteratorNext(iter.Returns[0]); !ok {
+		if !walkable(iter.Returns[0]) {
 			return false
 		}
+		iterType = iter.Returns[0]
 		call := &ast.CallExpr{Name: &ast.MemberExpr{Object: source, Field: "iter"}}
 		a.at(source, call)
 		a.at(source, call.Name)
 		source = call
 		direct = false
+	}
+
+	fails := failingNext(iterType)
+	switch {
+	case fails && failing == nil:
+		a.errorf(stmt.Range, "next of %s can fail, so `for` needs a `!` after it", rangeType.String()).
+			WithHelp("write for item in value! { ... }, or loop value.next()! |item| { ... }")
+		a.emptyLowering(stmt)
+		return true
+	case !fails && failing != nil:
+		a.errorf(failing, "next of %s cannot fail, so there is nothing for `!` to check", rangeType.String()).
+			WithHelp("remove the `!`")
+		a.emptyLowering(stmt)
+		return true
 	}
 
 	id := a.iterCount
@@ -86,6 +140,12 @@ func (a *Analyser) lowerIteratorFor(stmt *ast.ForStmt, rangeType Type) bool {
 	nextCall := &ast.CallExpr{Name: &ast.MemberExpr{Object: ident(holder), Field: "next"}}
 	a.synthetic(stmt, nextCall)
 	a.synthetic(stmt, nextCall.Name)
+	var nextValue ast.Expression = nextCall
+	if failing != nil {
+		checked := &ast.PropagateExpr{Value: nextCall, Assert: failing.Assert}
+		a.at(failing, checked)
+		nextValue = checked
+	}
 
 	body := stmt.Body
 	if indexName != "" && indexName != "_" {
@@ -108,7 +168,7 @@ func (a *Analyser) lowerIteratorFor(stmt *ast.ForStmt, rangeType Type) bool {
 	a.synthetic(stmt, otherwise)
 	test.Else = otherwise
 
-	step := &ast.BlockStmt{Statements: []ast.Statement{declare(capture, nextCall), test}}
+	step := &ast.BlockStmt{Statements: []ast.Statement{declare(capture, nextValue), test}}
 	a.synthetic(stmt, step)
 	loopBody := &ast.BlockStmt{Statements: []ast.Statement{step}}
 	a.synthetic(stmt, loopBody)

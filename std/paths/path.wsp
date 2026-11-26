@@ -75,13 +75,9 @@ public func (*Elements e) next() ?string {
 
 /// Starts an iteration over the elements of `p`, without any volume name. `.`
 /// and `..` are returned as they are.
-public func elements(string p) Elements {
-	return Elements{rest: p[volumeLen(p)..]};
-}
+public inline func elements(string p) Elements => Elements{rest: p[volumeLen(p)..]};
 
-func elementsAfterVolume(string s) Elements {
-	return Elements{rest: s};
-}
+inline func elementsAfterVolume(string s) Elements => Elements{rest: s};
 
 /// Returns the last element of `p`, without trailing separators. An empty path
 /// gives `.`, and a path of only separators gives the separator. The result
@@ -140,6 +136,4 @@ public func ext(string p) string {
 
 /// Returns the last element of `p` without its extension.
 #must_use
-public inline func stem(string p) string {
-	return strings.trimSuffix(base(p), ext(p));
-}
+public inline func stem(string p) string => strings.trimSuffix(base(p), ext(p));

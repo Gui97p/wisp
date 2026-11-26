@@ -25,13 +25,12 @@ var (
 func importCandidatesFor(path, alias string) []module.ImportCandidate {
 	root := module.FindProjectRoot(filepath.Dir(path))
 	imported := importedPaths(path)
-	cyclic := dependentFiles(path)
 	candidates := module.ImportablePaths(root)
 	byPath := pathIndex(candidates)
 
 	var found []module.ImportCandidate
 	for _, c := range candidates {
-		if moduleAlias(c.Path) != alias || c.Contains(path) || imported[c.Path] || cyclic[c.File] || exportsNothing(path, c, byPath) {
+		if moduleAlias(c.Path) != alias || c.Contains(path) || imported[c.Path] || exportsNothing(path, c, byPath) {
 			continue
 		}
 		found = append(found, c)

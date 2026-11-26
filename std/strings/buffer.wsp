@@ -125,3 +125,58 @@ public func clone(string s) ![]byte {
 	copy(buf, s)!;
 	return buf;
 }
+
+/// Like `concat`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. With no parts, or only
+/// empty ones, the result is empty and nothing is allocated. Fails with the
+/// allocator error when memory runs out.
+public func concatIn(mem.Allocator a, string ...parts) ![]byte {
+	int total;
+	for _, part in parts {
+		total += len(part);
+	}
+	return .{} if total == 0;
+	[]byte buf = mem.makeDirty<byte>(a, total)!;
+	concat(buf, parts...)!;
+	return buf;
+}
+
+/// Like `join`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. An empty result
+/// allocates nothing. Fails with the allocator error when memory runs out.
+public func joinIn(mem.Allocator a, []string parts, string sep) ![]byte {
+	return .{} if len(parts) == 0;
+	int total = len(sep) * (len(parts) - 1);
+	for _, part in parts {
+		total += len(part);
+	}
+	return .{} if total == 0;
+	[]byte buf = mem.makeDirty<byte>(a, total)!;
+	join(buf, parts, sep)!;
+	return buf;
+}
+
+/// Like `rep`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. An empty result allocates
+/// nothing. Fails with the allocator error when memory runs out.
+public func repIn(mem.Allocator a, string s, int n) ![]byte {
+	return .{} if n <= 0 || len(s) == 0;
+	[]byte buf = mem.makeDirty<byte>(a, len(s) * n)!;
+	rep(buf, s, n)!;
+	return buf;
+}
+
+/// Like `upper`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. An empty `s` allocates
+/// nothing. Fails with the allocator error when memory runs out.
+public func upperIn(mem.Allocator a, string s) ![]byte {
+	return .{} if len(s) == 0;
+	[]byte buf = mem.makeDirty<byte>(a, len(s))!;
+	upper(buf, s)!;
+	return buf;
+}
+
+/// Like `lower`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. An empty `s` allocates
+/// nothing. Fails with the allocator error when memory runs out.
+public func lowerIn(mem.Allocator a, string s) ![]byte {
+	return .{} if len(s) == 0;
+	[]byte buf = mem.makeDirty<byte>(a, len(s))!;
+	lower(buf, s)!;
+	return buf;
+}

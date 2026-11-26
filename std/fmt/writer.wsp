@@ -1,8 +1,8 @@
 import "std/conv";
 import "std/errors";
 import "std/math";
+import "std/io";
 import "std/mem";
-import "std/os";
 
 /// The problems `Writer.format` reports: `Unmatched` is a `{` or `}` without its
 /// pair, `BadSpec` is a spec that cannot be parsed, `WrongType` is a spec that
@@ -17,7 +17,7 @@ public enum FormatError {
 	ExtraArgument
 }
 
-/// When a `Writer` sends its buffer to the file: `None` writes at once and does
+/// When a `Writer` sends its buffer to its destination: `None` writes at once and does
 /// not use the buffer, `Line` flushes after a write that holds a newline, and
 /// `Full` flushes only when the buffer fills or on `flush`.
 public enum BufMode {
@@ -26,23 +26,27 @@ public enum BufMode {
 	Full
 }
 
-/// Writes bytes to a file descriptor through a buffer you provide. With `fd` set
-/// to -1 there is no file: the bytes are collected in `buf` and writing fails
-/// with `NoSpace` when it is full. With an `fd`, `mode` decides when the buffer
-/// is flushed, a write bigger than the buffer goes straight to the file, and an
-/// empty `buf` writes at once. Call `flush` at the end, since `Line` and `Full`
-/// can leave bytes in the buffer.
+/// Writes bytes to an `io.Writer` through a buffer you provide. With `out` null
+/// there is no destination: the bytes are collected in `buf` and writing fails
+/// with `NoSpace` when it is full. With an `out`, `mode` decides when the buffer
+/// is flushed, a write bigger than the buffer goes straight to it, and an empty
+/// `buf` writes at once. Call `flush` at the end, since `Line` and `Full` can
+/// leave bytes in the buffer.
 public struct Writer {
-	public int fd;
+	public ?io.Writer out;
 	public []byte buf;
 	public BufMode mode;
 	int len, total;
 }
 
+func (*Writer w) send([]byte data) !int {
+	return w.out.?.write(data)!;
+}
+
 func (*Writer w) put(*byte c, int n) ! {
 	return if n == 0;
 
-	if w.fd < 0 {
+	if w.out == null {
 		errors.ensure(len(w.buf) - w.len >= n, errors.Kind.NoSpace)!;
 		mem.copy((*byte)(w.buf) + w.len, c, n);
 		w.total += n;
@@ -51,13 +55,13 @@ func (*Writer w) put(*byte c, int n) ! {
 	}
 
 	if w.mode == .None || len(w.buf) == 0 {
-		w.total += os.writeBytes(w.fd, c[0..n])!;
+		w.total += w.send(c[0..n])!;
 		return;
 	}
 
 	if n > len(w.buf) {
 		w.flush()!;
-		w.total += os.writeBytes(w.fd, c[0..n])!;
+		w.total += w.send(c[0..n])!;
 		return;
 	}
 
@@ -109,13 +113,13 @@ public func (*Writer w) buffered() int { return w.len; }
 /// buffer.
 public func (*Writer w) written() int { return w.total; }
 
-/// Sends the buffered bytes to the file. It does nothing for a writer without a
-/// file, whose bytes stay in `buf`.
+/// Sends the buffered bytes to the destination. It does nothing for a writer without
+/// one, whose bytes stay in `buf`.
 public func (*Writer w) flush() ! {
-	if w.fd < 0 || w.len == 0 {
+	if w.out == null || w.len == 0 {
 		return;
 	}
-	os.writeBytes(w.fd, w.buf[..w.len])!;
+	w.send(w.buf[..w.len])!;
 	w.len = 0;
 }
 

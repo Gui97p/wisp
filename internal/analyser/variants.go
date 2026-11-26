@@ -92,6 +92,9 @@ func (a *Analyser) selectVariants() {
 		if !ok {
 			continue
 		}
+		if v.kind == "import" {
+			v.key += "@" + a.declFiles[d]
+		}
 		if _, seen := groups[v.key]; !seen {
 			order = append(order, v.key)
 		}

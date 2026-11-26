@@ -4,9 +4,7 @@ const spaceCharset = " \t\n\r\v\f";
 /// Returns `s` without the leading and trailing bytes that are in `charset`. The
 /// result is a slice of `s`, nothing is copied.
 #must_use
-public func trim(string s, charset) string {
-	return trimLeft(trimRight(s, charset), charset);
-}
+public inline func trim(string s, charset) string => trimLeft(trimRight(s, charset), charset);
 /// Returns `s` without the leading bytes that are in `charset`. The result is a
 /// slice of `s`, nothing is copied.
 #must_use
@@ -117,19 +115,13 @@ public func (*Splitter s) next() ?string {
 /// Returns the part of the string that `next` has not consumed yet. After the
 /// last piece it is the last piece itself, because that one is not consumed from
 /// the remainder.
-public func (*Splitter s) rest() string {
-	return s.s;
-}
+public inline func (*Splitter s) rest() string => s.s;
 
 /// Returns a `Splitter` over `s` that yields the pieces between occurrences of
 /// `sep`, empty pieces included. An empty `sep` yields one byte at a time. An empty
 /// `s` yields a single empty piece, or none when `sep` is empty.
-public func splitter(string s, sep) Splitter {
-	return Splitter{s: s, sep: sep};
-}
+public inline func splitter(string s, sep) Splitter => Splitter{s: s, sep: sep};
 
 /// Returns a `Splitter` over `s` like `splitter`, except that empty pieces are
 /// skipped, so runs of separators count as one.
-public func tokens(string s, sep) Splitter {
-	return Splitter{s: s, sep: sep, skipEmpty: true};
-}
+public inline func tokens(string s, sep) Splitter => Splitter{s: s, sep: sep, skipEmpty: true};

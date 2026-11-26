@@ -10,6 +10,7 @@ extern func CloseHandle(*void handle) int32;
 extern func SetFilePointerEx(*void file, int64 distance, *void position, uint32 method) int32;
 extern func FlushFileBuffers(*void file) int32;
 extern func GetFileSizeEx(*void file, *void size) int32;
+extern func GetFileType(*void file) uint32;
 extern func DeleteFileW(*uint16 name) int32;
 extern func RemoveDirectoryW(*uint16 name) int32;
 extern func CreateDirectoryW(*uint16 name, ?*void security) int32;
@@ -106,21 +107,21 @@ internal struct Dir {
 }
 
 var ?*uint16 wideAp;
-internal inline func wideA() *uint16 => wideAp!!;
+internal inline func wideA() *uint16 => wideAp.?;
 var ?*uint16 wideBp;
-internal inline func wideB() *uint16 => wideBp!!;
+internal inline func wideB() *uint16 => wideBp.?;
 var ?*uint16 wideScratchp;
-internal inline func wideScratch() *uint16 => wideScratchp!!;
+internal inline func wideScratch() *uint16 => wideScratchp.?;
 var ?*uint16 wideValuep;
-internal inline func wideValue() *uint16 => wideValuep!!;
+internal inline func wideValue() *uint16 => wideValuep.?;
 var ?*byte envBufferp;
-internal inline func envBuffer() *byte => envBufferp!!;
+internal inline func envBuffer() *byte => envBufferp.?;
 var [12]byte pendingBytes;
 var [3]int pendingCount;
 var ?*byte iterBufferp;
-internal inline func iterBuffer() *byte => iterBufferp!!;
+internal inline func iterBuffer() *byte => iterBufferp.?;
 var ?*byte convBufferp;
-internal inline func convBuffer() *byte => convBufferp!!;
+internal inline func convBuffer() *byte => convBufferp.?;
 var [8]byte inBytes;
 var int inLeft;
 var int inHigh;
@@ -147,6 +148,12 @@ internal func winerr(int code) int {
 
 internal func lastError() int {
 	return -winerr(int(GetLastError()));
+}
+
+internal func handleError() int {
+	int code = int(GetLastError());
+	return -EBADF if code == 5;
+	return -winerr(code);
 }
 
 internal func handleOf(int fd) *void {
@@ -316,9 +323,8 @@ internal func read(int fd, *byte buf, int n) int {
 	return readConsole(buf, n) if fd == 0 && isConsole(0);
 	uint32 got;
 	if ReadFile(handleOf(fd), buf, uint32(n), &got, null) == 0 {
-		int code = int(GetLastError());
-		return 0 if code == ERROR_BROKEN_PIPE;
-		return -winerr(code);
+		return 0 if int(GetLastError()) == ERROR_BROKEN_PIPE;
+		return handleError();
 	}
 	return int(got);
 }
@@ -412,7 +418,7 @@ internal func write(int fd, *byte buf, int n) int {
 		return writeConsole(fd, buf, n);
 	}
 	uint32 done;
-	return lastError() if WriteFile(handleOf(fd), buf, uint32(n), &done, null) == 0;
+	return handleError() if WriteFile(handleOf(fd), buf, uint32(n), &done, null) == 0;
 	return int(done);
 }
 
@@ -475,6 +481,15 @@ internal func size(int fd) int {
 	int total;
 	return lastError() if GetFileSizeEx(handleOf(fd), &total) == 0;
 	return total;
+}
+
+internal func kind(int fd) int {
+	return switch GetFileType(handleOf(fd)) {
+		case 1 => KIND_FILE;
+		case 2 => KIND_DEVICE;
+		case 3 => KIND_PIPE;
+		default => KIND_OTHER;
+	};
 }
 
 internal func remove(string path) int {
@@ -572,8 +587,9 @@ internal func dirNext(*Dir d, *Entry e) int {
 	}
 }
 
-internal func dirClose(*Dir d) {
-	FindClose((*void)(d.handle));
+internal func dirClose(*Dir d) int {
+	return lastError() if FindClose((*void)(d.handle)) == 0;
+	return 0;
 }
 
 internal func getcwd([]byte buf) int {

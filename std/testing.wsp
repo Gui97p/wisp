@@ -20,7 +20,7 @@ mem.Debug tracker;
 bool tracking;
 
 func warn(string format, ...args) {
-	fmt.fprintf(2, format, args...) ?? return;
+	fmt.fprintf(&os.stderr, format, args...) ?? return;
 }
 
 /// Prints a message to standard error. The first argument is a format string,

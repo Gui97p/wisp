@@ -70,15 +70,11 @@ public func formatUint([]byte buf, uint n, int base, bool upper) !string {
 
 /// Writes `n` in base 10 into `buf` and returns the text, which shares memory with
 /// `buf`. Fails with `NoSpace` when `buf` is too small.
-public func itoa([]byte buf, int n) !string {
-	return formatInt(buf, n, 10, false)!;
-}
+public inline func itoa([]byte buf, int n) !string => formatInt(buf, n, 10, false)!;
 
 /// Writes `n` in base 10 into `buf` and returns the text, which shares memory with
 /// `buf`. Fails with `NoSpace` when `buf` is too small.
-public func utoa([]byte buf, uint n) !string {
-	return formatUint(buf, n, 10, false)!;
-}
+public inline func utoa([]byte buf, uint n) !string => formatUint(buf, n, 10, false)!;
 
 func digitValue(byte c) ?int {
 	if c >= '0' && c <= '9' {
@@ -145,11 +141,7 @@ public func parseInt(string s, int base) !int {
 }
 
 /// Parses `s` as a base 10 `int`. Same as `parseInt(s, 10)`.
-public func atoi(string s) !int {
-	return parseInt(s, 10)!;
-}
+public inline func atoi(string s) !int => parseInt(s, 10)!;
 
 /// Parses `s` as a base 10 `uint`. Same as `parseUint(s, 10)`.
-public func atou(string s) !uint {
-	return parseUint(s, 10)!;
-}
+public inline func atou(string s) !uint => parseUint(s, 10)!;

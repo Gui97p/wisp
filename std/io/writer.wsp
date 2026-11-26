@@ -1,5 +1,9 @@
 import "std/mem";
 
+/// A `Writer` with a buffer in front of another one, so many small writes cost
+/// one write to the destination. Nothing reaches it until the buffer fills or
+/// `flush` is called, so always `flush` at the end. Build one with `newBufWriter`,
+/// over a buffer you own, or `newBufWriterIn`, which allocates it.
 public struct BufWriter implements Writer {
 	Writer out;
 	[]byte buf;
@@ -7,15 +11,15 @@ public struct BufWriter implements Writer {
 	?mem.Allocator source;
 }
 
-public func newBufWriter(Writer out, []byte buf) BufWriter {
-	return .{out: out, buf: buf};
-}
+/// Returns a writer over `out` that buffers through `buf`, which stays yours.
+public inline func newBufWriter(Writer out, []byte buf) BufWriter => .{out: out, buf: buf};
+/// Like `newBufWriter`, with a buffer of `size` bytes allocated from `a`. Give it
+/// back with `release`. Fails with the allocator error.
+public func newBufWriterIn(mem.Allocator a, Writer out, int size) !BufWriter => .{out: out, buf: mem.make<byte>(a, size)!, source: a};
 
-public func newBufWriterIn(Writer out, int size, ?mem.Allocator a) !BufWriter {
-	mem.Allocator source = a ?? mem.heap;
-	return .{out: out, buf: mem.make<byte>(source, size)!, source: source};
-}
-
+/// Buffers `data`, sending what is buffered first when it would not fit. A write
+/// as big as the whole buffer goes straight to the destination. Returns the
+/// length of `data`, or fails with the error of the destination.
 public func (*BufWriter w) write([]byte data) !int {
 	int need = len(data) + w.count;
 	if need > len(w.buf) {
@@ -27,18 +31,22 @@ public func (*BufWriter w) write([]byte data) !int {
 		return len(data);
 	}
 
-	mem.copy(w.buf, data, len(data));
+	mem.copy(w.buf[w.count..], data, len(data));
 	w.count += len(data);
 	return len(data);
 }
 
+/// Sends everything buffered to the destination. Fails with its error.
 public func (*BufWriter w) flush() ! {
 	return if w.count == 0;
 	w.out.write(w.buf[..w.count])!;
 	w.count = 0;
 }
 
+/// The number of bytes waiting in the buffer.
 public inline func (*BufWriter w) buffered() int => w.count;
+/// Gives back a buffer that `newBufWriterIn` allocated, and empties the writer.
+/// It does not flush: call `flush` first.
 public func (*BufWriter w) release() {
 	if w.source |s| {
 		mem.free(s, w.buf);

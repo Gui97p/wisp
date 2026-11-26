@@ -6,8 +6,8 @@
 // inside: a path on Windows may start with a drive (`C:\`) and use either
 // slash, but the functions below do the same thing there.
 //
-// Anything that builds new text asks you for the memory: `path.join` and
-// `path.clean` write into a buffer you pass and give back a slice of it. The
+// Anything that builds new text asks you for the memory: `paths.join` and
+// `paths.clean` write into a buffer you pass and give back a slice of it. The
 // buffer is yours, so it can live on the stack and nothing is allocated.
 // Anything that only looks at a path (`base`, `dir`, `ext`, `stem`) returns a
 // piece of the path itself.
@@ -17,15 +17,16 @@
 
 import "std/errors";
 import "std/fmt";
+import "std/io";
 import "std/mem";
 import "std/os";
-import "std/path";
+import "std/paths";
 
 func writeNotes(string file) ! {
-	int fd = os.create(file)!;
-	defer os.close(fd);
-	os.write(fd, "one line\n")!;
-	os.write(fd, "and another\n")!;
+	os.File out = os.create(file)!;
+	defer out.close() ?? {};
+	io.writeString(&out, "one line\n")!;
+	io.writeString(&out, "and another\n")!;
 }
 
 public func demo() ! {
@@ -47,22 +48,22 @@ public func demo() ! {
 
 	// Taking a path apart never allocates.
 	string file = "/tmp/wisp_tour_files/notes.tar.gz";
-	fmt.printf("base {}, dir {}, ext {}, stem {}\n", path.base(file), path.dir(file), path.ext(file), path.stem(file));
+	fmt.printf("base {}, dir {}, ext {}, stem {}\n", paths.base(file), paths.dir(file), paths.ext(file), paths.stem(file));
 
 	// Putting one together writes into your buffer. `clean` also resolves
 	// `.` and `..`.
 	[256]byte buffer;
-	string root = path.join(buffer, "/tmp", "wisp_tour_files")!;
+	string root = paths.join(buffer, "/tmp", "wisp_tour_files")!;
 	[256]byte other;
-	string messy = path.clean(other, "/tmp/./wisp_tour_files/../wisp_tour_files/")!;
+	string messy = paths.clean(other, "/tmp/./wisp_tour_files/../wisp_tour_files/")!;
 	fmt.printf("the same folder from two spellings: {}\n", root == messy);
 
 	// Folders and files. `mkdirAll` creates every missing level, `create`
 	// opens a file for writing, and `defer` closes it when the function ends.
-	os.createDirAll(root)!;
+	os.createDir(root)!;
 
 	[256]byte pathBuffer;
-	string first = path.join(pathBuffer, root, "first.txt")!;
+	string first = paths.join(pathBuffer, root, "first.txt")!;
 	writeNotes(first)!;
 
 	let info = os.stat(first)!;
@@ -76,16 +77,16 @@ public func demo() ! {
 	// Renaming, and asking a folder what is in it. The order of the entries
 	// depends on the system, so this only counts them.
 	[256]byte moved;
-	string second = path.join(moved, root, "second.txt")!;
+	string second = paths.join(moved, root, "second.txt")!;
 	os.rename(first, second)!;
 	fmt.printf("after the rename: first {}, second {}\n", os.exists(first), os.exists(second));
 
 	os.Dir folder = os.openDir(root)!;
 	int entries;
-	loop folder.next()! |_entry| {
+	for _ in folder! {
 		entries++;
 	}
-	folder.close();
+	folder.close()!;
 	fmt.printf("the folder has {} entry\n", entries);
 
 	// A missing file is an error value you can compare, not a crash.

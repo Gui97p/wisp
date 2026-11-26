@@ -15,14 +15,8 @@ public struct List<T> {
 	int cap;
 }
 
-inline func (*List<T> l) source() mem.Allocator {
-	return l.parent ?? mem.heap;
-}
-
-inline func (*List<T> l) storage() []T {
-	return (*T)(l.items)[0..l.cap];
-}
-
+inline func (*List<T> l) source() mem.Allocator => l.parent ?? mem.heap;
+inline func (*List<T> l) storage() []T => (*T)(l.items)[0..l.cap];
 inline func (*List<T> l) setLen(int n) {
 	l.items = (*T)(l.items)[0..n];
 }
@@ -128,16 +122,12 @@ public inline func (*List<T> l) clear() {
 }
 
 /// How many elements the list holds.
-public inline func (*List<T> l) len() int {
-	return len(l.items);
-}
+public inline func (*List<T> l) len() int => len(l.items);
 
 /// A new list with the same elements, from the same allocator. The elements are
 /// copied as they are, so pointers still point to the same things, and a list
 /// of lists shares what is inside them.
-public func (*List<T> l) clone() !List<T> {
-	return l.cloneIn(l.source())!;
-}
+public inline func (*List<T> l) clone() !List<T> => l.cloneIn(l.source())!;
 
 /// Like clone, with the memory taken from another allocator.
 public func (*List<T> l) cloneIn(mem.Allocator a) !List<T> {

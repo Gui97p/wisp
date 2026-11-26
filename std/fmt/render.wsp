@@ -61,9 +61,7 @@ func renderPointer([]byte buf, *void v, Spec s) !Piece {
 	return number(buf, uint(v), false, t)!;
 }
 
-func renderBool(bool b) Piece {
-	return Piece{body: b ? "true" : "false"};
-}
+inline func renderBool(bool b) Piece => Piece{body: b ? "true" : "false"};
 
 func renderString(string t, Spec s) Piece {
 	Piece piece = Piece{body: t};

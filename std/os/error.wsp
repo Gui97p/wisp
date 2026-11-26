@@ -1,0 +1,34 @@
+import "std/errors";
+
+/// Kinds of error of the file system that `errors.Kind` has no name for. `IO` is
+/// any error the system reports that has no kind of its own.
+public enum IOError {
+	NotDir = 1,
+	IsDir,
+	NotEmpty,
+	IO
+}
+
+/// Turns an error number of the system (as returned by `sys.errno`) into an
+/// `Error`. Known numbers become a kind of `errors.Kind` or `IOError`, and any
+/// other becomes `IOError.IO`.
+func errorIO(int code) Error {
+	return switch code {
+		case 1, 13 => Error(errors.Kind.Permission);
+		case 2 => Error(errors.Kind.NotFound);
+		case 11 => Error(errors.Kind.WouldBlock);
+		case 12 => Error(errors.Kind.OutOfMemory);
+		case 16 => Error(errors.Kind.Busy);
+		case 17 => Error(errors.Kind.Exists);
+		case 4 => Error(errors.Kind.Interrupted);
+		case 9, 22, 36 => Error(errors.Kind.Invalid);
+		case 20 => Error(IOError.NotDir);
+		case 21 => Error(IOError.IsDir);
+		case 28 => Error(errors.Kind.NoSpace);
+		case 32 => Error(errors.Kind.BrokenPipe);
+		case 34 => Error(errors.Kind.Overflow);
+		case 38, 95 => Error(errors.Kind.Unsupported);
+		case 39 => Error(IOError.NotEmpty);
+		default => Error(IOError.IO);
+	};
+}

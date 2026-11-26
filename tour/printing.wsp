@@ -59,9 +59,9 @@ public func demo() {
 	fmt.printf("[{}] [{.2}] [{f}] [{.3f}] [{e}] [{.2E}]\n", 0.1, 2.0 / 3.0, 2.5, 2.5, 1234.5, 1234.5);
 	fmt.printf("[{8.2f}] [{<8.2f}] [{08.2f}]\n", 3.14159, 3.14159, -3.14159);
 
-	// `fprintf` writes to a file descriptor. `os.STDOUT` is the terminal, and
-	// `os.STDERR` is where errors go.
-	fmt.fprintf(os.STDERR, "this line goes to standard error: {}\n", 7) ?? return;
+	// `fprintf` writes to a file descriptor. `&os.stdout` is the terminal, and
+	// `&os.stderr` is where errors go.
+	fmt.fprintf(&os.stderr, "this line goes to standard error: {}\n", 7) ?? return;
 
 	// `sprintf` writes into a buffer you provide (an array passes as a slice,
 	// see collections.wsp) and returns how many bytes it wrote. It fails with NoSpace if the buffer is too small.

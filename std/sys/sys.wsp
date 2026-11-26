@@ -17,7 +17,10 @@ internal const {
 	KIND_FILE = 0;
 	KIND_DIR = 1;
 	KIND_LINK = 2;
-	KIND_OTHER = 3;
+	KIND_PIPE = 3;
+	KIND_SOCKET = 4;
+	KIND_DEVICE = 5;
+	KIND_OTHER = 6;
 
 	EPERM = 1;
 	ENOENT = 2;

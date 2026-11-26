@@ -23,13 +23,9 @@ public struct Pool implements Allocator {
 	int liveBlocks;
 }
 
-func (*Pool p) source() Allocator {
-	return p.parent ?? heap;
-}
+inline func (*Pool p) source() Allocator => p.parent ?? heap;
 
-func (*Pool p) stride() int {
-	return (math.max(p.size, 8) + 15) & ~15;
-}
+inline func (*Pool p) stride() int => (math.max(p.size, 8) + 15) & ~15;
 
 func (*Pool p) grow() ! {
 	int stride = p.stride();
@@ -101,6 +97,4 @@ public func (*Pool p) release() {
 }
 
 /// The number of blocks allocated and not freed yet.
-public inline func (*Pool p) blocks() int {
-	return p.liveBlocks;
-}
+public inline func (*Pool p) blocks() int => p.liveBlocks;

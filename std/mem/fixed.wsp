@@ -38,14 +38,10 @@ public inline func (*Fixed f) reset() {
 }
 
 /// The number of bytes left in the buffer, before alignment of the next block.
-public inline func (*Fixed f) remaining() int {
-	return len(f.buffer) - f.bUsed;
-}
+public inline func (*Fixed f) remaining() int => len(f.buffer) - f.bUsed;
 
 /// The number of bytes taken from the buffer, alignment included.
-public inline func (*Fixed f) used() int {
-	return f.bUsed;
-}
+public inline func (*Fixed f) used() int => f.bUsed;
 
 /// Does nothing: space comes back only with `reset`.
 public func (*Fixed) free(?*void _p) {}

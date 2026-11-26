@@ -110,9 +110,7 @@ public func roundEven(float x) float {
 }
 /// Returns `x` limited to the range `low` to `high`, using `fmin` and `fmax`. It is
 /// NaN when any argument is NaN.
-public inline func fclamp(float x, low, high) float {
-	return fmin(fmax(x, low), high);
-}
+public inline func fclamp(float x, low, high) float => fmin(fmax(x, low), high);
 
 const FLOAT64_SIGN_MASK = 0x80000000;
 const FLOAT64_EXP_MASK = 0x7FF00000;
@@ -158,9 +156,7 @@ public inline func signbit(float x) bool {
 }
 
 /// Reports whether `x` is finite and has no fractional part.
-public inline func isInteger(float x) bool {
-	return isFinite(x) && x == trunc(x);
-}
+public inline func isInteger(float x) bool => isFinite(x) && x == trunc(x);
 
 /// Returns -infinity when `sign` is negative and +infinity otherwise.
 public func inf(int sign) float {
@@ -172,9 +168,7 @@ public func inf(int sign) float {
 }
 
 /// Returns a quiet NaN.
-public inline func nan() float {
-	return fromWords(0x7FF80000, 0);
-}
+public inline func nan() float => fromWords(0x7FF80000, 0);
 
 /// Returns the absolute value of `x` by clearing its sign bit, so `fabs(-0.0)` is 0
 /// and the sign of NaN is cleared too.

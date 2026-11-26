@@ -142,7 +142,6 @@ var (
 func unimportedMembers(path string, scope *analyser.Scope, word, suffix string, only func(exportEntry) bool) []protocol.CompletionItem {
 	root := module.FindProjectRoot(filepath.Dir(path))
 	imported := importedPaths(path)
-	cyclic := dependentFiles(path)
 
 	byPath := map[string]string{}
 	candidates := module.ImportablePaths(root)
@@ -153,7 +152,7 @@ func unimportedMembers(path string, scope *analyser.Scope, word, suffix string, 
 	var items []protocol.CompletionItem
 	for _, c := range candidates {
 		alias := moduleAlias(c.Path)
-		if c.Contains(path) || imported[c.Path] || cyclic[c.File] || alias == "" {
+		if c.Contains(path) || imported[c.Path] || alias == "" {
 			continue
 		}
 		if _, taken := scope.Resolve(alias); taken {
@@ -425,7 +424,6 @@ func accessibleMethods(path string, t analyser.Type) map[string]*analyser.FuncTy
 func unimportedModules(path string, scope *analyser.Scope, word string) []protocol.CompletionItem {
 	root := module.FindProjectRoot(filepath.Dir(path))
 	imported := importedPaths(path)
-	cyclic := dependentFiles(path)
 
 	candidates := module.ImportablePaths(root)
 	byPath := pathIndex(candidates)
@@ -433,7 +431,7 @@ func unimportedModules(path string, scope *analyser.Scope, word string) []protoc
 	var items []protocol.CompletionItem
 	for _, c := range candidates {
 		alias := moduleAlias(c.Path)
-		if c.Contains(path) || imported[c.Path] || cyclic[c.File] || alias == "" || !matchesWord(alias, word) {
+		if c.Contains(path) || imported[c.Path] || alias == "" || !matchesWord(alias, word) {
 			continue
 		}
 		if _, taken := scope.Resolve(alias); taken {

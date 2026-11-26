@@ -1,37 +1,27 @@
 import "std/errors";
-import "std/path";
+import "std/io";
+import "std/paths";
 import "std/sys";
 
-/// Reports whether `p` exists and is a directory. A path that cannot be examined,
-/// for any reason, gives `false`.
-public inline func isDir(string p) bool {
-	let s = stat(p) ?? return false;
-	return s.kind == .Dir;
-}
-
-/// Removes the directory `p`, which has to be empty. Fails with `NotEmpty` or
+/// Removes the directory at `path`, which has to be empty. Fails with `NotEmpty` or
 /// `NotDir` from `IOError`, or `NotFound` and `Permission` from `errors.Kind`.
-public func removeDir(string p) ! {
-	int r = sys.rmdir(p);
+public func removeDir(string path) ! {
+	int r = sys.rmdir(path);
 	return errorIO(sys.errno(r)) if r < 0;
 }
 
-/// Creates the directory `p`, whose parent must already exist. Fails with
-/// `Exists` if something is already there and `NotFound` if the parent is missing.
-public func createDir(string p) ! {
-	int r = sys.mkdir(p);
-	return errorIO(sys.errno(r)) if r < 0;
-}
-
-/// Creates the directory `p` and any missing parents. It is not an error if
-/// `p` is already a directory. Fails with `NotDir` from `IOError` if `p` exists
+/// Creates the directory at `path` and any missing parents. It is not an error if
+/// `path` is already a directory. Fails with `NotDir` from `IOError` if `path` exists
 /// as something else, or with the error of the first directory that could not be
 /// created.
-public func createDirAll(string p) ! {
-	let s = stat(p) ?? |e| {
+public func createDir(string path) ! {
+	let s = stat(path) ?? |e| {
 		return e if e != errors.Kind.NotFound;
-		createDirAll(path.dir(p))!;
-		createDir(p) ?? |err| return isDir(p) ? null : err;
+		createDir(paths.dir(path))!;
+		int r = sys.mkdir(path);
+		if r < 0 {
+			return isDir(path) ? null : errorIO(sys.errno(r));
+		}
 		return;
 	};
 
@@ -40,7 +30,7 @@ public func createDirAll(string p) ! {
 
 /// An open directory, read one entry at a time with `next`. Get one from
 /// `openDir` and call `close` when done.
-public struct Dir {
+public struct Dir implements io.Closer {
 	sys.Dir state;
 	sys.Entry entry;
 }
@@ -60,26 +50,23 @@ public func (*Dir d) next() !?Entry {
 	int r = sys.dirNext(&d.state, &d.entry);
 	return errorIO(sys.errno(r)) if r < 0;
 	return null if r == 0;
-	FileKind kind = switch d.entry.kind {
-		case sys.KIND_FILE => .File;
-		case sys.KIND_DIR => .Dir;
-		case sys.KIND_LINK => .Link;
-		default => .Other;
-	};
+	FileKind kind = kindOf(d.entry.kind);
 	return Entry{name: string(d.entry.name[..d.entry.len]), kind: kind};
 }
 
-/// Closes the directory. It must not be used afterwards.
-public func (*Dir d) close() {
-	sys.dirClose(&d.state);
+/// Closes the directory. It must not be used afterwards. Fails with the error of
+/// the system.
+public func (*Dir d) close() ! {
+	int r = sys.dirClose(&d.state);
+	return errorIO(sys.errno(r)) if r < 0;
 }
 
-/// Opens the directory `p` for reading its entries. Fails with `NotFound`,
+/// Opens the directory at `path` for reading its entries. Fails with `NotFound`,
 /// `Permission` or `NotDir` from `IOError`. The result has to be closed with
 /// `close`.
-public func openDir(string p) !Dir {
+public func openDir(string path) !Dir {
 	Dir d;
-	int r = sys.dirOpen(p, &d.state);
+	int r = sys.dirOpen(path, &d.state);
 	return errorIO(sys.errno(r)) if r < 0;
 	return d;
 }

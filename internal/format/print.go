@@ -256,7 +256,7 @@ func (p *printer) needSpace(i int) bool {
 	case nr == roleDeclBang:
 		return true
 	case pr == roleDeclBang:
-		return nk == lexer.TOKEN_LBRACE
+		return nk == lexer.TOKEN_LBRACE || nk == lexer.TOKEN_ARROW
 	case pr == roleUnary || pr == roleOptionalQ:
 		return false
 	case pr == roleTypeBracketClose:

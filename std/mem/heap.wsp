@@ -25,17 +25,13 @@ const {
 	uint DEAD = 0x5749535044454144;
 }
 
-inline func header(*void p) int {
-	return (*int)((*byte)(p) - 16)@;
-}
+inline func header(*void p) int => (*int)((*byte)(p) - 16)@;
 
 inline func setHeader(*void p, int v) {
 	(*int)((*byte)(p) - 16)@ = v;
 }
 
-inline func state(*void p) uint {
-	return (*uint)((*byte)(p) - 8)@;
-}
+inline func state(*void p) uint => (*uint)((*byte)(p) - 8)@;
 
 inline func setState(*void p, uint v) {
 	(*uint)((*byte)(p) - 8)@ = v;
