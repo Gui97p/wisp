@@ -12,6 +12,9 @@ public struct Counting implements Allocator {
 	int liveBlocks, liveBytes, peakBytes, totalBlocks, totalBytes;
 }
 
+/// Returns a counter that forwards to `parent`. A `Counting` declared without it
+/// forwards to the heap.
+public inline func counting(Allocator parent) Counting => .{parent: parent};
 inline func (*Counting c) source() Allocator => c.parent ?? heap;
 
 func (*Counting c) take(int n) {

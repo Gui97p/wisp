@@ -5,22 +5,20 @@ import "std/slices";
 
 /// A `Reader` with a buffer in front of another one, so many small reads cost
 /// one read of the source. It also reads bytes and lines. Build one with
-/// `newBufReader`, over a buffer you own, or `newBufReaderIn`, which allocates it.
-/// Call `release` when done with one made by `newBufReaderIn`.
+/// `bufReader`, and call `release` when done with it. For a buffer on the stack,
+/// give it a `mem.Fixed` over an array.
 public struct BufReader implements Reader {
 	Reader inp;
 	[]byte buf;
 	int start;
 	int end;
-	?mem.Allocator source;
+	mem.Allocator source;
 }
 
-/// Returns a reader over `inp` that buffers through `buf`, which stays yours.
-/// The size of `buf` is the longest line `readLine` can hold.
-public inline func newBufReader(Reader inp, []byte buf) BufReader => .{inp: inp, buf: buf};
-/// Like `newBufReader`, with a buffer of `size` bytes allocated from `a`. Give it
-/// back with `release`. Fails with the allocator error.
-public inline func newBufReaderIn(mem.Allocator a, Reader inp, int size) !BufReader => .{inp: inp, buf: mem.make<byte>(a, size)!, source: a};
+/// Returns a reader over `inp` with a buffer of `size` bytes allocated from `a`.
+/// The size of the buffer is the longest line `readLine` can hold. Give the
+/// buffer back with `release`. Fails with the error of the allocator.
+public inline func bufReader(mem.Allocator a, Reader inp, int size) !BufReader => .{inp: inp, buf: mem.make<byte>(a, size)!, source: a};
 
 func (*BufReader r) fill() !?int {
 	if r.start > 0 {
@@ -90,12 +88,9 @@ public func (*BufReader r) readLine() !?string {
 	}
 }
 
-/// Gives back a buffer that `newBufReaderIn` allocated, and empties the reader.
-/// With a buffer you own it only empties the reader.
+/// Gives the buffer back to the allocator it came from, and empties the reader.
 public func (*BufReader r) release() {
-	if r.source |s| {
-		mem.free(s, r.buf);
-	}
+	mem.free(r.source, r.buf);
 	r.start, r.end = 0, 0;
 	r.buf = .{};
 }

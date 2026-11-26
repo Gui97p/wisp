@@ -23,8 +23,12 @@ public struct Pool implements Allocator {
 	int liveBlocks;
 }
 
-inline func (*Pool p) source() Allocator => p.parent ?? heap;
+/// Returns a pool of blocks of `size` bytes that takes its memory from `parent`.
+public inline func pool(Allocator parent, int size) Pool => .{parent: parent, size: size};
+/// Returns a pool of blocks of `size` bytes that takes its memory from the heap.
+public inline func heapPool(int size) Pool => .{size: size};
 
+inline func (*Pool p) source() Allocator => p.parent ?? heap;
 inline func (*Pool p) stride() int => (math.max(p.size, 8) + 15) & ~15;
 
 func (*Pool p) grow() ! {

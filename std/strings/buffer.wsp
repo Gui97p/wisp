@@ -1,182 +1,148 @@
-import "std/errors";
 import "std/mem";
-/// Copies `s` into the start of `buf` and returns the copied bytes as a string.
-/// The result shares memory with `buf`, so it changes when `buf` does. Fails with
-/// `NoSpace` when `buf` is shorter than `s`.
-public func copy([]byte buf, string s) !string {
-	errors.ensure(len(s) <= len(buf), errors.Kind.NoSpace)!;
-	for i, c in s {
-		buf[i] = c;
-	}
-	return string(buf[..len(s)]);
+
+/// Copies `p` to the start of `buf` and returns how many bytes that is. The room
+/// is the caller's business: the producers below always allocate enough.
+internal inline func copy([]byte buf, string p) int {
+	mem.copy(buf, (*byte)(p), len(p));
+	return len(p);
 }
 
-/// Writes `parts` one after another into `buf` and returns the joined bytes. The
-/// result shares memory with `buf`. Fails with `NoSpace` when `buf` is too short;
-/// `buf` may then hold part of the output. With no parts the result is empty.
-public func concat([]byte buf, string ...parts) !string {
+/// Joins `parts` one after another into a new string, allocated from `a`. The
+/// caller frees it with `mem.free`, or leaves it to an arena or a `Fixed`. With no
+/// parts, or only empty ones, the result is empty and nothing is allocated. Fails
+/// with the error of the allocator.
+public func concat(mem.Allocator a, string ...parts) !string {
 	int total;
-	for _, part in parts {
-		copy(buf[total..], part)!;
+	for part in parts {
 		total += len(part);
 	}
-	return string(buf[..total]);
-}
-
-/// Writes `parts` into `buf` separated by `sep` and returns the joined bytes. The
-/// result shares memory with `buf`. An empty `parts` gives an empty string and a
-/// single part is copied alone. Fails with `NoSpace` when `buf` is too short;
-/// `buf` may then hold part of the output.
-public func join([]byte buf, []string parts, string sep) !string {
-	return "" if len(parts) == 0;
-	int total = len(parts[0]);
-	copy(buf, parts[0])!;
-	for _, p in parts[1..] {
-		if sep == "" {
-			total += len(copy(buf[total..], p)!);
-		} else {
-			total += len(concat(buf[total..], sep, p)!);
-		}
+	return "" if total == 0;
+	[]byte buf = mem.makeDirty<byte>(a, total)!;
+	total = 0;
+	for part in parts {
+		total += copy(buf[total..], part);
 	}
-	return string(buf[..total]);
+	return string(buf);
 }
 
-/// Writes `n` copies of `s` into `buf` and returns the bytes. The result shares
-/// memory with `buf`. It is empty when `n` is zero or negative. Fails with
-/// `NoSpace`, before writing anything, when `buf` is shorter than `len(s) * n`.
-public func rep([]byte buf, string s, int n) !string {
+/// Joins `parts` into a new string with `sep` between them, allocated from `a`.
+/// The caller frees it with `mem.free`, or leaves it to an arena or a `Fixed`. An
+/// empty `parts` gives an empty string, a single part is copied alone, and
+/// nothing is allocated when the result is empty. Fails with the error of the
+/// allocator.
+public func join(mem.Allocator a, []string parts, string sep) !string {
+	return "" if len(parts) == 0;
+	int total = len(sep) * (len(parts) - 1);
+	for p in parts {
+		total += len(p);
+	}
+	return "" if total == 0;
+	[]byte buf = mem.makeDirty<byte>(a, total)!;
+	int at = copy(buf, parts[0]);
+	for p in parts[1..] {
+		at += copy(buf[at..], sep);
+		at += copy(buf[at..], p);
+	}
+	return string(buf);
+}
+
+/// Makes a new string of `n` copies of `s`, allocated from `a`. The caller frees
+/// it with `mem.free`, or leaves it to an arena or a `Fixed`. It is empty when `n`
+/// is zero or negative, and nothing is allocated then. Fails with the error of
+/// the allocator.
+public func rep(mem.Allocator a, string s, int n) !string {
 	return "" if n <= 0;
-	errors.ensure(len(s) * n <= len(buf), errors.Kind.NoSpace)!;
+	[]byte buf = mem.makeDirty<byte>(a, len(s) * n)!;
 
 	int total;
 	for n {
-		copy(buf[total..], s)!;
-		total += len(s);
+		total += copy(buf[total..], s);
 	}
 
-	return string(buf[..total]);
+	return string(buf);
 }
 
-/// Writes `s` into `buf` with occurrences of `old` replaced by `new` and returns
-/// the bytes. Occurrences are non-overlapping and found from the left. Only the
-/// first `n` are replaced, and all of them when `n` is negative. An empty `old`
-/// replaces nothing and `s` is copied as is. The result shares memory with `buf`.
-/// Fails with `NoSpace` when `buf` is too short; `buf` may then hold part of the
-/// output.
-public func replace([]byte buf, string s, old, new, int n) !string {
-	if old == "" {
-		copy(buf, s)!;
-		return string(buf[..len(s)]);
+/// Makes a new string from `s` with occurrences of `old` replaced by `new`,
+/// allocated from `a`. Occurrences are non-overlapping and found from the left.
+/// Only the first `n` are replaced, and all of them when `n` is negative. An empty
+/// `old`, or an `n` of zero, replaces nothing and `s` is copied as is. The caller
+/// frees the result with `mem.free`, or leaves it to an arena or a `Fixed`. Fails
+/// with the error of the allocator.
+public func replace(mem.Allocator a, string s, old, new, int n) !string {
+	int found;
+	if old != "" && n != 0 {
+		found = count(s, old);
+		if n > 0 && found > n {
+			found = n;
+		}
 	}
+	if found == 0 {
+		return string(clone(a, s)!);
+	}
+
+	int size = len(s) + found * (len(new) - len(old));
+	return "" if size == 0;
+	[]byte buf = mem.makeDirty<byte>(a, size)!;
 
 	Splitter sp = splitter(s, old);
-	int total, count;
-	loop sp.next() |next| {
-		if count > 0 {
-			string chosen = count > n && n >= 0 ? old : new;
-			copy(buf[total..], chosen)!;
-			total += len(chosen);
+	int total, seen;
+	loop sp.next() |piece| {
+		if seen > 0 {
+			string chosen = seen <= found ? new : old;
+			total += copy(buf[total..], chosen);
 		}
-
-		copy(buf[total..], next)!;
-		total += len(next);
-		count++;
+		total += copy(buf[total..], piece);
+		seen++;
 	}
-
-	return string(buf[..total]);
+	return string(buf);
 }
 
-/// Writes `s` into `buf` with ASCII lowercase letters made uppercase and returns
-/// the bytes. Other bytes are copied unchanged. The result shares memory with
-/// `buf`. Fails with `NoSpace` when `buf` is shorter than `s`.
-public func upper([]byte buf, string s) !string {
-	errors.ensure(len(s) <= len(buf), errors.Kind.NoSpace)!;
+/// Makes a new string from `s` with the ASCII lowercase letters made uppercase,
+/// allocated from `a`. Other bytes are copied unchanged. The caller frees it with
+/// `mem.free`, or leaves it to an arena or a `Fixed`. Fails with the error of the
+/// allocator.
+public func upper(mem.Allocator a, string s) !string {
+	[]byte buf = mem.makeDirty<byte>(a, len(s))!;
 	for i, c in s {
 		buf[i] = upperByte(c);
 	}
-	return string(buf[..len(s)]);
+	return string(buf);
 }
-/// Makes the ASCII lowercase letters in `buf` uppercase, in place.
-public func toUpper([]byte buf) {
-	upper(buf, string(buf))!!;
+/// Makes the ASCII lowercase letters in `buf` uppercase, in place, and returns
+/// the bytes as a string that shares memory with `buf`.
+public inline func toUpper([]byte buf) string {
+	for i, c in buf {
+		buf[i] = upperByte(c);
+	}
+	return string(buf);
 }
 
-/// Writes `s` into `buf` with ASCII uppercase letters made lowercase and returns
-/// the bytes. Other bytes are copied unchanged. The result shares memory with
-/// `buf`. Fails with `NoSpace` when `buf` is shorter than `s`.
-public func lower([]byte buf, string s) !string {
-	errors.ensure(len(s) <= len(buf), errors.Kind.NoSpace)!;
+/// Makes a new string from `s` with the ASCII uppercase letters made lowercase,
+/// allocated from `a`. Other bytes are copied unchanged. The caller frees it with
+/// `mem.free`, or leaves it to an arena or a `Fixed`. Fails with the error of the
+/// allocator.
+public func lower(mem.Allocator a, string s) !string {
+	[]byte buf = mem.makeDirty<byte>(a, len(s))!;
 	for i, c in s {
 		buf[i] = lowerByte(c);
 	}
 	return string(buf[..len(s)]);
 }
-/// Makes the ASCII uppercase letters in `buf` lowercase, in place.
-public func toLower([]byte buf) {
-	lower(buf, string(buf))!!;
-}
-
-/// Returns a copy of `s` as a new byte slice allocated from `mem.heap`. The caller
-/// must free it with `mem.free`. An empty `s` gives an empty slice and allocates
-/// nothing. Fails with the allocator error when memory runs out.
-public func clone(string s) ![]byte {
-	return .{} if len(s) == 0;
-	[]byte buf = mem.make<byte>(mem.heap, len(s))!;
-	copy(buf, s)!;
-	return buf;
-}
-
-/// Like `concat`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. With no parts, or only
-/// empty ones, the result is empty and nothing is allocated. Fails with the
-/// allocator error when memory runs out.
-public func concatIn(mem.Allocator a, string ...parts) ![]byte {
-	int total;
-	for _, part in parts {
-		total += len(part);
+/// Makes the ASCII uppercase letters in `buf` lowercase, in place, and returns
+/// the bytes as a string that shares memory with `buf`.
+public inline func toLower([]byte buf) string {
+	for i, c in buf {
+		buf[i] = lowerByte(c);
 	}
-	return .{} if total == 0;
-	[]byte buf = mem.makeDirty<byte>(a, total)!;
-	concat(buf, parts...)!;
-	return buf;
+	return string(buf);
 }
 
-/// Like `join`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. An empty result
-/// allocates nothing. Fails with the allocator error when memory runs out.
-public func joinIn(mem.Allocator a, []string parts, string sep) ![]byte {
-	return .{} if len(parts) == 0;
-	int total = len(sep) * (len(parts) - 1);
-	for _, part in parts {
-		total += len(part);
-	}
-	return .{} if total == 0;
-	[]byte buf = mem.makeDirty<byte>(a, total)!;
-	join(buf, parts, sep)!;
-	return buf;
-}
-
-/// Like `rep`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. An empty result allocates
-/// nothing. Fails with the allocator error when memory runs out.
-public func repIn(mem.Allocator a, string s, int n) ![]byte {
-	return .{} if n <= 0 || len(s) == 0;
-	[]byte buf = mem.makeDirty<byte>(a, len(s) * n)!;
-	rep(buf, s, n)!;
-	return buf;
-}
-
-/// Like `upper`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. An empty `s` allocates
-/// nothing. Fails with the allocator error when memory runs out.
-public func upperIn(mem.Allocator a, string s) ![]byte {
-	return .{} if len(s) == 0;
+/// Returns a copy of `s` as a new string, allocated from `a`. The caller frees it
+/// with `mem.free`, or leaves it to an arena or a `Fixed`. An empty `s` gives an
+/// empty string and allocates nothing. Fails with the error of the allocator.
+public func clone(mem.Allocator a, string s) !string {
+	return "" if len(s) == 0;
 	[]byte buf = mem.makeDirty<byte>(a, len(s))!;
-	upper(buf, s)!;
-	return buf;
-}
-
-/// Like `lower`, into a new byte slice allocated from `a`. The caller frees it with `mem.free`. An empty `s` allocates
-/// nothing. Fails with the allocator error when memory runs out.
-public func lowerIn(mem.Allocator a, string s) ![]byte {
-	return .{} if len(s) == 0;
-	[]byte buf = mem.makeDirty<byte>(a, len(s))!;
-	lower(buf, s)!;
-	return buf;
+	mem.copy(buf, (*byte)(s), len(s));
+	return string(buf);
 }

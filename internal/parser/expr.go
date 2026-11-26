@@ -1062,7 +1062,17 @@ func (p *Parser) parseSwitchArm() (ast.SwitchArm, bool) {
 		}
 	}
 
+	if len(arm.Values) == 1 {
+		if block, isBlock := arm.Values[0].(*ast.BlockExpr); isBlock && leavesWithoutValue(block) {
+			arm.Exit = block.Block
+			arm.Values = nil
+		}
+	}
+
 	arm.SetEndPos(p.currentEnd())
+	if arm.Exit != nil && p.peek.Type != lexer.TOKEN_SEMICOLON {
+		return arm, true
+	}
 	if len(arm.Values) == 1 && p.peek.Type != lexer.TOKEN_SEMICOLON {
 		if _, isBlock := arm.Values[0].(*ast.BlockExpr); isBlock {
 			return arm, true
@@ -1176,4 +1186,26 @@ func cloneArm(arm ast.SwitchArm, condition ast.Expression) ast.SwitchArm {
 		copied.Exit = ast.Clone(arm.Exit, ast.CloneOptions{})
 	}
 	return copied
+}
+
+func leavesWithoutValue(block *ast.BlockExpr) bool {
+	if block.Label != "" || block.Static || block.Block == nil || len(block.Block.Statements) == 0 {
+		return false
+	}
+	switch block.Block.Statements[len(block.Block.Statements)-1].(type) {
+	case *ast.ReturnStmt, *ast.BreakStmt, *ast.ContinueStmt:
+	default:
+		return false
+	}
+	yields := false
+	ast.Inspect(block.Block, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.BlockExpr, *ast.FuncLiteral:
+			return false
+		case *ast.YieldStmt:
+			yields = true
+		}
+		return !yields
+	})
+	return !yields
 }

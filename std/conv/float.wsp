@@ -19,11 +19,15 @@ public func floatToUint(float x) !uint {
 	return uint(x);
 }
 
-func special([]byte buf, float x) !?string {
-	return strings.copy(buf, "NaN")! if math.isNaN(x);
-	return strings.copy(buf, "inf")! if math.isInf(x, 1);
-	return strings.copy(buf, "-inf")! if math.isInf(x, -1);
-	return null;
+func special([]byte buf, float x) ?string {
+	return string(buf[..switch {
+		case math.isNaN(x) => strings.copy(buf, "NaN");
+		case math.isInf(x, 1) => strings.copy(buf, "inf");
+		case math.isInf(x, -1) => strings.copy(buf, "-inf");
+		default => {
+			return null;
+		};
+	}]);
 }
 
 func layoutFixed([]byte buf, bool neg, *Decimal dec, int decimals) !string {
@@ -103,7 +107,7 @@ func layoutExp([]byte buf, bool neg, *Decimal dec, int decimals, bool upper) !st
 }
 
 func shortestText([]byte buf, float x, bool single) !string {
-	if special(buf, x)! |view| {
+	if special(buf, x) |view| {
 		return view;
 	}
 
@@ -136,7 +140,7 @@ public inline func ftoa32([]byte buf, float32 x) !string => shortestText(buf, x,
 /// point is written. NaN, `inf` and `-inf` are written by name. Fails with
 /// `NoSpace` when `buf` is too small.
 public func formatFixed([]byte buf, float x, int n) !string {
-	if special(buf, x)! |view| {
+	if special(buf, x) |view| {
 		return view;
 	}
 
@@ -154,7 +158,7 @@ public func formatFixed([]byte buf, float x, int n) !string {
 /// even digit. NaN, `inf` and `-inf` are written by name. Fails with `NoSpace` when
 /// `buf` is too small.
 public func formatExp([]byte buf, float x, int n, bool upper) !string {
-	if special(buf, x)! |view| {
+	if special(buf, x) |view| {
 		return view;
 	}
 

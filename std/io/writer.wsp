@@ -2,20 +2,19 @@ import "std/mem";
 
 /// A `Writer` with a buffer in front of another one, so many small writes cost
 /// one write to the destination. Nothing reaches it until the buffer fills or
-/// `flush` is called, so always `flush` at the end. Build one with `newBufWriter`,
-/// over a buffer you own, or `newBufWriterIn`, which allocates it.
+/// `flush` is called, so always `flush` at the end. Build one with `bufWriter`,
+/// and call `release` when done with it. For a buffer on the stack, give it a
+/// `mem.Fixed` over an array.
 public struct BufWriter implements Writer {
 	Writer out;
 	[]byte buf;
 	int count;
-	?mem.Allocator source;
+	mem.Allocator source;
 }
 
-/// Returns a writer over `out` that buffers through `buf`, which stays yours.
-public inline func newBufWriter(Writer out, []byte buf) BufWriter => .{out: out, buf: buf};
-/// Like `newBufWriter`, with a buffer of `size` bytes allocated from `a`. Give it
-/// back with `release`. Fails with the allocator error.
-public func newBufWriterIn(mem.Allocator a, Writer out, int size) !BufWriter => .{out: out, buf: mem.make<byte>(a, size)!, source: a};
+/// Returns a writer over `out` with a buffer of `size` bytes allocated from `a`.
+/// Give the buffer back with `release`. Fails with the error of the allocator.
+public func bufWriter(mem.Allocator a, Writer out, int size) !BufWriter => .{out: out, buf: mem.make<byte>(a, size)!, source: a};
 
 /// Buffers `data`, sending what is buffered first when it would not fit. A write
 /// as big as the whole buffer goes straight to the destination. Returns the
@@ -45,12 +44,10 @@ public func (*BufWriter w) flush() ! {
 
 /// The number of bytes waiting in the buffer.
 public inline func (*BufWriter w) buffered() int => w.count;
-/// Gives back a buffer that `newBufWriterIn` allocated, and empties the writer.
+/// Gives the buffer back to the allocator it came from, and empties the writer.
 /// It does not flush: call `flush` first.
 public func (*BufWriter w) release() {
-	if w.source |s| {
-		mem.free(s, w.buf);
-	}
+	mem.free(w.source, w.buf);
 	w.count = 0;
 	w.buf = .{};
 }

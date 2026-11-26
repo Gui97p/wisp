@@ -1,13 +1,16 @@
 import "std/errors";
 import "std/math";
 /// An allocator over a buffer you provide, such as a stack array: `Fixed f =
-/// .{buffer: buf}`. Blocks are 16-byte aligned and are taken in a row; nothing is
-/// freed one by one and nothing is allocated from the heap. When the buffer is
-/// full, allocation fails with `NoSpace`.
+/// fixed(buf)`. Blocks are taken in a row, each aligned for its size: up to 16
+/// bytes, so a block of 1 to 8 bytes takes 1, 2, 4 or 8 and a bigger one a
+/// multiple of 16. Nothing is freed one by one and nothing is allocated from
+/// the heap. When the buffer is full, allocation fails with `NoSpace`.
 public struct Fixed implements Allocator {
-	public []byte buffer;
+	[]byte buffer;
 	int bUsed;
 }
+
+public inline func fixed([]byte buf) Fixed => .{buffer: buf};
 
 /// Allocates `n` zeroed bytes from the buffer. Fails with `Invalid` for a
 /// negative `n` and with `NoSpace` when they do not fit.
@@ -17,15 +20,26 @@ public func (*Fixed f) alloc(int n) !*void {
 	return p;
 }
 
-/// Allocates `n` bytes from the buffer without clearing them, rounded up to 16.
+func alignOf(int n) int {
+	int a = 1;
+	loop a < n && a < 16 {
+		a *= 2;
+	}
+	return a;
+}
+
+func round(int n, int a) int => (n + a - 1) & ~(a - 1);
+
+/// Allocates `n` bytes from the buffer without clearing them. The block is
+/// aligned for its size, up to 16, and takes `n` rounded up to that alignment.
 /// Fails with `Invalid` for a negative `n` and with `NoSpace` when they do not
 /// fit; then nothing is used.
 public func (*Fixed f) allocDirty(int n) !*void {
-	int base = int((*byte)(f.buffer));
-	int start = (base + f.bUsed + 15) & ~15;
-	int off = start - base;
 	errors.ensure(n >= 0, errors.Kind.Invalid)!;
-	n = (n + 15) & ~15;
+	int a = alignOf(n);
+	int base = int((*byte)(f.buffer));
+	int off = round(base + f.bUsed, a) - base;
+	n = round(n, a);
 	errors.ensure(off + n <= len(f.buffer), errors.Kind.NoSpace)!;
 	defer f.bUsed = off + n;
 	return (*byte)(f.buffer) + off;
@@ -46,17 +60,19 @@ public inline func (*Fixed f) used() int => f.bUsed;
 /// Does nothing: space comes back only with `reset`.
 public func (*Fixed) free(?*void _p) {}
 
-/// Resizes a block. The block of the last allocation grows or shrinks in place;
-/// any other block is copied to a new one, and the old space stays used. Bytes
+/// Resizes a block. The block of the last allocation grows or shrinks in place
+/// when its address is aligned for the new size; any other block is copied to
+/// a new one, and the old space stays used. Bytes
 /// past `old` are zeroed. Fails with `Invalid` for a negative size and with
 /// `NoSpace` when the buffer is full.
 public func (*Fixed f) realloc(?*void p, int old, int n) !*void {
 	errors.ensure(old >= 0 && n >= 0, errors.Kind.Invalid)!;
 	*void block = p ?? return f.alloc(n)!;
-	int was = (old + 15) & ~15;
-	int want = (n + 15) & ~15;
+	int was = round(old, alignOf(old));
+	int want = round(n, alignOf(n));
 	int base = int((*byte)(f.buffer));
-	if int(block) + was == base + f.bUsed && f.bUsed - was + want <= len(f.buffer) {
+	bool aligned = int(block) % alignOf(n) == 0;
+	if aligned && int(block) + was == base + f.bUsed && f.bUsed - was + want <= len(f.buffer) {
 		f.bUsed = f.bUsed - was + want;
 		if n > old {
 			fill((*byte)(block) + old, 0, n - old);

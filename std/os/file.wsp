@@ -145,7 +145,7 @@ public func readFile(string path) ![]byte {
 	int size = f.size()!;
 	return .{} if size == 0;
 	[]byte buf = mem.make<byte>(mem.heap, size)!;
-	defer !mem.free(mem.heap, buf);
+	defer! mem.free(mem.heap, buf);
 	int total;
 	loop {
 		int r = f.read(buf[total..])! ?? 0;

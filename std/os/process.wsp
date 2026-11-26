@@ -49,24 +49,15 @@ public func (*Environ e) close() {
 	sys.envClose(&e.state);
 }
 
-/// Writes the current working directory into `buf` and returns it as a string
-/// that points into `buf`. Fails with `Overflow` if `buf` is too small.
-public func cwd([]byte buf) !string {
-	int r = sys.getcwd(buf);
-	return errorIO(sys.errno(r)) if r < 0;
-	return string(buf[..r]);
-}
-
-/// Like `cwd`, into a new byte slice allocated from `a`. The caller frees it with
-/// `mem.free`. Fails with the allocator error when memory runs out.
-public func cwdIn(mem.Allocator a) ![]byte {
+/// Writes the current working directory into into a new byte slice allocated from `a`
+/// and returns it as a strinv view. Fails with the allocator error when memory runs out.
+public func cwd(mem.Allocator a) !string {
 	int size = 256;
 	loop {
 		[]byte buf = mem.makeDirty<byte>(a, size)!;
 		int r = sys.getcwd(buf);
-		if r >= 0 {
-			return buf[..r];
-		}
+		return string(buf[..r]) if r >= 0;
+
 		mem.free(a, buf);
 		Error e = errorIO(sys.errno(r));
 		return e if e != errors.Kind.Overflow;

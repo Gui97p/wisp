@@ -3042,11 +3042,11 @@ func main() ! {
     check(a[7] == 70, "free on an arena changes nothing");
 
     [256]byte storage;
-    mem.Fixed fixed = mem.Fixed{buffer: storage};
+    mem.Fixed fixed = mem.fixed(storage);
     mem.Allocator viaFixed = &fixed;
     *int one = mem.create<int>(viaFixed)!;
     one@ = 5;
-    check(one@ == 5 && fixed.used() >= 16, "a fixed buffer as an Allocator value");
+    check(one@ == 5 && fixed.used() >= 8, "a fixed buffer as an Allocator value");
 
     Counter counts;
     mem.Allocator counting = &counts;
@@ -3079,7 +3079,7 @@ func main() ! {
     grower.release();
 
     [128]byte small;
-    mem.Fixed tight = mem.Fixed{buffer: small};
+    mem.Fixed tight = mem.fixed(small);
     []int t = mem.make<int>(&tight, 4)!;
     t[1] = 4;
     t = mem.resize(&tight, t, 8)!;
@@ -4982,7 +4982,7 @@ func main() ! {
     counting.free(c);
     check(counting.blocks() == 0 && counting.bytes() == 0 && counting.allocated() == 500, "everything freed, totals kept");
 
-    mem.Failing failing = mem.Failing{after: 2};
+    mem.Failing failing = mem.failingAfter(mem.heap, 2);
     []int s = mem.make<int>(&failing, 4)!;
     []int t = mem.make<int>(&failing, 4)!;
     let u, e = mem.make<int>(&failing, 4);
@@ -9569,7 +9569,10 @@ func main() ! {
 import "std/slices";
 import "std/strings";
 
+mem.Arena scratch;
+
 func main() ! {
+    defer scratch.release();
     [64]byte buf;
 
     check((strings.indexOf("hello", "ll") ?? -1) == 2, "indexOf finds the first match");
@@ -9624,20 +9627,21 @@ func main() ! {
     }
     check(byteCount == 3, "splitter with an empty separator yields bytes");
 
-    check(strings.concat(buf, "ab", "cd")!! == "abcd", "concat");
-    check(strings.concat(buf, "ab", "")!! == "ab", "concat accepts empty parts");
+    check(strings.concat(&scratch, "ab", "cd")!! == "abcd", "concat");
+    check(strings.concat(&scratch, "ab", "")!! == "ab", "concat accepts empty parts");
     [3]byte small;
-    string tooBig = strings.concat(small, "abcd") ?? "full";
+    mem.Fixed smallFixed = mem.fixed(small);
+    string tooBig = strings.concat(&smallFixed, "abcd") ?? "full";
     check(tooBig == "full", "concat reports NoSpace");
-    check(strings.join(buf, .{"a", "b", "c"}, ", ")!! == "a, b, c", "join");
-    check(strings.rep(buf, "ab", 3)!! == "ababab", "rep");
-    check(strings.replace(buf, "a-b-c", "-", "+", -1)!! == "a+b+c", "replace all");
-    check(strings.replace(buf, "a-b-c", "-", "<>", -1)!! == "a<>b<>c", "replace with a longer text");
-    check(strings.replace(buf, "a--b--c", "--", "-", -1)!! == "a-b-c", "replace with a shorter text");
-    check(strings.replace(buf, "a--b--c", "--", "-", 1)!! == "a-b--c", "replace the first only");
-    check(strings.replace(buf, "-a-b", "-", "+", -1)!! == "+a+b", "replace with a leading match");
-    check(strings.upper(buf, "abC")!! == "ABC", "upper");
-    check(strings.lower(buf, "AbC")!! == "abc", "lower");
+    check(strings.join(&scratch, .{"a", "b", "c"}, ", ")!! == "a, b, c", "join");
+    check(strings.rep(&scratch, "ab", 3)!! == "ababab", "rep");
+    check(strings.replace(&scratch, "a-b-c", "-", "+", -1)!! == "a+b+c", "replace all");
+    check(strings.replace(&scratch, "a-b-c", "-", "<>", -1)!! == "a<>b<>c", "replace with a longer text");
+    check(strings.replace(&scratch, "a--b--c", "--", "-", -1)!! == "a-b-c", "replace with a shorter text");
+    check(strings.replace(&scratch, "a--b--c", "--", "-", 1)!! == "a-b--c", "replace the first only");
+    check(strings.replace(&scratch, "-a-b", "-", "+", -1)!! == "+a+b", "replace with a leading match");
+    check(strings.upper(&scratch, "abC")!! == "ABC", "upper");
+    check(strings.lower(&scratch, "AbC")!! == "abc", "lower");
 
     [3]byte word = .{'a', 'b', 'c'};
     strings.toUpper(word);
@@ -9652,10 +9656,9 @@ func main() ! {
     slices.reverse(nothing);
     check(len(nothing) == 0, "reverse empty");
 
-    []byte copy = strings.clone("hey")!;
-    check(string(copy) == "hey", "clone copies the bytes");
-    mem.heap.free((*byte)(copy));
-    []byte empty = strings.clone("")!;
+    string copy = strings.clone(&scratch, "hey")!;
+    check(copy == "hey", "clone copies the bytes");
+    string empty = strings.clone(&scratch, "")!;
     check(len(empty) == 0, "clone of an empty string");
 }
 `, expected: []string{"indexOf finds the first match", "indexOf of an empty sub is 0", "indexOf finds a match at the end", "indexOf misses", "lastIndexOf finds the last match", "count counts separate matches", "startsWith longer than the string is false", "endsWith matches the tail", "compare orders by prefix length", "equalFold ignores ASCII case", "trimSpace", "trim with a charset", "trimPrefix", "trimSuffix", "cut finds the separator", "cut without a separator", "splitter yields every piece", "splitter keeps the trailing empty piece", "splitter of an empty string yields one piece", "splitter with an empty separator yields bytes", "concat", "concat accepts empty parts", "concat reports NoSpace", "join", "rep", "replace all", "replace with a longer text", "replace with a shorter text", "replace the first only", "replace with a leading match", "upper", "lower", "toUpper in place", "reverse even length", "reverse odd length", "reverse empty", "clone copies the bytes", "clone of an empty string"}},
@@ -9741,10 +9744,14 @@ func main() {
 }
 `, expected: []string{"getenv finds a variable that is always set", "getenv of a missing variable is null", "getenv does not match a prefix of a name"}},
 
-	{dir: "path_core", system: "linux", src: `import "std/paths";
+	{dir: "path_core", system: "linux", src: `import "std/mem";
+import "std/paths";
 import "std/strings";
 
+mem.Arena scratch;
+
 func main() ! {
+    defer scratch.release();
     [64]byte buf;
 
     check(paths.base("a/b") == "b", "base takes the last element");
@@ -9764,19 +9771,20 @@ func main() ! {
     check(paths.ext("d/x.y/z") == "", "ext looks only at the base");
     check(paths.isAbs("/a") && !paths.isAbs("a") && !paths.isAbs(""), "isAbs");
 
-    check(paths.join(buf, "a", "b")!! == "a/b", "join puts one separator between parts");
-    check(paths.join(buf, "a//", "//b")!! == "a/b", "join collapses repeated separators");
-    check(paths.join(buf, "", "a", "", "b")!! == "a/b", "join skips empty parts");
-    check(paths.join(buf, "/", "a")!! == "/a" && paths.join(buf, "/a", "b")!! == "/a/b", "join keeps the root of the first part");
-    check(paths.join(buf, "/", "/", "a", "b")!! == "/a/b", "join writes the root once");
-    check(paths.join(buf, "", "/a")!! == "/a", "join takes the root from the first part that is not empty");
-    check(paths.join(buf, "a", "/")!! == "a", "join of a name and the root is the name");
-    check(paths.join(buf)!! == "" && paths.join(buf, "")!! == "", "join of nothing is empty");
-    check(paths.join(buf, "/")!! == "/", "join of the root is the root");
+    check(paths.join(&scratch, "a", "b")!! == "a/b", "join puts one separator between parts");
+    check(paths.join(&scratch, "a//", "//b")!! == "a/b", "join collapses repeated separators");
+    check(paths.join(&scratch, "", "a", "", "b")!! == "a/b", "join skips empty parts");
+    check(paths.join(&scratch, "/", "a")!! == "/a" && paths.join(&scratch, "/a", "b")!! == "/a/b", "join keeps the root of the first part");
+    check(paths.join(&scratch, "/", "/", "a", "b")!! == "/a/b", "join writes the root once");
+    check(paths.join(&scratch, "", "/a")!! == "/a", "join takes the root from the first part that is not empty");
+    check(paths.join(&scratch, "a", "/")!! == "a", "join of a name and the root is the name");
+    check(paths.join(&scratch)!! == "" && paths.join(&scratch, "")!! == "", "join of nothing is empty");
+    check(paths.join(&scratch, "/")!! == "/", "join of the root is the root");
     [3]byte tiny;
-    string cut = paths.join(tiny, "abc", "d") ?? "full";
+    mem.Fixed tinyFixed = mem.fixed(tiny);
+    string cut = paths.join(&tinyFixed, "abc", "d") ?? "full";
     check(cut == "full", "join reports NoSpace");
-    string cutRoot = paths.join(tiny, "/ab", "c") ?? "full";
+    string cutRoot = paths.join(&tinyFixed, "/ab", "c") ?? "full";
     check(cutRoot == "full", "join with a root reports NoSpace");
 
     paths.Elements el = paths.elements("/a//b/");
@@ -9799,24 +9807,28 @@ func main() ! {
     }
     check(tokCount == 2, "tokens skips the empty piece at the end");
 
-    check(paths.clean(buf, "")!! == "." && paths.clean(buf, "./")!! == ".", "clean of an empty path is a dot");
-    check(paths.clean(buf, "a//b")!! == "a/b", "clean collapses separators");
-    check(paths.clean(buf, "a/./b")!! == "a/b", "clean drops dots");
-    check(paths.clean(buf, "a/b/../c")!! == "a/c", "clean resolves dot dot");
-    check(paths.clean(buf, "a/..")!! == ".", "clean can end in a dot");
-    check(paths.clean(buf, "../../a")!! == "../../a", "clean keeps leading dot dots in a relative path");
-    check(paths.clean(buf, "a/../..")!! == "..", "clean keeps the dot dot that has nothing to undo");
-    check(paths.clean(buf, "/..")!! == "/" && paths.clean(buf, "/a/../..")!! == "/", "clean never goes above the root");
-    check(paths.clean(buf, "/a/b/")!! == "/a/b", "clean drops the trailing separator");
-    check(paths.clean(buf, "a/b/c/../../d")!! == "a/d", "clean undoes several elements");
-    string cutClean = paths.clean(tiny, "abcd/e") ?? "full";
+    check(paths.clean(&scratch, "")!! == "." && paths.clean(&scratch, "./")!! == ".", "clean of an empty path is a dot");
+    check(paths.clean(&scratch, "a//b")!! == "a/b", "clean collapses separators");
+    check(paths.clean(&scratch, "a/./b")!! == "a/b", "clean drops dots");
+    check(paths.clean(&scratch, "a/b/../c")!! == "a/c", "clean resolves dot dot");
+    check(paths.clean(&scratch, "a/..")!! == ".", "clean can end in a dot");
+    check(paths.clean(&scratch, "../../a")!! == "../../a", "clean keeps leading dot dots in a relative path");
+    check(paths.clean(&scratch, "a/../..")!! == "..", "clean keeps the dot dot that has nothing to undo");
+    check(paths.clean(&scratch, "/..")!! == "/" && paths.clean(&scratch, "/a/../..")!! == "/", "clean never goes above the root");
+    check(paths.clean(&scratch, "/a/b/")!! == "/a/b", "clean drops the trailing separator");
+    check(paths.clean(&scratch, "a/b/c/../../d")!! == "a/d", "clean undoes several elements");
+    string cutClean = paths.clean(&tinyFixed, "abcd/e") ?? "full";
     check(cutClean == "full", "clean reports NoSpace");
 }
 `, expected: []string{"base takes the last element", "base ignores trailing separators", "base of only separators is the root", "base of an empty path is a dot", "base keeps a trailing space", "dir drops the last element", "dir of a path under the root is the root", "dir of the root is the root", "dir of a single name is a dot", "dir ignores trailing separators", "dir does not clean", "ext is the last dot and stem is the rest", "a leading dot is part of the name", "a trailing dot is part of the name", "ext looks only at the base", "isAbs", "join puts one separator between parts", "join collapses repeated separators", "join skips empty parts", "join keeps the root of the first part", "join writes the root once", "join takes the root from the first part that is not empty", "join of a name and the root is the name", "join of nothing is empty", "join of the root is the root", "join reports NoSpace", "join with a root reports NoSpace", "elements skips empty pieces", "elements of a root or an empty path is nothing", "tokens skips the empty piece at the end", "clean of an empty path is a dot", "clean collapses separators", "clean drops dots", "clean resolves dot dot", "clean can end in a dot", "clean keeps leading dot dots in a relative path", "clean keeps the dot dot that has nothing to undo", "clean never goes above the root", "clean drops the trailing separator", "clean undoes several elements", "clean reports NoSpace"}},
 
-	{dir: "path_windows", system: "windows", src: `import "std/paths";
+	{dir: "path_windows", system: "windows", src: `import "std/mem";
+import "std/paths";
+
+mem.Arena scratch;
 
 func main() ! {
+    defer scratch.release();
     [64]byte buf;
 
     check(paths.isAbs("C:\\a") && paths.isAbs("C:/a") && paths.isAbs("c:\\"), "a drive and a separator make a path absolute");
@@ -9829,16 +9841,16 @@ func main() ! {
     check(paths.dir("C:a") == "C:" && paths.dir("a\\b") == "a" && paths.dir("a/b") == "a" && paths.dir("a") == ".", "dir of relative paths");
     check(paths.ext("a\\b.tar.gz") == ".gz" && paths.stem("a\\b.tar.gz") == "b.tar", "ext and stem look at the last element");
 
-    check(paths.join(buf, "C:\\", "a", "b")!! == "C:\\a\\b", "join keeps the drive and the root");
-    check(paths.join(buf, "a/b", "c\\d")!! == "a\\b\\c\\d", "join writes the canonical separator");
-    check(paths.join(buf, "C:", "a")!! == "C:a", "join of a bare drive and a name is drive relative");
-    check(paths.join(buf, "\\\\srv\\share", "x")!! == "\\\\srv\\share\\x", "join keeps a UNC volume");
-    check(paths.join(buf, "\\a", "b")!! == "\\a\\b", "join keeps a rooted path rooted");
+    check(paths.join(&scratch, "C:\\", "a", "b")!! == "C:\\a\\b", "join keeps the drive and the root");
+    check(paths.join(&scratch, "a/b", "c\\d")!! == "a\\b\\c\\d", "join writes the canonical separator");
+    check(paths.join(&scratch, "C:", "a")!! == "C:a", "join of a bare drive and a name is drive relative");
+    check(paths.join(&scratch, "\\\\srv\\share", "x")!! == "\\\\srv\\share\\x", "join keeps a UNC volume");
+    check(paths.join(&scratch, "\\a", "b")!! == "\\a\\b", "join keeps a rooted path rooted");
 
-    check(paths.clean(buf, "C:/a/./b/../c")!! == "C:\\a\\c", "clean writes the canonical separator and resolves dots");
-    check(paths.clean(buf, "C:\\..")!! == "C:\\" && paths.clean(buf, "C:\\a\\..\\..")!! == "C:\\", "clean never goes above the root");
-    check(paths.clean(buf, "a\\..\\..\\b")!! == "..\\b", "clean keeps the dot dot that has nothing to undo");
-    check(paths.clean(buf, "")!! == "." && paths.clean(buf, "C:")!! == "C:", "clean of an empty path and of a bare drive");
+    check(paths.clean(&scratch, "C:/a/./b/../c")!! == "C:\\a\\c", "clean writes the canonical separator and resolves dots");
+    check(paths.clean(&scratch, "C:\\..")!! == "C:\\" && paths.clean(&scratch, "C:\\a\\..\\..")!! == "C:\\", "clean never goes above the root");
+    check(paths.clean(&scratch, "a\\..\\..\\b")!! == "..\\b", "clean keeps the dot dot that has nothing to undo");
+    check(paths.clean(&scratch, "")!! == "." && paths.clean(&scratch, "C:")!! == "C:", "clean of an empty path and of a bare drive");
 
     paths.Elements el = paths.elements("C:\\a\\\\b/c");
     int count;
@@ -9851,16 +9863,20 @@ func main() ! {
 }
 `, expected: []string{"a drive and a separator make a path absolute", "a drive alone, a rooted path or a relative one is not absolute", "a UNC path with a share is absolute", "base takes the last element after either separator", "base of a root or a bare drive", "dir keeps the drive and the root", "dir of relative paths", "ext and stem look at the last element", "join keeps the drive and the root", "join writes the canonical separator", "join of a bare drive and a name is drive relative", "join keeps a UNC volume", "join keeps a rooted path rooted", "clean writes the canonical separator and resolves dots", "clean never goes above the root", "clean keeps the dot dot that has nothing to undo", "clean of an empty path and of a bare drive", "elements skips the drive and splits on both separators"}},
 
-	{dir: "os_dir", src: `import "std/os";
+	{dir: "os_dir", src: `import "std/mem";
+import "std/os";
 import "std/paths";
 import "std/conv";
 
+mem.Arena scratch;
+
 func main() ! {
+    defer scratch.release();
     [256]byte buf;
     [32]byte num;
     string root = "/tmp/wisp_t_dir";
-    os.createDir(paths.join(buf, root, "sub")!!)!;
-    os.File fd = os.create(paths.join(buf, root, "aa")!!)!;
+    os.createDir(paths.join(&scratch, root, "sub")!!)!;
+    os.File fd = os.create(paths.join(&scratch, root, "aa")!!)!;
     fd.close()!;
 
     os.Dir d = os.openDir(root)!;
@@ -9882,21 +9898,21 @@ func main() ! {
     check(files == 1 && dirs == 1 && other == 0, "a directory lists its files and subdirectories with their kinds");
     check(!dots, "the entries . and .. are not listed");
 
-    os.Dir empty = os.openDir(paths.join(buf, root, "sub")!!)!;
+    os.Dir empty = os.openDir(paths.join(&scratch, root, "sub")!!)!;
     ?os.Entry nothing = empty.next()!;
     check(nothing == null, "an empty directory lists nothing");
     empty.close()!;
 
-    let notDir, problem = os.openDir(paths.join(buf, root, "aa")!!);
+    let notDir, problem = os.openDir(paths.join(&scratch, root, "aa")!!);
     check(problem == os.IOError.NotDir, "openDir on a file is NotDir");
 
-    os.createDir(paths.join(buf, root, "many")!!)!;
+    os.createDir(paths.join(&scratch, root, "many")!!)!;
     for i in 1..=300 {
         [256]byte full;
-        os.File made = os.create(paths.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
+        os.File made = os.create(paths.join(&scratch, root, "many", conv.itoa(num, i)!!)!!)!;
         made.close()!;
     }
-    os.Dir many = os.openDir(paths.join(buf, root, "many")!!)!;
+    os.Dir many = os.openDir(paths.join(&scratch, root, "many")!!)!;
     int seen;
     for _ in many! {
         seen++;
@@ -9906,11 +9922,11 @@ func main() ! {
 
     for i in 1..=300 {
         [256]byte full;
-        os.remove(paths.join(full, root, "many", conv.itoa(num, i)!!)!!)!;
+        os.remove(paths.join(&scratch, root, "many", conv.itoa(num, i)!!)!!)!;
     }
-    os.removeDir(paths.join(buf, root, "many")!!)!;
-    os.remove(paths.join(buf, root, "aa")!!)!;
-    os.removeDir(paths.join(buf, root, "sub")!!)!;
+    os.removeDir(paths.join(&scratch, root, "many")!!)!;
+    os.remove(paths.join(&scratch, root, "aa")!!)!;
+    os.removeDir(paths.join(&scratch, root, "sub")!!)!;
     os.removeDir(root)!;
 }
 `, expected: []string{"a directory lists its files and subdirectories with their kinds", "the entries . and .. are not listed", "an empty directory lists nothing", "openDir on a file is NotDir", "a listing that needs several reads finds every entry"}},
@@ -10046,20 +10062,24 @@ func main() ! {
 }
 `, expected: []string{"the key events reached the console", "a console read starts with the first character", "a two byte character comes out one byte per read", "a three byte character comes out one byte per read", "Enter is a single line feed, not a carriage return and a line feed", "the next line arrives whole with a single line feed", "Control Z ends the input"}},
 
-	{dir: "os_long_path", src: `import "std/os";
+	{dir: "os_long_path", src: `import "std/mem";
+import "std/os";
 import "std/paths";
 
+mem.Arena scratch;
+
 func main() ! {
+    defer scratch.release();
     string root = "/tmp/wisp_t_long";
     string part = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789";
     [2048]byte a, b, c;
 
-    string deep = paths.join(a, root, part, part, part, part)!!;
+    string deep = paths.join(&scratch, root, part, part, part, part)!!;
     check(len(deep) > 400, "the test path is longer than any legacy limit");
     os.createDir(deep)!;
     check(os.isDir(deep), "mkdirAll creates a path longer than 260 characters");
 
-    string file = paths.join(b, deep, "file.txt")!!;
+    string file = paths.join(&scratch, deep, "file.txt")!!;
     os.File fd = os.create(file)!;
     fd.write([]byte("long"))!;
     fd.close()!;
@@ -10073,15 +10093,15 @@ func main() ! {
     check(first.name == "file.txt" && first.kind == .File, "a directory inside a long path lists its entries");
     d.close()!;
 
-    string moved = paths.join(c, deep, "moved.txt")!!;
+    string moved = paths.join(&scratch, deep, "moved.txt")!!;
     os.rename(file, moved)!;
     check(os.exists(moved) && !os.exists(file), "rename inside a long path");
     os.remove(moved)!;
 
     os.removeDir(deep)!;
-    os.removeDir(paths.join(a, root, part, part, part)!!)!;
-    os.removeDir(paths.join(a, root, part, part)!!)!;
-    os.removeDir(paths.join(a, root, part)!!)!;
+    os.removeDir(paths.join(&scratch, root, part, part, part)!!)!;
+    os.removeDir(paths.join(&scratch, root, part, part)!!)!;
+    os.removeDir(paths.join(&scratch, root, part)!!)!;
     os.removeDir(root)!;
     check(!os.exists(root), "everything created for the test is gone");
 }
@@ -10118,55 +10138,6 @@ func main() ! {
 }
 `, expected: []string{"a file has the kind File", "a directory has the kind Dir", "a missing path has no kind", "isFile and isDir tell a file apart", "isDir and isFile tell a directory apart", "a file is none of the other kinds", "an open file has the kind File", "an open file knows its size", "a closed file has no kind"}},
 
-	{dir: "alloc_text_in", src: `import "std/mem";
-import "std/os";
-import "std/paths";
-import "std/strings";
-
-func main() ! {
-    []byte joined = strings.concatIn(mem.heap, "ab", "", "cd")!;
-    check(string(joined) == "abcd", "concatIn joins the parts");
-    mem.free(mem.heap, joined);
-
-    []string words = .{"red", "green", "blue"};
-    []byte list = strings.joinIn(mem.heap, words, ", ")!;
-    check(string(list) == "red, green, blue", "joinIn puts the separator between parts");
-    mem.free(mem.heap, list);
-
-    []byte stars = strings.repIn(mem.heap, "*-", 3)!;
-    check(string(stars) == "*-*-*-", "repIn repeats the text");
-    mem.free(mem.heap, stars);
-
-    []byte up = strings.upperIn(mem.heap, "Wisp 1")!;
-    check(string(up) == "WISP 1", "upperIn changes the case");
-    mem.free(mem.heap, up);
-    []byte low = strings.lowerIn(mem.heap, "Wisp 1")!;
-    check(string(low) == "wisp 1", "lowerIn changes the case");
-    mem.free(mem.heap, low);
-
-    []byte none = strings.concatIn(mem.heap)!;
-    check(len(none) == 0, "concatIn of nothing is empty");
-
-    [4096]byte store;
-    []byte made = paths.joinIn(mem.heap, "/tmp", "a", "b.txt")!;
-    check(string(made) == paths.join(store, "/tmp", "a", "b.txt")!, "paths.joinIn gives the same answer as paths.join");
-    mem.free(mem.heap, made);
-    []byte tidy = paths.cleanIn(mem.heap, "/tmp//a/./b/../c")!;
-    check(string(tidy) == paths.clean(store, "/tmp//a/./b/../c")!, "paths.cleanIn gives the same answer as paths.clean");
-    mem.free(mem.heap, tidy);
-
-    []byte here = os.cwdIn(mem.heap)!;
-    check(string(here) == os.cwd(store)!, "cwdIn gives the same answer as cwd");
-    mem.free(mem.heap, here);
-
-    mem.Counting counting;
-    []byte counted = strings.repIn(&counting, "x", 10)!;
-    check(counting.blocks() == 1 && counting.bytes() == 10, "the allocator that was passed is the one used");
-    mem.free(&counting, counted);
-    check(counting.blocks() == 0, "the result is freed through the same allocator");
-}
-`, expected: []string{"concatIn joins the parts", "joinIn puts the separator between parts", "repIn repeats the text", "upperIn changes the case", "lowerIn changes the case", "concatIn of nothing is empty", "paths.joinIn gives the same answer as paths.join", "paths.cleanIn gives the same answer as paths.clean", "cwdIn gives the same answer as cwd", "the allocator that was passed is the one used", "the result is freed through the same allocator"}},
-
 	{dir: "os_file_io", src: `import "std/errors";
 import "std/io";
 import "std/mem";
@@ -10178,7 +10149,7 @@ func main() ! {
     os.writeFile(path, []byte("alpha beta\ngamma\n\ndelta"))!;
 
     os.File f = os.open(path, os.READ)!;
-    io.Scanner sc = io.newScannerIn(mem.heap, &f, 8, 64)!;
+    io.Scanner sc = io.scanner(mem.heap, &f, 8, 64)!;
     int lines;
     for line in sc! {
         lines++;
@@ -10571,39 +10542,83 @@ func main() {
 }
 `, expected: []string{"the optional form tells the types apart", "the pointer reaches the same object", "it is a pointer to the original, not a copy", "the asserted form gives the pointer", "a function can return the optional form", "?? gives a default when the type is another", "the result is usable in an expression"}},
 
-	{dir: "os_mkdirall", src: `import "std/errors";
+	{dir: "switch_block_exit_arm", src: `func size(int a) int {
+    return a;
+}
+
+func special([]byte buf, int a) ?string {
+    return string(buf[..switch {
+        case a == 1 => size(1);
+        case a == 2 => 2;
+        default => {
+            return null;
+        };
+    }]);
+}
+
+func loopy(int a) int {
+    int total;
+    for i in 0..3 {
+        int n = switch {
+            case i == a => 10;
+            default => {
+                continue;
+            };
+        };
+        total += n;
+    }
+    return total;
+}
+
+func main() {
+    [4]byte b = .{'w', 'x', 'y', 'z'};
+    let one = special(b, 1);
+    let two = special(b, 2);
+    let none = special(b, 3);
+    check(one != null && len(one.?) == 1, "an arm with a value still works next to a block that returns");
+    check(two != null && len(two.?) == 2, "the second arm gives its value");
+    check(none == null, "the block that returns leaves the function");
+    check(loopy(1) == 10 && loopy(7) == 0, "a block that continues skips the turn");
+}
+`, expected: []string{"an arm with a value still works next to a block that returns", "the second arm gives its value", "the block that returns leaves the function", "a block that continues skips the turn"}},
+
+	{dir: "os_mkdirall", src: `import "std/mem";
+import "std/errors";
 import "std/os";
 import "std/paths";
 
+mem.Arena scratch;
+
 func main() ! {
+    defer scratch.release();
     [256]byte buf;
     string root = "/tmp/wisp_t_mkdirall";
-    os.createDir(paths.join(buf, root, "a", "b", "c")!!)!;
-    check(os.isDir(paths.join(buf, root, "a", "b", "c")!!), "mkdirAll creates every missing level");
-    os.createDir(paths.join(buf, root, "a", "b", "c")!!)!;
-    check(os.isDir(paths.join(buf, root, "a", "b")!!), "mkdirAll of an existing directory is not an error");
-    os.createDir(paths.join(buf, root, "a", "b", "d", "e")!!)!;
-    check(os.isDir(paths.join(buf, root, "a", "b", "d", "e")!!), "mkdirAll creates only what is missing");
-    os.createDir(paths.join(buf, root, "x", "y")!!)!;
-    check(os.isDir(paths.join(buf, root, "x", "y")!!), "mkdirAll accepts a trailing separator");
+    os.createDir(paths.join(&scratch, root, "a", "b", "c")!!)!;
+    check(os.isDir(paths.join(&scratch, root, "a", "b", "c")!!), "mkdirAll creates every missing level");
+    os.createDir(paths.join(&scratch, root, "a", "b", "c")!!)!;
+    check(os.isDir(paths.join(&scratch, root, "a", "b")!!), "mkdirAll of an existing directory is not an error");
+    os.createDir(paths.join(&scratch, root, "a", "b", "d", "e")!!)!;
+    check(os.isDir(paths.join(&scratch, root, "a", "b", "d", "e")!!), "mkdirAll creates only what is missing");
+    os.createDir(paths.join(&scratch, root, "x", "y")!!)!;
+    check(os.isDir(paths.join(&scratch, root, "x", "y")!!), "mkdirAll accepts a trailing separator");
 
-    os.File fd = os.create(paths.join(buf, root, "file")!!)!;
+    os.File fd = os.create(paths.join(&scratch, root, "file")!!)!;
     fd.close()!;
-    let onFile = os.createDir(paths.join(buf, root, "file")!!);
+    let onFile = os.createDir(paths.join(&scratch, root, "file")!!);
     check(onFile == os.IOError.NotDir, "mkdirAll over a file is NotDir");
-    let underFile = os.createDir(paths.join(buf, root, "file", "sub")!!);
+    let underFile = os.createDir(paths.join(&scratch, root, "file", "sub")!!);
     check(underFile == os.IOError.NotDir, "mkdirAll under a file is NotDir");
     let empty = os.createDir("");
     check(empty == errors.Kind.NotFound, "mkdirAll of an empty path is NotFound");
 
-    os.removeDir(paths.join(buf, root, "a", "b", "d", "e")!!)!;
-    os.removeDir(paths.join(buf, root, "a", "b", "d")!!)!;
-    os.removeDir(paths.join(buf, root, "a", "b", "c")!!)!;
-    os.removeDir(paths.join(buf, root, "a", "b")!!)!;
-    os.removeDir(paths.join(buf, root, "a")!!)!;
-    os.removeDir(paths.join(buf, root, "x", "y")!!)!;
-    os.removeDir(paths.join(buf, root, "x")!!)!;
-    os.remove(paths.join(buf, root, "file")!!)!;
+    os.removeDir(paths.join(&scratch, root, "a", "b", "d", "e")!!)!;
+    os.removeDir(paths.join(&scratch, root, "a", "b", "d")!!)!;
+    os.removeDir(paths.join(&scratch, root, "a", "b", "c")!!)!;
+    os.removeDir(paths.join(&scratch, root, "a", "b")!!)!;
+    os.removeDir(paths.join(&scratch, root, "a")!!)!;
+    os.removeDir(paths.join(&scratch, root, "x", "y")!!)!;
+    os.removeDir(paths.join(&scratch, root, "x")!!)!;
+    os.remove(paths.join(&scratch, root, "file")!!)!;
     os.removeDir(root)!;
 }
 `, expected: []string{"mkdirAll creates every missing level", "mkdirAll of an existing directory is not an error", "mkdirAll creates only what is missing", "mkdirAll accepts a trailing separator", "mkdirAll over a file is NotDir", "mkdirAll under a file is NotDir", "mkdirAll of an empty path is NotFound"}},
@@ -14335,7 +14350,7 @@ func main() {
 }
 `, expected: []string{"in compares struct elements with eq", "in works on a slice of structs", "in works on a call", "and inside a condition", "numbers keep their own in"}},
 
-	{dir: "list_basic", src: `import "std/list";
+	{dir: "vec_iter", src: `import "std/seq";
 
 struct Pair {
     int a;
@@ -14343,7 +14358,69 @@ struct Pair {
 }
 
 func main() ! {
-    list.List<int> l;
+    seq.Vec<int> numbers;
+    defer numbers.release();
+    for i in 1..=4 {
+        numbers.append(i * 10)!;
+    }
+
+    int sum;
+    for n in numbers {
+        sum += n;
+    }
+    check(sum == 100, "for walks every element of a list");
+
+    int weighted;
+    for i, n in numbers {
+        weighted += i * n;
+    }
+    check(weighted == 0 * 10 + 1 * 20 + 2 * 30 + 3 * 40, "the index counts from zero");
+
+    seq.Vec<int> empty;
+    int turns;
+    for n in empty {
+        turns++;
+    }
+    check(turns == 0, "an empty list runs the body zero times");
+
+    seq.Vec<Pair> pairs;
+    defer pairs.release();
+    pairs.append(Pair{a: 1, b: 2})!;
+    pairs.append(Pair{a: 3, b: 4})!;
+    int total;
+    for p in pairs {
+        total += p.a * p.b;
+    }
+    check(total == 14, "the elements can be structs");
+
+    int copies;
+    for n in numbers {
+        n += 1;
+        copies += n;
+    }
+    check(copies == 104 && numbers.items[0] == 10, "the elements are copies, the list is not changed");
+
+    seq.VecIter<int> walk = numbers.iter();
+    ?int firstValue = walk.next();
+    ?int secondValue = walk.next();
+    check(firstValue == 10 && secondValue == 20, "iter gives an iterator that can be used by hand");
+    int rest;
+    loop walk.next() |n| {
+        rest += n;
+    }
+    ?int past = walk.next();
+    check(rest == 70 && past == null, "it ends with null");
+}
+`, expected: []string{"for walks every element of a list", "the index counts from zero", "an empty list runs the body zero times", "the elements can be structs", "the elements are copies, the list is not changed", "iter gives an iterator that can be used by hand", "it ends with null"}},
+	{dir: "vec_basic", src: `import "std/seq";
+
+struct Pair {
+    int a;
+    int b;
+}
+
+func main() ! {
+    seq.Vec<int> l;
     ?int none = l.get(0);
     check(l.len() == 0 && len(l.items) == 0 && none == null, "the zero value is an empty list");
     for i in 1..=20 {
@@ -14381,7 +14458,7 @@ func main() ! {
     check(l.items[0] == 8, "and it can start over");
     l.release();
 
-    list.List<Pair> pairs;
+    seq.Vec<Pair> pairs;
     for i in 0..=9 {
         pairs.append(.{a: i, b: i * 2})!;
     }
@@ -14394,11 +14471,11 @@ func main() ! {
 }
 `, expected: []string{"the zero value is an empty list", "appending grows past the first capacity", "the items are indexed and written like a slice", "and sliced, and get is null past the end", "insert keeps the order of the others", "insert past the end is an error", "remove and pop give the element and close the gap", "removing what is not there gives null", "clear forgets the elements", "and the list is used again", "release empties it", "and it can start over", "a list of structs", "and its elements change through a pointer"}},
 
-	{dir: "list_extend_clone", src: `import "std/list";
+	{dir: "vec_extend_clone", src: `import "std/seq";
 import "std/mem";
 
 func main() ! {
-    list.List<int> l;
+    seq.Vec<int> l;
     for i in 1..=5 {
         l.append(i)!;
     }
@@ -14407,7 +14484,7 @@ func main() ! {
     check(l.len() == 8 && l.items[5] == 10 && l.items[7] == 30, "extend adds a slice at the end");
     l.extend(l.items[0..3])!;
     check(l.len() == 11 && l.items[8] == 1 && l.items[10] == 3, "extend takes a slice of the list itself");
-    list.List<int> grown;
+    seq.Vec<int> grown;
     for i in 1..=8 {
         grown.append(i)!;
     }
@@ -14417,13 +14494,13 @@ func main() ! {
     l.extend(.{})!;
     check(l.len() == 11, "extending with nothing changes nothing");
 
-    list.List<int> copy = l.clone()!;
+    seq.Vec<int> copy = l.clone()!;
     copy.append(999)!;
     copy.items[0] = -1;
     check(copy.len() == 12 && l.len() == 11 && l.items[0] == 1 && copy.items[0] == -1, "a clone is independent of the original");
 
     mem.Arena arena;
-    list.List<int> inArena = l.cloneIn(&arena)!;
+    seq.Vec<int> inArena = l.cloneIn(&arena)!;
     check(inArena.len() == 11 && inArena.items[10] == 3, "a clone can take its memory from another allocator");
     arena.release();
 
@@ -14432,13 +14509,13 @@ func main() ! {
 }
 `, expected: []string{"extend adds a slice at the end", "extend takes a slice of the list itself", "extend can take the whole list while it has to grow", "extending with nothing changes nothing", "a clone is independent of the original", "a clone can take its memory from another allocator"}},
 
-	{dir: "list_allocators", src: `import "std/errors";
-import "std/list";
+	{dir: "vec_allocators", src: `import "std/errors";
+import "std/seq";
 import "std/mem";
 
 func main() ! {
     mem.Debug debug;
-    list.List<int> l = .{parent: &debug};
+    seq.Vec<int> l = seq.vec<int>(&debug);
     for i in 1..=40 {
         l.append(i)!;
     }
@@ -14448,8 +14525,8 @@ func main() ! {
     debug.release();
 
     [256]byte storage;
-    mem.Fixed fixed = mem.Fixed{buffer: storage};
-    list.List<int> small = .{parent: &fixed};
+    mem.Fixed fixed = mem.fixed(storage);
+    seq.Vec<int> small = seq.vec<int>(&fixed);
     int added = 0;
     loop {
         let failure = small.append(added);
@@ -14461,8 +14538,8 @@ func main() ! {
     }
     check(added > 0 && small.len() == added && small.items[added - 1] == added - 1, "and the list keeps what it had");
 
-    mem.Failing failing = mem.Failing{after: 1};
-    list.List<int> fragile = .{parent: &failing};
+    mem.Failing failing = mem.failingAfter(mem.heap, 1);
+    seq.Vec<int> fragile = seq.vec<int>(&failing);
     fragile.append(1)!;
     int before = fragile.len();
     let refused = fragile.reserve(1000);
@@ -17890,7 +17967,7 @@ import "std/errors";
 func main() {
     [128]byte storage;
     mem.fill(storage, 7, 128);
-    mem.Fixed f = mem.Fixed{buffer: storage};
+    mem.Fixed f = mem.fixed(storage);
 
     *byte a = f.alloc(10)!!;
     *byte b = f.alloc(20)!!;

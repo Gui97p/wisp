@@ -608,6 +608,20 @@ func TestConvertingAnInterfaceBackToItsType(t *testing.T) {
 	}
 }
 
+func TestAnInterfaceIsNeverNull(t *testing.T) {
+	c := start(t)
+	src := "interface Shape {\n\tfunc area() int;\n}\n\nfunc check(Shape plain, ?Shape maybe) {\n\tbool a = plain == null;\n\tbool b = maybe == null;\n}\n\nfunc main() {}\n"
+	var got []string
+	for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
+		if d.Severity == 1 {
+			got = append(got, d.Message)
+		}
+	}
+	if len(got) != 1 || !strings.Contains(got[0], "Shape is never null") {
+		t.Errorf("errors = %v", got)
+	}
+}
+
 func TestSemanticTokensGenerics(t *testing.T) {
 	c := start(t)
 	src := "struct Pair<A, B> {\n\tA first;\n\tB second;\n}\n\nfunc swap<A, B>(Pair<A, B> p) Pair<B, A> {\n\treturn Pair<B, A>{first: p.second, second: p.first};\n}\n\nfunc main() {\n\tPair<int, string> p = Pair<int, string>{first: 1, second: \"a\"};\n\tPair<string, int> q = swap(p);\n}\n"

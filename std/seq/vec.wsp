@@ -1,4 +1,3 @@
-#standalone
 import "std/errors";
 import "std/mem";
 
@@ -9,21 +8,25 @@ import "std/mem";
 ///
 /// The zero value is an empty list that is ready to use, and it takes its
 /// memory from `parent`, or from the heap when that is null.
-public struct List<T> {
-	public ?mem.Allocator parent;
+public struct Vec<T> {
 	public []T items;
+	?mem.Allocator parent;
 	int cap;
 }
 
-inline func (*List<T> l) source() mem.Allocator => l.parent ?? mem.heap;
-inline func (*List<T> l) storage() []T => (*T)(l.items)[0..l.cap];
-inline func (*List<T> l) setLen(int n) {
+/// Returns an empty list that takes its memory from `parent`. A list declared
+/// without it (`Vec<int> v;`) takes it from the heap.
+public inline func vec<T>(mem.Allocator parent) Vec<T> => .{parent: parent};
+
+inline func (*Vec<T> l) source() mem.Allocator => l.parent ?? mem.heap;
+inline func (*Vec<T> l) storage() []T => (*T)(l.items)[0..l.cap];
+inline func (*Vec<T> l) setLen(int n) {
 	l.items = (*T)(l.items)[0..n];
 }
 
 /// Makes room for n more elements, so that the next n appends cannot fail. When
 /// it fails the list is left as it was.
-public func (*List<T> l) reserve(int n) ! {
+public func (*Vec<T> l) reserve(int n) ! {
 	int needed = len(l.items) + n;
 	return if needed <= l.cap;
 
@@ -41,7 +44,7 @@ public func (*List<T> l) reserve(int n) ! {
 }
 
 /// Adds an element at the end.
-public func (*List<T> l) append(T v) ! {
+public func (*Vec<T> l) append(T v) ! {
 	l.reserve(1)!;
 	int at = len(l.items);
 	l.setLen(at + 1);
@@ -49,7 +52,7 @@ public func (*List<T> l) append(T v) ! {
 }
 
 /// Adds the elements of a slice at the end, which may belong to this list.
-public func (*List<T> l) extend([]T more) ! {
+public func (*Vec<T> l) extend([]T more) ! {
 	int n = len(more);
 	return if n == 0;
 
@@ -74,7 +77,7 @@ public func (*List<T> l) extend([]T more) ! {
 
 /// Puts an element before the one at position i. A position past the end is an
 /// error: i can be len(l.items) to add at the end.
-public func (*List<T> l) insert(int i, T v) ! {
+public func (*Vec<T> l) insert(int i, T v) ! {
 	int count = len(l.items);
 	return Error(errors.Kind.Invalid) if i < 0 || i > count;
 
@@ -87,7 +90,7 @@ public func (*List<T> l) insert(int i, T v) ! {
 }
 
 /// Takes the last element out, or gives null when the list is empty.
-public func (*List<T> l) pop() ?T {
+public func (*Vec<T> l) pop() ?T {
 	int count = len(l.items);
 	return null if count == 0;
 
@@ -98,7 +101,7 @@ public func (*List<T> l) pop() ?T {
 
 /// Takes the element at position i out, keeping the order of the others, or
 /// gives null when there is none there.
-public func (*List<T> l) remove(int i) ?T {
+public func (*Vec<T> l) remove(int i) ?T {
 	int count = len(l.items);
 	return null if i < 0 || i >= count;
 
@@ -111,34 +114,55 @@ public func (*List<T> l) remove(int i) ?T {
 }
 
 /// The element at position i, or null when there is none there.
-public func (*List<T> l) get(int i) ?T {
+public func (*Vec<T> l) get(int i) ?T {
 	return null if i < 0 || i >= len(l.items);
 	return l.items[i];
 }
 
 /// Forgets every element and keeps the memory for the next ones.
-public inline func (*List<T> l) clear() {
+public inline func (*Vec<T> l) clear() {
 	l.setLen(0);
 }
 
 /// How many elements the list holds.
-public inline func (*List<T> l) len() int => len(l.items);
+public inline func (*Vec<T> l) len() int => len(l.items);
 
 /// A new list with the same elements, from the same allocator. The elements are
 /// copied as they are, so pointers still point to the same things, and a list
 /// of lists shares what is inside them.
-public inline func (*List<T> l) clone() !List<T> => l.cloneIn(l.source())!;
+public inline func (*Vec<T> l) clone() !Vec<T> => l.cloneIn(l.source())!;
 
 /// Like clone, with the memory taken from another allocator.
-public func (*List<T> l) cloneIn(mem.Allocator a) !List<T> {
-	List<T> copy = .{parent: a};
+public func (*Vec<T> l) cloneIn(mem.Allocator a) !Vec<T> {
+	Vec<T> copy = .{parent: a};
 	copy.extend(l.items)!;
 	return copy;
 }
 
 /// Gives the memory back. The list is empty afterwards, and can be used again.
-public func (*List<T> l) release() {
+public func (*Vec<T> l) release() {
 	mem.free(l.source(), l.items);
 	l.items = .{};
 	l.cap = 0;
 }
+
+/// Walks the elements of a `Vec` from the first to the last. Get one from `iter`,
+/// or let `for` do it. It keeps the elements the list had when it was made, so
+/// adding to the list while walking it is not seen, and may move the elements.
+public struct VecIter<T> {
+	[]T items;
+	int at;
+}
+
+/// Gives the next element, copied, or null after the last one.
+public func (*VecIter<T> it) next() ?T {
+	return null if it.at >= len(it.items);
+	T v = it.items[it.at];
+	it.at++;
+	return v;
+}
+
+/// Starts a walk over the elements, so `for x in list` and `for i, x in list` go
+/// through them in order. The elements are copied out one by one: to change them
+/// in place, walk `l.items` instead.
+public inline func (*Vec<T> l) iter() VecIter<T> => .{items: l.items};

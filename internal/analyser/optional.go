@@ -408,7 +408,7 @@ func (a *Analyser) checkNeverNull(expr *ast.BinaryExpr, left, right Type) bool {
 
 func canBeNullKind(t Type) bool {
 	switch o := t.(type) {
-	case PointerType, *FuncType:
+	case PointerType, *FuncType, *InterfaceType:
 		return true
 	case NamedType:
 		_, isFunc := o.Underlying.(*FuncType)

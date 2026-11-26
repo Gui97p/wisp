@@ -50,20 +50,20 @@ public func demo() ! {
 	string file = "/tmp/wisp_tour_files/notes.tar.gz";
 	fmt.printf("base {}, dir {}, ext {}, stem {}\n", paths.base(file), paths.dir(file), paths.ext(file), paths.stem(file));
 
-	// Putting one together writes into your buffer. `clean` also resolves
-	// `.` and `..`.
-	[256]byte buffer;
-	string root = paths.join(buffer, "/tmp", "wisp_tour_files")!;
-	[256]byte other;
-	string messy = paths.clean(other, "/tmp/./wisp_tour_files/../wisp_tour_files/")!;
+	// Putting one together takes memory from the allocator you give it, here an
+	// arena that is released when the function ends. `clean` also resolves `.`
+	// and `..`.
+	mem.Arena arena;
+	defer arena.release();
+	string root = paths.join(&arena, "/tmp", "wisp_tour_files")!;
+	string messy = paths.clean(&arena, "/tmp/./wisp_tour_files/../wisp_tour_files/")!;
 	fmt.printf("the same folder from two spellings: {}\n", root == messy);
 
 	// Folders and files. `mkdirAll` creates every missing level, `create`
 	// opens a file for writing, and `defer` closes it when the function ends.
 	os.createDir(root)!;
 
-	[256]byte pathBuffer;
-	string first = paths.join(pathBuffer, root, "first.txt")!;
+	string first = paths.join(&arena, root, "first.txt")!;
 	writeNotes(first)!;
 
 	let info = os.stat(first)!;
@@ -76,8 +76,7 @@ public func demo() ! {
 
 	// Renaming, and asking a folder what is in it. The order of the entries
 	// depends on the system, so this only counts them.
-	[256]byte moved;
-	string second = paths.join(moved, root, "second.txt")!;
+	string second = paths.join(&arena, root, "second.txt")!;
 	os.rename(first, second)!;
 	fmt.printf("after the rename: first {}, second {}\n", os.exists(first), os.exists(second));
 

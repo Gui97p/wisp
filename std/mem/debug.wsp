@@ -38,6 +38,10 @@ public struct Debug implements Allocator {
 	int ringStart, ringCount;
 }
 
+/// Returns a checking allocator that forwards to `parent`. A `Debug` declared
+/// without it forwards to the heap.
+public inline func debug(Allocator parent) Debug => .{parent: parent};
+
 inline func headerOf(*void p) *Header => (*Header)((*byte)(p) - HEAD);
 
 inline func dataOf(*Header h) *byte => (*byte)(h) + HEAD;
@@ -45,13 +49,13 @@ inline func dataOf(*Header h) *byte => (*byte)(h) + HEAD;
 inline func (*Debug d) source() Allocator => d.parent ?? heap;
 
 func fail(*Header h, string what) {
-	[2048]byte buf;
+	Fixed f = fixed([2048]byte{});
 	if len(h.freed) > 0 {
-		string both = strings.concat(buf, what, "\nthe block was allocated at ", h.site, "the block was freed at ", h.freed[..len(h.freed) - 1]) ?? what;
+		string both = strings.concat(&f, what, "\nthe block was allocated at ", h.site, "the block was freed at ", h.freed[..len(h.freed) - 1]) ?? what;
 		panic(both);
 	}
 	if len(h.site) > 0 {
-		string text = strings.concat(buf, what, "\nthe block was allocated at ", h.site[..len(h.site) - 1]) ?? what;
+		string text = strings.concat(&f, what, "\nthe block was allocated at ", h.site[..len(h.site) - 1]) ?? what;
 		panic(text);
 	}
 	panic(what);

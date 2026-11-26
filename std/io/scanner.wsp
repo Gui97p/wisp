@@ -8,23 +8,20 @@ public enum Split { Lines, Words }
 
 /// Reads its input piece by piece, a line or a word at a time. The pieces point
 /// into the buffer and are valid until the next call to `next`. Build one with
-/// `newScanner`, over a buffer you own, or `newScannerIn`, whose buffer grows up
-/// to a limit when a piece is longer than it. Call `release` when done with one
-/// made by `newScannerIn`.
+/// `scanner`, whose buffer grows up to a limit when a piece is longer than it.
+/// Call `release` when done with it.
 public struct Scanner {
 	BufReader reader;
 	Split by;
 	int limit;
 }
 
-/// Returns a scanner over `inp` that cuts lines, through `buf`, which stays
-/// yours. A piece longer than `buf` fails with `NoSpace`.
-public inline func newScanner(Reader inp, []byte buf) Scanner => .{reader: newBufReader(inp, buf)};
-/// Like `newScanner`, with a buffer allocated from `a` that starts at `size`
-/// bytes and doubles, up to `limit`, when a piece does not fit. A piece longer
-/// than `limit` fails with `NoSpace`. Give the buffer back with `release`. Fails
-/// with the allocator error.
-public inline func newScannerIn(mem.Allocator a, Reader inp, int size, int limit) !Scanner => .{reader: newBufReaderIn(a, inp, size)!, limit: math.max(limit, size)};
+/// Returns a scanner over `inp` that cuts lines. Its buffer is allocated from `a`
+/// and starts at `size` bytes; when a piece does not fit, it doubles, up to
+/// `limit`, through the same allocator. A piece longer than `limit` fails with
+/// `NoSpace`. Give the buffer back with `release`. Fails with the error of the
+/// allocator.
+public inline func scanner(mem.Allocator a, Reader inp, int size, int limit) !Scanner => .{reader: bufReader(a, inp, size)!, limit: math.max(limit, size)};
 
 /// Makes the scanner cut words instead of lines, and returns it.
 public func (*Scanner s) words() *Scanner {
@@ -72,13 +69,13 @@ public func (*Scanner s) next() !?string {
 	}
 }
 
-/// Gives back the buffer that `newScannerIn` allocated.
+/// Gives the buffer back to the allocator it came from.
 public inline func (*Scanner s) release() => s.reader.release();
 
 func (*Scanner s) grow() !bool {
 	let r = &s.reader;
-	return false if r.source == null || len(r.buf) >= s.limit;
-	r.buf = mem.resize(r.source.?, r.buf, math.min(len(r.buf) * 2, s.limit))!;
+	return false if len(r.buf) >= s.limit;
+	r.buf = mem.resize(r.source, r.buf, math.min(len(r.buf) * 2, s.limit))!;
 	return true;
 }
 

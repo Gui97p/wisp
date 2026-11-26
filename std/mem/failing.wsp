@@ -1,16 +1,23 @@
 import "std/errors";
 /// An allocator that fails on purpose, to test the error paths of code that
-/// allocates. It counts the calls to `alloc`, `allocDirty` and `realloc`; when
-/// `after` is set, the call number `after + 1` and every later one fail with
-/// `OutOfMemory`. When `after` is null it never fails. Calls that pass are
-/// forwarded to `parent`, or to `heap` when `parent` is null, and `free` is
-/// always forwarded.
+/// allocates. It counts the calls to `alloc`, `allocDirty` and `realloc`. One made
+/// with `failingAfter(parent, limit)` fails the call number `limit + 1` and every
+/// later one with `OutOfMemory`; one made with `failing(parent)` never fails and
+/// only counts. Calls that pass are forwarded to `parent`, or to `heap` when
+/// `parent` is null, and `free` is always forwarded.
 public struct Failing implements Allocator {
 	public ?Allocator parent;
-	public ?int after;
+	?int after;
 	int attempts;
 }
 
+/// Returns an allocator that forwards to `parent`, never fails, and counts the
+/// calls. A `Failing` declared without it forwards to the heap.
+public inline func failing(Allocator parent) Failing => .{parent: parent};
+/// Returns an allocator that forwards to `parent`, where the allocation call
+/// number `limit + 1` and every later one fail with `OutOfMemory`. With a `limit`
+/// of zero, every call fails.
+public inline func failingAfter(Allocator parent, int limit) Failing => .{parent: parent, after: limit};
 inline func (*Failing f) source() Allocator => f.parent ?? heap;
 
 func (*Failing f) permit() ! {
@@ -50,7 +57,8 @@ public func (*Failing f) free(?*void p) {
 /// failed ones included.
 public inline func (*Failing f) calls() int => f.attempts;
 
-/// Sets the call count back to zero, so `after` counts again from the start.
+/// Sets the call count back to zero, so the limit of `failingAfter` counts again
+/// from the start.
 public inline func (*Failing f) reset() {
 	f.attempts = 0;
 }
