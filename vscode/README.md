@@ -11,6 +11,20 @@ Language support for [Wisp](https://github.com/Gui97p/wisp), a personal compiled
 - Bracket matching, auto-closing pairs, comment toggling and `// region` folding.
 - A file icon for `.wsp` files.
 
+## Requirements
+
+The extension talks to the Wisp language server, so it needs the `wisp` compiler. Install it with one command, which puts it in `~/.wisp` (Linux and WSL) or `%LOCALAPPDATA%\wisp` (Windows) and adds it to the `PATH`:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/Gui97p/wisp/main/scripts/install.sh | sh
+```
+
+```powershell
+irm https://raw.githubusercontent.com/Gui97p/wisp/main/scripts/install.ps1 | iex
+```
+
+Restart VS Code afterwards so it sees the new `PATH`, or set `wisp.serverPath` to the full path of the binary. `wisp doctor` says what is missing when something does not work, and `wisp update` brings the compiler to the newest release. The releases are at [github.com/Gui97p/wisp/releases](https://github.com/Gui97p/wisp/releases).
+
 ## Notes
 
 The grammar is written by hand and follows the language as it evolves, so some constructs may be missing or colored differently than expected. Issues and suggestions are welcome in the repository.

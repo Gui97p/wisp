@@ -2,12 +2,16 @@
     "name": "wisp",
     "displayName": "Wisp Language Support",
     "description": "Language support for Wisp: highlighting, diagnostics, completion, hover, rename, snippets and a file icon.",
-    "version": "0.9.5",
-    "publisher": "gui97p",
+    "version": "0.10.0",
+    "publisher": "gui97",
     "license": "MIT",
     "repository": {
         "type": "git",
         "url": "https://github.com/Gui97p/wisp.git"
+    },
+    "homepage": "https://github.com/Gui97p/wisp",
+    "bugs": {
+        "url": "https://github.com/Gui97p/wisp/issues"
     },
     "keywords": [
         "wisp",
