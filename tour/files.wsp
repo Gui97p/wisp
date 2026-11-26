@@ -69,8 +69,9 @@ public func demo() ! {
 	let info = os.stat(first)!;
 	fmt.println("first.txt is {} bytes, a file: {}", info.size, info.kind == .File);
 
-	// `readFile` allocates the content, so the memory is yours to free.
-	[]byte content = os.readFile(first)!;
+	// `readFile` allocates the content with the allocator you give, so the memory
+	// is yours to free.
+	[]byte content = os.readFile(mem.heap, first)!;
 	defer mem.free(mem.heap, content);
 	fmt.println("it reads back {} bytes, starting with \"{}\"", len(content), string(content[..8]));
 
@@ -89,7 +90,7 @@ public func demo() ! {
 	fmt.println("the folder has {} entry", entries);
 
 	// A missing file is an error value you can compare, not a crash.
-	let _data, failure = os.readFile("/tmp/wisp_tour_files/missing.txt");
+	let _data, failure = os.readFile(mem.heap, "/tmp/wisp_tour_files/missing.txt");
 	fmt.println("a missing file: not found {}", failure == errors.Kind.NotFound);
 
 	os.remove(second)!;

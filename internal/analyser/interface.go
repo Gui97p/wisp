@@ -225,7 +225,9 @@ func (a *Analyser) checkBounds(node ast.Node, g *GenericDecl, args []TypeValue) 
 		}
 		savedFile := a.currentFile
 		a.currentFile = g.File
+		restoreFile := g.Scope.BindFile(&a.currentFile)
 		expr := a.resolveConstraint(g.node(), param.Constraint, scope, false)
+		restoreFile()
 		a.currentFile = savedFile
 		if expr == nil {
 			ok = false
@@ -411,11 +413,13 @@ func (a *Analyser) boundGuarantees(recv Type, name string) bool {
 		savedFile := a.currentFile
 		savedErrors := len(a.errors)
 		a.currentFile = ctx.gen.File
+		restoreFile := ctx.gen.Scope.BindFile(&a.currentFile)
 		for i, param := range ctx.gen.Params {
 			if param.Constraint != nil && !param.Const {
 				ctx.exprs[i] = a.resolveConstraint(ctx.gen.node(), param.Constraint, scope, false)
 			}
 		}
+		restoreFile()
 		a.currentFile = savedFile
 		a.errors = a.errors[:savedErrors]
 	}

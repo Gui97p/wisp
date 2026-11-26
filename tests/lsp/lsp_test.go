@@ -2403,3 +2403,23 @@ func TestDiagnosticsNeverCoverSeveralLines(t *testing.T) {
 		t.Errorf("the mismatch in the literal was not reported")
 	}
 }
+
+func TestSemanticTokensAreNotTakenFromAnOlderVersionOfTheFile(t *testing.T) {
+	c := start(t)
+	good := "/// first\n/// second\nstruct Box { int size; }\n\nfunc main() {\n\tBox b = Box{size: 1};\n}\n"
+	p := c.open(map[string]string{"main.wsp": good})
+	if len(p.semanticTokens()) == 0 {
+		t.Fatal("a clean file has semantic tokens")
+	}
+	broken := "/// first\n/// a much longer second line of the comment\n/// third\n/// fourth\nstruct Box { int size; }\n\nfunc main() {\n\tBox b = Box{size: 1;\n}\n"
+	c.notify("textDocument/didChange", map[string]any{
+		"textDocument":   map[string]any{"uri": p.uri(), "version": 2},
+		"contentChanges": []map[string]any{{"text": broken}},
+	})
+	lines := strings.Split(broken, "\n")
+	for _, tok := range p.semanticTokens() {
+		if strings.HasPrefix(strings.TrimSpace(lines[tok.line]), "//") {
+			t.Fatalf("a token lands in a comment after an edit that does not parse: %+v", tok)
+		}
+	}
+}

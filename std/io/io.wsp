@@ -44,15 +44,7 @@ public interface WriteCloser { Writer & Closer }
 /// Copies everything `src` has to `dst`, through a buffer of 4096 bytes on the
 /// stack, and returns the number of bytes copied. Stops at the end of `src`, or
 /// at the first error of either side.
-public func copy<Writer W, Reader R>(W dst, R src) !int {
-	[4096]byte buf;
-	int total;
-	loop src.read(buf)! |n| {
-		dst.write(buf[..n])!;
-		total += n;
-	}
-	return total;
-}
+public inline func copy<Writer W, Reader R>(W dst, R src) !int => copyBuffer(dst, src, [4096]byte{})!;
 /// Like `copy`, through the buffer you give. An empty `buf` copies nothing.
 public func copyBuffer<Writer W, Reader R>(W dst, R src, []byte buf) !int {
 	int total;
@@ -78,6 +70,9 @@ public func readAll<mem.Allocator A, Reader R>(A a, R r) ![]byte {
 	}
 	return buf[..total];
 }
+/// Same as `readAll`, but casts to string
+public inline func readAllString<mem.Allocator A, Reader R>(A a, R r) !string => string(readAll(a, r)!);
+
 /// Reads from `r` until `buf` is full or `r` ends, and returns how many bytes
 /// were read. Fewer than `len(buf)` means the end of the stream came first.
 public func readFull<Reader R>(R r, []byte buf) !int {

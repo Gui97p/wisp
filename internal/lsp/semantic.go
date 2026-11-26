@@ -28,11 +28,7 @@ func semanticTokens(context *glsp.Context, params *protocol.SemanticTokensParams
 
 	program, info, _ := analyseEntryChecked(path)
 	if program == nil || info == nil {
-		prev, ok := getLastGood(path)
-		if !ok {
-			return &protocol.SemanticTokens{Data: []uint32{}}, nil
-		}
-		program, info = prev.program, prev.info
+		return &protocol.SemanticTokens{Data: []uint32{}}, nil
 	}
 
 	program = withoutInstances(declarationsOf(program, declarationFiles(path), path))

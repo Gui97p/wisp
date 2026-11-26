@@ -10113,7 +10113,7 @@ func main() ! {
     fd.close()!;
     let info = os.stat(file)!;
     check(info.size == 4 && info.kind == .File, "stat sees a file inside a long path");
-    []byte data = os.readFile(file)!;
+    []byte data = os.readFile(mem.heap, file)!;
     check(string(data) == "long", "a file inside a long path reads back");
 
     os.Dir d = os.openDir(deep)!;
@@ -10197,7 +10197,7 @@ func main() ! {
     os.File a = os.open(path, os.WRITE | os.APPEND)!;
     io.writeString(&a, "\nappended")!;
     a.close()!;
-    []byte all = os.readFile(path)!;
+    []byte all = os.readFile(mem.heap, path)!;
     check(len(all) == 32 && string(all[len(all) - 8..]) == "appended", "append adds to the end");
     mem.free(mem.heap, all);
 
@@ -10216,7 +10216,7 @@ func main() ! {
     check(io.copy(&dst, &src)! == 32, "io.copy copies every byte between files");
     src.close()!;
     dst.close()!;
-    []byte same = os.readFile(copyPath)!;
+    []byte same = os.readFile(mem.heap, copyPath)!;
     check(len(same) == 32, "the copy has the same size");
     mem.free(mem.heap, same);
 

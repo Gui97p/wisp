@@ -135,23 +135,14 @@ public func (*File f) kind() !FileKind {
 /// Reports whether the file is a terminal.
 public inline func (*File f) isatty() bool => f.fd >= 0 && sys.isatty(f.fd);
 
-/// Reads the whole file at `path` and returns its bytes. The buffer comes from
-/// `mem.heap` and belongs to the caller, who frees it with `mem.free`. An empty
-/// file gives an empty slice with nothing allocated. Fails with the errors of
-/// `open` and `read`, or `OutOfMemory`.
-public func readFile(string path) ![]byte {
+/// Reads the whole file at `path` and returns its bytes, in a block allocated
+/// from `a` that belongs to the caller, who frees it with `mem.free(a, data)`.
+/// It reads until the end, so it also works for pipes and for files that report
+/// no size. Fails with the errors of `open` and `read`, or with the error of `a`.
+public func readFile(mem.Allocator a, string path) ![]byte {
 	File f = open(path, READ)!;
 	defer f.close() ?? {};
-	int size = f.size()!;
-	return .{} if size == 0;
-	[]byte buf = mem.make<byte>(mem.heap, size)!;
-	defer! mem.free(mem.heap, buf);
-	int total;
-	loop {
-		int r = f.read(buf[total..])! ?? 0;
-		total += r;
-	} until r == 0 || total >= size;
-	return buf[..total];
+	return io.readAll(a, &f)!;
 }
 
 /// Writes `data` to the file at `path`, creating it or emptying it. Fails with

@@ -1013,7 +1013,9 @@ func (a *Analyser) instantiateFunc(node ast.Node, g *GenericDecl, args []TypeVal
 
 	savedFile := a.currentFile
 	a.currentFile = g.File
+	restoreFile := g.Scope.BindFile(&a.currentFile)
 	params, paramNames, variadic, returns := a.resolveSignature(fd, scope)
+	restoreFile()
 	a.currentFile = savedFile
 
 	for _, r := range returns {

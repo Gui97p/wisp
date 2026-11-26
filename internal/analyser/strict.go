@@ -209,7 +209,9 @@ func (a *Analyser) representatives(g *GenericDecl) ([][]representative, bool) {
 		scope := a.bindScope(g.Scope, names, g.Params, current, 0)
 		savedFile := a.currentFile
 		a.currentFile = g.File
+		restoreFile := g.Scope.BindFile(&a.currentFile)
 		expr := a.resolveConstraint(g.node(), param.Constraint, scope, false)
+		restoreFile()
 		a.currentFile = savedFile
 		if expr == nil {
 			return nil, false
