@@ -1,0 +1,40 @@
+#standalone
+// Tour - Random numbers.
+//
+// `std/rand` draws numbers from a pseudo-random generator. The functions of the
+// module, `below`, `between`, `real`, `flip`, `fill` and `shuffle`, all use one
+// generator that the module keeps. It seeds itself from the clock the first
+// time, so every run is different, and `rand.seed(n)` starts it from a number
+// you choose, so every run is the same.
+//
+// When a part of the program needs a sequence that nothing else disturbs, make
+// a `Generator` with `rand.generator(seed)`. The same seed gives the same
+// numbers on every run and every system, and it has the same methods.
+//
+// It is made for games, tests and shuffling, and it is not safe for secrets:
+// someone who sees a few of its numbers can work out the rest.
+//
+// `below(n)` is a number from 0 to n - 1, `between(a, b)` includes both ends,
+// `real` is a float from 0 up to but not including 1, `flip` is a coin, `fill`
+// writes random bytes, and `shuffle` puts a slice in a random order.
+
+import "std/fmt";
+import "std/rand";
+
+public func demo() {
+	rand.seed(2024);
+	fmt.println("three rolls: {}, {}, {}", rand.between(1, 6), rand.between(1, 6), rand.between(1, 6));
+	rand.seed(2024);
+	fmt.println("the same seed rolls {} first again", rand.between(1, 6));
+
+	fmt.println("below(100): {}, real: {:.4f}, flip: {}", rand.below(100), rand.real(), rand.flip());
+
+	[6]int cards = .{1, 2, 3, 4, 5, 6};
+	rand.shuffle(cards[..]);
+	fmt.println("shuffled: {}, {}, {}, {}, {}, {}", cards[0], cards[1], cards[2], cards[3], cards[4], cards[5]);
+
+	rand.Generator mine = rand.generator(7);
+	rand.Generator twin = rand.generator(7);
+	fmt.println("two generators with one seed agree: {}", mine.below(1000) == twin.below(1000));
+	mine.shuffle(cards[..]);
+}

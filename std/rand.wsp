@@ -1,0 +1,138 @@
+#standalone
+import "std/time";
+
+/// A sequence of pseudo-random numbers of its own, xoshiro256**: fast, with a
+/// period of 2^256, and good for games, tests, simulations and shuffling. It is
+/// not for secrets: anyone who sees a few outputs can predict the rest. The
+/// functions of this module (`below`, `between`...) use one shared generator; make
+/// a `Generator` with `generator` when you need a sequence that nothing else
+/// disturbs and that repeats for the same seed. One declared without it seeds
+/// itself from the clock the first time it is used. Not safe to share between
+/// threads.
+public struct Generator {
+	[4]uint state;
+	bool ready;
+}
+
+/// Returns a generator that starts from `seed`. The same seed always gives the
+/// same sequence, on every system.
+public func generator(uint seed) Generator {
+	Generator g;
+	g.seed(seed);
+	return g;
+}
+
+/// Starts the sequence again from `seed`, as if the generator had been made with
+/// `generator(seed)`.
+public func (*Generator r) seed(uint seed) {
+	uint x = seed;
+	for i in 0..4 {
+		x = x +% 0x9E3779B97F4A7C15;
+		uint z = x;
+		z = (z ^ (z >> 30)) *% 0xBF58476D1CE4E5B9;
+		z = (z ^ (z >> 27)) *% 0x94D049BB133111EB;
+		r.state[i] = z ^ (z >> 31);
+	}
+	r.ready = true;
+}
+
+inline func rotate(uint x, int k) uint => (x << k) | (x >> (64 - k));
+
+/// Returns the next 64 random bits. Every method below is made from this one.
+public func (*Generator r) next() uint {
+	if !r.ready {
+		r.seed(uint(time.now()) ^ (uint(time.ticks()) *% 0x9E3779B97F4A7C15) ^ uint(r));
+	}
+	uint result = rotate(r.state[1] *% 5, 7) *% 9;
+	uint t = r.state[1] << 17;
+	r.state[2] = r.state[2] ^ r.state[0];
+	r.state[3] = r.state[3] ^ r.state[1];
+	r.state[1] = r.state[1] ^ r.state[2];
+	r.state[0] = r.state[0] ^ r.state[3];
+	r.state[2] = r.state[2] ^ t;
+	r.state[3] = rotate(r.state[3], 45);
+	return result;
+}
+
+/// Returns a number from 0 up to but not including `n`, every one equally
+/// likely. For `n` of zero or less it returns 0.
+public func (*Generator r) below(int n) int {
+	return 0 if n <= 0;
+	uint bound = uint(n);
+	uint threshold = (0 -% bound) % bound;
+	loop {
+		uint v = r.next();
+		return int(v % bound) if v >= threshold;
+	}
+}
+
+/// Returns a number from `low` to `high`, both included, every one equally
+/// likely. When `high` is below `low` it returns `low`.
+public func (*Generator r) between(int low, int high) int {
+	return low if high <= low;
+	int span = high - low + 1;
+	return int(r.next()) if span <= 0;
+	return low + r.below(span);
+}
+
+/// Returns a float from 0 up to but not including 1, with 53 random bits, so it is a
+/// multiple of 2^-53.
+public func (*Generator r) real() float {
+	return float(r.next() >> 11) * (1.0 / 9007199254740992.0);
+}
+
+/// Returns true or false with the same chance.
+public func (*Generator r) flip() bool => (r.next() >> 63) == 1;
+
+/// Fills `buf` with random bytes.
+public func (*Generator r) fill([]byte buf) {
+	int at = 0;
+	loop at < len(buf) {
+		uint v = r.next();
+		for _ in 0..8 {
+			break if at >= len(buf);
+			buf[at] = byte(v & 0xFF);
+			v = v >> 8;
+			at++;
+		}
+	}
+}
+
+/// Puts the elements of `items` in a random order, in place, and every order is
+/// equally likely.
+public func (*Generator r) shuffle<T>([]T items) {
+	for i in (len(items) - 1..=1).step(-1) {
+		int j = r.below(i + 1);
+		items[i], items[j] = items[j], items[i];
+	}
+}
+
+Generator shared;
+
+/// Starts the shared sequence again from `s`: after `seed(42)` the functions of
+/// this module give the same numbers on every run. Without it the shared
+/// generator is seeded from the clock the first time it is used.
+public func seed(uint s) => shared.seed(s);
+
+/// Returns 64 random bits from the shared generator.
+public inline func next() uint => shared.next();
+
+/// Returns a number from 0 up to but not including `n`, every one equally likely.
+/// For `n` of zero or less it returns 0.
+public inline func below(int n) int => shared.below(n);
+
+/// Returns a number from `low` to `high`, both included, every one equally likely.
+/// When `high` is below `low` it returns `low`.
+public inline func between(int low, int high) int => shared.between(low, high);
+
+/// Returns a float from 0 up to but not including 1.
+public inline func real() float => shared.real();
+
+/// Returns true or false with the same chance.
+public inline func flip() bool => shared.flip();
+
+/// Fills `buf` with random bytes.
+public inline func fill([]byte buf) => shared.fill(buf);
+
+/// Puts the elements of `items` in a random order, in place.
+public inline func shuffle<T>([]T items) => shared.shuffle(items);

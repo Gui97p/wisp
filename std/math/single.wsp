@@ -1,4 +1,3 @@
-
 /// Computes in `float` and rounds the result to `float32`, so special cases
 /// follow `exp`.
 public inline func expf(float32 x) float32 => float32(exp(x));

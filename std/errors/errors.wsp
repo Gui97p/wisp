@@ -1,4 +1,3 @@
-
 /// Returns an `Error` of kind `k` if `condition` is false, and nothing
 /// otherwise. Meant for use as `ensure(ok, kind)!`.
 public inline func ensure(bool condition, const Kind k) ! {

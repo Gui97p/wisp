@@ -1,4 +1,3 @@
-
 enum Align {
 	Default,
 	Left,

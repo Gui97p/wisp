@@ -1076,6 +1076,170 @@ func main() {
 }
 `, expected: []string{"zero is 0s", "small durations use ns and us", "milliseconds keep their fraction", "seconds keep their fraction", "minutes and hours are written out", "a negative duration starts with a sign", "the smallest duration is written whole", "the unit conversions", "the constants are in the right units", "elapsed counts at least the time slept", "lap starts counting again", "reset starts again", "sleep of nothing returns at once"}},
 
+	{dir: "rand_basic", src: `import "std/rand";
+
+func main() {
+    rand.Generator a = rand.generator(42);
+    rand.Generator b = rand.generator(42);
+    check(a.next() == 1546998764402558742 && b.next() == 1546998764402558742, "xoshiro256** with a seed of 42 gives the reference value");
+    int same;
+    for _ in 0..1000 {
+        same += a.next() == b.next() ? 1 : 0;
+    }
+    check(same == 1000, "the same seed gives the same sequence");
+    rand.Generator c = rand.generator(43);
+    rand.Generator e = rand.generator(42);
+    check(c.next() != e.next(), "another seed gives another sequence");
+    b.seed(42);
+    rand.Generator d = rand.generator(42);
+    check(b.next() == d.next(), "seed starts the sequence again");
+
+    rand.Generator r = rand.generator(7);
+    [10]int counts;
+    bool inRange = true;
+    for _ in 0..20000 {
+        int v = r.below(10);
+        if v < 0 || v >= 10 {
+            inRange = false;
+        } else {
+            counts[v]++;
+        }
+    }
+    bool even = true;
+    for n in counts {
+        if n < 1700 || n > 2300 {
+            even = false;
+        }
+    }
+    check(inRange && even, "below stays in range and spreads evenly");
+    check(r.below(0) == 0 && r.below(-5) == 0 && r.below(1) == 0, "below of nothing is zero");
+
+    bool low = false;
+    bool high = false;
+    bool within = true;
+    for _ in 0..2000 {
+        int v = r.between(-3, 3);
+        if v < -3 || v > 3 {
+            within = false;
+        }
+        if v == -3 {
+            low = true;
+        }
+        if v == 3 {
+            high = true;
+        }
+    }
+    check(within && low && high, "between includes both ends");
+    check(r.between(5, 5) == 5 && r.between(9, 2) == 9, "between with no room returns low");
+
+    bool unitOk = true;
+    float total = 0.0;
+    for _ in 0..10000 {
+        float u = r.real();
+        if u < 0.0 || u >= 1.0 {
+            unitOk = false;
+        }
+        total += u;
+    }
+    check(unitOk && total > 4800.0 && total < 5200.0, "real is in [0, 1) and averages one half");
+
+    int heads;
+    for _ in 0..10000 {
+        heads += r.flip() ? 1 : 0;
+    }
+    check(heads > 4700 && heads < 5300, "flip is fair");
+
+    [13]byte bytes;
+    r.fill(bytes[..]);
+    int nonzero;
+    for x in bytes {
+        nonzero += x != 0 ? 1 : 0;
+    }
+    check(nonzero >= 9, "fill writes every byte, whatever the length");
+
+    [20]int items;
+    for i in 0..20 {
+        items[i] = i;
+    }
+    r.shuffle(items[..]);
+    [20]bool seen;
+    bool moved = false;
+    for i in 0..20 {
+        seen[items[i]] = true;
+        if items[i] != i {
+            moved = true;
+        }
+    }
+    bool all = true;
+    for ok in seen {
+        if !ok {
+            all = false;
+        }
+    }
+    check(all && moved, "shuffle keeps every element and changes the order");
+
+    rand.seed(99);
+    int first = rand.below(1000000);
+    int firstReal = int(rand.real() * 1000000.0);
+    rand.seed(99);
+    check(rand.below(1000000) == first && int(rand.real() * 1000000.0) == firstReal, "seed makes the shared functions repeat");
+    bool sharedOk = true;
+    for _ in 0..1000 {
+        int v = rand.between(10, 12);
+        if v < 10 || v > 12 || rand.below(5) >= 5 {
+            sharedOk = false;
+        }
+    }
+    check(sharedOk && rand.below(0) == 0, "the shared functions stay in range");
+    [10]int deck;
+    for i in 0..10 {
+        deck[i] = i;
+    }
+    rand.shuffle(deck[..]);
+    int sum;
+    for x in deck {
+        sum += x;
+    }
+    check(sum == 45, "the shared shuffle keeps every element");
+    rand.Generator lazy;
+    int v = lazy.below(100);
+    check(v >= 0 && v < 100, "a generator declared without generator seeds itself");
+}
+`, expected: []string{"xoshiro256** with a seed of 42 gives the reference value", "the same seed gives the same sequence", "another seed gives another sequence", "seed starts the sequence again", "below stays in range and spreads evenly", "below of nothing is zero", "between includes both ends", "between with no room returns low", "real is in [0, 1) and averages one half", "flip is fair", "fill writes every byte, whatever the length", "shuffle keeps every element and changes the order", "seed makes the shared functions repeat", "the shared functions stay in range", "the shared shuffle keeps every element", "a generator declared without generator seeds itself"}},
+
+	{dir: "strings_split", src: `import "std/mem";
+import "std/strings";
+
+func main() {
+    [2048]byte store;
+    mem.Fixed room = mem.fixed(store[..]);
+
+    []string parts = strings.split(&room, "a,b,,c", ",")!!;
+    check(len(parts) == 4 && parts[0] == "a" && parts[1] == "b" && parts[2] == "" && parts[3] == "c", "split keeps empty pieces");
+    mem.free(&room, parts);
+
+    []string one = strings.split(&room, "alone", ",")!!;
+    check(len(one) == 1 && one[0] == "alone", "no separator gives the whole string");
+
+    []string empty = strings.split(&room, "", ",")!!;
+    check(len(empty) == 1 && empty[0] == "", "an empty string gives one empty piece");
+
+    []string bytes = strings.split(&room, "abc", "")!!;
+    check(len(bytes) == 3 && bytes[0] == "a" && bytes[2] == "c", "an empty separator gives one piece per byte");
+
+    []string none = strings.split(&room, "", "")!!;
+    check(len(none) == 0, "nothing split by nothing is empty");
+
+    []string words = strings.split(&room, "one--two--three", "--")!!;
+    check(len(words) == 3 && words[1] == "two", "a separator of several bytes");
+
+    [8]byte small;
+    mem.Fixed tiny = mem.fixed(small[..]);
+    let _, failed = strings.split(&tiny, "a,b,c,d", ",");
+    check(failed != null, "an allocator that fails is reported");
+}
+`, expected: []string{"split keeps empty pieces", "no separator gives the whole string", "an empty string gives one empty piece", "an empty separator gives one piece per byte", "nothing split by nothing is empty", "a separator of several bytes", "an allocator that fails is reported"}},
+
 	{dir: "io_adapters", src: `import "std/fmt";
 import "std/io";
 import "std/mem";

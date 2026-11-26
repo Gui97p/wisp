@@ -137,6 +137,32 @@ public inline func toLower([]byte buf) string {
 	return string(buf);
 }
 
+/// Splits `s` at every occurrence of `sep` into a new slice of pieces, allocated
+/// from `a`, with the same pieces `splitter` gives: `n` separators make `n + 1`
+/// pieces, empty ones included, and an empty `sep` makes one piece per byte. The
+/// pieces are slices of `s`, so nothing of the text is copied and they are only
+/// valid as long as `s` is. The caller frees the slice with `mem.free(a, parts)`,
+/// or leaves it to an arena or a `Fixed`. An empty `s` split by an empty `sep`
+/// gives an empty slice and allocates nothing. Fails with the error of the
+/// allocator.
+public func split(mem.Allocator a, string s, string sep) ![]string {
+	Splitter probe = splitter(s, sep);
+	int n;
+	for _ in &probe {
+		n++;
+	}
+	return .{} if n == 0;
+
+	[]string parts = mem.make<string>(a, n)!;
+	Splitter it = splitter(s, sep);
+	int at;
+	for piece in &it {
+		parts[at] = piece;
+		at++;
+	}
+	return parts;
+}
+
 /// Returns a copy of `s` as a new string, allocated from `a`. The caller frees it
 /// with `mem.free`, or leaves it to an arena or a `Fixed`. An empty `s` gives an
 /// empty string and allocates nothing. Fails with the error of the allocator.

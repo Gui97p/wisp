@@ -1,4 +1,3 @@
-
 /// Returns `a + b`, or null when the sum overflows `int`.
 #must_use
 public func checkedAdd(int a, b) ?int {

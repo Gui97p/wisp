@@ -22,6 +22,7 @@
 //   floats        float32 and float64, formatting
 //   numbers       std/conv: reading and writing numbers
 //   time          std/time: Duration, Stopwatch, the clocks
+//   random        std/rand: Rng, below, between, shuffle
 //   structs       structs, methods, literals
 //   literals      `T{...}`, `.{...}`, `[_]`: how every value is written
 //   generics      `<T>` on functions, structs and methods, value parameters, `switch type` on `T`
@@ -77,6 +78,7 @@ import "overflow";
 import "platform";
 import "pointers";
 import "printing";
+import "random";
 import "structs";
 import "tags";
 import "time";
@@ -137,6 +139,9 @@ func main() !int {
 
 	fmt.println("\n== time ==");
 	time.demo();
+
+	fmt.println("\n== random ==");
+	random.demo();
 
 	fmt.println("\n== structs ==");
 	structs.demo();
