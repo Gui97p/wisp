@@ -11,5 +11,5 @@ func main() {
 	for i in 0..N {
 		total = add(total, (i ^ total) & 1023);
 	}
-	fmt.printf("{}\n", total);
+	fmt.println("{}", total);
 }

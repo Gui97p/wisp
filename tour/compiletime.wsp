@@ -114,16 +114,16 @@ const KIND_NAME = static {
 };
 
 public func demo() {
-	fmt.printf("Header: size {}, alignment {}\n", HEADER_SIZE, alignof(Header));
-	fmt.printf("length is at {}, flags at {}\n", offsetof(Header, length), FLAGS_AT);
-	fmt.printf("a path works too: {}\n", offsetof(Wrapper, inner.flags));
-	fmt.printf("a Frame has {} bytes\n", sizeof(Frame));
+	fmt.println("Header: size {}, alignment {}", HEADER_SIZE, alignof(Header));
+	fmt.println("length is at {}, flags at {}", offsetof(Header, length), FLAGS_AT);
+	fmt.println("a path works too: {}", offsetof(Wrapper, inner.flags));
+	fmt.println("a Frame has {} bytes", sizeof(Frame));
 
 	[HEADER_SIZE]byte raw;
-	fmt.printf("an array sized by sizeof has {} bytes\n", len(raw));
+	fmt.println("an array sized by sizeof has {} bytes", len(raw));
 
-	fmt.printf("1 + 2 + ... + 10 = {}\n", TRIANGLE_10);
-	fmt.printf("the first n with n * n >= 500 is {}\n", FIRST_BIG_SQUARE);
+	fmt.println("1 + 2 + ... + 10 = {}", TRIANGLE_10);
+	fmt.println("the first n with n * n >= 500 is {}", FIRST_BIG_SQUARE);
 
 	// A static block can also sit in the middle of a function. Here it looks
 	// for a factor of 91.
@@ -139,9 +139,9 @@ public func demo() {
 		}
 		yield found;
 	};
-	fmt.printf("a factor of 91: {}\n", factor);
+	fmt.println("a factor of 91: {}", factor);
 
-	fmt.printf("constants: {} primes, {} bytes by default, fib(20) = {}\n", len(PRIMES), DEFAULT.length, FIB_20);
-	fmt.printf("a default Header is {}\n", KIND_NAME);
-	fmt.printf("crc(\"123456789\") = {x}\n", crc("123456789"));
+	fmt.println("constants: {} primes, {} bytes by default, fib(20) = {}", len(PRIMES), DEFAULT.length, FIB_20);
+	fmt.println("a default Header is {}", KIND_NAME);
+	fmt.println("crc(\"123456789\") = {:x}", crc("123456789"));
 }

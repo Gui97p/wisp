@@ -10,7 +10,7 @@
 // is the way through. Printing comes from the standard library:
 //
 //     import "std/fmt";
-//     fmt.printf("limit is {}\n", limit);
+//     fmt.println("limit is {}", limit);
 //
 // `printf` copies its text and puts the next argument where each `{}` is.
 // printing.wsp shows what else it can do.
@@ -61,43 +61,43 @@ public func demo() {
 	limit += 2;
 	limit *= 2;
 	total++;
-	fmt.printf("total = {}\n", total);
-	fmt.printf("limit = {}\n", limit);
-	fmt.printf("MaxScore = {}\n", MaxScore);
-	fmt.printf("Range = {}\n", Range);
-	fmt.printf("{} mask {}, ratio {}\n", Label, Mask, Ratio);
+	fmt.println("total = {}", total);
+	fmt.println("limit = {}", limit);
+	fmt.println("MaxScore = {}", MaxScore);
+	fmt.println("Range = {}", Range);
+	fmt.println("{} mask {}, ratio {}", Label, Mask, Ratio);
 
 	// A variable declared without a value starts zeroed.
 	int zeroed;
-	fmt.printf("zeroed = {}\n", zeroed);
+	fmt.println("zeroed = {}", zeroed);
 
 	// Several variables can be declared together.
 	int first, second = 4, 5;
-	fmt.printf("first + second = {}\n", first + second);
+	fmt.println("first + second = {}", first + second);
 
 	// `const` also works inside a function.
 	const Greeting = "hi";
-	fmt.printf("Greeting = {}\n", Greeting);
+	fmt.println("Greeting = {}", Greeting);
 
 	// Integer division truncates toward zero, and `%` keeps the sign of the
 	// dividend, so (a / b) * b + a % b is always a. Dividing by zero is not a
 	// compile error when the divisor is only known at run time: it panics.
-	fmt.printf("17 / 5 = {}\n", 17 / 5);
-	fmt.printf("-17 / 5 = {}\n", -17 / 5);
-	fmt.printf("17 % 5 = {}\n", 17 % 5);
-	fmt.printf("-17 % 5 = {}\n", -17 % 5);
+	fmt.println("17 / 5 = {}", 17 / 5);
+	fmt.println("-17 / 5 = {}", -17 / 5);
+	fmt.println("17 % 5 = {}", 17 % 5);
+	fmt.println("-17 % 5 = {}", -17 % 5);
 
 	// Bitwise operators: & | ^ ~ << >>. They only work on integers.
 	// `~` is unary (bitwise not), so there is no `~=`.
 	int a = 6;
 	int b = 3;
-	fmt.printf("a = {}, b = {}\n", a, b);
-	fmt.printf("a & b = {}\n", a & b);
-	fmt.printf("a | b = {}\n", a | b);
-	fmt.printf("a ^ b = {}\n", a ^ b);
-	fmt.printf("~a = {}\n", ~a);
-	fmt.printf("a << 1 = {}\n", a << 1);
-	fmt.printf("a >> 1 = {}\n", a >> 1);
+	fmt.println("a = {}, b = {}", a, b);
+	fmt.println("a & b = {}", a & b);
+	fmt.println("a | b = {}", a | b);
+	fmt.println("a ^ b = {}", a ^ b);
+	fmt.println("~a = {}", ~a);
+	fmt.println("a << 1 = {}", a << 1);
+	fmt.println("a >> 1 = {}", a >> 1);
 
 	// Every binary bitwise operator has a compound form.
 	int flags = 6;
@@ -106,13 +106,13 @@ public func demo() {
 	flags ^= 1;
 	flags <<= 1;
 	flags >>= 1;
-	fmt.printf("flags after &= 2, |= 8, ^= 1, <<= 1, >>= 1: {}\n", flags);
+	fmt.println("flags after &= 2, |= 8, ^= 1, <<= 1, >>= 1: {}", flags);
 
 	// Comparisons give a bool, and `&&`, `||` and `!` combine them. The
 	// right side of `&&` and `||` is only evaluated when it has to be.
-	fmt.printf("a > b && !(a == b) = {}\n", a > b && !(a == b));
+	fmt.println("a > b && !(a == b) = {}", a > b && !(a == b));
 
 	// The ternary operator.
 	int bigger = 1 > 2 ? 42 : 21;
-	fmt.printf("1 > 2 ? 42 : 21 = {}\n", bigger);
+	fmt.println("1 > 2 ? 42 : 21 = {}", bigger);
 }

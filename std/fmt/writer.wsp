@@ -1,14 +1,20 @@
 import "std/conv";
-import "std/errors";
-import "std/math";
 import "std/io";
-import "std/mem";
+import "std/math";
 
-/// The problems `Writer.format` reports: `Unmatched` is a `{` or `}` without its
-/// pair, `BadSpec` is a spec that cannot be parsed, `WrongType` is a spec that
-/// does not fit the type of its argument, `UnsupportedType` is an argument of a
-/// type that cannot be formatted, and `ExtraArgument` is an argument no `{}`
-/// used. A `{}` with no argument left is written as it is and is not an error.
+/// A type that writes itself in a format: `{}` calls its `display` with the writer
+/// the text is going to. It has to be declared with `implements Display`, and it
+/// takes no spec.
+#dynamic
+public interface Display {
+	func display(io.Writer w) !;
+}
+
+/// The problems `format` reports: `Unmatched` is a `{` or `}` without its pair,
+/// `BadSpec` is a spec that cannot be parsed, `WrongType` is a spec that does not
+/// fit the type of its argument, `UnsupportedType` is an argument of a type that
+/// cannot be formatted, and `ExtraArgument` is an argument no `{}` used. A `{}`
+/// with no argument left is written as it is and is not an error.
 public enum FormatError {
 	Unmatched = 1,
 	BadSpec,
@@ -17,143 +23,65 @@ public enum FormatError {
 	ExtraArgument
 }
 
-/// When a `Writer` sends its buffer to its destination: `None` writes at once and does
-/// not use the buffer, `Line` flushes after a write that holds a newline, and
-/// `Full` flushes only when the buffer fills or on `flush`.
-public enum BufMode {
-	None,
-	Line,
-	Full
+struct Sink implements io.Writer {
+	io.Writer out;
+	int total;
 }
 
-/// Writes bytes to an `io.Writer` through a buffer you provide. With `out` null
-/// there is no destination: the bytes are collected in `buf` and writing fails
-/// with `NoSpace` when it is full. With an `out`, `mode` decides when the buffer
-/// is flushed, a write bigger than the buffer goes straight to it, and an empty
-/// `buf` writes at once. Call `flush` at the end, since `Line` and `Full` can
-/// leave bytes in the buffer.
-public struct Writer {
-	public ?io.Writer out;
-	public []byte buf;
-	public BufMode mode;
-	int len, total;
-}
-
-func (*Writer w) send([]byte data) !int {
-	return w.out.?.write(data)!;
-}
-
-func (*Writer w) put(*byte c, int n) ! {
-	return if n == 0;
-
-	if w.out == null {
-		errors.ensure(len(w.buf) - w.len >= n, errors.Kind.NoSpace)!;
-		mem.copy((*byte)(w.buf) + w.len, c, n);
-		w.total += n;
-		w.len += n;
-		return;
-	}
-
-	if w.mode == .None || len(w.buf) == 0 {
-		w.total += w.send(c[0..n])!;
-		return;
-	}
-
-	if n > len(w.buf) {
-		w.flush()!;
-		w.total += w.send(c[0..n])!;
-		return;
-	}
-
-	if w.len + n > len(w.buf) {
-		w.flush()!;
-	}
-
-	mem.copy((*byte)(w.buf) + w.len, c, n);
+public func (*Sink w) write([]byte data) !int {
+	int n = w.out.write(data)!;
 	w.total += n;
-	w.len += n;
-
-	switch w.mode {
-		case .Line => {
-			if '\n' in c[0..n] {
-				w.flush()!;
-			}
-		}
-		case .Full => {
-			if w.len == len(w.buf) {
-				w.flush()!;
-			}
-		}
-		case .None => {}
-	}
+	return n;
 }
 
-/// Writes the bytes of a string.
-public func (*Writer w) write(string s) ! {
-	w.put((*byte)(s), len(s))!;
+func (*Sink w) text(string s) ! {
+	w.write([]byte(s))!;
 }
-/// Writes one byte.
-public func (*Writer w) writeByte(byte c) ! {
-	w.put(&c, 1)!;
+
+func (*Sink w) char(byte c) ! {
+	[1]byte one = .{c};
+	w.write(one[..])!;
 }
-/// Writes the bytes of a slice.
-public func (*Writer w) writeBytes([]byte data) ! {
-	w.put((*byte)(data), len(data))!;
-}
-/// Writes the byte `c`, `n` times. Nothing is written when `n` is zero or less.
-public func (*Writer w) fill(byte c, int n) ! {
+
+func (*Sink w) fill(byte c, int n) ! {
 	for n {
-		w.put(&c, 1)!;
+		w.char(c)!;
 	}
 }
 
-/// The number of bytes in the buffer that were not sent yet.
-public func (*Writer w) buffered() int { return w.len; }
-/// The number of bytes accepted since the start, whether sent or still in the
-/// buffer.
-public func (*Writer w) written() int { return w.total; }
+inline func plain(Spec s) bool => s.width == 0 && s.precision == -1 && s.kind == 0 && !s.alt && !s.zero && s.align == Align.Default && s.fill == ' ';
 
-/// Sends the buffered bytes to the destination. It does nothing for a writer without
-/// one, whose bytes stay in `buf`.
-public func (*Writer w) flush() ! {
-	if w.out == null || w.len == 0 {
-		return;
-	}
-	w.send(w.buf[..w.len])!;
-	w.len = 0;
-}
-
-func (*Writer w) writePiece(Piece p, Spec s, bool numeric) ! {
+func (*Sink w) writePiece(Piece p, Spec s, bool numeric) ! {
 	int used = len(p.sign) + len(p.radix) + len(p.body);
 	int pad = math.max(0, s.width - used);
 
 	if s.zero && numeric {
-		w.write(p.sign)!;
-		w.write(p.radix)!;
+		w.text(p.sign)!;
+		w.text(p.radix)!;
 		w.fill('0', pad)!;
-		w.write(p.body)!;
+		w.text(p.body)!;
 	} else {
 		if s.align == .Default {
 			s.align = numeric ? Align.Right : Align.Left;
 		}
 		switch s.align {
 			case .Left => {
-				w.write(p.sign)!;
-				w.write(p.radix)!;
-				w.write(p.body)!;
+				w.text(p.sign)!;
+				w.text(p.radix)!;
+				w.text(p.body)!;
 				w.fill(s.fill, pad)!;
 			}
 			case .Right => {
 				w.fill(s.fill, pad)!;
-				w.write(p.sign)!;
-				w.write(p.radix)!;
-				w.write(p.body)!;
+				w.text(p.sign)!;
+				w.text(p.radix)!;
+				w.text(p.body)!;
 			}
 			case .Center => {
 				w.fill(s.fill, pad / 2)!;
-				w.write(p.sign)!;
-				w.write(p.radix)!;
-				w.write(p.body)!;
+				w.text(p.sign)!;
+				w.text(p.radix)!;
+				w.text(p.body)!;
 				w.fill(s.fill, pad - pad / 2)!;
 			}
 			case .Default => {}
@@ -161,42 +89,42 @@ func (*Writer w) writePiece(Piece p, Spec s, bool numeric) ! {
 	}
 }
 
-func (*Writer w) putInt([]byte buf, int v, Spec s) !bool {
+func (*Sink w) putInt([]byte buf, int v, Spec s) !bool {
 	validate(s, Value.Int) ?? return false;
 	Piece piece = renderInt(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putUint([]byte buf, uint v, Spec s) !bool {
+func (*Sink w) putUint([]byte buf, uint v, Spec s) !bool {
 	validate(s, Value.Uint) ?? return false;
 	Piece piece = renderUint(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putBool(bool v, Spec s) !bool {
+func (*Sink w) putBool(bool v, Spec s) !bool {
 	validate(s, Value.Bool) ?? return false;
 	Piece piece = renderBool(v);
 	w.writePiece(piece, s, false)!;
 	return true;
 }
 
-func (*Writer w) putString(string v, Spec s) !bool {
+func (*Sink w) putString(string v, Spec s) !bool {
 	validate(s, Value.String) ?? return false;
 	Piece piece = renderString(v, s);
 	w.writePiece(piece, s, false)!;
 	return true;
 }
 
-func (*Writer w) putPointer([]byte buf, *void v, Spec s) !bool {
+func (*Sink w) putPointer([]byte buf, *void v, Spec s) !bool {
 	validate(s, Value.Pointer) ?? return false;
 	Piece piece = renderPointer(buf, v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Writer w) putFloat([]byte buf, float x, Spec s, bool single) !bool {
+func (*Sink w) putFloat([]byte buf, float x, Spec s, bool single) !bool {
 	validate(s, Value.Float) ?? return false;
 	Piece piece = renderFloat(buf, x, s, single)!;
 	Spec copy = s;
@@ -207,10 +135,16 @@ func (*Writer w) putFloat([]byte buf, float x, Spec s, bool single) !bool {
 	return true;
 }
 
-func (*Writer w) putError([]byte buf, Error e, Spec s) !bool {
+func (*Sink w) putDisplay(Display d, Spec s) !bool {
+	return false if !plain(s);
+	d.display(w)!;
+	return true;
+}
+
+func (*Sink w) putError([]byte buf, Error e, Spec s) !bool {
 	validate(s, Value.Error) ?? return false;
 	if e == null {
-		w.write("<null error>")!;
+		w.text("<null error>")!;
 		return true;
 	}
 	switch s.kind {
@@ -220,25 +154,25 @@ func (*Writer w) putError([]byte buf, Error e, Spec s) !bool {
 		}
 		default => {
 			if len(e.domain) == 0 {
-				w.write("error: ")!;
+				w.text("error: ")!;
 			} else {
-				w.write("error[")!;
-				w.write(e.domain)!;
-				w.write("]: ")!;
+				w.text("error[")!;
+				w.text(e.domain)!;
+				w.text("]: ")!;
 			}
-			w.write(e.message)!;
-			w.write(" (")!;
-			w.write(e.file)!;
-			w.writeByte(':')!;
+			w.text(e.message)!;
+			w.text(" (")!;
+			w.text(e.file)!;
+			w.char(':')!;
 			Piece piece = renderInt(buf, e.line, Spec{fill: ' ', precision: -1})!;
 			w.writePiece(piece, s, false)!;
-			w.writeByte(')')!;
+			w.char(')')!;
 		}
 	}
 	return true;
 }
 
-/// Writes `format`, replacing each `{}` or `{spec}` with the next argument; `{{`
+/// Writes `pattern` to `out`, replacing each `{}` or `{:spec}` with the next argument; `{{`
 /// and `}}` write a brace. A spec is
 /// `[[fill]align][#][0][width][.precision][type]`: `fill` is any byte, `align` is
 /// `<`, `>` or `^` (text is left by default and numbers right), `#` adds a prefix
@@ -248,28 +182,29 @@ func (*Writer w) putError([]byte buf, Error e, Spec s) !bool {
 /// `Error` and null can be formatted; a spec that does not fit the argument is
 /// written as it is. Returns the number of bytes written. All the text is written
 /// even after a problem, then it fails with the first `FormatError` found.
-public func (*Writer w) format(string format, ...args) !int {
+#format
+public func format(io.Writer out, string pattern, ...args) !int {
+	Sink w = Sink{out: out};
 	[conv.MaxDigits]byte buf;
 	int argIndex;
 	Error problem;
-	Cursor c = Cursor{text: format};
-	int start = w.total;
+	Cursor c = Cursor{text: pattern};
 
 	loop !c.done() {
 		int start = c.pos;
 		c.advanceUntil('{', '}');
-		w.write(c.since(start))!;
+		w.text(c.since(start))!;
 
 		break if c.done();
 
 		if c.peekAt(1) == c.peek() {
-			w.writeByte(c.peek())!;
+			w.char(c.peek())!;
 			c.advanceN(2);
 			continue;
 		}
 
 		if c.peek() == '}' {
-			w.writeByte('}')!;
+			w.char('}')!;
 			if problem == null {
 				problem = Error(FormatError.Unmatched);
 			}
@@ -282,7 +217,7 @@ public func (*Writer w) format(string format, ...args) !int {
 		int inner = c.pos;
 
 		if !c.advanceUntil('}') {
-			w.write(c.since(open))!;
+			w.text(c.since(open))!;
 			if problem == null {
 				problem = Error(FormatError.Unmatched);
 			}
@@ -294,7 +229,7 @@ public func (*Writer w) format(string format, ...args) !int {
 		string all = c.since(open);
 
 		Spec s = parse(text) ?? {
-			w.write(all)!;
+			w.text(all)!;
 			argIndex++;
 			if problem == null {
 				problem = Error(FormatError.BadSpec);
@@ -303,13 +238,14 @@ public func (*Writer w) format(string format, ...args) !int {
 		};
 
 		if argIndex >= len(args) {
-			w.write(all)!;
+			w.text(all)!;
 			continue;
 		}
 
 		bool ok;
 		Error bad = Error(FormatError.WrongType);
 		switch type args[argIndex] {
+			case Display v => ok = w.putDisplay(v, s)!;
 			case signed v => ok = w.putInt(buf, v, s)!;
 			case unsigned v => ok = w.putUint(buf, v, s)!;
 			case bool v => ok = w.putBool(v, s)!;
@@ -323,7 +259,7 @@ public func (*Writer w) format(string format, ...args) !int {
 		}
 		argIndex++;
 		if !ok {
-			w.write(all)!;
+			w.text(all)!;
 			if problem == null {
 				problem = bad;
 			}
@@ -336,5 +272,5 @@ public func (*Writer w) format(string format, ...args) !int {
 
 	return problem if problem != null;
 
-	return w.total - start;
+	return w.total;
 }

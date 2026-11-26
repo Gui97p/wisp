@@ -156,31 +156,31 @@ public func demo() {
 	List<float> weights;
 	weights.push(1.5);
 	weights.push(2.5);
-	fmt.printf("sum of the numbers {}, of the weights {}\n", numbers.sum(), weights.sum());
+	fmt.println("sum of the numbers {}, of the weights {}", numbers.sum(), weights.sum());
 
-	fmt.printf("folded: {}\n", numbers.fold(0, addLength));
+	fmt.println("folded: {}", numbers.fold(0, addLength));
 
 	Pair<int, string> pair = Pair<int, string>{first: 1, second: "one"};
 	Pair<string, int> flipped = swap(pair);
-	fmt.printf("swapped: {} and {}\n", flipped.first, flipped.second);
+	fmt.println("swapped: {} and {}", flipped.first, flipped.second);
 
-	fmt.printf("biggest(3, 9) = {}, biggest<float>(1.5, 0.5) = {}\n", biggest(3, 9), biggest<float>(1.5, 0.5));
-	fmt.printf("apply(7, square) = {}\n", apply(7, square));
+	fmt.println("biggest(3, 9) = {}, biggest<float>(1.5, 0.5) = {}", biggest(3, 9), biggest<float>(1.5, 0.5));
+	fmt.println("apply(7, square) = {}", apply(7, square));
 
 	Ring<byte, 4> ring;
 	ring.put(1);
-	fmt.printf("a ring of {} slots, {} bytes in all\n", capacity(ring), sizeof(ring));
+	fmt.println("a ring of {} slots, {} bytes in all", capacity(ring), sizeof(ring));
 
-	fmt.printf("{}, {}, {}, {}\n", describe("text"), describe(42), describe(true), describe(1.5));
+	fmt.println("{}, {}, {}, {}", describe("text"), describe(42), describe(true), describe(1.5));
 
-	fmt.printf("sizes: {} {} {}\n", bytesOf<byte>(), bytesOf<int>(), bytesOf<string>());
+	fmt.println("sizes: {} {} {}", bytesOf<byte>(), bytesOf<int>(), bytesOf<string>());
 
 	let step = increment;
-	fmt.printf("twice(5) = {}\n", twice(5, step));
+	fmt.println("twice(5) = {}", twice(5, step));
 	let pick = biggest<int>;
-	fmt.printf("pick(2, 8) = {}\n", pick(2, 8));
+	fmt.println("pick(2, 8) = {}", pick(2, 8));
 
 	Maybe<int> found = Maybe < int > .Just{value: 7};
 	Maybe<int> missing = .Nothing;
-	fmt.printf("{} and {}\n", found.orElse(0), missing.orElse(-1));
+	fmt.println("{} and {}", found.orElse(0), missing.orElse(-1));
 }

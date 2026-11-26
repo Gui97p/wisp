@@ -92,9 +92,9 @@ native<x64> quadruple(int n) int r {
 }
 
 public func demo() {
-	fmt.printf("abs(-5) = {}, abs(5) = {}\n", abs(-5), abs(5));
-	fmt.printf("sum(2, 3) = {}\n", sum(2, 3));
-	fmt.printf("quadruple(5) = {}\n", quadruple(5));
+	fmt.println("abs(-5) = {}, abs(5) = {}", abs(-5), abs(5));
+	fmt.println("sum(2, 3) = {}", sum(2, 3));
+	fmt.println("quadruple(5) = {}", quadruple(5));
 	int low, high = halves(7);
-	fmt.printf("halves(7) = {} and {}\n", low, high);
+	fmt.println("halves(7) = {} and {}", low, high);
 }

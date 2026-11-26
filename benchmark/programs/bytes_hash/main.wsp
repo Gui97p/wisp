@@ -20,6 +20,6 @@ func main() {
 			h *= 1099511628211;
 		}
 	}
-	fmt.printf("{}\n", h);
+	fmt.println("{}", h);
 	mem.free(buf);
 }

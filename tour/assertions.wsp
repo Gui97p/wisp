@@ -34,8 +34,8 @@ func settle(int n) ! {
 
 public func demo() {
 	int a = risky(3)!!;
-	fmt.printf("risky(3)!! = {}\n", a);
-	fmt.printf("risky(4)!! + risky(5)!! = {}\n", risky(4)!! + risky(5)!!);
+	fmt.println("risky(3)!! = {}", a);
+	fmt.println("risky(4)!! + risky(5)!! = {}", risky(4)!! + risky(5)!!);
 	settle(1)!!;
-	fmt.printf("settle(1)!! passed\n");
+	fmt.println("settle(1)!! passed");
 }

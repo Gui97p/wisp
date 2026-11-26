@@ -1,4 +1,5 @@
 import "std/fmt";
+import "std/io";
 import "std/mem";
 
 struct Record {
@@ -8,6 +9,18 @@ struct Record {
 	string file;
 	int line;
 	string block;
+}
+
+struct Slot implements io.Writer {
+	[]byte room;
+	int used;
+}
+
+public func (*Slot s) write([]byte data) !int {
+	return Error(Kind.NoSpace) if len(data) > len(s.room) - s.used;
+	mem.copy(s.room[s.used..], data, len(data));
+	s.used += len(data);
+	return len(data);
 }
 
 const Slots = 8;
@@ -38,9 +51,9 @@ public inline func errorf(Here at, string format, ...args) Error => annotate(at,
 /// written keeps the message it had.
 #format
 public func annotate(Error base, string format, ...args) Error {
-	fmt.Writer w = fmt.Writer{buf: begin(), mode: fmt.BufMode.Full};
-	let _, _ = w.format(format, args...);
-	return commit(base, w.buffered() > 0 ? w.buffered() : -1);
+	Slot slot = Slot{room: begin()};
+	let _, _ = fmt.format(&slot, format, args...);
+	return commit(base, slot.used > 0 ? slot.used : -1);
 }
 
 /// Copies an error into memory of `a`, so that it stays as it is for as long as

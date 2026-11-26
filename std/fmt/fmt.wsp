@@ -1,94 +1,36 @@
 import "std/io";
+import "std/mem";
 import "std/os";
 
 /// Writes `text` to `out`. Errors are ignored.
-public func fprint(io.Writer out, string text) {
-	[512]byte buf;
-	Writer w = Writer{out: out, buf: buf, mode: .Full};
+#format
+public func fprint(io.Writer out, string text, ...args) !int {
+	[528]byte store;
+	mem.Fixed room = mem.fixed(store);
+	io.BufWriter buffer = io.bufWriter(&room, out, 512)!;
 
-	w.write(text) ?? return;
-	w.flush() ?? return;
+	defer buffer.flush()!;
+	return format(&buffer, text, args...)!;
 }
 
 /// Writes `text` and a newline to `out`. Errors are ignored.
-public func fprintln(io.Writer out, string text) {
-	[512]byte buf;
-	Writer w = Writer{out: out, buf: buf, mode: .Full};
+#format
+public func fprintln(io.Writer out, string text, ...args) !int {
+	[528]byte store;
+	mem.Fixed room = mem.fixed(store);
+	io.BufWriter buffer = io.bufWriter(&room, out, 512)!;
 
-	w.write(text) ?? return;
-	w.writeByte('\n') ?? return;
-	w.flush() ?? return;
-}
-
-/// Writes `format` to `out`, replacing each `{}` or `{spec}`
-/// with the next argument (see `Writer.format` for the syntax). Returns the
-/// number of bytes written. Everything that can be written is written even when
-/// the format has a problem, and then it fails with the first `FormatError`, or
-/// with the error of the write.
-public func fprintf(io.Writer out, string format, ...args) !int {
-	[512]byte buf;
-	Writer w = Writer{out: out, buf: buf, mode: .Full};
-
-	let r, p = w.format(format, args...);
-	let fp = w.flush();
-	return p if p != null;
-	return fp if fp != null;
-	return r;
+	defer buffer.flush()!;
+	let n, problem = format(&buffer, text, args...);
+	io.writeByte(&buffer, '\n')!;
+	return problem if problem != null;
+	return n + 1;
 }
 
 /// Writes `text` to standard output. Errors are ignored.
-public func print(string text) {
-	[512]byte buf;
-	Writer w = Writer{out: &os.stdout, buf: buf, mode: .Full};
-
-	w.write(text) ?? return;
-	w.flush() ?? return;
-}
+#format
+public func print(string text, ...args) int => fprint(&os.stdout, text, args...) ?? 0;
 
 /// Writes `text` and a newline to standard output. Errors are ignored.
-public func println(string text) {
-	[512]byte buf;
-	Writer w = Writer{out: &os.stdout, buf: buf, mode: .Full};
-
-	w.write(text) ?? return;
-	w.writeByte('\n') ?? return;
-	w.flush() ?? return;
-}
-
-/// Writes `format` to standard output, replacing each `{}` or `{spec}` with the
-/// next argument (see `Writer.format`). Errors and format problems are ignored.
-public func printf(string format, ...args) {
-	fprintf(&os.stdout, format, args...) ?? return;
-}
-
-/// Copies `text` into `buf`. Fails with `NoSpace` when it does not fit, and then
-/// `buf` holds only what fit before. Nothing is added after the text.
-public func sprint([]byte buf, string text) ! {
-	Writer w = Writer{buf: buf, mode: .Full};
-
-	w.write(text) ?? return;
-	w.flush() ?? return;
-}
-
-/// Copies `text` and a newline into `buf`. It does nothing more when they do not
-/// fit, and errors are ignored.
-public func sprintln([]byte buf, string text) {
-	Writer w = Writer{buf: buf, mode: .Full};
-
-	w.write(text) ?? return;
-	w.writeByte('\n') ?? return;
-	w.flush() ?? return;
-}
-
-/// Formats into `buf` like `fprintf`, and returns the number of bytes written.
-/// Fails with `NoSpace` when the result does not fit, or with a `FormatError`.
-/// Nothing is added after the text.
-public func sprintf([]byte buf, string format, ...args) !int {
-	Writer w = Writer{buf: buf, mode: .Full};
-
-	let r, p = w.format(format, args...);
-	let fp = w.flush();
-	return p if p != null;
-	return fp if fp != null;
-	return r;
-}
+#format
+public func println(string text, ...args) int => fprintln(&os.stdout, text, args...) ?? 0;

@@ -39,6 +39,6 @@ func main() {
 			}
 		}
 	}
-	fmt.printf("{} {} {} {} {}\n", digits, alpha, spaces, upper, hex);
+	fmt.println("{} {} {} {} {}", digits, alpha, spaces, upper, hex);
 	mem.free(buf);
 }

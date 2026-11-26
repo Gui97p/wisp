@@ -31,12 +31,12 @@ func writeNotes(string file) ! {
 
 public func demo() ! {
 	// `os.args()` is the list of arguments, the program's own name first.
-	fmt.printf("started with {} argument(s)\n", len(os.args()));
+	fmt.println("started with {} argument(s)", len(os.args()));
 
 	// `env` looks one variable up, `environ` walks all of them. The strings
 	// point into memory the system owns, and are valid until the next call.
 	?string search = os.env("PATH");
-	fmt.printf("PATH is set: {}, and not empty: {}\n", search != null, len(search ?? "") > 0);
+	fmt.println("PATH is set: {}, and not empty: {}", search != null, len(search ?? "") > 0);
 
 	os.Environ env = os.environ();
 	int variables;
@@ -44,11 +44,11 @@ public func demo() ! {
 		variables++;
 	}
 	env.close();
-	fmt.printf("the environment has variables: {}\n", variables > 0);
+	fmt.println("the environment has variables: {}", variables > 0);
 
 	// Taking a path apart never allocates.
 	string file = "/tmp/wisp_tour_files/notes.tar.gz";
-	fmt.printf("base {}, dir {}, ext {}, stem {}\n", paths.base(file), paths.dir(file), paths.ext(file), paths.stem(file));
+	fmt.println("base {}, dir {}, ext {}, stem {}", paths.base(file), paths.dir(file), paths.ext(file), paths.stem(file));
 
 	// Putting one together takes memory from the allocator you give it, here an
 	// arena that is released when the function ends. `clean` also resolves `.`
@@ -57,7 +57,7 @@ public func demo() ! {
 	defer arena.release();
 	string root = paths.join(&arena, "/tmp", "wisp_tour_files")!;
 	string messy = paths.clean(&arena, "/tmp/./wisp_tour_files/../wisp_tour_files/")!;
-	fmt.printf("the same folder from two spellings: {}\n", root == messy);
+	fmt.println("the same folder from two spellings: {}", root == messy);
 
 	// Folders and files. `mkdirAll` creates every missing level, `create`
 	// opens a file for writing, and `defer` closes it when the function ends.
@@ -67,18 +67,18 @@ public func demo() ! {
 	writeNotes(first)!;
 
 	let info = os.stat(first)!;
-	fmt.printf("first.txt is {} bytes, a file: {}\n", info.size, info.kind == .File);
+	fmt.println("first.txt is {} bytes, a file: {}", info.size, info.kind == .File);
 
 	// `readFile` allocates the content, so the memory is yours to free.
 	[]byte content = os.readFile(first)!;
 	defer mem.free(mem.heap, content);
-	fmt.printf("it reads back {} bytes, starting with \"{}\"\n", len(content), string(content[..8]));
+	fmt.println("it reads back {} bytes, starting with \"{}\"", len(content), string(content[..8]));
 
 	// Renaming, and asking a folder what is in it. The order of the entries
 	// depends on the system, so this only counts them.
 	string second = paths.join(&arena, root, "second.txt")!;
 	os.rename(first, second)!;
-	fmt.printf("after the rename: first {}, second {}\n", os.exists(first), os.exists(second));
+	fmt.println("after the rename: first {}, second {}", os.exists(first), os.exists(second));
 
 	os.Dir folder = os.openDir(root)!;
 	int entries;
@@ -86,11 +86,11 @@ public func demo() ! {
 		entries++;
 	}
 	folder.close()!;
-	fmt.printf("the folder has {} entry\n", entries);
+	fmt.println("the folder has {} entry", entries);
 
 	// A missing file is an error value you can compare, not a crash.
 	let _data, failure = os.readFile("/tmp/wisp_tour_files/missing.txt");
-	fmt.printf("a missing file: not found {}\n", failure == errors.Kind.NotFound);
+	fmt.println("a missing file: not found {}", failure == errors.Kind.NotFound);
 
 	os.remove(second)!;
 	os.removeDir(root)!;

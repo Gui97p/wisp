@@ -2161,8 +2161,8 @@ func TestImportsBelongToTheirFile(t *testing.T) {
 	c := start(t)
 	files := map[string]string{
 		"wisp.toml": "",
-		"a.wsp":     "import \"std/fmt\";\n\nfunc a() {\n\tfmt.printf(\"a\\n\");\n}\n",
-		"main.wsp":  "func b() {\n\tfmt.printf(\"b\\n\");\n}\n\nfunc main() {\n\ta();\n\tb();\n}\n",
+		"a.wsp":     "import \"std/fmt\";\n\nfunc a() {\n\tfmt.println(\"a\");\n}\n",
+		"main.wsp":  "func b() {\n\tfmt.println(\"b\");\n}\n\nfunc main() {\n\ta();\n\tb();\n}\n",
 	}
 	found := false
 	for _, d := range c.open(files).diagnostics() {

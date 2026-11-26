@@ -96,12 +96,12 @@ func wireRoundTrip() {
 }
 
 public func demo() {
-	fmt.printf("Wire is {} bytes and Padded is {}\n", sizeof(Wire), sizeof(Padded));
-	fmt.printf("the value of Wire starts at {} and its flags at {}\n", offsetof(Wire, value), offsetof(Wire, flags));
+	fmt.println("Wire is {} bytes and Padded is {}", sizeof(Wire), sizeof(Padded));
+	fmt.println("the value of Wire starts at {} and its flags at {}", offsetof(Wire, value), offsetof(Wire, flags));
 	Wire w = Wire{kind: 1, value: 1000, flags: 7};
-	fmt.printf("a Wire still reads back: {} {} {}\n", w.kind, w.value, w.flags);
-	fmt.printf("triple(14) = {}\n", triple(14));
-	fmt.printf("positive(3) = {}\n", positive(3));
+	fmt.println("a Wire still reads back: {} {} {}", w.kind, w.value, w.flags);
+	fmt.println("triple(14) = {}", triple(14));
+	fmt.println("positive(3) = {}", positive(3));
 	int _ignored = bigger(3, 9);
-	fmt.printf("bigger(3, 9) = {}\n", bigger(3, 9));
+	fmt.println("bigger(3, 9) = {}", bigger(3, 9));
 }

@@ -94,7 +94,7 @@ func sumGood(int a, int b) int {
 // the function, `yield` only the handler.
 func divideOr(int a, b, fallback) int {
 	int n = divide(a, b) ?? |e| {
-		fmt.printf("divide failed: {}\n", e.message);
+		fmt.println("divide failed: {}", e.message);
 		yield fallback;
 	};
 	return n;
@@ -131,29 +131,29 @@ public func demo() {
 	// `??` unwraps the result, falling back to a default value on failure.
 	int ok = divide(10, 2) ?? -1;
 	int fallback = divide(10, 0) ?? -1;
-	fmt.printf("divide(10, 2) ?? -1 = {}\n", ok);
-	fmt.printf("divide(10, 0) ?? -1 = {}\n", fallback);
+	fmt.println("divide(10, 2) ?? -1 = {}", ok);
+	fmt.println("divide(10, 0) ?? -1 = {}", fallback);
 
-	fmt.printf("divideOr(10, 0, 99) = {}\n", divideOr(10, 0, 99));
-	fmt.printf("codeOf(10, 0) = {}, codeOf(10, 2) = {}\n", codeOf(10, 0), codeOf(10, 2));
+	fmt.println("divideOr(10, 0, 99) = {}", divideOr(10, 0, 99));
+	fmt.println("codeOf(10, 0) = {}, codeOf(10, 2) = {}", codeOf(10, 0), codeOf(10, 2));
 
 	// `?? |e| value` computes the fallback from the error.
 	int code = divide(10, 0) ?? |e| e.line;
-	fmt.printf("the failure was raised at line {}\n", code);
+	fmt.println("the failure was raised at line {}", code);
 
-	fmt.printf("halfOr(10, 2) = {}, halfOr(10, 0) = {}\n", halfOr(10, 2), halfOr(10, 0));
-	fmt.printf("sumGood(2, 0) = {}, sumGood(0, 5) = {}\n", sumGood(2, 0), sumGood(0, 5));
+	fmt.println("halfOr(10, 2) = {}, halfOr(10, 0) = {}", halfOr(10, 2), halfOr(10, 0));
+	fmt.println("sumGood(2, 0) = {}, sumGood(0, 5) = {}", sumGood(2, 0), sumGood(0, 5));
 
 	int propagated = halveThenDouble(10, 0) ?? -1;
-	fmt.printf("halveThenDouble(10, 0) ?? -1 = {}\n", propagated);
-	fmt.printf("describe(10, 0) = {}\n", describe(10, 0));
-	fmt.printf("describe(10, 5) = {}\n", describe(10, 5));
+	fmt.println("halveThenDouble(10, 0) ?? -1 = {}", propagated);
+	fmt.println("describe(10, 0) = {}", describe(10, 0));
+	fmt.println("describe(10, 5) = {}", describe(10, 5));
 
 	// Destructuring gives the value and the error. The value is zero on
 	// failure, and an error you never read is a compile error (bind it to `_`
 	// to drop it on purpose).
 	let value, e = divide(10, 0);
-	fmt.printf("destructured: value {}, failed {}\n", value, e != null);
+	fmt.println("destructured: value {}, failed {}", value, e != null);
 
 	// An error compares with null and with enum members, so a switch can sort
 	// failures out. The member is written in full here: an Error does not know
@@ -164,14 +164,14 @@ public func demo() {
 		case DivError.DivByZero => "divided by zero";
 		default => err.message;
 	};
-	fmt.printf("the switch says: {}\n", what);
+	fmt.println("the switch says: {}", what);
 
 	// An error prints with `{}` as its message, and `{v}` adds the enum and
 	// where it was raised. An error that is null prints as <null error>.
-	fmt.printf("{} | {v}\n", err, err);
+	fmt.println("{} | {:v}", err, err);
 
 	let _, notThere = openAndLoad("missing.txt");
-	fmt.printf("{} | NotFound: {}\n", notThere, notThere == errors.Kind.NotFound);
+	fmt.println("{} | NotFound: {}", notThere, notThere == errors.Kind.NotFound);
 
 	// An error made at run time is valid until eight more like it are made, which
 	// is plenty to handle it or pass it up. To keep one longer, `errors.keep`
@@ -182,13 +182,13 @@ public func demo() {
 	for _ in 0..20 {
 		let _, _ = openAndLoad("missing.txt");
 	}
-	fmt.printf("kept: {}\n", saved);
+	fmt.println("kept: {}", saved);
 
 	// A plain error has no enum to match, so a sentinel or its message tells
 	// it apart: `err == missing` is true only for the error raised from `missing`.
 	let _, gone = lookup(0);
 	let _, negative = lookup(-4);
-	fmt.printf("{} | {} | sentinel: {}, {}\n", gone, negative, gone == missing, negative == missing);
+	fmt.println("{} | {} | sentinel: {}, {}", gone, negative, gone == missing, negative == missing);
 
 	// A function with no result hands its error to `let`, which holds null when
 	// it worked. `temporary` and `missing` tell families of kinds apart: a
@@ -197,8 +197,8 @@ public func demo() {
 	let fits = store(2, 4);
 	let tight = store(9, 4);
 	let named = storeNamed(9, 4);
-	fmt.printf("fits: {}, tight: {}, named: {}\n", fits == null, tight == errors.Kind.NoSpace, named.message);
-	fmt.printf("temporary: {}, missing: {}\n", errors.temporary(tight), errors.missing(fits));
+	fmt.println("fits: {}, tight: {}, named: {}", fits == null, tight == errors.Kind.NoSpace, named.message);
+	fmt.println("temporary: {}, missing: {}", errors.temporary(tight), errors.missing(fits));
 // errors.assert(condition, message) is for a mistake in the program itself:
 // it does not return an error, it stops the program with the message, and so
 // do errors.unreachable(message) for a place that must never run and
@@ -210,7 +210,7 @@ public func demo() {
 // return from the function:
 //
 //     defer close(fd) ?? {};
-//     defer close(fd) ?? |e| { fmt.printf("close failed: {}\n", e.message); };
+//     defer close(fd) ?? |e| { fmt.println("close failed: {}", e.message); };
 
 // `main` can be fallible too: `func main() !int`. If it ends in an error,
 // the program prints it and exits with the error's code.

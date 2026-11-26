@@ -34,8 +34,8 @@ public func demo() ! {
 	*int numbers = fixed.alloc(sizeof(int) * 4)!;
 	numbers[0] = 11;
 	numbers[3] = 44;
-	fmt.printf("numbers: {}, {}, {}\n", numbers[0], numbers[1], numbers[3]);
-	fmt.printf("used {} bytes, {} left\n", fixed.used(), fixed.remaining());
+	fmt.println("numbers: {}, {}, {}", numbers[0], numbers[1], numbers[3]);
+	fmt.println("used {} bytes, {} left", fixed.used(), fixed.remaining());
 
 	// `mem.make<Type>(allocator, count)` is a slice of `count` zeroed elements
 	// and `mem.create<Type>(allocator)` is one zeroed value, as a pointer. Both
@@ -45,7 +45,7 @@ public func demo() ! {
 	slots[5] = 50;
 	*Pair pair = mem.create<Pair>(&fixed)!;
 	pair.second = 8;
-	fmt.printf("a slice of {} ints, slots[5] = {}, slots[0] = {}\n", len(slots), slots[5], slots[0]);
+	fmt.println("a slice of {} ints, slots[5] = {}, slots[0] = {}", len(slots), slots[5], slots[0]);
 
 	// `mem.makeDirty` is `mem.make` for memory you are about to overwrite: it does not
 	// clear the elements, so it is a little cheaper, and what it holds before
@@ -54,16 +54,16 @@ public func demo() ! {
 	for i in 0..=7 {
 		dirty[i] = byte(i * 3);
 	}
-	fmt.printf("a dirty slice that was written: {}, {}, {}\n", dirty[0], dirty[3], dirty[7]);
-	fmt.printf("a pair: {} and {}\n", pair.first, pair.second);
+	fmt.println("a dirty slice that was written: {}, {}, {}", dirty[0], dirty[3], dirty[7]);
+	fmt.println("a pair: {} and {}", pair.first, pair.second);
 	fixed.reset();
 
 	let _, failure = fixed.alloc(1000);
-	fmt.printf("a block that does not fit: no space {}\n", failure == errors.Kind.NoSpace);
+	fmt.println("a block that does not fit: no space {}", failure == errors.Kind.NoSpace);
 
 	// `reset` forgets every block at once and starts over from the beginning.
 	fixed.reset();
-	fmt.printf("after reset: used {}, {} left\n", fixed.used(), fixed.remaining());
+	fmt.println("after reset: used {}, {} left", fixed.used(), fixed.remaining());
 
 	// `mem.Arena` grows by asking the heap for large chunks, so it has no limit
 	// other than memory itself. Blocks are never freed one by one: `release`
@@ -73,7 +73,7 @@ public func demo() ! {
 
 	*int first = arena.alloc(sizeof(int) * 100)!;
 	first[99] = 7;
-	fmt.printf("first[0] = {}, first[99] = {}\n", first[0], first[99]);
+	fmt.println("first[0] = {}, first[99] = {}", first[0], first[99]);
 
 	// `mark` remembers where the arena is, and `rewind` goes back to it,
 	// dropping everything allocated since. It is a scratch scope: the work
@@ -84,7 +84,7 @@ public func demo() ! {
 	arena.rewind(scratch);
 
 	*int again = arena.alloc(sizeof(int) * 1000)!;
-	fmt.printf("the same space is reused after rewind: {}\n", again == temporary);
+	fmt.println("the same space is reused after rewind: {}", again == temporary);
 
 	// `reset` drops every block but keeps one chunk for the next round, which
 	// suits a loop that builds something, uses it, and starts again.
@@ -92,7 +92,7 @@ public func demo() ! {
 		arena.reset();
 		*int items = arena.alloc(sizeof(int) * 10)!;
 		items[0] = round;
-		fmt.printf("round {}: items[0] = {}, items[9] = {}\n", round, items[0], items[9]);
+		fmt.println("round {}: items[0] = {}, items[9] = {}", round, items[0], items[9]);
 	}
 
 	// An allocator is a value, so it can be passed around: `&arena` and
@@ -105,13 +105,13 @@ public func demo() ! {
 	onHeap[2] = 3;
 	mem.Arena inner = mem.arena(&arena);
 	[]byte text = mem.make<byte>(&inner, 40)!;
-	fmt.printf("a block of {} bytes from an arena that lives inside another one\n", len(text));
+	fmt.println("a block of {} bytes from an arena that lives inside another one", len(text));
 
 	// `mem.resize(allocator, slice, count)` grows or shrinks a slice. The old size
 	// comes from the slice itself, the new elements are zeroed, and an arena
 	// extends its last block in place instead of copying it.
 	onHeap = mem.resize(mem.heap, onHeap, 6)!;
-	fmt.printf("grown to {}: {}, {}, {}, {}\n", len(onHeap), onHeap[0], onHeap[2], onHeap[3], onHeap[5]);
+	fmt.println("grown to {}: {}, {}, {}, {}", len(onHeap), onHeap[0], onHeap[2], onHeap[3], onHeap[5]);
 	mem.free(mem.heap, onHeap);
 	inner.release();
 
@@ -123,20 +123,20 @@ public func demo() ! {
 	mem.Counting counting;
 	mem.Debug debug = mem.Debug{parent: &counting};
 	[]int tracked = mem.make<int>(&debug, 5)!;
-	fmt.printf("live: {} blocks, {} bytes\n", counting.blocks(), counting.bytes());
+	fmt.println("live: {} blocks, {} bytes", counting.blocks(), counting.bytes());
 	mem.free(&debug, tracked);
-	fmt.printf("leaks: {}\n", debug.report());
+	fmt.println("leaks: {}", debug.report());
 	debug.release();
 
 	mem.Failing failing = mem.failingAfter(mem.heap, 1);
 	[]int head = mem.make<int>(&failing, 2)!;
 	let _, problem = mem.make<int>(&failing, 2);
-	fmt.printf("the second allocation fails: {}\n", problem == errors.Kind.OutOfMemory);
+	fmt.println("the second allocation fails: {}", problem == errors.Kind.OutOfMemory);
 	mem.free(&failing, head);
 
 	mem.Pool pool = mem.Pool{size: 32};
 	*int slot = pool.alloc(8)!;
 	pool.free(slot);
-	fmt.printf("the pool hands the same block back: {}\n", pool.alloc(8)! == slot);
+	fmt.println("the pool hands the same block back: {}", pool.alloc(8)! == slot);
 	pool.release();
 }

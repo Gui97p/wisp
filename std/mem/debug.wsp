@@ -2,6 +2,7 @@
 
 import "std/errors";
 import "std/fmt";
+import "std/io";
 import "std/os";
 import "std/strings";
 
@@ -337,12 +338,12 @@ public func (*Debug d) report() int {
 
 	int k;
 	loop k < groups {
-		fmt.fprintf(&os.stderr, "leak: {} blocks, {} bytes, allocated at\n", counts[k], bytes[k])!!;
-		fmt.fprint(&os.stderr, sites[k]);
+		fmt.fprintln(&os.stderr, "leak: {counts[k]} blocks, {bytes[k]} bytes, allocated at")!!;
+		io.writeString(&os.stderr, sites[k])!!;
 		k++;
 	}
 	if others > 0 {
-		fmt.fprintf(&os.stderr, "leak: {} more blocks from other places\n", others)!!;
+		fmt.fprintln(&os.stderr, "leak: {others} more blocks from other places")!!;
 	}
 	return d.liveBlocks;
 }

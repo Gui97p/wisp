@@ -34,21 +34,21 @@ public func demo() {
 
 	// `if` needs no parentheses around the condition.
 	if limit >= 10 {
-		fmt.printf("{} is at least ten\n", limit);
+		fmt.println("{} is at least ten", limit);
 	} else {
-		fmt.printf("{} is below ten\n", limit);
+		fmt.println("{} is below ten", limit);
 	}
 
 	// `switch` as a statement. A case is `value => statement;`, or a block
 	// `value => { ... }` when it takes several statements. There is no
 	// fallthrough, and a range like `11..=20` includes both ends.
 	switch limit {
-		case 10 => fmt.printf("ten\n");
+		case 10 => fmt.println("ten");
 		case 11..=20 => {
-			fmt.printf("{} is between eleven and twenty\n", limit);
-			fmt.printf("so it is a block of two statements\n");
+			fmt.println("{} is between eleven and twenty", limit);
+			fmt.println("so it is a block of two statements");
 		}
-		default => fmt.printf("something else\n");
+		default => fmt.println("something else");
 	}
 
 	// `switch` as an expression. Cases also use `=>`, and what follows is a value
@@ -58,14 +58,14 @@ public func demo() {
 		case 10 => "ten";
 		default => "other";
 	};
-	fmt.printf("the label of {} is {}\n", limit, label);
+	fmt.println("the label of {} is {}", limit, label);
 
 	int doubled;
 	doubled = switch limit {
 		case 12 => 24;
 		default => 0;
 	};
-	fmt.printf("doubled is {}\n", doubled);
+	fmt.println("doubled is {}", doubled);
 
 	// A case can give several values, which `let a, b = switch ...` receives, or
 	// leave with `return`, `break` or `continue` instead of giving a value.
@@ -74,15 +74,15 @@ public func demo() {
 		case 11..=20 => 11, 20;
 		default => return;
 	};
-	fmt.printf("the range of {} is {}..{}\n", limit, low, high);
+	fmt.println("the range of {} is {}..{}", limit, low, high);
 
 	// A `switch` with no value puts a condition in each case, and the first one
 	// that is true wins. A comma between conditions means "or". It works as a
 	// statement and as an expression, and the expression still needs `default`.
 	switch {
-		case limit < 10 => fmt.printf("under ten\n");
-		case limit < 20, limit == 100 => fmt.printf("under twenty, or exactly one hundred\n");
-		default => fmt.printf("twenty or more\n");
+		case limit < 10 => fmt.println("under ten");
+		case limit < 20, limit == 100 => fmt.println("under twenty, or exactly one hundred");
+		default => fmt.println("twenty or more");
 	}
 
 	string size = switch {
@@ -90,10 +90,10 @@ public func demo() {
 		case limit < 100 => "medium";
 		default => "large";
 	};
-	fmt.printf("{} is {}\n", limit, size);
+	fmt.println("{} is {}", limit, size);
 
-	fmt.printf("advice: {} / {}\n", advice(.Red), advice(.Green));
-	fmt.printf("clamp: {} {} {}\n", clamp(-4), clamp(40), clamp(400));
+	fmt.println("advice: {} / {}", advice(.Red), advice(.Green));
+	fmt.println("clamp: {} {} {}", clamp(-4), clamp(40), clamp(400));
 
 	// A block is a statement of its own: it opens a scope, and a `defer` in it
 	// runs when it ends. With a value after `=`, it is an expression: it runs its
@@ -101,13 +101,13 @@ public func demo() {
 	// does not need a helper function.
 	{
 		int limit = 1;
-		fmt.printf("inside the block limit is {}\n", limit);
+		fmt.println("inside the block limit is {}", limit);
 	}
 	int rounded = {
 		int step = 5;
 		yield limit / step * step;
 	};
-	fmt.printf("{} rounded down to a multiple of five is {}\n", limit, rounded);
+	fmt.println("{} rounded down to a multiple of five is {}", limit, rounded);
 
 	// A label before a block, `:name { ... }`, lets `yield :name;` leave it from
 	// anywhere inside, even from a loop in the middle, and the `defer`s of the
@@ -123,7 +123,7 @@ public func demo() {
 		}
 		found = -2;
 	}
-	fmt.printf("the search stopped after {}\n", found);
+	fmt.println("the search stopped after {}", found);
 
 	int first = :pick{
 		for i in 0..=limit{
@@ -131,5 +131,5 @@ public func demo() {
 		}
 		yield -1;
 	};
-	fmt.printf("the first square above thirty is the square of {}\n", first);
+	fmt.println("the first square above thirty is the square of {}", first);
 }

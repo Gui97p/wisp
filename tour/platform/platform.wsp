@@ -31,5 +31,5 @@ public func describe() string {
 }
 
 public func demo() {
-  fmt.printf("this build is for {}, paths are separated with \"{}\", and a line ends with {} byte(s)\n", name(), separator(), len(lineEnd()));
+  fmt.println("this build is for {}, paths are separated with \"{}\", and a line ends with {} byte(s)", name(), separator(), len(lineEnd()));
 }

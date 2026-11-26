@@ -1,25 +1,42 @@
 #standalone
 // Tour - Printing.
 //
-// `std/fmt` writes text. `print` and `println` take a string; `printf` takes
-// a format string and any number of arguments of any type. Each `{}` in the
-// format takes the next argument, and `{{` and `}}` write a brace.
+// `std/fmt` writes text. `print` and `println` write to standard output, and
+// `println` adds the newline. Both take a format string and any number of
+// arguments of any type. Each `{}` in the format takes the next argument, and
+// `{{` and `}}` write a brace.
 //
-// Between the braces, a spec says how to write the value:
+// A value can also be written inside the braces, `{total}` or `{a + b}`, and
+// the compiler passes it as an argument. The two kinds mix, and every `{}` takes
+// its argument in the order it appears in the text.
 //
-//     {[[fill]align][#][0][width][.precision][type]}
+// After a colon, a spec says how to write the value:
 //
-// `align` is `<`, `^` or `>`, `fill` is the character that pads (a space when
-// left out), `#` adds a prefix such as 0x, a leading `0` pads with zeros, and
-// the type is one of d, x, X, b, o, c, e, E, f, s or p. A number aligns right
+//     {:[[fill]align][#][0][width][.precision][type]}
+//
+// `{x:08.2f}` is an expression with a spec, and `{:08.2f}` is the next argument
+// with it. `align` is `<`, `^` or `>`, `fill` is the character that pads (a space
+// when left out), `#` adds a prefix such as 0x, a leading `0` pads with zeros,
+// and the type is one of d, x, X, b, o, c, e, E, f, v or p. A number aligns right
 // and text aligns left unless you say otherwise.
 //
 // A mistake in a format never stops the program. The text it could not fill
-// stays as written and `printf` goes on; `sprintf` and `fprintf` return what
-// went wrong as a FormatError, and `printf` throws it away.
+// stays as written and `println` goes on, and `fprint` and `fprintln` return what
+// went wrong as a FormatError, which `print` and `println` throw away.
 
 import "std/fmt";
+import "std/io";
 import "std/os";
+import "std/strings";
+
+struct Point implements fmt.Display {
+	int x;
+	int y;
+}
+
+func (*Point p) display(io.Writer w) ! {
+	fmt.fprint(w, "({p.x}, {p.y})")!;
+}
 
 enum Color {
 	Red,
@@ -31,46 +48,52 @@ public func demo() {
 	fmt.print("print writes a string, ");
 	fmt.println("println adds a newline");
 
-	fmt.printf("an int {}, a string {}, a byte {}, a bool {}\n", 42, "text", 'x', true);
-	fmt.printf("a byte is a number, and the c spec writes it as a character: {c}\n", 'x');
-	fmt.printf("braces: {{ and }}\n");
+	fmt.println("an int {}, a string {}, a byte {}, a bool {}", 42, "text", 'x', true);
+	fmt.println("a byte is a number, and the c spec writes it as a character: {:c}", 'x');
+	fmt.println("braces: {{ and }}");
 
 	// An enum prints its number. Its name() method gives the name.
 	Color favorite = .Green;
-	fmt.printf("{} is {}\n", favorite.name(), favorite);
+	fmt.println("{} is {}", favorite.name(), favorite);
 
 	// Number types.
-	fmt.printf("255 in hex {x}, upper case {X}, with a prefix {#x}\n", 255, 255, 255);
-	fmt.printf("5 in binary {b}, with a prefix {#b}; 8 in octal {#o}\n", 5, 5, 8);
-	fmt.printf("65 as a character: {c}\n", 65);
+	fmt.println("255 in hex {:x}, upper case {:X}, with a prefix {:#x}", 255, 255, 255);
+	fmt.println("5 in binary {:b}, with a prefix {:#b}; 8 in octal {:#o}", 5, 5, 8);
+	fmt.println("65 as a character: {:c}", 65);
 
 	// Width, alignment and fill.
-	fmt.printf("[{6}] [{<6}] [{^6}] [{>6}]\n", 42, 42, 42, 42);
-	fmt.printf("[{-<6}] [{*^7}]\n", 7, "ab");
-	fmt.printf("[{06}] [{06}] [{#06x}]\n", 42, -42, 255);
+	fmt.println("[{:6}] [{:<6}] [{:^6}] [{:>6}]", 42, 42, 42, 42);
+	fmt.println("[{:-<6}] [{:*^7}]", 7, "ab");
+	fmt.println("[{:06}] [{:06}] [{:#06x}]", 42, -42, 255);
 
 	// For text, the precision cuts.
-	fmt.printf("[{.3}] [{6.3}]\n", "abcdef", "abcdef");
+	fmt.println("[{:.3}] [{:6.3}]", "abcdef", "abcdef");
 
 	// Floats print with `{}` as the shortest text that reads back as the same
 	// number. For a float the precision is the number of digits after the
 	// point: `f` is fixed notation (six digits unless you say), `e` and `E`
 	// are scientific. See floats.wsp for more.
-	fmt.printf("[{}] [{.2}] [{f}] [{.3f}] [{e}] [{.2E}]\n", 0.1, 2.0 / 3.0, 2.5, 2.5, 1234.5, 1234.5);
-	fmt.printf("[{8.2f}] [{<8.2f}] [{08.2f}]\n", 3.14159, 3.14159, -3.14159);
+	fmt.println("[{}] [{:.2}] [{:f}] [{:.3f}] [{:e}] [{:.2E}]", 0.1, 2.0 / 3.0, 2.5, 2.5, 1234.5, 1234.5);
+	fmt.println("[{:8.2f}] [{:<8.2f}] [{:08.2f}]", 3.14159, 3.14159, -3.14159);
 
-	// `fprintf` writes to a file descriptor. `&os.stdout` is the terminal, and
-	// `&os.stderr` is where errors go.
-	fmt.fprintf(&os.stderr, "this line goes to standard error: {}\n", 7) ?? return;
+	// `fprint` and `fprintln` write to anything that can be written to.
+	// `&os.stdout` is the terminal, and `&os.stderr` is where errors go.
+	fmt.fprintln(&os.stderr, "this line goes to standard error: {}", 7) ?? return;
 
-	// `sprintf` writes into a buffer you provide (an array passes as a slice,
-	// see collections.wsp) and returns how many bytes it wrote. It fails with NoSpace if the buffer is too small.
-	[32]byte buffer;
-	let size, problem = fmt.sprintf(buffer, "{} + {} = {}", 2, 3, 5);
-	fmt.printf("sprintf wrote {} bytes: {}\n", size, string(buffer[..size]));
-	fmt.printf("a fitting format reports a problem: {}\n", problem != null);
+	// A `strings.Builder` collects text, and `fmt.format` writes into it, which
+	// is how you get a string out of a format. It returns how many bytes it wrote.
+	strings.Builder builder;
+	defer builder.release();
+	let size, problem = fmt.format(&builder, "{} + {} = {}", 2, 3, 5);
+	fmt.println("format wrote {} bytes: {}", size, builder.text());
+	fmt.println("a fitting format reports a problem: {}", problem != null);
 
 	// A bad format is written back as it was and reported, not fatal.
-	let _, wrong = fmt.sprintf(buffer, "{z}", 1);
-	fmt.printf("a spec that does not exist reports a problem: {}\n", wrong == fmt.FormatError.BadSpec);
+	let _, wrong = fmt.format(&builder, "{:z}", 1);
+	fmt.println("a spec that does not exist reports a problem: {}", wrong == fmt.FormatError.BadSpec);
+
+	// A type with a `display` method, declared with `implements fmt.Display`,
+	// writes itself where `{}` asks for it.
+	Point point = Point{x: 3, y: 4};
+	fmt.println("the point is {}", point);
 }

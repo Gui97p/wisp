@@ -26,6 +26,6 @@ func main() {
 	for i in 0..N*N {
 		total += c[i];
 	}
-	fmt.printf("{}\n", int(total));
+	fmt.println("{}", int(total));
 	mem.free(a, b, c);
 }

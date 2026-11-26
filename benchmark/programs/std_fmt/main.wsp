@@ -1,5 +1,6 @@
 import "std/conv";
 import "std/fmt";
+import "std/strings";
 
 const ROUNDS = 1000000;
 
@@ -13,8 +14,11 @@ func main() {
 		sum += conv.atoi(s)!!;
 	}
 	int written = 0;
+	strings.Builder line;
 	for i in 1..=ROUNDS {
-		written += fmt.sprintf(buf[..], "{} {}", i, i * 3)!!;
+		line.reset();
+		written += fmt.format(&line, "{} {}", i, i * 3)!!;
 	}
-	fmt.printf("{} {} {}\n", width, sum, written);
+	line.release();
+	fmt.println("{} {} {}", width, sum, written);
 }

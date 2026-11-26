@@ -23,18 +23,18 @@ public func demo() {
 	// `a..=b` includes both ends: this visits 1, 2, 3.
 	int sum;
 	for i in 1..=3 {
-		fmt.printf("i = {}\n", i);
+		fmt.println("i = {}", i);
 		sum += i;
 	}
-	fmt.printf("the sum of 1..=3 is {}\n", sum);
+	fmt.println("the sum of 1..=3 is {}", sum);
 
 	// `.step(4)` gives the range a step. This visits 1, 5, 9.
 	int stepped;
 	for i in (1..=10).step(4) {
-		fmt.printf("stepping: {}\n", i);
+		fmt.println("stepping: {}", i);
 		stepped += i;
 	}
-	fmt.printf("the sum of (1..=10).step(4) is {}\n", stepped);
+	fmt.println("the sum of (1..=10).step(4) is {}", stepped);
 
 	// A range only counts up, so one that starts above its end is empty. To
 	// count down, give a negative step: this visits 3, 2, 1. The sign of the
@@ -43,7 +43,7 @@ public func demo() {
 	for i in (3..=1).step(-1) {
 		countdown = countdown * 10 + i;
 	}
-	fmt.printf("counting down from 3 to 1 gives {}\n", countdown);
+	fmt.println("counting down from 3 to 1 gives {}", countdown);
 
 	// `a..b` leaves the end out, so counting the items of something is
 	// `0..count`, with no `- 1` to get wrong, and it is empty when `count` is 0.
@@ -54,20 +54,20 @@ public func demo() {
 	for _ in 0..count {
 		none++;
 	}
-	fmt.printf("0..count with count = 0 ran {} times\n", none);
+	fmt.println("0..count with count = 0 ran {} times", none);
 
 	int below;
 	for i in 0..4 {
 		below += i;
 	}
-	fmt.printf("the sum of 0..4 is {}\n", below);
+	fmt.println("the sum of 0..4 is {}", below);
 
 	// Without a variable, `for` just repeats.
 	int repeats;
 	for 2 {
 		repeats++;
 	}
-	fmt.printf("for 2 ran {} times\n", repeats);
+	fmt.println("for 2 ran {} times", repeats);
 
 	// `loop <condition>` is a while loop.
 	int left = 3;
@@ -76,14 +76,14 @@ public func demo() {
 		passes++;
 		left--;
 	}
-	fmt.printf("the while loop ran {} times\n", passes);
+	fmt.println("the while loop ran {} times", passes);
 
 	// A `loop` with `until` at the end is a do-while: the body runs first.
 	int tries = 0;
 	loop {
 		tries++;
 	} until tries == 3;
-	fmt.printf("the do-while stopped at {}\n", tries);
+	fmt.println("the do-while stopped at {}", tries);
 
 	// The condition after `until` sees what the body declared, so it can test a
 	// value the body just computed. That only holds when the body has no
@@ -93,7 +93,7 @@ public func demo() {
 		int doubled = guess * 2;
 		guess = doubled;
 	} until doubled >= 100;
-	fmt.printf("doubling stopped at {}\n", guess);
+	fmt.println("doubling stopped at {}", guess);
 
 	// A bare `loop` runs until something breaks out of it. `continue` and
 	// `break` take a guard like `return` does: `continue if n == 2;` is the
@@ -106,7 +106,7 @@ public func demo() {
 		break if n > 4;
 		kept += n;
 	}
-	fmt.printf("skipping 2 and stopping after 4 kept {}\n", kept);
+	fmt.println("skipping 2 and stopping after 4 kept {}", kept);
 
 	// A label starts with `:`, both where it is declared and where it is used:
 	// `break :outer` and `continue :outer` target an outer loop.
@@ -117,7 +117,7 @@ public func demo() {
 			break :outer;
 		}
 	}
-	fmt.printf("break outer left both loops after {} visit\n", visits);
+	fmt.println("break outer left both loops after {} visit", visits);
 
 	// `for ... in` walks any collection. With a single name you get the
 	// element; with two names you get the index and then the element. A variable
@@ -126,29 +126,29 @@ public func demo() {
 	[3]int values = .{10, 20, 30};
 	int total;
 	for index, v in values {
-		fmt.printf("values[{}] = {}\n", index, v);
+		fmt.println("values[{}] = {}", index, v);
 		total += v;
 	}
-	fmt.printf("the elements add up to {}\n", total);
+	fmt.println("the elements add up to {}", total);
 
 	int indexes;
 	for i, _ in values {
 		indexes += i;
 	}
-	fmt.printf("the indexes add up to {}\n", indexes);
+	fmt.println("the indexes add up to {}", indexes);
 
 	// A range is a value too. It knows its size and what it holds, `step` gives
 	// it a step, and it can be walked as many times as you like.
 	Range<int> evens = (0..=10).step(2);
-	fmt.printf("{} evens, 4 is one: {}, 5 is one: {}\n", evens.count(), evens.contains(4), evens.contains(5));
+	fmt.println("{} evens, 4 is one: {}, 5 is one: {}", evens.count(), evens.contains(4), evens.contains(5));
 	for x in evens {
-		fmt.printf("even {}\n", x);
+		fmt.println("even {}", x);
 	}
 
 	// A single name gets the item of an iterator, and two names add a counter.
 	Countdown timer = .{left: 3};
 	for i, n in timer {
-		fmt.printf("tick {} counts {}\n", i, n);
+		fmt.println("tick {} counts {}", i, n);
 	}
 
 	// An item is a copy, so to change the items in place walk a pointer to the
@@ -157,5 +157,5 @@ public func demo() {
 	for p in &scores {
 		p@ *= 10;
 	}
-	fmt.printf("the scores are now {} {} {}\n", scores[0], scores[1], scores[2]);
+	fmt.println("the scores are now {} {} {}", scores[0], scores[1], scores[2]);
 }

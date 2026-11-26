@@ -24,27 +24,27 @@ public func demo() {
 	let origin = Point{x: 0, y: 0};
 
 	let px, py = p.pos();
-	fmt.printf("p is at {}, {}\n", px, py);
-	fmt.printf("origin is at {}, {}\n", origin.x, origin.y);
+	fmt.println("p is at {}, {}", px, py);
+	fmt.println("origin is at {}, {}", origin.x, origin.y);
 
 	// The method changes `p` itself because the receiver is a pointer.
 	p.scale(2);
-	fmt.printf("after scale(2), p is at {}, {}\n", p.x, p.y);
+	fmt.println("after scale(2), p is at {}, {}", p.x, p.y);
 
 	// Fields can be assigned, including with compound operators.
 	p.x += 5;
-	fmt.printf("after p.x += 5, p.x is {}\n", p.x);
+	fmt.println("after p.x += 5, p.x is {}", p.x);
 
 	// A struct that is not initialised starts with every field zeroed.
 	Point blank;
-	fmt.printf("blank is at {}, {}\n", blank.x, blank.y);
+	fmt.println("blank is at {}, {}", blank.x, blank.y);
 
 	// A field left out of a literal is zero too.
 	Point partial = Point{y: 9};
-	fmt.printf("partial is at {}, {}\n", partial.x, partial.y);
+	fmt.println("partial is at {}, {}", partial.x, partial.y);
 
 	// Structs can sit in arrays.
 	[2]Point corners;
 	corners[1].x = 7;
-	fmt.printf("corners[0].x = {}, corners[1].x = {}\n", corners[0].x, corners[1].x);
+	fmt.println("corners[0].x = {}, corners[1].x = {}", corners[0].x, corners[1].x);
 }

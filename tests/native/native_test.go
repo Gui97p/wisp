@@ -84,7 +84,7 @@ const program = `import "std/fmt";
 extern func greet_twice(int32 x) int32;
 
 func main() {
-	fmt.printf("{}\n", greet_twice(21));
+	fmt.println("{}", greet_twice(21));
 }
 `
 

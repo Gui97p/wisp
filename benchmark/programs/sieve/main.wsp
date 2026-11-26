@@ -16,6 +16,6 @@ func main() {
 			}
 		}
 	}
-	fmt.printf("{}\n", count);
+	fmt.println("{}", count);
 	mem.free(composite);
 }

@@ -20,7 +20,8 @@ enum SpecError {
 	UnknownType = 1,
 	BadNumber,
 	Trailing,
-	NotForType
+	NotForType,
+	NoColon
 }
 
 enum Value {
@@ -33,8 +34,11 @@ enum Value {
 	Error
 }
 
-func parse(string text) !Spec {
+func parse(string braces) !Spec {
 	Spec spec = Spec{fill: ' ', precision: -1};
+	return spec if len(braces) == 0;
+	return Error(SpecError.NoColon) if braces[0] != ':';
+	string text = braces[1..];
 	return spec if len(text) == 0;
 	[3]byte aligns = .{'<', '>', '^'};
 	const kinds = "dxXbocpeEfv";

@@ -19,12 +19,13 @@ mem.Arena store;
 mem.Debug tracker;
 bool tracking;
 
+#format
 func warn(string format, ...args) {
-	fmt.fprintf(&os.stderr, format, args...) ?? return;
+	fmt.fprint(&os.stderr, format, args...) ?? return;
 }
 
 /// Prints a message to standard error. The first argument is a format string,
-/// used with the others as in `fmt.fprintf`, and a newline is added. Does
+/// used with the others as in `fmt.fprint`, and a newline is added. Does
 /// nothing if there are no arguments or the first is not a string.
 public func report(...args) {
 	return if len(args) == 0;

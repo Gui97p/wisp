@@ -42,19 +42,19 @@ func pick(bool up) (int) => int {
 
 public func demo() {
 	let triple = (int x) int => x * 3;
-	fmt.printf("triple(5) = {}\n", triple(5));
+	fmt.println("triple(5) = {}", triple(5));
 
-	fmt.printf("twice(inc, 1) = {}\n", twice(inc, 1));
-	fmt.printf("twice with a literal = {}\n", twice((int x) int => x * 2, 3));
-	fmt.printf("pick(true)(10) = {}, pick(false)(10) = {}\n", pick(true)(10), pick(false)(10));
+	fmt.println("twice(inc, 1) = {}", twice(inc, 1));
+	fmt.println("twice with a literal = {}", twice((int x) int => x * 2, 3));
+	fmt.println("pick(true)(10) = {}, pick(false)(10) = {}", pick(true)(10), pick(false)(10));
 
 	Op add = Op{name: "add", apply: (int a, int b) int => a + b};
-	fmt.printf("{}(2, 3) = {}\n", add.name, add.apply(2, 3));
+	fmt.println("{}(2, 3) = {}", add.name, add.apply(2, 3));
 
 	[2]Step table = .{inc, dec};
-	fmt.printf("table[0](5) = {}, table[1](5) = {}\n", table[0](5), table[1](5));
+	fmt.println("table[0](5) = {}, table[1](5) = {}", table[0](5), table[1](5));
 
 	?Step none = null;
 	?Step some = triple;
-	fmt.printf("none is null: {}, some is null: {}\n", none == null, some == null);
+	fmt.println("none is null: {}, some is null: {}", none == null, some == null);
 }

@@ -35,17 +35,17 @@ func bump() int {
 }
 
 public func demo() {
-	fmt.printf("untouched starts at {}\n", untouched);
-	fmt.printf("bump() = {}\n", bump());
-	fmt.printf("bump() = {}\n", bump());
+	fmt.println("untouched starts at {}", untouched);
+	fmt.println("bump() = {}", bump());
+	fmt.println("bump() = {}", bump());
 
 	table[1] = counter;
 	settings.retries += 1;
 	name = "other";
-	fmt.printf("table[1] = {}, retries = {}, name = {}\n", table[1], settings.retries, name);
+	fmt.println("table[1] = {}, retries = {}, name = {}", table[1], settings.retries, name);
 
 	total = total + 1;
-	fmt.printf("the public total is now {}\n", total);
+	fmt.println("the public total is now {}", total);
 
 // A global that nothing uses gets a warning, unless its name starts with an
 // underscore. That goes for any unused variable or constant. Public

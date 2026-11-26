@@ -29,11 +29,11 @@ func twiceTheSum(int ...values) int {
 }
 
 public func demo() {
-	fmt.printf("sum(1, 2, 3, 4) = {}\n", sum(1, 2, 3, 4));
-	fmt.printf("sum() = {}\n", sum());
+	fmt.println("sum(1, 2, 3, 4) = {}", sum(1, 2, 3, 4));
+	fmt.println("sum() = {}", sum());
 
 	[]int numbers = .{10, 20, 30};
-	fmt.printf("sum(numbers...) = {}\n", sum(numbers...));
-	fmt.printf("sum(1, 2, numbers...) = {}\n", sum(1, 2, numbers...));
-	fmt.printf("twiceTheSum(5, 6) = {}\n", twiceTheSum(5, 6));
+	fmt.println("sum(numbers...) = {}", sum(numbers...));
+	fmt.println("sum(1, 2, numbers...) = {}", sum(1, 2, numbers...));
+	fmt.println("twiceTheSum(5, 6) = {}", twiceTheSum(5, 6));
 }

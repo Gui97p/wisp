@@ -87,7 +87,7 @@ func (*Disk d) name() string {
 }
 
 func describe(Shape s) {
-	fmt.printf("{} with area {}\n", s.name(), s.area());
+	fmt.println("{} with area {}", s.name(), s.area());
 }
 
 func larger(Shape a, Shape b) Shape {
@@ -97,9 +97,9 @@ func larger(Shape a, Shape b) Shape {
 
 func inspect(Shape s) {
 	switch type s {
-		case *Square square => fmt.printf("a square of side {}\n", square.side);
-		case *Disk disk => fmt.printf("a disk of radius {}\n", disk.radius);
-		default => fmt.printf("some other shape\n");
+		case *Square square => fmt.println("a square of side {}", square.side);
+		case *Disk disk => fmt.println("a disk of radius {}", disk.radius);
+		default => fmt.println("some other shape");
 	}
 }
 
@@ -179,7 +179,7 @@ public func demo() {
 
 	Solid solid = &square;
 	solid.scale(2);
-	fmt.printf("after scale, the same square has area {}\n", a.area());
+	fmt.println("after scale, the same square has area {}", a.area());
 
 	inspect(a);
 	inspect(b);
@@ -193,11 +193,11 @@ public func demo() {
 		describe(s);
 	}
 
-	fmt.printf("areaOf: {} through the pointer, {} through the interface\n", areaOf(&square), areaOf(a));
-	fmt.printf("double: {} {} {}\n", double(21), double(1.5), int(double(Meters(4))));
-	fmt.printf("negate: {}\n", negate(int16(7)));
-	fmt.printf("same: {} {}\n", same(3, 3), same("a", "b"));
+	fmt.println("areaOf: {} through the pointer, {} through the interface", areaOf(&square), areaOf(a));
+	fmt.println("double: {} {} {}", double(21), double(1.5), int(double(Meters(4))));
+	fmt.println("negate: {}", negate(int16(7)));
+	fmt.println("same: {} {}", same(3, 3), same("a", "b"));
 
 	Crate crate = Crate{items: 4};
-	fmt.printf("summary: {} {} {}\n", summary(&crate), summary(crate), summary(5));
+	fmt.println("summary: {} {} {}", summary(&crate), summary(crate), summary(5));
 }

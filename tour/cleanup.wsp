@@ -21,16 +21,16 @@ enum Fail {
 }
 
 func order() {
-	defer fmt.printf("  deferred first, runs last\n");
-	defer fmt.printf("  deferred second, runs first\n");
-	fmt.printf("  the body runs before both\n");
+	defer fmt.println("  deferred first, runs last");
+	defer fmt.println("  deferred second, runs first");
+	fmt.println("  the body runs before both");
 }
 
 // The returned value is computed before the deferred statements run, and a
 // deferred statement sees the variables as they are when the block is left.
 func early(bool leave) int {
 	int value = 5;
-	defer fmt.printf("  early is over, value is {}\n", value);
+	defer fmt.println("  early is over, value is {}", value);
 	if leave {
 		defer value = 99;
 		return value;
@@ -39,8 +39,8 @@ func early(bool leave) int {
 }
 
 func build(bool fail) !int {
-	defer! |e| fmt.printf("  build failed ({}), cleaning up\n", e.message);
-	defer fmt.printf("  build is over\n");
+	defer! |e| fmt.println("  build failed ({}), cleaning up", e.message);
+	defer fmt.println("  build is over");
 	if fail {
 		return Error(Fail.Boom);
 	}
@@ -53,7 +53,7 @@ func build(bool fail) !int {
 // opposite order of the registration, up to 32 of them. A crash by a signal, such
 // as a stack overflow, runs none.
 func goodbye() {
-	fmt.printf("the program is over, so the exit hook runs now\n");
+	fmt.println("the program is over, so the exit hook runs now");
 }
 
 struct Resource {
@@ -66,31 +66,31 @@ func (*Resource r) close() ! {
 
 func use(*Resource r) ! {
 	defer r.close()!;
-	fmt.printf("  using the resource\n");
+	fmt.println("  using the resource");
 }
 
 public func demo() {
 	let _ = os.atExit(goodbye);
 
-	fmt.printf("order():\n");
+	fmt.println("order():");
 	order();
 
-	fmt.printf("early(true):\n");
+	fmt.println("early(true):");
 	int got = early(true);
-	fmt.printf("  it returned {}\n", got);
+	fmt.println("  it returned {}", got);
 
-	fmt.printf("build(false):\n");
+	fmt.println("build(false):");
 	let value, _ = build(false);
-	fmt.printf("  it returned {}\n", value);
+	fmt.println("  it returned {}", value);
 
-	fmt.printf("build(true):\n");
+	fmt.println("build(true):");
 	let _, _ = build(true);
 
 	Resource sound, broken = Resource{}, Resource{broken: true};
 	let first = use(&sound);
-	fmt.printf("use(sound): failed {}\n", first != null);
+	fmt.println("use(sound): failed {}", first != null);
 	let second = use(&broken);
-	fmt.printf("use(broken): failed {}\n", second != null);
+	fmt.println("use(broken): failed {}", second != null);
 
 // A deferred statement cannot leave its block: no return and no break out of
 // it. In a function that cannot fail, a failure has to be handled where it

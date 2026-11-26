@@ -38,19 +38,19 @@ func describe(...args) int {
 	for _, arg in args {
 		switch type arg {
 			case Color => {
-				fmt.printf("a Color adds 100\n");
+				fmt.println("a Color adds 100");
 				total += 100;
 			}
 			case signed v => {
-				fmt.printf("the integer {} adds {}\n", v, v);
+				fmt.println("the integer {} adds {}", v, v);
 				total += v;
 			}
 			case string v => {
-				fmt.printf("the string \"{}\" adds its length, {}\n", v, len(v));
+				fmt.println("the string \"{}\" adds its length, {}", v, len(v));
 				total += len(v);
 			}
 			case bool v => {
-				fmt.printf("the bool {} adds {}\n", v, v ? 1 : 0);
+				fmt.println("the bool {} adds {}", v, v ? 1 : 0);
 				total += v ? 1 : 0;
 			}
 		}
@@ -63,8 +63,8 @@ func twice(...args) int {
 }
 
 public func demo() {
-	fmt.printf("describe(10, \"abc\", true) = {}\n", describe(10, "abc", true));
-	fmt.printf("describe(Color.Green, 1) = {}\n", describe(Color.Green, 1));
-	fmt.printf("twice(1, \"ab\") = {}\n", twice(1, "ab"));
-	fmt.printf("describe() = {}\n", describe());
+	fmt.println("describe(10, \"abc\", true) = {}", describe(10, "abc", true));
+	fmt.println("describe(Color.Green, 1) = {}", describe(Color.Green, 1));
+	fmt.println("twice(1, \"ab\") = {}", twice(1, "ab"));
+	fmt.println("describe() = {}", describe());
 }

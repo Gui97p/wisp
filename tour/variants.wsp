@@ -73,23 +73,23 @@ public func demo() {
 	Shape circle = Shape.Circle{radius: 2};
 	Shape rect = .Rect{w: 3, h: 4};
 	Shape none = .Empty;
-	fmt.printf("areas: {} {} {}\n", area(circle), area(rect), area(none));
-	fmt.printf("labels: {} {} {}\n", circle.label(), rect.label(), none.label());
+	fmt.println("areas: {} {} {}", area(circle), area(rect), area(none));
+	fmt.println("labels: {} {} {}", circle.label(), rect.label(), none.label());
 
 	// `name()` gives the variant's name, as for every enum.
-	fmt.printf("the variant of rect is {}\n", rect.name());
+	fmt.println("the variant of rect is {}", rect.name());
 
 	// The variant test, and the data changed through a pointer receiver.
-	fmt.printf("circle is a circle: {}, rect is a circle: {}\n", circle == .Circle, rect == .Circle);
+	fmt.println("circle is a circle: {}, rect is a circle: {}", circle == .Circle, rect == .Circle);
 	rect.grow(2);
-	fmt.printf("the grown rectangle has area {}\n", area(rect));
+	fmt.println("the grown rectangle has area {}", area(rect));
 
 	// A field left out of the literal is zero, and so is a value never written:
 	// the first variant with its data at zero.
 	Shape partial = .Rect{w: 5};
 	Shape first;
-	fmt.printf("a rectangle with no height has area {}\n", area(partial));
-	fmt.printf("the zero value is a {}\n", first.label());
+	fmt.println("a rectangle with no height has area {}", area(partial));
+	fmt.println("the zero value is a {}", first.label());
 
 	// Switching on a value gives the case a copy: this changes nothing.
 	Shape box = .Rect{w: 2, h: 5};
@@ -97,7 +97,7 @@ public func demo() {
 		case .Rect r => r.w = 100;
 		default => {}
 	}
-	fmt.printf("after changing a copy the area is still {}\n", area(box));
+	fmt.println("after changing a copy the area is still {}", area(box));
 
 	// Switching on a pointer gives the case a pointer to the data inside: this
 	// changes the box itself.
@@ -105,5 +105,5 @@ public func demo() {
 		case .Rect r => r.w = 100;
 		default => {}
 	}
-	fmt.printf("after changing through a pointer the area is {}\n", area(box));
+	fmt.println("after changing through a pointer the area is {}", area(box));
 }

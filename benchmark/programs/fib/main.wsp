@@ -8,5 +8,5 @@ func fib(int n) int {
 }
 
 func main() {
-	fmt.printf("{}\n", fib(38));
+	fmt.println("{}", fib(38));
 }

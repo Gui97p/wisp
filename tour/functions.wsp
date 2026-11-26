@@ -24,7 +24,7 @@ func minmax(int a, b) (int, int) {
 // `return other();` when `other` returns nothing too, and the guard form works:
 // `return log("x") if quiet;`.
 func announce(string text) {
-	fmt.printf("{}\n", text);
+	fmt.println("{}", text);
 }
 
 func announceTwice(string text) {
@@ -40,16 +40,16 @@ func swapped(int a, b) (int, int) {
 func later() int => 7;
 
 public func demo() {
-	fmt.printf("add(2, 3) = {}\n", add(2, 3));
-	fmt.printf("square(7) = {}\n", square(7));
+	fmt.println("add(2, 3) = {}", add(2, 3));
+	fmt.println("square(7) = {}", square(7));
 
 	let low, high = minmax(9, 4);
-	fmt.printf("minmax(9, 4) = {}, {}\n", low, high);
+	fmt.println("minmax(9, 4) = {}, {}", low, high);
 	let first, second = swapped(1, 5);
-	fmt.printf("swapped(1, 5) = {}, {}\n", first, second);
+	fmt.println("swapped(1, 5) = {}, {}", first, second);
 	announceTwice("twice");
 
-	fmt.printf("later() = {}\n", later());
+	fmt.println("later() = {}", later());
 
 // Variadic parameters are in variadics.wsp, function values in lambdas.wsp.
 }

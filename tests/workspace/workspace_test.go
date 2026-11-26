@@ -59,7 +59,7 @@ import "geo";
 import "mathx";
 
 func main() {
-	fmt.printf("{} {}\n", geo.area(3, 4), mathx.twice(geo.doubled(5)));
+	fmt.println("{} {}", geo.area(3, 4), mathx.twice(geo.doubled(5)));
 }
 `
 
@@ -117,7 +117,7 @@ func TestRunAtTheRootExplainsWhereToGo(t *testing.T) {
 
 func TestAWorkspaceWithCodeOfItsOwnIsAnOrdinaryProject(t *testing.T) {
 	root := workspace(t, goodTools)
-	write(t, root, "main.wsp", "import \"std/fmt\";\nimport \"geo\";\nfunc main() { fmt.printf(\"{}\\n\", geo.area(2, 5)); }\n")
+	write(t, root, "main.wsp", "import \"std/fmt\";\nimport \"geo\";\nfunc main() { fmt.println(\"{}\", geo.area(2, 5)); }\n")
 	out, code := wisp(t, root, "run")
 	if code != 0 || !strings.Contains(out, "10") || strings.Contains(out, "==") {
 		t.Errorf("exit %d:\n%s", code, out)
