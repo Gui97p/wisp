@@ -17,7 +17,7 @@ The same six programs written in Wisp, C, Go, Zig and Rust, to follow how fast t
 | collatz | integer division and modulo by constants |
 | bytes_hash | byte loads, 64 bit multiply, xorshift |
 | std_chars | `strings.isDigit`, `isAlpha`, `isSpace`, `isUpper`, `isHex` over a 4 MB buffer |
-| std_fmt | `conv.itoa`, `conv.atoi` and `fmt.sprintf` in a loop |
+| std_fmt | `conv.itoa`, `conv.atoi` and `fmt.format` into a `strings.Builder` in a loop |
 | std_mem | `mem.alloc`, `fill`, `copy` and `free` of small blocks |
 | std_math | `math.abs`, `clamp`, `fabs` and `isNaN` in a hot loop |
 

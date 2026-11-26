@@ -1,10 +1,10 @@
 import "std/errors";
+import "std/io";
 import "std/math";
+import "std/mem";
+import "std/strings";
 
-/// Buffer sizes for formatting. `MaxDigits` holds any integer in any base,
-/// including the sign. `MaxFloat` holds any float printed by `ftoa`, `ftoa32`,
-/// `formatFixed` or `formatExp` for the digit counts the formatter uses.
-public const {
+const {
 	MaxDigits = 65;
 	MaxFloat = 1400;
 }
@@ -48,7 +48,7 @@ func formatUnsigned([]byte buf, uint n, int base, bool upper) !string {
 /// memory with `buf`. Negative numbers get a leading `-`. Digits above 9 are
 /// lowercase, or uppercase when `upper` is true. Fails with `Invalid` when `base`
 /// is out of range and `NoSpace` when `buf` is too small.
-public func formatInt([]byte buf, int n, base, bool upper) !string {
+func intText([]byte buf, int n, base, bool upper) !string {
 	errors.ensure(base in 2..=36, errors.Kind.Invalid)!;
 	return formatUnsigned(buf, uint(n), base, upper)! if n >= 0;
 	errors.ensure(len(buf) > 1, errors.Kind.NoSpace)!;
@@ -63,18 +63,55 @@ public func formatInt([]byte buf, int n, base, bool upper) !string {
 /// memory with `buf`. Digits above 9 are lowercase, or uppercase when `upper` is
 /// true. Fails with `Invalid` when `base` is out of range and `NoSpace` when `buf`
 /// is too small.
-public func formatUint([]byte buf, uint n, int base, bool upper) !string {
+func uintText([]byte buf, uint n, int base, bool upper) !string {
 	errors.ensure(base in 2..=36, errors.Kind.Invalid)!;
 	return formatUnsigned(buf, n, base, upper)!;
 }
 
-/// Writes `n` in base 10 into `buf` and returns the text, which shares memory with
-/// `buf`. Fails with `NoSpace` when `buf` is too small.
-public inline func itoa([]byte buf, int n) !string => formatInt(buf, n, 10, false)!;
+/// Writes `n` in `base` (2 to 36) to `w`, as `intText` spells it, and returns the
+/// number of bytes written. Fails with `Invalid` when `base` is out of range, and
+/// with the error of `w`.
+public func writeInt(io.Writer w, int n, int base, bool upper) !int {
+	[MaxDigits]byte buf;
+	string text = intText(buf[..], n, base, upper)!;
+	io.writeString(w, text)!;
+	return len(text);
+}
 
-/// Writes `n` in base 10 into `buf` and returns the text, which shares memory with
-/// `buf`. Fails with `NoSpace` when `buf` is too small.
-public inline func utoa([]byte buf, uint n) !string => formatUint(buf, n, 10, false)!;
+/// Writes `n` in `base` (2 to 36) to `w`, as `uintText` spells it, and returns
+/// the number of bytes written. Fails with `Invalid` when `base` is out of range,
+/// and with the error of `w`.
+public func writeUint(io.Writer w, uint n, int base, bool upper) !int {
+	[MaxDigits]byte buf;
+	string text = uintText(buf[..], n, base, upper)!;
+	io.writeString(w, text)!;
+	return len(text);
+}
+
+/// Returns `n` in `base` (2 to 36) as a new string made with `a`. Negative numbers
+/// get a leading `-`, and digits above 9 are lowercase, or uppercase when `upper`
+/// is true. The caller owns the string and gives it back with `mem.free(a, text)`.
+/// Fails with `Invalid` when `base` is out of range, and with the error of `a`.
+public func formatInt(mem.Allocator a, int n, int base, bool upper) !string {
+	[MaxDigits]byte buf;
+	return strings.clone(a, intText(buf[..], n, base, upper)!)!;
+}
+
+/// Returns `n` in `base` (2 to 36) as a new string made with `a`, as `formatInt`
+/// does. Fails with `Invalid` when `base` is out of range, and with the error of
+/// `a`.
+public func formatUint(mem.Allocator a, uint n, int base, bool upper) !string {
+	[MaxDigits]byte buf;
+	return strings.clone(a, uintText(buf[..], n, base, upper)!)!;
+}
+
+/// Returns `n` in base 10 as a new string made with `a`. Same as
+/// `formatInt(a, n, 10, false)`.
+public inline func itoa(mem.Allocator a, int n) !string => formatInt(a, n, 10, false)!;
+
+/// Returns `n` in base 10 as a new string made with `a`. Same as
+/// `formatUint(a, n, 10, false)`.
+public inline func utoa(mem.Allocator a, uint n) !string => formatUint(a, n, 10, false)!;
 
 func digitValue(byte c) ?int {
 	if c >= '0' && c <= '9' {

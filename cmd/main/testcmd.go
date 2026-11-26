@@ -131,7 +131,7 @@ func testTargets(root string, tgt target.Target) buildTargets {
 }
 
 func testName(t module.TestFunc) string {
-	return t.Module + ": " + t.Display
+	return t.Module + "  " + t.Display
 }
 
 func testPlace(t module.TestFunc) string {
@@ -299,7 +299,7 @@ func runTests(cmd *cobra.Command, args []string) error {
 		}
 		sortTests(tests)
 		for _, t := range tests {
-			fmt.Printf("%s  (%s)\n", testName(t), testPlace(t))
+			fmt.Printf("%s  %s\n", testName(t), testPlace(t))
 		}
 		return nil
 	}
@@ -361,14 +361,19 @@ func runTests(cmd *cobra.Command, args []string) error {
 		default:
 			passed++
 		}
-		line := fmt.Sprintf("%s  %s  (%s, %s)", label, testName(o.test), testPlace(o.test), shortDuration(o.took))
-		switch {
-		case !o.passed:
-			line += ": " + o.reason
-		case o.note != "":
-			line += ": " + o.note
+		line := fmt.Sprintf("%s  %s", label, testName(o.test))
+		if !o.passed || o.skipped || testShowOutput {
+			line += fmt.Sprintf("  %s  %s", testPlace(o.test), shortDuration(o.took))
+		} else {
+			line += "  " + shortDuration(o.took)
 		}
 		text := line + "\n"
+		switch {
+		case !o.passed:
+			text += indent(o.reason+"\n", "      ")
+		case o.note != "":
+			text += indent(o.note+"\n", "      ")
+		}
 		if !o.passed || o.skipped || testShowOutput {
 			text += indent(o.output, "      ")
 		}
@@ -408,7 +413,7 @@ func runTests(cmd *cobra.Command, args []string) error {
 	if failed > 0 && report {
 		fmt.Println("Failed:")
 		for _, o := range failures {
-			fmt.Printf("  %s  (%s)\n", testName(o.test), testPlace(o.test))
+			fmt.Printf("  %s  %s\n", testName(o.test), testPlace(o.test))
 		}
 		fmt.Println()
 	}

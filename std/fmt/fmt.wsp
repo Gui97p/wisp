@@ -2,22 +2,25 @@ import "std/io";
 import "std/mem";
 import "std/os";
 
-/// Writes `text` to `out`. Errors are ignored.
+/// Writes `text` to `out` formatted like `format`, and returns the number of
+/// bytes written. The text is collected in a buffer of 512 bytes on the stack and
+/// handed to `out` in as few writes as that allows, and the rest is flushed
+/// before it returns. Fails with the first `FormatError` found, after writing all
+/// the text, or with the error of `out`.
 #format
 public func fprint(io.Writer out, string text, ...args) !int {
-	[528]byte store;
-	mem.Fixed room = mem.fixed(store);
+	mem.Fixed room = mem.fixed([528]byte{});
 	io.BufWriter buffer = io.bufWriter(&room, out, 512)!;
 
 	defer buffer.flush()!;
 	return format(&buffer, text, args...)!;
 }
 
-/// Writes `text` and a newline to `out`. Errors are ignored.
+/// Like `fprint`, and then writes a newline. The newline is written even when the
+/// format had a problem, and the problem is what it fails with.
 #format
 public func fprintln(io.Writer out, string text, ...args) !int {
-	[528]byte store;
-	mem.Fixed room = mem.fixed(store);
+	mem.Fixed room = mem.fixed([528]byte{});
 	io.BufWriter buffer = io.bufWriter(&room, out, 512)!;
 
 	defer buffer.flush()!;
@@ -27,10 +30,13 @@ public func fprintln(io.Writer out, string text, ...args) !int {
 	return n + 1;
 }
 
-/// Writes `text` to standard output. Errors are ignored.
+/// Writes `text` to standard output formatted like `format`, and returns the
+/// number of bytes written. Any error, from the format or from the output, is
+/// ignored, and then it returns 0. Use `fprint` with `&os.stdout` to see them.
 #format
 public func print(string text, ...args) int => fprint(&os.stdout, text, args...) ?? 0;
 
-/// Writes `text` and a newline to standard output. Errors are ignored.
+/// Like `print`, and then writes a newline. The newline is written even when the
+/// format had a problem.
 #format
 public func println(string text, ...args) int => fprintln(&os.stdout, text, args...) ?? 0;

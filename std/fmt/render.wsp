@@ -1,5 +1,7 @@
 import "std/conv";
 import "std/errors";
+import "std/io";
+import "std/mem";
 
 struct Piece {
 	string sign;
@@ -7,7 +9,26 @@ struct Piece {
 	string body;
 }
 
-func number([]byte buf, uint mag, bool neg, Spec s) !Piece {
+/// Collects the text of one number before it is padded and written.
+struct Scratch implements io.Writer {
+	[1400]byte room;
+	int used;
+}
+
+public func (*Scratch c) write([]byte data) !int {
+	errors.ensure(len(data) <= len(c.room) - c.used, errors.Kind.NoSpace)!;
+	mem.copy(c.room[c.used..], data, len(data));
+	c.used += len(data);
+	return len(data);
+}
+
+inline func (*Scratch c) reset() {
+	c.used = 0;
+}
+
+inline func (*Scratch c) text() string => string(c.room[..c.used]);
+
+func (*Sink w) number(uint mag, bool neg, Spec s) !Piece {
 	Piece piece;
 	int base = switch s.kind {
 		case 'x', 'X' => 16;
@@ -15,7 +36,9 @@ func number([]byte buf, uint mag, bool neg, Spec s) !Piece {
 		case 'o' => 8;
 		default => 10;
 	};
-	piece.body = conv.formatUint(buf, mag, base, s.kind == 'X')!;
+	w.scratch.reset();
+	conv.writeUint(&w.scratch, mag, base, s.kind == 'X')!;
+	piece.body = w.scratch.text();
 	piece.sign = neg ? "-" : "";
 	if s.alt {
 		piece.radix = switch s.kind {
@@ -29,39 +52,41 @@ func number([]byte buf, uint mag, bool neg, Spec s) !Piece {
 	return piece;
 }
 
-func renderInt([]byte buf, int v, Spec s) !Piece {
+func (*Sink w) renderInt(int v, Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		errors.ensure(v in 0..=255, errors.Kind.Range)!;
-		buf[0] = truncate(byte, v);
-		piece.body = string(buf[..1]);
+		w.scratch.reset();
+		io.writeByte(&w.scratch, truncate(byte, v))!;
+		piece.body = w.scratch.text();
 		return piece;
 	}
 
-	return number(buf, uint(v), false, s)! if v >= 0;
+	return w.number(uint(v), false, s)! if v >= 0;
 
-	return number(buf, uint(-(v + 1)) + 1, true, s)!;
+	return w.number(uint(-(v + 1)) + 1, true, s)!;
 }
 
-func renderUint([]byte buf, uint v, Spec s) !Piece {
+func (*Sink w) renderUint(uint v, Spec s) !Piece {
 	if s.kind == 'c' {
 		Piece piece;
 		errors.ensure(v < 256, errors.Kind.Range)!;
-		buf[0] = truncate(byte, v);
-		piece.body = string(buf[..1]);
+		w.scratch.reset();
+		io.writeByte(&w.scratch, truncate(byte, v))!;
+		piece.body = w.scratch.text();
 		return piece;
 	}
-	return number(buf, v, false, s)!;
+	return w.number(v, false, s)!;
 }
 
-func renderPointer([]byte buf, *void v, Spec s) !Piece {
+func (*Sink w) renderPointer(*void v, Spec s) !Piece {
 	Spec t = s;
 	t.kind = 'x';
 	t.alt = true;
-	return number(buf, uint(v), false, t)!;
+	return w.number(uint(v), false, t)!;
 }
 
-inline func renderBool(bool b) Piece => Piece{body: b ? "true" : "false"};
+inline func renderBool(bool b) Piece => Piece { body:b ? "true" : "false" };
 
 func renderString(string t, Spec s) Piece {
 	Piece piece = Piece{body: t};
@@ -71,15 +96,25 @@ func renderString(string t, Spec s) Piece {
 	return piece;
 }
 
-func renderFloat([]byte buf, float x, Spec s, bool single) !Piece {
+func (*Sink w) renderFloat(float x, Spec s, bool single) !Piece {
 	Piece piece;
 	int prec = s.precision == -1 ? 6 : s.precision;
-	string view = switch s.kind {
-		case 0 => s.precision == -1 ? (single ? conv.ftoa32(buf, float32(x))! : conv.ftoa(buf, x)!) : conv.formatFixed(buf, x, s.precision)!;
-		case 'f' => conv.formatFixed(buf, x, prec)!;
-		case 'e', 'E' => conv.formatExp(buf, x, prec, s.kind == 'E')!;
-		default => "";
-	};
+	w.scratch.reset();
+	switch s.kind {
+		case 0 => {
+			if s.precision != -1 {
+				conv.writeFixed(&w.scratch, x, s.precision)!;
+			} else if single {
+				conv.writeFloat32(&w.scratch, float32(x))!;
+			} else {
+				conv.writeFloat(&w.scratch, x)!;
+			}
+		}
+		case 'f' => conv.writeFixed(&w.scratch, x, prec)!;
+		case 'e', 'E' => conv.writeExp(&w.scratch, x, prec, s.kind == 'E')!;
+		default => {}
+	}
+	string view = w.scratch.text();
 
 	int start;
 	if view[0] == '-' {

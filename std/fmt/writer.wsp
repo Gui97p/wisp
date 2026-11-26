@@ -1,10 +1,11 @@
-import "std/conv";
 import "std/io";
 import "std/math";
 
 /// A type that writes itself in a format: `{}` calls its `display` with the writer
-/// the text is going to. It has to be declared with `implements Display`, and it
-/// takes no spec.
+/// the text is going to, and what it writes counts in the bytes `format` returns.
+/// The type has to be declared with `implements Display`, and a pointer to it or
+/// the value itself can be given. It takes no spec: `{:x}` on it is a `WrongType`.
+/// Inside `display`, `fprint(w, ...)` writes with the same format rules.
 #dynamic
 public interface Display {
 	func display(io.Writer w) !;
@@ -23,9 +24,12 @@ public enum FormatError {
 	ExtraArgument
 }
 
+/// Counts the bytes that go through it to `out`, which is how `format` knows what
+/// it wrote, including what a `Display` wrote.
 struct Sink implements io.Writer {
 	io.Writer out;
 	int total;
+	Scratch scratch;
 }
 
 public func (*Sink w) write([]byte data) !int {
@@ -89,16 +93,16 @@ func (*Sink w) writePiece(Piece p, Spec s, bool numeric) ! {
 	}
 }
 
-func (*Sink w) putInt([]byte buf, int v, Spec s) !bool {
+func (*Sink w) putInt(int v, Spec s) !bool {
 	validate(s, Value.Int) ?? return false;
-	Piece piece = renderInt(buf, v, s)!;
+	Piece piece = w.renderInt(v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Sink w) putUint([]byte buf, uint v, Spec s) !bool {
+func (*Sink w) putUint(uint v, Spec s) !bool {
 	validate(s, Value.Uint) ?? return false;
-	Piece piece = renderUint(buf, v, s)!;
+	Piece piece = w.renderUint(v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
@@ -117,16 +121,16 @@ func (*Sink w) putString(string v, Spec s) !bool {
 	return true;
 }
 
-func (*Sink w) putPointer([]byte buf, *void v, Spec s) !bool {
+func (*Sink w) putPointer(*void v, Spec s) !bool {
 	validate(s, Value.Pointer) ?? return false;
-	Piece piece = renderPointer(buf, v, s)!;
+	Piece piece = w.renderPointer(v, s)!;
 	w.writePiece(piece, s, true)!;
 	return true;
 }
 
-func (*Sink w) putFloat([]byte buf, float x, Spec s, bool single) !bool {
+func (*Sink w) putFloat(float x, Spec s, bool single) !bool {
 	validate(s, Value.Float) ?? return false;
-	Piece piece = renderFloat(buf, x, s, single)!;
+	Piece piece = w.renderFloat(x, s, single)!;
 	Spec copy = s;
 	if !math.isFinite(x) {
 		copy.zero = false;
@@ -141,7 +145,7 @@ func (*Sink w) putDisplay(Display d, Spec s) !bool {
 	return true;
 }
 
-func (*Sink w) putError([]byte buf, Error e, Spec s) !bool {
+func (*Sink w) putError(Error e, Spec s) !bool {
 	validate(s, Value.Error) ?? return false;
 	if e == null {
 		w.text("<null error>")!;
@@ -164,7 +168,7 @@ func (*Sink w) putError([]byte buf, Error e, Spec s) !bool {
 			w.text(" (")!;
 			w.text(e.file)!;
 			w.char(':')!;
-			Piece piece = renderInt(buf, e.line, Spec{fill: ' ', precision: -1})!;
+			Piece piece = w.renderInt(e.line, Spec{fill: ' ', precision: -1})!;
 			w.writePiece(piece, s, false)!;
 			w.char(')')!;
 		}
@@ -185,7 +189,6 @@ func (*Sink w) putError([]byte buf, Error e, Spec s) !bool {
 #format
 public func format(io.Writer out, string pattern, ...args) !int {
 	Sink w = Sink{out: out};
-	[conv.MaxDigits]byte buf;
 	int argIndex;
 	Error problem;
 	Cursor c = Cursor{text: pattern};
@@ -246,14 +249,14 @@ public func format(io.Writer out, string pattern, ...args) !int {
 		Error bad = Error(FormatError.WrongType);
 		switch type args[argIndex] {
 			case Display v => ok = w.putDisplay(v, s)!;
-			case signed v => ok = w.putInt(buf, v, s)!;
-			case unsigned v => ok = w.putUint(buf, v, s)!;
+			case signed v => ok = w.putInt(v, s)!;
+			case unsigned v => ok = w.putUint(v, s)!;
 			case bool v => ok = w.putBool(v, s)!;
 			case string v => ok = w.putString(v, s)!;
-			case *void v => ok = w.putPointer(buf, v, s)!;
-			case float64 v => { [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, false)!; }
-			case float32 v => { [conv.MaxFloat]byte fBuf; ok = w.putFloat(fBuf, v, s, true)!; }
-			case Error v => ok = w.putError(buf, v, s)!;
+			case *void v => ok = w.putPointer(v, s)!;
+			case float64 v => ok = w.putFloat(v, s, false)!;
+			case float32 v => ok = w.putFloat(v, s, true)!;
+			case Error v => ok = w.putError(v, s)!;
 			case null => ok = w.putString("null", s)!;
 			default => bad = Error(FormatError.UnsupportedType);
 		}

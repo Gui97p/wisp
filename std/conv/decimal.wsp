@@ -1,3 +1,4 @@
+import "std/errors";
 import "std/math";
 
 struct Decimal {
@@ -255,4 +256,81 @@ func (*Decimal dec) setSignificant(float x, int nd) {
 	}
 	dec.assign(mant, exp);
 	dec.round(nd);
+}
+
+const DIGIT_LIMIT = 1000;
+
+func (*Decimal dec) limit() {
+	if dec.n > DIGIT_LIMIT {
+		dec.n = DIGIT_LIMIT;
+		if dec.d[DIGIT_LIMIT - 1] == 0 {
+			dec.d[DIGIT_LIMIT - 1] = 1;
+		}
+	}
+}
+
+func (*Decimal dec) shift(int k) {
+	for k {
+		dec.shiftLeft();
+		dec.limit();
+	}
+	for -k {
+		dec.shiftRight();
+		dec.limit();
+	}
+}
+
+func (*Decimal dec) rounded() uint {
+	return 0xFFFFFFFFFFFFFFFF if dec.dp > 20;
+	uint n = 0;
+	for i in 0..dec.dp {
+		n *= 10;
+		if i < dec.n {
+			n += dec.d[i];
+		}
+	}
+	if dec.dp >= 0 && dec.shouldRoundUp(dec.dp) {
+		n++;
+	}
+	return n;
+}
+
+func (*Decimal dec) toFloat(int mantBits, expBits, bias) !float {
+	return 0.0 if dec.n == 0;
+	int top = (1 << expBits) - 1;
+	errors.ensure(dec.dp <= 310, errors.Kind.Overflow)!;
+	return 0.0 if dec.dp < -330;
+
+	[9]int table = .{1, 3, 6, 9, 13, 16, 19, 23, 26};
+	int exp = 0;
+	loop dec.dp > 0 {
+		int n = dec.dp >= len(table) ? 27 : table[dec.dp];
+		dec.shift(-n);
+		exp += n;
+	}
+	loop dec.dp < 0 || dec.dp == 0 && dec.d[0] < 5 {
+		int n = -dec.dp >= len(table) ? 27 : table[-dec.dp];
+		dec.shift(n);
+		exp -= n;
+	}
+	exp--;
+	if exp < bias + 1 {
+		int n = bias + 1 - exp;
+		dec.shift(-n);
+		exp += n;
+	}
+	errors.ensure(exp - bias < top, errors.Kind.Overflow)!;
+
+	dec.shift(1 + mantBits);
+	uint mant = dec.rounded();
+	if mant == uint(2 << mantBits) {
+		mant >>= 1;
+		exp++;
+		errors.ensure(exp - bias < top, errors.Kind.Overflow)!;
+	}
+	if (mant & uint(1 << mantBits)) == 0 {
+		exp = bias;
+	}
+	int biased = exp - bias;
+	return math.ldexp(float(mant), (biased == 0 ? 1 : biased) + bias - mantBits);
 }

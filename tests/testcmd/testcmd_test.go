@@ -94,11 +94,11 @@ func TestRunsEveryTest(t *testing.T) {
 	}
 	expect(t, out,
 		"Running 5 tests",
-		"ok    calc.test: an internal function is visible to the file next to it",
-		"ok    calc: add works in the file itself",
-		"ok    tests/blackbox: public api from another folder",
-		"FAIL  calc.test: failsWithError",
-		"FAIL  calc.test: an index out of range aborts",
+		"ok    calc.test  an internal function is visible to the file next to it",
+		"ok    calc  add works in the file itself",
+		"ok    tests/blackbox  public api from another folder",
+		"FAIL  calc.test  failsWithError",
+		"FAIL  calc.test  an index out of range aborts",
 		"exit status 4",
 		"error[std/errors.Kind]: Kind.Invalid",
 		"panic: index out of range",
@@ -123,14 +123,14 @@ func TestFilterByPath(t *testing.T) {
 	if code != 0 {
 		t.Errorf("exit code %d, want 0", code)
 	}
-	expect(t, out, "Running 1 test", "tests/blackbox: public api from another folder")
+	expect(t, out, "Running 1 test", "tests/blackbox  public api from another folder")
 	refuse(t, out, "calc.test")
 
 	out, code = run(t, "basic", "test", "--report", "calc.wsp")
 	if code != 0 {
 		t.Errorf("exit code %d, want 0", code)
 	}
-	expect(t, out, "Running 1 test", "calc: add works in the file itself")
+	expect(t, out, "Running 1 test", "calc  add works in the file itself")
 }
 
 func TestUnknownPathPointsToRun(t *testing.T) {
@@ -146,7 +146,7 @@ func TestListDoesNotRun(t *testing.T) {
 	if code != 0 {
 		t.Errorf("exit code %d, want 0", code)
 	}
-	expect(t, out, "calc.test: failsWithError  (", "calc: add works in the file itself  (", "tests/blackbox: public api from another folder  (")
+	expect(t, out, "calc.test  failsWithError  ", "calc  add works in the file itself  ", "tests/blackbox  public api from another folder  ")
 	refuse(t, out, "Running", "Test result")
 }
 
@@ -171,12 +171,12 @@ func TestTimeout(t *testing.T) {
 	if code != 1 {
 		t.Errorf("exit code %d, want 1", code)
 	}
-	expect(t, out, "FAIL  hang.test: never ends", "timed out after 1s", "ok    hang.test: ends at once", "1 passed, 1 failed")
+	expect(t, out, "FAIL  hang.test  never ends", "timed out after 1s", "ok    hang.test  ends at once", "1 passed, 1 failed")
 }
 
 func TestShowOutput(t *testing.T) {
 	out, _ := run(t, "basic", "test", "--report", "--run", "internal", "--show-output")
-	expect(t, out, "ok    calc.test: an internal function")
+	expect(t, out, "ok    calc.test  an internal function")
 }
 
 func TestOrdinaryBuildLeavesTestsOut(t *testing.T) {
@@ -220,26 +220,26 @@ func TestTestingModule(t *testing.T) {
 		t.Errorf("exit code %d, want 1", code)
 	}
 	expect(t, out,
-		"ok    t.test: expect passes",
-		"ok    t.test: expectKind",
-		"ok    t.test: expectApprox and strings",
-		"ok    t.test: freed memory is fine",
-		"FAIL  t.test: expect fails with a message",
+		"ok    t.test  expect passes",
+		"ok    t.test  expectKind",
+		"ok    t.test  expectApprox and strings",
+		"ok    t.test  freed memory is fine",
+		"FAIL  t.test  expect fails with a message",
 		"expected 4, got 5",
 		"--> t.test.wsp:15:3",
 		"strings differ at byte 6",
 		`want: "hello world"`,
 		"expected 1, got 2: the difference 1 is more than 0.5",
-		"FAIL  t.test: a leak is a failure",
+		"FAIL  t.test  a leak is a failure",
 		"leak: 1 blocks, 64 bytes",
 		"memory leaked",
-		"skip  t.test: skipped on purpose",
+		"skip  t.test  skipped on purpose",
 		"not for this system",
-		"ok    t.test: aborts as expected",
+		"ok    t.test  aborts as expected",
 		"stopped the program, as expected",
-		"FAIL  t.test: should abort but returns",
+		"FAIL  t.test  should abort but returns",
 		"was expected to stop the program, and returned",
-		"FAIL  t.test: aborts with other text",
+		"FAIL  t.test  aborts with other text",
 		`what it printed lacks "boom"`,
 		"Test result: FAILED. 5 passed, 6 failed, 1 skipped",
 	)
@@ -250,7 +250,7 @@ func TestGenericCodeInTests(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit code %d:\n%s", code, out)
 	}
-	expect(t, out, "ok    box.test: an instance of a generic struct and of a generic function", "ok    box.test: an abort inside code that uses an instance", "2 passed")
+	expect(t, out, "ok    box.test  an instance of a generic struct and of a generic function", "ok    box.test  an abort inside code that uses an instance", "2 passed")
 }
 
 func TestGenericTestIsRejected(t *testing.T) {
@@ -268,14 +268,14 @@ func TestShortLines(t *testing.T) {
 	}
 	expect(t, out,
 		"Running 5 tests",
-		"ok    calc: add works in the file itself",
-		"ok    tests/blackbox: public api from another folder",
-		"FAIL  calc.test: failsWithError\n",
+		"ok    calc  add works in the file itself",
+		"ok    tests/blackbox  public api from another folder",
+		"FAIL  calc.test  failsWithError\n",
 		"panic: index out of range",
 		"Test result: FAILED. 3 passed, 2 failed",
 	)
-	refuse(t, out, "Failed:", "ok    calc: add works in the file itself  (")
-	if strings.Count(out, "FAIL  calc.test: failsWithError") != 2 {
+	refuse(t, out, "Failed:", "ok    calc  add works in the file itself  ")
+	if strings.Count(out, "FAIL  calc.test  failsWithError") != 2 {
 		t.Errorf("a failure is listed once and explained once:\n%s", out)
 	}
 }
@@ -285,8 +285,8 @@ func TestQuietPrintsDots(t *testing.T) {
 	if code != 1 {
 		t.Errorf("exit code %d, want 1", code)
 	}
-	expect(t, out, "Running 5 tests", "FAIL  calc.test: failsWithError", "panic: index out of range", "Test result: FAILED. 3 passed, 2 failed")
-	refuse(t, out, "Failed:", "ok    calc: add works in the file itself")
+	expect(t, out, "Running 5 tests", "FAIL  calc.test  failsWithError", "panic: index out of range", "Test result: FAILED. 3 passed, 2 failed")
+	refuse(t, out, "Failed:", "ok    calc  add works in the file itself")
 }
 
 func TestTestOfAnotherTargetIsLeftOut(t *testing.T) {

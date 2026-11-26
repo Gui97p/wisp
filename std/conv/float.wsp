@@ -1,5 +1,7 @@
 import "std/errors";
+import "std/io";
 import "std/math";
+import "std/mem";
 import "std/strings";
 
 /// Converts `x` to `int`, truncating toward zero. Fails with `Invalid` for NaN and
@@ -128,18 +130,18 @@ func shortestText([]byte buf, float x, bool single) !string {
 /// exponents from -5 to 20 and `e` notation otherwise. NaN, `inf` and `-inf` are
 /// written by name, and negative zero keeps its sign. Fails with `NoSpace` when
 /// `buf` is too small; `MaxFloat` bytes always suffice.
-public inline func ftoa([]byte buf, float x) !string => shortestText(buf, x, false)!;
+inline func floatText([]byte buf, float x) !string => shortestText(buf, x, false)!;
 
-/// Like `ftoa`, but the text is the shortest one that reads back as the same
+/// Like `floatText`, but the text is the shortest one that reads back as the same
 /// `float32`, so it is shorter for values that come from single precision.
-public inline func ftoa32([]byte buf, float32 x) !string => shortestText(buf, x, true)!;
+inline func float32Text([]byte buf, float32 x) !string => shortestText(buf, x, true)!;
 
 /// Writes `x` with exactly `n` digits after the decimal point into `buf` and
 /// returns the text, sharing memory with `buf`. The value is rounded from its exact
 /// decimal expansion, with exact ties going to the even digit. With `n` of zero no
 /// point is written. NaN, `inf` and `-inf` are written by name. Fails with
 /// `NoSpace` when `buf` is too small.
-public func formatFixed([]byte buf, float x, int n) !string {
+func fixedText([]byte buf, float x, int n) !string {
 	if special(buf, x) |view| {
 		return view;
 	}
@@ -157,7 +159,7 @@ public func formatFixed([]byte buf, float x, int n) !string {
 /// value is rounded from its exact decimal expansion, with exact ties going to the
 /// even digit. NaN, `inf` and `-inf` are written by name. Fails with `NoSpace` when
 /// `buf` is too small.
-public func formatExp([]byte buf, float x, int n, bool upper) !string {
+func expText([]byte buf, float x, int n, bool upper) !string {
 	if special(buf, x) |view| {
 		return view;
 	}
@@ -167,4 +169,181 @@ public func formatExp([]byte buf, float x, int n, bool upper) !string {
 	dec.setSignificant(math.fabs(x), n + 1);
 
 	return layoutExp(buf, neg, &dec, n, upper)!;
+}
+
+/// Writes the shortest text of `x`, as `floatText` spells it, to `w` and returns
+/// the number of bytes written. Fails with the error of `w`.
+public func writeFloat(io.Writer w, float x) !int {
+	[MaxFloat]byte buf;
+	string text = floatText(buf[..], x)!;
+	io.writeString(w, text)!;
+	return len(text);
+}
+
+/// Writes the shortest text of `x` that reads back as the same `float32` to `w`
+/// and returns the number of bytes written. Fails with the error of `w`.
+public func writeFloat32(io.Writer w, float32 x) !int {
+	[MaxFloat]byte buf;
+	string text = float32Text(buf[..], x)!;
+	io.writeString(w, text)!;
+	return len(text);
+}
+
+/// Writes `x` with `n` digits after the point, as `fixedText` spells it, to `w`
+/// and returns the number of bytes written. Fails with the error of `w`.
+public func writeFixed(io.Writer w, float x, int n) !int {
+	[MaxFloat]byte buf;
+	string text = fixedText(buf[..], x, n)!;
+	io.writeString(w, text)!;
+	return len(text);
+}
+
+/// Writes `x` in `e` notation with `n` digits after the point, as `expText`
+/// spells it, to `w` and returns the number of bytes written. Fails with the error
+/// of `w`.
+public func writeExp(io.Writer w, float x, int n, bool upper) !int {
+	[MaxFloat]byte buf;
+	string text = expText(buf[..], x, n, upper)!;
+	io.writeString(w, text)!;
+	return len(text);
+}
+
+/// Returns `x` with exactly `n` digits after the point as a new string made with
+/// `a`, as `writeFixed` spells it. The caller owns it and gives it back with
+/// `mem.free(a, text)`. Fails with the error of `a`.
+public func formatFixed(mem.Allocator a, float x, int n) !string {
+	[MaxFloat]byte buf;
+	return strings.clone(a, fixedText(buf[..], x, n)!)!;
+}
+
+/// Returns `x` in `e` notation with `n` digits after the point as a new string made
+/// with `a`, as `writeExp` spells it. The caller owns it and gives it back with
+/// `mem.free(a, text)`. Fails with the error of `a`.
+public func formatExp(mem.Allocator a, float x, int n, bool upper) !string {
+	[MaxFloat]byte buf;
+	return strings.clone(a, expText(buf[..], x, n, upper)!)!;
+}
+
+/// Returns `x` as the shortest text that reads back as the same `float`, in a new
+/// string made with `a`. The caller owns it and gives it back with `mem.free(a,
+/// text)`. Fails with the error of `a`.
+public func ftoa(mem.Allocator a, float x) !string {
+	[MaxFloat]byte buf;
+	return strings.clone(a, floatText(buf[..], x)!)!;
+}
+
+/// Like `ftoa`, but the text is the shortest one that reads back as the same
+/// `float32`.
+public func ftoa32(mem.Allocator a, float32 x) !string {
+	[MaxFloat]byte buf;
+	return strings.clone(a, float32Text(buf[..], x)!)!;
+}
+
+func lowerByte(byte c) byte => c >= 'A' && c <= 'Z' ? c + 32 : c;
+
+func sameWord(string s, string word) bool {
+	return false if len(s) != len(word);
+	for i in 0..len(s) {
+		return false if lowerByte(s[i]) != word[i];
+	}
+	return true;
+}
+
+func parseWith(string s, int mantBits, expBits, bias) !float {
+	errors.ensure(len(s) > 0, errors.Kind.Invalid)!;
+	int i = 0;
+	bool neg = false;
+	if s[0] == '-' || s[0] == '+' {
+		neg = s[0] == '-';
+		i = 1;
+	}
+	string rest = s[i..];
+	if sameWord(rest, "inf") || sameWord(rest, "infinity") {
+		return math.inf(neg ? -1 : 1);
+	}
+	return math.nan() if sameWord(rest, "nan");
+
+	Decimal dec;
+	int nd = 0;
+	int dp = 0;
+	bool sawDot = false;
+	bool sawDigits = false;
+	bool trunc = false;
+	loop i < len(s) {
+		byte c = s[i];
+		if c == '.' {
+			errors.ensure(!sawDot, errors.Kind.Invalid)!;
+			sawDot = true;
+			dp = nd;
+			i++;
+			continue;
+		}
+		break if c < '0' || c > '9';
+		sawDigits = true;
+		i++;
+		if c == '0' && nd == 0 {
+			dp--;
+			continue;
+		}
+		nd++;
+		if dec.n < 760 {
+			dec.load(uint(c - '0'));
+		} else if c != '0' {
+			trunc = true;
+		}
+	}
+	errors.ensure(sawDigits, errors.Kind.Invalid)!;
+	if !sawDot {
+		dp = nd;
+	}
+
+	if i < len(s) && (s[i] == 'e' || s[i] == 'E') {
+		i++;
+		errors.ensure(i < len(s), errors.Kind.Invalid)!;
+		int sign = 1;
+		if s[i] == '-' || s[i] == '+' {
+			sign = s[i] == '-' ? -1 : 1;
+			i++;
+		}
+		errors.ensure(i < len(s) && s[i] >= '0' && s[i] <= '9', errors.Kind.Invalid)!;
+		int e = 0;
+		loop i < len(s) && s[i] >= '0' && s[i] <= '9' {
+			if e < 10000 {
+				e = e * 10 + int(s[i] - '0');
+			}
+			i++;
+		}
+		dp += sign * e;
+	}
+	errors.ensure(i == len(s), errors.Kind.Invalid)!;
+
+	float zero = neg ? math.copysign(0.0, -1.0) : 0.0;
+	return zero if nd == 0;
+
+	if trunc && dec.d[dec.n - 1] == 0 {
+		dec.d[dec.n - 1] = 1;
+	}
+	dec.dp = dp;
+	dec.trim();
+	float value = dec.toFloat(mantBits, expBits, bias)!;
+	return neg ? -value : value;
+}
+
+/// Parses `s` as a `float`: an optional sign, digits with at most one point, and
+/// an optional exponent (`e` or `E`, a sign, digits), or `inf`, `infinity` or `nan`
+/// in any case. The result is the `float` nearest to the decimal value, exactly,
+/// with ties going to the even one. Underscores, white space, prefixes and a bare
+/// `.` are not accepted. Fails with `Invalid` for text that is not a number and
+/// with `Overflow` when the value is too large for a `float`; a value too small
+/// rounds to zero.
+#must_use
+public func parseFloat(string s) !float {
+	return parseWith(s, 52, 11, -1023)!;
+}
+
+/// Like `parseFloat`, but the result is the `float32` nearest to the value, with
+/// `Overflow` when it is too large for a `float32`.
+#must_use
+public func parseFloat32(string s) !float32 {
+	return float32(parseWith(s, 23, 8, -127)!);
 }
