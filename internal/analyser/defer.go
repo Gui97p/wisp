@@ -184,8 +184,15 @@ func (a *Analyser) rejectDeferredExits(d *ast.DeferStmt) {
 					a.error(n, "a deferred statement cannot continue a loop outside of it")
 				}
 			case *ast.PropagateExpr:
-				a.error(n, "a deferred statement cannot propagate an error").
-					WithHelp("handle it here, for instance with ??")
+				switch {
+				case n.Assert || n.Null:
+				case d.OnError:
+					a.error(n, "a defer! runs while an error is already leaving the function, so it cannot pass another up").
+						WithHelp("handle it here, for instance with ??")
+				case !a.currentFallible:
+				default:
+					d.Fallible = true
+				}
 			case *ast.ForStmt, *ast.LoopStmt:
 				next++
 			case *ast.IfStmt:

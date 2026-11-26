@@ -7,7 +7,10 @@
 // written first. `defer!` runs only when the function leaves with an error,
 // which is what a constructor needs: free what it allocated unless it
 // succeeds. `defer! |e| ...` also names the error that is leaving, so the
-// cleanup can report it.
+// cleanup can report it. A deferred statement can also pass an error up with
+// `!`, in a function that can fail: if the function was succeeding, that error
+// becomes its error, and if it was already failing the first error is kept.
+// The other deferred statements run either way.
 //
 import "std/fmt";
 import "std/os";
@@ -53,6 +56,19 @@ func goodbye() {
 	fmt.printf("the program is over, so the exit hook runs now\n");
 }
 
+struct Resource {
+	bool broken;
+}
+
+func (*Resource r) close() ! {
+	return Error(Fail.Boom) if r.broken;
+}
+
+func use(*Resource r) ! {
+	defer r.close()!;
+	fmt.printf("  using the resource\n");
+}
+
 public func demo() {
 	let _ = os.atExit(goodbye);
 
@@ -70,7 +86,13 @@ public func demo() {
 	fmt.printf("build(true):\n");
 	let _, _ = build(true);
 
-// A deferred statement cannot leave its block: no return, no break out of
-// it, and no `!`. A failure has to be handled where it happens, for
-// instance with `??`.
+	Resource sound, broken = Resource{}, Resource{broken: true};
+	let first = use(&sound);
+	fmt.printf("use(sound): failed {}\n", first != null);
+	let second = use(&broken);
+	fmt.printf("use(broken): failed {}\n", second != null);
+
+// A deferred statement cannot leave its block: no return and no break out of
+// it. In a function that cannot fail, a failure has to be handled where it
+// happens, for instance with `??`.
 }

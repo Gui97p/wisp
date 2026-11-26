@@ -108,6 +108,8 @@ type X64Target struct {
 	savedXmms    []savedReg
 
 	deferScopes []*deferScope
+	deferError  *Mem
+	deferExits  []string
 	lambdas     []pendingLambda
 	lambdaCount int
 

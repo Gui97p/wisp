@@ -354,6 +354,7 @@ func (c *ContinueStmt) Tree(indent string) string {
 }
 
 type DeferStmt struct {
+	Fallible    bool
 	OnError     bool
 	ErrorBind   string
 	ErrorBindAt Position

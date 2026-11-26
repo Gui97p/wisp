@@ -207,6 +207,9 @@ func (t *X64Target) compileReturnStmt(stmt *ast.ReturnStmt) error {
 			return err
 		}
 
+		if t.deferError != nil && t.fallible {
+			tmps[len(tmps)-1] = *t.deferError
+		}
 		ops = tmps
 	}
 

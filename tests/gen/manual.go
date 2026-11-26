@@ -10348,6 +10348,131 @@ func main() {
 }
 `, expected: []string{"the first type runs the shared body", "the second type runs the same body", "the third type too", "another type falls to the default", "the expression form shares the body as well", "listing types without a name still works"}},
 
+	{dir: "defer_fallible", src: `import "std/errors";
+
+struct Handle {
+    int fd;
+    int closed;
+}
+
+func (*Handle h) close() ! {
+    h.closed++;
+    return Error(errors.Kind.Busy) if h.fd < 0;
+    return Error(errors.Kind.Exists) if h.fd == 99;
+}
+
+func quiet(*Handle h) ! {
+    defer h.close()!;
+}
+
+func fails(*Handle h) ! {
+    defer h.close()!;
+}
+
+func valued(*Handle h) !int {
+    defer h.close()!;
+    return 7;
+}
+
+func ownError(*Handle h) ! {
+    defer h.close()!;
+    return Error(errors.Kind.NotFound);
+}
+
+func twoFail(*Handle a, *Handle b) ! {
+    defer a.close()!;
+    defer b.close()!;
+}
+
+func othersStillRun(*Handle a, *Handle b, *Handle c) ! {
+    defer a.close()!;
+    defer b.close()!;
+    defer c.close()!;
+}
+
+func blocked(*Handle a, *Handle b) ! {
+    {
+        defer a.close()!;
+    }
+    b.closed += 10;
+}
+
+func early(*Handle h, bool leave) ! {
+    defer h.close()!;
+    return if leave;
+    h.closed += 100;
+}
+
+func inLoop(*Handle h) ! {
+    for i in 0..3 {
+        defer h.close()!;
+    }
+}
+
+func asBlock(*Handle h) ! {
+    defer {
+        h.close()!;
+        h.closed += 1000;
+    }
+}
+
+func main() {
+    Handle good = Handle{fd: 3};
+    Handle bad = Handle{fd: -1};
+    Handle clash = Handle{fd: 99};
+
+    let e0 = quiet(&good);
+    check(e0 == null && good.closed == 1, "a defer that succeeds changes nothing");
+
+    let e1 = fails(&bad);
+    check(e1 == errors.Kind.Busy && bad.closed == 1, "a failing defer becomes the error of the function");
+
+    Handle v1 = Handle{fd: -1};
+    let value, e2 = valued(&v1);
+    check(value == 7 && e2 == errors.Kind.Busy, "the value is still returned next to the error of the defer");
+
+    Handle own = Handle{fd: -1};
+    let e3 = ownError(&own);
+    check(e3 == errors.Kind.NotFound && own.closed == 1, "an error the function already had is kept, and the defer still runs");
+
+    Handle first = Handle{fd: -1};
+    Handle second = Handle{fd: 99};
+    let e4 = twoFail(&first, &second);
+    check(e4 == errors.Kind.Exists && first.closed == 1 && second.closed == 1, "the first defer to run decides the error, and both run");
+
+    Handle a = Handle{fd: 99};
+    Handle b = Handle{fd: 3};
+    Handle c = Handle{fd: -1};
+    let e5 = othersStillRun(&a, &b, &c);
+    check(e5 == errors.Kind.Busy && a.closed == 1 && b.closed == 1 && c.closed == 1, "the other defers run after one fails");
+
+    Handle outer = Handle{fd: 3};
+    Handle inner = Handle{fd: -1};
+    let e6 = blocked(&inner, &outer);
+    check(e6 == errors.Kind.Busy && outer.closed == 10, "a defer of an inner block that fails does not stop the function");
+
+    Handle left = Handle{fd: -1};
+    let e7 = early(&left, true);
+    check(e7 == errors.Kind.Busy && left.closed == 1, "an early return still reports the error of the defer");
+    Handle kept = Handle{fd: 3};
+    let e7b = early(&kept, false);
+    check(e7b == null && kept.closed == 101, "no error when every defer succeeds");
+
+    Handle looped = Handle{fd: -1};
+    let e8 = inLoop(&looped);
+    check(e8 == errors.Kind.Busy && looped.closed == 3, "a defer in a loop body runs on every turn");
+
+    Handle blockDefer = Handle{fd: -1};
+    let e9 = asBlock(&blockDefer);
+    check(e9 == errors.Kind.Busy && blockDefer.closed == 1, "a block stops at its first failing call");
+
+    Handle ok2 = Handle{fd: 3};
+    let e10 = quiet(&ok2);
+    check(e10 == null, "and a later call without an error is clean");
+    check(clash.closed == 0, "an unused handle is untouched");
+}
+`, expected: []string{"a defer that succeeds changes nothing", "a failing defer becomes the error of the function", "the value is still returned next to the error of the defer", "an error the function already had is kept, and the defer still runs", "the first defer to run decides the error, and both run", "the other defers run after one fails", "a defer of an inner block that fails does not stop the function", "an early return still reports the error of the defer", "no error when every defer succeeds", "a defer in a loop body runs on every turn", "a block stops at its first failing call", "and a later call without an error is clean", "an unused handle is untouched"}},
+
 	{dir: "os_mkdirall", src: `import "std/errors";
 import "std/os";
 import "std/paths";

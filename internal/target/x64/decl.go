@@ -465,6 +465,12 @@ func (t *X64Target) compileFuncBody(name, display string, entry, cabi bool, para
 	}
 
 	t.deferScopes = nil
+	t.deferError, t.deferExits = nil, nil
+	if fallible && hasFallibleDefer(body) {
+		cell := slot(t.ctx.Reserve(8), 8)
+		t.store(Imm(0), cell)
+		t.deferError = &cell
+	}
 	l := len(body.Statements)
 	t.endsInReturn = l > 0 && isReturn(body.Statements[l-1])
 	if t.endsInReturn {
@@ -476,7 +482,11 @@ func (t *X64Target) compileFuncBody(name, display string, entry, cabi bool, para
 
 	t.text.newLine()
 	if fallible && len(t.funcReturns) == 1 && !t.endsInReturn {
-		t.text.printlnt("xor eax, eax")
+		if t.deferError != nil {
+			t.text.printft("mov rax, %s\n", t.memText(*t.deferError))
+		} else {
+			t.text.printlnt("xor eax, eax")
+		}
 	}
 	t.text.println(".return:")
 

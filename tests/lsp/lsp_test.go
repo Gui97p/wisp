@@ -481,6 +481,36 @@ func TestSwitchTypeSharedBodyInLSP(t *testing.T) {
 	})
 }
 
+func TestDeferAcceptsAnErrorToPassUp(t *testing.T) {
+	c := start(t)
+	head := "struct Handle {\n\tint fd;\n}\n\nfunc (*Handle h) close() ! {\n\treturn Error(\"no\") if h.fd < 0;\n}\n\n"
+	errorsOf := func(body string) []string {
+		var out []string
+		for _, d := range c.open(map[string]string{"main.wsp": head + body}).diagnostics() {
+			if d.Severity == 1 {
+				out = append(out, d.Message)
+			}
+		}
+		return out
+	}
+
+	if got := errorsOf("func good(*Handle h) ! {\n\tdefer h.close()!;\n}\n"); len(got) != 0 {
+		t.Errorf("a defer that passes an error up in a function that can fail: %v", got)
+	}
+	if got := errorsOf("func block(*Handle h) ! {\n\tdefer {\n\t\th.close()!;\n\t}\n}\n"); len(got) != 0 {
+		t.Errorf("a block that passes an error up: %v", got)
+	}
+	if got := errorsOf("func plain(*Handle h) {\n\tdefer h.close()!;\n}\n"); len(got) != 1 || !strings.Contains(got[0], "cannot propagate outside a fallible function") {
+		t.Errorf("a function that cannot fail: %v", got)
+	}
+	if got := errorsOf("func late(*Handle h) ! {\n\tdefer! h.close()!;\n}\n"); len(got) != 1 || !strings.Contains(got[0], "already leaving the function") {
+		t.Errorf("a defer! that passes an error up: %v", got)
+	}
+	if got := errorsOf("func stops(*Handle h) {\n\tdefer h.close()!!;\n}\n"); len(got) != 0 {
+		t.Errorf("a defer that stops the program on an error: %v", got)
+	}
+}
+
 func TestSemanticTokensGenerics(t *testing.T) {
 	c := start(t)
 	src := "struct Pair<A, B> {\n\tA first;\n\tB second;\n}\n\nfunc swap<A, B>(Pair<A, B> p) Pair<B, A> {\n\treturn Pair<B, A>{first: p.second, second: p.first};\n}\n\nfunc main() {\n\tPair<int, string> p = Pair<int, string>{first: 1, second: \"a\"};\n\tPair<string, int> q = swap(p);\n}\n"

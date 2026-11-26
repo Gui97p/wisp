@@ -1040,6 +1040,10 @@ func (t *X64Target) compilePropagate(expr *ast.PropagateExpr) ([]Operand, error)
 				return nil, err
 			}
 			t.text.printft("jmp %s\n", frame.label)
+		} else if len(t.deferExits) > 0 {
+			if err := t.failDeferred(Reg{reg, 8}); err != nil {
+				return nil, err
+			}
 		} else {
 			if err := t.returnError(Reg{reg, 8}); err != nil {
 				return nil, err
