@@ -6,6 +6,7 @@ import (
 )
 
 type TypeBind struct {
+	Shared  bool
 	Name    string
 	Line    int
 	Col     int

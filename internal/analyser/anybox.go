@@ -291,7 +291,7 @@ func (a *Analyser) narrowSwitchVariable(condition ast.Expression) {
 		return
 	}
 
-	narrowed := &Symbol{Name: match.Bind.Name, Kind: VAR, Type: tc.Type, File: original.File, Line: match.Bind.Line, Col: match.Bind.Col}
+	narrowed := &Symbol{Name: match.Bind.Name, Kind: VAR, Type: tc.Type, File: original.File, Line: match.Bind.Line, Col: match.Bind.Col, Shared: match.Bind.Shared}
 	a.scope.Define(narrowed)
 	a.info.Narrowed[narrowed] = original
 }

@@ -87,6 +87,7 @@ func TestMain(m *testing.M) {
 func start(t *testing.T) *client {
 	t.Helper()
 	cmd := exec.Command(binary, "lsp")
+	cmd.Stderr = os.Stderr
 	in, err := cmd.StdinPipe()
 	if err != nil {
 		t.Fatal(err)

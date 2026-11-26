@@ -68,6 +68,7 @@ type Symbol struct {
 	Generic *GenericDecl
 	Builtin bool
 	Phantom string
+	Shared  bool
 }
 
 func (s *Symbol) EmitName() string {

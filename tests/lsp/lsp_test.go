@@ -438,6 +438,49 @@ func TestImportsOfOtherFilesAreNotVersionsOfEachOther(t *testing.T) {
 	}
 }
 
+func TestSwitchTypeSharedBodyInLSP(t *testing.T) {
+	c := start(t)
+	head := "struct Circle {\n\tint radius;\n\tbool visible;\n}\nstruct Square {\n\tint side;\n\tbool visible;\n}\n"
+	body := func(use string) string {
+		return head + "func f(...args) int {\n\tswitch type args[0] {\n\t\tcase *Circle, *Square s => {\n\t\t\t" + use + "\n\t\t}\n\t\tdefault => return 0;\n\t}\n}\n"
+	}
+
+	t.Run("completion offers only what the types share", func(t *testing.T) {
+		for i := 0; i < 5; i++ {
+			got := c.open(map[string]string{"main.wsp": body("return s.¦")}).completion()
+			if !slices.Contains(got, "visible") || slices.Contains(got, "radius") || slices.Contains(got, "side") {
+				t.Fatalf("completion should be only the shared field: %v", got)
+			}
+		}
+	})
+	t.Run("hover names every type of the binding", func(t *testing.T) {
+		for i := 0; i < 5; i++ {
+			got := c.open(map[string]string{"main.wsp": body("return ¦s.visible ? 1 : 0;")}).hover()
+			if !strings.Contains(got, "*Circle | *Square s") {
+				t.Fatalf("hover = %q", got)
+			}
+		}
+	})
+	t.Run("the shared body has no errors", func(t *testing.T) {
+		for _, d := range c.open(map[string]string{"main.wsp": body("return s.visible ? 1 : 0;")}).diagnostics() {
+			if d.Severity == 1 {
+				t.Errorf("unexpected error: %s", d.Message)
+			}
+		}
+	})
+	t.Run("a field only one type has is an error that names the type", func(t *testing.T) {
+		var errs []string
+		for _, d := range c.open(map[string]string{"main.wsp": body("return s.radius;")}).diagnostics() {
+			if d.Severity == 1 {
+				errs = append(errs, d.Message)
+			}
+		}
+		if len(errs) == 0 || !strings.Contains(strings.Join(errs, "\n"), "Square") {
+			t.Errorf("errors = %v", errs)
+		}
+	})
+}
+
 func TestSemanticTokensGenerics(t *testing.T) {
 	c := start(t)
 	src := "struct Pair<A, B> {\n\tA first;\n\tB second;\n}\n\nfunc swap<A, B>(Pair<A, B> p) Pair<B, A> {\n\treturn Pair<B, A>{first: p.second, second: p.first};\n}\n\nfunc main() {\n\tPair<int, string> p = Pair<int, string>{first: 1, second: \"a\"};\n\tPair<string, int> q = swap(p);\n}\n"

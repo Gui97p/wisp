@@ -188,7 +188,7 @@ func completionItems(uri protocol.DocumentUri, pos protocol.Position, trigger st
 	}
 	if base, ok := memberBase(prefix); ok {
 		for _, candidate := range candidates {
-			if items := memberItems(path, base, scopeAt(candidate, line, col), suffix); items != nil {
+			if items := sharedMemberItems(path, base, candidate, line, col, suffix); items != nil {
 				return items
 			}
 		}
@@ -636,6 +636,28 @@ func scopeAt(info *analyser.Info, line, col int) *analyser.Scope {
 	return analyser.NewScope(nil)
 }
 
+func sharedMemberItems(path, base string, info *analyser.Info, line, col int, suffix string) []protocol.CompletionItem {
+	scopes := tiedScopes(info, line, col)
+	if len(scopes) < 2 || !sharedHead(scopes[0], base) {
+		return memberItems(path, base, scopeAt(info, line, col), suffix)
+	}
+	var lists [][]protocol.CompletionItem
+	for _, scope := range scopes {
+		items := memberItems(path, base, scope, suffix)
+		if items == nil {
+			return nil
+		}
+		lists = append(lists, items)
+	}
+	return commonItems(lists)
+}
+
+func sharedHead(scope *analyser.Scope, base string) bool {
+	head, _, _ := strings.Cut(base, ".")
+	sym, ok := scope.Resolve(head)
+	return ok && sym.Shared
+}
+
 func memberItems(path, base string, scope *analyser.Scope, suffix string) []protocol.CompletionItem {
 	sym, ok := resolveChain(scope, base)
 	if !ok {
@@ -649,6 +671,8 @@ func typedMembers(path string, info *analyser.Info, pos protocol.Position, suffi
 		return nil, false
 	}
 	line, col := int(pos.Line)+1, int(pos.Character)+1
+	var lists [][]protocol.CompletionItem
+	shared := false
 	for expr := range info.Types {
 		member, ok := expr.(*ast.MemberExpr)
 		if !ok || member.Field != "_" || member.FieldAt.Line != line || member.FieldAt.Col != col {
@@ -671,9 +695,41 @@ func typedMembers(path string, info *analyser.Info, pos protocol.Position, suffi
 			sym.Type = mt
 		}
 		items := symbolMembers(path, sym, suffix)
-		return items, items != nil
+		if items == nil {
+			return nil, false
+		}
+		if id, isIdent := member.Object.(*ast.IdentLiteral); isIdent {
+			if bound := info.Idents[id]; bound != nil && bound.Shared {
+				shared = true
+			}
+		}
+		lists = append(lists, items)
 	}
-	return nil, false
+	if len(lists) == 0 {
+		return nil, false
+	}
+	if !shared {
+		return lists[0], true
+	}
+	return commonItems(lists), true
+}
+
+func commonItems(lists [][]protocol.CompletionItem) []protocol.CompletionItem {
+	common := lists[0]
+	for _, items := range lists[1:] {
+		have := map[string]bool{}
+		for _, it := range items {
+			have[it.Label] = true
+		}
+		kept := make([]protocol.CompletionItem, 0, len(common))
+		for _, it := range common {
+			if have[it.Label] {
+				kept = append(kept, it)
+			}
+		}
+		common = kept
+	}
+	return common
 }
 
 func symbolMembers(path string, sym *analyser.Symbol, suffix string) []protocol.CompletionItem {

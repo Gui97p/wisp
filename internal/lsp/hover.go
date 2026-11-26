@@ -197,6 +197,9 @@ func textualHover(path string, line, col int, info *analyser.Info, program *ast.
 		}
 	} else if found, ok := scope.Resolve(name); ok {
 		sym = found
+		if text := sharedSymbolHover(info, line, col, name); text != "" {
+			return markdownHover(text, wordRange(fileBuffer[path], line, col))
+		}
 	}
 	if sym == nil {
 		return nil
@@ -384,6 +387,9 @@ func hoverText(expr ast.Expression, program *ast.Program, info *analyser.Info, l
 			return text
 		}
 	case *ast.IdentLiteral:
+		if text := sharedBindingHover(e, info); text != "" {
+			return text
+		}
 		if sym := identSymbol(e, info, line, col); sym != nil {
 			if ft, isFunc := sym.Type.(*analyser.FuncType); isFunc && strings.Contains(sym.Name, "wisp_range") && len(ft.Returns) == 1 {
 				return renderDoc(analyser.TypeText(ft.Returns[0]), "The values from start to end, both included.")
@@ -663,6 +669,56 @@ func exportLine(name string, sym *analyser.Symbol) string {
 		return "module " + name
 	}
 	return fmt.Sprintf("%s %s", analyser.TypeText(sym.Type), name)
+}
+
+func sharedSymbolHover(info *analyser.Info, line, col int, name string) string {
+	var types []string
+	seen := map[string]bool{}
+	for _, scope := range tiedScopes(info, line, col) {
+		sym, ok := scope.Resolve(name)
+		if !ok || sym.Type == nil || !sym.Shared {
+			continue
+		}
+		text := analyser.TypeText(sym.Type)
+		if !seen[text] {
+			seen[text] = true
+			types = append(types, text)
+		}
+	}
+	if len(types) < 2 {
+		return ""
+	}
+	sort.Strings(types)
+	return renderHover(strings.Join(types, " | ") + " " + name)
+}
+
+func sharedBindingHover(e *ast.IdentLiteral, info *analyser.Info) string {
+	line, col := e.Position()
+	var types []string
+	seen := map[string]bool{}
+	var first *analyser.Symbol
+	for other, sym := range info.Idents {
+		if sym == nil || other.Value != e.Value || sym.Type == nil || !sym.Shared {
+			continue
+		}
+		ol, oc := other.Position()
+		if ol != line || oc != col {
+			continue
+		}
+		text := analyser.TypeText(sym.Type)
+		if !seen[text] {
+			seen[text] = true
+			types = append(types, text)
+		}
+		if first == nil {
+			first = sym
+		}
+	}
+	if len(types) < 2 || first == nil {
+		return ""
+	}
+	sort.Strings(types)
+	return renderHover(strings.Join(types, " | ") + " " + first.Name)
 }
 
 func variableHover(sym *analyser.Symbol) string {

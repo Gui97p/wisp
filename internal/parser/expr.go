@@ -984,7 +984,7 @@ func (p *Parser) parseSwitchExpression() ast.Expression {
 
 	for p.peek.Type == lexer.TOKEN_CASE {
 		armLine, armCol := p.peek.Line, p.peek.Column
-		condition := p.parseCaseExpression(value, line, col, typed)
+		condition, alternatives := p.parseCaseExpression(value, line, col, typed)
 		if condition == nil {
 			return nil
 		}
@@ -1000,6 +1000,9 @@ func (p *Parser) parseSwitchExpression() ast.Expression {
 		arm.Condition = condition
 		arm.SetPos(armLine, armCol)
 		expr.Arms = append(expr.Arms, arm)
+		for _, alternative := range alternatives {
+			expr.Arms = append(expr.Arms, cloneArm(arm, alternative))
+		}
 	}
 
 	if p.peek.Type == lexer.TOKEN_DEFAULT {
@@ -1157,4 +1160,15 @@ func rangeOperands(expr ast.Expression) (start, end, step ast.Expression, open, 
 		return nil, nil, nil, false, false
 	}
 	return inner.Args[0], inner.Args[1], call.Args[0], inner.RangeOpen, true
+}
+
+func cloneArm(arm ast.SwitchArm, condition ast.Expression) ast.SwitchArm {
+	copied := ast.SwitchArm{Condition: condition, NodePos: arm.NodePos}
+	for _, v := range arm.Values {
+		copied.Values = append(copied.Values, ast.Clone(v, ast.CloneOptions{}))
+	}
+	if arm.Exit != nil {
+		copied.Exit = ast.Clone(arm.Exit, ast.CloneOptions{})
+	}
+	return copied
 }

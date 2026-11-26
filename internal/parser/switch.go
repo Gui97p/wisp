@@ -215,26 +215,56 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int, typ
 	return expr
 }
 
-func (p *Parser) parseCaseExpression(value ast.Expression, line, col int, typed bool) ast.Expression {
+func (p *Parser) parseCaseExpression(value ast.Expression, line, col int, typed bool) (ast.Expression, []ast.Expression) {
 	expr := p.parseOneCaseExpression(value, line, col, typed)
 	if expr == nil {
-		return nil
+		return nil, nil
 	}
-	types, named := 1, false
+	matches := []ast.Expression{expr}
+	binds := 0
 	if m, ok := expr.(*ast.BinaryExpr); ok && m.Bind != nil {
-		named = true
+		binds++
 	}
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
 		right := p.parseOneCaseExpression(value, line, col, typed)
 		if right == nil {
-			return nil
+			return nil, nil
 		}
-		types++
+		matches = append(matches, right)
 		if m, ok := right.(*ast.BinaryExpr); ok && m.Bind != nil {
-			named = true
+			binds++
 		}
+	}
 
+	if len(matches) > 1 && binds > 0 {
+		last, lastBinds := matches[len(matches)-1].(*ast.BinaryExpr)
+		if !typed || binds != 1 || !lastBinds || last.Bind == nil {
+			if typed {
+				p.error("a case with several types names the value once, after the last type: case *A, *B v:")
+			} else {
+				p.error("a case with several variants cannot name the data")
+			}
+			return nil, nil
+		}
+		for i, m := range matches[:len(matches)-1] {
+			alt, ok := m.(*ast.BinaryExpr)
+			if !ok {
+				p.error("a case with several types names the value once, after the last type: case *A, *B v:")
+				return nil, nil
+			}
+			bind := *last.Bind
+			alt.Bind = &bind
+			matches[i] = alt
+		}
+		for _, m := range matches {
+			m.(*ast.BinaryExpr).Bind.Shared = true
+		}
+		return matches[0], matches[1:]
+	}
+
+	expr = matches[0]
+	for _, right := range matches[1:] {
 		expr = &ast.BinaryExpr{
 			Synthetic: true,
 			Left:      expr,
@@ -244,17 +274,7 @@ func (p *Parser) parseCaseExpression(value ast.Expression, line, col int, typed 
 		expr.(*ast.BinaryExpr).SetPos(line, col)
 		expr.(*ast.BinaryExpr).SetEndPos(p.currentEnd())
 	}
-
-	if types > 1 && named {
-		if typed {
-			p.error("a case with several types cannot name the value")
-		} else {
-			p.error("a case with several variants cannot name the data")
-		}
-		return nil
-	}
-
-	return expr
+	return expr, nil
 }
 
 func isVariantName(expr ast.Expression) bool {

@@ -200,6 +200,47 @@ func innermostScope(info *analyser.Info, line, col int) *analyser.Scope {
 	return best
 }
 
+func tiedScopes(info *analyser.Info, line, col int) []*analyser.Scope {
+	first := innermostScope(info, line, col)
+	if first == nil {
+		return nil
+	}
+	var tied []*analyser.Scope
+	var node ast.Node
+	file := ""
+	if info.Module != nil {
+		file = info.Module.BoundFile()
+	}
+	for n, scope := range info.Scopes {
+		if scope == first {
+			node = n
+			break
+		}
+	}
+	if node == nil {
+		return []*analyser.Scope{first}
+	}
+	sl, sc := node.Position()
+	el, ec := node.EndPosition()
+	for n, scope := range info.Scopes {
+		if !contains(n, line, col) {
+			continue
+		}
+		if owner := info.ScopeFiles[n]; owner != "" && file != "" && filepath.Clean(owner) != filepath.Clean(file) {
+			continue
+		}
+		nl, nc := n.Position()
+		nel, nec := n.EndPosition()
+		if nl == sl && nc == sc && nel == el && nec == ec {
+			tied = append(tied, scope)
+		}
+	}
+	if len(tied) == 0 {
+		return []*analyser.Scope{first}
+	}
+	return tied
+}
+
 func scopeFor(info *analyser.Info, line, col int) *analyser.Scope {
 	if scope := innermostScope(info, line, col); scope != nil {
 		return scope

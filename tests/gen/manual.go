@@ -10297,6 +10297,57 @@ func main() ! {
 }
 `, expected: []string{"for over a next that can fail visits every item", "the index counts the items of a failing iterator", "for over a value whose iter gives a failing next", "the error of next leaves the function", "the double bang form walks it too", "an iterator that ends at once runs the body zero times"}},
 
+	{dir: "switch_type_shared_body", src: `struct Circle {
+    int radius;
+    bool visible;
+}
+
+struct Square {
+    int side;
+    bool visible;
+}
+
+struct Label {
+    string text;
+    bool visible;
+}
+
+func shown(...args) int {
+    switch type args[0] {
+        case *Circle, *Square, *Label s => {
+            if !s.visible {
+                return 0;
+            }
+            return 1;
+        }
+        default => return -1;
+    }
+}
+
+func pick(...args) string {
+    return switch type args[0] {
+        case *Circle, *Square c => c.visible ? "visible" : "hidden";
+        case int, string => "plain";
+        default => "other";
+    };
+}
+
+func main() {
+    Circle circle = Circle{radius: 2, visible: true};
+    Square square = Square{side: 2, visible: false};
+    Label label = Label{text: "a", visible: true};
+    check(shown(&circle) == 1, "the first type runs the shared body");
+    check(shown(&square) == 0, "the second type runs the same body");
+    check(shown(&label) == 1, "the third type too");
+    check(shown(3) == -1, "another type falls to the default");
+
+    Circle c = Circle{radius: 1, visible: true};
+    Square q = Square{side: 1, visible: false};
+    check(pick(&c) == "visible" && pick(&q) == "hidden", "the expression form shares the body as well");
+    check(pick(7) == "plain" && pick(true) == "other", "listing types without a name still works");
+}
+`, expected: []string{"the first type runs the shared body", "the second type runs the same body", "the third type too", "another type falls to the default", "the expression form shares the body as well", "listing types without a name still works"}},
+
 	{dir: "os_mkdirall", src: `import "std/errors";
 import "std/os";
 import "std/paths";
