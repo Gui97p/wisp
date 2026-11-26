@@ -576,6 +576,7 @@ func (a *Analyser) registerInstanceMethods(g *GenericDecl, st *StructType, args 
 	savedFile := a.currentFile
 	defer func() { a.currentFile = savedFile }()
 	a.currentFile = g.File
+	defer g.Scope.BindFile(&a.currentFile)()
 
 	owner := mangle(st.Name, st.key)
 	for name, sym := range g.GenericMethods {

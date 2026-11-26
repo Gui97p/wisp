@@ -1098,7 +1098,7 @@ func main() {
     [10]int counts;
     bool inRange = true;
     for _ in 0..20000 {
-        int v = r.below(10);
+        int v = r.range(0..10);
         if v < 0 || v >= 10 {
             inRange = false;
         } else {
@@ -1111,14 +1111,14 @@ func main() {
             even = false;
         }
     }
-    check(inRange && even, "below stays in range and spreads evenly");
-    check(r.below(0) == 0 && r.below(-5) == 0 && r.below(1) == 0, "below of nothing is zero");
+    check(inRange && even, "range stays in range and spreads evenly");
+    check(r.range(0..1) == 0, "a range of one value gives it");
 
     bool low = false;
     bool high = false;
     bool within = true;
     for _ in 0..2000 {
-        int v = r.between(-3, 3);
+        int v = r.range(-3..=3);
         if v < -3 || v > 3 {
             within = false;
         }
@@ -1129,8 +1129,28 @@ func main() {
             high = true;
         }
     }
-    check(within && low && high, "between includes both ends");
-    check(r.between(5, 5) == 5 && r.between(9, 2) == 9, "between with no room returns low");
+    check(within && low && high, "a closed range includes both ends");
+    check(r.range(5..=5) == 5, "a closed range of one number gives it");
+
+    bool stepsOk = true;
+    bool downOk = true;
+    bool negativeOk = true;
+    for _ in 0..500 {
+        int m = r.range((0..100).step(10));
+        if m < 0 || m > 90 || m % 10 != 0 {
+            stepsOk = false;
+        }
+        int k = r.range((10..=1).step(-3));
+        if k != 10 && k != 7 && k != 4 && k != 1 {
+            downOk = false;
+        }
+        int q = r.range(-100..-90);
+        if q < -100 || q >= -90 {
+            negativeOk = false;
+        }
+    }
+    check(stepsOk && downOk, "range counts its step, up and down");
+    check(negativeOk, "range works with negative numbers");
 
     bool unitOk = true;
     float total = 0.0;
@@ -1179,18 +1199,18 @@ func main() {
     check(all && moved, "shuffle keeps every element and changes the order");
 
     rand.seed(99);
-    int first = rand.below(1000000);
+    int first = rand.range(0..1000000);
     int firstReal = int(rand.real() * 1000000.0);
     rand.seed(99);
-    check(rand.below(1000000) == first && int(rand.real() * 1000000.0) == firstReal, "seed makes the shared functions repeat");
+    check(rand.range(0..1000000) == first && int(rand.real() * 1000000.0) == firstReal, "seed makes the shared functions repeat");
     bool sharedOk = true;
     for _ in 0..1000 {
-        int v = rand.between(10, 12);
-        if v < 10 || v > 12 || rand.below(5) >= 5 {
+        int v = rand.range(10..=12);
+        if v < 10 || v > 12 || rand.range(0..5) >= 5 {
             sharedOk = false;
         }
     }
-    check(sharedOk && rand.below(0) == 0, "the shared functions stay in range");
+    check(sharedOk, "the shared functions stay in range");
     [10]int deck;
     for i in 0..10 {
         deck[i] = i;
@@ -1202,10 +1222,45 @@ func main() {
     }
     check(sum == 45, "the shared shuffle keeps every element");
     rand.Generator lazy;
-    int v = lazy.below(100);
+    int v = lazy.range(0..100);
     check(v >= 0 && v < 100, "a generator declared without generator seeds itself");
 }
-`, expected: []string{"xoshiro256** with a seed of 42 gives the reference value", "the same seed gives the same sequence", "another seed gives another sequence", "seed starts the sequence again", "below stays in range and spreads evenly", "below of nothing is zero", "between includes both ends", "between with no room returns low", "real is in [0, 1) and averages one half", "flip is fair", "fill writes every byte, whatever the length", "shuffle keeps every element and changes the order", "seed makes the shared functions repeat", "the shared functions stay in range", "the shared shuffle keeps every element", "a generator declared without generator seeds itself"}},
+`, expected: []string{"xoshiro256** with a seed of 42 gives the reference value", "the same seed gives the same sequence", "another seed gives another sequence", "seed starts the sequence again", "range stays in range and spreads evenly", "a range of one value gives it", "a closed range includes both ends", "a closed range of one number gives it", "range counts its step, up and down", "range works with negative numbers", "real is in [0, 1) and averages one half", "flip is fair", "fill writes every byte, whatever the length", "shuffle keeps every element and changes the order", "seed makes the shared functions repeat", "the shared functions stay in range", "the shared shuffle keeps every element", "a generator declared without generator seeds itself"}},
+
+	{dir: "abort_rand_empty", src: `import "std/rand";
+
+func main() {
+    check(rand.range(0..3) < 3, "range accepts a range with values");
+    int n = 0;
+    check(rand.range(n..n) == 0, "range never returns for an empty range");
+}
+`, expected: []string{"range accepts a range with values"}, abort: "panic: rand.range: the range has no values"},
+
+	{dir: "abort_rand_reversed", src: `import "std/rand";
+
+func main() {
+    check(rand.range(2..=2) == 2, "range accepts one value");
+    int low = 9;
+    check(rand.range(low..2) == 0, "range never returns for a reversed range");
+}
+`, expected: []string{"range accepts one value"}, abort: "panic: rand.range: the range has no values"},
+
+	{dir: "range_at", src: `func main() {
+    Range<int> a = 1..=6;
+    check(a.at(0) == 1 && a.at(5) == 6, "at counts from the start of a range");
+    Range<int> b = (0..100).step(10);
+    check(b.at(3) == 30 && b.at(b.count() - 1) == 90, "at follows the step");
+    Range<int> c = (10..=1).step(-3);
+    check(c.at(0) == 10 && c.at(3) == 1, "at follows a step that counts down");
+    Range<uint8> d = 250..=255;
+    check(d.at(5) == 255, "at works for narrow types");
+    Range<int> e = -5..5;
+    check(e.at(0) == -5 && e.at(9) == 4, "at works for negative starts");
+    check((0..5).at(4) == 4, "at on a range literal");
+    int n = 7;
+    check(a.at(n) == 0, "at never returns for a position outside the range");
+}
+`, expected: []string{"at counts from the start of a range", "at follows the step", "at follows a step that counts down", "at works for narrow types", "at works for negative starts", "at on a range literal"}, abort: "panic: the position is outside the range"},
 
 	{dir: "strings_split", src: `import "std/mem";
 import "std/strings";

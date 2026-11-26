@@ -1345,7 +1345,7 @@ func TestRangeInLSP(t *testing.T) {
 
 func TestStdModulesOpenedAsFiles(t *testing.T) {
 	c := start(t)
-	for _, name := range []string{"mem/mem.wsp", "mem/debug.wsp", "mem/arena.wsp"} {
+	for _, name := range []string{"mem/mem.wsp", "mem/debug.wsp", "mem/arena.wsp", "seq/vec.wsp", "io/io.wsp", "io/adapters.wsp", "strings/builder.wsp", "os/file.wsp", "rand.wsp", "time/duration.wsp"} {
 		path := filepath.Join(repoRoot(), "std", filepath.FromSlash(name))
 		data, err := os.ReadFile(path)
 		if err != nil {

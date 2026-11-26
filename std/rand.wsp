@@ -4,7 +4,7 @@ import "std/time";
 /// A sequence of pseudo-random numbers of its own, xoshiro256**: fast, with a
 /// period of 2^256, and good for games, tests, simulations and shuffling. It is
 /// not for secrets: anyone who sees a few outputs can predict the rest. The
-/// functions of this module (`below`, `between`...) use one shared generator; make
+/// functions of this module (`range`, `real`...) use one shared generator; make
 /// a `Generator` with `generator` when you need a sequence that nothing else
 /// disturbs and that repeats for the same seed. One declared without it seeds
 /// itself from the clock the first time it is used. Not safe to share between
@@ -54,10 +54,7 @@ public func (*Generator r) next() uint {
 	return result;
 }
 
-/// Returns a number from 0 up to but not including `n`, every one equally
-/// likely. For `n` of zero or less it returns 0.
-public func (*Generator r) below(int n) int {
-	return 0 if n <= 0;
+func (*Generator r) below(int n) int {
 	uint bound = uint(n);
 	uint threshold = (0 -% bound) % bound;
 	loop {
@@ -66,13 +63,16 @@ public func (*Generator r) below(int n) int {
 	}
 }
 
-/// Returns a number from `low` to `high`, both included, every one equally
-/// likely. When `high` is below `low` it returns `low`.
-public func (*Generator r) between(int low, int high) int {
-	return low if high <= low;
-	int span = high - low + 1;
-	return int(r.next()) if span <= 0;
-	return low + r.below(span);
+/// Returns one of the values of `values`, every one equally likely, counting its
+/// step: `range(1..=6)` is a die, `range(0..len(items))` is an index, and
+/// `range((0..100).step(10))` is a multiple of ten. Panics when the range has no
+/// values, as `5..5` or `9..2`, and when it has more than 2^63 - 1 of them.
+public func (*Generator r) range(Range<int> values) int {
+	int n = values.count();
+	if n <= 0 {
+		panic("rand.range: the range has no values");
+	}
+	return values.at(r.below(n));
 }
 
 /// Returns a float from 0 up to but not including 1, with 53 random bits, so it is a
@@ -117,13 +117,11 @@ public func seed(uint s) => shared.seed(s);
 /// Returns 64 random bits from the shared generator.
 public inline func next() uint => shared.next();
 
-/// Returns a number from 0 up to but not including `n`, every one equally likely.
-/// For `n` of zero or less it returns 0.
-public inline func below(int n) int => shared.below(n);
-
-/// Returns a number from `low` to `high`, both included, every one equally likely.
-/// When `high` is below `low` it returns `low`.
-public inline func between(int low, int high) int => shared.between(low, high);
+/// Returns one of the values of `values`, every one equally likely, counting its
+/// step: `range(1..=6)` is a die, `range(0..len(items))` is an index, and
+/// `range((0..100).step(10))` is a multiple of ten. Panics when the range has no
+/// values, as `5..5` or `9..2`, and when it has more than 2^63 - 1 of them.
+public inline func range(Range<int> values) int => shared.range(values);
 
 /// Returns a float from 0 up to but not including 1.
 public inline func real() float => shared.real();

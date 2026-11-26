@@ -2,7 +2,7 @@
 // Tour - Random numbers.
 //
 // `std/rand` draws numbers from a pseudo-random generator. The functions of the
-// module, `below`, `between`, `real`, `flip`, `fill` and `shuffle`, all use one
+// module, `range`, `real`, `flip`, `fill` and `shuffle`, all use one
 // generator that the module keeps. It seeds itself from the clock the first
 // time, so every run is different, and `rand.seed(n)` starts it from a number
 // you choose, so every run is the same.
@@ -14,20 +14,23 @@
 // It is made for games, tests and shuffling, and it is not safe for secrets:
 // someone who sees a few of its numbers can work out the rest.
 //
-// `below(n)` is a number from 0 to n - 1, `between(a, b)` includes both ends,
-// `real` is a float from 0 up to but not including 1, `flip` is a coin, `fill`
-// writes random bytes, and `shuffle` puts a slice in a random order.
+// `range` takes a range, the same one `for` uses, and gives one of its values:
+// `range(1..=6)` is a die, `range(0..len(items))` is an index, and a step counts
+// too, so `range((0..100).step(10))` is a multiple of ten. A range with no
+// values, such as `5..5`, stops the program. `real` is a float from 0 up to but
+// not including 1, `flip` is a coin, `fill` writes random bytes, and `shuffle`
+// puts a slice in a random order.
 
 import "std/fmt";
 import "std/rand";
 
 public func demo() {
 	rand.seed(2024);
-	fmt.println("three rolls: {}, {}, {}", rand.between(1, 6), rand.between(1, 6), rand.between(1, 6));
+	fmt.println("three rolls: {}, {}, {}", rand.range(1..=6), rand.range(1..=6), rand.range(1..=6));
 	rand.seed(2024);
-	fmt.println("the same seed rolls {} first again", rand.between(1, 6));
+	fmt.println("the same seed rolls {} first again", rand.range(1..=6));
 
-	fmt.println("below(100): {}, real: {:.4f}, flip: {}", rand.below(100), rand.real(), rand.flip());
+	fmt.println("range(0..100): {}, real: {:.4f}, flip: {}", rand.range(0..100), rand.real(), rand.flip());
 
 	[6]int cards = .{1, 2, 3, 4, 5, 6};
 	rand.shuffle(cards[..]);
@@ -35,6 +38,7 @@ public func demo() {
 
 	rand.Generator mine = rand.generator(7);
 	rand.Generator twin = rand.generator(7);
-	fmt.println("two generators with one seed agree: {}", mine.below(1000) == twin.below(1000));
+	fmt.println("two generators with one seed agree: {}", mine.range(0..1000) == twin.range(0..1000));
+	fmt.println("steps count: {}, and negative ranges work: {}", rand.range((0..100).step(10)) % 10 == 0, rand.range(-5..0) < 0);
 	mine.shuffle(cards[..]);
 }

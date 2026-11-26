@@ -98,6 +98,16 @@ public func (Range<T> r) count() int {
 	return int(span / uint64(-by)) + 1;
 }
 
+/// The value the range visits at position i, counting from 0, so r.at(0) is the
+/// start and r.at(r.count() - 1) is the last one. Panics when i is outside the
+/// range.
+public func (Range<T> r) at(int i) T {
+	if i < 0 || i >= r.count() {
+		panic("the position is outside the range");
+	}
+	return truncate(T, truncate(uint64, r.start) +% truncate(uint64, i) *% truncate(uint64, r.stride()));
+}
+
 /// The next value of the walk, or null when it is over.
 public func (*RangeIter<T> it) next() ?T {
 	if it.done {
