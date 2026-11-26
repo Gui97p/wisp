@@ -622,6 +622,26 @@ func TestAnInterfaceIsNeverNull(t *testing.T) {
 	}
 }
 
+func TestCompletionInsideAnArrowBody(t *testing.T) {
+	c := start(t)
+	head := "struct Builder {\n\t[]byte bytes;\n\tint size;\n}\n\n"
+	cases := []struct{ name, body string }{
+		{"a method with a prefix", "public inline func (*Builder b) text() string => string(b.by¦);\n"},
+		{"a method after the dot", "public inline func (*Builder b) text() string => string(b.¦);\n"},
+		{"a plain result", "public inline func (*Builder b) len() int => b.si¦;\n"},
+		{"inside an index", "public inline func (*Builder b) text() string => string(b.bytes[..b.si¦]);\n"},
+		{"a lambda", "func make(*Builder b) () => int {\n\treturn () int => b.si¦;\n}\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := c.open(map[string]string{"main.wsp": head + tc.body}).completion()
+			if !slices.Contains(got, "bytes") && !slices.Contains(got, "size") {
+				t.Errorf("the fields are not offered: %v", got)
+			}
+		})
+	}
+}
+
 func TestSemanticTokensGenerics(t *testing.T) {
 	c := start(t)
 	src := "struct Pair<A, B> {\n\tA first;\n\tB second;\n}\n\nfunc swap<A, B>(Pair<A, B> p) Pair<B, A> {\n\treturn Pair<B, A>{first: p.second, second: p.first};\n}\n\nfunc main() {\n\tPair<int, string> p = Pair<int, string>{first: 1, second: \"a\"};\n\tPair<string, int> q = swap(p);\n}\n"

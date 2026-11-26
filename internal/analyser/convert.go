@@ -322,6 +322,9 @@ func decaysTo(from, to Type) bool {
 		element = f.Element
 	case SpanType:
 		element = f.Element
+	case PrimitiveType:
+		_, toVoid := pointer.Element.(VoidType)
+		return f.Name == "string" && toVoid
 	default:
 		return false
 	}

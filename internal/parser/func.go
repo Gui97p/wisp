@@ -272,6 +272,8 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 			stmt.SetPos(line, col)
 			stmt.SetEndPos(p.currentEnd())
 			decl.Body = &ast.BlockStmt{Statements: []ast.Statement{stmt}}
+			decl.Body.SetPos(line, col)
+			decl.Body.SetEndPos(p.currentEnd())
 		}
 	} else {
 		if !p.expect(lexer.TOKEN_LBRACE) {

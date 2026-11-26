@@ -14412,6 +14412,81 @@ func main() ! {
     check(rest == 70 && past == null, "it ends with null");
 }
 `, expected: []string{"for walks every element of a list", "the index counts from zero", "an empty list runs the body zero times", "the elements can be structs", "the elements are copies, the list is not changed", "iter gives an iterator that can be used by hand", "it ends with null"}},
+	{dir: "strings_builder", src: `import "std/errors";
+import "std/io";
+import "std/mem";
+import "std/strings";
+
+func main() ! {
+    strings.Builder b;
+    io.writeString(&b, "hello")!;
+    io.writeByte(&b, ' ')!;
+    io.writeString(&b, "world")!;
+    check(b.text() == "hello world" && b.len() == 11, "a builder collects what is written");
+
+    int written = b.write([]byte("!!"))!;
+    check(written == 2 && b.text() == "hello world!!", "write returns the length it took");
+
+    b.reset();
+    check(b.len() == 0 && b.text() == "", "reset empties it");
+    io.writeString(&b, "again")!;
+    check(b.text() == "again", "and it can be used again");
+
+    strings.Builder big;
+    for i in 0..1000 {
+        io.writeString(&big, "0123456789")!;
+    }
+    check(big.len() == 10000 && big.text()[9999] == '9' && big.text()[10] == '0', "it grows as much as needed");
+    big.release();
+    check(big.len() == 0, "release leaves it empty");
+
+    mem.Counting counting;
+    strings.Builder counted = strings.builder(&counting);
+    counted.reserve(100)!;
+    check(counting.blocks() == 1, "reserve takes the memory once");
+    for i in 0..50 {
+        io.writeString(&counted, "ab")!;
+    }
+    check(counting.blocks() == 1 && counted.len() == 100, "writes that fit do not allocate again");
+    counted.release();
+    check(counting.blocks() == 0, "release gives it all back");
+
+    [64]byte store;
+    mem.Fixed fixed = mem.fixed(store);
+    strings.Builder small = strings.builder(&fixed);
+    let _, tooMuch = small.write([]byte("0123456789012345678901234567890123456789012345678901234567890123456789"));
+    check(tooMuch == errors.Kind.NoSpace && small.len() == 0, "a write that does not fit changes nothing");
+    io.writeString(&small, "fits")!;
+    check(small.text() == "fits", "and the builder is still usable");
+
+    strings.Builder kept;
+    io.writeString(&kept, "kept text")!;
+    string mine = kept.take();
+    check(mine == "kept text" && kept.len() == 0, "take hands the text over and empties the builder");
+    io.writeString(&kept, "next")!;
+    check(mine == "kept text" && kept.text() == "next", "the taken text does not change when the builder is used again");
+    mem.free(mem.heap, mine);
+    kept.release();
+    strings.Builder nothing;
+    check(nothing.take() == "", "an empty builder gives an empty string");
+
+    mem.Counting owner;
+    strings.Builder owned = strings.builder(&owner);
+    io.writeString(&owned, "owned by the caller")!;
+    string taken = owned.take();
+    check(owner.blocks() == 1, "the block is still allocated after take");
+    mem.free(&owner, taken);
+    check(owner.blocks() == 0, "and the caller frees it through the same allocator");
+
+    strings.Builder a;
+    strings.Builder c;
+    io.writeString(&a, "left")!;
+    io.writeString(&c, "right")!;
+    check(a.text() == "left" && c.text() == "right", "two builders do not share anything");
+    a.release();
+    c.release();
+}
+`, expected: []string{"a builder collects what is written", "write returns the length it took", "reset empties it", "and it can be used again", "it grows as much as needed", "release leaves it empty", "reserve takes the memory once", "writes that fit do not allocate again", "release gives it all back", "a write that does not fit changes nothing", "and the builder is still usable", "take hands the text over and empties the builder", "the taken text does not change when the builder is used again", "an empty builder gives an empty string", "the block is still allocated after take", "and the caller frees it through the same allocator", "two builders do not share anything"}},
 	{dir: "vec_basic", src: `import "std/seq";
 
 struct Pair {

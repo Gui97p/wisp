@@ -1,0 +1,49 @@
+import "std/io";
+import "std/mem";
+import "std/seq";
+
+/// Collects text as it is written, growing as needed. It is an `io.Writer`, so
+/// `io.writeString(&b, "text")` and `fmt.fprintf(&b, "...")` write into it, and
+/// `text()` gives the result as a string for the rest of this module. The zero
+/// value is empty and ready, and takes its memory from the heap; make one with
+/// `builder(a)` to take it from another allocator. Call `release` when done with
+/// it, or `take` to keep the text.
+public struct Builder implements io.Writer {
+	seq.Vec<byte> bytes;
+}
+
+/// Returns an empty builder that takes its memory from `parent`.
+public inline func builder(mem.Allocator parent) Builder => .{bytes: seq.vec<byte>(parent)};
+
+/// Adds all of `data` at the end and returns its length. When the memory cannot
+/// grow it fails with the error of the allocator and the builder is left as it
+/// was.
+public func (*Builder b) write([]byte data) !int {
+	b.bytes.extend(data)!;
+	return len(data);
+}
+
+/// Makes room for `n` more bytes, so that the next writes up to that size cannot
+/// fail and do not allocate again.
+public inline func (*Builder b) reserve(int n) ! => b.bytes.reserve(n)!;
+
+/// The text collected so far. It points into the builder, so it is valid only
+/// until the next write, `reset`, `take` or `release`. Any function that reads a
+/// string, such as `indexOf`, `trim` or `splitter`, works on it.
+public inline func (*Builder b) text() string => string(b.bytes.items);
+
+/// How many bytes have been collected.
+public inline func (*Builder b) len() int => b.bytes.len();
+
+/// Forgets the text and keeps the memory for the next one.
+public inline func (*Builder b) reset() => b.bytes.clear();
+
+/// Hands the text to the caller and leaves the builder empty, with no memory.
+/// Nothing is copied: the string is the block the builder had, so its owner
+/// frees it with `mem.free`, using the allocator the builder took it from (the
+/// heap for a zero value), or leaves it to an arena or a `Fixed`. An empty
+/// builder gives an empty string.
+public inline func (*Builder b) take() string => string(b.bytes.take());
+
+/// Gives the memory back. The builder is empty afterwards and can be used again.
+public inline func (*Builder b) release() => b.bytes.release();

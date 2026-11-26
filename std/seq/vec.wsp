@@ -146,6 +146,17 @@ public func (*Vec<T> l) release() {
 	l.cap = 0;
 }
 
+/// Hands the elements to the caller and leaves the list empty, with no memory.
+/// Nothing is copied: the slice is the block the list had, so its owner frees it
+/// with `mem.free`, using the allocator the list took it from, or leaves it to an
+/// arena or a `Fixed`. A list that never held anything gives an empty slice.
+public func (*Vec<T> l) take() []T {
+	[]T all = l.items;
+	l.items = .{};
+	l.cap = 0;
+	return all;
+}
+
 /// Walks the elements of a `Vec` from the first to the last. Get one from `iter`,
 /// or let `for` do it. It keeps the elements the list had when it was made, so
 /// adding to the list while walking it is not seen, and may move the elements.

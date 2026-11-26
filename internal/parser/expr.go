@@ -285,6 +285,8 @@ func (p *Parser) parseFuncLiteral() ast.Expression {
 		stmt.SetPos(line, col)
 		stmt.SetEndPos(p.currentEnd())
 		lit.Block = &ast.BlockStmt{Statements: []ast.Statement{stmt}}
+		lit.Block.SetPos(line, col)
+		lit.Block.SetEndPos(p.currentEnd())
 	}
 
 	return lit
