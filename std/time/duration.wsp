@@ -1,0 +1,105 @@
+import "std/conv";
+import "std/fmt";
+import "std/io";
+
+/// A length of time, counted in nanoseconds. It is an `int` underneath, so
+/// durations add, subtract and compare, and a number multiplies them: `3 *
+/// Second`. Written with `{}` it reads as `250ms`, `1.5s` or `1h2m3s`.
+public type Duration int implements fmt.Display;
+
+public const {
+	/// One nanosecond, the unit every `Duration` counts in.
+	Duration Nanosecond = 1;
+	/// A thousand nanoseconds.
+	Duration Microsecond = 1_000;
+	/// A thousand microseconds.
+	Duration Millisecond = 1_000_000;
+	/// A thousand milliseconds.
+	Duration Second = 1_000_000_000;
+	/// Sixty seconds.
+	Duration Minute = 60_000_000_000;
+	/// Sixty minutes.
+	Duration Hour = 3_600_000_000_000;
+}
+
+/// The duration in whole nanoseconds.
+public inline func (Duration d) nanoseconds() int => int(d);
+
+/// The duration in whole microseconds, rounded toward zero.
+public inline func (Duration d) microseconds() int => int(d) / 1_000;
+
+/// The duration in whole milliseconds, rounded toward zero.
+public inline func (Duration d) milliseconds() int => int(d) / 1_000_000;
+
+/// The duration in seconds, with the fraction.
+public inline func (Duration d) seconds() float => float(int(d)) / 1e9;
+
+/// The duration in minutes, with the fraction.
+public inline func (Duration d) minutes() float => float(int(d)) / 6e10;
+
+/// The duration in hours, with the fraction.
+public inline func (Duration d) hours() float => float(int(d)) / 3.6e12;
+
+func fraction(io.Writer w, uint mag, uint unit, int digits) ! {
+	conv.writeUint(w, mag / unit, 10, false)!;
+	uint frac = mag % unit;
+	return if frac == 0;
+
+	[9]byte text;
+	uint rest = frac;
+	for i in (digits - 1..=0).step(-1) {
+		text[i] = byte(rest % 10) + '0';
+		rest /= 10;
+	}
+	int end = digits;
+	loop text[end - 1] == '0' {
+		end--;
+	}
+	io.writeByte(w, '.')!;
+	io.writeString(w, string(text[..end]))!;
+}
+
+/// Writes the duration with its largest units: `0s`, `850ns`, `1.5us`, `250ms`,
+/// `1.5s`, `3m20s`, `1h0m5s`. A negative duration starts with `-`. It takes no
+/// spec, so `{}` is the only way to print it.
+public func (Duration d) display(io.Writer w) ! {
+	int n = int(d);
+	if n == 0 {
+		io.writeString(w, "0s")!;
+		return;
+	}
+	uint mag = n < 0 ? uint(-(n + 1)) + 1 : uint(n);
+	if n < 0 {
+		io.writeByte(w, '-')!;
+	}
+
+	if mag < 1_000 {
+		fraction(w, mag, 1, 1)!;
+		io.writeString(w, "ns")!;
+		return;
+	}
+	if mag < 1_000_000 {
+		fraction(w, mag, 1_000, 3)!;
+		io.writeString(w, "us")!;
+		return;
+	}
+	if mag < 1_000_000_000 {
+		fraction(w, mag, 1_000_000, 6)!;
+		io.writeString(w, "ms")!;
+		return;
+	}
+
+	uint hours = mag / 3_600_000_000_000;
+	uint rest = mag % 3_600_000_000_000;
+	uint minutes = rest / 60_000_000_000;
+	if hours > 0 {
+		conv.writeUint(w, hours, 10, false)!;
+		io.writeByte(w, 'h')!;
+	}
+	if hours > 0 || minutes > 0 {
+		conv.writeUint(w, minutes, 10, false)!;
+		io.writeByte(w, 'm')!;
+	}
+	fraction(w, rest % 60_000_000_000, 1_000_000_000, 9)!;
+	io.writeByte(w, 's')!;
+}

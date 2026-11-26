@@ -17,9 +17,37 @@ public func ticks() int {
 	return toNs(s, ns);
 }
 
-/// Blocks the program for `ms` milliseconds. Fails with `Interrupted` if a
-/// signal ends the wait early.
-public func sleep(int ms) ! {
-	int r = sys.sleep(ms / 1000, (ms % 1000) * 1_000_000);
+/// Blocks the program for `d`. A zero or negative duration returns at once.
+/// Fails with `Interrupted` if a signal ends the wait early.
+public func sleep(Duration d) ! {
+	return if d <= 0;
+	int r = sys.sleep(int(d / Second), int(d % Second));
 	return Error(errors.Kind.Interrupted) if r < 0;
+}
+
+/// Measures how long something takes, on the monotonic clock. Make one with
+/// `stopwatch`, which starts it; a `Stopwatch` declared without it counts from an
+/// arbitrary moment.
+public struct Stopwatch {
+	int began;
+}
+
+/// Returns a stopwatch that starts now.
+public inline func stopwatch() Stopwatch => .{began: ticks()};
+
+/// The time since the stopwatch started or was last reset.
+public inline func (*Stopwatch s) elapsed() Duration => Duration(ticks() - s.began);
+
+/// Starts counting again from now.
+public func (*Stopwatch s) reset() {
+	s.began = ticks();
+}
+
+/// Returns the time since the stopwatch started or was last reset, and starts
+/// counting again from the same instant, so laps add up to the whole time.
+public func (*Stopwatch s) lap() Duration {
+	int now = ticks();
+	Duration took = Duration(now - s.began);
+	s.began = now;
+	return took;
 }

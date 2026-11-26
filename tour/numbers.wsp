@@ -1,0 +1,58 @@
+#standalone
+// Tour - Reading and writing numbers.
+//
+// `std/conv` turns text into numbers and numbers into text. It never hides a
+// failure: a text that is not a number is an `Invalid` error, and a number that
+// does not fit is `Overflow`.
+//
+// Reading takes a `string`. `parseInt` and `parseUint` take a base from 2 to 36,
+// `atoi` and `atou` are the base 10 forms, and `parseFloat` reads a decimal
+// number with a point and an exponent, or `inf` and `nan`. The result is the
+// float nearest to the text, so what `println` writes reads back as the same
+// number.
+//
+// Writing comes in two shapes. `write*` puts the text in anything that can be
+// written to (`writeInt`, `writeUint`, `writeFloat`, `writeFixed`, `writeExp`),
+// and returns how many bytes it wrote. `format*` and the short forms `itoa`,
+// `utoa` and `ftoa` return a new string made with the allocator you give, which
+// you free with `mem.free`. Both take the base where there is one.
+//
+// For everyday text, `fmt` is shorter: `{:x}` is `formatInt(a, n, 16, false)`.
+
+import "std/conv";
+import "std/errors";
+import "std/fmt";
+import "std/mem";
+import "std/strings";
+
+public func demo() {
+	// Reading integers: any base, a sign, and the two ways to fail.
+	fmt.println("atoi: {}, parseInt of ff in base 16: {}, of -101 in base 2: {}", conv.atoi("1234")!!, conv.parseInt("ff", 16)!!, conv.parseInt("-101", 2)!!);
+	let _, notNumber = conv.atoi("12x");
+	let _, tooBig = conv.atoi("99999999999999999999");
+	fmt.println("12x is invalid: {}, a huge number overflows: {}", notNumber == errors.Kind.Invalid, tooBig == errors.Kind.Overflow);
+
+	// Reading floats.
+	fmt.println("{}, {}, {}, {}", conv.parseFloat("0.1")!!, conv.parseFloat("-2.5e3")!!, conv.parseFloat("1e-7")!!, conv.parseFloat("inf")!!);
+	let _, hex = conv.parseFloat("0x10");
+	let _, huge = conv.parseFloat("1e309");
+	fmt.println("0x10 is not a float: {}, 1e309 is too large: {}", hex == errors.Kind.Invalid, huge == errors.Kind.Overflow);
+
+	// Writing into a string made with an allocator.
+	mem.Arena arena;
+	defer arena.release();
+	fmt.println("itoa {}, hex {}, binary {}, fixed {}, scientific {}",
+		conv.itoa(&arena, -42)!!,
+		conv.formatInt(&arena, 255, 16, true)!!,
+		conv.formatUint(&arena, 10, 2, false)!!,
+		conv.formatFixed(&arena, 3.14159, 2)!!,
+		conv.formatExp(&arena, 1500.0, 1, false)!!);
+
+	// Writing into a builder, which is how a line is made piece by piece.
+	strings.Builder line;
+	defer line.release();
+	conv.writeInt(&line, 7, 10, false)!!;
+	conv.writeFloat(&line, 0.5)!!;
+	conv.writeFixed(&line, 2.0, 3)!!;
+	fmt.println("a builder holds {}", line.text());
+}

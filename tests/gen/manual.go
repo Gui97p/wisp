@@ -1032,6 +1032,144 @@ func main() {
 }
 `},
 
+	{dir: "time_duration", src: `import "std/fmt";
+import "std/math";
+import "std/mem";
+import "std/strings";
+import "std/time";
+
+func shown(*strings.Builder b, time.Duration d) string {
+    b.reset();
+    fmt.format(b, "{}", d) ?? 0;
+    return b.text();
+}
+
+func main() {
+    [256]byte store;
+    mem.Fixed room = mem.fixed(store[..]);
+    strings.Builder b = strings.builder(&room);
+
+    check(shown(&b, 0) == "0s", "zero is 0s");
+    check(shown(&b, 850 * time.Nanosecond) == "850ns" && shown(&b, 1500 * time.Nanosecond) == "1.5us", "small durations use ns and us");
+    check(shown(&b, 250 * time.Millisecond) == "250ms" && shown(&b, 1234567) == "1.234567ms", "milliseconds keep their fraction");
+    check(shown(&b, 1500 * time.Millisecond) == "1.5s" && shown(&b, 2 * time.Second + 5) == "2.000000005s", "seconds keep their fraction");
+    check(shown(&b, 200 * time.Second) == "3m20s" && shown(&b, time.Hour + 5 * time.Second) == "1h0m5s" && shown(&b, 26 * time.Hour) == "26h0m0s", "minutes and hours are written out");
+    check(shown(&b, -3 * time.Second) == "-3s" && shown(&b, -250 * time.Millisecond) == "-250ms", "a negative duration starts with a sign");
+    check(shown(&b, time.Duration(math.MIN_INT)) == "-2562047h47m16.854775808s", "the smallest duration is written whole");
+
+    time.Duration d = 90 * time.Second;
+    check(d.seconds() == 90.0 && d.minutes() == 1.5 && d.milliseconds() == 90000 && d.microseconds() == 90000000 && d.nanoseconds() == 90000000000, "the unit conversions");
+    check(time.Hour.hours() == 1.0 && time.Minute == 60 * time.Second && time.Second == 1000 * time.Millisecond, "the constants are in the right units");
+
+    time.Stopwatch w = time.stopwatch();
+    time.sleep(15 * time.Millisecond)!!;
+    time.Duration first = w.lap();
+    time.sleep(1 * time.Millisecond)!!;
+    time.Duration second = w.elapsed();
+    check(first >= 15 * time.Millisecond && first < 5 * time.Second, "elapsed counts at least the time slept");
+    check(second >= time.Millisecond && second < first + 5 * time.Second, "lap starts counting again");
+    w.reset();
+    check(w.elapsed() < 5 * time.Second, "reset starts again");
+    time.sleep(-time.Second)!!;
+    time.sleep(0)!!;
+    check(true, "sleep of nothing returns at once");
+}
+`, expected: []string{"zero is 0s", "small durations use ns and us", "milliseconds keep their fraction", "seconds keep their fraction", "minutes and hours are written out", "a negative duration starts with a sign", "the smallest duration is written whole", "the unit conversions", "the constants are in the right units", "elapsed counts at least the time slept", "lap starts counting again", "reset starts again", "sleep of nothing returns at once"}},
+
+	{dir: "io_read_all", src: `import "std/io";
+import "std/mem";
+
+struct Chunks implements io.Reader {
+    int left;
+    byte fill;
+}
+
+func (*Chunks c) read([]byte buf) !?int {
+    return null if c.left == 0;
+    int n = len(buf) < 7 ? len(buf) : 7;
+    if n > c.left {
+        n = c.left;
+    }
+    for i in 0..n {
+        buf[i] = c.fill;
+    }
+    c.left -= n;
+    return n;
+}
+
+func main() {
+    Chunks small = Chunks{left: 20, fill: 'a'};
+    []byte data = io.readAll(mem.heap, &small)!!;
+    check(len(data) == 20 && data[0] == 'a' && data[19] == 'a', "readAll reads a source that gives short pieces");
+    mem.free(mem.heap, data);
+
+    Chunks big = Chunks{left: 1000, fill: 'b'};
+    []byte grown = io.readAll(mem.heap, &big)!!;
+    check(len(grown) == 1000 && grown[999] == 'b', "readAll grows past its first block");
+    mem.free(mem.heap, grown);
+
+    Chunks none = Chunks{left: 0, fill: 'c'};
+    []byte empty = io.readAll(mem.heap, &none)!!;
+    check(len(empty) == 0, "readAll of an empty source is empty");
+    mem.free(mem.heap, empty);
+
+    Chunks text = Chunks{left: 5, fill: 'x'};
+    string s = io.readAllString(mem.heap, &text)!!;
+    check(s == "xxxxx", "readAllString gives the text");
+    mem.free(mem.heap, s);
+
+    Chunks exact = Chunks{left: 10, fill: 'd'};
+    [10]byte whole;
+    check(io.readFull(&exact, whole[..])!! == 10, "readFull fills the buffer");
+}
+`, expected: []string{"readAll reads a source that gives short pieces", "readAll grows past its first block", "readAll of an empty source is empty", "readAllString gives the text", "readFull fills the buffer"}},
+
+	{dir: "generic_qualified_bound", files: map[string]string{"pool/pool.wsp": `import "std/mem";
+
+public interface Source {
+    func next() ?int;
+}
+
+public func drain<mem.Allocator A, Source S>(A a, S s) !int {
+    *void spare = a.alloc(8)!;
+    mem.free(a, spare);
+    int total = 0;
+    loop s.next() |n| {
+        total += n;
+    }
+    return total;
+}
+
+public func fill<mem.Allocator A>(A a, int n) ![]int {
+    []int items = mem.make<int>(a, n)!;
+    for i in 0..n {
+        items[i] = i;
+    }
+    return items;
+}
+`}, src: `import "pool";
+import "std/mem";
+
+struct Count implements pool.Source {
+    int left;
+}
+
+func (*Count c) next() ?int {
+    return null if c.left == 0;
+    c.left--;
+    return c.left;
+}
+
+func main() {
+    [512]byte store;
+    mem.Fixed room = mem.fixed(store[..]);
+    Count c = Count{left: 4};
+    check(pool.drain(&room, &c)!! == 6, "a generic of another module with a qualified bound is instantiated");
+    []int items = pool.fill(&room, 3)!!;
+    check(len(items) == 3 && items[2] == 2, "a generic signature naming another module's type resolves");
+}
+`, expected: []string{"a generic of another module with a qualified bound is instantiated", "a generic signature naming another module's type resolves"}},
+
 	{dir: "internal_package", files: map[string]string{"shapes/shapes.wsp": `import "shapes/deep";
 
 public func boxArea(int w) int {

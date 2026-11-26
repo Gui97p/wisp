@@ -5,7 +5,7 @@
 // What each page teaches, in the order they run:
 //
 //   basics        constants, variables, operators
-//   printing      fmt: printf and its format specs
+//   printing      fmt: print, println and the `{:spec}` format
 //   branching     if, switch (exhaustive on enums), guards `return x if c;`,
 //                 blocks `{ }`, blocks that give a value, labeled blocks
 //   loops         for, loop, ranges, labels, break and continue
@@ -20,6 +20,8 @@
 //   overflow      `+ - *` stop on overflow, `+% -% *%` wrap, `+| -| *|` clamp, `truncate`, `saturate`
 //   compiletime   `sizeof`, `alignof`, `offsetof`, `staticAssert`, `static { }` blocks
 //   floats        float32 and float64, formatting
+//   numbers       std/conv: reading and writing numbers
+//   time          std/time: Duration, Stopwatch, the clocks
 //   structs       structs, methods, literals
 //   literals      `T{...}`, `.{...}`, `[_]`: how every value is written
 //   generics      `<T>` on functions, structs and methods, value parameters, `switch type` on `T`
@@ -69,6 +71,7 @@ import "lambdas";
 import "literals";
 import "loops";
 import "memory";
+import "numbers";
 import "optionals";
 import "overflow";
 import "platform";
@@ -76,6 +79,7 @@ import "pointers";
 import "printing";
 import "structs";
 import "tags";
+import "time";
 import "types";
 import "variadics";
 import "variants";
@@ -127,6 +131,12 @@ func main() !int {
 
 	fmt.println("\n== floats ==");
 	floats.demo();
+
+	fmt.println("\n== numbers ==");
+	numbers.demo();
+
+	fmt.println("\n== time ==");
+	time.demo();
 
 	fmt.println("\n== structs ==");
 	structs.demo();

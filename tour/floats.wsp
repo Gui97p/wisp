@@ -7,7 +7,7 @@
 // into one where a float is expected.
 //
 // `fmt` prints a float with `{}` as the shortest text that reads back as the
-// same number (`2.5`, `0.1`, `100`), and with `{.2f}` or `{e}` when you want
+// same number (`2.5`, `0.1`, `100`), and with `{:.2f}` or `{:e}` when you want
 // to choose the digits. printing.wsp has the whole spec.
 
 import "std/fmt";

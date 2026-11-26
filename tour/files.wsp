@@ -7,10 +7,9 @@
 // slash, but the functions below do the same thing there.
 //
 // Anything that builds new text asks you for the memory: `paths.join` and
-// `paths.clean` write into a buffer you pass and give back a slice of it. The
-// buffer is yours, so it can live on the stack and nothing is allocated.
-// Anything that only looks at a path (`base`, `dir`, `ext`, `stem`) returns a
-// piece of the path itself.
+// `paths.clean` take an allocator and give back a new string, which an arena
+// frees all at once. Anything that only looks at a path (`base`, `dir`, `ext`,
+// `stem`) returns a piece of the path itself.
 //
 // Failures are errors, as everywhere else: a function that can fail is marked
 // with `!`, and `errors.Kind` says what went wrong.
