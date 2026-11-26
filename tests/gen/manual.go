@@ -1076,6 +1076,66 @@ func main() {
 }
 `, expected: []string{"zero is 0s", "small durations use ns and us", "milliseconds keep their fraction", "seconds keep their fraction", "minutes and hours are written out", "a negative duration starts with a sign", "the smallest duration is written whole", "the unit conversions", "the constants are in the right units", "elapsed counts at least the time slept", "lap starts counting again", "reset starts again", "sleep of nothing returns at once"}},
 
+	{dir: "io_adapters", src: `import "std/fmt";
+import "std/io";
+import "std/mem";
+import "std/strings";
+
+struct Chunks implements io.Reader {
+    int left;
+    byte fill;
+}
+
+func (*Chunks c) read([]byte buf) !?int {
+    return null if c.left == 0;
+    int n = len(buf) < 7 ? len(buf) : 7;
+    if n > c.left {
+        n = c.left;
+    }
+    for i in 0..n {
+        buf[i] = c.fill;
+    }
+    c.left -= n;
+    return n;
+}
+
+func main() {
+    [4096]byte store;
+    mem.Fixed room = mem.fixed(store[..]);
+
+    int wrote = fmt.format(&io.discard, "{} and {}", 42, "text")!!;
+    check(wrote == 11 && io.discard.dropped == 11, "discard drops what a format writes and counts it");
+    io.writeString(&io.discard, "more")!!;
+    check(io.discard.dropped == 15, "discard keeps counting");
+
+    Chunks source = Chunks{left: 100, fill: 'z'};
+    io.LimitReader limited = io.limitReader(&source, 20);
+    []byte got = io.readAll(&room, &limited)!!;
+    check(len(got) == 20 && limited.remaining() == 0, "limitReader stops at the limit");
+    check(source.left == 80, "limitReader leaves the rest of the source unread");
+    mem.free(&room, got);
+
+    Chunks short = Chunks{left: 5, fill: 'y'};
+    io.LimitReader roomy = io.limitReader(&short, 50);
+    []byte few = io.readAll(&room, &roomy)!!;
+    check(len(few) == 5 && roomy.remaining() == 45, "limitReader ends when the source ends first");
+    mem.free(&room, few);
+
+    Chunks nothing = Chunks{left: 9, fill: 'n'};
+    io.LimitReader zero = io.limitReader(&nothing, -3);
+    []byte none = io.readAll(&room, &zero)!!;
+    check(len(none) == 0 && nothing.left == 9, "a negative limit reads nothing");
+    mem.free(&room, none);
+
+    strings.Builder one = strings.builder(&room);
+    strings.Builder two = strings.builder(&room);
+    io.TeeWriter both = io.teeWriter(&one, &two);
+    check(fmt.fprint(&both, "x={} ", 7)!! == 4, "teeWriter returns the length once");
+    io.writeString(&both, "end")!!;
+    check(one.text() == "x=7 end" && two.text() == "x=7 end", "teeWriter writes the same bytes to both");
+}
+`, expected: []string{"discard drops what a format writes and counts it", "discard keeps counting", "limitReader stops at the limit", "limitReader leaves the rest of the source unread", "limitReader ends when the source ends first", "a negative limit reads nothing", "teeWriter returns the length once", "teeWriter writes the same bytes to both"}},
+
 	{dir: "io_read_all", src: `import "std/io";
 import "std/mem";
 

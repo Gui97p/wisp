@@ -1,0 +1,61 @@
+/// A writer that throws away what it is given and counts it, for when the
+/// output is not wanted but the writing must still happen, such as measuring
+/// how long a format would be. Use the one in `discard`.
+public struct Discard implements Writer {
+	/// How many bytes were thrown away.
+	public int dropped;
+}
+
+public Discard discard = .{};
+
+/// Drops `data`, adds its length to `dropped` and returns the length. It never
+/// fails.
+public func (*Discard d) write([]byte data) !int {
+	d.dropped += len(data);
+	return len(data);
+}
+
+/// A `Reader` that gives at most a fixed number of bytes of another one, and
+/// then reports the end of the stream. Build one with `limitReader`.
+public struct LimitReader implements Reader {
+	Reader source;
+	int left;
+}
+
+/// Returns a reader over `r` that stops after `n` bytes, or sooner if `r` ends.
+/// It does not touch the bytes of `r` past the limit. A negative `n` reads
+/// nothing.
+public inline func limitReader(Reader r, int n) LimitReader => .{source: r, left: n};
+
+/// Reads from the source, never more than what is left of the limit. Returns
+/// null once the limit is reached or the source ends.
+public func (*LimitReader l) read([]byte buf) !?int {
+	return null if l.left <= 0;
+	[]byte part = len(buf) > l.left ? buf[..l.left] : buf;
+	int n = l.source.read(part)! ?? return null;
+	l.left -= n;
+	return n;
+}
+
+/// The number of bytes the reader will still give, at most.
+public inline func (*LimitReader l) remaining() int => l.left > 0 ? l.left : 0;
+
+/// A `Writer` that sends everything to two writers, the first one and then the
+/// second. Build one with `teeWriter`.
+public struct TeeWriter implements Writer {
+	Writer first;
+	Writer second;
+}
+
+/// Returns a writer that writes to `a` and then to `b`, for keeping a copy of
+/// what goes to `a`, such as a log of the output.
+public inline func teeWriter(Writer a, Writer b) TeeWriter => .{first: a, second: b};
+
+/// Writes `data` to the first writer and then to the second, and returns its
+/// length. When the first fails, the second does not get it; when the second
+/// fails, the first already has it.
+public func (*TeeWriter t) write([]byte data) !int {
+	t.first.write(data)!;
+	t.second.write(data)!;
+	return len(data);
+}
