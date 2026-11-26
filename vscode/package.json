@@ -1,6 +1,6 @@
 {
-    "name": "wisp",
-    "displayName": "Wisp Language Support",
+    "name": "wisp-support",
+    "displayName": "Wisp Language Tools",
     "description": "Language support for Wisp: highlighting, diagnostics, completion, hover, rename, snippets and a file icon.",
     "version": "0.10.0",
     "publisher": "gui97",

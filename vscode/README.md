@@ -1,4 +1,4 @@
-# Wisp Language Support
+# Wisp Language Tools
 
 Language support for [Wisp](https://github.com/Gui97p/wisp), a personal compiled language written in Go. Wisp aims to give low-level control with a high-level feel, without a garbage collector. Source files use the `.wsp` extension.
 
