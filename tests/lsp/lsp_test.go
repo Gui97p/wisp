@@ -511,6 +511,83 @@ func TestDeferAcceptsAnErrorToPassUp(t *testing.T) {
 	}
 }
 
+func TestACallThatCanFailIsNotComparedDirectly(t *testing.T) {
+	c := start(t)
+	head := "func only() ! {\n\treturn Error(\"no\");\n}\n\nfunc more() !int {\n\treturn 1;\n}\n\n"
+	for _, expr := range []string{"only() == null", "only() != null", "null == only()", "more() == null"} {
+		var got []string
+		for _, d := range c.open(map[string]string{"main.wsp": head + "func main() {\n\tbool b = " + expr + ";\n}\n"}).diagnostics() {
+			if d.Severity == 1 {
+				got = append(got, d.Message)
+			}
+		}
+		if len(got) != 1 || !strings.Contains(got[0], "cannot be compared directly") {
+			t.Errorf("%s: %v", expr, got)
+		}
+	}
+	var clean []string
+	for _, d := range c.open(map[string]string{"main.wsp": head + "func main() {\n\tlet e = only();\n\tbool b = e == null;\n\tlet v, f = more();\n\tbool c = f == null && v == 1;\n}\n"}).diagnostics() {
+		if d.Severity == 1 {
+			clean = append(clean, d.Message)
+		}
+	}
+	if len(clean) != 0 {
+		t.Errorf("comparing the bound error: %v", clean)
+	}
+}
+
+func TestYieldLeavesBlocksAndBreakLeavesLoops(t *testing.T) {
+	c := start(t)
+	errorsOf := func(body string) []string {
+		var out []string
+		for _, d := range c.open(map[string]string{"main.wsp": body}).diagnostics() {
+			if d.Severity == 1 {
+				out = append(out, d.Message)
+			}
+		}
+		return out
+	}
+
+	good := "func main() {\n\tint n;\n\t:blk {\n\t\tfor i in 0..=3 {\n\t\t\tyield :blk if i == 2;\n\t\t\tn++;\n\t\t}\n\t}\n\tint v = :pick {\n\t\tfor i in 0..=3 {\n\t\t\tyield :pick i if i == 2;\n\t\t}\n\t\tyield -1;\n\t};\n\t:outer for i in 0..=3 {\n\t\t:inner {\n\t\t\tbreak if i == 1;\n\t\t}\n\t\tbreak :outer if i == 2;\n\t}\n}\n"
+	if got := errorsOf(good); len(got) != 0 {
+		t.Errorf("valid uses: %v", got)
+	}
+
+	cases := []struct{ name, body, want string }{
+		{"break to a block", "func main() {\n\t:blk {\n\t\tbreak :blk;\n\t}\n}\n", "labels a block, and a block is left with yield"},
+		{"break to a block that gives a value", "func main() {\n\tint v = :pick {\n\t\tbreak :pick;\n\t\tyield 1;\n\t};\n}\n", "a block is left with yield"},
+		{"break with a value", "func main() {\n\tint v = :pick {\n\t\tbreak :pick 1;\n\t};\n}\n", "break does not carry a value: write yield :pick value;"},
+		{"yield to a loop", "func main() {\n\t:lp for i in 0..=3 {\n\t\tyield :lp;\n\t}\n}\n", "labels a loop, and a loop is left with break"},
+		{"yield without anything", "func main() {\n\tyield;\n}\n", "yield needs a value, or a label to leave a block"},
+		{"a value into a block that gives none", "func main() {\n\t:blk {\n\t\tyield :blk 1;\n\t}\n}\n", "gives no value, so the yield takes none"},
+		{"no value for a block that gives one", "func main() {\n\tint v = :pick {\n\t\tyield :pick;\n\t};\n}\n", "the yield needs one"},
+		{"an unknown label", "func main() {\n\t:blk {\n\t\tyield :nowhere;\n\t}\n}\n", "unknown label"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := errorsOf(tc.body)
+			if len(got) == 0 || !strings.Contains(strings.Join(got, "\n"), tc.want) {
+				t.Errorf("errors = %v, want one with %q", got, tc.want)
+			}
+		})
+	}
+
+	t.Run("completion after yield offers blocks only", func(t *testing.T) {
+		src := "func main() {\n\t:blk {\n\t\t:lp for i in 0..=3 {\n\t\t\tyield :¦\n\t\t}\n\t}\n}\n"
+		got := c.open(map[string]string{"main.wsp": src}).completion()
+		if !slices.Contains(got, "blk") || slices.Contains(got, "lp") {
+			t.Errorf("completion = %v", got)
+		}
+	})
+	t.Run("completion after break offers loops only", func(t *testing.T) {
+		src := "func main() {\n\t:blk {\n\t\t:lp for i in 0..=3 {\n\t\t\tbreak :¦\n\t\t}\n\t}\n}\n"
+		got := c.open(map[string]string{"main.wsp": src}).completion()
+		if !slices.Contains(got, "lp") || slices.Contains(got, "blk") {
+			t.Errorf("completion = %v", got)
+		}
+	})
+}
+
 func TestSemanticTokensGenerics(t *testing.T) {
 	c := start(t)
 	src := "struct Pair<A, B> {\n\tA first;\n\tB second;\n}\n\nfunc swap<A, B>(Pair<A, B> p) Pair<B, A> {\n\treturn Pair<B, A>{first: p.second, second: p.first};\n}\n\nfunc main() {\n\tPair<int, string> p = Pair<int, string>{first: 1, second: \"a\"};\n\tPair<string, int> q = swap(p);\n}\n"

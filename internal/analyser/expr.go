@@ -230,6 +230,23 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 	}
 	right := a.checkExpr(expr.Right)
 
+	if expr.Operator == "==" || expr.Operator == "!=" {
+		for _, side := range []struct {
+			node ast.Expression
+			tp   Type
+		}{{expr.Left, left}, {expr.Right, right}} {
+			if ft, fallible := side.tp.(FallibleType); fallible {
+				bind := "let value, e = call();"
+				if len(ft.Values) == 0 {
+					bind = "let e = call();"
+				}
+				a.errorf(side.node, "a call that can fail cannot be compared directly (%s)", ft.String()).
+					WithHelp("bind it first: %s and compare e, or handle the failure with !, ?? or !!", bind)
+				return PrimitiveType{Name: "bool"}
+			}
+		}
+	}
+
 	if t, handled := a.lowerOperator(expr, left, right); handled {
 		return t
 	}

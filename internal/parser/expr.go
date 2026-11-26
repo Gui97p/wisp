@@ -154,7 +154,9 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		if !p.checkReservedName(label) || !p.expect(lexer.TOKEN_LBRACE) {
 			return nil
 		}
+		p.labelKinds = append(p.labelKinds, labelKind{label, "value"})
 		block := p.parseBlockStatement()
+		p.labelKinds = p.labelKinds[:len(p.labelKinds)-1]
 		if !p.expect(lexer.TOKEN_RBRACE) {
 			return nil
 		}
@@ -226,6 +228,9 @@ func (p *Parser) parsePointerConversion() ast.Expression {
 }
 
 func (p *Parser) parseFuncLiteral() ast.Expression {
+	outer := p.labelKinds
+	p.labelKinds = nil
+	defer func() { p.labelKinds = outer }()
 	lit := &ast.FuncLiteral{}
 	lit.Params = p.parseFuncParamList()
 	if p.cVariadic {

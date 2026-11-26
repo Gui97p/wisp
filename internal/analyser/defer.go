@@ -134,6 +134,14 @@ func (a *Analyser) rejectDeferredExits(d *ast.DeferStmt) {
 				if n.Label != "" {
 					labels[n.Label] = true
 				}
+			case *ast.BlockStmt:
+				if n.Label != "" {
+					labels[n.Label] = true
+				}
+			case *ast.BlockExpr:
+				if n.Label != "" {
+					labels[n.Label] = true
+				}
 			}
 			collect(v.Elem())
 		case reflect.Interface:
@@ -167,7 +175,7 @@ func (a *Analyser) rejectDeferredExits(d *ast.DeferStmt) {
 				a.error(n, "a deferred statement cannot return").
 					WithHelp("deferred code runs while the block is already being left")
 			case *ast.YieldStmt:
-				if handlers == 0 {
+				if handlers == 0 && (n.Target == "" || !labels[n.Target]) {
 					a.error(n, "a deferred statement cannot yield").
 						WithHelp("a yield belongs to the ?? handler it is written in")
 				}

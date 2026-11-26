@@ -28,6 +28,7 @@ const (
 	roleBlockClose
 	roleLiteralClose
 	roleDeclBang
+	roleDeferBang
 	roleDeclDots
 	roleSpreadDots
 	roleTypeBracketClose
@@ -224,6 +225,8 @@ func classify(tokens []token) []role {
 			r = rolePostfix
 		case k == lexer.TOKEN_NOT:
 			switch {
+			case i > 0 && tokens[i-1].kind == lexer.TOKEN_DEFER:
+				r = roleDeferBang
 			case i > 0 && roles[i-1] == roleParamClose:
 				r = roleDeclBang
 			case prevEnd(i):

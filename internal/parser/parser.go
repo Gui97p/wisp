@@ -28,6 +28,21 @@ type Parser struct {
 	nakedTag           bool
 	spread             bool
 	typeOperands       bool
+	labelKinds         []labelKind
+}
+
+type labelKind struct {
+	name string
+	kind string
+}
+
+func (p *Parser) kindOfLabel(name string) string {
+	for i := len(p.labelKinds) - 1; i >= 0; i-- {
+		if p.labelKinds[i].name == name {
+			return p.labelKinds[i].kind
+		}
+	}
+	return ""
 }
 
 func NewParser(l *lexer.Lexer) *Parser {

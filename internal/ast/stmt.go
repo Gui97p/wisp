@@ -324,7 +324,8 @@ func (l *LoopStmt) Tree(indent string) string {
 }
 
 type BreakStmt struct {
-	Label string
+	Label     string
+	FromYield bool
 
 	NodePos
 }

@@ -371,6 +371,22 @@ func (p *Parser) parseYieldStatement() ast.Statement {
 	line, col := p.current.Line, p.current.Column
 	stmt := &ast.YieldStmt{}
 
+	if p.peek.Type == lexer.TOKEN_COLON {
+		p.advance()
+		if !p.expect(lexer.TOKEN_IDENT) {
+			return nil
+		}
+		stmt.Target = p.current.Literal
+	}
+
+	if p.peek.Type == lexer.TOKEN_SEMICOLON || p.peek.Type == lexer.TOKEN_IF {
+		if stmt.Target != "" && p.kindOfLabel(stmt.Target) == "block" {
+			jump := &ast.BreakStmt{Label: stmt.Target, FromYield: true}
+			return p.endJump(jump, line, col)
+		}
+		return p.endJump(stmt, line, col)
+	}
+
 	for {
 		p.advance()
 
@@ -800,14 +816,9 @@ func (p *Parser) parseBreakStatement() ast.Statement {
 	}
 	stmt.Label = label
 	if label != "" && p.peek.Type != lexer.TOKEN_SEMICOLON && p.peek.Type != lexer.TOKEN_IF {
-		target := &ast.YieldStmt{Target: label}
 		p.advance()
-		value := p.parseExpression()
-		if value == nil {
-			return nil
-		}
-		target.Values = append(target.Values, value)
-		return p.endJump(target, line, col)
+		p.errorf("break does not carry a value: write yield :%s value;", label)
+		return nil
 	}
 
 	return p.endJump(stmt, line, col)
@@ -913,21 +924,27 @@ func (p *Parser) parseLabeledStatement() ast.Statement {
 
 	switch p.current.Type {
 	case lexer.TOKEN_FOR:
+		p.labelKinds = append(p.labelKinds, labelKind{label, "loop"})
 		stmt := p.parseForStatement()
+		p.labelKinds = p.labelKinds[:len(p.labelKinds)-1]
 		if stmt == nil {
 			return nil
 		}
 		stmt.Label = label
 		return p.wrapFor(stmt)
 	case lexer.TOKEN_LOOP:
+		p.labelKinds = append(p.labelKinds, labelKind{label, "loop"})
 		stmt := p.parseLoopStatement()
+		p.labelKinds = p.labelKinds[:len(p.labelKinds)-1]
 		if stmt == nil {
 			return nil
 		}
 		stmt.Label = label
 		return stmt
 	case lexer.TOKEN_LBRACE:
+		p.labelKinds = append(p.labelKinds, labelKind{label, "block"})
 		block := p.parseBlockStatement()
+		p.labelKinds = p.labelKinds[:len(p.labelKinds)-1]
 		if !p.expect(lexer.TOKEN_RBRACE) {
 			return nil
 		}

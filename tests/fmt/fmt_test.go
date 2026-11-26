@@ -54,6 +54,7 @@ func TestRules(t *testing.T) {
 		{"ternary and optional", "func f() {\n\tint a=c?1:2;\n\t?int b=null;\n\t?*P p=null;\n}\n", "func f() {\n\tint a = c ? 1 : 2;\n\t?int b = null;\n\t?*P p = null;\n}\n"},
 		{"types", "func f([]int a,[3]*int b,*[2]int c) []int {\n\t[2][2]int g;\n}\n", "func f([]int a, [3]*int b, *[2]int c) []int {\n\t[2][2]int g;\n}\n"},
 		{"results", "func f()!int {}\nfunc g() !{}\nfunc h()(int,int) {}\n", "func f() !int {}\nfunc g() ! {}\nfunc h() (int, int) {}\n"},
+		{"defer with a bang", "func f() ! {\n\tdefer !g();\n\tdefer!|e| g();\n\tdefer ! |e| h(e);\n\tdefer g()!;\n\tdefer! k()!;\n}\n", "func f() ! {\n\tdefer! g();\n\tdefer! |e| g();\n\tdefer! |e| h(e);\n\tdefer g()!;\n\tdefer! k()!;\n}\n"},
 		{"an optional taken out", "func f() {\n\tx=a.?+1;\n\ty=b.?[0];\n\tz=g()!.?;\n}\n", "func f() {\n\tx = a.? + 1;\n\ty = b.?[0];\n\tz = g()!.?;\n}\n"},
 		{"propagation", "func f() ! {\n\tg() !;\n\tx=h()!+1;\n\ty=k()!!;\n}\n", "func f() ! {\n\tg()!;\n\tx = h()! + 1;\n\ty = k()!!;\n}\n"},
 		{"ranges and slices stay tight", "func f() {\n\tfor i in (0..=n-1).step(2) { a=s[1..n-1]; }\n}\n", "func f() {\n\tfor i in (0..=n - 1).step(2) { a = s[1..n - 1]; }\n}\n"},

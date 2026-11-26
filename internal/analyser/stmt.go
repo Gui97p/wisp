@@ -510,7 +510,7 @@ func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
 		if label != "" {
 			for _, f := range a.loopFrames {
 				if f.Label == label && f.Block {
-					a.errorf(node, "%s is the label of a block, which has no next turn: use break :%s", label, label)
+					a.errorf(node, "%s is the label of a block, which has no next turn: leave it with yield :%s;", label, label)
 					return
 				}
 			}
@@ -518,11 +518,6 @@ func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
 	} else if label == "" {
 		if len(a.loopFrames) == 0 || !slices.ContainsFunc(a.loopFrames, func(f loopFrame) bool { return !f.Block }) {
 			a.errorf(node, "%s outside a loop", kind)
-			return
-		}
-		if inner := a.loopFrames[len(a.loopFrames)-1]; inner.Block {
-			a.errorf(node, "this break is inside the block :%s, so it is not clear which one it leaves", inner.Label).
-				WithHelp("write `break :%s` to leave the block, or give the loop a label and break it by name", inner.Label)
 			return
 		}
 	}
@@ -535,12 +530,21 @@ func (a *Analyser) checkBreakContinue(node ast.Node, label, kind string) {
 		return
 	}
 
+	if brk, isBreak := node.(*ast.BreakStmt); isBreak && !brk.FromYield {
+		for _, f := range a.loopFrames {
+			if f.Label == label && f.Block {
+				a.errorf(node, ":%s labels a block, and a block is left with yield: write `yield :%s;`", label, label)
+				return
+			}
+		}
+	}
+
 	if slices.ContainsFunc(a.loopFrames, func(f loopFrame) bool { return f.Label == label }) {
 		return
 	}
 
 	if slices.ContainsFunc(a.yieldFrames, func(f yieldFrame) bool { return f.label == label }) {
-		a.errorf(node, "the block :%s gives a value, so the break needs one: write `break :%s <value>;`", label, label)
+		a.errorf(node, ":%s labels a block that gives a value, and a block is left with yield: write `yield :%s <value>;`", label, label)
 		return
 	}
 

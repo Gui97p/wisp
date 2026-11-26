@@ -18,9 +18,9 @@ type labelDef struct {
 
 var (
 	labelHeader = regexp.MustCompile(`(?:^|=\s*|\(\s*|,\s*|\breturn\s+|\byield\s+):([A-Za-z_]\w*)\s*((?:for|loop|until)\b.*)?$`)
-	jumpLabel   = regexp.MustCompile(`\b(break|continue)\s*:(\w*)$`)
+	jumpLabel   = regexp.MustCompile(`\b(break|continue|yield)\s*:(\w*)$`)
 	jumpBare    = regexp.MustCompile(`\b(break|continue)\s+(\w*)$`)
-	jumpColon   = regexp.MustCompile(`\b(break|continue)\s*:\s*$`)
+	jumpColon   = regexp.MustCompile(`\b(break|continue|yield)\s*:\s*$`)
 	wordAhead   = regexp.MustCompile(`^\w*`)
 	wordBehind  = regexp.MustCompile(`\w*$`)
 )
@@ -103,7 +103,10 @@ func labelItems(path string, pos protocol.Position) ([]protocol.CompletionItem, 
 	labels := labelsAt(path, int(pos.Line), int(pos.Character))
 	for i := len(labels) - 1; i >= 0; i-- {
 		l := labels[i]
-		if m[1] == "continue" && !l.loop {
+		if m[1] == "yield" && l.loop {
+			continue
+		}
+		if m[1] != "yield" && !l.loop {
 			continue
 		}
 		it := item(l.name, protocol.CompletionItemKindEnumMember, "label of a "+labelKind(l))

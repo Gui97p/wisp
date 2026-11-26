@@ -15,7 +15,7 @@ var (
 	assignedBefore = regexp.MustCompile(`(^|[^=!<>])\b([A-Za-z_][\w.]*)\s*=\s*$`)
 	caseWord       = regexp.MustCompile(`\bcase\b`)
 	armBefore      = regexp.MustCompile(`=>\s*$`)
-	yieldBefore    = regexp.MustCompile(`\b(?:yield|break\s+:\w+)\s*$`)
+	yieldBefore    = regexp.MustCompile(`\byield(?:\s+:\w+)?\s*$`)
 	switchWord     = regexp.MustCompile(`\bswitch\b`)
 	returnBefore   = regexp.MustCompile(`\breturn\b[^;]*$`)
 	coalesceBefore = regexp.MustCompile(`([A-Za-z_][\w.]*\s*\((?:[^()]|\([^()]*\))*\))\s*\?\?\s*(?:\|\w+\|\s*)?$`)

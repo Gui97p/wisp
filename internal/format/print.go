@@ -253,6 +253,10 @@ func (p *printer) needSpace(i int) bool {
 		return false
 	case nr == rolePostfix:
 		return false
+	case nr == roleDeferBang:
+		return false
+	case pr == roleDeferBang:
+		return true
 	case nr == roleDeclBang:
 		return true
 	case pr == roleDeclBang:

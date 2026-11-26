@@ -2511,7 +2511,7 @@ func main() {
     int found = -1;
     :search {
         for i in 0..=9 {
-            break :search if i * i == want;
+            yield :search if i * i == want;
             found = i;
         }
         found = -2;
@@ -2520,7 +2520,7 @@ func main() {
 }
 
 func main() {
-    check(find(16) == 3 && find(100) == -2, "break leaves a labeled block");
+    check(find(16) == 3 && find(100) == -2, "yield leaves a labeled block");
 
     int trace;
     :outer {
@@ -2529,7 +2529,7 @@ func main() {
         :inner {
             defer trace = trace * 10 + 8;
             trace = trace * 10 + 2;
-            break :outer if trace > 0;
+            yield :outer if trace > 0;
             trace = 77;
         }
         trace = 66;
@@ -2538,16 +2538,16 @@ func main() {
 
     int v = :pick {
         for i in 0..=5 {
-            break :pick i * 100 if i == 3;
+            yield :pick i * 100 if i == 3;
         }
         yield -1;
     };
-    check(v == 300, "break gives the value of a labeled block");
+    check(v == 300, "yield with a label gives the value of a labeled block");
 
     int n;
     :skip {
         for i in 0..=3 {
-            break :skip if i == 2;
+            yield :skip if i == 2;
             n++;
         }
     }
@@ -2556,14 +2556,23 @@ func main() {
     int k;
     for i in 0..=3 {
         :blk {
-            break :blk if i == 1;
+            yield :blk if i == 1;
             k++;
         }
     }
     check(k == 3, "leaving a block does not end the loop around it");
 
+    int rounds;
+    for i in 0..=5 {
+        :scope {
+            rounds++;
+            break if i == 2;
+        }
+    }
+    check(rounds == 3, "a break inside a labeled block leaves the loop around it");
+
 }
-`, expected: []string{"break leaves a labeled block", "leaving several blocks runs their defers from the inside out", "break gives the value of a labeled block", "a labeled block can be left from inside a loop", "leaving a block does not end the loop around it"}},
+`, expected: []string{"yield leaves a labeled block", "leaving several blocks runs their defers from the inside out", "yield with a label gives the value of a labeled block", "a labeled block can be left from inside a loop", "leaving a block does not end the loop around it", "a break inside a labeled block leaves the loop around it"}},
 
 	{dir: "enum_data", src: `enum Shape {
     Circle { float radius; },

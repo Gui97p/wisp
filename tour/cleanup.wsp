@@ -39,7 +39,7 @@ func early(bool leave) int {
 }
 
 func build(bool fail) !int {
-	defer !|e| fmt.printf("  build failed ({}), cleaning up\n", e.message);
+	defer! |e| fmt.printf("  build failed ({}), cleaning up\n", e.message);
 	defer fmt.printf("  build is over\n");
 	if fail {
 		return Error(Fail.Boom);
