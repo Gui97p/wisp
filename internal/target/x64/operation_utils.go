@@ -273,7 +273,12 @@ func (t *X64Target) materialize(op Operand, size int) x64context.Register {
 			t.fail("x86-64: no available registers")
 			return reg
 		}
-		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, size), o)
+		value := uint64(o)
+		if size < 8 {
+			mask := (uint64(1) << (size * 8)) - 1
+			value &= mask
+		}
+		t.text.printft("mov %s, %d\n", t.ctx.GetRegister(reg, size), value)
 		return reg
 	case Reg:
 		if t.ctx.IsHome(o.Reg) && o.Reg != t.inPlace {
