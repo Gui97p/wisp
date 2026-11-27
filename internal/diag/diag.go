@@ -39,10 +39,16 @@ type Diagnostic struct {
 	Origin          string
 	Notes           []Note
 	Help            string
+	Lint            string
 }
 
 func (d *Diagnostic) Note(file string, line, col, endLine, endCol int, format string, args ...any) *Diagnostic {
 	d.Notes = append(d.Notes, Note{File: file, Message: fmt.Sprintf(format, args...), Line: line, Col: col, EndLine: endLine, EndCol: endCol})
+	return d
+}
+
+func (d *Diagnostic) WithLint(name string) *Diagnostic {
+	d.Lint = name
 	return d
 }
 

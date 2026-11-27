@@ -55,6 +55,10 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	line := int(pos.Line) + 1
 	col := int(pos.Character) + 1
 
+	if state, _ := scanState(textBefore(path, int(pos.Line), int(pos.Character))); state == stateLineComment || state == stateBlockComment {
+		return nil
+	}
+
 	if h := importHover(path, pos); h != nil {
 		return h
 	}

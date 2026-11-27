@@ -54,6 +54,8 @@ type Program struct {
 	Target       string
 	TargetAt     Position
 	Standalone   bool
+	Allow        []string
+	Allowed      map[string]map[string]bool
 }
 
 func (p *Program) Tree(indent string) string {

@@ -23,7 +23,7 @@ func (a *Analyser) checkStatements(stmts []ast.Statement) {
 	defer func() { a.warnUseAfterFree(stmts, frees) }()
 	for i, stmt := range stmts {
 		if terminated && !warned {
-			a.warnf(stmt, "unreachable code")
+			a.warnf(stmt, "unreachable code").WithLint("unreachable_code")
 			warned = true
 		}
 		a.checkStmt(stmt)

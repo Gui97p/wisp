@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"bytes"
+	"github.com/Gui97p/wisp/internal/parser"
 	"maps"
 	"regexp"
 	"slices"
@@ -17,6 +18,7 @@ import (
 )
 
 var directiveTyping = regexp.MustCompile(`^\s*#[A-Za-z_]*$`)
+var allowTyping = regexp.MustCompile(`^\s*#allow\s+([A-Za-z_,\s]*)$`)
 
 var selectorTyping = regexp.MustCompile(`(\b(native|func|struct|type|enum|const|import)<[^<>;]*|^\s*#target\b.*)$`)
 
@@ -141,6 +143,23 @@ func completionItems(uri protocol.DocumentUri, pos protocol.Position, trigger st
 		if tp, ok := structValueEnum(text, scopeFor(info, line, col)); ok {
 			return enumValueItems(tp)
 		}
+	}
+	if m := allowTyping.FindStringSubmatch(lastLine(textBefore(path, int(pos.Line), int(pos.Character)))); m != nil {
+		given := map[string]bool{}
+		for _, name := range strings.Split(m[1], ",") {
+			given[strings.TrimSpace(name)] = true
+		}
+		kind := protocol.CompletionItemKindEnumMember
+		items := []protocol.CompletionItem{}
+		for _, lint := range parser.Lints {
+			if given[lint.Name] {
+				continue
+			}
+			detail := "warning"
+			doc := protocol.MarkupContent{Kind: protocol.MarkupKindMarkdown, Value: lint.Doc}
+			items = append(items, protocol.CompletionItem{Label: lint.Name, Kind: &kind, Detail: &detail, Documentation: doc})
+		}
+		return items
 	}
 	if line := lastLine(textBefore(path, int(pos.Line), int(pos.Character))); directiveTyping.MatchString(line) {
 		start := uint32(utf16Len(line[:strings.Index(line, "#")+1]))

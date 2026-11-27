@@ -26,7 +26,57 @@ func anonTarget(to Type) Type {
 	return to
 }
 
+func (a *Analyser) resolveAnonTernary(ternary *ast.TernaryExpr, to Type) (Type, bool) {
+	arm := func(slot *ast.Expression) bool {
+		switch (*slot).(type) {
+		case *ast.AnonLiteral, *ast.TernaryExpr:
+			built, ok := a.resolveAnon(slot, to)
+			if !ok {
+				return false
+			}
+			if built.Equals(to) {
+				return true
+			}
+			return a.coerce(slot, built, to)
+		}
+		from, known := a.info.Types[*slot]
+		if !known {
+			return false
+		}
+		if _, isNull := from.(NullType); isNull {
+			return a.coerce(slot, from, to)
+		}
+		if from.Equals(to) {
+			return true
+		}
+		return a.coerce(slot, from, to)
+	}
+	thenOk := arm(&ternary.Then)
+	elseOk := arm(&ternary.Else)
+	if !thenOk || !elseOk {
+		return nil, false
+	}
+	a.info.Types[ternary] = to
+	return to, true
+}
+
+func buildsAnon(t Type) bool {
+	switch underlying(anonTarget(t)).(type) {
+	case *StructType, ArrayType, SpanType:
+		return true
+	}
+	return false
+}
+
+func isPendingAnon(t Type) bool {
+	_, ok := t.(AnonType)
+	return ok
+}
+
 func (a *Analyser) resolveAnon(slot *ast.Expression, to Type) (Type, bool) {
+	if ternary, isTernary := (*slot).(*ast.TernaryExpr); isTernary {
+		return a.resolveAnonTernary(ternary, to)
+	}
 	lit, ok := (*slot).(*ast.AnonLiteral)
 	if !ok {
 		return nil, false

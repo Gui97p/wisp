@@ -43,6 +43,16 @@ func (m *Module) Merge() (*ast.Program, map[ast.Declaration]string) {
 			declFiles[d] = m.FilePaths[i]
 		}
 		program.Declarations = append(program.Declarations, f.Declarations...)
+		if len(f.Allow) > 0 {
+			if program.Allowed == nil {
+				program.Allowed = map[string]map[string]bool{}
+			}
+			set := map[string]bool{}
+			for _, lint := range f.Allow {
+				set[lint] = true
+			}
+			program.Allowed[m.FilePaths[i]] = set
+		}
 	}
 
 	return program, declFiles

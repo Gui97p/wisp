@@ -2,7 +2,7 @@
     "name": "wisp-support",
     "displayName": "Wisp Language Tools",
     "description": "Language support for Wisp: highlighting, diagnostics, completion, hover, rename, snippets and a file icon.",
-    "version": "0.10.0",
+    "version": "0.10.1",
     "publisher": "gui97",
     "license": "MIT",
     "repository": {

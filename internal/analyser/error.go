@@ -61,6 +61,23 @@ func (a *Analyser) errorAtEnd(node ast.Node, format string, args ...any) *diag.D
 	return a.errors.Add(a.currentFile, endLine, endCol, endLine, endCol, format, args...)
 }
 
+func (a *Analyser) dropAllowedWarnings() {
+	allowed := a.program.Allowed
+	if len(allowed) == 0 {
+		return
+	}
+	kept := a.errors[:0]
+	for _, d := range a.errors {
+		if d.Severity == diag.SeverityWarning {
+			if set := allowed[d.File]; set["warnings"] || (d.Lint != "" && set[d.Lint]) {
+				continue
+			}
+		}
+		kept = append(kept, d)
+	}
+	a.errors = kept
+}
+
 func (a *Analyser) warnf(node ast.Node, format string, args ...any) *diag.Diagnostic {
 	line, col := node.Position()
 	endLine, endCol := node.EndPosition()

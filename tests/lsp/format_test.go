@@ -296,3 +296,26 @@ func TestHoverIsQuietWhereItOnlyRepeatsTheType(t *testing.T) {
 		}
 	})
 }
+
+func TestHoverDoesNotReadComments(t *testing.T) {
+	c := start(t)
+	for _, tc := range []struct{ name, line string }{
+		{"a name in a comment", `  int total = 2 + 3;  // the length is le¦n(name) here`},
+		{"a builtin in a comment", `  // len¦ measures a string`},
+		{"a name in a doc comment", `  /// le¦n measures`},
+		{"inside a block comment", `  /* count¦ is the number of things */`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := c.open(map[string]string{"main.wsp": formatSource(tc.line)}).hover(); got != "" {
+				t.Errorf("hover %q, want nothing", got)
+			}
+		})
+	}
+
+	t.Run("code before a comment on the same line keeps its hover", func(t *testing.T) {
+		got := c.open(map[string]string{"main.wsp": formatSource(`  int total = add(cou¦nt, 2);  // the sum`)}).hover()
+		if !strings.Contains(got, "int count") {
+			t.Errorf("hover %q", got)
+		}
+	})
+}

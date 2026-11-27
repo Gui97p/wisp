@@ -192,6 +192,7 @@ func AnalyzeGroup(group []*Analyser) {
 		a.reportUnresolvedDots()
 		a.reportUnresolvedAnon()
 		a.checkMustUse()
+		a.dropAllowedWarnings()
 		a.exports = a.buildExports(false)
 		a.checkPartConflicts()
 		a.dedupeDiagnostics()
@@ -378,7 +379,7 @@ func (a *Analyser) warnUnused(scope *Scope) {
 		return unused[i].Col < unused[j].Col
 	})
 	for _, sym := range unused {
-		a.errors.Warn(sym.File, sym.Line, sym.Col, sym.Line, sym.Col+len(sym.Name)-1, "%s %s is never used", sym.Kind, sym.Name)
+		a.errors.Warn(sym.File, sym.Line, sym.Col, sym.Line, sym.Col+len(sym.Name)-1, "%s %s is never used", sym.Kind, sym.Name).WithLint("unused_variables")
 	}
 }
 
@@ -393,7 +394,7 @@ func (a *Analyser) warnUnusedImports() {
 		if !ok || sym.Used || sym.Kind != MODULE || silencesUnused(imp.Alias) || a.droppedUses[a.currentFile][imp.Alias] {
 			continue
 		}
-		a.warnf(imp, "import %s is never used", imp.Alias)
+		a.warnf(imp, "import %s is never used", imp.Alias).WithLint("unused_imports")
 	}
 }
 

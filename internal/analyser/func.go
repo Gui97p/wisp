@@ -199,6 +199,7 @@ func (a *Analyser) warnUnusedParams(fd *ast.FuncDecl, params []*Symbol) {
 			continue
 		}
 		a.errors.Warn(sym.File, sym.Line, sym.Col, sym.Line, sym.Col+len(sym.Name)-1, "parameter %s is never used", sym.Name).
+			WithLint("unused_variables").
 			WithHelp("remove it, or rename it to _%s to keep it", sym.Name)
 	}
 }

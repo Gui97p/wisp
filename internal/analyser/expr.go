@@ -1018,6 +1018,22 @@ func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 		return thenType
 	}
 
+	_, thenNull := thenType.(NullType)
+	_, elseNull := elseType.(NullType)
+	switch {
+	case isPendingAnon(thenType) && (isPendingAnon(elseType) || elseNull),
+		isPendingAnon(elseType) && thenNull:
+		return AnonType{}
+	case isPendingAnon(thenType) && buildsAnon(elseType):
+		if t, ok := a.resolveAnon(&expr.Then, elseType); ok {
+			thenType = t
+		}
+	case isPendingAnon(elseType) && buildsAnon(thenType):
+		if t, ok := a.resolveAnon(&expr.Else, thenType); ok {
+			elseType = t
+		}
+	}
+
 	thenType, elseType = a.unifySlots(&expr.Then, &expr.Else, thenType, elseType)
 	if !thenType.Equals(elseType) {
 		a.errorf(expr, "incompatible ternary types (%s & %s)", thenType.String(), elseType.String())

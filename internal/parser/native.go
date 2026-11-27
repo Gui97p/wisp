@@ -18,6 +18,59 @@ type Directive struct {
 var Directives = []Directive{
 	{Name: "target", Doc: "Restricts the file to the targets that match the expression that follows, such as #target x64 & linux."},
 	{Name: "standalone", Doc: "Makes the file a module of its own, imported by its path, instead of one of the files that make the module of its folder."},
+	{Name: "allow", Doc: "Turns off warnings in this file, by name: #allow unused_variables, dead_code. The names are unused_variables, unused_imports, dead_code, unreachable_code, and warnings for every warning."},
+}
+
+var Lints = []Directive{
+	{Name: "unused_variables", Doc: "A variable, constant or parameter that is never read."},
+	{Name: "unused_imports", Doc: "An import that nothing uses."},
+	{Name: "dead_code", Doc: "A function or global that nothing uses."},
+	{Name: "unreachable_code", Doc: "A statement that comes after a return, break or continue."},
+	{Name: "warnings", Doc: "Every warning of the file."},
+}
+
+func isLint(name string) bool {
+	for _, l := range Lints {
+		if l.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func lintNames() string {
+	names := make([]string, len(Lints))
+	for i, l := range Lints {
+		names[i] = l.Name
+	}
+	return strings.Join(names, ", ")
+}
+
+func (p *Parser) parseAllow(program *ast.Program, line int) {
+	for {
+		if p.peek.Type != lexer.TOKEN_IDENT || p.peek.Line != line {
+			p.errorAt(p.currentAt(), "#allow takes the names of the warnings to turn off, such as #allow unused_variables, dead_code")
+			p.skipLine(line)
+			p.advance()
+			return
+		}
+		p.advance()
+		if isLint(p.current.Literal) {
+			program.Allow = append(program.Allow, p.current.Literal)
+		} else {
+			p.errorAt(p.currentAt(), "unknown warning %s", p.current.Literal).WithHelp("the names are %s", lintNames())
+		}
+		if p.peek.Type == lexer.TOKEN_COMMA && p.peek.Line == line {
+			p.advance()
+			continue
+		}
+		break
+	}
+	if p.peek.Line == line && p.peek.Type != lexer.TOKEN_EOF {
+		p.errorAt(p.currentAt(), "expected a comma or the end of the line after the name of a warning")
+		p.skipLine(line)
+	}
+	p.advance()
 }
 
 func directiveNames() string {
@@ -170,6 +223,11 @@ func (p *Parser) parseDirectives(program *ast.Program) {
 			p.errorAt(p.currentAt(), "unknown directive #%s", name).WithHelp("the known directives are %s", directiveNames())
 			p.skipLine(line)
 			p.advance()
+			continue
+		}
+
+		if name == "allow" {
+			p.parseAllow(program, line)
 			continue
 		}
 

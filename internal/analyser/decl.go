@@ -400,6 +400,7 @@ func (a *Analyser) warnUnusedFuncs() {
 			at = ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + len(decl.Name) - 1}
 		}
 		a.errors.Warn(a.declFiles[d], at.Line, at.Col, at.EndLine, at.EndCol, "function %s is never used", decl.Name).
+			WithLint("dead_code").
 			WithHelp("remove it, or make it public if other modules use it")
 	}
 }
@@ -428,6 +429,7 @@ func (a *Analyser) warnUnusedGlobals() {
 				continue
 			}
 			a.errors.Warn(a.declFiles[d], v.Line, v.Col, v.EndLine, v.EndCol, "%s %s is never used", kind, v.Name).
+				WithLint("dead_code").
 				WithHelp("remove it, or make it public if other modules use it")
 		}
 	}

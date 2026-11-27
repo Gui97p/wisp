@@ -1099,6 +1099,59 @@ func main() {
 }
 `, expected: []string{"truncate keeps the low byte of a constant that does not fit", "truncate to sixteen bits drops the high bits of a sum", "a truncated constant that does not fit adds as its low byte", "two truncated values of the same constant are equal", "truncate to a signed byte wraps", "truncate of a computed value", "a truncated constant compares with a variable"}},
 
+	{dir: "ternary_expected_type", src: `struct Point {
+    int x;
+    int y;
+}
+
+func make(bool c) Point {
+    return c ? .{x: 1, y: 2} : .{x: 3, y: 4};
+}
+
+func maybe(bool c) ?Point {
+    return c ? .{x: 5, y: 6} : null;
+}
+
+func pair(bool c) []int {
+    return c ? .{1, 2} : .{3};
+}
+
+func main() {
+    bool yes = len("a") == 1;
+    bool no = !yes;
+    Point other = Point{x: 9, y: 9};
+
+    Point a = yes ? .{x: 1, y: 2} : .{x: 3, y: 4};
+    Point b = no ? .{x: 1, y: 2} : .{x: 3, y: 4};
+    check(a.x == 1 && a.y == 2 && b.x == 3 && b.y == 4, "a literal on each side takes the type of the declaration");
+
+    Point mixed = yes ? .{x: 7, y: 8} : other;
+    Point back = no ? other : .{x: 7, y: 8};
+    Point kept = no ? .{x: 7, y: 8} : other;
+    check(mixed.x == 7 && back.x == 7 && kept.x == 9, "a literal next to a typed value takes its type");
+
+    ?Point some = yes ? .{x: 1, y: 2} : null;
+    ?Point none = no ? .{x: 1, y: 2} : null;
+    check((some ?? other).x == 1 && (none ?? other).x == 9, "a literal next to null makes an optional");
+
+    []int part = yes ? .{1, 2} : .{3};
+    []int rest = no ? .{1, 2} : .{3};
+    check(len(part) == 2 && part[1] == 2 && len(rest) == 1 && rest[0] == 3, "array literals become slices on each side");
+
+    Point nested = yes ? (no ? .{x: 1, y: 1} : .{x: 2, y: 2}) : .{x: 3, y: 3};
+    check(nested.x == 2, "a ternary inside a ternary");
+
+    check(make(true).x == 1 && make(false).x == 3, "a return gives the type to both sides");
+    check((maybe(true) ?? other).x == 5 && (maybe(false) ?? other).x == 9, "a return of a literal or null");
+    check(len(pair(true)) == 2 && len(pair(false)) == 1, "a return of two slices");
+
+    ?int n = yes ? 10 : null;
+    ?string s = no ? "x" : null;
+    ?int m = no ? null : 20;
+    check((n ?? -1) == 10 && (s ?? "none") == "none" && (m ?? -1) == 20, "a value next to null makes an optional");
+}
+`, expected: []string{"a literal on each side takes the type of the declaration", "a literal next to a typed value takes its type", "a literal next to null makes an optional", "array literals become slices on each side", "a ternary inside a ternary", "a return gives the type to both sides", "a return of a literal or null", "a return of two slices", "a value next to null makes an optional"}},
+
 	{dir: "rand_basic", src: `import "std/rand";
 
 func main() {
