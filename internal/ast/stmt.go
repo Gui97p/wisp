@@ -26,8 +26,9 @@ func (e *ExpressionStmt) Tree(indent string) string {
 }
 
 type BlockStmt struct {
-	Statements []Statement
-	Label      string
+	Statements  []Statement
+	Label       string
+	ArrowBraces bool
 
 	NodePos
 }

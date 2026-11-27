@@ -402,28 +402,60 @@ func (p *Parser) parseYieldStatement() ast.Statement {
 }
 
 func (p *Parser) endJump(stmt ast.Statement, line, col int) ast.Statement {
-	if p.peek.Type != lexer.TOKEN_IF {
-		p.endStatement()
-		return stmt
-	}
-
-	stmt.SetPos(line, col)
-	stmt.SetEndPos(p.currentEnd())
-	p.advance()
-	p.advance()
-	cond := p.parseExpression()
-	if cond == nil {
+	if p.peek.Type == lexer.TOKEN_IF {
+		p.advance()
+		p.errorf("the condition comes first: `return x if c;` is written `if c => return x;`")
 		return nil
 	}
 	p.endStatement()
+	return stmt
+}
 
-	then := &ast.BlockStmt{Statements: []ast.Statement{stmt}}
-	then.SetPos(line, col)
-	then.SetEndPos(p.currentEnd())
-	guard := &ast.IfStmt{Condition: cond, Then: then}
-	guard.SetPos(line, col)
-	guard.SetEndPos(p.currentEnd())
-	return guard
+func (p *Parser) parseArrowBody(owner string) (*ast.BlockStmt, bool) {
+	p.advance()
+	p.advance()
+	line, col := p.current.Line, p.current.Column
+
+	if p.current.Type == lexer.TOKEN_LBRACE {
+		block := p.parseBlockStatement()
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil, false
+		}
+		block.ArrowBraces = true
+		return block, true
+	}
+
+	stmt := p.parseStatement()
+	if stmt == nil {
+		return nil, false
+	}
+	if _, nested := stmt.(*ast.IfStmt); nested && owner == "if" {
+		p.errorAt(ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + 1}, "the body of an `if c =>` is not another if").
+			WithHelp("join the conditions with &&, or use braces")
+		return nil, false
+	}
+
+	body := &ast.BlockStmt{Statements: []ast.Statement{stmt}}
+	body.SetPos(line, col)
+	body.SetEndPos(p.currentEnd())
+	return body, true
+}
+
+func (p *Parser) skipElse() {
+	switch p.peek.Type {
+	case lexer.TOKEN_LBRACE:
+		p.advance()
+		p.parseBlockStatement()
+		p.expect(lexer.TOKEN_RBRACE)
+	case lexer.TOKEN_IF:
+		p.advance()
+		p.parseIfStatement()
+	case lexer.TOKEN_ARROW:
+		p.parseArrowBody("else")
+	default:
+		p.advance()
+		p.parseStatement()
+	}
 }
 
 func (p *Parser) parseReturnStatement() ast.Statement {
@@ -579,6 +611,23 @@ func (p *Parser) parseIfStatement() ast.Statement {
 	}
 	stmt.Condition = cond
 
+	if p.peek.Type == lexer.TOKEN_ARROW {
+		body, ok := p.parseArrowBody("if")
+		if !ok {
+			return nil
+		}
+		stmt.Then = body
+		if p.peek.Type == lexer.TOKEN_ELSE {
+			p.advance()
+			p.errorfNoSync("an if written with => has no else: use braces on both sides, a match, or a ternary")
+			p.skipElse()
+		}
+		if capture != "" {
+			return p.wrapCapture(stmt, cond, capture, captureAt)
+		}
+		return stmt
+	}
+
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
 	}
@@ -707,6 +756,15 @@ func (p *Parser) parseForStatement() *ast.ForStmt {
 		p.allowStructLiteral = prev
 	}
 
+	if p.peek.Type == lexer.TOKEN_ARROW {
+		body, ok := p.parseArrowBody("for")
+		if !ok {
+			return nil
+		}
+		stmt.Body = body
+		return stmt
+	}
+
 	if !p.expect(lexer.TOKEN_LBRACE) {
 		return nil
 	}
@@ -725,7 +783,7 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 	var capture string
 	var captureAt ast.Position
 	var source ast.Expression
-	if p.peek.Type != lexer.TOKEN_LBRACE {
+	if p.peek.Type != lexer.TOKEN_LBRACE && p.peek.Type != lexer.TOKEN_ARROW {
 		p.advance()
 		cond, name, at, ok := p.parseConditionWithCapture()
 		if !ok {
@@ -738,13 +796,22 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 		}
 	}
 
-	if !p.expect(lexer.TOKEN_LBRACE) {
-		return nil
-	}
-	stmt.Body = p.parseBlockStatement()
+	arrow := p.peek.Type == lexer.TOKEN_ARROW
+	if arrow {
+		body, ok := p.parseArrowBody("loop")
+		if !ok {
+			return nil
+		}
+		stmt.Body = body
+	} else {
+		if !p.expect(lexer.TOKEN_LBRACE) {
+			return nil
+		}
+		stmt.Body = p.parseBlockStatement()
 
-	if !p.expect(lexer.TOKEN_RBRACE) {
-		return nil
+		if !p.expect(lexer.TOKEN_RBRACE) {
+			return nil
+		}
 	}
 
 	if capture != "" {
@@ -766,6 +833,9 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 
 	if p.peek.Type == lexer.TOKEN_UNTIL {
 		p.advance()
+		if arrow {
+			p.errorfNoSync("an until goes after braces: write loop { ... } until c;")
+		}
 		if stmt.Condition != nil || capture != "" {
 			p.error("a loop takes either a condition or an until, not both")
 			return nil

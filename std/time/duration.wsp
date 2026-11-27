@@ -43,7 +43,7 @@ public inline func (Duration d) hours() float => float(int(d)) / 3.6e12;
 func fraction(io.Writer w, uint mag, uint unit, int digits) ! {
 	conv.writeUint(w, mag / unit, 10, false)!;
 	uint frac = mag % unit;
-	return if frac == 0;
+	if frac == 0 => return;
 
 	[9]byte text;
 	uint rest = frac;

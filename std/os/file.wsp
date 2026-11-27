@@ -42,7 +42,7 @@ public File stderr = .{fd: 2};
 /// `Permission`, `Exists` and the like. The file has to be closed with `close`.
 public func open(string path, Flags flags) !File {
 	int r = sys.open(path, int(flags));
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 	return .{fd: r};
 }
 
@@ -61,8 +61,8 @@ public func (*File f) read([]byte buf) !?int {
 	loop {
 		r = sys.read(f.fd, (*byte)(buf), len(buf));
 	} until r != -4;
-	return errorIO(sys.errno(r)) if r < 0;
-	return null if r == 0 && len(buf) > 0;
+	if r < 0 => return errorIO(sys.errno(r));
+	if r == 0 && len(buf) > 0 => return null;
 	return r;
 }
 
@@ -75,8 +75,8 @@ public func (*File f) write([]byte data) !int {
 	int total;
 	loop total < len(data) {
 		int r = sys.write(f.fd, (*byte)(data) + total, len(data) - total);
-		continue if r == -4;
-		return errorIO(sys.errno(r)) if r <= 0;
+		if r == -4 => continue;
+		if r <= 0 => return errorIO(sys.errno(r));
 		total += r;
 	}
 	return total;
@@ -85,10 +85,10 @@ public func (*File f) write([]byte data) !int {
 /// Closes the file. Closing a file that is already closed does nothing. The
 /// file is closed even when the system reports an error.
 public func (*File f) close() ! {
-	return if f.fd < 0;
+	if f.fd < 0 => return;
 	int r = sys.close(f.fd);
 	f.fd = -1;
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 }
 
 /// Moves the position by `offset` from `whence` and returns the new position
@@ -102,7 +102,7 @@ public func (*File f) seek(int offset, io.Whence whence) !int {
 		.End => sys.SEEK_END;
 	};
 	int r = sys.seek(f.fd, offset, origin);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 	return r;
 }
 
@@ -111,7 +111,7 @@ public func (*File f) seek(int offset, io.Whence whence) !int {
 public func (*File f) size() !int {
 	f.check()!;
 	int r = sys.size(f.fd);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 	return r;
 }
 
@@ -120,7 +120,7 @@ public func (*File f) size() !int {
 public func (*File f) sync() ! {
 	f.check()!;
 	int r = sys.sync(f.fd);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 }
 
 /// Returns what the file is: a regular file, a pipe, a device and so on. Fails
@@ -128,7 +128,7 @@ public func (*File f) sync() ! {
 public func (*File f) kind() !FileKind {
 	f.check()!;
 	int r = sys.kind(f.fd);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 	return kindOf(r);
 }
 

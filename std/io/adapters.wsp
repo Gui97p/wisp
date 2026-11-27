@@ -30,7 +30,7 @@ public inline func limitReader(Reader r, int n) LimitReader => .{source: r, left
 /// Reads from the source, never more than what is left of the limit. Returns
 /// null once the limit is reached or the source ends.
 public func (*LimitReader l) read([]byte buf) !?int {
-	return null if l.left <= 0;
+	if l.left <= 0 => return null;
 	[]byte part = len(buf) > l.left ? buf[..l.left] : buf;
 	int n = l.source.read(part)! ?? return null;
 	l.left -= n;

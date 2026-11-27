@@ -39,7 +39,7 @@ public func (*Environ e) next() ?Variable {
 		loop eq < len(entry) && entry[eq] != '=' {
 			eq++;
 		}
-		continue if eq == 0 || eq == len(entry);
+		if eq == 0 || eq == len(entry) => continue;
 		return Variable{name: entry[..eq], value: entry[eq + 1..]};
 	}
 }
@@ -56,11 +56,11 @@ public func cwd(mem.Allocator a) !string {
 	loop {
 		[]byte buf = mem.makeDirty<byte>(a, size)!;
 		int r = sys.getcwd(buf);
-		return string(buf[..r]) if r >= 0;
+		if r >= 0 => return string(buf[..r]);
 
 		mem.free(a, buf);
 		Error e = errorIO(sys.errno(r));
-		return e if e != errors.Kind.Overflow;
+		if e != errors.Kind.Overflow => return e;
 		size *= 2;
 	}
 }
@@ -96,7 +96,7 @@ public func atExit(() => () hook) ! {
 /// end of the program does it, so a program does not have to. A call made while
 /// the hooks are already running does nothing.
 public func runExitHooks() {
-	return if running;
+	if running => return;
 	running = true;
 	loop pending > 0 {
 		pending--;

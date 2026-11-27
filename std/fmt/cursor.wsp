@@ -30,7 +30,7 @@ func (*Cursor c) advanceIf(byte ch) bool {
 
 func (*Cursor c) advanceUntil(byte ...chs) bool {
 	loop !(c.peek() in chs) {
-		return false if c.done();
+		if c.done() => return false;
 		c.advance();
 	}
 	return true;
@@ -60,6 +60,6 @@ func (*Cursor c) number() ?Number {
 		count++;
 	}
 
-	return null if count == 0;
+	if count == 0 => return null;
 	return Number{value: n, fits: fits};
 }

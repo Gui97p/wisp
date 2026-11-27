@@ -117,7 +117,7 @@ func (*Decimal dec) shouldRoundUp(int nd) bool {
 	}
 
 	uint d = dec.d[nd];
-	return nd == 0 ? false : dec.d[nd - 1] % 2 == 1 if d == 5 && nd + 1 == dec.n;
+	if d == 5 && nd + 1 == dec.n => return nd == 0 ? false : dec.d[nd - 1] % 2 == 1;
 
 	return d >= 5;
 }
@@ -161,7 +161,7 @@ func (*Decimal dec) roundShortest(*Decimal lower, upper, bool inclusive) {
 	int upperDelta;
 	for ui in 0..=dec.n {
 		int mi = ui - upper.dp + dec.dp;
-		break if mi >= dec.n;
+		if mi >= dec.n => break;
 		int li = ui - upper.dp + lower.dp;
 
 		uint l = lower.digitAt(li);
@@ -281,7 +281,7 @@ func (*Decimal dec) shift(int k) {
 }
 
 func (*Decimal dec) rounded() uint {
-	return 0xFFFFFFFFFFFFFFFF if dec.dp > 20;
+	if dec.dp > 20 => return 0xFFFFFFFFFFFFFFFF;
 	uint n = 0;
 	for i in 0..dec.dp {
 		n *= 10;
@@ -296,10 +296,10 @@ func (*Decimal dec) rounded() uint {
 }
 
 func (*Decimal dec) toFloat(int mantBits, expBits, bias) !float {
-	return 0.0 if dec.n == 0;
+	if dec.n == 0 => return 0.0;
 	int top = (1 << expBits) - 1;
 	errors.ensure(dec.dp <= 310, errors.Kind.Overflow)!;
-	return 0.0 if dec.dp < -330;
+	if dec.dp < -330 => return 0.0;
 
 	[9]int table = .{1, 3, 6, 9, 13, 16, 19, 23, 26};
 	int exp = 0;

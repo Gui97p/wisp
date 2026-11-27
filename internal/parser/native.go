@@ -18,7 +18,7 @@ type Directive struct {
 var Directives = []Directive{
 	{Name: "target", Doc: "Restricts the file to the targets that match the expression that follows, such as #target x64 & linux."},
 	{Name: "standalone", Doc: "Makes the file a module of its own, imported by its path, instead of one of the files that make the module of its folder."},
-	{Name: "allow", Doc: "Turns off warnings in this file, by name: #allow unused_variables, dead_code. The names are unused_variables, unused_imports, dead_code, unreachable_code, and warnings for every warning."},
+	{Name: "allow", Doc: "Turns off warnings in this file, by name: #allow unused_variables, dead_code. The names are unused_variables, unused_imports, dead_code, unreachable_code, redundant_arrow, and warnings for every warning."},
 }
 
 var Lints = []Directive{
@@ -26,6 +26,7 @@ var Lints = []Directive{
 	{Name: "unused_imports", Doc: "An import that nothing uses."},
 	{Name: "dead_code", Doc: "A function or global that nothing uses."},
 	{Name: "unreachable_code", Doc: "A statement that comes after a return, break or continue."},
+	{Name: "redundant_arrow", Doc: "A => written before the braces of an if, for or loop: the braces already hold the body."},
 	{Name: "warnings", Doc: "Every warning of the file."},
 }
 

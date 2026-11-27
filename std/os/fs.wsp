@@ -18,14 +18,14 @@ public struct Stat {
 /// from `IOError` if `path` is a directory (use `removeDir` for those).
 public func remove(string path) ! {
 	int r = sys.remove(path);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 }
 
 /// Renames or moves `from` to `to`, replacing `to` if it is a file. Fails with
 /// `NotFound`, `Permission` and the like.
 public func rename(string from, to) ! {
 	int r = sys.rename(from, to);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 }
 
 /// Returns what the system knows about `path`: kind, size, modification time and
@@ -34,7 +34,7 @@ public func rename(string from, to) ! {
 public func stat(string path) !Stat {
 	sys.Stat s;
 	int r = sys.stat(path, &s);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 	FileKind kind = kindOf(s.kind);
 	return Stat{mode: s.mode, kind: kind, modified: s.modified, size: s.size};
 }

@@ -16,7 +16,7 @@ public func concat(mem.Allocator a, string ...parts) !string {
 	for part in parts {
 		total += len(part);
 	}
-	return "" if total == 0;
+	if total == 0 => return "";
 	[]byte buf = mem.makeDirty<byte>(a, total)!;
 	total = 0;
 	for part in parts {
@@ -31,12 +31,12 @@ public func concat(mem.Allocator a, string ...parts) !string {
 /// nothing is allocated when the result is empty. Fails with the error of the
 /// allocator.
 public func join(mem.Allocator a, []string parts, string sep) !string {
-	return "" if len(parts) == 0;
+	if len(parts) == 0 => return "";
 	int total = len(sep) * (len(parts) - 1);
 	for p in parts {
 		total += len(p);
 	}
-	return "" if total == 0;
+	if total == 0 => return "";
 	[]byte buf = mem.makeDirty<byte>(a, total)!;
 	int at = copy(buf, parts[0]);
 	for p in parts[1..] {
@@ -51,7 +51,7 @@ public func join(mem.Allocator a, []string parts, string sep) !string {
 /// is zero or negative, and nothing is allocated then. Fails with the error of
 /// the allocator.
 public func rep(mem.Allocator a, string s, int n) !string {
-	return "" if n <= 0;
+	if n <= 0 => return "";
 	[]byte buf = mem.makeDirty<byte>(a, len(s) * n)!;
 
 	int total;
@@ -81,7 +81,7 @@ public func replace(mem.Allocator a, string s, old, new, int n) !string {
 	}
 
 	int size = len(s) + found * (len(new) - len(old));
-	return "" if size == 0;
+	if size == 0 => return "";
 	[]byte buf = mem.makeDirty<byte>(a, size)!;
 
 	Splitter sp = splitter(s, old);
@@ -151,7 +151,7 @@ public func split(mem.Allocator a, string s, string sep) ![]string {
 	for _ in &probe {
 		n++;
 	}
-	return .{} if n == 0;
+	if n == 0 => return .{};
 
 	[]string parts = mem.make<string>(a, n)!;
 	Splitter it = splitter(s, sep);
@@ -167,7 +167,7 @@ public func split(mem.Allocator a, string s, string sep) ![]string {
 /// with `mem.free`, or leaves it to an arena or a `Fixed`. An empty `s` gives an
 /// empty string and allocates nothing. Fails with the error of the allocator.
 public func clone(mem.Allocator a, string s) !string {
-	return "" if len(s) == 0;
+	if len(s) == 0 => return "";
 	[]byte buf = mem.makeDirty<byte>(a, len(s))!;
 	mem.copy(buf, (*byte)(s), len(s));
 	return string(buf);

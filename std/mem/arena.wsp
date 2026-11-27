@@ -134,7 +134,7 @@ public func (*Arena a) rewind(Mark m) {
 	Allocator source = a.source();
 	?*Chunk c = a.head;
 	loop c |chunk| {
-		break if c == m.chunk;
+		if c == m.chunk => break;
 		?*Chunk next = chunk.next;
 		source.free(chunk);
 		c = next;

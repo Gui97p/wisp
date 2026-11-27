@@ -36,11 +36,11 @@ public inline func lowerByte(byte c) byte => c in 'A'..='Z' ? c + 32 : c;
 /// letters of either case are 10 to 35. The result is null when `c` is not a
 /// digit, when its value is not below `base`, or when `base` is outside 2 to 36.
 public func digitValue(byte c, int base) ?int {
-	return null if !(base in 2..=36);
+	if !(base in 2..=36) => return null;
 
 	if c in '0'..='9' {
 		int v = c - '0';
-		return v if v < base;
+		if v < base => return v;
 		return null;
 	}
 
@@ -50,7 +50,7 @@ public func digitValue(byte c, int base) ?int {
 
 	if c in 'A'..='Z' {
 		int v = c - 'A' + 10;
-		return v if v < base;
+		if v < base => return v;
 	}
 
 	return null;

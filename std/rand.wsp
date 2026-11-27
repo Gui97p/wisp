@@ -59,7 +59,7 @@ func (*Generator r) below(int n) int {
 	uint threshold = (0 -% bound) % bound;
 	loop {
 		uint v = r.next();
-		return int(v % bound) if v >= threshold;
+		if v >= threshold => return int(v % bound);
 	}
 }
 
@@ -90,7 +90,7 @@ public func (*Generator r) fill([]byte buf) {
 	loop at < len(buf) {
 		uint v = r.next();
 		for _ in 0..8 {
-			break if at >= len(buf);
+			if at >= len(buf) => break;
 			buf[at] = byte(v & 0xFF);
 			v = v >> 8;
 			at++;

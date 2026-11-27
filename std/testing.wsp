@@ -28,7 +28,7 @@ func warn(string format, ...args) {
 /// used with the others as in `fmt.fprint`, and a newline is added. Does
 /// nothing if there are no arguments or the first is not a string.
 public func report(...args) {
-	return if len(args) == 0;
+	if len(args) == 0 => return;
 
 	match type args[0] {
 		string format => {
@@ -41,7 +41,7 @@ public func report(...args) {
 /// Returns `ok`. If it is false, prints the message given by `args` as `report`
 /// does. It does not stop the test.
 public func holds(bool ok, ...args) bool {
-	return true if ok;
+	if ok => return true;
 
 	report(args...);
 	return false;
@@ -54,7 +54,7 @@ public func sameKind(Error e, int kind) bool {
 		warn("expected an error of kind {}, got no error\n", kind);
 		return false;
 	}
-	return true if e.code == kind;
+	if e.code == kind => return true;
 
 	warn("expected an error of kind {}, got {}\n", kind, e.code);
 	return false;
@@ -64,7 +64,7 @@ public func sameKind(Error e, int kind) bool {
 /// the values and the difference if not.
 public func isClose(float want, float got, float tolerance) bool {
 	float diff = want > got ? want - got : got - want;
-	return true if diff <= tolerance;
+	if diff <= tolerance => return true;
 
 	warn("expected {}, got {}: the difference {} is more than {}\n", want, got, diff, tolerance);
 	return false;
@@ -73,7 +73,7 @@ public func isClose(float want, float got, float tolerance) bool {
 func firstDifference(string a, string b) int {
 	int n = math.min(len(a), len(b));
 	for i in 0..n {
-		return i if a[i] != b[i];
+		if a[i] != b[i] => return i;
 	}
 	return n;
 }
@@ -81,7 +81,7 @@ func firstDifference(string a, string b) int {
 /// Reports whether the two strings are equal, and prints both and the position
 /// of the first differing byte if not.
 public func sameText(string want, string got) bool {
-	return true if want == got;
+	if want == got => return true;
 
 	warn("strings differ at byte {}\n  want: \"{}\"\n   got: \"{}\"\n", firstDifference(want, got), want, got);
 	return false;
@@ -90,7 +90,7 @@ public func sameText(string want, string got) bool {
 /// Fails the test if `ok` is false, printing the message given by `args` as
 /// `report` does. Returns an error of kind `Failed`, so use it as `expect(...)!`.
 public inline func expect(bool ok, ...args) ! {
-	return Error(Kind.Failed, "expectation failed") if !holds(ok, args...);
+	if !holds(ok, args...) => return Error(Kind.Failed, "expectation failed");
 }
 
 /// Prints the message given by `args` as `report` does and returns an error of
@@ -102,18 +102,18 @@ public inline func fail(...args) ! {
 
 /// Fails the test with `Failed` unless `e` is an error whose `code` is `kind`.
 public inline func expectKind(Error e, int kind) ! {
-	return Error(Kind.Failed, "wrong kind of error") if !sameKind(e, kind);
+	if !sameKind(e, kind) => return Error(Kind.Failed, "wrong kind of error");
 }
 
 /// Fails the test with `Failed` unless `want` and `got` differ by at most
 /// `tolerance`.
 public inline func expectApprox(float want, float got, float tolerance) ! {
-	return Error(Kind.Failed, "values are not close") if !isClose(want, got, tolerance);
+	if !isClose(want, got, tolerance) => return Error(Kind.Failed, "values are not close");
 }
 
 /// Fails the test with `Failed` unless the two strings are equal.
 public inline func expectEqualStrings(string want, string got) ! {
-	return Error(Kind.Failed, "strings differ") if !sameText(want, got);
+	if !sameText(want, got) => return Error(Kind.Failed, "strings differ");
 }
 
 /// Prints the message given by `args` as `report` does and ends the program
@@ -137,7 +137,7 @@ public func allocator() mem.Allocator {
 /// returns an error of kind `Leaked` if blocks were not freed, and releases the
 /// memory either way. Does nothing if `allocator` was never called.
 public func finish() ! {
-	return if !tracking;
+	if !tracking => return;
 
 	tracker.check();
 	int leaked = tracker.blocks();
@@ -146,7 +146,7 @@ public func finish() ! {
 	}
 	tracker.release();
 	store.release();
-	return if leaked == 0;
+	if leaked == 0 => return;
 
 	return Error(Kind.Leaked, "memory leaked");
 }

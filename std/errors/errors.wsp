@@ -1,13 +1,13 @@
 /// Returns an `Error` of kind `k` if `condition` is false, and nothing
 /// otherwise. Meant for use as `ensure(ok, kind)!`.
 public inline func ensure(bool condition, const Kind k) ! {
-	return Error(k) if !condition;
+	if !condition => return Error(k);
 }
 
 /// Like `ensure`, with `message` attached to the error. The message must be a
 /// constant.
 public inline func ensureMessage(bool condition, const Kind k, const string message) ! {
-	return Error(k, message) if !condition;
+	if !condition => return Error(k, message);
 }
 
 /// Panics with `message` if `condition` is false. In a build that is not

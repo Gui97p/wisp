@@ -89,13 +89,13 @@ inline func mix(uint key) uint {
 
 func (*Debug d) find(uint key) int {
 	int n = len(d.table);
-	return -1 if n == 0;
+	if n == 0 => return -1;
 	int mask = n - 1;
 	int i = int(mix(key) & uint(mask));
 	for _ in 0..n {
 		uint at = d.table[i];
-		return -1 if at == EMPTY;
-		return i if at == key;
+		if at == EMPTY => return -1;
+		if at == key => return i;
 		i = (i + 1) & mask;
 	}
 	return -1;
@@ -261,7 +261,7 @@ public func (*Debug d) realloc(?*void p, int old, int n) !*void {
 	if h.size != old {
 		fail(h, "realloc with a size that is not the size of the block");
 	}
-	return block if n == old;
+	if n == old => return block;
 	*void next = d.obtain(n, true)!;
 	copy(next, block, old < n ? old : n);
 	d.free(block);

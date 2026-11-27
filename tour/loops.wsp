@@ -103,14 +103,14 @@ func looping() {
 		guess = doubled;  // 2, 4, 8, 16, 32, 64, 128
 	} until doubled >= 100;
 
-	// `continue` and `break` take a guard like `return` does: `continue if n == 2;`
-	// is the short form of an `if` whose body is just the `continue`.
+	// A `continue` or a `break` takes one line with `if c => continue;`: the `=>`
+	// is the short form of an `if` whose body is a single statement.
 	int n = 0;
 	int kept = 0;
 	loop {
 		n++;  // 1, 2, 3, 4, 5
-		continue if n == 2;
-		break if n > 4;
+		if n == 2 => continue;
+		if n > 4 => break;
 		kept += n;  // 1, 4, 8
 	}
 }

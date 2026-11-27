@@ -7,7 +7,7 @@ import "std/sys";
 /// `NotDir` from `IOError`, or `NotFound` and `Permission` from `errors.Kind`.
 public func removeDir(string path) ! {
 	int r = sys.rmdir(path);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 }
 
 /// Creates the directory at `path` and any missing parents. It is not an error if
@@ -16,7 +16,7 @@ public func removeDir(string path) ! {
 /// created.
 public func createDir(string path) ! {
 	let s = stat(path) ?? |e| {
-		return e if e != errors.Kind.NotFound;
+		if e != errors.Kind.NotFound => return e;
 		createDir(paths.dir(path))!;
 		int r = sys.mkdir(path);
 		if r < 0 {
@@ -25,7 +25,7 @@ public func createDir(string path) ! {
 		return;
 	};
 
-	return Error(IOError.NotDir) if s.kind != .Dir;
+	if s.kind != .Dir => return Error(IOError.NotDir);
 }
 
 /// An open directory, read one entry at a time with `next`. Get one from
@@ -48,8 +48,8 @@ public struct Entry {
 /// Fails with the error of the system if reading fails.
 public func (*Dir d) next() !?Entry {
 	int r = sys.dirNext(&d.state, &d.entry);
-	return errorIO(sys.errno(r)) if r < 0;
-	return null if r == 0;
+	if r < 0 => return errorIO(sys.errno(r));
+	if r == 0 => return null;
 	FileKind kind = kindOf(d.entry.kind);
 	return Entry{name: string(d.entry.name[..d.entry.len]), kind: kind};
 }
@@ -58,7 +58,7 @@ public func (*Dir d) next() !?Entry {
 /// the system.
 public func (*Dir d) close() ! {
 	int r = sys.dirClose(&d.state);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 }
 
 /// Opens the directory at `path` for reading its entries. Fails with `NotFound`,
@@ -67,6 +67,6 @@ public func (*Dir d) close() ! {
 public func openDir(string path) !Dir {
 	Dir d;
 	int r = sys.dirOpen(path, &d.state);
-	return errorIO(sys.errno(r)) if r < 0;
+	if r < 0 => return errorIO(sys.errno(r));
 	return d;
 }

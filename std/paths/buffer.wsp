@@ -18,7 +18,7 @@ public func join(mem.Allocator a, string ...parts) !string {
 	bool seen, firstPassed;
 
 	for _, p in parts {
-		continue if p == "";
+		if p == "" => continue;
 		string rest = p;
 		if !seen {
 			seen = true;

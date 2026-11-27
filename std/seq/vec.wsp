@@ -28,7 +28,7 @@ inline func (*Vec<T> l) setLen(int n) {
 /// it fails the list is left as it was.
 public func (*Vec<T> l) reserve(int n) ! {
 	int needed = len(l.items) + n;
-	return if needed <= l.cap;
+	if needed <= l.cap => return;
 
 	int cap = l.cap;
 	if cap < 8 {
@@ -54,7 +54,7 @@ public func (*Vec<T> l) append(T v) ! {
 /// Adds the elements of a slice at the end, which may belong to this list.
 public func (*Vec<T> l) extend([]T more) ! {
 	int n = len(more);
-	return if n == 0;
+	if n == 0 => return;
 
 	int index = -1;
 	if l.cap > 0 {
@@ -79,7 +79,7 @@ public func (*Vec<T> l) extend([]T more) ! {
 /// error: i can be len(l.items) to add at the end.
 public func (*Vec<T> l) insert(int i, T v) ! {
 	int count = len(l.items);
-	return Error(errors.Kind.Invalid) if i < 0 || i > count;
+	if i < 0 || i > count => return Error(errors.Kind.Invalid);
 
 	l.reserve(1)!;
 	l.setLen(count + 1);
@@ -92,7 +92,7 @@ public func (*Vec<T> l) insert(int i, T v) ! {
 /// Takes the last element out, or gives null when the list is empty.
 public func (*Vec<T> l) pop() ?T {
 	int count = len(l.items);
-	return null if count == 0;
+	if count == 0 => return null;
 
 	T v = l.items[count - 1];
 	l.setLen(count - 1);
@@ -103,7 +103,7 @@ public func (*Vec<T> l) pop() ?T {
 /// gives null when there is none there.
 public func (*Vec<T> l) remove(int i) ?T {
 	int count = len(l.items);
-	return null if i < 0 || i >= count;
+	if i < 0 || i >= count => return null;
 
 	T v = l.items[i];
 	if i < count - 1 {
@@ -115,7 +115,7 @@ public func (*Vec<T> l) remove(int i) ?T {
 
 /// The element at position i, or null when there is none there.
 public func (*Vec<T> l) get(int i) ?T {
-	return null if i < 0 || i >= len(l.items);
+	if i < 0 || i >= len(l.items) => return null;
 	return l.items[i];
 }
 
@@ -167,7 +167,7 @@ public struct VecIter<T> {
 
 /// Gives the next element, copied, or null after the last one.
 public func (*VecIter<T> it) next() ?T {
-	return null if it.at >= len(it.items);
+	if it.at >= len(it.items) => return null;
 	T v = it.items[it.at];
 	it.at++;
 	return v;

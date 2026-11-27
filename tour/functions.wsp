@@ -63,8 +63,8 @@ func swapped(int a, b) (int, int) {
 }
 
 // So a function that returns nothing can end with `return other();` when
-// `other` returns nothing too, and the guard form works as well:
-// `return log("x") if quiet;`.
+// `other` returns nothing too, and it works after `=>` as well:
+// `if quiet => return log("x");`.
 
 func announce(string text) {
 	fmt.println("{text}");

@@ -152,17 +152,17 @@ internal func lastError() int {
 
 internal func handleError() int {
 	int code = int(GetLastError());
-	return -EBADF if code == 5;
+	if code == 5 => return -EBADF;
 	return -winerr(code);
 }
 
 internal func handleOf(int fd) *void {
-	return GetStdHandle(int32(-10 - fd)) if fd >= 0 && fd <= 2;
+	if fd >= 0 && fd <= 2 => return GetStdHandle(int32(-10 - fd));
 	return (*void)(fd);
 }
 
 internal func buffers() int {
-	return 0 if wideAp != null;
+	if wideAp != null => return 0;
 	int unit = WIDE_MAX * 2;
 	*void block = VirtualAlloc(null, int64(unit * 4 + ENV_BYTES * 2 + CONV_BYTES), MEM_COMMIT_RESERVE, PAGE_READWRITE) ?? return -ENOMEM;
 	*byte base = (*byte)(block);
@@ -178,7 +178,7 @@ internal func buffers() int {
 
 internal func widePath(string path) int {
 	int fault = buffers();
-	return fault if fault < 0;
+	if fault < 0 => return fault;
 	return towide(path, wideA());
 }
 
@@ -187,19 +187,19 @@ internal func isDevicePath(*uint16 p) bool {
 }
 
 internal func towide(string s, *uint16 dst) int {
-	return -ENOENT if len(s) == 0;
-	return -ENAMETOOLONG if len(s) >= WIDE_MAX - 16;
+	if len(s) == 0 => return -ENOENT;
+	if len(s) >= WIDE_MAX - 16 => return -ENAMETOOLONG;
 	int n = MultiByteToWideChar(CP_UTF8, 0, (*byte)(s), int32(len(s)), dst, int32(WIDE_MAX - 16));
-	return -EINVAL if n <= 0;
+	if n <= 0 => return -EINVAL;
 	dst[n] = 0;
-	return n if isDevicePath(dst);
+	if isDevicePath(dst) => return n;
 
 	int room = WIDE_MAX - 16;
 	int m = int(GetFullPathNameW(dst, uint32(room), wideScratch(), null));
 	if m == 0 || m < LONG_PATH {
 		return n;
 	}
-	return -ENAMETOOLONG if m >= room;
+	if m >= room => return -ENAMETOOLONG;
 
 	int total;
 	if wideScratch()[0] == 92 && wideScratch()[1] == 92 {
@@ -235,13 +235,13 @@ internal func isDirectory(*uint16 path) bool {
 }
 
 internal func kindOf(uint32 attributes) int {
-	return KIND_LINK if (attributes & ATTRIBUTE_REPARSE_POINT) != 0;
-	return KIND_DIR if (attributes & ATTRIBUTE_DIRECTORY) != 0;
+	if (attributes & ATTRIBUTE_REPARSE_POINT) != 0 => return KIND_LINK;
+	if (attributes & ATTRIBUTE_DIRECTORY) != 0 => return KIND_DIR;
 	return KIND_FILE;
 }
 
 internal func readConsole(*byte buf, int n) int {
-	return 0 if n == 0;
+	if n == 0 => return 0;
 	if inLeft > 0 {
 		int k;
 		loop k < inLeft && k < n {
@@ -257,7 +257,7 @@ internal func readConsole(*byte buf, int n) int {
 		inLeft = rest;
 		return k;
 	}
-	return -ENOMEM if buffers() < 0;
+	if buffers() < 0 => return -ENOMEM;
 
 	loop {
 		int want = n / 3;
@@ -275,9 +275,9 @@ internal func readConsole(*byte buf, int n) int {
 		}
 		uint32 got;
 		*uint16 into = (*uint16)((*byte)(wideScratch()) + off * 2);
-		return lastError() if ReadConsoleW(handleOf(0), into, uint32(want), &got, null) == 0;
-		return 0 if got == 0;
-		return 0 if off == 0 && wideScratch()[0] == 26;
+		if ReadConsoleW(handleOf(0), into, uint32(want), &got, null) == 0 => return lastError();
+		if got == 0 => return 0;
+		if off == 0 && wideScratch()[0] == 26 => return 0;
 
 		int count = off + int(got);
 		int kept;
@@ -302,10 +302,10 @@ internal func readConsole(*byte buf, int n) int {
 				kept--;
 			}
 		}
-		continue if kept == 0;
+		if kept == 0 => continue;
 
 		int m = WideCharToMultiByte(CP_UTF8, 0, wideScratch(), int32(kept), convBuffer(), int32(CONV_BYTES), null, null);
-		return -EINVAL if m <= 0;
+		if m <= 0 => return -EINVAL;
 		int copied = m > n ? n : m;
 		for i in 0..copied {
 			buf[i] = convBuffer()[i];
@@ -320,10 +320,10 @@ internal func readConsole(*byte buf, int n) int {
 }
 
 internal func read(int fd, *byte buf, int n) int {
-	return readConsole(buf, n) if fd == 0 && isConsole(0);
+	if fd == 0 && isConsole(0) => return readConsole(buf, n);
 	uint32 got;
 	if ReadFile(handleOf(fd), buf, uint32(n), &got, null) == 0 {
-		return 0 if int(GetLastError()) == ERROR_BROKEN_PIPE;
+		if int(GetLastError()) == ERROR_BROKEN_PIPE => return 0;
 		return handleError();
 	}
 	return int(got);
@@ -335,19 +335,19 @@ internal func isConsole(int fd) bool {
 }
 
 internal func sequenceLength(byte lead) int {
-	return 4 if lead >= 0xF0 && lead < 0xF8;
-	return 3 if lead >= 0xE0 && lead < 0xF0;
-	return 2 if lead >= 0xC0 && lead < 0xE0;
+	if lead >= 0xF0 && lead < 0xF8 => return 4;
+	if lead >= 0xE0 && lead < 0xF0 => return 3;
+	if lead >= 0xC0 && lead < 0xE0 => return 2;
 	return 1;
 }
 
 internal func emitWide(int fd, *byte p, int n) int {
-	return 0 if n == 0;
-	return -ENOMEM if buffers() < 0;
+	if n == 0 => return 0;
+	if buffers() < 0 => return -ENOMEM;
 	int m = MultiByteToWideChar(CP_UTF8, 0, p, int32(n), wideScratch(), int32(WIDE_MAX - 16));
-	return -EINVAL if m <= 0;
+	if m <= 0 => return -EINVAL;
 	uint32 done;
-	return lastError() if WriteConsoleW(handleOf(fd), wideScratch(), uint32(m), &done, null) == 0;
+	if WriteConsoleW(handleOf(fd), wideScratch(), uint32(m), &done, null) == 0 => return lastError();
 	return 0;
 }
 
@@ -374,7 +374,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 		}
 		pendingCount[fd] = 0;
 		int r = emitWide(fd, (*byte)(joined), held);
-		return r if r < 0;
+		if r < 0 => return r;
 	}
 
 	int tail = n;
@@ -399,7 +399,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 			}
 		}
 		int r = emitWide(fd, buf + pos, end - pos);
-		return r if r < 0;
+		if r < 0 => return r;
 		pos = end;
 	}
 
@@ -418,13 +418,13 @@ internal func write(int fd, *byte buf, int n) int {
 		return writeConsole(fd, buf, n);
 	}
 	uint32 done;
-	return handleError() if WriteFile(handleOf(fd), buf, uint32(n), &done, null) == 0;
+	if WriteFile(handleOf(fd), buf, uint32(n), &done, null) == 0 => return handleError();
 	return int(done);
 }
 
 internal func open(string path, int flags) int {
 	int n = widePath(path);
-	return n if n < 0;
+	if n < 0 => return n;
 
 	int mode = flags & 3;
 	int access = 0;
@@ -454,32 +454,32 @@ internal func open(string path, int flags) int {
 	*void h = CreateFileW(wideA(), uint32(access), SHARE_ALL, null, uint32(disposition), ATTRIBUTE_NORMAL, null);
 	if int(h) == -1 {
 		int code = int(GetLastError());
-		return -EISDIR if code == 5 && isDirectory(wideA());
+		if code == 5 && isDirectory(wideA()) => return -EISDIR;
 		return -winerr(code);
 	}
 	return int(h);
 }
 
 internal func close(int fd) int {
-	return 0 if fd >= 0 && fd <= 2;
-	return lastError() if CloseHandle((*void)(fd)) == 0;
+	if fd >= 0 && fd <= 2 => return 0;
+	if CloseHandle((*void)(fd)) == 0 => return lastError();
 	return 0;
 }
 
 internal func seek(int fd, offset, whence) int {
 	int position;
-	return lastError() if SetFilePointerEx(handleOf(fd), int64(offset), &position, uint32(whence)) == 0;
+	if SetFilePointerEx(handleOf(fd), int64(offset), &position, uint32(whence)) == 0 => return lastError();
 	return position;
 }
 
 internal func sync(int fd) int {
-	return lastError() if FlushFileBuffers(handleOf(fd)) == 0;
+	if FlushFileBuffers(handleOf(fd)) == 0 => return lastError();
 	return 0;
 }
 
 internal func size(int fd) int {
 	int total;
-	return lastError() if GetFileSizeEx(handleOf(fd), &total) == 0;
+	if GetFileSizeEx(handleOf(fd), &total) == 0 => return lastError();
 	return total;
 }
 
@@ -494,10 +494,10 @@ internal func kind(int fd) int {
 
 internal func remove(string path) int {
 	int n = widePath(path);
-	return n if n < 0;
+	if n < 0 => return n;
 	if DeleteFileW(wideA()) == 0 {
 		int code = int(GetLastError());
-		return -EISDIR if code == 5 && isDirectory(wideA());
+		if code == 5 && isDirectory(wideA()) => return -EISDIR;
 		return -winerr(code);
 	}
 	return 0;
@@ -505,32 +505,32 @@ internal func remove(string path) int {
 
 internal func rmdir(string path) int {
 	int n = widePath(path);
-	return n if n < 0;
-	return lastError() if RemoveDirectoryW(wideA()) == 0;
+	if n < 0 => return n;
+	if RemoveDirectoryW(wideA()) == 0 => return lastError();
 	return 0;
 }
 
 internal func mkdir(string path) int {
 	int n = widePath(path);
-	return n if n < 0;
-	return lastError() if CreateDirectoryW(wideA(), null) == 0;
+	if n < 0 => return n;
+	if CreateDirectoryW(wideA(), null) == 0 => return lastError();
 	return 0;
 }
 
 internal func rename(string from, string to) int {
 	int n = widePath(from);
-	return n if n < 0;
+	if n < 0 => return n;
 	n = towide(to, wideB());
-	return n if n < 0;
-	return lastError() if MoveFileExW(wideA(), wideB(), REPLACE_EXISTING) == 0;
+	if n < 0 => return n;
+	if MoveFileExW(wideA(), wideB(), REPLACE_EXISTING) == 0 => return lastError();
 	return 0;
 }
 
 internal func stat(string path, *Stat out) int {
 	int n = widePath(path);
-	return n if n < 0;
+	if n < 0 => return n;
 	AttributeData d;
-	return lastError() if GetFileAttributesExW(wideA(), 0, &d) == 0;
+	if GetFileAttributesExW(wideA(), 0, &d) == 0 => return lastError();
 	out.kind = kindOf(d.attributes);
 	out.size = (int(d.sizeHigh) << 32) | int(d.sizeLow);
 	int written = ((int(d.writeHigh) << 32) | int(d.writeLow)) - EPOCH_DIFFERENCE;
@@ -547,11 +547,11 @@ internal func stat(string path, *Stat out) int {
 
 internal func dirOpen(string path, *Dir d) int {
 	int n = widePath(path);
-	return n if n < 0;
+	if n < 0 => return n;
 	uint32 attributes = GetFileAttributesW(wideA());
-	return lastError() if attributes == INVALID_ATTRIBUTES;
-	return -ENOTDIR if (attributes & ATTRIBUTE_DIRECTORY) == 0;
-	return -ENAMETOOLONG if n + 2 >= WIDE_MAX;
+	if attributes == INVALID_ATTRIBUTES => return lastError();
+	if (attributes & ATTRIBUTE_DIRECTORY) == 0 => return -ENOTDIR;
+	if n + 2 >= WIDE_MAX => return -ENAMETOOLONG;
 	if wideA()[n - 1] != 92 && wideA()[n - 1] != 47 {
 		wideA()[n] = 92;
 		n++;
@@ -560,7 +560,7 @@ internal func dirOpen(string path, *Dir d) int {
 	wideA()[n + 1] = 0;
 
 	*void h = FindFirstFileW(wideA(), &d.data);
-	return lastError() if int(h) == -1;
+	if int(h) == -1 => return lastError();
 	d.handle = int(h);
 	d.started = 0;
 	return 0;
@@ -576,10 +576,10 @@ internal func dirNext(*Dir d, *Entry e) int {
 		}
 
 		int n = WideCharToMultiByte(CP_UTF8, 0, (*uint16)(d.data.name), -1, (*byte)(e.name), 1024, null, null);
-		return -EIO if n <= 0;
+		if n <= 0 => return -EIO;
 		int size = n - 1;
-		continue if size == 1 && e.name[0] == '.';
-		continue if size == 2 && e.name[0] == '.' && e.name[1] == '.';
+		if size == 1 && e.name[0] == '.' => continue;
+		if size == 2 && e.name[0] == '.' && e.name[1] == '.' => continue;
 
 		e.len = size;
 		e.kind = kindOf(d.data.attributes);
@@ -588,32 +588,32 @@ internal func dirNext(*Dir d, *Entry e) int {
 }
 
 internal func dirClose(*Dir d) int {
-	return lastError() if FindClose((*void)(d.handle)) == 0;
+	if FindClose((*void)(d.handle)) == 0 => return lastError();
 	return 0;
 }
 
 internal func getcwd([]byte buf) int {
 	int fault = buffers();
-	return fault if fault < 0;
+	if fault < 0 => return fault;
 	int n = int(GetCurrentDirectoryW(uint32(WIDE_MAX), wideA()));
-	return lastError() if n == 0;
-	return -ERANGE if n >= WIDE_MAX;
+	if n == 0 => return lastError();
+	if n >= WIDE_MAX => return -ERANGE;
 	int r = WideCharToMultiByte(CP_UTF8, 0, wideA(), int32(n), (*byte)(buf), int32(len(buf)), null, null);
-	return -ERANGE if r == 0;
+	if r == 0 => return -ERANGE;
 	return r;
 }
 
 internal func getenv(string name) ?string {
-	return null if widePath(name) < 0;
+	if widePath(name) < 0 => return null;
 	SetLastError(0);
 	int n = int(GetEnvironmentVariableW(wideA(), wideValue(), uint32(WIDE_MAX)));
 	if n == 0 {
-		return "" if int(GetLastError()) != ERROR_ENVVAR_NOT_FOUND;
+		if int(GetLastError()) != ERROR_ENVVAR_NOT_FOUND => return "";
 		return null;
 	}
-	return null if n >= WIDE_MAX;
+	if n >= WIDE_MAX => return null;
 	int r = WideCharToMultiByte(CP_UTF8, 0, wideValue(), int32(n), envBuffer(), ENV_BYTES, null, null);
-	return null if r == 0;
+	if r == 0 => return null;
 	return string(envBuffer()[..r]);
 }
 
@@ -650,7 +650,7 @@ internal func sleep(int sec, nsec) int {
 }
 
 internal func random(*void buf, int n) int {
-	return -EIO if BCryptGenRandom(null, buf, uint32(n), RANDOM_SYSTEM) != 0;
+	if BCryptGenRandom(null, buf, uint32(n), RANDOM_SYSTEM) != 0 => return -EIO;
 	return n;
 }
 
@@ -668,7 +668,7 @@ internal func mmap(int n) ?*void {
 }
 
 internal func munmap(*void addr, int _n) int {
-	return -EINVAL if VirtualFree(addr, 0, MEM_RELEASE) == 0;
+	if VirtualFree(addr, 0, MEM_RELEASE) == 0 => return -EINVAL;
 	return 0;
 }
 
@@ -679,7 +679,7 @@ internal func envOpen(*Env e) {
 
 internal func envNext(*Env e) ?string {
 	*uint16 cursor = e.cursor ?? return null;
-	return null if buffers() < 0;
+	if buffers() < 0 => return null;
 	loop {
 		if cursor[0] == 0 {
 			e.cursor = cursor;
@@ -692,9 +692,9 @@ internal func envNext(*Env e) ?string {
 		*uint16 entry = cursor;
 		cursor = (*uint16)((*byte)(cursor) + (n + 1) * 2);
 		e.cursor = cursor;
-		continue if entry[0] == 61;
+		if entry[0] == 61 => continue;
 		int r = WideCharToMultiByte(CP_UTF8, 0, entry, int32(n), iterBuffer(), ENV_BYTES, null, null);
-		continue if r == 0;
+		if r == 0 => continue;
 		return string(iterBuffer()[..r]);
 	}
 }

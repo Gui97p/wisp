@@ -62,7 +62,7 @@ internal struct Entry {
 }
 
 internal func errno(int raw) int {
-	return -raw if raw < 0 && raw >= -4095;
+	if raw < 0 && raw >= -4095 => return -raw;
 	return 0;
 }
 

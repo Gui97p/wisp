@@ -35,10 +35,10 @@ enum Value {
 
 func parse(string braces) !Spec {
 	Spec spec = Spec{fill: ' ', precision: -1};
-	return spec if len(braces) == 0;
-	return Error(SpecError.NoColon) if braces[0] != ':';
+	if len(braces) == 0 => return spec;
+	if braces[0] != ':' => return Error(SpecError.NoColon);
 	string text = braces[1..];
-	return spec if len(text) == 0;
+	if len(text) == 0 => return spec;
 	[3]byte aligns = .{'<', '>', '^'};
 	const kinds = "dxXbocpeEfv";
 
@@ -71,24 +71,24 @@ func parse(string braces) !Spec {
 	}
 
 	if c.number() |width| {
-		return Error(SpecError.BadNumber) if !width.fits;
+		if !width.fits => return Error(SpecError.BadNumber);
 		spec.width = width.value;
 	}
 
 	if c.advanceIf('.') {
 		Number precision = c.number() ?? return Error(SpecError.BadNumber);
-		return Error(SpecError.BadNumber) if !precision.fits;
+		if !precision.fits => return Error(SpecError.BadNumber);
 		spec.precision = precision.value;
 	}
 
 	if !c.done() {
 		byte k = c.peek();
-		return Error(SpecError.UnknownType) if !(k in kinds);
+		if !(k in kinds) => return Error(SpecError.UnknownType);
 		spec.kind = k;
 		c.advance();
 	}
 
-	return Error(SpecError.Trailing) if !c.done();
+	if !c.done() => return Error(SpecError.Trailing);
 
 	return spec;
 }

@@ -127,7 +127,7 @@ struct Resource {
 }
 
 func (*Resource r) close() ! {
-	return Error(Fail.Boom) if r.broken;
+	if r.broken => return Error(Fail.Boom);
 }
 
 func use(*Resource r) ! {

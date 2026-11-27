@@ -1382,7 +1382,7 @@ struct Chunks implements io.Reader {
 }
 
 func (*Chunks c) read([]byte buf) !?int {
-    return null if c.left == 0;
+    if c.left == 0 => return null;
     int n = len(buf) < 7 ? len(buf) : 7;
     if n > c.left {
         n = c.left;
@@ -1440,7 +1440,7 @@ struct Chunks implements io.Reader {
 }
 
 func (*Chunks c) read([]byte buf) !?int {
-    return null if c.left == 0;
+    if c.left == 0 => return null;
     int n = len(buf) < 7 ? len(buf) : 7;
     if n > c.left {
         n = c.left;
@@ -1510,7 +1510,7 @@ struct Count implements pool.Source {
 }
 
 func (*Count c) next() ?int {
-    return null if c.left == 0;
+    if c.left == 0 => return null;
     c.left--;
     return c.left;
 }
@@ -2851,34 +2851,34 @@ func main() {
 	{dir: "flow_guards", src: `var int calls;
 
 func divide(int a, int b) ?int {
-    return null if b == 0;
+    if b == 0 => return null;
     return a / b;
 }
 
 func clamp(int n) int {
-    return 0 if n < 0;
-    return 100 if n > 100;
+    if n < 0 => return 0;
+    if n > 100 => return 100;
     return n;
 }
 
 func early(int n) int {
     int seen;
     for i in 0..=9 {
-        continue if i % 2 == 0;
-        break if i > n;
+        if i % 2 == 0 => continue;
+        if i > n => break;
         seen++;
     }
     return seen;
 }
 
 func record(int n) {
-    return if n < 0;
+    if n < 0 => return;
     calls++;
 }
 
 func pick(int n) int {
     int v = {
-        yield -1 if n < 0;
+        if n < 0 => yield -1;
         yield n * 2;
     };
     return v;
@@ -2888,8 +2888,8 @@ func labeled() int {
     int count;
     :outer for i in 0..=3 {
         for j in 0..=3 {
-            continue :outer if j > i;
-            break :outer if i == 3;
+            if j > i => continue :outer;
+            if i == 3 => break :outer;
             count++;
         }
     }
@@ -3019,7 +3019,7 @@ func main() {
     int found = -1;
     :search {
         for i in 0..=9 {
-            yield :search if i * i == want;
+            if i * i == want => yield :search;
             found = i;
         }
         found = -2;
@@ -3037,7 +3037,7 @@ func main() {
         :inner {
             defer trace = trace * 10 + 8;
             trace = trace * 10 + 2;
-            yield :outer if trace > 0;
+            if trace > 0 => yield :outer;
             trace = 77;
         }
         trace = 66;
@@ -3046,7 +3046,7 @@ func main() {
 
     int v = :pick {
         for i in 0..=5 {
-            yield :pick i * 100 if i == 3;
+            if i == 3 => yield :pick i * 100;
         }
         yield -1;
     };
@@ -3055,7 +3055,7 @@ func main() {
     int n;
     :skip {
         for i in 0..=3 {
-            yield :skip if i == 2;
+            if i == 2 => yield :skip;
             n++;
         }
     }
@@ -3064,7 +3064,7 @@ func main() {
     int k;
     for i in 0..=3 {
         :blk {
-            yield :blk if i == 1;
+            if i == 1 => yield :blk;
             k++;
         }
     }
@@ -3074,7 +3074,7 @@ func main() {
     for i in 0..=5 {
         :scope {
             rounds++;
-            break if i == 2;
+            if i == 2 => break;
         }
     }
     check(rounds == 3, "a break inside a labeled block leaves the loop around it");
@@ -10731,7 +10731,7 @@ func (*Countdown c) next() !?int {
     if c.left == c.failAt {
         return Error(errors.Kind.Invalid);
     }
-    return null if c.left == 0;
+    if c.left == 0 => return null;
     c.left--;
     return c.left;
 }
@@ -10858,8 +10858,8 @@ struct Handle {
 
 func (*Handle h) close() ! {
     h.closed++;
-    return Error(errors.Kind.Busy) if h.fd < 0;
-    return Error(errors.Kind.Exists) if h.fd == 99;
+    if h.fd < 0 => return Error(errors.Kind.Busy);
+    if h.fd == 99 => return Error(errors.Kind.Exists);
 }
 
 func quiet(*Handle h) ! {
@@ -10900,7 +10900,7 @@ func blocked(*Handle a, *Handle b) ! {
 
 func early(*Handle h, bool leave) ! {
     defer h.close()!;
-    return if leave;
+    if leave => return;
     h.closed += 100;
 }
 
@@ -13499,7 +13499,7 @@ func total([]int values) int {
 }
 
 func maybe(bool yes) ?Point {
-    return .{x: 7, y: 8} if yes;
+    if yes => return .{x: 7, y: 8};
     return null;
 }
 
@@ -13823,7 +13823,7 @@ func plain(int a, int b) {
 }
 
 func guarded(int a) {
-    return nothing() if a > 0;
+    if a > 0 => return nothing();
     calls += 1000;
 }
 
@@ -13873,7 +13873,7 @@ func biggest<Ordered T>(T a, T b) T {
 }
 
 func countDown<T>(T tag, int n) int {
-    return 0 if n == 0;
+    if n == 0 => return 0;
     return countDown(tag, n - 1) + 1;
 }
 
@@ -15395,7 +15395,7 @@ func (Rect r) sum(int a, int b) (int, int) {
 }
 
 func (Rect r) fail(int n) !int {
-    return n if n > 0;
+    if n > 0 => return n;
     return Error(Problem.Bad, "bad");
 }
 
@@ -15448,7 +15448,7 @@ func use(Measure m) int {
 
 func attempt(Measure m, int n) int {
     let v, e = m.fail(n);
-    return -1 if e != null;
+    if e != null => return -1;
     return v;
 }
 
@@ -15605,7 +15605,7 @@ func main() {
 `, expected: []string{"an inline function uses a private function and a private constant", "and a private global variable", "and a private struct with its method"}},
 
 	{dir: "switch_then_break", src: `func next(int k) ?int {
-    return null if k > 3;
+    if k > 3 => return null;
     return k;
 }
 
@@ -15913,7 +15913,7 @@ func fib(int n) int {
 }
 
 func gcd(int a, int b) int {
-    return a if b == 0;
+    if b == 0 => return a;
     return gcd(b, a % b);
 }
 
@@ -16341,7 +16341,7 @@ func outer(int n) !int {
 }
 
 func open(string path, int n) !int {
-    return errors.annotate(Error(E.Bad), "no file {path} (try {n + 1})") if n > 5;
+    if n > 5 => return errors.annotate(Error(E.Bad), "no file {path} (try {n + 1})");
     return Error(E.Other, "plain");
 }
 
@@ -16481,9 +16481,9 @@ func sprintf([]byte buf, string format, ...args) !int {
 }
 
 func connect(int n) !int {
-    return unreachable if n == 0;
-    return Error("plain failure") if n == 1;
-    return Error(Kind.Missing, "typed failure") if n == 2;
+    if n == 0 => return unreachable;
+    if n == 1 => return Error("plain failure");
+    if n == 2 => return Error(Kind.Missing, "typed failure");
     return n;
 }
 
@@ -16710,8 +16710,8 @@ func main() {
 }
 `, expected: []string{"a pointer to a type that declares the interface, and the type itself", "an interface of another module", "a named type with a value held in the argument", "other cases of the same switch still work", "a type that does not implement it goes to default", "a method with the right name is not enough: the type has to declare implements", "a type that implements two dynamic interfaces", "a dynamic interface of the module and one of another", "none of them", "a value that is not a type with methods"}},
 	{dir: "optional_unwrap", src: `func read(int n) !?int {
-    return Error("broken") if n == 0;
-    return null if n == 1;
+    if n == 0 => return Error("broken");
+    if n == 1 => return null;
     return n * 10;
 }
 
@@ -19065,4 +19065,76 @@ func main() {
     check(nested(1, 1) == 1 && nested(1, 0) == 10 && nested(0, 1) == 100, "each inside each keeps its own _");
 }
 `, expected: []string{"every true arm runs, in order", "_ runs only when no arm did", "break leaves the whole each", "a condition is read when its turn comes", "a value can match several arms", "continue goes to the loop and break only leaves the each", "an arm can return", "each inside each keeps its own _"}},
+
+	{dir: "arrow_bodies", src: `func bump(int n) int {
+    int r = n;
+    if n > 0 => r += 1;
+    if n > 5 => r += 10;
+    if (n > 100) => r += 100;
+    return r;
+}
+
+func counts() int {
+    int total = 0;
+    for i in 0..5 => total += i;
+    int n = 0;
+    loop n < 4 => n++;
+    int spins = 0;
+    loop => {
+        spins++;
+        if spins == 3 => break;
+    }
+    return total * 100 + n * 10 + spins;
+}
+
+func nestedBody() int {
+    int found = -1;
+    for i in 0..10 => if i * i == 49 => found = i;
+    return found;
+}
+
+func captured(?int v) int {
+    int r = 0;
+    if v |x| => r = x;
+    return r;
+}
+
+func leaves(int n) int {
+    if n < 0 => return -1;
+    for i in 0..10 => if i == n => return i * 2;
+    return 0;
+}
+
+func parenthesized(bool ready, int n) int {
+    int r = 0;
+    if (ready) => r = 1;
+    match {
+        (ready) => r += 10;
+        _ => r += 100;
+    }
+    each {
+        (ready) => r += 1000;
+        n > 5 => r += 5;
+    }
+    return r;
+}
+
+func labeled(int a) int {
+    int v = :blk {
+        if a == 0 => yield :blk -5;
+        yield a;
+    };
+    return v;
+}
+
+func main() {
+    check(bump(0) == 0 && bump(3) == 4 && bump(7) == 18 && bump(200) == 311, "an if takes one statement after =>");
+    check(counts() == 1043, "for and loop take one statement after =>");
+    check(nestedBody() == 7, "a for body can be an if with =>");
+    check(captured(5) == 5 && captured(null) == 0, "a capture works before =>");
+    check(leaves(-1) == -1 && leaves(3) == 6 && leaves(20) == 0, "a body that returns leaves the function");
+    check(parenthesized(true, 0) == 1011 && parenthesized(true, 9) == 1016 && parenthesized(false, 9) == 105, "a condition in parentheses is not a lambda");
+    check(labeled(0) == -5 && labeled(4) == 4, "a conditional yield with a label and a value");
+}
+`, expected: []string{"an if takes one statement after =>", "for and loop take one statement after =>", "a for body can be an if with =>", "a capture works before =>", "a body that returns leaves the function", "a condition in parentheses is not a lambda", "a conditional yield with a label and a value"}},
 }

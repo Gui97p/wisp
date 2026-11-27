@@ -37,7 +37,7 @@ public func (*BufWriter w) write([]byte data) !int {
 
 /// Sends everything buffered to the destination. Fails with its error.
 public func (*BufWriter w) flush() ! {
-	return if w.count == 0;
+	if w.count == 0 => return;
 	w.out.write(w.buf[..w.count])!;
 	w.count = 0;
 }

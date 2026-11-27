@@ -1,7 +1,7 @@
 import "std/sys";
 
 func leadingZeros(uint x) uint {
-	return 64 if x == 0;
+	if x == 0 => return 64;
 
 	uint n;
 	loop (x & 0x8000000000000000) == 0 {
@@ -103,7 +103,7 @@ func release(*void p) {
 func realloc(*void p, int n) ?*void {
 	int h = header(p);
 	int cap = (h < 11 ? (MIN_BLOCK << h) : h) - 16;
-	return p if n <= cap;
+	if n <= cap => return p;
 
 	*void np = allocate(n, true) ?? return null;
 	copy(np, p, cap);

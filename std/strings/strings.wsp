@@ -8,7 +8,7 @@ public inline func trim(string s, charset) string => trimLeft(trimRight(s, chars
 /// slice of `s`, nothing is copied.
 #must_use
 public func trimLeft(string s, charset) string {
-	return "" if s == "";
+	if s == "" => return "";
 
 	loop s != "" && s[0] in charset {
 		s = s[1..];
@@ -20,7 +20,7 @@ public func trimLeft(string s, charset) string {
 /// slice of `s`, nothing is copied.
 #must_use
 public func trimRight(string s, charset) string {
-	return "" if s == "";
+	if s == "" => return "";
 
 	loop s != "" && s[len(s) - 1] in charset {
 		s = s[..len(s) - 1];
@@ -33,14 +33,14 @@ public func trimRight(string s, charset) string {
 /// `s`, nothing is copied.
 #must_use
 public func trimSpace(string s) string {
-	return "" if s == "";
+	if s == "" => return "";
 	return trim(s, spaceCharset);
 }
 /// Returns `s` without the leading `prefix`, or `s` itself when it does not start
 /// with it. Only one copy of `prefix` is removed. The result is a slice of `s`.
 #must_use
 public func trimPrefix(string s, prefix) string {
-	return s if !startsWith(s, prefix);
+	if !startsWith(s, prefix) => return s;
 
 	return s[len(prefix)..];
 }
@@ -48,7 +48,7 @@ public func trimPrefix(string s, prefix) string {
 /// with it. Only one copy of `suffix` is removed. The result is a slice of `s`.
 #must_use
 public func trimSuffix(string s, suffix) string {
-	return s if !endsWith(s, suffix);
+	if !endsWith(s, suffix) => return s;
 
 	return s[..len(s) - len(suffix)];
 }
@@ -79,7 +79,7 @@ public struct Splitter {
 }
 
 func (*Splitter s) nextStep() ?string {
-	return null if s.done;
+	if s.done => return null;
 
 	if s.sep == "" {
 		if s.s == "" {
@@ -107,7 +107,7 @@ func (*Splitter s) nextStep() ?string {
 public func (*Splitter s) next() ?string {
 	loop {
 		string str = s.nextStep() ?? return null;
-		return str if !s.skipEmpty || str != "";
+		if !s.skipEmpty || str != "" => return str;
 	}
 }
 

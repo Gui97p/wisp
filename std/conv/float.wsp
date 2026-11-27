@@ -121,7 +121,7 @@ func shortestText([]byte buf, float x, bool single) !string {
 		dec.setShortest(math.fabs(x));
 	}
 
-	return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))! if dec.dp - 1 in -5..=20;
+	if dec.dp - 1 in -5..=20 => return layoutFixed(buf, neg, &dec, math.max(0, dec.n - dec.dp))!;
 	return layoutExp(buf, neg, &dec, dec.n - 1, false)!;
 }
 
@@ -242,9 +242,9 @@ public func ftoa32(mem.Allocator a, float32 x) !string {
 func lowerByte(byte c) byte => c >= 'A' && c <= 'Z' ? c + 32 : c;
 
 func sameWord(string s, string word) bool {
-	return false if len(s) != len(word);
+	if len(s) != len(word) => return false;
 	for i in 0..len(s) {
-		return false if lowerByte(s[i]) != word[i];
+		if lowerByte(s[i]) != word[i] => return false;
 	}
 	return true;
 }
@@ -261,7 +261,7 @@ func parseWith(string s, int mantBits, expBits, bias) !float {
 	if sameWord(rest, "inf") || sameWord(rest, "infinity") {
 		return math.inf(neg ? -1 : 1);
 	}
-	return math.nan() if sameWord(rest, "nan");
+	if sameWord(rest, "nan") => return math.nan();
 
 	Decimal dec;
 	int nd = 0;
@@ -278,7 +278,7 @@ func parseWith(string s, int mantBits, expBits, bias) !float {
 			i++;
 			continue;
 		}
-		break if c < '0' || c > '9';
+		if c < '0' || c > '9' => break;
 		sawDigits = true;
 		i++;
 		if c == '0' && nd == 0 {
@@ -318,7 +318,7 @@ func parseWith(string s, int mantBits, expBits, bias) !float {
 	errors.ensure(i == len(s), errors.Kind.Invalid)!;
 
 	float zero = neg ? math.copysign(0.0, -1.0) : 0.0;
-	return zero if nd == 0;
+	if nd == 0 => return zero;
 
 	if trunc && dec.d[dec.n - 1] == 0 {
 		dec.d[dec.n - 1] = 1;

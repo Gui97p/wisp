@@ -23,23 +23,32 @@ func ifs() {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Guards
+// 2. `if` with `=>`
 // ---------------------------------------------------------------------------
 //
-// A guard puts the condition after a jump, so a check that leaves the
-// function takes one line: `return`, `break`, `continue` and `yield` accept
-// `if` after them.
+// When the body is one statement, `=>` takes the place of the braces, and the
+// `;` of the statement ends the `if`. A check that leaves the function takes
+// one line this way. The same `=>` works after `for` and `loop`. An `if` with
+// `=>` has no `else`: when there are two sides, use braces, a `match`, or a
+// ternary. Braces after `=>` are not needed, and the compiler says so.
 
 func clamp(int n) int {
-	return 0 if n < 0;
-	return 100 if n > 100;
+	if n < 0 => return 0;
+	if n > 100 => return 100;
 	return n;
 }
 
-func guards() {
+func total(int n) int {
+	int sum = 0;
+	for i in 0..n => sum += i;
+	return sum;
+}
+
+func arrows() {
 	int low = clamp(-4);  // 0
 	int middle = clamp(40);  // 40
 	int high = clamp(400);  // 100
+	int sum = total(5);  // 10 (0 + 1 + 2 + 3 + 4)
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +232,7 @@ func labeledBlocks() {
 	int found = -1;
 	:search{
 		for i in 0..=limit{
-			yield :search if i * i == 49;
+			if i * i == 49 => yield :search;
 			found = i;  // 0, 1, 2, 3, 4, 5, 6
 		}
 		found = -2;
@@ -232,7 +241,7 @@ func labeledBlocks() {
 
 	int first = :pick{
 		for i in 0..=limit{
-			yield :pick i if i * i > 30;
+			if i * i > 30 => yield :pick i;
 		}
 		yield -1;
 	};  // 6
@@ -240,7 +249,7 @@ func labeledBlocks() {
 
 public func demo() {
 	ifs();
-	guards();
+	arrows();
 	statements();
 	expressions();
 	conditions();

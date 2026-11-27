@@ -76,7 +76,7 @@ func (*Disk d) name() string {
 // pointer gets the object itself.
 
 func larger(Shape a, Shape b) Shape {
-	return a if a.area() >= b.area();
+	if a.area() >= b.area() => return a;
 	return b;
 }
 

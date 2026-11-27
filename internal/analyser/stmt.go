@@ -14,6 +14,10 @@ func (a *Analyser) checkBlock(block *ast.BlockStmt) {
 		a.info.ScopeFiles[block] = a.currentFile
 	}
 
+	if block.ArrowBraces {
+		a.warnf(block, "the => is not needed before braces: drop it, or drop the braces for a single statement").WithLint("redundant_arrow")
+	}
+
 	a.checkStatements(block.Statements)
 }
 

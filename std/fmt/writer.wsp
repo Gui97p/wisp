@@ -140,7 +140,7 @@ func (*Sink w) putFloat(float x, Spec s, bool single) !bool {
 }
 
 func (*Sink w) putDisplay(Display d, Spec s) !bool {
-	return false if !plain(s);
+	if !plain(s) => return false;
 	d.display(w)!;
 	return true;
 }
@@ -198,7 +198,7 @@ public func format(io.Writer out, string pattern, ...args) !int {
 		c.advanceUntil('{', '}');
 		w.text(c.since(start))!;
 
-		break if c.done();
+		if c.done() => break;
 
 		if c.peekAt(1) == c.peek() {
 			w.char(c.peek())!;
@@ -273,7 +273,7 @@ public func format(io.Writer out, string pattern, ...args) !int {
 		problem = Error(FormatError.ExtraArgument);
 	}
 
-	return problem if problem != null;
+	if problem != null => return problem;
 
 	return w.total;
 }

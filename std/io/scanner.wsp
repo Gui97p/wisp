@@ -40,7 +40,7 @@ public func (*Scanner s) next() !?string {
 			loop r.start < r.end && strings.isSpace(r.buf[r.start]) {
 				r.start++;
 			}
-			break if r.start < r.end;
+			if r.start < r.end => break;
 			s.fill()! ?? return null;
 		}
 		int scanned;
@@ -61,7 +61,7 @@ public func (*Scanner s) next() !?string {
 	loop {
 		return r.readLine() ?? |e| match e {
 			errors.Kind.NoSpace => {
-				continue if s.grow()!;
+				if s.grow()! => continue;
 				return e;
 			}
 			_ => return e;
@@ -74,13 +74,13 @@ public inline func (*Scanner s) release() => s.reader.release();
 
 func (*Scanner s) grow() !bool {
 	let r = &s.reader;
-	return false if len(r.buf) >= s.limit;
+	if len(r.buf) >= s.limit => return false;
 	r.buf = mem.resize(r.source, r.buf, math.min(len(r.buf) * 2, s.limit))!;
 	return true;
 }
 
 func (*Scanner s) fill() !?int {
 	let r = &s.reader;
-	return Error(errors.Kind.NoSpace) if r.start == 0 && r.end == len(r.buf) && !(s.grow()!);
+	if r.start == 0 && r.end == len(r.buf) && !(s.grow()!) => return Error(errors.Kind.NoSpace);
 	return r.fill()!;
 }

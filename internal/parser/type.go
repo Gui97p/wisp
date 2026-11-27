@@ -141,7 +141,10 @@ func (p *Parser) looksLikeLambda() bool {
 	cp := p.checkpoint()
 	defer p.restore(cp)
 
-	p.parseFuncParamList()
+	params := p.parseFuncParamList()
+	if len(params) == 0 && p.current.Type != lexer.TOKEN_LPAREN {
+		return false
+	}
 	if !p.expect(lexer.TOKEN_RPAREN) {
 		return false
 	}

@@ -20,9 +20,9 @@ public func ticks() int {
 /// Blocks the program for `d`. A zero or negative duration returns at once.
 /// Fails with `Interrupted` if a signal ends the wait early.
 public func sleep(Duration d) ! {
-	return if d <= 0;
+	if d <= 0 => return;
 	int r = sys.sleep(int(d / Second), int(d % Second));
-	return Error(errors.Kind.Interrupted) if r < 0;
+	if r < 0 => return Error(errors.Kind.Interrupted);
 }
 
 /// Measures how long something takes, on the monotonic clock. Make one with

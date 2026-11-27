@@ -12,14 +12,14 @@ func<windows> isLetter(byte c) bool {
 
 func<windows> volumeLen(string p) int {
 	int l = len(p);
-	return 2 if l >= 2 && p[1] == ':' && isLetter(p[0]);
+	if l >= 2 && p[1] == ':' && isLetter(p[0]) => return 2;
 	if l >= 5 && isSep(p[0]) && isSep(p[1]) && !isSep(p[2]) && p[2] != '.' {
 		int n = 3;
 		loop n < l - 1 {
 			if isSep(p[n]) {
 				n++;
 				if !isSep(p[n]) {
-					break if p[n] == '.';
+					if p[n] == '.' => break;
 					loop n < l && !isSep(p[n]) {
 						n++;
 					}
@@ -39,8 +39,8 @@ inline func<!windows> volumeLen(string _p) int => 0;
 /// followed by a separator, or a UNC path.
 public func<windows> isAbs(string p) bool {
 	int v = volumeLen(p);
-	return false if v == 0;
-	return true if v > 2;
+	if v == 0 => return false;
+	if v > 2 => return true;
 	return v < len(p) && isSep(p[v]);
 }
 
@@ -84,13 +84,13 @@ inline func elementsAfterVolume(string s) Elements => Elements { rest:s };
 /// points into `p`.
 #must_use
 public func base(string p) string {
-	return "." if p == "";
+	if p == "" => return ".";
 	int v = volumeLen(p);
 	int end = len(p);
 	loop end > 0 && isSep(p[end - 1]) {
 		end--;
 	}
-	return sep if end <= v;
+	if end <= v => return sep;
 	int i = end - 1;
 	loop i >= v && !isSep(p[i]) {
 		i--;
@@ -103,24 +103,24 @@ public func base(string p) string {
 /// root. The result points into `p` and is not cleaned.
 #must_use
 public func dir(string p) string {
-	return "." if p == "";
+	if p == "" => return ".";
 	int v = volumeLen(p);
-	return p if v > 2 && len(p) == v;
+	if v > 2 && len(p) == v => return p;
 	int end = len(p);
 	loop end > v && isSep(p[end - 1]) {
 		end--;
 	}
-	return len(p) > v ? p[..v + 1] : (v == 0 ? "." : p[..v]) if end == v;
+	if end == v => return len(p) > v ? p[..v + 1] : (v == 0 ? "." : p[..v]);
 	int i = end - 1;
 	loop i >= v && !isSep(p[i]) {
 		i--;
 	}
-	return v == 0 ? "." : p[..v] if i < v;
+	if i < v => return v == 0 ? "." : p[..v];
 	int head = i;
 	loop head > v && isSep(p[head - 1]) {
 		head--;
 	}
-	return p[..v + 1] if head == v;
+	if head == v => return p[..v + 1];
 	return p[..head];
 }
 

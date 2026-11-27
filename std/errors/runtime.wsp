@@ -19,7 +19,7 @@ struct Slot implements io.Writer {
 }
 
 public func (*Slot s) write([]byte data) !int {
-	return Error(Kind.NoSpace) if len(data) > len(s.room) - s.used;
+	if len(data) > len(s.room) - s.used => return Error(Kind.NoSpace);
 	mem.copy(s.room[s.used..], data, len(data));
 	s.used += len(data);
 	return len(data);
@@ -63,7 +63,7 @@ public func annotate(Error base, string format, ...args) Error {
 /// when there is no memory the result is an `OutOfMemory` error. A null error
 /// stays null. Give the copy back with `release`, or let an arena do it.
 public func keep(mem.Allocator a, Error e) Error {
-	return e if e == null;
+	if e == null => return e;
 	*Record from = (*Record)(e);
 	int shown = len(from.message);
 	int total = sizeof(Record) + len(from.message) + len(from.block);
@@ -83,7 +83,7 @@ public func keep(mem.Allocator a, Error e) Error {
 
 /// Gives back an error made by `keep`, to the allocator it was kept in.
 public func release(mem.Allocator a, Error e) {
-	return if e == null;
+	if e == null => return;
 	mem.free(a, (*void)(e));
 }
 

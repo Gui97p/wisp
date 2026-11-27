@@ -12,7 +12,7 @@
 //
 //   basics        constants, variables, operators
 //   printing      fmt: print, println and the `{:spec}` format
-//   branching     if, match (exhaustive on enums), each, guards `return x if c;`,
+//   branching     if, match (exhaustive on enums), each, `if c => stmt;`,
 //                 blocks `{ }`, blocks that give a value, labeled blocks
 //   loops         for, loop, ranges, labels, break and continue
 //   functions     parameters, several results, `=>`, any order

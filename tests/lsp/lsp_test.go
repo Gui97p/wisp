@@ -205,7 +205,7 @@ func TestDiagnostics(t *testing.T) {
 		{"a spread that is not a slice", "func take(int ...xs) int { return len(xs); }\nfunc main() {\n  int one = 1;\n  int n = take(one...);\n}\n", 1, "passes a slice on"},
 		{"a spread into a function without a variadic", "func take(int x) int { return x; }\nfunc main() {\n  []int xs = .{1};\n  int n = take(xs...);\n}\n", 1, "has none"},
 		{"a spread that matches", "func take(int ...xs) int { return len(xs); }\nfunc main() {\n  []int xs = .{1};\n  int n = take(0, xs...);\n}\n", 0, ""},
-		{"returning a call that gives nothing", "func nothing() {}\nfunc f(int a) {\n  return nothing() if a > 0;\n}\nfunc main() { f(1); }\n", 0, ""},
+		{"returning a call that gives nothing", "func nothing() {}\nfunc f(int a) {\n  if a > 0 => return nothing();\n}\nfunc main() { f(1); }\n", 0, ""},
 		{"returning a call that gives a value from a function with none", "func one() int { return 1; }\nfunc f() {\n  return one();\n}\nfunc main() { f(); }\n", 1, "expected 0 return values, got 1"},
 		{"a call that gives nothing used as a value", "func nothing() {}\nfunc main() {\n  int x = nothing();\n}\n", 1, "function doesn't expect any return"},
 		{"returning a call that gives nothing from a function that gives a value", "func nothing() {}\nfunc f() int {\n  return nothing();\n}\nfunc main() { int x = f(); }\n", 1, ""},
@@ -566,7 +566,7 @@ func TestSwitchTypeSharedBodyInLSP(t *testing.T) {
 
 func TestDeferAcceptsAnErrorToPassUp(t *testing.T) {
 	c := start(t)
-	head := "struct Handle {\n\tint fd;\n}\n\nfunc (*Handle h) close() ! {\n\treturn Error(\"no\") if h.fd < 0;\n}\n\n"
+	head := "struct Handle {\n\tint fd;\n}\n\nfunc (*Handle h) close() ! {\n\tif h.fd < 0 => return Error(\"no\");\n}\n\n"
 	errorsOf := func(body string) []string {
 		var out []string
 		for _, d := range c.open(map[string]string{"main.wsp": head + body}).diagnostics() {
@@ -631,7 +631,7 @@ func TestYieldLeavesBlocksAndBreakLeavesLoops(t *testing.T) {
 		return out
 	}
 
-	good := "func main() {\n\tint n;\n\t:blk {\n\t\tfor i in 0..=3 {\n\t\t\tyield :blk if i == 2;\n\t\t\tn++;\n\t\t}\n\t}\n\tint v = :pick {\n\t\tfor i in 0..=3 {\n\t\t\tyield :pick i if i == 2;\n\t\t}\n\t\tyield -1;\n\t};\n\t:outer for i in 0..=3 {\n\t\t:inner {\n\t\t\tbreak if i == 1;\n\t\t}\n\t\tbreak :outer if i == 2;\n\t}\n}\n"
+	good := "func main() {\n\tint n;\n\t:blk {\n\t\tfor i in 0..=3 {\n\t\t\tif i == 2 => yield :blk;\n\t\t\tn++;\n\t\t}\n\t}\n\tint v = :pick {\n\t\tfor i in 0..=3 {\n\t\t\tif i == 2 => yield :pick i;\n\t\t}\n\t\tyield -1;\n\t};\n\t:outer for i in 0..=3 {\n\t\t:inner {\n\t\t\tif i == 1 => break;\n\t\t}\n\t\tif i == 2 => break :outer;\n\t}\n}\n"
 	if got := errorsOf(good); len(got) != 0 {
 		t.Errorf("valid uses: %v", got)
 	}
@@ -1134,7 +1134,7 @@ func TestInterfaceValuesInLSP(t *testing.T) {
 		}
 	}
 
-	good := "interface Writer { func write(int n) int; }\ninterface Closer { func close(); }\ninterface WriteCloser { Writer & Closer }\nstruct B implements WriteCloser { int total; }\nfunc (*B b) write(int n) int { b.total += n; return b.total; }\nfunc (*B b) close() { b.total = 0; }\nstruct Log { Writer out; ?Writer backup; }\nfunc emit(Writer w, int n) int { return w.write(n); }\nfunc pick(bool first, Writer a, Writer b) Writer { return a if first; return b; }\nfunc total(Writer w) int {\n  match type w {\n    *B b => return b.total;\n    _ => return -1;\n  }\n}\nfunc main() {\n  B b;\n  Writer w = &b;\n  WriteCloser wc = &b;\n  wc.close();\n  Log log = Log{out: &b, backup: &b};\n  int r = w.write(1) + emit(&b, 2) + log.out.write(3);\n  Writer chosen = pick(true, &b, &b);\n  int t = total(chosen);\n  [2]Writer pair = .{&b, &b};\n  if log.backup |x| {\n    x.write(1);\n  }\n}\n"
+	good := "interface Writer { func write(int n) int; }\ninterface Closer { func close(); }\ninterface WriteCloser { Writer & Closer }\nstruct B implements WriteCloser { int total; }\nfunc (*B b) write(int n) int { b.total += n; return b.total; }\nfunc (*B b) close() { b.total = 0; }\nstruct Log { Writer out; ?Writer backup; }\nfunc emit(Writer w, int n) int { return w.write(n); }\nfunc pick(bool first, Writer a, Writer b) Writer { if first => return a; return b; }\nfunc total(Writer w) int {\n  match type w {\n    *B b => return b.total;\n    _ => return -1;\n  }\n}\nfunc main() {\n  B b;\n  Writer w = &b;\n  WriteCloser wc = &b;\n  wc.close();\n  Log log = Log{out: &b, backup: &b};\n  int r = w.write(1) + emit(&b, 2) + log.out.write(3);\n  Writer chosen = pick(true, &b, &b);\n  int t = total(chosen);\n  [2]Writer pair = .{&b, &b};\n  if log.backup |x| {\n    x.write(1);\n  }\n}\n"
 	p := c.open(map[string]string{"main.wsp": good})
 	for _, d := range p.diagnostics() {
 		if d.Severity == 1 {
@@ -2529,5 +2529,41 @@ func TestMatchAndEachErrors(t *testing.T) {
 		if !slices.ContainsFunc(messages, func(m string) bool { return strings.Contains(m, tc.want) }) {
 			t.Errorf("%s: errors %q, want one with %q", tc.name, messages, tc.want)
 		}
+	}
+}
+
+func TestArrowBodies(t *testing.T) {
+	c := start(t)
+	errs := []struct{ name, src, want string }{
+		{"an old guard", "func f(int n) int {\n\treturn 1 if n > 0;\n\treturn 0;\n}\nfunc main() {}\n", "the condition comes first"},
+		{"an else after =>", "func main() {\n\tint n = 3;\n\tif n > 0 => n++; else { n--; }\n}\n", "has no else"},
+		{"an if inside an if with =>", "func main() {\n\tint n = 3;\n\tif n > 0 => if n > 1 => n++;\n}\n", "is not another if"},
+		{"an until after =>", "func main() {\n\tint n = 3;\n\tloop => n++; until n > 5;\n}\n", "an until goes after braces"},
+	}
+	for _, tc := range errs {
+		p := c.open(map[string]string{"main.wsp": tc.src})
+		var messages []string
+		for _, d := range p.diagnostics() {
+			if d.Severity == 1 {
+				messages = append(messages, d.Message)
+			}
+		}
+		if !slices.ContainsFunc(messages, func(m string) bool { return strings.Contains(m, tc.want) }) {
+			t.Errorf("%s: errors %q, want one with %q", tc.name, messages, tc.want)
+		}
+	}
+
+	p := c.open(map[string]string{"main.wsp": "func main() {\n\tint n = 3;\n\tif n > 0 => { n++; }\n\tn--;\n}\n"})
+	found := false
+	for _, d := range p.diagnostics() {
+		if d.Severity == 2 && strings.Contains(d.Message, "the => is not needed before braces") {
+			found = true
+		}
+		if d.Severity == 1 {
+			t.Errorf("unexpected error %q", d.Message)
+		}
+	}
+	if !found {
+		t.Errorf("no warning for braces after =>")
 	}
 }

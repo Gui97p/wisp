@@ -62,7 +62,7 @@ func (*Sink w) renderInt(int v, Spec s) !Piece {
 		return piece;
 	}
 
-	return w.number(uint(v), false, s)! if v >= 0;
+	if v >= 0 => return w.number(uint(v), false, s)!;
 
 	return w.number(uint(-(v + 1)) + 1, true, s)!;
 }

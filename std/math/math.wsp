@@ -2,7 +2,7 @@
 #must_use
 public func checkedAdd(int a, b) ?int {
 	int r = a +% b;
-	return null if ((a ^ r) & (b ^ r)) < 0;
+	if ((a ^ r) & (b ^ r)) < 0 => return null;
 	return r;
 }
 
@@ -10,17 +10,17 @@ public func checkedAdd(int a, b) ?int {
 #must_use
 public func checkedSub(int a, b) ?int {
 	int r = a -% b;
-	return null if ((a ^ b) & (a ^ r)) < 0;
+	if ((a ^ b) & (a ^ r)) < 0 => return null;
 	return r;
 }
 
 /// Returns `a * b`, or null when the product overflows `int`.
 #must_use
 public func checkedMul(int a, b) ?int {
-	return 0 if a == 0 || b == 0;
-	return null if (a == -1 && b == MIN_INT) || (b == -1 && a == MIN_INT);
+	if a == 0 || b == 0 => return 0;
+	if (a == -1 && b == MIN_INT) || (b == -1 && a == MIN_INT) => return null;
 	int r = a *% b;
-	return null if r / b != a;
+	if r / b != a => return null;
 	return r;
 }
 
@@ -28,7 +28,7 @@ public func checkedMul(int a, b) ?int {
 /// does not fit in an `int`.
 #must_use
 public inline func checkedAbs(int x) ?int {
-	return null if x == MIN_INT;
+	if x == MIN_INT => return null;
 	return x < 0 ? -x : x;
 }
 
@@ -36,23 +36,23 @@ public inline func checkedAbs(int x) ?int {
 #must_use
 public func checkedAddUnsigned(uint a, b) ?uint {
 	uint r = a +% b;
-	return null if r < a;
+	if r < a => return null;
 	return r;
 }
 
 /// Returns `a - b`, or null when `b` is greater than `a`.
 #must_use
 public func checkedSubUnsigned(uint a, b) ?uint {
-	return null if b > a;
+	if b > a => return null;
 	return a -% b;
 }
 
 /// Returns `a * b`, or null when the product overflows `uint`.
 #must_use
 public func checkedMulUnsigned(uint a, b) ?uint {
-	return 0 if a == 0 || b == 0;
+	if a == 0 || b == 0 => return 0;
 	uint r = a *% b;
-	return null if r / b != a;
+	if r / b != a => return null;
 	return r;
 }
 
@@ -62,7 +62,7 @@ public inline func abs(int x) int => x < 0 ? -x : x;
 
 /// Returns the smallest of the arguments, or 0 when there are none.
 public func min(int ...args) int {
-	return 0 if len(args) == 0;
+	if len(args) == 0 => return 0;
 	int m = args[0];
 
 	for _, n in args[1..] {
@@ -76,7 +76,7 @@ public func min(int ...args) int {
 
 /// Returns the largest of the arguments, or 0 when there are none.
 public func max(int ...args) int {
-	return 0 if len(args) == 0;
+	if len(args) == 0 => return 0;
 	int m = args[0];
 
 	for _, n in args[1..] {
@@ -122,7 +122,7 @@ public func gcd(int a, b) int {
 /// Returns the least common multiple of `a` and `b`, never negative. It is 0 when
 /// either is 0, and null when the result overflows `int`.
 public func lcm(int a, b) ?int {
-	return 0 if a == 0 || b == 0;
+	if a == 0 || b == 0 => return 0;
 	return abs(checkedMul(a / gcd(a, b), b) ?? return null);
 }
 
@@ -130,7 +130,7 @@ public func lcm(int a, b) ?int {
 /// or the final product overflows `int`. Anything to the power 0 is 1, including 0.
 /// For floating point use `fpow`.
 public func pow(int base, uint exp) ?int {
-	return 1 if exp == 0;
+	if exp == 0 => return 1;
 
 	int r = 1;
 	loop exp > 0 {
@@ -149,7 +149,7 @@ public func pow(int base, uint exp) ?int {
 /// Returns the integer square root of `n`, rounded down. Values of `n` below 1
 /// return 0. For floating point use `fsqrt`.
 public func sqrt(int n) int {
-	return max(0, n) if n <= 1;
+	if n <= 1 => return max(0, n);
 
 	int lo, hi = 0, min(n, 3037000499);
 	for hi {
@@ -159,7 +159,7 @@ public func sqrt(int n) int {
 		} else {
 			hi = mid - 1;
 		}
-		return hi if hi == lo;
+		if hi == lo => return hi;
 	}
 	return 0;
 }
@@ -181,7 +181,7 @@ public inline func trailingZeros(uint x) uint => x == 0 ? 64 : popCount((x & (~x
 /// Returns the number of zero bits above the highest set bit of `x`, or 64 when `x`
 /// is 0.
 public func leadingZeros(uint x) uint {
-	return 64 if x == 0;
+	if x == 0 => return 64;
 
 	uint n;
 	loop (x & 0x8000000000000000) == 0 {

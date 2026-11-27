@@ -20,7 +20,7 @@ func (p *Parser) atCapture() bool {
 		return false
 	}
 	p.advance()
-	return p.peek.Type == lexer.TOKEN_LBRACE
+	return p.peek.Type == lexer.TOKEN_LBRACE || p.peek.Type == lexer.TOKEN_ARROW
 }
 
 func (p *Parser) parseConditionWithCapture() (ast.Expression, string, ast.Position, bool) {

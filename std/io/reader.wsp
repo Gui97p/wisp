@@ -26,7 +26,7 @@ func (*BufReader r) fill() !?int {
 		r.end -= r.start;
 		r.start = 0;
 	}
-	return Error(errors.Kind.NoSpace) if r.end == len(r.buf);
+	if r.end == len(r.buf) => return Error(errors.Kind.NoSpace);
 	int n = r.inp.read(r.buf[r.end..])! ?? return null;
 	r.end += n;
 	return n;
@@ -36,7 +36,7 @@ func (*BufReader r) fill() !?int {
 /// empty. A read at least as big as the buffer goes straight to the source.
 /// Returns null at the end of the stream, and zero for an empty `out`.
 public func (*BufReader r) read([]byte out) !?int {
-	return 0 if len(out) == 0;
+	if len(out) == 0 => return 0;
 	if r.start < r.end {
 		int n = math.min(len(out), r.end - r.start);
 		mem.copy(out, r.buf[r.start..], n);
@@ -44,7 +44,7 @@ public func (*BufReader r) read([]byte out) !?int {
 		return n;
 	}
 
-	return r.inp.read(out)! if len(out) >= len(r.buf);
+	if len(out) >= len(r.buf) => return r.inp.read(out)!;
 	int n = math.min(len(out), r.fill()! ?? return null);
 	mem.copy(out, r.buf[r.start..], n);
 	r.start += n;

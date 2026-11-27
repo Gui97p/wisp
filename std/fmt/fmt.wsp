@@ -26,7 +26,7 @@ public func fprintln(io.Writer out, string text, ...args) !int {
 	defer buffer.flush()!;
 	let n, problem = format(&buffer, text, args...);
 	io.writeByte(&buffer, '\n')!;
-	return problem if problem != null;
+	if problem != null => return problem;
 	return n + 1;
 }
 

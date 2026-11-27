@@ -184,8 +184,8 @@ func inspecting() {
 Error missing = Error("nothing there");
 
 func lookup(int key) !int {
-	return missing if key == 0;
-	return Error("the key is negative") if key < 0;
+	if key == 0 => return missing;
+	if key < 0 => return Error("the key is negative");
 	return key * 2;
 }
 
@@ -215,8 +215,8 @@ func plain() {
 // into an allocator, and an arena clears it with everything else.
 
 func open(string path) !int {
-	return errors.errorf("cannot open {path}") if len(path) == 0;
-	return errors.annotate(Error(errors.Kind.NotFound), "no file {path}") if path == "missing.txt";
+	if len(path) == 0 => return errors.errorf("cannot open {path}");
+	if path == "missing.txt" => return errors.annotate(Error(errors.Kind.NotFound), "no file {path}");
 	return len(path);
 }
 
