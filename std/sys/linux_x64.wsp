@@ -155,13 +155,13 @@ internal native fstat(int fd, *StatBuf out) int r {
 internal func size(int fd) int {
 	StatBuf stat;
 	int r = fstat(fd, &stat);
-	return r < 0 ? r : stat.st_size;
+	return if r < 0 => r : stat.st_size;
 }
 
 internal func kind(int fd) int {
 	StatBuf stat;
 	int r = fstat(fd, &stat);
-	return r < 0 ? r : kindOfMode(int(stat.st_mode));
+	return if r < 0 => r : kindOfMode(int(stat.st_mode));
 }
 
 func kindOfMode(int mode) int {
@@ -437,7 +437,7 @@ internal inline func dirClose(*Dir d) int => close(d.fd);
 
 internal func getcwd([]byte buf) int {
 	int r = rawGetcwd((*byte)(buf), len(buf));
-	return r < 0 ? r : r - 1;
+	return if r < 0 => r : r - 1;
 }
 
 internal func getenv(string name) ?string {

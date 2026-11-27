@@ -82,8 +82,10 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		stmt = p.parseNativeStatement()
 	case lexer.TOKEN_DEFER:
 		stmt = p.parseDeferStatement()
-	case lexer.TOKEN_COLON:
+	case lexer.TOKEN_HASH:
 		stmt = p.parseLabeledStatement()
+	case lexer.TOKEN_COLON:
+		stmt = p.rejectColonLabel()
 	default:
 		stmt = p.parseSimpleStatement()
 	}
@@ -369,13 +371,18 @@ func (p *Parser) parseYieldStatement() ast.Statement {
 
 	if p.peek.Type == lexer.TOKEN_COLON {
 		p.advance()
+		p.errorf("a label is written with a #, not a colon: yield #name value;")
+		return nil
+	}
+	if p.peek.Type == lexer.TOKEN_HASH {
+		p.advance()
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return nil
 		}
 		stmt.Target = p.current.Literal
 	}
 
-	if p.peek.Type == lexer.TOKEN_SEMICOLON || p.peek.Type == lexer.TOKEN_IF {
+	if p.peek.Type == lexer.TOKEN_SEMICOLON {
 		if stmt.Target != "" && p.kindOfLabel(stmt.Target) == "block" {
 			jump := &ast.BreakStmt{Label: stmt.Target, FromYield: true}
 			return p.endJump(jump, line, col)
@@ -425,7 +432,10 @@ func (p *Parser) parseArrowBody(owner string) (*ast.BlockStmt, bool) {
 		return block, true
 	}
 
+	previous := p.elseColon
+	p.elseColon = owner == "if"
 	stmt := p.parseStatement()
+	p.elseColon = previous
 	if stmt == nil {
 		return nil, false
 	}
@@ -465,9 +475,6 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 	if p.peek.Type == lexer.TOKEN_SEMICOLON {
 		p.advance()
 		return stmt
-	}
-	if p.peek.Type == lexer.TOKEN_IF {
-		return p.endJump(stmt, line, col)
 	}
 
 	for {
@@ -617,9 +624,26 @@ func (p *Parser) parseIfStatement() ast.Statement {
 			return nil
 		}
 		stmt.Then = body
+		if p.peek.Type == lexer.TOKEN_COLON {
+			p.advance()
+			p.advance()
+			other := p.parseStatement()
+			if other == nil {
+				return nil
+			}
+			if chained, isIf := other.(*ast.IfStmt); isIf {
+				stmt.Else = chained
+			} else {
+				otherBlock := &ast.BlockStmt{Statements: []ast.Statement{other}}
+				line, col := p.current.Line, p.current.Column
+				otherBlock.SetPos(line, col)
+				otherBlock.SetEndPos(p.currentEnd())
+				stmt.Else = otherBlock
+			}
+		}
 		if p.peek.Type == lexer.TOKEN_ELSE {
 			p.advance()
-			p.errorfNoSync("an if written with => has no else: use braces on both sides, a match, or a ternary")
+			p.errorfNoSync("an if written with => writes its else after a colon: if c => a : b; or use braces on both sides")
 			p.skipElse()
 		}
 		if capture != "" {
@@ -859,13 +883,17 @@ func (p *Parser) parseJumpLabel(keyword string) (string, bool) {
 	switch p.peek.Type {
 	case lexer.TOKEN_COLON:
 		p.advance()
+		p.errorf("a label is written with a #, not a colon: %s #name", keyword)
+		return "", false
+	case lexer.TOKEN_HASH:
+		p.advance()
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return "", false
 		}
 		return p.current.Literal, true
 	case lexer.TOKEN_IDENT:
 		p.advance()
-		p.errorAt(p.currentPosition(), "a label is written with a colon, as in %s :%s", keyword, p.current.Literal)
+		p.errorAt(p.currentPosition(), "a label is written with a #, as in %s #%s", keyword, p.current.Literal)
 		return "", false
 	}
 	return "", true
@@ -880,9 +908,9 @@ func (p *Parser) parseBreakStatement() ast.Statement {
 		return nil
 	}
 	stmt.Label = label
-	if label != "" && p.peek.Type != lexer.TOKEN_SEMICOLON && p.peek.Type != lexer.TOKEN_IF {
+	if label != "" && p.peek.Type != lexer.TOKEN_SEMICOLON {
 		p.advance()
-		p.errorf("break does not carry a value: write yield :%s value;", label)
+		p.errorf("break does not carry a value: write yield #%s value;", label)
 		return nil
 	}
 
@@ -1027,4 +1055,9 @@ func (p *Parser) parseBareBlock() ast.Statement {
 		return nil
 	}
 	return block
+}
+
+func (p *Parser) rejectColonLabel() ast.Statement {
+	p.errorf("a label is written with a #, not a colon: #name for ... { }")
+	return nil
 }

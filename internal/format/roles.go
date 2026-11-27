@@ -11,7 +11,6 @@ const (
 	rolePostfix
 	roleMemberDot
 	rolePrefixDot
-	roleTernaryQ
 	roleOptionalQ
 	roleTernaryColon
 	roleKeyColon
@@ -79,7 +78,7 @@ func operandEnd(t token, r role) bool {
 		return r != roleTypeBracketClose
 	case lexer.TOKEN_RBRACE:
 		return r == roleLiteralClose
-	case lexer.TOKEN_NOT, lexer.TOKEN_INCREMENT, lexer.TOKEN_DECREMENT:
+	case lexer.TOKEN_NOT, lexer.TOKEN_INCREMENT, lexer.TOKEN_DECREMENT, lexer.TOKEN_QUESTION_MARK:
 		return r == rolePostfix
 	case lexer.TOKEN_VARIADIC:
 		return r == roleSpreadDots
@@ -90,9 +89,10 @@ func operandEnd(t token, r role) bool {
 type frame struct {
 	open      lexer.TokenType
 	literal   bool
-	ternary   int
 	atTop     bool
 	opensDecl bool
+	sawIf     bool
+	elseColon int
 }
 
 type stmtState struct {
@@ -146,16 +146,32 @@ func classify(tokens []token) []role {
 		k := t.kind
 		r := roleWord
 
+		switch k {
+		case lexer.TOKEN_IF:
+			top().sawIf = true
+		case lexer.TOKEN_ARROW:
+			if top().sawIf {
+				top().sawIf = false
+				top().elseColon++
+			}
+		case lexer.TOKEN_SEMICOLON:
+			top().sawIf = false
+			top().elseColon = 0
+		}
+
 		switch {
 		case k == lexer.TOKEN_LBRACE:
+			top().sawIf = false
 			pk := prevKind(i)
 			literal := false
 			switch {
 			case i == 0:
 			case pk == lexer.TOKEN_DOT:
 				literal = true
+			case pk == lexer.TOKEN_IDENT && i >= 2 && tokens[i-2].kind == lexer.TOKEN_HASH:
+				literal = false
 			case pk == lexer.TOKEN_IDENT || isTypeKeyword(pk) || (i > 0 && roles[i-1] == roleGenericClose):
-				literal = !(atTop() && stmt.header)
+				literal = !(atTop() && stmt.header && (stmt.fn || !stmt.arrow))
 				if !literal && !stmt.fn && arrayTypeBefore(tokens, roles, i) {
 					literal = true
 				}
@@ -238,17 +254,16 @@ func classify(tokens []token) []role {
 			r = roleUnary
 		case k == lexer.TOKEN_QUESTION_MARK:
 			if prevEnd(i) {
-				r = roleTernaryQ
-				top().ternary++
+				r = rolePostfix
 			} else {
 				r = roleOptionalQ
 			}
 		case k == lexer.TOKEN_COLON:
 			pk := prevKind(i)
 			switch {
-			case top().ternary > 0:
+			case top().elseColon > 0:
 				r = roleTernaryColon
-				top().ternary--
+				top().elseColon--
 			case top().open == lexer.TOKEN_LBRACE && top().literal && pk == lexer.TOKEN_IDENT:
 				r = roleKeyColon
 			case !prevEnd(i) && i+1 < len(tokens) && tokens[i+1].kind == lexer.TOKEN_IDENT:
@@ -289,6 +304,7 @@ func classify(tokens []token) []role {
 		if atTop() {
 			if headerKeyword(k) {
 				stmt.header = true
+				stmt.arrow = false
 				if k == lexer.TOKEN_FUNC || k == lexer.TOKEN_NATIVE {
 					stmt.fn = true
 				}

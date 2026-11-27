@@ -39,7 +39,7 @@ func (*Sink w) number(uint mag, bool neg, Spec s) !Piece {
 	w.scratch.reset();
 	conv.writeUint(&w.scratch, mag, base, s.kind == 'X')!;
 	piece.body = w.scratch.text();
-	piece.sign = neg ? "-" : "";
+	piece.sign = if neg => "-" : "";
 	if s.alt {
 		piece.radix = match s.kind {
 			'x' => "0x";
@@ -86,7 +86,7 @@ func (*Sink w) renderPointer(*void v, Spec s) !Piece {
 	return w.number(uint(v), false, t)!;
 }
 
-inline func renderBool(bool b) Piece => Piece { body:b ? "true" : "false" };
+inline func renderBool(bool b) Piece => Piece { body:if b => "true" : "false" };
 
 func renderString(string t, Spec s) Piece {
 	Piece piece = Piece{body: t};
@@ -98,7 +98,7 @@ func renderString(string t, Spec s) Piece {
 
 func (*Sink w) renderFloat(float x, Spec s, bool single) !Piece {
 	Piece piece;
-	int prec = s.precision == -1 ? 6 : s.precision;
+	int prec = if s.precision == -1 => 6 : s.precision;
 	w.scratch.reset();
 	match s.kind {
 		0 => {

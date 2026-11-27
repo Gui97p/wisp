@@ -28,7 +28,7 @@ func twice(Step f, int value) int {
 }
 
 func pick(bool up) (int) => int {
-	return up ? inc : dec;
+	return if up => inc : dec;
 }
 
 func named() {

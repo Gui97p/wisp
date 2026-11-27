@@ -11,13 +11,13 @@
 //
 // A plain value goes into a `?T` without ceremony, and `null` is the only way to
 // say it is absent. Going the other way takes a decision, because the compiler
-// cannot know there is a value: use `??`, `.?` or a capture, below.
+// cannot know there is a value: use `??`, `?` or a capture, below.
 //
 // It is the same family as errors, and each kind has its own operators: `!` and
-// `!!` are for a call that can fail, `.?` is for a value that may not exist, and
+// `!!` are for a call that can fail, `?` is for a value that may not exist, and
 // `??` works on both. A `?T` has no error to bind, so `?? |e|` is only for calls
 // that can fail. A call can give both, `!?T`: `read(buf)!` passes the error up
-// and leaves a `?T`, and `.?` then takes the value out, so `read(buf)!.?` does
+// and leaves a `?T`, and `?` then takes the value out, so `read(buf)!?` does
 // both and no parentheses are needed.
 
 // ---------------------------------------------------------------------------
@@ -52,8 +52,8 @@ func missing() {
 // same handlers as for errors. `?? panic("...")` stops the program with your own
 // message.
 //
-// `.?` says the value cannot be missing here: it gives the value, and stops the
-// program, naming the place, if it is null.
+// `?` after a value says it cannot be missing here: it gives the value, and
+// stops the program, naming the place, if it is null.
 
 func defaults() {
 	?int a = half(10);
@@ -61,7 +61,7 @@ func defaults() {
 
 	int x = a ?? 0;  // 5
 	int y = b ?? -1;  // -1
-	int sure = a.?;  // 5
+	int sure = a?;  // 5
 }
 
 // ---------------------------------------------------------------------------

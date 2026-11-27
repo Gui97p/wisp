@@ -28,9 +28,15 @@ func ifs() {
 //
 // When the body is one statement, `=>` takes the place of the braces, and the
 // `;` of the statement ends the `if`. A check that leaves the function takes
-// one line this way. The same `=>` works after `for` and `loop`. An `if` with
-// `=>` has no `else`: when there are two sides, use braces, a `match`, or a
-// ternary. Braces after `=>` are not needed, and the compiler says so.
+// one line this way. The same `=>` works after `for` and `loop`. Braces after
+// `=>` are not needed, and the compiler says so.
+//
+// An `if` with `=>` has no `else` word. Its other side comes after a colon, and
+// it is a statement too: `if c => a() : b();`. The first statement has no `;`
+// of its own, the one at the end closes the whole line. The other side can be
+// another `if` with `=>`, which makes a chain, and only the side that is chosen
+// runs. The body of an `if c =>` cannot be another `if`: join the conditions
+// with `&&`, or use braces.
 
 func clamp(int n) int {
 	if n < 0 => return 0;
@@ -44,11 +50,20 @@ func total(int n) int {
 	return sum;
 }
 
+func kind(int n) string {
+	string name = "";
+	if n < 0 => name = "negative" : if n == 0 => name = "zero" : name = "positive";
+	return name;
+}
+
 func arrows() {
 	int low = clamp(-4);  // 0
 	int middle = clamp(40);  // 40
 	int high = clamp(400);  // 100
 	int sum = total(5);  // 10 (0 + 1 + 2 + 3 + 4)
+	string below = kind(-4);  // "negative"
+	string none = kind(0);  // "zero"
+	string above = kind(9);  // "positive"
 }
 
 // ---------------------------------------------------------------------------
@@ -217,10 +232,10 @@ func blocks() {
 	};  // 10
 }
 
-// A label before a block, `:name { ... }`, lets `yield :name;` leave it from
+// A label before a block, `#name { ... }`, lets `yield #name;` leave it from
 // anywhere inside, even from a loop in the middle, and the `defer`s of the
 // blocks it crosses run on the way out. On a block that gives a value,
-// `yield :name value;` leaves with that value, the way a plain `yield` does at
+// `yield #name value;` leaves with that value, the way a plain `yield` does at
 // the end.
 //
 // A label belongs to a loop or to a block: loops are left with `break` and
@@ -230,18 +245,18 @@ func labeledBlocks() {
 	int limit = 12;
 
 	int found = -1;
-	:search{
-		for i in 0..=limit{
-			if i * i == 49 => yield :search;
+	#search {
+		for i in 0..=limit {
+			if i * i == 49 => yield #search;
 			found = i;  // 0, 1, 2, 3, 4, 5, 6
 		}
 		found = -2;
 	}
 	int stoppedAt = found;  // 6 (it left before 7)
 
-	int first = :pick{
-		for i in 0..=limit{
-			if i * i > 30 => yield :pick i;
+	int first = #pick {
+		for i in 0..=limit {
+			if i * i > 30 => yield #pick i;
 		}
 		yield -1;
 	};  // 6

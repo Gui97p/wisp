@@ -111,7 +111,7 @@ func average(float a, float b) float {
 }
 
 func bounds(float a, float b) (float, float) {
-	return a < b ? a : b, a < b ? b : a;
+	return if a < b => a : b, if a < b => b : a;
 }
 
 func dot(Vec a, Vec b) float {

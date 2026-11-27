@@ -28,16 +28,16 @@ func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
 
 	if len(stmt.Values) == 0 && stmt.Target == "" {
 		a.error(stmt, "yield needs a value, or a label to leave a block").
-			WithHelp("write `yield value;` in a block that gives one, or `yield :name;` to leave the block labeled :name")
+			WithHelp("write `yield value;` in a block that gives one, or `yield #name;` to leave the block labeled #name")
 		return
 	}
 
 	if stmt.Target != "" && !slices.ContainsFunc(a.yieldFrames, func(f yieldFrame) bool { return f.label == stmt.Target }) {
 		switch {
 		case slices.ContainsFunc(a.loopFrames, func(f loopFrame) bool { return f.Label == stmt.Target && f.Block }):
-			a.errorf(stmt, ":%s labels a block that gives no value, so the yield takes none: write `yield :%s;`", stmt.Target, stmt.Target)
+			a.errorf(stmt, "#%s labels a block that gives no value, so the yield takes none: write `yield #%s;`", stmt.Target, stmt.Target)
 		case slices.ContainsFunc(a.loopFrames, func(f loopFrame) bool { return f.Label == stmt.Target }):
-			a.errorf(stmt, ":%s labels a loop, and a loop is left with break: write `break :%s;`", stmt.Target, stmt.Target)
+			a.errorf(stmt, "#%s labels a loop, and a loop is left with break: write `break #%s;`", stmt.Target, stmt.Target)
 		default:
 			a.errorf(stmt, "unknown label: %s", stmt.Target)
 		}
@@ -45,7 +45,7 @@ func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
 	}
 
 	if len(stmt.Values) == 0 {
-		a.errorf(stmt, ":%s labels a block that gives a value, so the yield needs one: write `yield :%s <value>;`", stmt.Target, stmt.Target)
+		a.errorf(stmt, "#%s labels a block that gives a value, so the yield needs one: write `yield #%s <value>;`", stmt.Target, stmt.Target)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (a *Analyser) checkYieldStmt(stmt *ast.YieldStmt) {
 			}
 		}
 		if top < 0 {
-			a.errorf(stmt, "yield :%s gives a value, but %s is not the label of a block that gives one", stmt.Target, stmt.Target)
+			a.errorf(stmt, "yield #%s gives a value, but %s is not the label of a block that gives one", stmt.Target, stmt.Target)
 			return
 		}
 	}

@@ -125,7 +125,7 @@ func TestSemanticTokensInsideAFormatString(t *testing.T) {
 
 func TestOperatorsInsideAFormatStringAreColoredAsOperators(t *testing.T) {
 	c := start(t)
-	src := formatSource(`  fmt.println("sum {count + 1 * 2} cmp {count >= 2 && true} ternary {count > 1 ? 1 : 0} range {nums[0] - -1}");`)
+	src := formatSource(`  fmt.println("sum {count + 1 * 2} cmp {count >= 2 && true} branch {if count > 1 => 1 : 0} range {nums[0] - -1}");`)
 	p := c.open(map[string]string{"main.wsp": src})
 	row := strings.Count(src[:strings.Index(src, `fmt.println("sum`)], "\n")
 	text := strings.Split(src, "\n")[row]
@@ -135,7 +135,7 @@ func TestOperatorsInsideAFormatStringAreColoredAsOperators(t *testing.T) {
 			operators = append(operators, text[tk.col:tk.col+tk.length])
 		}
 	}
-	want := []string{"+", "*", ">=", "&&", ">", "?", ":", "-", "-"}
+	want := []string{"+", "*", ">=", "&&", ">", "=>", ":", "-", "-"}
 	if !slices.Equal(operators, want) {
 		t.Errorf("operators %v, want %v", operators, want)
 	}

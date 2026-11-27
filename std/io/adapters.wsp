@@ -31,14 +31,14 @@ public inline func limitReader(Reader r, int n) LimitReader => .{source: r, left
 /// null once the limit is reached or the source ends.
 public func (*LimitReader l) read([]byte buf) !?int {
 	if l.left <= 0 => return null;
-	[]byte part = len(buf) > l.left ? buf[..l.left] : buf;
+	[]byte part = if len(buf) > l.left => buf[..l.left] : buf;
 	int n = l.source.read(part)! ?? return null;
 	l.left -= n;
 	return n;
 }
 
 /// The number of bytes the reader will still give, at most.
-public inline func (*LimitReader l) remaining() int => l.left > 0 ? l.left : 0;
+public inline func (*LimitReader l) remaining() int => if l.left > 0 => l.left : 0;
 
 /// A `Writer` that sends everything to two writers, the first one and then the
 /// second. Build one with `teeWriter`.

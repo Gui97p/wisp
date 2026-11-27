@@ -11,8 +11,7 @@ const {
 
 func formatUnsigned([]byte buf, uint n, int base, bool upper) !string {
 	int i = 0;
-	string digits = upper
-		? "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	string digits = if upper => "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		: "0123456789abcdefghijklmnopqrstuvwxyz";
 
 	loop n != 0 {

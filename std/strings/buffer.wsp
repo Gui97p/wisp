@@ -88,7 +88,7 @@ public func replace(mem.Allocator a, string s, old, new, int n) !string {
 	int total, seen;
 	loop sp.next() |piece| {
 		if seen > 0 {
-			string chosen = seen <= found ? new : old;
+			string chosen = if seen <= found => new : old;
 			total += copy(buf[total..], chosen);
 		}
 		total += copy(buf[total..], piece);

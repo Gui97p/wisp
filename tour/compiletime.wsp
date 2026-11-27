@@ -107,11 +107,11 @@ func computing() {
 	// a factor of 91.
 	int factor = static {
 		int found = 0;
-		:search for i in 2..=50 {
+		#search for i in 2..=50 {
 			for j in 2..=50 {
 				if i * j == 91 {
 					found = i;
-					break :search;
+					break #search;
 				}
 			}
 		}

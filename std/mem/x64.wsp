@@ -34,7 +34,7 @@ func<debug> site() string {
 		mov rax, [rbp];
 		mov f, rax;
 	}
-	return callerSite(f.?);
+	return callerSite(f?);
 }
 
 native rawCopy(*void dst, src, int n) {

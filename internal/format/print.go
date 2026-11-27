@@ -90,11 +90,11 @@ func (p *printer) continuation(i int) int {
 	pr, nr := p.roles[i-1], p.roles[i]
 	nk := p.tokens[i].kind
 	switch {
-	case pr == roleBinary || pr == roleTernaryQ || pr == roleTernaryColon:
+	case pr == roleBinary || pr == roleTernaryColon:
 		return 1
 	case nr == roleBinary && !isCloser(nk) && nk != lexer.TOKEN_ARROW:
 		return 1
-	case nr == roleTernaryQ || nr == roleTernaryColon:
+	case nr == roleTernaryColon:
 		return 1
 	case nr == roleMemberDot:
 		return 1
@@ -304,8 +304,6 @@ func (p *printer) needSpace(i int) bool {
 		return false
 	case nr == roleTightColon || pr == roleTightColon:
 		return false
-	case nr == roleTernaryQ || pr == roleTernaryQ:
-		return true
 	case nr == roleCapOpen:
 		return true
 	case pr == roleCapOpen:

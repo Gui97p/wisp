@@ -51,7 +51,7 @@ public func (*Pool p) allocDirty(int n) !*void {
 	if p.spare == null {
 		p.grow()!;
 	}
-	*void block = p.spare.?;
+	*void block = p.spare?;
 	p.spare = ((*?*void)(block))@;
 	p.liveBlocks++;
 	return block;

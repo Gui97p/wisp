@@ -17,10 +17,10 @@ type labelDef struct {
 }
 
 var (
-	labelHeader = regexp.MustCompile(`(?:^|=\s*|\(\s*|,\s*|\breturn\s+|\byield\s+):([A-Za-z_]\w*)\s*((?:for|loop|until)\b.*)?$`)
-	jumpLabel   = regexp.MustCompile(`\b(break|continue|yield)\s*:(\w*)$`)
+	labelHeader = regexp.MustCompile(`(?:^|=\s*|\(\s*|,\s*|\breturn\s+|\byield\s+)#([A-Za-z_]\w*)\s*((?:for|loop|until)\b.*)?$`)
+	jumpLabel   = regexp.MustCompile(`\b(break|continue|yield)\s*#(\w*)$`)
 	jumpBare    = regexp.MustCompile(`\b(break|continue)\s+(\w*)$`)
-	jumpColon   = regexp.MustCompile(`\b(break|continue|yield)\s*:\s*$`)
+	jumpColon   = regexp.MustCompile(`\b(break|continue|yield)\s*#\s*$`)
 	wordAhead   = regexp.MustCompile(`^\w*`)
 	wordBehind  = regexp.MustCompile(`\w*$`)
 )
@@ -52,9 +52,9 @@ func labelsAt(path string, line, character int) []labelDef {
 			var label *labelDef
 			if m := labelHeader.FindStringSubmatchIndex(header); m != nil {
 				name := header[m[2]:m[3]]
-				offset := strings.LastIndex(masked[headerStart:i], ":"+name)
+				offset := strings.LastIndex(masked[headerStart:i], "#"+name)
 				at := headerStart + offset
-				label = &labelDef{name: name, line: rows[at], col: cols[at], loop: m[4] >= 0, value: !strings.HasPrefix(header, ":")}
+				label = &labelDef{name: name, line: rows[at], col: cols[at], loop: m[4] >= 0, value: !strings.HasPrefix(header, "#")}
 			}
 			stack = append(stack, frame{label})
 			headerStart = i + 1
@@ -112,9 +112,9 @@ func labelItems(path string, pos protocol.Position) ([]protocol.CompletionItem, 
 		it := item(l.name, protocol.CompletionItemKindEnumMember, "label of a "+labelKind(l))
 		it.SortText = ptr(fmt.Sprintf("%02d", len(labels)-i))
 		if !colon {
-			it.Label = ":" + l.name
+			it.Label = "#" + l.name
 			it.FilterText = ptr(l.name)
-			it.InsertText = ptr(":" + l.name)
+			it.InsertText = ptr("#" + l.name)
 		}
 		items = append(items, it)
 	}
@@ -149,12 +149,12 @@ func labelHover(path string, pos protocol.Position) *protocol.Hover {
 		if l.name == name {
 			doc := fmt.Sprintf("The label of a %s, declared on line %d.", labelKind(l), l.line+1)
 			if l.value {
-				doc += " `break :" + name + " value` leaves it with that value."
+				doc += " `yield #" + name + " value` leaves it with that value."
 			}
-			return markdownHover(renderDoc(":"+name, doc), &rng)
+			return markdownHover(renderDoc("#"+name, doc), &rng)
 		}
 	}
-	return markdownHover(renderDoc(":"+name, "No loop or block around this has this label."), &rng)
+	return markdownHover(renderDoc("#"+name, "No loop or block around this has this label."), &rng)
 }
 
 func labelDefinition(path string, pos protocol.Position, uri protocol.DocumentUri) []protocol.Location {

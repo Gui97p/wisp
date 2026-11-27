@@ -8,7 +8,7 @@ type Precedence int
 
 const (
 	LOWEST     Precedence = iota
-	TERNARY               // x ? a : b
+	TERNARY               // if c => a : b
 	RANGE                 // a..b
 	OR                    // ||
 	AND                   // &&
@@ -27,8 +27,7 @@ const (
 )
 
 var precedences = map[lexer.TokenType]Precedence{
-	lexer.TOKEN_QUESTION_MARK: TERNARY,
-	lexer.TOKEN_COALESCE:      TERNARY,
+	lexer.TOKEN_COALESCE: TERNARY,
 
 	lexer.TOKEN_RANGE:      RANGE,
 	lexer.TOKEN_RANGE_OPEN: RANGE,
@@ -59,13 +58,14 @@ var precedences = map[lexer.TokenType]Precedence{
 	lexer.TOKEN_SLASH:   PRODUCT,
 	lexer.TOKEN_PERCENT: PRODUCT,
 
-	lexer.TOKEN_NOT:          CALL,
-	lexer.TOKEN_DOT_QUESTION: CALL,
-	lexer.TOKEN_LPAREN:       CALL,
-	lexer.TOKEN_LBRACE:       CALL,
-	lexer.TOKEN_LBRACKET:     INDEX,
-	lexer.TOKEN_DOT:          MEMBER,
-	lexer.TOKEN_AT:           MEMBER,
+	lexer.TOKEN_NOT:           CALL,
+	lexer.TOKEN_QUESTION_MARK: CALL,
+	lexer.TOKEN_DOT_QUESTION:  CALL,
+	lexer.TOKEN_LPAREN:        CALL,
+	lexer.TOKEN_LBRACE:        CALL,
+	lexer.TOKEN_LBRACKET:      INDEX,
+	lexer.TOKEN_DOT:           MEMBER,
+	lexer.TOKEN_AT:            MEMBER,
 }
 
 func (p *Parser) currentPrecedence() Precedence {

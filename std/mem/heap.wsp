@@ -39,7 +39,7 @@ inline func setState(*void p, uint v) {
 
 inline func classOf(int total) int {
 	int bits = int(64 - leadingZeros(uint(total - 1)));
-	return (bits > 5 ? bits : 5) - 5;
+	return (if bits > 5 => bits : 5) - 5;
 }
 
 func allocate(int n, bool zero) ?*void {
@@ -102,7 +102,7 @@ func release(*void p) {
 
 func realloc(*void p, int n) ?*void {
 	int h = header(p);
-	int cap = (h < 11 ? (MIN_BLOCK << h) : h) - 16;
+	int cap = (if h < 11 => (MIN_BLOCK << h) : h) - 16;
 	if n <= cap => return p;
 
 	*void np = allocate(n, true) ?? return null;

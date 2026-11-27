@@ -68,7 +68,7 @@ public func (Duration d) display(io.Writer w) ! {
 		io.writeString(w, "0s")!;
 		return;
 	}
-	uint mag = n < 0 ? uint(-(n + 1)) + 1 : uint(n);
+	uint mag = if n < 0 => uint(-(n + 1)) + 1 : uint(n);
 	if n < 0 {
 		io.writeByte(w, '-')!;
 	}

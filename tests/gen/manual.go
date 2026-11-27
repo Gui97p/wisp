@@ -607,7 +607,7 @@ func main() {
     int i12 = 0;
     int a = (xs[i1] + (xs[i2] + (xs[i3] + (xs[i4] + (xs[i5] + (xs[i6] + (xs[i7] + (xs[i8] + (xs[i9] + (xs[i10] + (xs[i11] + xs[i12])))))))))));
     check(a == 300, "spill with indexed elements pending");
-    int b = ((i1 == 0 ? xs[i1] : 5) + ((i2 == 0 ? xs[i2] : 5) + ((i3 == 0 ? xs[i3] : 5) + ((i4 == 0 ? xs[i4] : 5) + ((i5 == 0 ? xs[i5] : 5) + ((i6 == 0 ? xs[i6] : 5) + ((i7 == 0 ? xs[i7] : 5) + ((i8 == 0 ? xs[i8] : 5) + ((i9 == 0 ? xs[i9] : 5) + ((i10 == 0 ? xs[i10] : 5) + ((i11 == 0 ? xs[i11] : 5) + (i12 == 0 ? xs[i12] : 5))))))))))));
+    int b = ((if i1 == 0 => xs[i1] : 5) + ((if i2 == 0 => xs[i2] : 5) + ((if i3 == 0 => xs[i3] : 5) + ((if i4 == 0 => xs[i4] : 5) + ((if i5 == 0 => xs[i5] : 5) + ((if i6 == 0 => xs[i6] : 5) + ((if i7 == 0 => xs[i7] : 5) + ((if i8 == 0 => xs[i8] : 5) + ((if i9 == 0 => xs[i9] : 5) + ((if i10 == 0 => xs[i10] : 5) + ((if i11 == 0 => xs[i11] : 5) + (if i12 == 0 => xs[i12] : 5))))))))))));
     check(b == 75, "spill with ternaries and indexed elements pending");
     []int part = xs[1..4];
     int d = (part[0] + (part[1] + (part[2] + (part[0] + (part[1] + (part[2] + (part[0] + (part[1] + (part[2] + (part[0] + (part[1] + part[2])))))))))));
@@ -1105,15 +1105,15 @@ func main() {
 }
 
 func make(bool c) Point {
-    return c ? .{x: 1, y: 2} : .{x: 3, y: 4};
+    return if c => .{x: 1, y: 2} : .{x: 3, y: 4};
 }
 
 func maybe(bool c) ?Point {
-    return c ? .{x: 5, y: 6} : null;
+    return if c => .{x: 5, y: 6} : null;
 }
 
 func pair(bool c) []int {
-    return c ? .{1, 2} : .{3};
+    return if c => .{1, 2} : .{3};
 }
 
 func main() {
@@ -1121,33 +1121,33 @@ func main() {
     bool no = !yes;
     Point other = Point{x: 9, y: 9};
 
-    Point a = yes ? .{x: 1, y: 2} : .{x: 3, y: 4};
-    Point b = no ? .{x: 1, y: 2} : .{x: 3, y: 4};
+    Point a = if yes => .{x: 1, y: 2} : .{x: 3, y: 4};
+    Point b = if no => .{x: 1, y: 2} : .{x: 3, y: 4};
     check(a.x == 1 && a.y == 2 && b.x == 3 && b.y == 4, "a literal on each side takes the type of the declaration");
 
-    Point mixed = yes ? .{x: 7, y: 8} : other;
-    Point back = no ? other : .{x: 7, y: 8};
-    Point kept = no ? .{x: 7, y: 8} : other;
+    Point mixed = if yes => .{x: 7, y: 8} : other;
+    Point back = if no => other : .{x: 7, y: 8};
+    Point kept = if no => .{x: 7, y: 8} : other;
     check(mixed.x == 7 && back.x == 7 && kept.x == 9, "a literal next to a typed value takes its type");
 
-    ?Point some = yes ? .{x: 1, y: 2} : null;
-    ?Point none = no ? .{x: 1, y: 2} : null;
+    ?Point some = if yes => .{x: 1, y: 2} : null;
+    ?Point none = if no => .{x: 1, y: 2} : null;
     check((some ?? other).x == 1 && (none ?? other).x == 9, "a literal next to null makes an optional");
 
-    []int part = yes ? .{1, 2} : .{3};
-    []int rest = no ? .{1, 2} : .{3};
+    []int part = if yes => .{1, 2} : .{3};
+    []int rest = if no => .{1, 2} : .{3};
     check(len(part) == 2 && part[1] == 2 && len(rest) == 1 && rest[0] == 3, "array literals become slices on each side");
 
-    Point nested = yes ? (no ? .{x: 1, y: 1} : .{x: 2, y: 2}) : .{x: 3, y: 3};
+    Point nested = if yes => (if no => .{x: 1, y: 1} : .{x: 2, y: 2}) : .{x: 3, y: 3};
     check(nested.x == 2, "a ternary inside a ternary");
 
     check(make(true).x == 1 && make(false).x == 3, "a return gives the type to both sides");
     check((maybe(true) ?? other).x == 5 && (maybe(false) ?? other).x == 9, "a return of a literal or null");
     check(len(pair(true)) == 2 && len(pair(false)) == 1, "a return of two slices");
 
-    ?int n = yes ? 10 : null;
-    ?string s = no ? "x" : null;
-    ?int m = no ? null : 20;
+    ?int n = if yes => 10 : null;
+    ?string s = if no => "x" : null;
+    ?int m = if no => null : 20;
     check((n ?? -1) == 10 && (s ?? "none") == "none" && (m ?? -1) == 20, "a value next to null makes an optional");
 }
 `, expected: []string{"a literal on each side takes the type of the declaration", "a literal next to a typed value takes its type", "a literal next to null makes an optional", "array literals become slices on each side", "a ternary inside a ternary", "a return gives the type to both sides", "a return of a literal or null", "a return of two slices", "a value next to null makes an optional"}},
@@ -1160,7 +1160,7 @@ func main() {
     check(a.next() == 1546998764402558742 && b.next() == 1546998764402558742, "xoshiro256** with a seed of 42 gives the reference value");
     int same;
     for _ in 0..1000 {
-        same += a.next() == b.next() ? 1 : 0;
+        same += if a.next() == b.next() => 1 : 0;
     }
     check(same == 1000, "the same seed gives the same sequence");
     rand.Generator c = rand.generator(43);
@@ -1241,7 +1241,7 @@ func main() {
 
     int heads;
     for _ in 0..10000 {
-        heads += r.flip() ? 1 : 0;
+        heads += if r.flip() => 1 : 0;
     }
     check(heads > 4700 && heads < 5300, "flip is fair");
 
@@ -1249,7 +1249,7 @@ func main() {
     r.fill(bytes[..]);
     int nonzero;
     for x in bytes {
-        nonzero += x != 0 ? 1 : 0;
+        nonzero += if x != 0 => 1 : 0;
     }
     check(nonzero >= 9, "fill writes every byte, whatever the length");
 
@@ -1383,7 +1383,7 @@ struct Chunks implements io.Reader {
 
 func (*Chunks c) read([]byte buf) !?int {
     if c.left == 0 => return null;
-    int n = len(buf) < 7 ? len(buf) : 7;
+    int n = if len(buf) < 7 => len(buf) : 7;
     if n > c.left {
         n = c.left;
     }
@@ -1441,7 +1441,7 @@ struct Chunks implements io.Reader {
 
 func (*Chunks c) read([]byte buf) !?int {
     if c.left == 0 => return null;
-    int n = len(buf) < 7 ? len(buf) : 7;
+    int n = if len(buf) < 7 => len(buf) : 7;
     if n > c.left {
         n = c.left;
     }
@@ -1825,13 +1825,13 @@ func main() {
     check(jump == 2468, "a step skips over the open end");
 
     int stopped;
-    :outer for i in 0..5 {
+    #outer for i in 0..5 {
         for j in 0..5 {
             if j == 2 {
-                continue :outer;
+                continue #outer;
             }
             if i == 3 {
-                break :outer;
+                break #outer;
             }
             stopped += 1;
         }
@@ -2022,7 +2022,7 @@ public func attach(*Entity e, *world.World w) {
 }
 
 public func worldCount(Entity e) int {
-    return e.owner.?.count;
+    return e.owner?.count;
 }
 
 public func isOdd(int n) bool {
@@ -2115,7 +2115,7 @@ func quiet() {
 
 func loud() {
     defer close(-1) ?? |e| {
-        trace += e.line > 0 ? 10 : 0;
+        trace += if e.line > 0 => 10 : 0;
     };
     trace += 100;
 }
@@ -2382,21 +2382,21 @@ func main() {
 `},
 
 	{dir: "ternary_falsy", src: `func pickBool(bool c) bool {
-    return c ? false : true;
+    return if c => false : true;
 }
 
 func main() {
     bool yes = true;
     bool no = false;
-    bool a = yes ? false : true;
+    bool a = if yes => false : true;
     check(a == false, "ternary yields false from the then branch");
-    bool b = no ? false : true;
+    bool b = if no => false : true;
     check(b == true, "ternary yields true from the else branch");
     check(pickBool(true) == false, "ternary with false in a return");
     check(pickBool(false) == true, "ternary with true in a return");
-    int n = (yes ? 1 : 2) + (no ? 10 : 20);
+    int n = (if yes => 1 : 2) + (if no => 10 : 20);
     check(n == 21, "ternaries joined by an operator");
-    int m = (yes ? 1 : 2) * (yes ? 3 : 4) + (no ? 5 : 6);
+    int m = (if yes => 1 : 2) * (if yes => 3 : 4) + (if no => 5 : 6);
     check(m == 9, "ternaries inside arithmetic");
 }
 `},
@@ -2482,7 +2482,7 @@ func half(int n) ?int {
 }
 
 func name(bool known) ?string {
-    return known ? "wisp" : null;
+    return if known => "wisp" : null;
 }
 
 func main() {
@@ -2534,7 +2534,7 @@ func main() {
 
 func lookup(int key) ?int {
     calls++;
-    return key > 0 ? key * 10 : null;
+    return if key > 0 => key * 10 : null;
 }
 
 func first(int a, int b) int {
@@ -2599,7 +2599,7 @@ func main() {
 
 func next(int n) ?int {
     calls++;
-    return n < 4 ? n : null;
+    return if n < 4 => n : null;
 }
 
 func describe(?int v) int {
@@ -2704,7 +2704,7 @@ func find(*Node head, int want) ?*Node {
 }
 
 func chooser(bool first) ?Step {
-    return first ? double : null;
+    return if first => double : null;
 }
 
 func main() {
@@ -2725,7 +2725,7 @@ func main() {
     ?*Node hit = find(&a, 2);
     ?*Node miss = find(&a, 8);
     check(hit != null && miss == null, "a function returns a pointer or null");
-    check(hit.?.value == 2, "!! gives the pointer");
+    check(hit?.value == 2, "!! gives the pointer");
     if hit |node| {
         check(node.next == &c, "a pointer compares with an optional pointer");
     }
@@ -2751,7 +2751,7 @@ func main() {
     ?*int p;
     int v = 5;
     p = &v;
-    p.?@ = 6;
+    p?@ = 6;
     check(v == 6, "writing through an unwrapped pointer");
 }
 `, expected: []string{"a pointer field that can be null", "walking a list until the pointer is null", "a function returns a pointer or null", "!! gives the pointer", "a pointer compares with an optional pointer", "a pointer widens to an optional pointer", "an optional pointer is set back to null", "an optional function value", "a captured function value is called", "?? on a function value", "a function variable is set to null", "writing through an unwrapped pointer"}},
@@ -2827,17 +2827,17 @@ func main() {
 }
 `, expected: []string{"optionals print their value or null", "an optional follows the format of its value", "null is padded like any other text"}},
 	{dir: "optional_assert", src: `func find(int n) ?int {
-    return n > 0 ? n : null;
+    return if n > 0 => n : null;
 }
 
 func main() {
-    check(find(3).? == 3, "!! passes a value");
-    int v = find(0).?;
+    check(find(3)? == 3, "!! passes a value");
+    int v = find(0)?;
     check(false, "never printed");
 }
 `, expected: []string{"!! passes a value"}, abort: "panic: unwrapped null"},
 	{dir: "optional_panic_handler", src: `func find(int n) ?int {
-    return n > 0 ? n : null;
+    return if n > 0 => n : null;
 }
 
 func main() {
@@ -2886,10 +2886,10 @@ func pick(int n) int {
 
 func labeled() int {
     int count;
-    :outer for i in 0..=3 {
+    #outer for i in 0..=3 {
         for j in 0..=3 {
-            if j > i => continue :outer;
-            if i == 3 => break :outer;
+            if j > i => continue #outer;
+            if i == 3 => break #outer;
             count++;
         }
     }
@@ -3017,9 +3017,9 @@ func main() {
 
 	{dir: "flow_block_labels", src: `func find(int want) int {
     int found = -1;
-    :search {
+    #search {
         for i in 0..=9 {
-            if i * i == want => yield :search;
+            if i * i == want => yield #search;
             found = i;
         }
         found = -2;
@@ -3031,31 +3031,31 @@ func main() {
     check(find(16) == 3 && find(100) == -2, "yield leaves a labeled block");
 
     int trace;
-    :outer {
+    #outer {
         defer trace = trace * 10 + 9;
         trace = 1;
-        :inner {
+        #inner {
             defer trace = trace * 10 + 8;
             trace = trace * 10 + 2;
-            if trace > 0 => yield :outer;
+            if trace > 0 => yield #outer;
             trace = 77;
         }
         trace = 66;
     }
     check(trace == 1289, "leaving several blocks runs their defers from the inside out");
 
-    int v = :pick {
+    int v = #pick {
         for i in 0..=5 {
-            if i == 3 => yield :pick i * 100;
+            if i == 3 => yield #pick i * 100;
         }
         yield -1;
     };
     check(v == 300, "yield with a label gives the value of a labeled block");
 
     int n;
-    :skip {
+    #skip {
         for i in 0..=3 {
-            if i == 2 => yield :skip;
+            if i == 2 => yield #skip;
             n++;
         }
     }
@@ -3063,8 +3063,8 @@ func main() {
 
     int k;
     for i in 0..=3 {
-        :blk {
-            if i == 1 => yield :blk;
+        #blk {
+            if i == 1 => yield #blk;
             k++;
         }
     }
@@ -3072,7 +3072,7 @@ func main() {
 
     int rounds;
     for i in 0..=5 {
-        :scope {
+        #scope {
             rounds++;
             if i == 2 => break;
         }
@@ -3633,7 +3633,7 @@ func main() {
     check(n.p == null, "omitted pointer field is null");
     n.p = &v;
     check(n.p != null, "assigned pointer field is not null");
-    n.p.?@ = 8;
+    n.p?@ = 8;
     check(v == 8, "write through a pointer field");
     check(pick(false, &v) == null, "returned null");
     check(pick(true, &v) != null, "returned pointer");
@@ -4032,18 +4032,18 @@ func main() {
 
 	{dir: "flow_labels", src: `func main() {
     int inner = 0;
-    :outer loop {
+    #outer loop {
         loop {
             inner++;
-            break :outer;
+            break #outer;
         }
     }
     check(inner == 1, "label break outer");
     int total = 0;
-    :rows for i in 1..=3 {
+    #rows for i in 1..=3 {
         for j in 1..=3 {
             if j == 2 {
-                continue :rows;
+                continue #rows;
             }
             total += i * 10 + j;
         }
@@ -4753,7 +4753,7 @@ func main() {
     	mov p, rax;
     }
     check(n == 3, "the length of a string constant");
-    *byte text = p.?;
+    *byte text = p?;
     check(string(text[..n]) == "hey", "the address of a string constant");
 }
 `}, expected: []string{"a constant of another module is an immediate", "a negative constant keeps its sign", "a bool constant is 1 or 0", "the length of a string constant", "the address of a string constant"}},
@@ -4859,9 +4859,9 @@ func main() {
 	{dir: "conv_ternary", src: `func main() {
     int8 a = 100;
     int16 b = 300;
-    int16 pick = true ? a : b;
+    int16 pick = if true => a : b;
     check(pick == 100, "implicit ternary branches widen");
-    int16 other = false ? a : b;
+    int16 other = if false => a : b;
     check(other == 300, "implicit ternary takes the common type");
 }
 `},
@@ -6359,7 +6359,7 @@ func main() {
     if x == y { a0 = true; }
     bool n0 = true;
     if !(x == y) { n0 = false; }
-    bool t0 = x == y ? true : false;
+    bool t0 = if x == y => true : false;
     bool l0 = false;
     loop x == y { l0 = true; break; }
     bool u0 = false;
@@ -6378,7 +6378,7 @@ func main() {
     if x != y { a1 = true; }
     bool n1 = true;
     if !(x != y) { n1 = false; }
-    bool t1 = x != y ? true : false;
+    bool t1 = if x != y => true : false;
     bool l1 = false;
     loop x != y { l1 = true; break; }
     bool u1 = false;
@@ -6397,7 +6397,7 @@ func main() {
     if x < y { a2 = true; }
     bool n2 = true;
     if !(x < y) { n2 = false; }
-    bool t2 = x < y ? true : false;
+    bool t2 = if x < y => true : false;
     bool l2 = false;
     loop x < y { l2 = true; break; }
     bool u2 = false;
@@ -6416,7 +6416,7 @@ func main() {
     if x <= y { a3 = true; }
     bool n3 = true;
     if !(x <= y) { n3 = false; }
-    bool t3 = x <= y ? true : false;
+    bool t3 = if x <= y => true : false;
     bool l3 = false;
     loop x <= y { l3 = true; break; }
     bool u3 = false;
@@ -6435,7 +6435,7 @@ func main() {
     if x > y { a4 = true; }
     bool n4 = true;
     if !(x > y) { n4 = false; }
-    bool t4 = x > y ? true : false;
+    bool t4 = if x > y => true : false;
     bool l4 = false;
     loop x > y { l4 = true; break; }
     bool u4 = false;
@@ -6454,7 +6454,7 @@ func main() {
     if x >= y { a5 = true; }
     bool n5 = true;
     if !(x >= y) { n5 = false; }
-    bool t5 = x >= y ? true : false;
+    bool t5 = if x >= y => true : false;
     bool l5 = false;
     loop x >= y { l5 = true; break; }
     bool u5 = false;
@@ -6478,7 +6478,7 @@ func cmp_int32(int32 x, int32 y) int {
     if x == y { a0 = true; }
     bool n0 = true;
     if !(x == y) { n0 = false; }
-    bool t0 = x == y ? true : false;
+    bool t0 = if x == y => true : false;
     bool l0 = false;
     loop x == y { l0 = true; break; }
     bool u0 = false;
@@ -6497,7 +6497,7 @@ func cmp_int32(int32 x, int32 y) int {
     if x != y { a1 = true; }
     bool n1 = true;
     if !(x != y) { n1 = false; }
-    bool t1 = x != y ? true : false;
+    bool t1 = if x != y => true : false;
     bool l1 = false;
     loop x != y { l1 = true; break; }
     bool u1 = false;
@@ -6516,7 +6516,7 @@ func cmp_int32(int32 x, int32 y) int {
     if x < y { a2 = true; }
     bool n2 = true;
     if !(x < y) { n2 = false; }
-    bool t2 = x < y ? true : false;
+    bool t2 = if x < y => true : false;
     bool l2 = false;
     loop x < y { l2 = true; break; }
     bool u2 = false;
@@ -6535,7 +6535,7 @@ func cmp_int32(int32 x, int32 y) int {
     if x <= y { a3 = true; }
     bool n3 = true;
     if !(x <= y) { n3 = false; }
-    bool t3 = x <= y ? true : false;
+    bool t3 = if x <= y => true : false;
     bool l3 = false;
     loop x <= y { l3 = true; break; }
     bool u3 = false;
@@ -6554,7 +6554,7 @@ func cmp_int32(int32 x, int32 y) int {
     if x > y { a4 = true; }
     bool n4 = true;
     if !(x > y) { n4 = false; }
-    bool t4 = x > y ? true : false;
+    bool t4 = if x > y => true : false;
     bool l4 = false;
     loop x > y { l4 = true; break; }
     bool u4 = false;
@@ -6573,7 +6573,7 @@ func cmp_int32(int32 x, int32 y) int {
     if x >= y { a5 = true; }
     bool n5 = true;
     if !(x >= y) { n5 = false; }
-    bool t5 = x >= y ? true : false;
+    bool t5 = if x >= y => true : false;
     bool l5 = false;
     loop x >= y { l5 = true; break; }
     bool u5 = false;
@@ -6597,7 +6597,7 @@ func cmp_int16(int16 x, int16 y) int {
     if x == y { a0 = true; }
     bool n0 = true;
     if !(x == y) { n0 = false; }
-    bool t0 = x == y ? true : false;
+    bool t0 = if x == y => true : false;
     bool l0 = false;
     loop x == y { l0 = true; break; }
     bool u0 = false;
@@ -6616,7 +6616,7 @@ func cmp_int16(int16 x, int16 y) int {
     if x != y { a1 = true; }
     bool n1 = true;
     if !(x != y) { n1 = false; }
-    bool t1 = x != y ? true : false;
+    bool t1 = if x != y => true : false;
     bool l1 = false;
     loop x != y { l1 = true; break; }
     bool u1 = false;
@@ -6635,7 +6635,7 @@ func cmp_int16(int16 x, int16 y) int {
     if x < y { a2 = true; }
     bool n2 = true;
     if !(x < y) { n2 = false; }
-    bool t2 = x < y ? true : false;
+    bool t2 = if x < y => true : false;
     bool l2 = false;
     loop x < y { l2 = true; break; }
     bool u2 = false;
@@ -6654,7 +6654,7 @@ func cmp_int16(int16 x, int16 y) int {
     if x <= y { a3 = true; }
     bool n3 = true;
     if !(x <= y) { n3 = false; }
-    bool t3 = x <= y ? true : false;
+    bool t3 = if x <= y => true : false;
     bool l3 = false;
     loop x <= y { l3 = true; break; }
     bool u3 = false;
@@ -6673,7 +6673,7 @@ func cmp_int16(int16 x, int16 y) int {
     if x > y { a4 = true; }
     bool n4 = true;
     if !(x > y) { n4 = false; }
-    bool t4 = x > y ? true : false;
+    bool t4 = if x > y => true : false;
     bool l4 = false;
     loop x > y { l4 = true; break; }
     bool u4 = false;
@@ -6692,7 +6692,7 @@ func cmp_int16(int16 x, int16 y) int {
     if x >= y { a5 = true; }
     bool n5 = true;
     if !(x >= y) { n5 = false; }
-    bool t5 = x >= y ? true : false;
+    bool t5 = if x >= y => true : false;
     bool l5 = false;
     loop x >= y { l5 = true; break; }
     bool u5 = false;
@@ -6716,7 +6716,7 @@ func cmp_int8(int8 x, int8 y) int {
     if x == y { a0 = true; }
     bool n0 = true;
     if !(x == y) { n0 = false; }
-    bool t0 = x == y ? true : false;
+    bool t0 = if x == y => true : false;
     bool l0 = false;
     loop x == y { l0 = true; break; }
     bool u0 = false;
@@ -6735,7 +6735,7 @@ func cmp_int8(int8 x, int8 y) int {
     if x != y { a1 = true; }
     bool n1 = true;
     if !(x != y) { n1 = false; }
-    bool t1 = x != y ? true : false;
+    bool t1 = if x != y => true : false;
     bool l1 = false;
     loop x != y { l1 = true; break; }
     bool u1 = false;
@@ -6754,7 +6754,7 @@ func cmp_int8(int8 x, int8 y) int {
     if x < y { a2 = true; }
     bool n2 = true;
     if !(x < y) { n2 = false; }
-    bool t2 = x < y ? true : false;
+    bool t2 = if x < y => true : false;
     bool l2 = false;
     loop x < y { l2 = true; break; }
     bool u2 = false;
@@ -6773,7 +6773,7 @@ func cmp_int8(int8 x, int8 y) int {
     if x <= y { a3 = true; }
     bool n3 = true;
     if !(x <= y) { n3 = false; }
-    bool t3 = x <= y ? true : false;
+    bool t3 = if x <= y => true : false;
     bool l3 = false;
     loop x <= y { l3 = true; break; }
     bool u3 = false;
@@ -6792,7 +6792,7 @@ func cmp_int8(int8 x, int8 y) int {
     if x > y { a4 = true; }
     bool n4 = true;
     if !(x > y) { n4 = false; }
-    bool t4 = x > y ? true : false;
+    bool t4 = if x > y => true : false;
     bool l4 = false;
     loop x > y { l4 = true; break; }
     bool u4 = false;
@@ -6811,7 +6811,7 @@ func cmp_int8(int8 x, int8 y) int {
     if x >= y { a5 = true; }
     bool n5 = true;
     if !(x >= y) { n5 = false; }
-    bool t5 = x >= y ? true : false;
+    bool t5 = if x >= y => true : false;
     bool l5 = false;
     loop x >= y { l5 = true; break; }
     bool u5 = false;
@@ -6835,7 +6835,7 @@ func cmp_uint(uint x, uint y) int {
     if x == y { a0 = true; }
     bool n0 = true;
     if !(x == y) { n0 = false; }
-    bool t0 = x == y ? true : false;
+    bool t0 = if x == y => true : false;
     bool l0 = false;
     loop x == y { l0 = true; break; }
     bool u0 = false;
@@ -6854,7 +6854,7 @@ func cmp_uint(uint x, uint y) int {
     if x != y { a1 = true; }
     bool n1 = true;
     if !(x != y) { n1 = false; }
-    bool t1 = x != y ? true : false;
+    bool t1 = if x != y => true : false;
     bool l1 = false;
     loop x != y { l1 = true; break; }
     bool u1 = false;
@@ -6873,7 +6873,7 @@ func cmp_uint(uint x, uint y) int {
     if x < y { a2 = true; }
     bool n2 = true;
     if !(x < y) { n2 = false; }
-    bool t2 = x < y ? true : false;
+    bool t2 = if x < y => true : false;
     bool l2 = false;
     loop x < y { l2 = true; break; }
     bool u2 = false;
@@ -6892,7 +6892,7 @@ func cmp_uint(uint x, uint y) int {
     if x <= y { a3 = true; }
     bool n3 = true;
     if !(x <= y) { n3 = false; }
-    bool t3 = x <= y ? true : false;
+    bool t3 = if x <= y => true : false;
     bool l3 = false;
     loop x <= y { l3 = true; break; }
     bool u3 = false;
@@ -6911,7 +6911,7 @@ func cmp_uint(uint x, uint y) int {
     if x > y { a4 = true; }
     bool n4 = true;
     if !(x > y) { n4 = false; }
-    bool t4 = x > y ? true : false;
+    bool t4 = if x > y => true : false;
     bool l4 = false;
     loop x > y { l4 = true; break; }
     bool u4 = false;
@@ -6930,7 +6930,7 @@ func cmp_uint(uint x, uint y) int {
     if x >= y { a5 = true; }
     bool n5 = true;
     if !(x >= y) { n5 = false; }
-    bool t5 = x >= y ? true : false;
+    bool t5 = if x >= y => true : false;
     bool l5 = false;
     loop x >= y { l5 = true; break; }
     bool u5 = false;
@@ -6954,7 +6954,7 @@ func cmp_uint32(uint32 x, uint32 y) int {
     if x == y { a0 = true; }
     bool n0 = true;
     if !(x == y) { n0 = false; }
-    bool t0 = x == y ? true : false;
+    bool t0 = if x == y => true : false;
     bool l0 = false;
     loop x == y { l0 = true; break; }
     bool u0 = false;
@@ -6973,7 +6973,7 @@ func cmp_uint32(uint32 x, uint32 y) int {
     if x != y { a1 = true; }
     bool n1 = true;
     if !(x != y) { n1 = false; }
-    bool t1 = x != y ? true : false;
+    bool t1 = if x != y => true : false;
     bool l1 = false;
     loop x != y { l1 = true; break; }
     bool u1 = false;
@@ -6992,7 +6992,7 @@ func cmp_uint32(uint32 x, uint32 y) int {
     if x < y { a2 = true; }
     bool n2 = true;
     if !(x < y) { n2 = false; }
-    bool t2 = x < y ? true : false;
+    bool t2 = if x < y => true : false;
     bool l2 = false;
     loop x < y { l2 = true; break; }
     bool u2 = false;
@@ -7011,7 +7011,7 @@ func cmp_uint32(uint32 x, uint32 y) int {
     if x <= y { a3 = true; }
     bool n3 = true;
     if !(x <= y) { n3 = false; }
-    bool t3 = x <= y ? true : false;
+    bool t3 = if x <= y => true : false;
     bool l3 = false;
     loop x <= y { l3 = true; break; }
     bool u3 = false;
@@ -7030,7 +7030,7 @@ func cmp_uint32(uint32 x, uint32 y) int {
     if x > y { a4 = true; }
     bool n4 = true;
     if !(x > y) { n4 = false; }
-    bool t4 = x > y ? true : false;
+    bool t4 = if x > y => true : false;
     bool l4 = false;
     loop x > y { l4 = true; break; }
     bool u4 = false;
@@ -7049,7 +7049,7 @@ func cmp_uint32(uint32 x, uint32 y) int {
     if x >= y { a5 = true; }
     bool n5 = true;
     if !(x >= y) { n5 = false; }
-    bool t5 = x >= y ? true : false;
+    bool t5 = if x >= y => true : false;
     bool l5 = false;
     loop x >= y { l5 = true; break; }
     bool u5 = false;
@@ -7073,7 +7073,7 @@ func cmp_uint16(uint16 x, uint16 y) int {
     if x == y { a0 = true; }
     bool n0 = true;
     if !(x == y) { n0 = false; }
-    bool t0 = x == y ? true : false;
+    bool t0 = if x == y => true : false;
     bool l0 = false;
     loop x == y { l0 = true; break; }
     bool u0 = false;
@@ -7092,7 +7092,7 @@ func cmp_uint16(uint16 x, uint16 y) int {
     if x != y { a1 = true; }
     bool n1 = true;
     if !(x != y) { n1 = false; }
-    bool t1 = x != y ? true : false;
+    bool t1 = if x != y => true : false;
     bool l1 = false;
     loop x != y { l1 = true; break; }
     bool u1 = false;
@@ -7111,7 +7111,7 @@ func cmp_uint16(uint16 x, uint16 y) int {
     if x < y { a2 = true; }
     bool n2 = true;
     if !(x < y) { n2 = false; }
-    bool t2 = x < y ? true : false;
+    bool t2 = if x < y => true : false;
     bool l2 = false;
     loop x < y { l2 = true; break; }
     bool u2 = false;
@@ -7130,7 +7130,7 @@ func cmp_uint16(uint16 x, uint16 y) int {
     if x <= y { a3 = true; }
     bool n3 = true;
     if !(x <= y) { n3 = false; }
-    bool t3 = x <= y ? true : false;
+    bool t3 = if x <= y => true : false;
     bool l3 = false;
     loop x <= y { l3 = true; break; }
     bool u3 = false;
@@ -7149,7 +7149,7 @@ func cmp_uint16(uint16 x, uint16 y) int {
     if x > y { a4 = true; }
     bool n4 = true;
     if !(x > y) { n4 = false; }
-    bool t4 = x > y ? true : false;
+    bool t4 = if x > y => true : false;
     bool l4 = false;
     loop x > y { l4 = true; break; }
     bool u4 = false;
@@ -7168,7 +7168,7 @@ func cmp_uint16(uint16 x, uint16 y) int {
     if x >= y { a5 = true; }
     bool n5 = true;
     if !(x >= y) { n5 = false; }
-    bool t5 = x >= y ? true : false;
+    bool t5 = if x >= y => true : false;
     bool l5 = false;
     loop x >= y { l5 = true; break; }
     bool u5 = false;
@@ -7192,7 +7192,7 @@ func cmp_uint8(uint8 x, uint8 y) int {
     if x == y { a0 = true; }
     bool n0 = true;
     if !(x == y) { n0 = false; }
-    bool t0 = x == y ? true : false;
+    bool t0 = if x == y => true : false;
     bool l0 = false;
     loop x == y { l0 = true; break; }
     bool u0 = false;
@@ -7211,7 +7211,7 @@ func cmp_uint8(uint8 x, uint8 y) int {
     if x != y { a1 = true; }
     bool n1 = true;
     if !(x != y) { n1 = false; }
-    bool t1 = x != y ? true : false;
+    bool t1 = if x != y => true : false;
     bool l1 = false;
     loop x != y { l1 = true; break; }
     bool u1 = false;
@@ -7230,7 +7230,7 @@ func cmp_uint8(uint8 x, uint8 y) int {
     if x < y { a2 = true; }
     bool n2 = true;
     if !(x < y) { n2 = false; }
-    bool t2 = x < y ? true : false;
+    bool t2 = if x < y => true : false;
     bool l2 = false;
     loop x < y { l2 = true; break; }
     bool u2 = false;
@@ -7249,7 +7249,7 @@ func cmp_uint8(uint8 x, uint8 y) int {
     if x <= y { a3 = true; }
     bool n3 = true;
     if !(x <= y) { n3 = false; }
-    bool t3 = x <= y ? true : false;
+    bool t3 = if x <= y => true : false;
     bool l3 = false;
     loop x <= y { l3 = true; break; }
     bool u3 = false;
@@ -7268,7 +7268,7 @@ func cmp_uint8(uint8 x, uint8 y) int {
     if x > y { a4 = true; }
     bool n4 = true;
     if !(x > y) { n4 = false; }
-    bool t4 = x > y ? true : false;
+    bool t4 = if x > y => true : false;
     bool l4 = false;
     loop x > y { l4 = true; break; }
     bool u4 = false;
@@ -7287,7 +7287,7 @@ func cmp_uint8(uint8 x, uint8 y) int {
     if x >= y { a5 = true; }
     bool n5 = true;
     if !(x >= y) { n5 = false; }
-    bool t5 = x >= y ? true : false;
+    bool t5 = if x >= y => true : false;
     bool l5 = false;
     loop x >= y { l5 = true; break; }
     bool u5 = false;
@@ -7401,7 +7401,7 @@ func main() {
     }
     check(guard == 3 && calls == 3, "a loop condition combines a comparison and a call");
     calls = 0;
-    int pick = (no() || no()) ? 1 : (yes() && yes() ? 2 : 3);
+    int pick = if (no() || no()) => 1 : (if yes() && yes() => 2 : 3);
     check(pick == 2 && calls == 4, "nested conditions in a ternary");
     bool flag = yes();
     bool other = no();
@@ -7574,7 +7574,7 @@ func pointer(*int p) *int {
 }
 
 func text(int a) string {
-    return a > 0 ? "yes" : "no";
+    return if a > 0 => "yes" : "no";
 }
 
 func decimal(int a) float {
@@ -8018,13 +8018,13 @@ func main() {
     }
     if true {
         int cells = 0;
-        :outer for i in 1..=5 {
+        #outer for i in 1..=5 {
             for j in 1..=5 {
                 if j > i {
-                    continue :outer;
+                    continue #outer;
                 }
                 if i == 4 {
-                    break :outer;
+                    break #outer;
                 }
                 cells++;
             }
@@ -8256,7 +8256,7 @@ func main() {
     int failures = 0;
     int total = 0;
     for i in 0..=9 {
-        int v = i == 4 ? -1 : i;
+        int v = if i == 4 => -1 : i;
         int r = limited(v) ?? |e| {
             failures++;
             yield 0;
@@ -9103,10 +9103,10 @@ func main() {
     }
     check(hits == 34, "switchloop break leaves the switch and continue skips the rest of the iteration");
     int outer = 0;
-    :rows for i in 1..=3 {
+    #rows for i in 1..=3 {
         for j in 1..=3 {
             match j {
-                2 => continue :rows;
+                2 => continue #rows;
                 _ => outer += 1;
             }
         }
@@ -9338,7 +9338,7 @@ func main() {
     check(head == null, "a global pointer starts as a converted null");
     head = &holder;
     holder.a = 9;
-    check(head.?.a == 9, "the pointer can be set later");
+    check(head?.a == 9, "the pointer can be set later");
     ?*Entry local = (?*Entry)(null);
     check(local == null, "null converts to a pointer type in a local too");
 }
@@ -10211,13 +10211,13 @@ func main() {
     };
     check(k == Kind.Dir, "a switch expression infers .Member from the declared type");
     check(pick(1) == Kind.File && pick(3) == Kind.Other, "a switch expression infers .Member from the return type");
-    Kind t = m == 2 ? .Dir : .File;
+    Kind t = if m == 2 => .Dir : .File;
     check(t == Kind.Dir, "a ternary infers .Member from the declared type");
     Kind u = Kind.File;
-    u = m == 1 ? .File : .Other;
+    u = if m == 1 => .File : .Other;
     check(u == Kind.Other, "a ternary infers .Member in an assignment");
-    check(is(Kind.Other, m == 2 ? .Other : .File), "a ternary infers .Member as an argument");
-    check(pick(2) == (m > 1 ? .Dir : .File), "a ternary infers .Member on the side of a comparison");
+    check(is(Kind.Other, if m == 2 => .Other : .File), "a ternary infers .Member as an argument");
+    check(pick(2) == (if m > 1 => .Dir : .File), "a ternary infers .Member on the side of a comparison");
 }
 `, expected: []string{"a switch expression infers .Member from the declared type", "a switch expression infers .Member from the return type", "a ternary infers .Member from the declared type", "a ternary infers .Member in an assignment", "a ternary infers .Member as an argument", "a ternary infers .Member on the side of a comparison"}},
 
@@ -10565,7 +10565,7 @@ func main() ! {
     [8]byte seq;
     for i in 0..=6 {
         int r = os.stdin.read(one)! ?? 0;
-        seq[i] = r == 1 ? one[0] : 0;
+        seq[i] = if r == 1 => one[0] : 0;
     }
     [64]byte big;
     int n = os.stdin.read(big)! ?? 0;
@@ -10827,7 +10827,7 @@ func shown(...args) int {
 
 func pick(...args) string {
     return match type args[0] {
-        *Circle, *Square c => c.visible ? "visible" : "hidden";
+        *Circle, *Square c => if c.visible => "visible" : "hidden";
         int, string => "plain";
         _ => "other";
     };
@@ -11096,8 +11096,8 @@ func main() {
     let one = special(b, 1);
     let two = special(b, 2);
     let none = special(b, 3);
-    check(one != null && len(one.?) == 1, "an arm with a value still works next to a block that returns");
-    check(two != null && len(two.?) == 2, "the second arm gives its value");
+    check(one != null && len(one?) == 1, "an arm with a value still works next to a block that returns");
+    check(two != null && len(two?) == 2, "the second arm gives its value");
     check(none == null, "the block that returns leaves the function");
     check(loopy(1) == 10 && loopy(7) == 0, "a block that continues skips the turn");
 }
@@ -11162,19 +11162,19 @@ func main() {
     check(math.leadingZeros(1) == 63 && math.leadingZeros(0) == 64 && math.leadingZeros(0x8000000000000000) == 0 && math.leadingZeros(255) == 56, "leadingZeros");
     check(math.MIN_INT8 == -128 && math.MAX_INT8 == 127 && math.MIN_INT16 == -32768 && math.MAX_INT16 == 32767 && math.MIN_INT32 == -2147483648 && math.MAX_INT32 == 2147483647, "the signed limits");
     check(math.MAX_UINT8 == 255 && math.MAX_UINT16 == 65535 && math.MAX_UINT32 == 4294967295 && math.MAX_UINT64 == 0xFFFFFFFFFFFFFFFF && math.MAX_UINT == math.MAX_UINT64, "the unsigned limits");
-    check(math.checkedAdd(math.MAX_INT, -1).? == 9223372036854775806, "checkedAdd inside the range");
-    check(math.checkedSub(5, 7).? == -2, "checkedSub inside the range");
-    check(math.checkedMul(3037000499, 3037000499).? == 9223372030926249001, "checkedMul at the top of the range");
-    check(math.checkedMul(-3037000499, 3037000499).? == -9223372030926249001, "checkedMul of mixed signs");
-    check(math.checkedMul(-4611686018427387904, 2).? == math.MIN_INT, "checkedMul that lands on the minimum");
-    check(math.checkedMul(0, math.MIN_INT).? == 0, "checkedMul by zero");
-    check(math.checkedAbs(-5).? == 5, "checkedAbs");
-    check(math.pow(2, 62).? == 4611686018427387904, "pow 2 to the 62");
-    check(math.pow(10, 18).? == 1000000000000000000, "pow 10 to the 18");
-    check(math.pow(-2, 63).? == math.MIN_INT, "pow -2 to the 63 is the minimum");
-    check(math.pow(0, 0).? == 1 && math.pow(5, 0).? == 1 && math.pow(0, 5).? == 0 && math.pow(3, 4).? == 81, "pow with a zero");
-    check(math.lcm(4, 6).? == 12 && math.lcm(-4, 6).? == 12, "lcm is not negative");
-    check(math.lcm(0, 5).? == 0 && math.lcm(0, 0).? == 0 && math.lcm(5, 0).? == 0, "lcm with a zero");
+    check(math.checkedAdd(math.MAX_INT, -1)? == 9223372036854775806, "checkedAdd inside the range");
+    check(math.checkedSub(5, 7)? == -2, "checkedSub inside the range");
+    check(math.checkedMul(3037000499, 3037000499)? == 9223372030926249001, "checkedMul at the top of the range");
+    check(math.checkedMul(-3037000499, 3037000499)? == -9223372030926249001, "checkedMul of mixed signs");
+    check(math.checkedMul(-4611686018427387904, 2)? == math.MIN_INT, "checkedMul that lands on the minimum");
+    check(math.checkedMul(0, math.MIN_INT)? == 0, "checkedMul by zero");
+    check(math.checkedAbs(-5)? == 5, "checkedAbs");
+    check(math.pow(2, 62)? == 4611686018427387904, "pow 2 to the 62");
+    check(math.pow(10, 18)? == 1000000000000000000, "pow 10 to the 18");
+    check(math.pow(-2, 63)? == math.MIN_INT, "pow -2 to the 63 is the minimum");
+    check(math.pow(0, 0)? == 1 && math.pow(5, 0)? == 1 && math.pow(0, 5)? == 0 && math.pow(3, 4)? == 81, "pow with a zero");
+    check(math.lcm(4, 6)? == 12 && math.lcm(-4, 6)? == 12, "lcm is not negative");
+    check(math.lcm(0, 5)? == 0 && math.lcm(0, 0)? == 0 && math.lcm(5, 0)? == 0, "lcm with a zero");
     ?int ve30 = math.checkedAdd(math.MAX_INT, 1);
     check(ve30 == null, "checkedAdd past the top is null");
     ?int ve38 = math.checkedMul(math.MIN_INT, -1);
@@ -11211,19 +11211,19 @@ func main() {
     check(math.MIN_INT == -0x8000000000000000 && math.MAX_INT == 0x7FFFFFFFFFFFFFFF && math.MIN_INT -% 1 == math.MAX_INT, "the 64-bit limits wrap around");
     check(math.MIN_INT8 == -128 && math.MAX_INT8 == 127 && math.MIN_INT16 == -32768 && math.MAX_INT16 == 32767 && math.MIN_INT32 == -2147483648 && math.MAX_INT32 == 2147483647, "the signed limits");
     check(math.MAX_UINT8 == 255 && math.MAX_UINT16 == 65535 && math.MAX_UINT32 == 4294967295 && math.MAX_UINT64 == 0xFFFFFFFFFFFFFFFF && math.MAX_UINT == math.MAX_UINT64, "the unsigned limits");
-    check(math.checkedAdd(math.MAX_INT, -1).? == 9223372036854775806, "checkedAdd inside the range");
-    check(math.checkedSub(5, 7).? == -2, "checkedSub inside the range");
-    check(math.checkedMul(3037000499, 3037000499).? == 9223372030926249001, "checkedMul at the top of the range");
-    check(math.checkedMul(-3037000499, 3037000499).? == -9223372030926249001, "checkedMul of mixed signs");
-    check(math.checkedMul(-4611686018427387904, 2).? == math.MIN_INT, "checkedMul that lands on the minimum");
-    check(math.checkedMul(0, math.MIN_INT).? == 0, "checkedMul by zero");
-    check(math.checkedAbs(-5).? == 5, "checkedAbs");
-    check(math.pow(2, 62).? == 4611686018427387904, "pow 2 to the 62");
-    check(math.pow(10, 18).? == 1000000000000000000, "pow 10 to the 18");
-    check(math.pow(-2, 63).? == math.MIN_INT, "pow -2 to the 63 is the minimum");
-    check(math.pow(0, 0).? == 1 && math.pow(5, 0).? == 1 && math.pow(0, 5).? == 0 && math.pow(3, 4).? == 81, "pow with a zero");
-    check(math.lcm(4, 6).? == 12 && math.lcm(-4, 6).? == 12, "lcm is not negative");
-    check(math.lcm(0, 5).? == 0 && math.lcm(0, 0).? == 0 && math.lcm(5, 0).? == 0, "lcm with a zero");
+    check(math.checkedAdd(math.MAX_INT, -1)? == 9223372036854775806, "checkedAdd inside the range");
+    check(math.checkedSub(5, 7)? == -2, "checkedSub inside the range");
+    check(math.checkedMul(3037000499, 3037000499)? == 9223372030926249001, "checkedMul at the top of the range");
+    check(math.checkedMul(-3037000499, 3037000499)? == -9223372030926249001, "checkedMul of mixed signs");
+    check(math.checkedMul(-4611686018427387904, 2)? == math.MIN_INT, "checkedMul that lands on the minimum");
+    check(math.checkedMul(0, math.MIN_INT)? == 0, "checkedMul by zero");
+    check(math.checkedAbs(-5)? == 5, "checkedAbs");
+    check(math.pow(2, 62)? == 4611686018427387904, "pow 2 to the 62");
+    check(math.pow(10, 18)? == 1000000000000000000, "pow 10 to the 18");
+    check(math.pow(-2, 63)? == math.MIN_INT, "pow -2 to the 63 is the minimum");
+    check(math.pow(0, 0)? == 1 && math.pow(5, 0)? == 1 && math.pow(0, 5)? == 0 && math.pow(3, 4)? == 81, "pow with a zero");
+    check(math.lcm(4, 6)? == 12 && math.lcm(-4, 6)? == 12, "lcm is not negative");
+    check(math.lcm(0, 5)? == 0 && math.lcm(0, 0)? == 0 && math.lcm(5, 0)? == 0, "lcm with a zero");
     ?int ve30 = math.checkedAdd(math.MAX_INT, 1);
     check(ve30 == null, "checkedAdd past the top is null");
     ?int ve32 = math.checkedAdd(math.MIN_INT, -1);
@@ -11319,7 +11319,7 @@ func pick(int n) int {
 func sum(int a, int b, int c) int {
     int total;
     for i in 0..=2 {
-        int n = i == 0 ? a : (i == 1 ? b : c);
+        int n = if i == 0 => a : (if i == 1 => b : c);
         int v = load(n) ?? |e| match e {
             Kind.NotFound => continue;
             _ => return -100;
@@ -11331,10 +11331,10 @@ func sum(int a, int b, int c) int {
 
 func firstGood(int a, int b, int c) int {
     int total;
-    :scan for i in 0..=2 {
-        int n = i == 0 ? a : (i == 1 ? b : c);
+    #scan for i in 0..=2 {
+        int n = if i == 0 => a : (if i == 1 => b : c);
         int v = load(n) ?? |e| match e {
-            Kind.Denied => break :scan;
+            Kind.Denied => break #scan;
             _ => continue;
         };
         total += v;
@@ -11498,7 +11498,7 @@ func pairOr(int n) int {
 func sumUntilZero(int a, int b, int c) int {
     int total;
     for i in 0..=2 {
-        int n = i == 0 ? a : (i == 1 ? b : c);
+        int n = if i == 0 => a : (if i == 1 => b : c);
         total += match n {
             0 => break;
             1 => continue;
@@ -11571,17 +11571,17 @@ func main() {
     check(calls == 0 && !r, "a ?? in an untaken && branch does not run");
     bool s = true || (bump() ?? 0) == 1;
     check(calls == 0 && s, "a ?? in an untaken || branch does not run");
-    int t = true ? 5 : (bump() ?? 0);
-    int u = false ? (bump() ?? 0) : 6;
+    int t = if true => 5 : (bump() ?? 0);
+    int u = if false => (bump() ?? 0) : 6;
     check(calls == 0 && t == 5 && u == 6, "a ?? in an untaken ternary branch does not run");
 
     bool v = true && (fail() ?? |e| {
         yield 3;
     }) == 3;
-    int w = true ? (fail() ?? 4) : 0;
+    int w = if true => (fail() ?? 4) : 0;
     check(calls == 2 && v && w == 4, "a block handler in a taken branch runs once");
 
-    int x = false && true ? 0 : 1;
+    int x = if false && true => 0 : 1;
     bool y = false && (match x {
         1 => count();
         _ => 0;
@@ -12353,7 +12353,7 @@ func firstOr(int n) int {
 func sum(int a, int b) int {
     int total = 0;
     for i in 0..=1 {
-        int x = risky(i == 0 ? a : b) ?? {
+        int x = risky(if i == 0 => a : b) ?? {
             continue;
         };
         total += x;
@@ -12364,7 +12364,7 @@ func sum(int a, int b) int {
 func firstGood(int a, int b, int c) int {
     int found = -1;
     for i in 0..=2 {
-        int x = risky(i == 0 ? a : (i == 1 ? b : c)) ?? continue;
+        int x = risky(if i == 0 => a : (if i == 1 => b : c)) ?? continue;
         found = x;
         break;
     }
@@ -12374,7 +12374,7 @@ func firstGood(int a, int b, int c) int {
 func stopAtBad(int a, int b, int c) int {
     int total = 0;
     for i in 0..=2 {
-        int x = risky(i == 0 ? a : (i == 1 ? b : c)) ?? break;
+        int x = risky(if i == 0 => a : (if i == 1 => b : c)) ?? break;
         total += x;
     }
     return total;
@@ -12383,7 +12383,7 @@ func stopAtBad(int a, int b, int c) int {
 func namedJump(int a, int b) int {
     int total = 0;
     for i in 0..=1 {
-        int x = risky(i == 0 ? a : b) ?? |_| continue;
+        int x = risky(if i == 0 => a : b) ?? |_| continue;
         total += x;
     }
     return total;
@@ -12578,10 +12578,10 @@ func main() {
 func main() {
     check(cell == null, "global null pointer");
     cell = &slot;
-    cell.?@ = 6;
+    cell?@ = 6;
     check(slot == 6, "write through a global pointer");
     cell = &buffer[2];
-    cell.?@ = 7;
+    cell?@ = 7;
     check(buffer[2] == 7, "global pointer to a global array element");
 }
 `, expected: []string{"global null pointer", "write through a global pointer", "global pointer to a global array element"}},
@@ -12625,7 +12625,7 @@ func main() {
 }
 
 func tag(string name, [2]int pair, bool on) int {
-    return on ? pair[0] + len(name) : pair[1];
+    return if on => pair[0] + len(name) : pair[1];
 }
 
 func main() {
@@ -12717,11 +12717,11 @@ func breaking() {
 }
 
 func labeled() {
-    :outer for 2 {
+    #outer for 2 {
         defer mark(5);
         for 2 {
             defer mark(6);
-            break :outer;
+            break #outer;
         }
     }
 }
@@ -12864,7 +12864,7 @@ func kind(int index, ...args) int {
         byte => return 55;
         unsigned => return 2000;
         string v => return len(v);
-        bool v => return v ? 1 : 0;
+        bool v => return if v => 1 : 0;
         float => return 99;
         _ => return -1;
     }
@@ -13373,7 +13373,7 @@ const COLLATZ = static {
 const CALLED = static { yield square(12) + clamp(50, 0, 10); };
 const LABEL = static {
     int n = 5;
-    yield n > 3 ? "big" : "small";
+    yield if n > 3 => "big" : "small";
 };
 const BIG = static { yield 1 << 20 > 1000000; };
 const RATIO = static {
@@ -13396,11 +13396,11 @@ func main() {
     check(RATIO > 3.37 && RATIO < 3.38, "floats");
     int local = static {
         int found = 0;
-        :search for i in 2..=50 {
+        #search for i in 2..=50 {
             for j in 2..=50 {
                 if i * j == 91 {
                     found = i;
-                    break :search;
+                    break #search;
                 }
             }
         }
@@ -13869,7 +13869,7 @@ func swap<A, B>(Pair<A, B> p) Pair<B, A> {
 }
 
 func biggest<Ordered T>(T a, T b) T {
-    return a > b ? a : b;
+    return if a > b => a : b;
 }
 
 func countDown<T>(T tag, int n) int {
@@ -13966,7 +13966,7 @@ func main() {
 
     Node<int> tail = Node<int>{value: 2};
     Node<int> head = Node<int>{value: 1, next: &tail};
-    check(head.next.?.value == 2, "a generic struct that points to itself");
+    check(head.next?.value == 2, "a generic struct that points to itself");
 
     Counter c;
     c.seen.push(5);
@@ -13979,7 +13979,7 @@ func main() {
 `, expected: []string{"methods of a generic struct", "the same methods for another type", "a generic struct that points to itself", "generic structs as fields of other structs", "each instance has its own layout", "a literal names the instance"}},
 
 	{dir: "generic_modules", files: map[string]string{"stack/stack.wsp": `func clampTop(int n, int limit) int {
-    return n >= limit ? limit - 1 : n;
+    return if n >= limit => limit - 1 : n;
 }
 
 public struct Stack<T> {
@@ -14453,13 +14453,13 @@ func main() {
     *Count p = &c;
     p.n = 0;
     int pairs = 0;
-    :outer for a in p {
+    #outer for a in p {
         for b in upTo(5) {
             if b == 2 {
-                continue :outer;
+                continue #outer;
             }
             if a == 3 {
-                break :outer;
+                break #outer;
             }
             pairs += a * 10 + b;
         }
@@ -14561,15 +14561,15 @@ func main() {
     }
     check(ps[0].x == 101 && ps[0].y == 101 && ps[1].x == 103 && ps[1].y == 103, "the elements of structs change through the pointer");
     int total = 0;
-    :outer for p in &xs {
+    #outer for p in &xs {
         for q in &xs {
             if q@ > 25 {
-                continue :outer;
+                continue #outer;
             }
             total += q@;
         }
         if p@ > 0 {
-            break :outer;
+            break #outer;
         }
     }
     check(total == 60, "labels reach the loop over pointers");
@@ -14661,19 +14661,19 @@ func (*Raw r) get() int { return r.n; }
 
 struct D implements A { ?A parent; }
 
-func (*D d) get() int { return (d.parent.?).get() + 1; }
+func (*D d) get() int { return (d.parent?).get() + 1; }
 
 struct Big { int a; int b; int c; }
 
 struct Holder { ?Big big; string name; }
 
 func viaPointer(*D d) int {
-    A p = d.parent.?;
+    A p = d.parent?;
     return p.get();
 }
 
 func sum(*Holder h) int {
-    Big b = h.big.?;
+    Big b = h.big?;
     return b.a + b.b + b.c;
 }
 
@@ -15636,14 +15636,14 @@ func main() {
     check(k == 4 && total == 13, "a switch inside a loop with a capture");
 
     int rounds;
-    :outer loop {
+    #outer loop {
         rounds++;
         match rounds {
             2 => break;
             _ => rounds += 0;
         }
         if rounds >= 4 {
-            break :outer;
+            break #outer;
         }
     }
     check(rounds == 4, "a labeled break after a switch");
@@ -16292,7 +16292,7 @@ func count(string format, ...args) int {
 #format
 func text([]byte buf, string format, ...args) string {
     let n, err = sprintf(buf, format, args...);
-    return err == null ? string(buf[..n]) : "failed";
+    return if err == null => string(buf[..n]) : "failed";
 }
 
 struct P {
@@ -16309,8 +16309,8 @@ func main() {
     check(shape("test {sum:X} and {sum}") == "test {:X} and {}", "an expression takes its spec after the colon");
     check(shape("a {{b}} {p.x + 1:>8} {xs[i]} {} {:x}", 7, 8) == "a {{b}} {:>8} {} {} {:x}", "braces, specs, fields, indexes and positional arguments");
     check(count("a {sum} b {} c {p.x}", 5) == 3, "inline expressions and written arguments become one list");
-    check(shape("{(sum > 1 ? 10 : 20)}") == "{}", "a ternary in parentheses");
-    check(shape("{sum > 1 ? 10 : 20}|{sum > 1 ? 10 : 20:>4}|{p.x:x}") == "{}|{:>4}|{:x}", "a ternary without parentheses, and the spec after it");
+    check(shape("{(if sum > 1 => 10 : 20)}") == "{}", "a ternary in parentheses");
+    check(shape("{if sum > 1 => 10 : 20}|{if sum > 1 => 10 : 20:>4}|{p.x:x}") == "{}|{:>4}|{:x}", "a ternary without parentheses, and the spec after it");
     check(shape("no placeholders {{}}") == "no placeholders {{}}", "escaped braces alone change nothing");
     check(shape("{\"}\"}{'}'}") == "{}{}", "a brace inside a string or a character of the expression");
     check(count("{sum}{sum}{sum}") == 3 && count("plain") == 0, "one argument for each placeholder");
@@ -16549,7 +16549,7 @@ func fileOf(Here at, int unused) string {
 func note(Here at, string format, ...args) string {
     [64]byte buf;
     let n, _ = sprintf(buf[..], format, args...);
-    return at.line > 0 ? string(buf[..n]) : "";
+    return if at.line > 0 => string(buf[..n]) : "";
 }
 
 func main() {
@@ -16725,23 +16725,23 @@ func viaBang(int n) !int {
 }
 
 func taken(int n) !int {
-    return read(n)!.? + 1;
+    return read(n)!? + 1;
 }
 
 func main() ! {
     ?int present = 5;
     ?int absent = null;
-    check(present.? == 5, ".? gives the value of an optional");
-    check(present.? + 1 == 6 && (absent ?? 9) == 9, ".? in an expression, beside ??");
+    check(present? == 5, ".? gives the value of an optional");
+    check(present? + 1 == 6 && (absent ?? 9) == 9, ".? in an expression, beside ??");
 
     Box box = Box{value: 3};
-    check(box.value.? == 3, ".? on a field");
+    check(box.value? == 3, ".? on a field");
     [3]int numbers = .{4, 5, 6};
     box.items = numbers[..];
-    check(box.items.?[1] == 5, ".? before an index");
+    check(box.items?[1] == 5, ".? before an index");
 
-    check(read(2)!!.? == 20, "!! stops on an error and .? on a null, with no parentheses");
-    check(read(3)!.? == 30, "! passes the error up and .? takes the value out");
+    check(read(2)!!? == 20, "!! stops on an error and .? on a null, with no parentheses");
+    check(read(3)!? == 30, "! passes the error up and .? takes the value out");
     check(viaBang(2)! == 20 && viaBang(1)! == -1, "! then ?? gives a default for the null");
     check(taken(4)! == 41, "a chain inside an expression");
 
@@ -17644,7 +17644,7 @@ func wexp(*strings.Builder b, float x, int n, bool upper) string {
 }
 
 func differ(string got, string want) int {
-    return got == want ? 0 : 1;
+    return if got == want => 0 : 1;
 }
 
 func main() {
@@ -17680,42 +17680,42 @@ func main() {
     int parseBad;
     for i in 0..=227 {
         float back = conv.parseFloat(shortest[i]) ?? -1.0;
-        parseBad += back == xs[i] ? 0 : 1;
+        parseBad += if back == xs[i] => 0 : 1;
         float fromFixed = conv.parseFloat(fixed[i]) ?? -1.0;
-        parseBad += math.signbit(fromFixed) == math.signbit(xs[i]) ? 0 : 1;
+        parseBad += if math.signbit(fromFixed) == math.signbit(xs[i]) => 0 : 1;
     }
     check(parseBad == 0, "parseFloat reads back what writeFloat wrote, exactly");
     int parseSingleBad;
     for i in 0..=347 {
         float32 back = conv.parseFloat32(singleText[i]) ?? -1.0;
-        parseSingleBad += back == singles[i] ? 0 : 1;
+        parseSingleBad += if back == singles[i] => 0 : 1;
     }
     check(parseSingleBad == 0, "parseFloat32 reads back what writeFloat32 wrote, exactly");
 
     int edge;
-    edge += (conv.parseFloat("9007199254740993") ?? 0.0) == 9007199254740992.0 ? 0 : 1;
-    edge += (conv.parseFloat("9007199254740995") ?? 0.0) == 9007199254740996.0 ? 0 : 1;
-    edge += (conv.parseFloat("1e23") ?? 0.0) == 1e23 ? 0 : 1;
-    edge += (conv.parseFloat("4.9e-325") ?? 1.0) == 0.0 ? 0 : 1;
-    edge += (conv.parseFloat("  1") ?? 7.0) == 7.0 ? 0 : 1;
-    edge += (conv.parseFloat("+.5e1") ?? 0.0) == 5.0 ? 0 : 1;
-    edge += (conv.parseFloat("-INF") ?? 0.0) == math.inf(-1) ? 0 : 1;
-    edge += math.isNaN(conv.parseFloat("nan") ?? 0.0) ? 0 : 1;
-    edge += math.signbit(conv.parseFloat("-0") ?? 1.0) ? 0 : 1;
-    edge += (conv.parseFloat("0.1000000000000000055511151231257827021181583404541015625") ?? 0.0) == 0.1 ? 0 : 1;
-    edge += (conv.parseFloat("123456789e-5") ?? 0.0) == 1234.56789 ? 0 : 1;
+    edge += if (conv.parseFloat("9007199254740993") ?? 0.0) == 9007199254740992.0 => 0 : 1;
+    edge += if (conv.parseFloat("9007199254740995") ?? 0.0) == 9007199254740996.0 => 0 : 1;
+    edge += if (conv.parseFloat("1e23") ?? 0.0) == 1e23 => 0 : 1;
+    edge += if (conv.parseFloat("4.9e-325") ?? 1.0) == 0.0 => 0 : 1;
+    edge += if (conv.parseFloat("  1") ?? 7.0) == 7.0 => 0 : 1;
+    edge += if (conv.parseFloat("+.5e1") ?? 0.0) == 5.0 => 0 : 1;
+    edge += if (conv.parseFloat("-INF") ?? 0.0) == math.inf(-1) => 0 : 1;
+    edge += if math.isNaN(conv.parseFloat("nan") ?? 0.0) => 0 : 1;
+    edge += if math.signbit(conv.parseFloat("-0") ?? 1.0) => 0 : 1;
+    edge += if (conv.parseFloat("0.1000000000000000055511151231257827021181583404541015625") ?? 0.0) == 0.1 => 0 : 1;
+    edge += if (conv.parseFloat("123456789e-5") ?? 0.0) == 1234.56789 => 0 : 1;
     check(edge == 0, "parseFloat rounds ties to even and reads the usual forms");
 
     int bad;
-    bad += (conv.parseFloat("") ?? 1.0) == 1.0 ? 0 : 1;
-    bad += (conv.parseFloat(".") ?? 1.0) == 1.0 ? 0 : 1;
-    bad += (conv.parseFloat("1e") ?? 1.0) == 1.0 ? 0 : 1;
-    bad += (conv.parseFloat("1e+") ?? 1.0) == 1.0 ? 0 : 1;
-    bad += (conv.parseFloat("1.2.3") ?? 1.0) == 1.0 ? 0 : 1;
-    bad += (conv.parseFloat("1_0") ?? 1.0) == 1.0 ? 0 : 1;
-    bad += (conv.parseFloat("0x10") ?? 1.0) == 1.0 ? 0 : 1;
-    bad += (conv.parseFloat("1e309") ?? 1.0) == 1.0 ? 0 : 1;
-    bad += (conv.parseFloat32("1e39") ?? 1.0) == 1.0 ? 0 : 1;
+    bad += if (conv.parseFloat("") ?? 1.0) == 1.0 => 0 : 1;
+    bad += if (conv.parseFloat(".") ?? 1.0) == 1.0 => 0 : 1;
+    bad += if (conv.parseFloat("1e") ?? 1.0) == 1.0 => 0 : 1;
+    bad += if (conv.parseFloat("1e+") ?? 1.0) == 1.0 => 0 : 1;
+    bad += if (conv.parseFloat("1.2.3") ?? 1.0) == 1.0 => 0 : 1;
+    bad += if (conv.parseFloat("1_0") ?? 1.0) == 1.0 => 0 : 1;
+    bad += if (conv.parseFloat("0x10") ?? 1.0) == 1.0 => 0 : 1;
+    bad += if (conv.parseFloat("1e309") ?? 1.0) == 1.0 => 0 : 1;
+    bad += if (conv.parseFloat32("1e39") ?? 1.0) == 1.0 => 0 : 1;
     check(bad == 0, "parseFloat rejects text that is not a number and values too large");
 }
 `, expected: []string{"writeFloat writes the shortest text that reads back", "writeFixed matches the exact decimal expansion", "writeExp matches the exact decimal expansion", "writeFloat32 writes the shortest text of a float32", "NaN, the infinities and signed zeros keep their text", "parseFloat reads back what writeFloat wrote, exactly", "parseFloat32 reads back what writeFloat32 wrote, exactly", "parseFloat rounds ties to even and reads the usual forms", "parseFloat rejects text that is not a number and values too large"}},
@@ -17744,7 +17744,7 @@ func render([]byte buf, string format, ...args) string {
 }
 
 func differ(string got, string want) int {
-    return got == want ? 0 : 1;
+    return if got == want => 0 : 1;
 }
 
 [8]float32 singles = .{1.100000023841858, 0.10000000149011612, 2.5, 16777216.0, 3.4028234663852886e+38, 1.401298464324817e-45, 0.30000001192092896, 100.0};
@@ -18160,7 +18160,7 @@ func main() {
     let _, a = sprintf(chars[..], "{:x}", 1.5);
     let _, b = sprintf(chars[..], "{:#f}", 1.5);
     let _, c = sprintf(chars[..], "{:.1001f}", 1.5);
-    int rejects = (a != null ? 1 : 0) + (b != null ? 1 : 0) + (c != null ? 1 : 0);
+    int rejects = (if a != null => 1 : 0) + (if b != null => 1 : 0) + (if c != null => 1 : 0);
     check(bad == 0, "floats match the reference for every spec and value");
     check(single == 0, "a float32 prints the shortest text of its own width");
     check(problem != null, "a float that does not fit the buffer is reported");
@@ -18216,7 +18216,7 @@ func inc(int x) int => x + 1;
 func dec(int x) int => x - 1;
 
 func pick(bool up) (int) => int {
-    return up ? inc : dec;
+    return if up => inc : dec;
 }
 
 func both(int a, int b) (int, int) {
@@ -19120,8 +19120,8 @@ func parenthesized(bool ready, int n) int {
 }
 
 func labeled(int a) int {
-    int v = :blk {
-        if a == 0 => yield :blk -5;
+    int v = #blk {
+        if a == 0 => yield #blk -5;
         yield a;
     };
     return v;
@@ -19137,4 +19137,42 @@ func main() {
     check(labeled(0) == -5 && labeled(4) == 4, "a conditional yield with a label and a value");
 }
 `, expected: []string{"an if takes one statement after =>", "for and loop take one statement after =>", "a for body can be an if with =>", "a capture works before =>", "a body that returns leaves the function", "a condition in parentheses is not a lambda", "a conditional yield with a label and a value"}},
+
+	{dir: "if_arrow_else", src: `func grade(int n) string {
+    return if n >= 90 => "A" : if n >= 70 => "B" : "C";
+}
+
+func sign(int n) int => if n > 0 => 1 : if n < 0 => -1 : 0;
+
+func touch(*int c) int {
+    c@ = c@ + 1;
+    return 0;
+}
+
+struct Pt {
+    int x;
+}
+
+func main() {
+    int a = 5;
+    int b = 3;
+    int big = if a > b => a : b;
+    Pt p = if (a > b) => Pt{x: 1} : Pt{x: 2};
+    int mixed = if a > b => (if a > 4 => 10 : 20) : 0;
+    int w = if a > b => #m { yield #m 7; } : 9;
+    int r = 0;
+    if a > b => r = 1 : r = 2;
+    int hits = 0;
+    if a < b => hits += 100 : hits += 1;
+    if a == 5 => r += 10 : if a == 6 => r += 20 : r += 30;
+    if a == 6 => r += 1000 : if a == 5 => r += 100 : r += 5000;
+    int lazy = 0;
+    int pick = if a > b => 1 : touch(&lazy);
+    check(grade(95) == "A" && grade(75) == "B" && grade(10) == "C", "an if that gives a value chains with else if");
+    check(sign(5) == 1 && sign(-3) == -1 && sign(0) == 0, "a one line function can give an if");
+    check(big == 5 && p.x == 1 && mixed == 10 && w == 7, "the arms are expressions of any kind");
+    check(r == 111 && hits == 1, "an if as a statement runs one side");
+    check(pick == 1 && lazy == 0, "the arm that is not taken does not run");
+}
+`, expected: []string{"an if that gives a value chains with else if", "a one line function can give an if", "the arms are expressions of any kind", "an if as a statement runs one side", "the arm that is not taken does not run"}},
 }

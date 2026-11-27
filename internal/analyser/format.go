@@ -196,8 +196,8 @@ func (a *Analyser) scanFormat(literal *ast.StringLiteral) (string, []formatItem,
 				parsed, problem := parser.ParseExpressionText(source)
 				if problem != "" {
 					message := "the expression {" + strings.TrimSpace(source) + "} in the format string is not valid: " + problem
-					if strings.Contains(source, "?") {
-						message += " (a ternary can be written without parentheses, so check the other parts of it)"
+					if strings.Contains(source, "=>") {
+						message += " (an if that gives a value can be written without parentheses, so check the other parts of it)"
 					}
 					return "", nil, message
 				}
@@ -268,13 +268,10 @@ func splitSpec(inner string) (string, string, bool) {
 			depth++
 		case ')', ']', '}':
 			depth--
-		case '?':
-			if depth == 0 {
-				if j+1 < len(inner) && inner[j+1] == '?' {
-					j++
-				} else {
-					pending++
-				}
+		case '=':
+			if depth == 0 && j+1 < len(inner) && inner[j+1] == '>' {
+				pending++
+				j++
 			}
 		case ':':
 			if depth == 0 {

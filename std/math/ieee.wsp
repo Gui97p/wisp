@@ -106,7 +106,7 @@ public func round(float x) float {
 public func roundEven(float x) float {
 	float t = floor(x);
 	float d = x - t;
-	return d < .5 ? t : (d == .5 && fmod(t, 2) == 0 ? t : t + 1);
+	return if d < .5 => t : (if d == .5 && fmod(t, 2) == 0 => t : t + 1);
 }
 /// Returns `x` limited to the range `low` to `high`, using `fmin` and `fmax`. It is
 /// NaN when any argument is NaN.

@@ -590,10 +590,6 @@
                     "match": "\\.\\.=?"
                 },
                 {
-                    "name": "keyword.operator.unwrap.wisp",
-                    "match": "\\.\\?"
-                },
-                {
                     "name": "punctuation.accessor.wisp",
                     "match": "\\."
                 },
@@ -614,7 +610,7 @@
                     "match": "(?<![\\w)\\]?])\\?(?=[*\\[(A-Za-z_])"
                 },
                 {
-                    "name": "keyword.operator.ternary.wisp",
+                    "name": "keyword.operator.unwrap.wisp",
                     "match": "\\?"
                 },
                 {

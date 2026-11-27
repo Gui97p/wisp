@@ -55,7 +55,7 @@ public inline func errorf(Here at, string format, ...args) Error => annotate(at,
 public func annotate(Error base, string format, ...args) Error {
 	Slot slot = Slot{room: begin()};
 	fmt.format(&slot, format, args...) ?? 0;
-	return commit(base, slot.used > 0 ? slot.used : -1);
+	return commit(base, if slot.used > 0 => slot.used : -1);
 }
 
 /// Copies an error into memory of `a`, so that it stays as it is for as long as
@@ -93,7 +93,7 @@ func commit(Error base, int n) Error {
 	*Record from = (*Record)(base);
 	int length = n;
 	if n < 0 {
-		length = len(from.message) > SlotText ? SlotText : len(from.message);
+		length = if len(from.message) > SlotText => SlotText : len(from.message);
 		for i in 0..length {
 			texts[cursor * SlotText + i] = from.message[i];
 		}

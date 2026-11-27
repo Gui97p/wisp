@@ -63,7 +63,7 @@ public func sameKind(Error e, int kind) bool {
 /// Reports whether `want` and `got` differ by at most `tolerance`, and prints
 /// the values and the difference if not.
 public func isClose(float want, float got, float tolerance) bool {
-	float diff = want > got ? want - got : got - want;
+	float diff = if want > got => want - got : got - want;
 	if diff <= tolerance => return true;
 
 	warn("expected {}, got {}: the difference {} is more than {}\n", want, got, diff, tolerance);

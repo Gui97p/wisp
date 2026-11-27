@@ -110,12 +110,12 @@ public func dir(string p) string {
 	loop end > v && isSep(p[end - 1]) {
 		end--;
 	}
-	if end == v => return len(p) > v ? p[..v + 1] : (v == 0 ? "." : p[..v]);
+	if end == v => return if len(p) > v => p[..v + 1] : (if v == 0 => "." : p[..v]);
 	int i = end - 1;
 	loop i >= v && !isSep(p[i]) {
 		i--;
 	}
-	if i < v => return v == 0 ? "." : p[..v];
+	if i < v => return if v == 0 => "." : p[..v];
 	int head = i;
 	loop head > v && isSep(p[head - 1]) {
 		head--;
@@ -131,7 +131,7 @@ public func ext(string p) string {
 	p = base(p);
 
 	int idx = strings.lastIndexOfByte(p, '.') ?? return "";
-	return idx == 0 || idx == len(p) - 1 ? "" : p[idx..];
+	return if idx == 0 || idx == len(p) - 1 => "" : p[idx..];
 }
 
 /// Returns the last element of `p` without its extension.

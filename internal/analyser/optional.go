@@ -262,7 +262,7 @@ func (a *Analyser) rejectOptionalUse(node ast.Node, t Type, what string) bool {
 		return false
 	}
 	a.errorf(node, "%s can be null, so it cannot be used for %s", t.String(), what).
-		WithHelp("unwrap it first: `x ?? default`, `x.?` (stops if it is null) or `if x |v| { ... }`")
+		WithHelp("unwrap it first: `x ?? default`, `x?` (stops if it is null) or `if x |v| { ... }`")
 	return true
 }
 
@@ -590,7 +590,7 @@ func mismatchHelp(got, want Type) string {
 		return ""
 	}
 	if element, optional := optionalElement(got); optional && element.Equals(want) {
-		return "the value can be null: unwrap it with `x ?? default`, `x.?` or `if x |v| { ... }`"
+		return "the value can be null: unwrap it with `x ?? default`, `x?` or `if x |v| { ... }`"
 	}
 	if span, isSpan := want.(SpanType); isSpan && isString(underlyingOf(got)) && isByteLike(span.Element) {
 		return "a string is read-only, so its bytes are asked for on purpose: write []byte(text)"

@@ -20,7 +20,7 @@ public func createDir(string path) ! {
 		createDir(paths.dir(path))!;
 		int r = sys.mkdir(path);
 		if r < 0 {
-			return isDir(path) ? null : errorIO(sys.errno(r));
+			return if isDir(path) => null : errorIO(sys.errno(r));
 		}
 		return;
 	};

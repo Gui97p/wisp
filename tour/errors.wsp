@@ -91,7 +91,7 @@ func halfOr(int a, b) int {
 func sumGood(int a, int b) int {
 	int total = 0;
 	for i in 0..=1 {
-		int n = divide(10, i == 0 ? a : b) ?? continue;
+		int n = divide(10, if i == 0 => a : b) ?? continue;
 		total += n;
 	}
 	return total;

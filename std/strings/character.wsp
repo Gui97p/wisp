@@ -26,11 +26,11 @@ public inline func isPrint(byte c) bool => c >= ' ' && c <= '~';
 
 /// Returns `c` converted to uppercase when it is an ASCII lowercase letter, and
 /// `c` unchanged otherwise.
-public inline func upperByte(byte c) byte => c in 'a'..='z' ? c - 32 : c;
+public inline func upperByte(byte c) byte => if c in 'a'..='z' => c - 32 : c;
 
 /// Returns `c` converted to lowercase when it is an ASCII uppercase letter, and
 /// `c` unchanged otherwise.
-public inline func lowerByte(byte c) byte => c in 'A'..='Z' ? c + 32 : c;
+public inline func lowerByte(byte c) byte => if c in 'A'..='Z' => c + 32 : c;
 
 /// Returns the value of `c` as a digit in `base`, where `0` to `9` are 0 to 9 and
 /// letters of either case are 10 to 35. The result is null when `c` is not a

@@ -117,7 +117,7 @@ public func oldTriple(int x) int {
 
 #must_use("the result is returned, nothing is stored in the arguments")
 func bigger(int a, int b) int {
-	return a > b ? a : b;
+	return if a > b => a : b;
 }
 
 func mustUse() {

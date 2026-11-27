@@ -29,6 +29,7 @@ type Parser struct {
 	spread             bool
 	typeOperands       bool
 	labelKinds         []labelKind
+	elseColon          bool
 }
 
 type labelKind struct {
@@ -144,6 +145,9 @@ func (p *Parser) parseUintLiteral(lit string) (uint64, error) {
 func (p *Parser) endStatement() {
 	if p.peek.Type == lexer.TOKEN_SEMICOLON {
 		p.advance()
+		return
+	}
+	if p.elseColon && p.peek.Type == lexer.TOKEN_COLON {
 		return
 	}
 	p.errorExpected(lexer.TOKEN_SEMICOLON, p.peek.Type)

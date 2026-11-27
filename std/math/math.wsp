@@ -29,7 +29,7 @@ public func checkedMul(int a, b) ?int {
 #must_use
 public inline func checkedAbs(int x) ?int {
 	if x == MIN_INT => return null;
-	return x < 0 ? -x : x;
+	return if x < 0 => -x : x;
 }
 
 /// Returns `a + b`, or null when the sum overflows `uint`.
@@ -58,7 +58,7 @@ public func checkedMulUnsigned(uint a, b) ?uint {
 
 /// Returns the absolute value of `x`. The absolute value of `MIN_INT` does not fit
 /// in an `int`; use `checkedAbs` to detect that case.
-public inline func abs(int x) int => x < 0 ? -x : x;
+public inline func abs(int x) int => if x < 0 => -x : x;
 
 /// Returns the smallest of the arguments, or 0 when there are none.
 public func min(int ...args) int {
@@ -91,7 +91,7 @@ public func max(int ...args) int {
 /// Returns `x` limited to the range `low` to `high`. The result is `low` when `x`
 /// is below it and `high` when `x` is above it; when `low` is greater than `high`
 /// the result is `high` for every `x` that is not below `low`.
-public inline func clamp(int x, low, high) int => x < low ? low : (x > high ? high : x);
+public inline func clamp(int x, low, high) int => if x < low => low : (if x > high => high : x);
 
 /// Returns the remainder of `a` divided by `b`, always in the range 0 up to but not
 /// including `abs(b)`, unlike `%`, which takes the sign of `a`. `mod(-1, 5)` is 4.
@@ -176,7 +176,7 @@ public func popCount(uint x) uint {
 
 /// Returns the number of zero bits below the lowest set bit of `x`, or 64 when `x`
 /// is 0.
-public inline func trailingZeros(uint x) uint => x == 0 ? 64 : popCount((x & (~x + 1)) - 1);
+public inline func trailingZeros(uint x) uint => if x == 0 => 64 : popCount((x & (~x + 1)) - 1);
 
 /// Returns the number of zero bits above the highest set bit of `x`, or 64 when `x`
 /// is 0.

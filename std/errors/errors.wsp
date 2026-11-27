@@ -32,11 +32,11 @@ public inline func todo(const string message) {
 /// Reports whether `e` is an error that may go away if the operation is tried
 /// again: `Interrupted`, `WouldBlock` or `Busy`. A null error gives `false`.
 public inline func temporary(Error e) bool {
-	return e == null ? false : match e.code {
+	return if e == null => false : match e.code {
 		Kind.Interrupted, Kind.WouldBlock, Kind.Busy => true;
 		_ => false;
 	};
 }
 
 /// Reports whether `e` is a `NotFound` error. A null error gives `false`.
-public inline func missing(Error e) bool => e == null ? false : e.code == Kind.NotFound;
+public inline func missing(Error e) bool => if e == null => false : e.code == Kind.NotFound;

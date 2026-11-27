@@ -43,7 +43,7 @@ func TestHover(t *testing.T) {
 		{"tag", "#na¦ked\nfunc f() {}\nfunc main() {}\n", []string{"#naked", "no frame"}},
 		{"expect_abort tag", "#expect_ab¦ort(\"x\")\nfunc f() {}\nfunc main() {}\n", []string{"#expect_abort", "must stop the program"}},
 		{"test tag", "#te¦st\nfunc f() {}\nfunc main() {}\n", []string{"#test", "wisp test"}},
-		{"label", "func main() {\n  :outer for i in 0..=3 {\n    break :ou¦ter;\n  }\n}\n", []string{":outer", "declared on line 2"}},
+		{"label", "func main() {\n  #outer for i in 0..=3 {\n    break #ou¦ter;\n  }\n}\n", []string{"#outer", "declared on line 2"}},
 		{"capture", "func f() ?int { return null; }\nfunc main() {\n  if f() |va¦lue| {\n  }\n}\n", []string{"int value"}},
 		{"sizeof", "struct P { int x; }\nconst N = size¦of(P);\nfunc main() {}\n", []string{"func sizeof(x) int", "known at compile time"}},
 		{"static keyword", "const N = sta¦tic { yield 3 * 7; };\nfunc main() {}\n", []string{"static { ... } = 21", "while the program compiles", "type `int`"}},
@@ -77,7 +77,7 @@ func TestDefinition(t *testing.T) {
 		{"key in a nested literal", shapes + "func main() {\n  L l = .{a: .{¦x: 1, y: 1}, b: .{x: 2, y: 2}};\n}\n", 0},
 		{"key in an argument", shapes + "func main() {\n  take(.{x: 1, ¦y: 2});\n}\n", 0},
 		{"array literal type", shapes + "func main() {\n  let a = [2]¦P{.{x: 1, y: 1}, .{x: 2, y: 2}};\n}\n", 0},
-		{"label", "func main() {\n  :outer for i in 0..=3 {\n    break :ou¦ter;\n  }\n}\n", 1},
+		{"label", "func main() {\n  #outer for i in 0..=3 {\n    break #ou¦ter;\n  }\n}\n", 1},
 		{"struct of a variable", shapes + "func main() {\n  ¦P p = .{x: 1, y: 2};\n}\n", 0},
 	}
 	for _, tc := range cases {
@@ -545,7 +545,7 @@ func TestSwitchTypeSharedBodyInLSP(t *testing.T) {
 		}
 	})
 	t.Run("the shared body has no errors", func(t *testing.T) {
-		for _, d := range c.open(map[string]string{"main.wsp": body("return s.visible ? 1 : 0;")}).diagnostics() {
+		for _, d := range c.open(map[string]string{"main.wsp": body("return if s.visible => 1 : 0;")}).diagnostics() {
 			if d.Severity == 1 {
 				t.Errorf("unexpected error: %s", d.Message)
 			}
@@ -631,20 +631,20 @@ func TestYieldLeavesBlocksAndBreakLeavesLoops(t *testing.T) {
 		return out
 	}
 
-	good := "func main() {\n\tint n;\n\t:blk {\n\t\tfor i in 0..=3 {\n\t\t\tif i == 2 => yield :blk;\n\t\t\tn++;\n\t\t}\n\t}\n\tint v = :pick {\n\t\tfor i in 0..=3 {\n\t\t\tif i == 2 => yield :pick i;\n\t\t}\n\t\tyield -1;\n\t};\n\t:outer for i in 0..=3 {\n\t\t:inner {\n\t\t\tif i == 1 => break;\n\t\t}\n\t\tif i == 2 => break :outer;\n\t}\n}\n"
+	good := "func main() {\n\tint n;\n\t#blk {\n\t\tfor i in 0..=3 {\n\t\t\tif i == 2 => yield #blk;\n\t\t\tn++;\n\t\t}\n\t}\n\tint v = #pick {\n\t\tfor i in 0..=3 {\n\t\t\tif i == 2 => yield #pick i;\n\t\t}\n\t\tyield -1;\n\t};\n\t#outer for i in 0..=3 {\n\t\t#inner {\n\t\t\tif i == 1 => break;\n\t\t}\n\t\tif i == 2 => break #outer;\n\t}\n}\n"
 	if got := errorsOf(good); len(got) != 0 {
 		t.Errorf("valid uses: %v", got)
 	}
 
 	cases := []struct{ name, body, want string }{
-		{"break to a block", "func main() {\n\t:blk {\n\t\tbreak :blk;\n\t}\n}\n", "labels a block, and a block is left with yield"},
-		{"break to a block that gives a value", "func main() {\n\tint v = :pick {\n\t\tbreak :pick;\n\t\tyield 1;\n\t};\n}\n", "a block is left with yield"},
-		{"break with a value", "func main() {\n\tint v = :pick {\n\t\tbreak :pick 1;\n\t};\n}\n", "break does not carry a value: write yield :pick value;"},
-		{"yield to a loop", "func main() {\n\t:lp for i in 0..=3 {\n\t\tyield :lp;\n\t}\n}\n", "labels a loop, and a loop is left with break"},
+		{"break to a block", "func main() {\n\t#blk {\n\t\tbreak #blk;\n\t}\n}\n", "labels a block, and a block is left with yield"},
+		{"break to a block that gives a value", "func main() {\n\tint v = #pick {\n\t\tbreak #pick;\n\t\tyield 1;\n\t};\n}\n", "a block is left with yield"},
+		{"break with a value", "func main() {\n\tint v = #pick {\n\t\tbreak #pick 1;\n\t};\n}\n", "break does not carry a value: write yield #pick value;"},
+		{"yield to a loop", "func main() {\n\t#lp for i in 0..=3 {\n\t\tyield #lp;\n\t}\n}\n", "labels a loop, and a loop is left with break"},
 		{"yield without anything", "func main() {\n\tyield;\n}\n", "yield needs a value, or a label to leave a block"},
-		{"a value into a block that gives none", "func main() {\n\t:blk {\n\t\tyield :blk 1;\n\t}\n}\n", "gives no value, so the yield takes none"},
-		{"no value for a block that gives one", "func main() {\n\tint v = :pick {\n\t\tyield :pick;\n\t};\n}\n", "the yield needs one"},
-		{"an unknown label", "func main() {\n\t:blk {\n\t\tyield :nowhere;\n\t}\n}\n", "unknown label"},
+		{"a value into a block that gives none", "func main() {\n\t#blk {\n\t\tyield #blk 1;\n\t}\n}\n", "gives no value, so the yield takes none"},
+		{"no value for a block that gives one", "func main() {\n\tint v = #pick {\n\t\tyield #pick;\n\t};\n}\n", "the yield needs one"},
+		{"an unknown label", "func main() {\n\t#blk {\n\t\tyield #nowhere;\n\t}\n}\n", "unknown label"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -656,14 +656,14 @@ func TestYieldLeavesBlocksAndBreakLeavesLoops(t *testing.T) {
 	}
 
 	t.Run("completion after yield offers blocks only", func(t *testing.T) {
-		src := "func main() {\n\t:blk {\n\t\t:lp for i in 0..=3 {\n\t\t\tyield :¦\n\t\t}\n\t}\n}\n"
+		src := "func main() {\n\t#blk {\n\t\t#lp for i in 0..=3 {\n\t\t\tyield #¦\n\t\t}\n\t}\n}\n"
 		got := c.open(map[string]string{"main.wsp": src}).completion()
 		if !slices.Contains(got, "blk") || slices.Contains(got, "lp") {
 			t.Errorf("completion = %v", got)
 		}
 	})
 	t.Run("completion after break offers loops only", func(t *testing.T) {
-		src := "func main() {\n\t:blk {\n\t\t:lp for i in 0..=3 {\n\t\t\tbreak :¦\n\t\t}\n\t}\n}\n"
+		src := "func main() {\n\t#blk {\n\t\t#lp for i in 0..=3 {\n\t\t\tbreak #¦\n\t\t}\n\t}\n}\n"
 		got := c.open(map[string]string{"main.wsp": src}).completion()
 		if !slices.Contains(got, "lp") || slices.Contains(got, "blk") {
 			t.Errorf("completion = %v", got)
@@ -2113,7 +2113,7 @@ func TestFormatStringsInTheEditor(t *testing.T) {
 		}
 	}
 
-	clean := c.open(map[string]string{"main.wsp": "#format\nfunc say(string format, ...args) {}\nfunc main() {\n\tint n = 1;\n\tsay(\"a {n} {n > 0 ? 1 : 2:>4}\");\n}\n"})
+	clean := c.open(map[string]string{"main.wsp": "#format\nfunc say(string format, ...args) {}\nfunc main() {\n\tint n = 1;\n\tsay(\"a {n} {if n > 0 => 1 : 2:>4}\");\n}\n"})
 	for _, d := range clean.diagnostics() {
 		if d.Severity == 1 {
 			t.Errorf("valid format string reported: %s", d.Message)
@@ -2282,10 +2282,10 @@ func TestUnwrappingOptionalsInTheEditor(t *testing.T) {
 	cases := []struct {
 		name, line, want string
 	}{
-		{"!! on an optional", "int a = value!!;", "!! stops on an error, and ?int has none: use .? to stop when it is null"},
+		{"!! on an optional", "int a = value!!;", "!! stops on an error, and ?int has none: use ? to stop when it is null"},
 		{"! on an optional", "int a = value!;", "! passes an error up, and ?int has none"},
-		{".? on a plain value", "int a = plain.?;", ".? expects an optional (?T), got int"},
-		{".? on a call that can fail", "int a = risky().?;", ".? is for an optional, and this call can fail"},
+		{"? on a plain value", "int a = plain?;", "? expects an optional (?T), got int"},
+		{"? on a call that can fail", "int a = risky()?;", "? is for an optional, and this call can fail"},
 	}
 	for _, tc := range cases {
 		src := "func risky() !?int {\n\treturn 1;\n}\nfunc main() {\n\t?int value = 1;\n\tint plain = 2;\n\t" + tc.line + "\n\ta++;\n}\n"
@@ -2300,10 +2300,10 @@ func TestUnwrappingOptionalsInTheEditor(t *testing.T) {
 		}
 	}
 
-	good := "func main() {\n\t?int value = 1;\n\tint a = value.?;\n\ta++;\n}\n"
+	good := "func main() {\n\t?int value = 1;\n\tint a = value?;\n\ta++;\n}\n"
 	for _, d := range c.open(map[string]string{"main.wsp": good}).diagnostics() {
 		if d.Severity == 1 {
-			t.Errorf("a valid .? was reported: %s", d.Message)
+			t.Errorf("a valid ? was reported: %s", d.Message)
 		}
 	}
 }
@@ -2536,8 +2536,9 @@ func TestArrowBodies(t *testing.T) {
 	c := start(t)
 	errs := []struct{ name, src, want string }{
 		{"an old guard", "func f(int n) int {\n\treturn 1 if n > 0;\n\treturn 0;\n}\nfunc main() {}\n", "the condition comes first"},
-		{"an else after =>", "func main() {\n\tint n = 3;\n\tif n > 0 => n++; else { n--; }\n}\n", "has no else"},
+		{"an else after =>", "func main() {\n\tint n = 3;\n\tif n > 0 => n++; else { n--; }\n}\n", "writes its else after a colon"},
 		{"an if inside an if with =>", "func main() {\n\tint n = 3;\n\tif n > 0 => if n > 1 => n++;\n}\n", "is not another if"},
+		{"an if value without its else", "func main() {\n\tint n = 3;\n\tint v = if n > 1 => 2;\n}\n", "needs its else after a colon"},
 		{"an until after =>", "func main() {\n\tint n = 3;\n\tloop => n++; until n > 5;\n}\n", "an until goes after braces"},
 	}
 	for _, tc := range errs {
@@ -2565,5 +2566,31 @@ func TestArrowBodies(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("no warning for braces after =>")
+	}
+}
+
+func TestOldTernaryAndAssertForms(t *testing.T) {
+	c := start(t)
+	cases := []struct{ name, src, want string }{
+		{"the old ternary", "func main() {\n\tbool c = true;\n\tint a = c ? 1 : 2;\n\ta++;\n}\n", "there is no `c ? a : b`: write `if c => a : b`"},
+		{"the old assert", "func main() {\n\t?int v = 1;\n\tint a = v.?;\n\ta++;\n}\n", "the assert is written `x?` now"},
+	}
+	for _, tc := range cases {
+		p := c.open(map[string]string{"main.wsp": tc.src})
+		var messages []string
+		for _, d := range p.diagnostics() {
+			if d.Severity == 1 {
+				messages = append(messages, d.Message)
+			}
+		}
+		if !slices.ContainsFunc(messages, func(m string) bool { return strings.Contains(m, tc.want) }) {
+			t.Errorf("%s: errors %q, want one with %q", tc.name, messages, tc.want)
+		}
+	}
+	p := c.open(map[string]string{"main.wsp": "func half(int n) ?int {\n\treturn if n % 2 == 0 => n / 2 : null;\n}\nfunc main() {\n\t?int v = half(8);\n\tint a = v?;\n\tint b = half(6)? + 1;\n\ta += b;\n}\n"})
+	for _, d := range p.diagnostics() {
+		if d.Severity == 1 {
+			t.Errorf("valid code reported: %s", d.Message)
+		}
 	}
 }

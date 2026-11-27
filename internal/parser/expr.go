@@ -84,6 +84,8 @@ func (p *Parser) parsePrefix() ast.Expression {
 
 func (p *Parser) parsePrefixInner() ast.Expression {
 	switch p.current.Type {
+	case lexer.TOKEN_IF:
+		return p.parseIfExpression()
 	case lexer.TOKEN_MATCH:
 		return p.parseSwitchExpression()
 	case lexer.TOKEN_EACH:
@@ -157,6 +159,9 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		}
 		return &ast.BlockExpr{Block: block}
 	case lexer.TOKEN_COLON:
+		p.errorf("a label is written with a #, not a colon: #name { ... }")
+		return nil
+	case lexer.TOKEN_HASH:
 		if !p.expect(lexer.TOKEN_IDENT) {
 			return nil
 		}
@@ -342,7 +347,13 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 	case lexer.TOKEN_DOT:
 		return p.parseMemberExpression(left)
 	case lexer.TOKEN_QUESTION_MARK:
-		return p.parseTernaryExpr(left)
+		switch p.peek.Type {
+		case lexer.TOKEN_IDENT, lexer.TOKEN_INT_LITERAL, lexer.TOKEN_FLOAT_LITERAL, lexer.TOKEN_STRING_LITERAL,
+			lexer.TOKEN_CHAR_LITERAL, lexer.TOKEN_TRUE, lexer.TOKEN_FALSE, lexer.TOKEN_NULL:
+			p.errorf("there is no `c ? a : b`: write `if c => a : b`")
+			return nil
+		}
+		return &ast.PropagateExpr{Value: left, Assert: true, Null: true}
 	case lexer.TOKEN_COALESCE:
 		return p.parseCoalesceExpr(left)
 	case lexer.TOKEN_NOT:
@@ -353,7 +364,8 @@ func (p *Parser) parseInfix(left ast.Expression) ast.Expression {
 		}
 		return expr
 	case lexer.TOKEN_DOT_QUESTION:
-		return &ast.PropagateExpr{Value: left, Assert: true, Null: true}
+		p.errorf("the assert is written `x?` now, without the dot: `x.?` is `x?`")
+		return nil
 	case lexer.TOKEN_AT:
 		return &ast.DerefExpr{Value: left}
 	case lexer.TOKEN_IN:
@@ -794,24 +806,36 @@ func (p *Parser) parseStructLiteral(left ast.Expression) ast.Expression {
 	return lit
 }
 
-func (p *Parser) parseTernaryExpr(left ast.Expression) ast.Expression {
-	expr := &ast.TernaryExpr{Condition: left}
+func (p *Parser) parseIfExpression() ast.Expression {
 	p.advance()
-	expr.Then = p.parseExpression()
-	if expr.Then == nil {
+	prev := p.allowStructLiteral
+	p.allowStructLiteral = true
+	cond := p.parseExpression()
+	p.allowStructLiteral = prev
+	if cond == nil {
 		return nil
 	}
-
-	if !p.expect(lexer.TOKEN_COLON) {
+	if p.peek.Type != lexer.TOKEN_ARROW {
+		p.errorf("an if that gives a value is written if condition => a : b")
 		return nil
 	}
 	p.advance()
-	expr.Else = p.parseExpressionPratt(TERNARY)
-	if expr.Else == nil {
+	p.advance()
+	then := p.parseExpression()
+	if then == nil {
 		return nil
 	}
-
-	return expr
+	if p.peek.Type != lexer.TOKEN_COLON {
+		p.errorf("an if that gives a value needs its else after a colon: if condition => a : b")
+		return nil
+	}
+	p.advance()
+	p.advance()
+	other := p.parseExpressionPratt(TERNARY)
+	if other == nil {
+		return nil
+	}
+	return &ast.TernaryExpr{Condition: cond, Then: then, Else: other}
 }
 
 func (p *Parser) parseCoalesceExpr(left ast.Expression) ast.Expression {

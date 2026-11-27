@@ -1009,7 +1009,7 @@ func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 
 func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 	condType := a.checkExpr(expr.Condition)
-	a.requireBool(expr.Condition, condType, "ternary condition")
+	a.requireBool(expr.Condition, condType, "if condition")
 
 	thenType := a.checkExpr(expr.Then)
 	elseType := a.checkExpr(expr.Else)
@@ -1039,7 +1039,7 @@ func (a *Analyser) checkTernaryExpr(expr *ast.TernaryExpr) Type {
 
 	thenType, elseType = a.unifySlots(&expr.Then, &expr.Else, thenType, elseType)
 	if !thenType.Equals(elseType) {
-		a.errorf(expr, "incompatible ternary types (%s & %s)", thenType.String(), elseType.String())
+		a.errorf(expr, "the two sides of the if give incompatible types (%s & %s)", thenType.String(), elseType.String())
 		return InvalidType{}
 	}
 
@@ -1101,18 +1101,18 @@ func (a *Analyser) checkPropagate(expr *ast.PropagateExpr) []Type {
 			return []Type{element}
 		}
 		if expr.Assert {
-			a.errorRange(operatorAt(expr, 2), "!! stops on an error, and %s has none: use .? to stop when it is null", operand.String())
+			a.errorRange(operatorAt(expr, 2), "!! stops on an error, and %s has none: use ? to stop when it is null", operand.String())
 		} else {
-			a.errorRange(operatorAt(expr, 1), "! passes an error up, and %s has none: use .? to stop when it is null, or ?? to give a value", operand.String())
+			a.errorRange(operatorAt(expr, 1), "! passes an error up, and %s has none: use ? to stop when it is null, or ?? to give a value", operand.String())
 		}
 		return []Type{InvalidType{}}
 	}
 
 	if expr.Null {
 		if _, fallible := operand.(FallibleType); fallible {
-			a.errorRange(operatorAt(expr, 2), ".? is for an optional, and this call can fail: handle the error first with ! or !!")
+			a.errorRange(operatorAt(expr, 2), "? is for an optional, and this call can fail: handle the error first with ! or !!")
 		} else {
-			a.errorRange(operatorAt(expr, 2), ".? expects an optional (?T), got %s", operand.String())
+			a.errorRange(operatorAt(expr, 2), "? expects an optional (?T), got %s", operand.String())
 		}
 		return []Type{InvalidType{}}
 	}

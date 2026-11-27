@@ -46,7 +46,7 @@ func describe(...args) int {
 			Color => total += 100;
 			signed v => total += v;
 			string v => total += len(v);
-			bool v => total += v ? 1 : 0;
+			bool v => total += if v => 1 : 0;
 		}
 	}
 	return total;

@@ -9,7 +9,7 @@ const castPlaceholder = "__WispCastType"
 
 const optionalCastTemplate = "{ ?*" + castPlaceholder + " wispcast; match type wispsubject { *" + castPlaceholder + " wispfound => wispcast = wispfound; _ => {} } yield wispcast; }"
 
-const assertedCastTemplate = "{ ?*" + castPlaceholder + " wispcast; match type wispsubject { *" + castPlaceholder + " wispfound => wispcast = wispfound; _ => {} } yield wispcast.?; }"
+const assertedCastTemplate = "{ ?*" + castPlaceholder + " wispcast; match type wispsubject { *" + castPlaceholder + " wispfound => wispcast = wispfound; _ => {} } yield wispcast?; }"
 
 func (a *Analyser) lowerInterfaceCast(expr *ast.ConvExpr, arg ast.Expression, held *InterfaceType, pointer PointerType, result Type) (Type, bool) {
 	if isVoidPointer(pointer) {

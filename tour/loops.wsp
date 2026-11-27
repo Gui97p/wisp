@@ -119,15 +119,15 @@ func looping() {
 // 4. Leaving an outer loop
 // ---------------------------------------------------------------------------
 //
-// A label starts with `:`, both where it is declared and where it is used.
-// `break :outer` and `continue :outer` target the loop that has that label.
+// A label starts with `#`, both where it is declared and where it is used.
+// `break #outer` and `continue #outer` target the loop that has that label.
 
 func labels() {
 	int visits = 0;
-	:outer loop {
+	#outer loop {
 		loop {
 			visits++;  // 1
-			break :outer;
+			break #outer;
 		}
 	}
 }

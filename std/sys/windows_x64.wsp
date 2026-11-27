@@ -107,21 +107,21 @@ internal struct Dir {
 }
 
 var ?*uint16 wideAp;
-internal inline func wideA() *uint16 => wideAp.?;
+internal inline func wideA() *uint16 => wideAp?;
 var ?*uint16 wideBp;
-internal inline func wideB() *uint16 => wideBp.?;
+internal inline func wideB() *uint16 => wideBp?;
 var ?*uint16 wideScratchp;
-internal inline func wideScratch() *uint16 => wideScratchp.?;
+internal inline func wideScratch() *uint16 => wideScratchp?;
 var ?*uint16 wideValuep;
-internal inline func wideValue() *uint16 => wideValuep.?;
+internal inline func wideValue() *uint16 => wideValuep?;
 var ?*byte envBufferp;
-internal inline func envBuffer() *byte => envBufferp.?;
+internal inline func envBuffer() *byte => envBufferp?;
 var [12]byte pendingBytes;
 var [3]int pendingCount;
 var ?*byte iterBufferp;
-internal inline func iterBuffer() *byte => iterBufferp.?;
+internal inline func iterBuffer() *byte => iterBufferp?;
 var ?*byte convBufferp;
-internal inline func convBuffer() *byte => convBufferp.?;
+internal inline func convBuffer() *byte => convBufferp?;
 var [8]byte inBytes;
 var int inLeft;
 var int inHigh;
@@ -306,7 +306,7 @@ internal func readConsole(*byte buf, int n) int {
 
 		int m = WideCharToMultiByte(CP_UTF8, 0, wideScratch(), int32(kept), convBuffer(), int32(CONV_BYTES), null, null);
 		if m <= 0 => return -EINVAL;
-		int copied = m > n ? n : m;
+		int copied = if m > n => n : m;
 		for i in 0..copied {
 			buf[i] = convBuffer()[i];
 		}
@@ -314,7 +314,7 @@ internal func readConsole(*byte buf, int n) int {
 		for i in 0..rest {
 			inBytes[i] = convBuffer()[copied + i];
 		}
-		inLeft = rest > 0 ? rest : 0;
+		inLeft = if rest > 0 => rest : 0;
 		return copied;
 	}
 }
@@ -572,7 +572,7 @@ internal func dirNext(*Dir d, *Entry e) int {
 			d.started = 1;
 		} else if FindNextFileW((*void)(d.handle), &d.data) == 0 {
 			int code = int(GetLastError());
-			return code == ERROR_NO_MORE_FILES ? 0 : -winerr(code);
+			return if code == ERROR_NO_MORE_FILES => 0 : -winerr(code);
 		}
 
 		int n = WideCharToMultiByte(CP_UTF8, 0, (*uint16)(d.data.name), -1, (*byte)(e.name), 1024, null, null);
@@ -642,7 +642,7 @@ internal func time(int clock) (int, int) {
 internal func sleep(int sec, nsec) int {
 	int ms = sec * 1000 + (nsec + 999_999) / 1_000_000;
 	loop ms > 0 {
-		int step = ms > 0x7fffffff ? 0x7fffffff : ms;
+		int step = if ms > 0x7fffffff => 0x7fffffff : ms;
 		Sleep(uint32(step));
 		ms -= step;
 	}

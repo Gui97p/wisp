@@ -237,12 +237,14 @@ func bits() {
 // 8. Choosing a value
 // ---------------------------------------------------------------------------
 //
-// `condition ? this : that` is the value of `this` when the condition is true
-// and of `that` when it is not.
+// `if condition => this : that` is the value of `this` when the condition is
+// true and of `that` when it is not. Only the side that is chosen runs. At the
+// start of a statement the same form runs one statement or the other:
+// `if ready => start() : wait();`. For several steps on a side, use braces.
 
 func choosing() {
-	int bigger = 1 > 2 ? 42 : 21;  // 21
-	int smaller = 1 < 2 ? 42 : 21;  // 42
+	int bigger = if 1 > 2 => 42 : 21;  // 21
+	int smaller = if 1 < 2 => 42 : 21;  // 42
 }
 
 public func demo() {
