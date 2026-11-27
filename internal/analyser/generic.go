@@ -1351,7 +1351,7 @@ func (a *Analyser) pruneTypeSwitchExpr(expr *ast.SwitchExpr) Type {
 		chosen = expr.Default
 	}
 	if chosen == nil {
-		a.errorf(expr, "no case of this switch matches %s, and there is no default", subject.String())
+		a.errorf(expr, "no arm of this match matches %s, and there is no `_` arm", subject.String())
 		return InvalidType{}
 	}
 

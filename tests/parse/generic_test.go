@@ -190,9 +190,9 @@ func TestGenericEnumsAndVariantLiterals(t *testing.T) {
 func f() {
 	Maybe<int> a = Maybe<int>.Just{value: 1};
 	Maybe<int> b = Maybe<int>.Nothing;
-	switch type x {
-		case Id<int> i => return;
-		case *Maybe<int> m => return;
+	match type x {
+		Id<int> i => return;
+		*Maybe<int> m => return;
 	}
 }
 `)

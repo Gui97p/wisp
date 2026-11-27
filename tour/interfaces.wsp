@@ -108,15 +108,15 @@ func values() {
 // 3. Seeing what is behind an interface
 // ---------------------------------------------------------------------------
 //
-// To see what is behind an interface, switch on its type. Only a pointer to a type
-// can be a case, since that is what the interface holds, and the type has to
+// To see what is behind an interface, match on its type. Only a pointer to a type
+// can be an arm, since that is what the interface holds, and the type has to
 // implement the interface.
 
 func inspect(Shape s) int {
-	switch type s {
-		case *Square square => return square.side;
-		case *Disk disk => return disk.radius;
-		default => return -1;
+	match type s {
+		*Square square => return square.side;
+		*Disk disk => return disk.radius;
+		_ => return -1;
 	}
 }
 
@@ -202,10 +202,10 @@ func sets() {
 // variadic argument (`...args`), where all that is known is the type of each
 // value. For that the interface is declared `#dynamic`, and the types that
 // implement it have to say so with `implements`: a type that only has the methods
-// is not found. Then `case Shape s` in a switch on types matches the values of
+// is not found. Then `Shape s` in a match on types matches the values of
 // those types, and `s` is the interface value, as in `Shape s = &square`. A value
 // of a struct is passed by its address, so what the method sees is the struct
-// itself. An interface that is not `#dynamic` cannot be a case there, and the
+// itself. An interface that is not `#dynamic` cannot be an arm there, and the
 // compiler says so; one that is costs nothing to the types that do not implement
 // it.
 
@@ -221,10 +221,10 @@ struct Crate implements Describable {
 func (*Crate c) describe() int => c.items * 10;
 
 func summary(...args) int {
-	switch type args[0] {
-		case Describable d => return d.describe();
-		case int n => return n;
-		default => return -1;
+	match type args[0] {
+		Describable d => return d.describe();
+		int n => return n;
+		_ => return -1;
 	}
 }
 

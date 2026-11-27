@@ -617,11 +617,11 @@ func (a *Analyser) evalSwitchExpr(e *ast.SwitchExpr) (ConstValue, bool) {
 	}
 	arm := func(arm *ast.SwitchArm) (ConstValue, bool) {
 		if arm.Exit != nil {
-			a.errorf(arm, "a switch arm that leaves cannot be evaluated at compile time")
+			a.errorf(arm, "a match arm that leaves cannot be evaluated at compile time")
 			return ConstValue{}, false
 		}
 		if len(arm.Values) != 1 {
-			a.errorf(arm, "a switch arm gives exactly one value at compile time")
+			a.errorf(arm, "a match arm gives exactly one value at compile time")
 			return ConstValue{}, false
 		}
 		return a.evalConst(arm.Values[0])
@@ -629,7 +629,7 @@ func (a *Analyser) evalSwitchExpr(e *ast.SwitchExpr) (ConstValue, bool) {
 	for i := range e.Arms {
 		condition, ok := a.evalConst(e.Arms[i].Condition)
 		if !ok || condition.Kind != ConstBool {
-			a.errorf(e.Arms[i].Condition, "this case cannot be tested at compile time")
+			a.errorf(e.Arms[i].Condition, "this arm cannot be tested at compile time")
 			return ConstValue{}, false
 		}
 		if condition.Bool {
@@ -639,7 +639,7 @@ func (a *Analyser) evalSwitchExpr(e *ast.SwitchExpr) (ConstValue, bool) {
 	if e.Default != nil {
 		return arm(e.Default)
 	}
-	a.errorf(e, "no case of this switch matches at compile time")
+	a.errorf(e, "no arm of this match matches at compile time")
 	return ConstValue{}, false
 }
 

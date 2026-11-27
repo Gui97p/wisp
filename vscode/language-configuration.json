@@ -100,7 +100,7 @@
         }
     },
     "indentationRules": {
-        "increaseIndentPattern": "(\\{[^}\"']*$)|(^\\s*(case\\b.*|default)\\s*:\\s*$)",
+        "increaseIndentPattern": "(\\{[^}\"']*$)",
         "decreaseIndentPattern": "^\\s*\\}"
     }
 }

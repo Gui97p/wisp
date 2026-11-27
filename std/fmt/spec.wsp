@@ -44,21 +44,21 @@ func parse(string braces) !Spec {
 
 	Cursor c = Cursor{text: text};
 
-	bool align = switch {
-		case c.peekAt(1) in aligns => {
+	bool align = match {
+		c.peekAt(1) in aligns => {
 			spec.fill = c.peek();
 			c.advance();
 			yield true;
 		};
-		case c.peek() in aligns => true;
-		default => false;
+		c.peek() in aligns => true;
+		_ => false;
 	};
 	if align {
-		spec.align = switch c.peek() {
-			case '<' => .Left;
-			case '>' => .Right;
-			case '^' => .Center;
-			default => .Default;
+		spec.align = match c.peek() {
+			'<' => .Left;
+			'>' => .Right;
+			'^' => .Center;
+			_ => .Default;
 		};
 		c.advance();
 	}
@@ -94,8 +94,8 @@ func parse(string braces) !Spec {
 }
 
 func validate(Spec s, Value v) ! {
-	switch v {
-		case .Int, .Uint => {
+	match v {
+		.Int, .Uint => {
 			if s.kind in "pv" ||
 				(s.zero && s.kind == 'c') ||
 				(s.alt && !(s.kind in "xXbop")) ||
@@ -103,27 +103,27 @@ func validate(Spec s, Value v) ! {
 				return Error(SpecError.NotForType);
 			}
 		}
-		case .Bool => {
+		.Bool => {
 			if s.kind != 0 || s.zero || s.alt || s.precision >= 0 {
 				return Error(SpecError.NotForType);
 			}
 		}
-		case .String => {
+		.String => {
 			if s.kind != 0 || s.zero || s.alt {
 				return Error(SpecError.NotForType);
 			}
 		}
-		case .Pointer => {
+		.Pointer => {
 			if (s.kind != 0 && s.kind != 'p') || s.alt || s.precision >= 0 {
 				return Error(SpecError.NotForType);
 			}
 		}
-		case .Float => {
+		.Float => {
 			if !(s.kind == 0 || s.kind in "eEf") || s.alt || s.precision > 1000 {
 				return Error(SpecError.NotForType);
 			}
 		}
-		case .Error => {
+		.Error => {
 			if (s.kind != 0 && s.kind != 'v') || s.zero || s.alt || s.precision >= 0 || (s.kind == 'v' && s.width > 0) {
 				return Error(SpecError.NotForType);
 			}

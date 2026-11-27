@@ -59,12 +59,12 @@ public func (*Scanner s) next() !?string {
 		}
 	}
 	loop {
-		return r.readLine() ?? |e| switch e {
-			case errors.Kind.NoSpace => {
+		return r.readLine() ?? |e| match e {
+			errors.Kind.NoSpace => {
 				continue if s.grow()!;
 				return e;
 			}
-			default => return e;
+			_ => return e;
 		};
 	}
 }

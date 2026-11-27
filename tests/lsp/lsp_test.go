@@ -525,7 +525,7 @@ func TestSwitchTypeSharedBodyInLSP(t *testing.T) {
 	c := start(t)
 	head := "struct Circle {\n\tint radius;\n\tbool visible;\n}\nstruct Square {\n\tint side;\n\tbool visible;\n}\n"
 	body := func(use string) string {
-		return head + "func f(...args) int {\n\tswitch type args[0] {\n\t\tcase *Circle, *Square s => {\n\t\t\t" + use + "\n\t\t}\n\t\tdefault => return 0;\n\t}\n}\n"
+		return head + "func f(...args) int {\n\tmatch type args[0] {\n\t\t*Circle, *Square s => {\n\t\t\t" + use + "\n\t\t}\n\t\t_ => return 0;\n\t}\n}\n"
 	}
 
 	t.Run("completion offers only what the types share", func(t *testing.T) {
@@ -828,9 +828,9 @@ func fine<T>(Box<T> b) T {
 }
 
 func describe<T>(T v) string {
-	switch type v {
-		case int i => return "int";
-		default => return "other";
+	match type v {
+		int i => return "int";
+		_ => return "other";
 	}
 }
 
@@ -1118,8 +1118,8 @@ func TestInterfaceValuesInLSP(t *testing.T) {
 		{"a method that does not exist", "interface Writer { func write(int n) int; }\nfunc use(Writer w) {\n  w.missing();\n}\nfunc main() {}\n", "interface Writer has no method missing"},
 		{"a field of an interface", "interface Writer { func write(int n) int; }\nfunc use(Writer w) int {\n  return w.total;\n}\nfunc main() {}\n", "has methods and no fields"},
 		{"comparing interface values", "interface Writer { func write(int n) int; }\nfunc same(Writer a, Writer b) bool {\n  return a == b;\n}\nfunc main() {}\n", "is not defined for Writer"},
-		{"a case that can never match", "interface Writer { func write(int n) int; }\nstruct P { int x; }\nfunc use(Writer w) int {\n  switch type w {\n    case *P p => return p.x;\n    default => return 0;\n  }\n}\nfunc main() {}\n", "can never be what Writer holds"},
-		{"a case that is not a pointer", "interface Writer { func write(int n) int; }\nstruct B implements Writer { int t; }\nfunc (*B b) write(int n) int { return n; }\nfunc use(Writer w) int {\n  switch type w {\n    case B b => return b.t;\n    default => return 0;\n  }\n}\nfunc main() {}\n", "names a pointer to a type"},
+		{"a case that can never match", "interface Writer { func write(int n) int; }\nstruct P { int x; }\nfunc use(Writer w) int {\n  match type w {\n    *P p => return p.x;\n    _ => return 0;\n  }\n}\nfunc main() {}\n", "can never be what Writer holds"},
+		{"a case that is not a pointer", "interface Writer { func write(int n) int; }\nstruct B implements Writer { int t; }\nfunc (*B b) write(int n) int { return n; }\nfunc use(Writer w) int {\n  match type w {\n    B b => return b.t;\n    _ => return 0;\n  }\n}\nfunc main() {}\n", "names a pointer to a type"},
 	}
 	for _, tc := range cases {
 		p := c.open(map[string]string{"main.wsp": tc.src})
@@ -1134,7 +1134,7 @@ func TestInterfaceValuesInLSP(t *testing.T) {
 		}
 	}
 
-	good := "interface Writer { func write(int n) int; }\ninterface Closer { func close(); }\ninterface WriteCloser { Writer & Closer }\nstruct B implements WriteCloser { int total; }\nfunc (*B b) write(int n) int { b.total += n; return b.total; }\nfunc (*B b) close() { b.total = 0; }\nstruct Log { Writer out; ?Writer backup; }\nfunc emit(Writer w, int n) int { return w.write(n); }\nfunc pick(bool first, Writer a, Writer b) Writer { return a if first; return b; }\nfunc total(Writer w) int {\n  switch type w {\n    case *B b => return b.total;\n    default => return -1;\n  }\n}\nfunc main() {\n  B b;\n  Writer w = &b;\n  WriteCloser wc = &b;\n  wc.close();\n  Log log = Log{out: &b, backup: &b};\n  int r = w.write(1) + emit(&b, 2) + log.out.write(3);\n  Writer chosen = pick(true, &b, &b);\n  int t = total(chosen);\n  [2]Writer pair = .{&b, &b};\n  if log.backup |x| {\n    x.write(1);\n  }\n}\n"
+	good := "interface Writer { func write(int n) int; }\ninterface Closer { func close(); }\ninterface WriteCloser { Writer & Closer }\nstruct B implements WriteCloser { int total; }\nfunc (*B b) write(int n) int { b.total += n; return b.total; }\nfunc (*B b) close() { b.total = 0; }\nstruct Log { Writer out; ?Writer backup; }\nfunc emit(Writer w, int n) int { return w.write(n); }\nfunc pick(bool first, Writer a, Writer b) Writer { return a if first; return b; }\nfunc total(Writer w) int {\n  match type w {\n    *B b => return b.total;\n    _ => return -1;\n  }\n}\nfunc main() {\n  B b;\n  Writer w = &b;\n  WriteCloser wc = &b;\n  wc.close();\n  Log log = Log{out: &b, backup: &b};\n  int r = w.write(1) + emit(&b, 2) + log.out.write(3);\n  Writer chosen = pick(true, &b, &b);\n  int t = total(chosen);\n  [2]Writer pair = .{&b, &b};\n  if log.backup |x| {\n    x.write(1);\n  }\n}\n"
 	p := c.open(map[string]string{"main.wsp": good})
 	for _, d := range p.diagnostics() {
 		if d.Severity == 1 {
@@ -1363,12 +1363,12 @@ func TestCompletionInTypedContexts(t *testing.T) {
 		{"yield", "func f() Token {\n\tToken t = {\n\t\tyield .¦;\n\t};\n\treturn t;\n}\n", tokens},
 		{"yield inside an if", "func f(bool b) Token {\n\tToken t = {\n\t\tif b {\n\t\t\tyield .¦;\n\t\t}\n\t\tyield .Plus;\n\t};\n\treturn t;\n}\n", tokens},
 		{"yield of an enum type", "func f() Token {\n\tToken t = {\n\t\tyield Token.¦;\n\t};\n\treturn t;\n}\n", tokens},
-		{"optional return switch arm", "func f(Token k) ?Token {\n\treturn switch k {\n\t\tcase .Number => .¦;\n\t\tdefault => null;\n\t};\n}\n", tokens},
-		{"variant fields in an arm", "func f(Token k) ?AST {\n\treturn switch k {\n\t\tcase .Number => .Literal{¦};\n\t\tdefault => null;\n\t};\n}\n", []string{"value"}},
+		{"optional return match arm", "func f(Token k) ?Token {\n\treturn match k {\n\t\t.Number => .¦;\n\t\t_ => null;\n\t};\n}\n", tokens},
+		{"variant fields in an arm", "func f(Token k) ?AST {\n\treturn match k {\n\t\t.Number => .Literal{¦};\n\t\t_ => null;\n\t};\n}\n", []string{"value"}},
 		{"member after a line without a semicolon", "func main() {\n\tLit a = .{value: 1.0}\n\ta.¦\n}\n", []string{"value", "node"}},
-		{"binding of a type switch arm", "func f(Node n) {\n\tswitch type n {\n\t\tcase *Lit l => l.¦\n\t\tdefault => {}\n\t}\n}\n", []string{"value", "node"}},
-		{"binding of a type switch block arm", "func f(Node n) {\n\tswitch type n {\n\t\tcase *Lit l => {\n\t\t\tl.¦\n\t\t}\n\t\tdefault => {}\n\t}\n}\n", []string{"value", "node"}},
-		{"binding of a variant arm", "func f(AST a) {\n\tswitch a {\n\t\tcase .Literal l => l.¦\n\t\tdefault => {}\n\t}\n}\n", []string{"value"}},
+		{"binding of a type match arm", "func f(Node n) {\n\tmatch type n {\n\t\t*Lit l => l.¦\n\t\t_ => {}\n\t}\n}\n", []string{"value", "node"}},
+		{"binding of a type match block arm", "func f(Node n) {\n\tmatch type n {\n\t\t*Lit l => {\n\t\t\tl.¦\n\t\t}\n\t\t_ => {}\n\t}\n}\n", []string{"value", "node"}},
+		{"binding of a variant arm", "func f(AST a) {\n\tmatch a {\n\t\t.Literal l => l.¦\n\t\t_ => {}\n\t}\n}\n", []string{"value"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -2221,7 +2221,7 @@ func TestDiagnosticsKeepTheLineShort(t *testing.T) {
 
 func TestDynamicInterfacesInTheEditor(t *testing.T) {
 	c := start(t)
-	src := "interface Plain {\n\tfunc area() int;\n}\n\nfunc describe(...args) int {\n\tswitch type args[0] {\n\t\tcase Plain s => return s.area();\n\t\tdefault => return 0;\n\t}\n}\n\nfunc main() {\n\tint n = describe(1);\n\tn++;\n}\n"
+	src := "interface Plain {\n\tfunc area() int;\n}\n\nfunc describe(...args) int {\n\tmatch type args[0] {\n\t\tPlain s => return s.area();\n\t\t_ => return 0;\n\t}\n}\n\nfunc main() {\n\tint n = describe(1);\n\tn++;\n}\n"
 	var messages []string
 	for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
 		if d.Severity == 1 {
@@ -2454,7 +2454,7 @@ func TestCompletionRanksWhatYouUseFirst(t *testing.T) {
 
 func TestBlockErrorsPointAtTheEnd(t *testing.T) {
 	c := start(t)
-	src := "func f(int n) int {\n\treturn switch n {\n\t\tcase 1 => {\n\n\t\t};\n\t\tdefault => 0;\n\t};\n}\nfunc main() {\n\tint a = f(1);\n\ta++;\n}\n"
+	src := "func f(int n) int {\n\treturn match n {\n\t\t1 => {\n\n\t\t};\n\t\t_ => 0;\n\t};\n}\nfunc main() {\n\tint a = f(1);\n\ta++;\n}\n"
 	found := false
 	for _, d := range c.open(map[string]string{"main.wsp": src}).diagnostics() {
 		if d.Severity == 1 && strings.Contains(d.Message, "must end with yield, return, break or continue") || strings.Contains(d.Message, "never yields a value") {
@@ -2503,6 +2503,31 @@ func TestSemanticTokensAreNotTakenFromAnOlderVersionOfTheFile(t *testing.T) {
 	for _, tok := range p.semanticTokens() {
 		if strings.HasPrefix(strings.TrimSpace(lines[tok.line]), "//") {
 			t.Fatalf("a token lands in a comment after an edit that does not parse: %+v", tok)
+		}
+	}
+}
+
+func TestMatchAndEachErrors(t *testing.T) {
+	c := start(t)
+	cases := []struct{ name, src, want string }{
+		{"each as a value", "func main() {\n\tint n = 3;\n\tint a = each { n > 1 => 1; };\n}\n", "each runs statements and gives no value"},
+		{"each on types", "func main() {\n\tint n = 3;\n\teach type n {\n\t\tint v => n++;\n\t}\n}\n", "use match type here"},
+		{"the old case word", "func main() {\n\tint n = 3;\n\tmatch n {\n\t\tcase 1 => n++;\n\t}\n}\n", "`case` is gone"},
+		{"the old default word", "func main() {\n\tint n = 3;\n\tmatch n {\n\t\tdefault => n++;\n\t}\n}\n", "`default` is gone"},
+		{"an arm after the last one", "func main() {\n\tint n = 3;\n\tmatch n {\n\t\t_ => n--;\n\t\t2 => n++;\n\t}\n}\n", "nothing can come after it"},
+		{"an each arm after the last one", "func main() {\n\tint n = 3;\n\teach {\n\t\t_ => n--;\n\t\tn > 2 => n++;\n\t}\n}\n", "nothing can come after it"},
+		{"a match that does not cover an enum", "enum Color { Red, Green }\nfunc main() {\n\tColor c = .Red;\n\tmatch c {\n\t\t.Red => return;\n\t}\n}\n", "this match does not cover .Green"},
+	}
+	for _, tc := range cases {
+		p := c.open(map[string]string{"main.wsp": tc.src})
+		var messages []string
+		for _, d := range p.diagnostics() {
+			if d.Severity == 1 {
+				messages = append(messages, d.Message)
+			}
+		}
+		if !slices.ContainsFunc(messages, func(m string) bool { return strings.Contains(m, tc.want) }) {
+			t.Errorf("%s: errors %q, want one with %q", tc.name, messages, tc.want)
 		}
 	}
 }

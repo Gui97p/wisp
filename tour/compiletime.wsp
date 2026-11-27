@@ -63,7 +63,7 @@ staticAssert(offsetof(Header, kind) == 0, "kind comes first");
 // A `static { }` block computes a constant with ordinary code. It is a block
 // that gives a value, and the compiler runs it while it compiles. It sees
 // numbers, booleans, floats, strings, arrays and structs, and its own variables
-// and constants, and it can use `if`, `switch`, `for i in a..b`, `for x in
+// and constants, and it can use `if`, `match`, `for i in a..b`, `for x in
 // array`, `loop`, labeled breaks, `len`, indexing, string slices and calls to
 // ordinary functions, recursive ones included.
 //
@@ -131,10 +131,10 @@ const [3]int PRIMES = .{2, 3, 5};
 const Header DEFAULT = Header{kind: 1, length: 8, flags: 0};
 
 const KIND_NAME = static {
-	yield switch DEFAULT.kind {
-		case 0 => "none";
-		case 1 => "data";
-		default => "other";
+	yield match DEFAULT.kind {
+		0 => "none";
+		1 => "data";
+		_ => "other";
 	};
 };
 

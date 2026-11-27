@@ -84,8 +84,11 @@ func (p *Parser) parsePrefix() ast.Expression {
 
 func (p *Parser) parsePrefixInner() ast.Expression {
 	switch p.current.Type {
-	case lexer.TOKEN_SWITCH:
+	case lexer.TOKEN_MATCH:
 		return p.parseSwitchExpression()
+	case lexer.TOKEN_EACH:
+		p.errorf("each runs statements and gives no value: use match here, or write each on its own line")
+		return nil
 	case lexer.TOKEN_INT_LITERAL:
 		u, err := p.parseUintLiteral(p.current.Literal)
 		if err != nil {
@@ -1030,7 +1033,11 @@ func (p *Parser) parseSwitchExpression() ast.Expression {
 
 	expr := &ast.SwitchExpr{Prelude: block.Statements}
 
-	for p.peek.Type == lexer.TOKEN_CASE {
+	for p.peek.Type != lexer.TOKEN_RBRACE && p.peek.Type != lexer.TOKEN_EOF && !p.atDefaultArm() {
+		if p.oldArmWord() {
+			p.rejectOldArm()
+			return nil
+		}
 		armLine, armCol := p.peek.Line, p.peek.Column
 		condition, alternatives := p.parseCaseExpression(value, line, col, typed)
 		if condition == nil {
@@ -1053,7 +1060,7 @@ func (p *Parser) parseSwitchExpression() ast.Expression {
 		}
 	}
 
-	if p.peek.Type == lexer.TOKEN_DEFAULT {
+	if p.atDefaultArm() {
 		armLine, armCol := p.peek.Line, p.peek.Column
 		p.advance()
 
@@ -1067,6 +1074,9 @@ func (p *Parser) parseSwitchExpression() ast.Expression {
 		}
 		arm.SetPos(armLine, armCol)
 		expr.Default = &arm
+		if p.peek.Type != lexer.TOKEN_RBRACE {
+			p.errorfNoSync("`_` is the last arm of a match: nothing can come after it")
+		}
 	}
 
 	if !p.expect(lexer.TOKEN_RBRACE) {

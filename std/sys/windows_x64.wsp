@@ -128,21 +128,21 @@ var int inHigh;
 var int inReturn;
 
 internal func winerr(int code) int {
-	return switch code {
-		case 2, 3, 15 => ENOENT;
-		case 5, 19, 33 => EACCES;
-		case 6 => EBADF;
-		case 8, 14 => ENOMEM;
-		case 32 => EBUSY;
-		case 80, 183 => EEXIST;
-		case 87, 123, 161 => EINVAL;
-		case 109, 232, 233 => EPIPE;
-		case 112 => ENOSPC;
-		case 145 => ENOTEMPTY;
-		case 206 => ENAMETOOLONG;
-		case 267 => ENOTDIR;
-		case 1314 => EPERM;
-		default => EIO;
+	return match code {
+		2, 3, 15 => ENOENT;
+		5, 19, 33 => EACCES;
+		6 => EBADF;
+		8, 14 => ENOMEM;
+		32 => EBUSY;
+		80, 183 => EEXIST;
+		87, 123, 161 => EINVAL;
+		109, 232, 233 => EPIPE;
+		112 => ENOSPC;
+		145 => ENOTEMPTY;
+		206 => ENAMETOOLONG;
+		267 => ENOTDIR;
+		1314 => EPERM;
+		_ => EIO;
 	};
 }
 
@@ -484,11 +484,11 @@ internal func size(int fd) int {
 }
 
 internal func kind(int fd) int {
-	return switch GetFileType(handleOf(fd)) {
-		case 1 => KIND_FILE;
-		case 2 => KIND_DEVICE;
-		case 3 => KIND_PIPE;
-		default => KIND_OTHER;
+	return match GetFileType(handleOf(fd)) {
+		1 => KIND_FILE;
+		2 => KIND_DEVICE;
+		3 => KIND_PIPE;
+		_ => KIND_OTHER;
 	};
 }
 

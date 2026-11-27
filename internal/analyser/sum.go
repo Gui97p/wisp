@@ -170,7 +170,7 @@ func (a *Analyser) checkSumTest(expr *ast.BinaryExpr, left Type) (Type, bool) {
 	}
 	variant, ok := a.variantRef(expr.Right, sum)
 	if !ok {
-		a.errorf(expr, "%s has data, so it is compared by variant only: write `x == .Name`, or a switch to see the data", sum.Name).
+		a.errorf(expr, "%s has data, so it is compared by variant only: write `x == .Name`, or a match to see the data", sum.Name).
 			WithHelp("the variants are %s", sumNames(sum))
 		a.dropDot(expr.Right)
 		return PrimitiveType{Name: "bool"}, true

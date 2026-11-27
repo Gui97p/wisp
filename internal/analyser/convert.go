@@ -757,7 +757,7 @@ func (a *Analyser) coerceToInterface(slot *ast.Expression, from Type, it *Interf
 			return false, false
 		}
 		a.errorf(*slot, "a value of %s cannot become a %s yet", held.Name, it.Name).
-			WithHelp("an interface value keeps its own methods: use a switch on types to reach the value behind it")
+			WithHelp("an interface value keeps its own methods: use a match on types to reach the value behind it")
 		return true, true
 	}
 

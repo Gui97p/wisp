@@ -23,7 +23,7 @@ var allowTyping = regexp.MustCompile(`^\s*#allow\s+([A-Za-z_,\s]*)$`)
 var selectorTyping = regexp.MustCompile(`(\b(native|func|struct|type|enum|const|import)<[^<>;]*|^\s*#target\b.*)$`)
 
 var keywords = []string{
-	"let", "const", "func", "struct", "enum", "type", "interface", "implements", "if", "else", "switch", "case", "default",
+	"let", "const", "func", "struct", "enum", "type", "interface", "implements", "if", "else", "match", "each",
 	"for", "in", "loop", "until", "return", "break", "continue", "import", "public", "internal", "private", "extern", "as", "native", "var", "static",
 	"true", "false", "null", "defer", "yield", "inline",
 }
@@ -469,7 +469,7 @@ func patchedInfo(path string, pos protocol.Position) *analyser.Info {
 func startsWithCondition(text []byte, offset int) bool {
 	lineStart := bytes.LastIndexByte(text[:offset], '\n') + 1
 	line := bytes.TrimLeft(text[lineStart:offset], " \t")
-	for _, word := range []string{"loop ", "if ", "for ", "switch ", "until ", "else if "} {
+	for _, word := range []string{"loop ", "if ", "for ", "match ", "each ", "until ", "else if "} {
 		if bytes.HasPrefix(line, []byte(word)) {
 			return true
 		}

@@ -31,27 +31,26 @@ enum Shape {
 // 2. Looking at the data
 // ---------------------------------------------------------------------------
 //
-// Each case of a `switch` names the data of its variant, and inside it the name
-// has the fields of that variant only. The switch has to cover every variant, or
-// end with a `default`, the same rule as for any enum: add a variant later and
-// every switch that forgot it stops compiling. A `switch` can also be an
-// expression, one value per case, and with every variant covered it needs no
-// `default`.
+// Each arm of a `match` names the data of its variant, and inside it the name
+// has the fields of that variant only. The match has to cover every variant, or
+// end with `_`, the same rule as for any enum: add a variant later and every
+// match that forgot it stops compiling. A `match` can also be an expression,
+// one value per arm, and with every variant covered it needs no `_`.
 
 func area(Shape shape) float {
-	return switch shape {
-		case .Circle c => 3.14 * c.radius * c.radius;
-		case .Rect r => r.w * r.h;
-		case .Empty => 0;
-		default => -1;
+	return match shape {
+		.Circle c => 3.14 * c.radius * c.radius;
+		.Rect r => r.w * r.h;
+		.Empty => 0;
+		_ => -1;
 	};
 }
 
 func (Shape shape) label() string {
-	return switch shape {
-		case .Circle => "circle";
-		case .Rect => "rectangle";
-		case .Empty => "nothing";
+	return match shape {
+		.Circle => "circle";
+		.Rect => "rectangle";
+		.Empty => "nothing";
 	};
 }
 
@@ -78,7 +77,7 @@ func looking() {
 //
 // A value of the enum is never compared with another one, because that would
 // have to compare data. Asking which variant it is does work: `shape == .Circle`
-// ignores the data. To see the data, use a `switch`.
+// ignores the data. To see the data, use a `match`.
 
 func asking() {
 	Shape circle = Shape.Circle{radius: 2};
@@ -92,18 +91,18 @@ func asking() {
 // 4. Changing the data
 // ---------------------------------------------------------------------------
 //
-// Methods work as on a struct. The name in a case is a copy when the switch is
+// Methods work as on a struct. The name in an arm is a copy when the match is
 // on a value, and a pointer to the data inside when it is on a pointer, so a
 // method with a pointer receiver can change the variant it holds.
 
 func (*Shape shape) grow(float factor) {
-	switch shape {
-		case .Circle c => c.radius *= factor;
-		case .Rect r => {
+	match shape {
+		.Circle c => c.radius *= factor;
+		.Rect r => {
 			r.w *= factor;
 			r.h *= factor;
 		}
-		case .Empty => {}
+		.Empty => {}
 	}
 }
 
@@ -112,19 +111,19 @@ func changing() {
 	rect.grow(2);
 	float grown = area(rect);  // 48
 
-	// Switching on a value gives the case a copy: this changes nothing.
+	// Matching on a value gives the arm a copy: this changes nothing.
 	Shape box = .Rect{w: 2, h: 5};
-	switch box {
-		case .Rect r => r.w = 100;
-		default => {}
+	match box {
+		.Rect r => r.w = 100;
+		_ => {}
 	}
 	float copied = area(box);  // 10
 
-	// Switching on a pointer gives the case a pointer to the data inside: this
+	// Matching on a pointer gives the arm a pointer to the data inside: this
 	// changes the box itself.
-	switch &box {
-		case .Rect r => r.w = 100;
-		default => {}
+	match &box {
+		.Rect r => r.w = 100;
+		_ => {}
 	}
 	float through = area(box);  // 500
 }

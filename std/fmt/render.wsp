@@ -30,23 +30,23 @@ inline func (*Scratch c) text() string => string(c.room[..c.used]);
 
 func (*Sink w) number(uint mag, bool neg, Spec s) !Piece {
 	Piece piece;
-	int base = switch s.kind {
-		case 'x', 'X' => 16;
-		case 'b' => 2;
-		case 'o' => 8;
-		default => 10;
+	int base = match s.kind {
+		'x', 'X' => 16;
+		'b' => 2;
+		'o' => 8;
+		_ => 10;
 	};
 	w.scratch.reset();
 	conv.writeUint(&w.scratch, mag, base, s.kind == 'X')!;
 	piece.body = w.scratch.text();
 	piece.sign = neg ? "-" : "";
 	if s.alt {
-		piece.radix = switch s.kind {
-			case 'x' => "0x";
-			case 'X' => "0X";
-			case 'b' => "0b";
-			case 'o' => "0o";
-			default => "";
+		piece.radix = match s.kind {
+			'x' => "0x";
+			'X' => "0X";
+			'b' => "0b";
+			'o' => "0o";
+			_ => "";
 		};
 	}
 	return piece;
@@ -100,8 +100,8 @@ func (*Sink w) renderFloat(float x, Spec s, bool single) !Piece {
 	Piece piece;
 	int prec = s.precision == -1 ? 6 : s.precision;
 	w.scratch.reset();
-	switch s.kind {
-		case 0 => {
+	match s.kind {
+		0 => {
 			if s.precision != -1 {
 				conv.writeFixed(&w.scratch, x, s.precision)!;
 			} else if single {
@@ -110,9 +110,9 @@ func (*Sink w) renderFloat(float x, Spec s, bool single) !Piece {
 				conv.writeFloat(&w.scratch, x)!;
 			}
 		}
-		case 'f' => conv.writeFixed(&w.scratch, x, prec)!;
-		case 'e', 'E' => conv.writeExp(&w.scratch, x, prec, s.kind == 'E')!;
-		default => {}
+		'f' => conv.writeFixed(&w.scratch, x, prec)!;
+		'e', 'E' => conv.writeExp(&w.scratch, x, prec, s.kind == 'E')!;
+		_ => {}
 	}
 	string view = w.scratch.text();
 

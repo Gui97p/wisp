@@ -5,31 +5,31 @@
 // `...name` with no type before it takes any number of arguments of any type.
 // There is no type to write for what comes in, so a value of that kind lives
 // only inside the function: `args` is a sequence you can measure with `len`,
-// index, and loop over, and its elements are inspected with a `switch`.
+// index, and loop over, and its elements are inspected with a `match`.
 // Arguments that cannot be held, such as a struct (pass a pointer), are an
 // error at the call.
 //
 // This is how `fmt.format` itself is written: its `...args` is read with a
-// `switch type` on each argument. The comment at the end of a line shows the
+// `match type` on each argument. The comment at the end of a line shows the
 // value that line gives.
 
 // ---------------------------------------------------------------------------
 // 1. Looking at the type of a value
 // ---------------------------------------------------------------------------
 //
-// `switch type args[i] { ... }` dispatches on the type of the value, and each
-// case names it with the type it matched: `case int v:` gives a `v` that is an
-// `int`, `case string s:` an `s` that is a `string`. The name is optional,
-// `case bool:` just tests. `default` runs for anything else and has no name.
+// `match type args[i] { ... }` dispatches on the type of the value, and each
+// arm names it with the type it matched: `int v =>` gives a `v` that is an
+// `int`, `string s =>` an `s` that is a `string`. The name is optional,
+// `bool =>` just tests. `_` runs for anything else and has no name.
 //
-// A case is exactly the type it names, so `case int` is only `int`, and
-// `case int8`, `case Color` (an enum) or `case Meters` (a type of your own, such
-// as `type Meters int`) are each their own case, in any order.
+// An arm is exactly the type it names, so `int` is only `int`, and `int8`,
+// `Color` (an enum) or `Meters` (a type of your own, such as `type Meters int`)
+// are each their own arm, in any order.
 //
-// Two groups cover the integers that arrive in any size: `case signed v`
-// matches every signed integer and `case unsigned v` every unsigned one, and
-// `v` is an `int` or a `uint`. A group is the one thing that depends on order:
-// put a specific case before the group that contains it. `signed` and
+// Two groups cover the integers that arrive in any size: `signed v` matches
+// every signed integer and `unsigned v` every unsigned one, and `v` is an `int`
+// or a `uint`. A group is the one thing that depends on order: put a specific
+// arm before the group that contains it. `signed` and
 // `unsigned` are not reserved words, a type of your own may use them.
 
 enum Color {
@@ -42,11 +42,11 @@ enum Color {
 func describe(...args) int {
 	int total = 0;
 	for _, arg in args {
-		switch type arg {
-			case Color => total += 100;
-			case signed v => total += v;
-			case string v => total += len(v);
-			case bool v => total += v ? 1 : 0;
+		match type arg {
+			Color => total += 100;
+			signed v => total += v;
+			string v => total += len(v);
+			bool v => total += v ? 1 : 0;
 		}
 	}
 	return total;

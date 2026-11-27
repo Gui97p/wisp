@@ -12,17 +12,17 @@
 //
 //   basics        constants, variables, operators
 //   printing      fmt: print, println and the `{:spec}` format
-//   branching     if, switch (exhaustive on enums), guards `return x if c;`,
+//   branching     if, match (exhaustive on enums), each, guards `return x if c;`,
 //                 blocks `{ }`, blocks that give a value, labeled blocks
 //   loops         for, loop, ranges, labels, break and continue
 //   functions     parameters, several results, `=>`, any order
 //   lambdas       function values, function literals, named function types
 //   inlining      inline functions, const parameters
 //   variadics     `type ...name`, any number of arguments
-//   anyargs       `...name` of any type, `switch type`, signed and unsigned
+//   anyargs       `...name` of any type, `match type`, signed and unsigned
 //   cleanup       defer and defer!
 //   types         type aliases, enums, sizes, conversions
-//   variants      enums with data: variants, switch with names, `x == .Name`
+//   variants      enums with data: variants, match with names, `x == .Name`
 //   overflow      `+ - *` stop on overflow, `+% -% *%` wrap, `+| -| *|` clamp, `truncate`, `saturate`
 //   compiletime   `sizeof`, `alignof`, `offsetof`, `staticAssert`, `static { }` blocks
 //   floats        float32 and float64, formatting
@@ -31,7 +31,7 @@
 //   random        std/rand: Rng, below, between, shuffle
 //   structs       structs, methods, literals
 //   literals      `T{...}`, `.{...}`, `[_]`: how every value is written
-//   generics      `<T>` on functions, structs and methods, value parameters, `switch type` on `T`
+//   generics      `<T>` on functions, structs and methods, value parameters, `match type` on `T`
 //   interfaces    `interface`, `implements`, interface values, `<Shape S>`, type sets, `Comparable`
 //   collections   arrays, slices, strings
 //   errors        `!` functions, Error, `!`, `??`, `|e|`, handlers

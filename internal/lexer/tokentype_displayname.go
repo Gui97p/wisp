@@ -65,12 +65,10 @@ func (t TokenType) DisplayName() string {
 		return "struct"
 	case TOKEN_ENUM:
 		return "enum"
-	case TOKEN_SWITCH:
-		return "switch"
-	case TOKEN_CASE:
-		return "case"
-	case TOKEN_DEFAULT:
-		return "default"
+	case TOKEN_MATCH:
+		return "match"
+	case TOKEN_EACH:
+		return "each"
 	case TOKEN_TYPE:
 		return "type"
 	case TOKEN_IF:

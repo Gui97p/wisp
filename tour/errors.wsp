@@ -116,9 +116,9 @@ func leaving() {
 // `??` gives. It lets a handler do some work and carry on. `return` leaves the
 // function, `yield` only the handler.
 //
-// A handler can also be a `switch` expression. It picks what to do by the error:
-// a case gives a value, or leaves with `return`, `continue` or `break`. `default`
-// catches the rest. To run statements, write a block and put a `switch`
+// A handler can also be a `match` expression. It picks what to do by the error:
+// an arm gives a value, or leaves with `return`, `continue` or `break`. `_`
+// catches the rest. To run statements, write a block and put a `match`
 // statement inside it.
 
 func divideOr(int a, b, fallback) int {
@@ -129,9 +129,9 @@ func divideOr(int a, b, fallback) int {
 }
 
 func codeOf(int a, int b) int {
-	int n = divide(a, b) ?? |e| switch e {
-		case DivError.DivByZero => -1;
-		default => return -2;
+	int n = divide(a, b) ?? |e| match e {
+		DivError.DivByZero => -1;
+		_ => return -2;
 	};
 	return n;
 }
@@ -152,7 +152,7 @@ func yielding() {
 // an error you never read is a compile error (bind it to `_` to drop it on
 // purpose).
 //
-// An error compares with null and with enum members, so a switch can sort
+// An error compares with null and with enum members, so a match can sort
 // failures out. The member is written in full here: an Error does not know which
 // enum to look in, so `.DivByZero` would be ambiguous.
 //
@@ -165,10 +165,10 @@ func inspecting() {
 	bool failed = e != null;  // true
 
 	let _, err = divide(7, 0);
-	string what = switch err {
-		case null => "no error";
-		case DivError.DivByZero => "divided by zero";
-		default => err.message;
+	string what = match err {
+		null => "no error";
+		DivError.DivByZero => "divided by zero";
+		_ => err.message;
 	};  // "divided by zero"
 }
 

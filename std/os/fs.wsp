@@ -47,14 +47,14 @@ public inline func exists(string path) bool {
 }
 
 func kindOf(int code) FileKind {
-	return switch code {
-		case sys.KIND_FILE => .File;
-		case sys.KIND_DIR => .Dir;
-		case sys.KIND_LINK => .Link;
-		case sys.KIND_PIPE => .Pipe;
-		case sys.KIND_SOCKET => .Socket;
-		case sys.KIND_DEVICE => .Device;
-		default => .Other;
+	return match code {
+		sys.KIND_FILE => .File;
+		sys.KIND_DIR => .Dir;
+		sys.KIND_LINK => .Link;
+		sys.KIND_PIPE => .Pipe;
+		sys.KIND_SOCKET => .Socket;
+		sys.KIND_DEVICE => .Device;
+		_ => .Other;
 	};
 }
 

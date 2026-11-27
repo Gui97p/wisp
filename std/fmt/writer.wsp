@@ -68,27 +68,27 @@ func (*Sink w) writePiece(Piece p, Spec s, bool numeric) ! {
 		if s.align == .Default {
 			s.align = numeric ? Align.Right : Align.Left;
 		}
-		switch s.align {
-			case .Left => {
+		match s.align {
+			.Left => {
 				w.text(p.sign)!;
 				w.text(p.radix)!;
 				w.text(p.body)!;
 				w.fill(s.fill, pad)!;
 			}
-			case .Right => {
+			.Right => {
 				w.fill(s.fill, pad)!;
 				w.text(p.sign)!;
 				w.text(p.radix)!;
 				w.text(p.body)!;
 			}
-			case .Center => {
+			.Center => {
 				w.fill(s.fill, pad / 2)!;
 				w.text(p.sign)!;
 				w.text(p.radix)!;
 				w.text(p.body)!;
 				w.fill(s.fill, pad - pad / 2)!;
 			}
-			case .Default => {}
+			.Default => {}
 		}
 	}
 }
@@ -151,12 +151,12 @@ func (*Sink w) putError(Error e, Spec s) !bool {
 		w.text("<null error>")!;
 		return true;
 	}
-	switch s.kind {
-		case 0 => {
+	match s.kind {
+		0 => {
 			Piece piece = renderString(e.message, s);
 			w.writePiece(piece, s, false)!;
 		}
-		default => {
+		_ => {
 			if len(e.domain) == 0 {
 				w.text("error: ")!;
 			} else {
@@ -247,18 +247,18 @@ public func format(io.Writer out, string pattern, ...args) !int {
 
 		bool ok;
 		Error bad = Error(FormatError.WrongType);
-		switch type args[argIndex] {
-			case Display v => ok = w.putDisplay(v, s)!;
-			case signed v => ok = w.putInt(v, s)!;
-			case unsigned v => ok = w.putUint(v, s)!;
-			case bool v => ok = w.putBool(v, s)!;
-			case string v => ok = w.putString(v, s)!;
-			case *void v => ok = w.putPointer(v, s)!;
-			case float64 v => ok = w.putFloat(v, s, false)!;
-			case float32 v => ok = w.putFloat(v, s, true)!;
-			case Error v => ok = w.putError(v, s)!;
-			case null => ok = w.putString("null", s)!;
-			default => bad = Error(FormatError.UnsupportedType);
+		match type args[argIndex] {
+			Display v => ok = w.putDisplay(v, s)!;
+			signed v => ok = w.putInt(v, s)!;
+			unsigned v => ok = w.putUint(v, s)!;
+			bool v => ok = w.putBool(v, s)!;
+			string v => ok = w.putString(v, s)!;
+			*void v => ok = w.putPointer(v, s)!;
+			float64 v => ok = w.putFloat(v, s, false)!;
+			float32 v => ok = w.putFloat(v, s, true)!;
+			Error v => ok = w.putError(v, s)!;
+			null => ok = w.putString("null", s)!;
+			_ => bad = Error(FormatError.UnsupportedType);
 		}
 		argIndex++;
 		if !ok {

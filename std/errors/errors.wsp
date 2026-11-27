@@ -32,9 +32,9 @@ public inline func todo(const string message) {
 /// Reports whether `e` is an error that may go away if the operation is tried
 /// again: `Interrupted`, `WouldBlock` or `Busy`. A null error gives `false`.
 public inline func temporary(Error e) bool {
-	return e == null ? false : switch e.code {
-		case Kind.Interrupted, Kind.WouldBlock, Kind.Busy => true;
-		default => false;
+	return e == null ? false : match e.code {
+		Kind.Interrupted, Kind.WouldBlock, Kind.Busy => true;
+		_ => false;
 	};
 }
 

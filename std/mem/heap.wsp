@@ -86,10 +86,10 @@ inline func recycle(*void p, int h) {
 }
 
 func release(*void p) {
-	switch state(p) {
-		case DEAD => panic("double free");
-		case LIVE => setState(p, DEAD);
-		default => panic("free of an invalid pointer");
+	match state(p) {
+		DEAD => panic("double free");
+		LIVE => setState(p, DEAD);
+		_ => panic("free of an invalid pointer");
 	}
 
 	int h = header(p);

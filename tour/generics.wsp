@@ -147,29 +147,29 @@ func rings() {
 // 5. Choosing by type
 // ---------------------------------------------------------------------------
 //
-// `switch type` on a value that is not an `any` is decided by the compiler: each
-// copy keeps only the case of its own type, and the other cases are not even
-// analysed, so a case may do what only its type can do. `case signed v` and
-// `case unsigned v` stand for every integer of that kind.
+// `match type` on a value that is not an `any` is decided by the compiler: each
+// copy keeps only the arm of its own type, and the other arms are not even
+// analysed, so an arm may do what only its type can do. `signed v` and
+// `unsigned v` stand for every integer of that kind.
 
 func describe<T>(T value) string {
-	switch type value {
-		case string text => return text;
-		case signed _number => return "an integer";
-		case bool => return "a bool";
-		default => return "something else";
+	match type value {
+		string text => return text;
+		signed _number => return "an integer";
+		bool => return "a bool";
+		_ => return "something else";
 	}
 }
 
-// The subject of a `switch type` can be the type parameter itself, and the
-// switch can be an expression: only the case of the chosen type survives.
+// The subject of a `match type` can be the type parameter itself, and the
+// match can be an expression: only the arm of the chosen type survives.
 
 func bytesOf<T>() int {
-	return switch type T {
-		case byte => 1;
-		case int, uint => 8;
-		case string => 16;
-		default => 0;
+	return match type T {
+		byte => 1;
+		int, uint => 8;
+		string => 16;
+		_ => 0;
 	};
 }
 
@@ -195,7 +195,7 @@ func choosing() {
 // are written after the type with its arguments, or with just a dot where the
 // type is known from the context. A generic type keeps its own identity per
 // argument, also inside an `any`: a `*Maybe<int>` and a `*Maybe<string>` are
-// different cases of a `switch type`.
+// different arms of a `match type`.
 //
 // A generic function can be a value too, as long as every type is named:
 // `let f = biggest<int>`.
@@ -214,9 +214,9 @@ enum Maybe<T> {
 }
 
 func (*Maybe<T> m) orElse(T fallback) T {
-	switch m {
-		case .Just j => return j.value;
-		default => return fallback;
+	match m {
+		.Just j => return j.value;
+		_ => return fallback;
 	}
 }
 

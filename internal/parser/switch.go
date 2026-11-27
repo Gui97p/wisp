@@ -21,7 +21,7 @@ func (p *Parser) parseSwitchHeader(line, col int) (*ast.BlockStmt, ast.Expressio
 		typed = true
 		p.advance()
 		if p.current.Type == lexer.TOKEN_LET {
-			p.error("a switch on types does not name the value, name it in each case: case int v:")
+			p.error("a match on types does not name the value, name it in each arm: int v => ...")
 			return nil, nil, false
 		}
 	}
@@ -101,14 +101,48 @@ func (p *Parser) parseTypeBind(typed bool) (*ast.TypeBind, bool) {
 	return &ast.TypeBind{Name: name, Line: line, Col: col, EndLine: endLine, EndCol: endCol}, true
 }
 
-func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int, typed bool) ast.Expression {
+func (p *Parser) atDefaultArm() bool {
+	if p.peek.Type != lexer.TOKEN_IDENT || p.peek.Literal != "_" {
+		return false
+	}
+	next := *p.l
+	return next.NextToken().Type == lexer.TOKEN_ARROW
+}
+
+func (p *Parser) oldArmWord() bool {
+	if p.peek.Type != lexer.TOKEN_IDENT {
+		return false
+	}
+	next := *p.l
+	following := next.NextToken().Type
+	switch p.peek.Literal {
+	case "case":
+		return following != lexer.TOKEN_ARROW && following != lexer.TOKEN_COMMA
+	case "default":
+		return following == lexer.TOKEN_ARROW
+	}
+	return false
+}
+
+func (p *Parser) rejectOldArm() {
 	p.advance()
+	if p.current.Literal == "default" {
+		p.errorf("the last arm is written `_ => ...`: `default` is gone")
+		return
+	}
+	p.errorf("an arm is written `value => statement;`: `case` is gone")
+}
+
+func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int, typed, first bool) ast.Expression {
 	p.advance()
+	if !first {
+		p.advance()
+	}
 
 	if value == nil {
 		expr := p.parseExpressionPratt(RANGE)
 		if expr != nil && (p.peek.Type == lexer.TOKEN_RANGE || p.peek.Type == lexer.TOKEN_RANGE_OPEN) {
-			p.errorf("a range needs a switch value to compare against")
+			p.errorf("a range needs a match value to compare against")
 			return nil
 		}
 		return expr
@@ -216,7 +250,7 @@ func (p *Parser) parseOneCaseExpression(value ast.Expression, line, col int, typ
 }
 
 func (p *Parser) parseCaseExpression(value ast.Expression, line, col int, typed bool) (ast.Expression, []ast.Expression) {
-	expr := p.parseOneCaseExpression(value, line, col, typed)
+	expr := p.parseOneCaseExpression(value, line, col, typed, true)
 	if expr == nil {
 		return nil, nil
 	}
@@ -227,7 +261,7 @@ func (p *Parser) parseCaseExpression(value ast.Expression, line, col int, typed 
 	}
 
 	for p.peek.Type == lexer.TOKEN_COMMA {
-		right := p.parseOneCaseExpression(value, line, col, typed)
+		right := p.parseOneCaseExpression(value, line, col, typed, false)
 		if right == nil {
 			return nil, nil
 		}
@@ -241,16 +275,16 @@ func (p *Parser) parseCaseExpression(value ast.Expression, line, col int, typed 
 		last, lastBinds := matches[len(matches)-1].(*ast.BinaryExpr)
 		if !typed || binds != 1 || !lastBinds || last.Bind == nil {
 			if typed {
-				p.error("a case with several types names the value once, after the last type: case *A, *B v:")
+				p.error("an arm with several types names the value once, after the last type: *A, *B v => ...")
 			} else {
-				p.error("a case with several variants cannot name the data")
+				p.error("an arm with several variants cannot name the data")
 			}
 			return nil, nil
 		}
 		for i, m := range matches[:len(matches)-1] {
 			alt, ok := m.(*ast.BinaryExpr)
 			if !ok {
-				p.error("a case with several types names the value once, after the last type: case *A, *B v:")
+				p.error("an arm with several types names the value once, after the last type: *A, *B v => ...")
 				return nil, nil
 			}
 			bind := *last.Bind
@@ -286,4 +320,112 @@ func isVariantName(expr ast.Expression) bool {
 		return ok
 	}
 	return false
+}
+
+func (p *Parser) parseEachStatement() ast.Statement {
+	line, col := p.current.Line, p.current.Column
+	p.advance()
+	if p.current.Type == lexer.TOKEN_TYPE {
+		p.errorf("each runs every arm that holds, and a value has only one type: use match type here")
+		return nil
+	}
+	block, value, _ := p.parseSwitchHeader(line, col)
+	if block == nil {
+		return nil
+	}
+	if value != nil && !p.expect(lexer.TOKEN_LBRACE) {
+		return nil
+	}
+
+	synthetic := func(node ast.Node) {
+		node.SetPos(line, col)
+		node.SetEndPos(line, col)
+	}
+	name := fmt.Sprintf("__wisp_each_%d", p.switchNameCount)
+	p.switchNameCount++
+	flag := func() *ast.IdentLiteral {
+		id := &ast.IdentLiteral{Value: name, Synthetic: true}
+		synthetic(id)
+		return id
+	}
+
+	var arms []*ast.IfStmt
+	for p.peek.Type != lexer.TOKEN_RBRACE && p.peek.Type != lexer.TOKEN_EOF && !p.atDefaultArm() {
+		if p.oldArmWord() {
+			p.rejectOldArm()
+			return nil
+		}
+		armLine, armCol := p.peek.Line, p.peek.Column
+		condition, _ := p.parseCaseExpression(value, line, col, false)
+		if condition == nil {
+			return nil
+		}
+		stmts, ok := p.parseSwitchArmBody()
+		if !ok {
+			return nil
+		}
+		arm := &ast.IfStmt{Condition: condition, Then: &ast.BlockStmt{Statements: stmts}}
+		arm.SetPos(armLine, armCol)
+		arm.SetEndPos(p.currentEnd())
+		arm.Then.SetPos(armLine, armCol)
+		arm.Then.SetEndPos(p.currentEnd())
+		arms = append(arms, arm)
+	}
+
+	var fallback *ast.IfStmt
+	if p.atDefaultArm() {
+		p.advance()
+		armLine, armCol := p.current.Line, p.current.Column
+		stmts, ok := p.parseSwitchArmBody()
+		if !ok {
+			return nil
+		}
+		none := &ast.UnaryExpr{Operator: "!", Value: flag()}
+		synthetic(none)
+		fallback = &ast.IfStmt{Condition: none, Then: &ast.BlockStmt{Statements: stmts}}
+		fallback.SetPos(armLine, armCol)
+		fallback.SetEndPos(p.currentEnd())
+		fallback.Then.SetPos(armLine, armCol)
+		fallback.Then.SetEndPos(p.currentEnd())
+		if p.peek.Type != lexer.TOKEN_RBRACE {
+			p.errorfNoSync("`_` is the last arm of an each: nothing can come after it")
+		}
+	}
+
+	if !p.expect(lexer.TOKEN_RBRACE) {
+		return nil
+	}
+
+	body := &ast.BlockStmt{}
+	if fallback != nil {
+		unset := &ast.BoolLiteral{Value: false}
+		synthetic(unset)
+		declare := &ast.VarStmt{Vars: []ast.Param{{Name: name, Line: line, Col: col, EndLine: line, EndCol: col}}, Values: []ast.Expression{unset}}
+		synthetic(declare)
+		body.Statements = append(body.Statements, declare)
+		for _, arm := range arms {
+			set := &ast.BoolLiteral{Value: true}
+			synthetic(set)
+			mark := &ast.AssignStmt{Targets: []ast.Expression{flag()}, Op: "=", Values: []ast.Expression{set}}
+			synthetic(mark)
+			arm.Then.Statements = append([]ast.Statement{mark}, arm.Then.Statements...)
+		}
+	}
+	for _, arm := range arms {
+		body.Statements = append(body.Statements, arm)
+	}
+	if fallback != nil {
+		body.Statements = append(body.Statements, fallback)
+	}
+	synthetic(body)
+	body.SetEndPos(p.currentEnd())
+
+	always := &ast.BoolLiteral{Value: true}
+	synthetic(always)
+	wrapper := &ast.IfStmt{Condition: always, Then: body, IsSwitch: true, SwitchDefault: true}
+	wrapper.SetPos(line, col)
+	wrapper.SetEndPos(p.currentEnd())
+
+	block.Statements = append(block.Statements, wrapper)
+	return block
 }

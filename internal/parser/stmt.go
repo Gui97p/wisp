@@ -56,8 +56,10 @@ func (p *Parser) parseStatementInner() ast.Statement {
 		stmt = p.parseReturnStatement()
 	case lexer.TOKEN_YIELD:
 		stmt = p.parseYieldStatement()
-	case lexer.TOKEN_SWITCH:
+	case lexer.TOKEN_MATCH:
 		stmt = p.parseSwitchStatement()
+	case lexer.TOKEN_EACH:
+		stmt = p.parseEachStatement()
 	case lexer.TOKEN_IF:
 		stmt = p.parseIfStatement()
 	case lexer.TOKEN_FOR:
@@ -175,7 +177,7 @@ func startsStatement(t lexer.TokenType) bool {
 	switch t {
 	case lexer.TOKEN_LET, lexer.TOKEN_CONST, lexer.TOKEN_IF, lexer.TOKEN_FOR, lexer.TOKEN_LOOP,
 		lexer.TOKEN_RETURN, lexer.TOKEN_BREAK, lexer.TOKEN_CONTINUE, lexer.TOKEN_NATIVE,
-		lexer.TOKEN_SWITCH, lexer.TOKEN_DEFER, lexer.TOKEN_YIELD:
+		lexer.TOKEN_MATCH, lexer.TOKEN_EACH, lexer.TOKEN_DEFER, lexer.TOKEN_YIELD:
 		return true
 	}
 	return false
@@ -471,7 +473,11 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 	stmt.SetPos(line, col)
 	currentIf := stmt
 
-	for p.peek.Type == lexer.TOKEN_CASE {
+	for p.peek.Type != lexer.TOKEN_RBRACE && p.peek.Type != lexer.TOKEN_EOF && !p.atDefaultArm() {
+		if p.oldArmWord() {
+			p.rejectOldArm()
+			return nil
+		}
 		if !first {
 			newIf := &ast.IfStmt{Then: &ast.BlockStmt{}, SwitchLink: true}
 			newIf.SetPos(line, col)
@@ -508,7 +514,7 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 		}
 	}
 
-	if p.peek.Type == lexer.TOKEN_DEFAULT {
+	if p.atDefaultArm() {
 		p.advance()
 		stmt.SwitchDefault = true
 		defaultLine, defaultCol := p.current.Line, p.current.Column
@@ -521,6 +527,9 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 		currentIf.Else.(*ast.BlockStmt).SetPos(defaultLine, defaultCol)
 		currentIf.Else.(*ast.BlockStmt).SetEndPos(p.currentEnd())
 		currentIf.SetEndPos(p.currentEnd())
+		if p.peek.Type != lexer.TOKEN_RBRACE {
+			p.errorfNoSync("`_` is the last arm of a match: nothing can come after it")
+		}
 	}
 
 	if !p.expect(lexer.TOKEN_RBRACE) {
@@ -536,7 +545,7 @@ func (p *Parser) parseSwitchStatement() ast.Statement {
 
 func (p *Parser) parseSwitchArmBody() ([]ast.Statement, bool) {
 	if p.peek.Type == lexer.TOKEN_COLON {
-		p.errorf("a case ends with =>, not with a colon: write case value => statement; or case value => { ... }")
+		p.errorf("an arm ends with =>, not with a colon: write value => statement; or value => { ... }")
 		return nil, false
 	}
 	if !p.expect(lexer.TOKEN_ARROW) {

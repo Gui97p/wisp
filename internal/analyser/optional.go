@@ -701,8 +701,8 @@ func (a *Analyser) checkExhaustive(head *ast.IfStmt) {
 	if len(missing) == 0 {
 		return
 	}
-	a.errorRange(switchKeyword(head), "this switch does not cover %s", strings.Join(missing, ", ")).
-		WithHelp("add a case for each, or a default if the rest does not matter")
+	a.errorRange(switchKeyword(head), "this match does not cover %s", strings.Join(missing, ", ")).
+		WithHelp("add an arm for each, or `_ =>` if the rest does not matter")
 }
 
 func (a *Analyser) coversEverything(arms []*ast.SwitchArm) bool {
@@ -811,7 +811,7 @@ func (a *Analyser) bindSumArm(arm *ast.SwitchArm) {
 		return
 	}
 	if len(arm.Values) != 1 {
-		a.errorf(arm, "a case that names its data gives exactly one value, got %d", len(arm.Values))
+		a.errorf(arm, "an arm that names its data gives exactly one value, got %d", len(arm.Values))
 		return
 	}
 	give := &ast.YieldStmt{Values: arm.Values}
@@ -883,5 +883,5 @@ func (a *Analyser) checkWidthBuiltin(expr *ast.CallExpr, name string) Type {
 
 func switchKeyword(node ast.Node) ast.Position {
 	line, col := node.Position()
-	return ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + len("switch") - 1}
+	return ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + len("match") - 1}
 }

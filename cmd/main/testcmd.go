@@ -94,15 +94,15 @@ func generateTestMain(tests []module.TestFunc) string {
 	b.WriteString("\nfunc main() ! {\n")
 	b.WriteString("  []string args = os.args();\n")
 	b.WriteString("  if len(args) != 2 {\n    let _, _ = fmt.fprintln(&os.stderr, \"usage: a test binary takes the id of one test\");\n    os.exit(64);\n  }\n")
-	b.WriteString("  switch args[1] {\n")
+	b.WriteString("  match args[1] {\n")
 	for _, test := range tests {
 		bang := ""
 		if test.Fallible {
 			bang = "!"
 		}
-		fmt.Fprintf(&b, "    case %q => {\n      %s.%s()%s;\n      testing.finish()!;\n    }\n", test.ID(), aliases[test.Module], test.Name, bang)
+		fmt.Fprintf(&b, "    %q => {\n      %s.%s()%s;\n      testing.finish()!;\n    }\n", test.ID(), aliases[test.Module], test.Name, bang)
 	}
-	b.WriteString("    default => {\n      let _, _ = fmt.fprintln(&os.stderr, \"there is no test {}\", args[1]);\n      os.exit(64);\n    }\n  }\n}\n")
+	b.WriteString("    _ => {\n      let _, _ = fmt.fprintln(&os.stderr, \"there is no test {}\", args[1]);\n      os.exit(64);\n    }\n  }\n}\n")
 	return b.String()
 }
 

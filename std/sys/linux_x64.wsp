@@ -165,14 +165,14 @@ internal func kind(int fd) int {
 }
 
 func kindOfMode(int mode) int {
-	return switch mode & S_IFMT {
-		case S_IFREG => KIND_FILE;
-		case S_IFDIR => KIND_DIR;
-		case S_IFLNK => KIND_LINK;
-		case S_IFIFO => KIND_PIPE;
-		case S_IFSOCK => KIND_SOCKET;
-		case S_IFCHR, S_IFBLK => KIND_DEVICE;
-		default => KIND_OTHER;
+	return match mode & S_IFMT {
+		S_IFREG => KIND_FILE;
+		S_IFDIR => KIND_DIR;
+		S_IFLNK => KIND_LINK;
+		S_IFIFO => KIND_PIPE;
+		S_IFSOCK => KIND_SOCKET;
+		S_IFCHR, S_IFBLK => KIND_DEVICE;
+		_ => KIND_OTHER;
 	};
 }
 
@@ -420,14 +420,14 @@ internal func dirNext(*Dir d, *Entry e) int {
 			e.name[i] = d.buf[start + i];
 		}
 		e.len = n;
-		e.kind = switch kind {
-			case DT_REG => KIND_FILE;
-			case DT_DIR => KIND_DIR;
-			case DT_LNK => KIND_LINK;
-			case DT_FIFO => KIND_PIPE;
-			case DT_SOCK => KIND_SOCKET;
-			case DT_CHR, DT_BLK => KIND_DEVICE;
-			default => KIND_OTHER;
+		e.kind = match kind {
+			DT_REG => KIND_FILE;
+			DT_DIR => KIND_DIR;
+			DT_LNK => KIND_LINK;
+			DT_FIFO => KIND_PIPE;
+			DT_SOCK => KIND_SOCKET;
+			DT_CHR, DT_BLK => KIND_DEVICE;
+			_ => KIND_OTHER;
 		};
 		return 1;
 	}

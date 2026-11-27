@@ -22,11 +22,11 @@ public func floatToUint(float x) !uint {
 }
 
 func special([]byte buf, float x) ?string {
-	return string(buf[..switch {
-		case math.isNaN(x) => strings.copy(buf, "NaN");
-		case math.isInf(x, 1) => strings.copy(buf, "inf");
-		case math.isInf(x, -1) => strings.copy(buf, "-inf");
-		default => {
+	return string(buf[..match {
+		math.isNaN(x) => strings.copy(buf, "NaN");
+		math.isInf(x, 1) => strings.copy(buf, "inf");
+		math.isInf(x, -1) => strings.copy(buf, "-inf");
+		_ => {
 			return null;
 		};
 	}]);

@@ -120,7 +120,7 @@ func (a *Analyser) checkExpr(expr ast.Expression) Type {
 	case *ast.ConvExpr:
 		t = a.checkConvExpr(e)
 	case *ast.TypeLabel:
-		a.error(e, "a type is only valid as a case of a switch on an any value")
+		a.error(e, "a type is only valid as an arm of a match on an any value")
 		t = InvalidType{}
 	case *ast.InExpr:
 		t = a.checkInExpr(e)
@@ -219,7 +219,7 @@ func (a *Analyser) checkBinaryExpr(expr *ast.BinaryExpr) Type {
 		return a.checkTypeCase(expr)
 	}
 	if expr.TypeTest {
-		a.errorf(expr, "a switch on types needs an any value, such as an element of an untyped variadic").
+		a.errorf(expr, "a match on types needs an any value, such as an element of an untyped variadic").
 			WithHelp("this one is %s", left.String())
 		return InvalidType{}
 	}
@@ -746,8 +746,8 @@ func (a *Analyser) checkExprList(exprs []ast.Expression) []Type {
 			}
 			values := a.checkSwitchExpr(se, expected)
 			if len(values) == 0 {
-				a.error(se, "this switch gives no value").
-					WithHelp("at least one case has to give a value")
+				a.error(se, "this match gives no value").
+					WithHelp("at least one arm has to give a value")
 				types = append(types, InvalidType{})
 				continue
 			}
@@ -869,7 +869,7 @@ func (a *Analyser) checkMemberExpr(expr *ast.MemberExpr) Type {
 
 	if it, isInterface := objType.(*InterfaceType); isInterface {
 		a.errorf(expr, "%s is an interface: it has methods and no fields", it.Name).
-			WithHelp("call a method, or use a switch on types to reach the value behind it")
+			WithHelp("call a method, or use a match on types to reach the value behind it")
 		return InvalidType{}
 	}
 
@@ -1226,7 +1226,7 @@ func (a *Analyser) checkHandlerBlock(expr *ast.CoalesceExpr, values []Type) bool
 	if !valueless && !a.blockDiverges(b) {
 		d := a.errorAtEnd(b, "the handler block must end with yield, return, break or continue")
 		if endsInSwitch(b) {
-			d.WithHelp("a switch handler needs a default, and every case must end with yield, return, continue or a labeled break: a plain break only leaves the switch")
+			d.WithHelp("a match handler needs a `_` arm, and every arm must end with yield, return, continue or a labeled break: a plain break only leaves the match")
 		}
 		return false
 	}

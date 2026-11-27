@@ -63,7 +63,7 @@ func TestRules(t *testing.T) {
 		{"labels", "func f() {\n\t:outer for i in 0..=3 { break :outer; }\n}\n", "func f() {\n\t:outer for i in 0..=3 { break :outer; }\n}\n"},
 		{"captures", "func f() {\n\tif g()|v|{ h(v); }\n\tloop it.next()|p|{ }\n\tx=y??|e|{ yield 1; };\n}\n", "func f() {\n\tif g() |v| { h(v); }\n\tloop it.next() |p| {}\n\tx = y ?? |e| { yield 1; };\n}\n"},
 		{"bit or is not a capture", "func f() {\n\tint a=b|c|d;\n}\n", "func f() {\n\tint a = b | c | d;\n}\n"},
-		{"switch arms", "func f() {\nswitch v{\ncase 1=>a();\ncase 2,3=>{\nb();\nc();\n}\ndefault=>d();\n}\n}\n", "func f() {\n\tswitch v {\n\t\tcase 1 => a();\n\t\tcase 2, 3 => {\n\t\t\tb();\n\t\t\tc();\n\t\t}\n\t\tdefault => d();\n\t}\n}\n"},
+		{"match arms", "func f() {\nmatch v{\n1=>a();\n2,3=>{\nb();\nc();\n}\n_=>d();\n}\n}\n", "func f() {\n\tmatch v {\n\t\t1 => a();\n\t\t2, 3 => {\n\t\t\tb();\n\t\t\tc();\n\t\t}\n\t\t_ => d();\n\t}\n}\n"},
 		{"selector operators", "func<x64&linux>f(){}\nfunc<release|fast>g(){}\nfunc<!windows&(x64|debug)>h(){}\n", "func<x64 & linux> f() {}\nfunc<release | fast> g() {}\nfunc<!windows & (x64 | debug)> h() {}\n"},
 		{"target directive operators", "#target linux&x64\nfunc f(){}\n", "#target linux & x64\nfunc f() {}\n"},
 		{"interface declarations", "interface Writer{func write([]byte data)!int;func flush();}\ninterface Number{int|int64|float}\ninterface Both{Writer&Closer}\ninterface Mixed{(int|float)&!Small}\n", "interface Writer { func write([]byte data) !int; func flush(); }\ninterface Number { int | int64 | float }\ninterface Both { Writer & Closer }\ninterface Mixed { (int | float) & !Small }\n"},

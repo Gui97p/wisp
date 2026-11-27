@@ -458,7 +458,7 @@ func (a *Analyser) checkInterfaceTypeCase(expr *ast.BinaryExpr, held *InterfaceT
 
 	pointer, isPointer := t.(PointerType)
 	if !isPointer || pointer.Nullable {
-		a.errorf(expr.Right, "a case on %s names a pointer to a type, as in case *Buffer b: it holds a pointer", held.Name)
+		a.errorf(expr.Right, "an arm on %s names a pointer to a type, as in *Buffer b => ...: it holds a pointer", held.Name)
 		return InvalidType{}
 	}
 	if reason := a.satisfiesInterface(pointer, held); reason != "" {

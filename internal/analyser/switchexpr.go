@@ -8,10 +8,10 @@ func (a *Analyser) checkSwitchExprValue(expr *ast.SwitchExpr) Type {
 	case 1:
 		return values[0]
 	case 0:
-		a.error(expr, "this switch gives no value").
-			WithHelp("at least one case has to give a value")
+		a.error(expr, "this match gives no value").
+			WithHelp("at least one arm has to give a value")
 	default:
-		a.errorf(expr, "switch gives %d values, expected 1 in this context", len(values))
+		a.errorf(expr, "match gives %d values, expected 1 in this context", len(values))
 	}
 	return InvalidType{}
 }
@@ -38,7 +38,7 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 		a.enterScope()
 		if arm.Condition != nil {
 			condType := a.checkExpr(arm.Condition)
-			a.requireBool(arm.Condition, condType, "case condition")
+			a.requireBool(arm.Condition, condType, "arm condition")
 			a.narrowSwitchVariable(arm.Condition)
 			a.bindSumArm(arm)
 		}
@@ -55,7 +55,7 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 			case count == -1:
 				count = len(armTypes[i])
 			case len(armTypes[i]) != count:
-				a.errorf(arm, "this case gives %d values, the others give %d", len(armTypes[i]), count)
+				a.errorf(arm, "this arm gives %d values, the others give %d", len(armTypes[i]), count)
 				valid = false
 			}
 		}
@@ -67,7 +67,7 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 	}
 
 	if expr.Default == nil && !a.coversEverything(arms) {
-		a.errorRange(switchKeyword(expr), "a switch expression needs a default, or a case for every member").
+		a.errorRange(switchKeyword(expr), "a match expression needs a `_` arm, or an arm for every member").
 			WithHelp("the expression must always give a value")
 		return []Type{InvalidType{}}
 	}
@@ -84,7 +84,7 @@ func (a *Analyser) checkSwitchExpr(expr *ast.SwitchExpr, expected []Type) []Type
 		expected = nil
 	}
 	if expected != nil && len(expected) != count {
-		a.errorf(expr, "this switch gives %d values, the call gives %d", count, len(expected))
+		a.errorf(expr, "this match gives %d values, the call gives %d", count, len(expected))
 		return []Type{InvalidType{}}
 	}
 
@@ -117,11 +117,11 @@ func (a *Analyser) unifyArms(arms []*ast.SwitchArm, armTypes [][]Type, index int
 		}
 		if !a.coerceAt(arm.Values, len(armTypes[i]), index, got, target) {
 			if hinted {
-				a.helpMismatch(a.errorf(arm, "this case gives %s, expected %s", got, target), got, target)
+				a.helpMismatch(a.errorf(arm, "this arm gives %s, expected %s", got, target), got, target)
 			} else if expected != nil {
 				a.errorf(arm, "expected %s for the handler value, got %s", target, got)
 			} else {
-				a.errorf(arm, "this case gives %s, the others give %s", got, target)
+				a.errorf(arm, "this arm gives %s, the others give %s", got, target)
 			}
 		}
 	}

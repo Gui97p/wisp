@@ -64,9 +64,9 @@ public func clean(mem.Allocator a, string p) !string {
 
 	let elems = elementsAfterVolume(p[v..]);
 	loop elems.next() |n| {
-		switch n {
-			case "." => continue;
-			case ".." => {
+		match n {
+			"." => continue;
+			".." => {
 				if depth > 0 {
 					total = math.max(strings.lastIndexOf(string(buf[..total]), sep) ?? rootLen, rootLen);
 					depth--;
@@ -75,7 +75,7 @@ public func clean(mem.Allocator a, string p) !string {
 					continue;
 				}
 			}
-			default => depth++;
+			_ => depth++;
 		}
 
 		if total > rootLen {

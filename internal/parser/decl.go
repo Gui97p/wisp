@@ -264,7 +264,7 @@ func (p *Parser) parseVarDeclaration() *ast.VarDecl {
 
 	vs, ok := stmt.(*ast.VarStmt)
 	if !ok {
-		p.error("a switch expression cannot initialize a global")
+		p.error("a match expression cannot initialize a global")
 		return nil
 	}
 

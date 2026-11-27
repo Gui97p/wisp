@@ -376,7 +376,7 @@
                     "match": "\\bimplements\\b"
                 },
                 {
-                    "match": "\\b(switch)\\s+(type)\\b",
+                    "match": "\\b(match)\\s+(type)\\b",
                     "captures": {
                         "1": {
                             "name": "keyword.control.conditional.wisp"
@@ -387,19 +387,12 @@
                     }
                 },
                 {
-                    "match": "\\b(case)\\s+(signed|unsigned)\\b(?=\\s*[A-Za-z_:,=])",
-                    "captures": {
-                        "1": {
-                            "name": "keyword.control.conditional.wisp"
-                        },
-                        "2": {
-                            "name": "storage.type.primitive.wisp"
-                        }
-                    }
+                    "name": "storage.type.primitive.wisp",
+                    "match": "\\b(signed|unsigned)\\b(?=\\s*(?:[A-Za-z_]\\w*\\s*)?(?:=>|,))"
                 },
                 {
                     "name": "keyword.control.conditional.wisp",
-                    "match": "\\b(if|else|switch|case|default)\\b"
+                    "match": "\\b(if|else|match|each)\\b"
                 },
                 {
                     "name": "keyword.control.loop.wisp",

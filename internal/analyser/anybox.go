@@ -178,8 +178,8 @@ func (a *Analyser) checkBoxedArgs(expr *ast.CallExpr, argTypes []Type, fixed int
 
 func (a *Analyser) checkTypeCase(expr *ast.BinaryExpr) Type {
 	if !expr.TypeTest {
-		a.errorf(expr, "an any value is inspected with a switch on types").
-			WithHelp("write `switch type a { case int v: ... }`")
+		a.errorf(expr, "an any value is inspected with a match on types").
+			WithHelp("write `match type a { int v => ... }`")
 		return InvalidType{}
 	}
 
@@ -250,7 +250,7 @@ func (a *Analyser) labelType(label ast.Expression) (Type, bool) {
 			return sym.Type, true
 		}
 		if !found || !isTypeSymbol(sym) {
-			a.errorf(l, "%s is not a type", l.Value).WithHelp("a case of a switch on types names a type, or one of the groups signed and unsigned")
+			a.errorf(l, "%s is not a type", l.Value).WithHelp("an arm of a match on types names a type, or one of the groups signed and unsigned")
 			return nil, false
 		}
 		sym.Used = true
@@ -263,8 +263,8 @@ func (a *Analyser) labelType(label ast.Expression) (Type, bool) {
 		}
 	}
 
-	a.error(label, "an any value is only compared with a type, in a switch").
-		WithHelp("write `switch type a { case int v: ... }`")
+	a.error(label, "an any value is only compared with a type, in a match").
+		WithHelp("write `match type a { int v => ... }`")
 	return nil, false
 }
 
@@ -308,7 +308,7 @@ func (a *Analyser) assignsSwitchVariable(target ast.Expression) bool {
 	if _, narrowed := a.info.Narrowed[sym]; !narrowed {
 		return false
 	}
-	a.errorf(target, "cannot assign to %s, the variable of a type switch", id.Value)
+	a.errorf(target, "cannot assign to %s, the variable of a type match", id.Value)
 	return true
 }
 

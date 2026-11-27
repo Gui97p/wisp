@@ -96,10 +96,10 @@ public func (*File f) close() ! {
 /// cannot seek, such as a terminal or a pipe.
 public func (*File f) seek(int offset, io.Whence whence) !int {
 	f.check()!;
-	int origin = switch whence {
-		case .Start => sys.SEEK_SET;
-		case .Current => sys.SEEK_CUR;
-		case .End => sys.SEEK_END;
+	int origin = match whence {
+		.Start => sys.SEEK_SET;
+		.Current => sys.SEEK_CUR;
+		.End => sys.SEEK_END;
 	};
 	int r = sys.seek(f.fd, offset, origin);
 	return errorIO(sys.errno(r)) if r < 0;

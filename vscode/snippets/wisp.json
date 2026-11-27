@@ -37,35 +37,45 @@
         ],
         "description": "Conditional if with else"
     },
-    "switch (expression)": {
-        "prefix": "switchexpr",
+    "match (expression)": {
+        "prefix": "matchexpr",
         "body": [
-            "let ${1:name} = switch ${2:value} {",
-            "\tcase ${3:A} => ${4:x};",
-            "\tdefault => ${5:y};",
+            "let ${1:name} = match ${2:value} {",
+            "\t${3:A} => ${4:x};",
+            "\t_ => ${5:y};",
             "};"
         ],
-        "description": "Switch as expression, attributed to a variable"
+        "description": "Match as expression, attributed to a variable"
     },
-    "switch (statement)": {
-        "prefix": "switch",
+    "match (statement)": {
+        "prefix": "match",
         "body": [
-            "switch ${1:value} {",
-            "\tcase ${2:A} => $3;",
-            "\tdefault => $0;",
+            "match ${1:value} {",
+            "\t${2:A} => $3;",
+            "\t_ => $0;",
             "}"
         ],
-        "description": "Switch as a statement"
+        "description": "Match as a statement"
     },
-    "switch (type)": {
-        "prefix": "switchtype",
+    "match (type)": {
+        "prefix": "matchtype",
         "body": [
-            "switch type ${1:value} {",
-            "\tcase ${2:int} ${3:v} => $4;",
-            "\tdefault => $0;",
+            "match type ${1:value} {",
+            "\t${2:int} ${3:v} => $4;",
+            "\t_ => $0;",
             "}"
         ],
-        "description": "Switch on the type of an any value"
+        "description": "Match on the type of an any value"
+    },
+    "each": {
+        "prefix": "each",
+        "body": [
+            "each {",
+            "\t${1:condition} => $2;",
+            "\t_ => $0;",
+            "}"
+        ],
+        "description": "Run every arm whose condition holds, in order"
     },
     "method": {
         "prefix": "method",

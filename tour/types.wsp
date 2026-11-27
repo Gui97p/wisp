@@ -42,7 +42,7 @@ func named() {
 //
 // An enum is a nominal type with named members, written Color.Green. Numbering
 // starts at 0 and continues from the last explicit value. Where the enum is
-// known (an assignment, an argument, a return, a comparison, a case) the type
+// known (an assignment, an argument, a return, a comparison, an arm) the type
 // name can be left out: `.Green`.
 //
 // Every enum also has a `name()` method that returns the member name of a value,

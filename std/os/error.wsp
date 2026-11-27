@@ -13,22 +13,22 @@ public enum IOError {
 /// `Error`. Known numbers become a kind of `errors.Kind` or `IOError`, and any
 /// other becomes `IOError.IO`.
 func errorIO(int code) Error {
-	return switch code {
-		case 1, 13 => Error(errors.Kind.Permission);
-		case 2 => Error(errors.Kind.NotFound);
-		case 11 => Error(errors.Kind.WouldBlock);
-		case 12 => Error(errors.Kind.OutOfMemory);
-		case 16 => Error(errors.Kind.Busy);
-		case 17 => Error(errors.Kind.Exists);
-		case 4 => Error(errors.Kind.Interrupted);
-		case 9, 22, 36 => Error(errors.Kind.Invalid);
-		case 20 => Error(IOError.NotDir);
-		case 21 => Error(IOError.IsDir);
-		case 28 => Error(errors.Kind.NoSpace);
-		case 32 => Error(errors.Kind.BrokenPipe);
-		case 34 => Error(errors.Kind.Overflow);
-		case 38, 95 => Error(errors.Kind.Unsupported);
-		case 39 => Error(IOError.NotEmpty);
-		default => Error(IOError.IO);
+	return match code {
+		1, 13 => Error(errors.Kind.Permission);
+		2 => Error(errors.Kind.NotFound);
+		11 => Error(errors.Kind.WouldBlock);
+		12 => Error(errors.Kind.OutOfMemory);
+		16 => Error(errors.Kind.Busy);
+		17 => Error(errors.Kind.Exists);
+		4 => Error(errors.Kind.Interrupted);
+		9, 22, 36 => Error(errors.Kind.Invalid);
+		20 => Error(IOError.NotDir);
+		21 => Error(IOError.IsDir);
+		28 => Error(errors.Kind.NoSpace);
+		32 => Error(errors.Kind.BrokenPipe);
+		34 => Error(errors.Kind.Overflow);
+		38, 95 => Error(errors.Kind.Unsupported);
+		39 => Error(IOError.NotEmpty);
+		_ => Error(IOError.IO);
 	};
 }

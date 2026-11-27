@@ -13,10 +13,9 @@ var (
 	declaredBefore = regexp.MustCompile(`([A-Za-z_][\w.]*)\s+[A-Za-z_]\w*\s*=\s*$`)
 	comparedBefore = regexp.MustCompile(`([A-Za-z_][\w.]*)\s*(==|!=)\s*$`)
 	assignedBefore = regexp.MustCompile(`(^|[^=!<>])\b([A-Za-z_][\w.]*)\s*=\s*$`)
-	caseWord       = regexp.MustCompile(`\bcase\b`)
 	armBefore      = regexp.MustCompile(`=>\s*$`)
 	yieldBefore    = regexp.MustCompile(`\byield(?:\s+:\w+)?\s*$`)
-	switchWord     = regexp.MustCompile(`\bswitch\b`)
+	switchWord     = regexp.MustCompile(`\b(?:match|each)\b`)
 	returnBefore   = regexp.MustCompile(`\breturn\b[^;]*$`)
 	coalesceBefore = regexp.MustCompile(`([A-Za-z_][\w.]*\s*\((?:[^()]|\([^()]*\))*\))\s*\?\?\s*(?:\|\w+\|\s*)?$`)
 	functionHeader = regexp.MustCompile(`^\s*(?:(?:public|internal|private)\s+)*func\b`)
@@ -78,17 +77,19 @@ func expectedEnum(before, text string, scope *analyser.Scope) analyser.Type {
 	case yieldBefore.MatchString(before):
 		tp = yieldType(text, scope)
 	case armBefore.MatchString(before):
-		if _, prefix, ok := switchHeader(text); ok {
+		if _, prefix, _, ok := switchHeader(text); ok {
 			tp = contextType(prefix, text, scope)
 		}
-	case inCaseHeader(before):
-		if subject, _, ok := switchHeader(text); ok && subject != "" {
-			tp = exprType(scope, subject)
-		} else if ok {
+	default:
+		if subject, _, since, ok := switchHeader(text); ok && !strings.Contains(since, "=>") {
+			if subject != "" {
+				tp = exprType(scope, subject)
+			} else {
+				tp = contextType(before, text, scope)
+			}
+		} else {
 			tp = contextType(before, text, scope)
 		}
-	default:
-		tp = contextType(before, text, scope)
 	}
 
 	return tp
@@ -342,7 +343,7 @@ func splitTopLevel(text string) []string {
 	return append(parts, strings.TrimSpace(text[start:]))
 }
 
-func switchHeader(text string) (subject, prefix string, ok bool) {
+func switchHeader(text string) (subject, prefix, since string, ok bool) {
 	type block struct {
 		subject  string
 		prefix   string
@@ -379,16 +380,8 @@ func switchHeader(text string) (subject, prefix string, ok bool) {
 	}
 
 	if len(stack) == 0 || !stack[len(stack)-1].isSwitch {
-		return "", "", false
+		return "", "", "", false
 	}
 	top := stack[len(stack)-1]
-	return top.subject, top.prefix, true
-}
-
-func inCaseHeader(before string) bool {
-	found := caseWord.FindAllStringIndex(before, -1)
-	if len(found) == 0 {
-		return false
-	}
-	return !strings.Contains(before[found[len(found)-1][0]:], "=>")
+	return top.subject, top.prefix, masked[headerStart:], true
 }
