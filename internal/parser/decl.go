@@ -294,9 +294,7 @@ func (p *Parser) parseImportDeclaration() *ast.ImportDecl {
 		decl.Alias = p.current.Literal
 	}
 
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 
 	return decl
 }
@@ -549,9 +547,7 @@ func (p *Parser) parseTypeDeclaration() *ast.TypeDecl {
 	}
 	decl.Implements = implements
 
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 
 	return decl
 }

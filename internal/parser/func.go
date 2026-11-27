@@ -48,9 +48,7 @@ func (p *Parser) parseExternType() *ast.StructDecl {
 		p.error("an extern type has no fields and no type parameters: it is only a name for what C keeps behind a pointer")
 		return nil
 	}
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 	return decl
 }
 
@@ -251,9 +249,7 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 			p.error("an extern function is defined in C and cannot have a body")
 			return nil
 		}
-		if !p.expect(lexer.TOKEN_SEMICOLON) {
-			return nil
-		}
+		p.endStatement()
 		return decl
 	}
 
@@ -281,8 +277,10 @@ func (p *Parser) parseFunc(extern bool) *ast.FuncDecl {
 		}
 		decl.Body = p.parseBlockStatement()
 
-		if !p.expect(lexer.TOKEN_RBRACE) {
-			return nil
+		if p.peek.Type != lexer.TOKEN_RBRACE {
+			p.errorfNoSync("expected '%s' got '%s'", lexer.TOKEN_RBRACE.DisplayName(), p.peek.Type.DisplayName())
+		} else {
+			p.advance()
 		}
 	}
 

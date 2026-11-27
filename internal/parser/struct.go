@@ -129,9 +129,7 @@ func (p *Parser) parseStructParamList() []ast.Param {
 			})
 		}
 
-		if !p.expect(lexer.TOKEN_SEMICOLON) {
-			return nil
-		}
+		p.endStatement()
 	}
 
 	return params

@@ -140,3 +140,11 @@ func (p *Parser) parseIntLiteral(lit string) (int64, error) {
 func (p *Parser) parseUintLiteral(lit string) (uint64, error) {
 	return strconv.ParseUint(lit, intLiteralBase(lit), 64)
 }
+
+func (p *Parser) endStatement() {
+	if p.peek.Type == lexer.TOKEN_SEMICOLON {
+		p.advance()
+		return
+	}
+	p.errorExpected(lexer.TOKEN_SEMICOLON, p.peek.Type)
+}

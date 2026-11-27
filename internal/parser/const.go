@@ -79,9 +79,7 @@ func (p *Parser) parseConstValues() []ast.Expression {
 		values = append(values, value)
 	}
 
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 
 	return values
 }

@@ -116,7 +116,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStmt {
 	block := &ast.BlockStmt{}
 	block.SetPos(p.current.Line, p.current.Column)
 
-	for p.peek.Type != lexer.TOKEN_RBRACE && p.current.Type != lexer.TOKEN_EOF {
+	for p.peek.Type != lexer.TOKEN_RBRACE && p.peek.Type != lexer.TOKEN_EOF {
 		p.advance()
 
 		start := p.checkpoint()
@@ -236,9 +236,7 @@ func (p *Parser) parseSimpleStatement() ast.Statement {
 }
 
 func (p *Parser) finishExpressionStatement(expr ast.Expression) ast.Statement {
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 
 	return &ast.ExpressionStmt{Expr: expr}
 }
@@ -324,9 +322,7 @@ func (p *Parser) parseVarNames(stmt *ast.VarStmt, currentType ast.TypeRef) ast.S
 		stmt.Values = append(stmt.Values, value)
 	}
 
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 
 	return stmt
 }
@@ -360,9 +356,7 @@ func (p *Parser) parseAssignStatement(targets []ast.Expression) ast.Statement {
 		return nil
 	}
 
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 
 	return stmt
 }
@@ -407,9 +401,7 @@ func (p *Parser) parseYieldStatement() ast.Statement {
 
 func (p *Parser) endJump(stmt ast.Statement, line, col int) ast.Statement {
 	if p.peek.Type != lexer.TOKEN_IF {
-		if !p.expect(lexer.TOKEN_SEMICOLON) {
-			return nil
-		}
+		p.endStatement()
 		return stmt
 	}
 
@@ -421,9 +413,7 @@ func (p *Parser) endJump(stmt ast.Statement, line, col int) ast.Statement {
 	if cond == nil {
 		return nil
 	}
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 
 	then := &ast.BlockStmt{Statements: []ast.Statement{stmt}}
 	then.SetPos(line, col)
@@ -625,9 +615,7 @@ func (p *Parser) parseIncDecStatement(target ast.Expression) ast.Statement {
 	p.advance()
 	stmt.Op = p.current.Literal
 
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 
 	return stmt
 }
@@ -782,9 +770,7 @@ func (p *Parser) parseLoopStatement() *ast.LoopStmt {
 			return nil
 		}
 
-		if !p.expect(lexer.TOKEN_SEMICOLON) {
-			return nil
-		}
+		p.endStatement()
 	}
 
 	return stmt

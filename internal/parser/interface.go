@@ -122,9 +122,7 @@ func (p *Parser) parseInterfaceMethod(doc string) *ast.InterfaceMethod {
 		p.errorExpected(lexer.TOKEN_SEMICOLON, lexer.TOKEN_RBRACE)
 		return method
 	}
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return nil
-	}
+	p.endStatement()
 	return method
 }
 

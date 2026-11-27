@@ -480,9 +480,11 @@ func (p *Parser) parseCallArgs() []ast.Expression {
 		p.spread = true
 	}
 
-	if !p.expect(lexer.TOKEN_RPAREN) {
-		return nil
+	if p.peek.Type != lexer.TOKEN_RPAREN {
+		p.errorfNoSync("expected '%s' got '%s'", lexer.TOKEN_RPAREN.DisplayName(), p.peek.Type.DisplayName())
+		return args
 	}
+	p.advance()
 
 	return args
 }
@@ -1087,9 +1089,7 @@ func (p *Parser) parseSwitchArm() (ast.SwitchArm, bool) {
 			return arm, true
 		}
 	}
-	if !p.expect(lexer.TOKEN_SEMICOLON) {
-		return arm, false
-	}
+	p.endStatement()
 	return arm, true
 }
 
