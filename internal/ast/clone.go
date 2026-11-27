@@ -5,6 +5,27 @@ import "reflect"
 type CloneOptions struct {
 	Replace func(Node) (Node, bool)
 	At      *Position
+	Remap   func(line, col int) (int, int)
+}
+
+func remapPositions(v reflect.Value, remap func(line, col int) (int, int)) {
+	direct := func(name string) reflect.Value {
+		if field, ok := v.Type().FieldByName(name); ok && len(field.Index) == 1 {
+			return v.FieldByIndex(field.Index)
+		}
+		return reflect.Value{}
+	}
+	pair := func(lineName, colName string) {
+		line, col := direct(lineName), direct(colName)
+		if !line.IsValid() || !col.IsValid() || line.Kind() != reflect.Int || col.Kind() != reflect.Int || line.Int() == 0 {
+			return
+		}
+		newLine, newCol := remap(int(line.Int()), int(col.Int()))
+		line.SetInt(int64(newLine))
+		col.SetInt(int64(newCol))
+	}
+	pair("Line", "Col")
+	pair("EndLine", "EndCol")
 }
 
 func Clone[T Node](node T, options CloneOptions) T {
@@ -50,6 +71,9 @@ func cloneValue(v reflect.Value, options CloneOptions) reflect.Value {
 				continue
 			}
 			copied.Field(i).Set(cloneValue(v.Field(i), options))
+		}
+		if options.Remap != nil {
+			remapPositions(copied, options.Remap)
 		}
 		if v.Type() == nodePosType && options.At != nil {
 			copied.FieldByName("Line").SetInt(int64(options.At.Line))
@@ -109,6 +133,46 @@ func inspectValue(v reflect.Value, visit func(Node) bool) {
 	case reflect.Slice:
 		for i := 0; i < v.Len(); i++ {
 			inspectValue(v.Index(i), visit)
+		}
+	}
+}
+
+var typeRefType = reflect.TypeOf(TypeRef{})
+
+// Mentions adds to into every name that node uses as a value and the module
+// part of every qualified type it names, which is where a module alias shows up.
+func Mentions(node Node, into map[string]bool) {
+	mentionsOf(reflect.ValueOf(node), into)
+}
+
+func mentionsOf(v reflect.Value, into map[string]bool) {
+	switch v.Kind() {
+	case reflect.Pointer:
+		if v.IsNil() {
+			return
+		}
+		if ident, ok := v.Interface().(*IdentLiteral); ok {
+			into[ident.Value] = true
+		}
+		mentionsOf(v.Elem(), into)
+	case reflect.Interface:
+		if !v.IsNil() {
+			mentionsOf(v.Elem(), into)
+		}
+	case reflect.Struct:
+		if v.Type() == typeRefType {
+			if module := v.FieldByName("Module").String(); module != "" {
+				into[module] = true
+			}
+		}
+		for i := 0; i < v.NumField(); i++ {
+			if v.Type().Field(i).IsExported() {
+				mentionsOf(v.Field(i), into)
+			}
+		}
+	case reflect.Slice:
+		for i := 0; i < v.Len(); i++ {
+			mentionsOf(v.Index(i), into)
 		}
 	}
 }

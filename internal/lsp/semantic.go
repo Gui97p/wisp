@@ -3,6 +3,7 @@ package lsp
 import (
 	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/Gui97p/wisp/internal/analyser"
 	"github.com/Gui97p/wisp/internal/ast"
@@ -10,13 +11,21 @@ import (
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
-var semanticTokenTypes = []string{"property", "enumMember", "type", "typeParameter"}
+var semanticTokenTypes = []string{"property", "enumMember", "type", "typeParameter", "function", "method", "number", "keyword", "operator", "formatPlain", "formatBrace", "formatSpec"}
 
 const (
 	tokenProperty = iota
 	tokenEnumMember
 	tokenType
 	tokenTypeParameter
+	tokenFunction
+	tokenMethod
+	tokenNumber
+	tokenKeyword
+	tokenOperator
+	tokenFormatPlain
+	tokenFormatBrace
+	tokenFormatSpec
 )
 
 type semanticToken struct {
@@ -33,7 +42,7 @@ func semanticTokens(context *glsp.Context, params *protocol.SemanticTokensParams
 
 	program = withoutInstances(declarationsOf(program, declarationFiles(path), path))
 
-	return &protocol.SemanticTokens{Data: encodeTokens(collectTokens(program, info))}, nil
+	return &protocol.SemanticTokens{Data: encodeTokens(collectTokens(program, info, fileBuffer[path]))}, nil
 }
 
 func withoutInstances(program *ast.Program) *ast.Program {
@@ -49,7 +58,7 @@ func withoutInstances(program *ast.Program) *ast.Program {
 	return kept
 }
 
-func collectTokens(program *ast.Program, info *analyser.Info) []semanticToken {
+func collectTokens(program *ast.Program, info *analyser.Info, src []byte) []semanticToken {
 	var tokens []semanticToken
 
 	params := typeParamUses(program)
@@ -170,7 +179,170 @@ func collectTokens(program *ast.Program, info *analyser.Info) []semanticToken {
 		}
 	})
 
+	lines := splitLines(src)
+	for _, site := range info.FormatSites {
+		for _, at := range site.Opens {
+			add(at, tokenFormatBrace)
+		}
+		for _, at := range site.Closes {
+			add(at, tokenFormatBrace)
+		}
+		for _, at := range site.Specs {
+			add(at, tokenFormatSpec)
+		}
+		for _, expr := range site.Exprs {
+			formatExprTokens(expr, info, add)
+		}
+		formatTextTokens(lines, site, add)
+	}
+
 	return tokens
+}
+
+func formatExprTokens(expr ast.Expression, info *analyser.Info, add func(ast.Position, int)) {
+	word := func(line, col, length int, kind int) {
+		add(ast.Position{Line: line, Col: col, EndLine: line, EndCol: col + length - 1}, kind)
+	}
+	ast.Inspect(expr, func(n ast.Node) bool {
+		switch e := n.(type) {
+		case *ast.IdentLiteral:
+			if e.Synthetic {
+				return true
+			}
+			line, col := e.Position()
+			if sym := info.Idents[e]; sym != nil {
+				switch sym.Kind {
+				case analyser.FUNC:
+					word(line, col, len(e.Value), tokenFunction)
+				case analyser.TYPE, analyser.STRUCT:
+				default:
+					word(line, col, len(e.Value), tokenFormatPlain)
+				}
+			} else {
+				word(line, col, len(e.Value), tokenFormatPlain)
+			}
+		case *ast.IntLiteral, *ast.FloatLiteral:
+			line, col := e.(ast.Expression).Position()
+			endLine, endCol := e.(ast.Expression).EndPosition()
+			if line == endLine {
+				word(line, col, endCol-col+1, tokenNumber)
+			}
+		case *ast.BoolLiteral, *ast.NullLiteral:
+			line, col := e.(ast.Expression).Position()
+			endLine, endCol := e.(ast.Expression).EndPosition()
+			if line == endLine {
+				word(line, col, endCol-col+1, tokenKeyword)
+			}
+		case *ast.CallExpr:
+			if member, ok := e.Name.(*ast.MemberExpr); ok && info.MethodCalls[e] != nil {
+				add(member.FieldAt, tokenMethod)
+			}
+		case *ast.MemberExpr:
+			if object, ok := e.Object.(*ast.IdentLiteral); ok {
+				if owner := info.Idents[object]; owner != nil && owner.Kind == analyser.MODULE {
+					if mt, isModule := owner.Type.(*analyser.ModuleType); isModule {
+						if sym := mt.Exports[e.Field]; sym != nil {
+							switch sym.Kind {
+							case analyser.FUNC:
+								add(e.FieldAt, tokenFunction)
+							case analyser.VAR, analyser.CONST:
+								add(e.FieldAt, tokenProperty)
+							}
+						}
+					}
+				}
+			}
+		}
+		return true
+	})
+}
+
+func formatTextTokens(lines []string, site analyser.FormatSite, add func(ast.Position, int)) {
+	const operators = "+-*/%&|^~!<>=?:@"
+	for k, open := range site.Opens {
+		closing := site.Closes[k]
+		if open.Line != closing.Line || open.Line < 1 || open.Line > len(lines) {
+			continue
+		}
+		end := closing.Col - 1
+		for _, spec := range site.Specs {
+			if spec.Line == open.Line && spec.Col > open.Col && spec.EndCol < closing.Col {
+				end = spec.Col - 1
+			}
+		}
+
+		runes := []rune(lines[open.Line-1])
+		offsets := make([]int, len(runes)+1)
+		for i, r := range runes {
+			width := 1
+			if r > 0xFFFF {
+				width = 2
+			}
+			offsets[i+1] = offsets[i] + width
+		}
+		emit := func(from, to, kind int) {
+			add(ast.Position{Line: open.Line, Col: offsets[from] + 1, EndLine: open.Line, EndCol: offsets[to]}, kind)
+		}
+
+		i := 0
+		for i < len(runes) && offsets[i] < open.Col {
+			i++
+		}
+		for i < len(runes) && offsets[i] < end {
+			c := runes[i]
+			switch {
+			case c == '"' || c == '\'':
+				i++
+				for i < len(runes) && offsets[i] < end && runes[i] != c {
+					if runes[i] == '\\' {
+						i++
+					}
+					i++
+				}
+				i++
+			case c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z':
+				float := c >= '0' && c <= '9'
+				for i < len(runes) && (runes[i] == '_' || runes[i] >= '0' && runes[i] <= '9' || runes[i] >= 'a' && runes[i] <= 'z' || runes[i] >= 'A' && runes[i] <= 'Z') {
+					i++
+				}
+				if float && i+1 < len(runes) && runes[i] == '.' && runes[i+1] >= '0' && runes[i+1] <= '9' {
+					i++
+					for i < len(runes) && (runes[i] == '_' || runes[i] >= '0' && runes[i] <= '9') {
+						i++
+					}
+				}
+			case c == '.':
+				from := i
+				switch {
+				case i+1 < len(runes) && runes[i+1] == '.':
+					for i < len(runes) && runes[i] == '.' {
+						i++
+					}
+					if i < len(runes) && runes[i] == '=' {
+						i++
+					}
+					emit(from, i, tokenOperator)
+				case i+1 < len(runes) && runes[i+1] == '?':
+					i += 2
+					emit(from, i, tokenOperator)
+				default:
+					i++
+					emit(from, i, tokenFormatPlain)
+				}
+			case strings.ContainsRune(operators, c):
+				from := i
+				for i < len(runes) && offsets[i] < end && strings.ContainsRune(operators, runes[i]) {
+					i++
+				}
+				emit(from, i, tokenOperator)
+			case strings.ContainsRune(",()[]{}", c):
+				emit(i, i+1, tokenFormatPlain)
+				i++
+			default:
+				i++
+			}
+		}
+	}
 }
 
 func encodeTokens(tokens []semanticToken) []uint32 {

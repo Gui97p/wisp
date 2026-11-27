@@ -1076,6 +1076,29 @@ func main() {
 }
 `, expected: []string{"zero is 0s", "small durations use ns and us", "milliseconds keep their fraction", "seconds keep their fraction", "minutes and hours are written out", "a negative duration starts with a sign", "the smallest duration is written whole", "the unit conversions", "the constants are in the right units", "elapsed counts at least the time slept", "lap starts counting again", "reset starts again", "sleep of nothing returns at once"}},
 
+	{dir: "truncate_immediates", src: `func pick(int x) uint8 {
+    return truncate(uint8, x + 4660);
+}
+
+func main() {
+    int x = 4660;
+    uint8 a = truncate(uint8, x);
+    uint16 b = truncate(uint16, 70000 + x);
+    uint8 c = truncate(uint8, 4660);
+    uint8 d = a + truncate(uint8, 300);
+    uint8 e = truncate(uint8, x) ^ truncate(uint8, 0x1234);
+    int8 f = truncate(int8, 200);
+    uint8 g = pick(1);
+    check(a == 52 && c == 52, "truncate keeps the low byte of a constant that does not fit");
+    check(b == 9124, "truncate to sixteen bits drops the high bits of a sum");
+    check(d == 96, "a truncated constant that does not fit adds as its low byte");
+    check(e == 0, "two truncated values of the same constant are equal");
+    check(f == -56, "truncate to a signed byte wraps");
+    check(g == 53, "truncate of a computed value");
+    check(a == truncate(uint8, 4660), "a truncated constant compares with a variable");
+}
+`, expected: []string{"truncate keeps the low byte of a constant that does not fit", "truncate to sixteen bits drops the high bits of a sum", "a truncated constant that does not fit adds as its low byte", "two truncated values of the same constant are equal", "truncate to a signed byte wraps", "truncate of a computed value", "a truncated constant compares with a variable"}},
+
 	{dir: "rand_basic", src: `import "std/rand";
 
 func main() {

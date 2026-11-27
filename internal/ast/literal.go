@@ -91,8 +91,13 @@ func (f *FloatLiteral) Tree(indent string) string {
 	return indent + fmt.Sprintf("FloatLiteral(%f)\n", f.Value)
 }
 
+type Point struct {
+	Line, Col int
+}
+
 type StringLiteral struct {
 	Value string
+	Map   []Point
 
 	NodePos
 }

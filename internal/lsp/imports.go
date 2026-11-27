@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	importPrefixPattern = regexp.MustCompile(`^\s*import\s+"([^"]*)$`)
-	importLinePattern   = regexp.MustCompile(`(?m)^\s*import\s+"([^"]*)"`)
+	importPrefixPattern = regexp.MustCompile(`^\s*import(?:<[^>]*>)?\s+"([^"]*)$`)
+	importLinePattern   = regexp.MustCompile(`(?m)^\s*import(?:<[^>]*>)?\s+"([^"]*)"`)
 )
 
 type importSegment struct {

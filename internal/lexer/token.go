@@ -203,6 +203,10 @@ var keywords = map[string]TokenType{
 	"false": TOKEN_FALSE,
 }
 
+type Point struct {
+	Line, Col int
+}
+
 type Token struct {
 	Type      TokenType
 	Literal   string
@@ -210,4 +214,6 @@ type Token struct {
 	Column    int
 	EndLine   int
 	EndColumn int
+
+	Map []Point
 }

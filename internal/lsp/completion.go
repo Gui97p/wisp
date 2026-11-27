@@ -102,6 +102,10 @@ func completionItems(uri protocol.DocumentUri, pos protocol.Position, trigger st
 		return items
 	}
 
+	if brace, ok := formatBraceAt(path, pos, candidates); ok {
+		return formatBraceItems(path, pos, candidates, brace, trigger)
+	}
+
 	if insideLiteralOrComment(textBefore(path, int(pos.Line), int(pos.Character))) {
 		return nil
 	}
@@ -207,21 +211,166 @@ func completionItems(uri protocol.DocumentUri, pos protocol.Position, trigger st
 	}
 
 	if info != nil {
-		scope := scopeAt(info, line, col)
-		depths := scope.Depths()
-		for _, sym := range scope.Visible() {
-			if strings.HasPrefix(sym.Name, "__wisp_") {
+		items = append(items, scopeItems(path, info, line, col, prefix, suffix)...)
+	}
+	return items
+}
+
+func scopeItems(path string, info *analyser.Info, line, col int, prefix, suffix string) []protocol.CompletionItem {
+	var items []protocol.CompletionItem
+	scope := scopeAt(info, line, col)
+	depths := scope.Depths()
+	for _, sym := range scope.Visible() {
+		if strings.HasPrefix(sym.Name, "__wisp_") {
+			continue
+		}
+		it := symbolItem(sym, suffix)
+		if (sym.Kind == analyser.VAR || sym.Kind == analyser.PARAM) && !sym.Global {
+			it.SortText = ptr("0" + string(rune('0'+min(depths[sym], 9))) + sym.Name)
+		} else if sym.Builtin && sym.Name != "Error" {
+			it.SortText = ptr(builtinRank(sym.Name) + sym.Name)
+		}
+		items = append(items, it)
+	}
+	items = append(items, shortcutItems(path, scopeAt(info, line, col), typedWord(prefix), suffix)...)
+	return items
+}
+
+type formatBrace struct {
+	expr   string
+	suffix string
+	inSpec bool
+}
+
+func formatBraceAt(path string, pos protocol.Position, candidates []*analyser.Info) (formatBrace, bool) {
+	prefix := linePrefix(path, int(pos.Line), int(pos.Character))
+	inner, inside := formatBraceExpr(prefix)
+	if !inside {
+		return formatBrace{}, false
+	}
+	line, col := int(pos.Line)+1, int(pos.Character)+1
+	isFormat := false
+	for _, info := range candidates {
+		if info == nil {
+			continue
+		}
+		for _, lit := range info.FormatLiterals {
+			after := line > lit.Line || (line == lit.Line && col > lit.Col)
+			before := line < lit.EndLine || (line == lit.EndLine && col <= lit.EndCol)
+			if after && before {
+				isFormat = true
+			}
+		}
+	}
+	if !isFormat {
+		return formatBrace{}, false
+	}
+	source, _, hasSpec := analyser.SplitFormatSpec(inner)
+	return formatBrace{
+		expr:   source,
+		suffix: lineSuffix(path, int(pos.Line), int(pos.Character)),
+		inSpec: hasSpec,
+	}, true
+}
+
+func formatBraceExpr(prefix string) (string, bool) {
+	start := -1
+	quote := byte(0)
+	trimmed := strings.TrimLeft(prefix, " \t")
+	if strings.HasPrefix(trimmed, "\\\\") {
+		start = len(prefix) - len(trimmed) + 2
+	} else {
+		for i := 0; i < len(prefix); i++ {
+			c := prefix[i]
+			if quote == 0 {
+				switch c {
+				case '/':
+					if i+1 < len(prefix) && prefix[i+1] == '/' {
+						return "", false
+					}
+				case '"', '`':
+					quote, start = c, i+1
+				case '\'':
+					for i++; i < len(prefix) && prefix[i] != '\''; i++ {
+						if prefix[i] == '\\' {
+							i++
+						}
+					}
+				}
 				continue
 			}
-			it := symbolItem(sym, suffix)
-			if (sym.Kind == analyser.VAR || sym.Kind == analyser.PARAM) && !sym.Global {
-				it.SortText = ptr("0" + string(rune('0'+min(depths[sym], 9))) + sym.Name)
-			} else if sym.Builtin && sym.Name != "Error" {
-				it.SortText = ptr(builtinRank(sym.Name) + sym.Name)
+			if c == '\\' && quote == '"' {
+				i++
+				continue
 			}
-			items = append(items, it)
+			if c == quote {
+				quote = 0
+			}
 		}
-		items = append(items, shortcutItems(path, scopeAt(info, line, col), typedWord(prefix), suffix)...)
+		if quote == 0 {
+			return "", false
+		}
+	}
+
+	text := prefix[start:]
+	open, depth := -1, 0
+	for j := 0; j < len(text); j++ {
+		switch c := text[j]; {
+		case c == '\\':
+			j++
+		case open < 0 && c == '{':
+			if j+1 < len(text) && text[j+1] == '{' {
+				j++
+				continue
+			}
+			open, depth = j+1, 0
+		case open < 0 && c == '}':
+			if j+1 < len(text) && text[j+1] == '}' {
+				j++
+			}
+		case open >= 0 && c == '{':
+			depth++
+		case open >= 0 && c == '}':
+			if depth == 0 {
+				open = -1
+			} else {
+				depth--
+			}
+		}
+	}
+	if open < 0 {
+		return "", false
+	}
+	return text[open:], true
+}
+
+func formatBraceItems(path string, pos protocol.Position, candidates []*analyser.Info, brace formatBrace, trigger string) []protocol.CompletionItem {
+	if brace.inSpec || (trigger != "" && trigger != ".") {
+		return []protocol.CompletionItem{}
+	}
+	line, col := int(pos.Line)+1, int(pos.Character)+1
+	if endsInMemberDot(brace.expr) && len(candidates) > 0 {
+		if items, found := typedMembers(path, candidates[0], pos, brace.suffix); found {
+			return items
+		}
+	}
+	if base, ok := memberBase(brace.expr); ok {
+		for _, candidate := range candidates {
+			if items := sharedMemberItems(path, base, candidate, line, col, brace.suffix); items != nil {
+				return items
+			}
+		}
+		return []protocol.CompletionItem{}
+	}
+	items := []protocol.CompletionItem{}
+	for _, p := range primitiveNames {
+		items = append(items, item(p, protocol.CompletionItemKindClass, "type"))
+	}
+	for _, k := range []string{"true", "false", "null"} {
+		items = append(items, item(k, protocol.CompletionItemKindKeyword, ""))
+	}
+	if len(candidates) > 0 && candidates[0] != nil {
+		items = append(items, scopeItems(path, candidates[0], line, col, brace.expr, brace.suffix)...)
 	}
 	return items
 }
@@ -229,7 +378,13 @@ func completionItems(uri protocol.DocumentUri, pos protocol.Position, trigger st
 func infoCandidates(path string, pos protocol.Position) []*analyser.Info {
 	program, fresh, clean := analyseEntryChecked(path)
 	if clean && fresh != nil {
-		return []*analyser.Info{currentInfo(path)}
+		candidates := []*analyser.Info{currentInfo(path)}
+		if insideLiteralOrComment(textBefore(path, int(pos.Line), int(pos.Character))) {
+			if info := patchedInfo(path, pos); info != nil {
+				candidates = append([]*analyser.Info{info}, candidates...)
+			}
+		}
+		return candidates
 	}
 
 	var candidates []*analyser.Info

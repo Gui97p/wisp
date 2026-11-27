@@ -207,6 +207,27 @@ func firstExpr(line, col int, exprs ...ast.Expression) ast.Expression {
 	return nil
 }
 
+func narrowestExpr(line, col int, exprs ...ast.Expression) ast.Expression {
+	var best ast.Expression
+	bestSize := 0
+	for _, e := range exprs {
+		if e == nil {
+			continue
+		}
+		r := exprAt(e, line, col)
+		if r == nil {
+			continue
+		}
+		startLine, startCol := r.Position()
+		endLine, endCol := r.EndPosition()
+		size := (endLine-startLine)*100000 + endCol - startCol
+		if best == nil || size < bestSize {
+			best, bestSize = r, size
+		}
+	}
+	return best
+}
+
 func exprAt(expr ast.Expression, line, col int) ast.Expression {
 	if expr == nil || !contains(expr, line, col) {
 		return nil
@@ -224,7 +245,7 @@ func exprAt(expr ast.Expression, line, col int) ast.Expression {
 	case *ast.CallExpr:
 		child = firstExpr(line, col, e.Name)
 		if child == nil {
-			child = firstExpr(line, col, e.Args...)
+			child = narrowestExpr(line, col, e.Args...)
 		}
 	case *ast.MemberExpr:
 		child = exprAt(e.Object, line, col)

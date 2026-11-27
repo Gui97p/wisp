@@ -286,6 +286,9 @@ func TestOrganizeImports(t *testing.T) {
 		{"two missing imports go in as a block", "func main() {\n  int n = math.max(1, 2);\n  string s = strings.trimSpace(\" x \");\n}\n", "import \"std/math\";\nimport \"std/strings\";\n\nfunc main() {\n  int n = math.max(1, 2);\n  string s = strings.trimSpace(\" x \");\n}\n"},
 		{"nothing to do", "func main() {}\n", ""},
 		{"a file with a syntax error", "import \"std/math\";\nfunc main( {\n", ""},
+		{"an import used only by a function of another profile stays", "import \"std/math\";\n\nfunc<release> f() int {\n  return math.max(1, 2);\n}\n\nfunc<!release> f() int {\n  return 0;\n}\n\nfunc main() {\n  int n = f();\n  n++;\n}\n", ""},
+		{"an import used only by a function of another system stays", "import \"std/os\";\n\nfunc<windows> f() bool {\n  return os.exists(\"x\");\n}\n\nfunc<!windows> f() bool {\n  return false;\n}\n\nfunc main() {\n  bool b = f();\n  b = !b;\n}\n", ""},
+		{"an import used only in a type of another profile stays", "import \"std/mem\";\n\nfunc<release> f(mem.Allocator a) {}\n\nfunc<!release> f(int a) {}\n\nfunc main() {}\n", ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -406,6 +409,86 @@ func TestAutoImportCompletion(t *testing.T) {
 		for _, it := range p.completionItems() {
 			if it.Label == "math" && len(it.AdditionalTextEdits) > 0 {
 				t.Errorf("an import was offered for a module that is already imported")
+			}
+		}
+	})
+}
+
+func TestAutoImportGoesBelowTheDirectivesOfTheFile(t *testing.T) {
+	c := start(t)
+	body := "func main() {\n  int n = mat¦;\n}\n"
+	cases := []struct {
+		name, head string
+		line       int
+	}{
+		{"a file with no header", "", 0},
+		{"standalone", "#standalone\n", 1},
+		{"a target", "#target x64 & linux\n", 1},
+		{"a target after a comment", "// header\n#target x64\n\n", 3},
+		{"standalone followed by comments", "#standalone\n// Tour.\n//\n\n", 4},
+		{"directives followed by an import", "#standalone\nimport \"std/fmt\";\n\n", 2},
+		{"a profile import", "import<debug> \"std/os\";\n\n", 1},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			p := c.open(map[string]string{"main.wsp": tc.head + body})
+			for _, it := range p.completionItems() {
+				if it.Label == "math" {
+					if len(it.AdditionalTextEdits) != 1 {
+						t.Fatalf("the item does not carry the import: %+v", it.AdditionalTextEdits)
+					}
+					if got := int(it.AdditionalTextEdits[0].Range.Start.Line); got != tc.line {
+						t.Errorf("the import goes on line %d, want %d", got, tc.line)
+					}
+					return
+				}
+			}
+			t.Error("math is not offered")
+		})
+	}
+}
+
+func TestImportsWithASelector(t *testing.T) {
+	c := start(t)
+
+	t.Run("the path of an import with a selector is completed like any other", func(t *testing.T) {
+		plain := c.open(map[string]string{"main.wsp": "import \"std/ma¦\";\n"}).completion()
+		selected := c.open(map[string]string{"main.wsp": "import<debug> \"std/ma¦\";\n"}).completion()
+		if len(plain) == 0 || strings.Join(plain, ",") != strings.Join(selected, ",") {
+			t.Errorf("plain %v, with a selector %v", plain, selected)
+		}
+	})
+
+	t.Run("an import with a selector is not offered again", func(t *testing.T) {
+		p := c.open(map[string]string{"main.wsp": "import<debug> \"std/math\";\n\nfunc main() {\n  int n = mat¦;\n}\n"})
+		for _, it := range p.completionItems() {
+			if it.Label == "math" && len(it.AdditionalTextEdits) > 0 {
+				t.Errorf("an import was offered for a module that is already imported: %+v", it.AdditionalTextEdits)
+			}
+		}
+	})
+
+	t.Run("a member of a module imported with a selector brings no import", func(t *testing.T) {
+		p := c.open(map[string]string{"main.wsp": "import<debug> \"std/os\";\n\nfunc main() {\n  exis¦;\n}\n"})
+		for _, it := range p.completionItems() {
+			if it.Label == "os.exists" && len(it.AdditionalTextEdits) > 0 {
+				t.Errorf("an import was offered for a module that is already imported: %+v", it.AdditionalTextEdits)
+			}
+		}
+	})
+
+	t.Run("hovering the path shows the module", func(t *testing.T) {
+		p := c.open(map[string]string{"main.wsp": "import<debug> \"std/ma¦th\";\n\nfunc main() {}\n"})
+		if h := p.hover(); !strings.Contains(h, "std/math") && !strings.Contains(h, "module math") {
+			t.Errorf("hover: %q", h)
+		}
+	})
+
+	t.Run("an import of another profile is not reported as unused", func(t *testing.T) {
+		p := c.open(map[string]string{"main.wsp": "import \"std/math\";\n\nfunc<release> f() int {\n  return math.max(1, 2);\n}\n\nfunc<!release> f() int {\n  return 0;\n}\n\nfunc main() {\n  int n = f();\n  n++;\n}\n"})
+		for _, d := range p.diagnostics() {
+			if strings.Contains(d.Message, "never used") {
+				t.Errorf("a warning on an import that the release build uses: %s", d.Message)
 			}
 		}
 	})

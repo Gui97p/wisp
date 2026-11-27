@@ -94,7 +94,14 @@ func (p *Parser) parsePrefixInner() ast.Expression {
 		}
 		return &ast.IntLiteral{Value: int64(u), Unsigned: u > math.MaxInt64}
 	case lexer.TOKEN_STRING_LITERAL:
-		return &ast.StringLiteral{Value: p.current.Literal}
+		literal := &ast.StringLiteral{Value: p.current.Literal}
+		if len(p.current.Map) > 0 {
+			literal.Map = make([]ast.Point, len(p.current.Map))
+			for i, at := range p.current.Map {
+				literal.Map[i] = ast.Point{Line: at.Line, Col: at.Col}
+			}
+		}
+		return literal
 	case lexer.TOKEN_CHAR_LITERAL:
 		return &ast.CharLiteral{Value: p.current.Literal[0]}
 	case lexer.TOKEN_FLOAT_LITERAL:

@@ -44,6 +44,7 @@ type Analyser struct {
 	siteFile      string
 	callee        ast.Expression
 	unavailable   map[string][]string
+	droppedUses   map[string]map[string]bool
 
 	modules map[string]*ModuleInfo
 	links   []*importLink
@@ -389,7 +390,7 @@ func (a *Analyser) warnUnusedImports() {
 		}
 		a.currentFile = a.declFiles[d]
 		sym, ok := a.moduleScope.privates[filepath.Clean(a.currentFile)][imp.Alias]
-		if !ok || sym.Used || sym.Kind != MODULE || silencesUnused(imp.Alias) {
+		if !ok || sym.Used || sym.Kind != MODULE || silencesUnused(imp.Alias) || a.droppedUses[a.currentFile][imp.Alias] {
 			continue
 		}
 		a.warnf(imp, "import %s is never used", imp.Alias)

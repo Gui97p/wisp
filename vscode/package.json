@@ -121,9 +121,29 @@
                 "editor.detectIndentation": false,
                 "editor.stickyTabStops": true,
                 "editor.autoIndent": "full",
-                "editor.semanticHighlighting.enabled": true
+                "editor.semanticHighlighting.enabled": true,
+                "editor.quickSuggestions": {
+                    "other": "on",
+                    "comments": "off",
+                    "strings": "on"
+                },
+                "editor.wordBasedSuggestions": "off"
             }
         },
+        "semanticTokenTypes": [
+            {
+                "id": "formatPlain",
+                "description": "Code inside the braces of a format string that has no color of its own, such as names, dots, commas and brackets."
+            },
+            {
+                "id": "formatBrace",
+                "description": "The braces of a placeholder in a format string."
+            },
+            {
+                "id": "formatSpec",
+                "description": "The spec of a placeholder in a format string, such as :08.2f in {total:08.2f}."
+            }
+        ],
         "semanticTokenScopes": [
             {
                 "language": "wisp",
@@ -137,6 +157,32 @@
                     "typeParameter": [
                         "support.type.parameter.wisp",
                         "entity.name.type.parameter.wisp"
+                    ],
+                    "function": [
+                        "entity.name.function.wisp"
+                    ],
+                    "method": [
+                        "entity.name.function.wisp"
+                    ],
+                    "number": [
+                        "constant.numeric.wisp"
+                    ],
+                    "keyword": [
+                        "constant.language.wisp"
+                    ],
+                    "operator": [
+                        "keyword.operator.wisp"
+                    ],
+                    "formatPlain": [
+                        "meta.embedded.expression.wisp",
+                        "punctuation.separator.wisp",
+                        "keyword.operator.wisp"
+                    ],
+                    "formatBrace": [
+                        "punctuation.definition.template-expression.wisp"
+                    ],
+                    "formatSpec": [
+                        "constant.character.escape.wisp"
                     ]
                 }
             }

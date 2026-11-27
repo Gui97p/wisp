@@ -197,6 +197,23 @@ func importedPaths(path string) map[string]bool {
 	return imported
 }
 
+func isImportLine(line string) bool {
+	t := strings.TrimSpace(line)
+	return strings.HasPrefix(t, "import ") || strings.HasPrefix(t, "import<")
+}
+
+func isDirectiveLine(t string) bool {
+	for _, name := range []string{"#target", "#standalone"} {
+		if strings.HasPrefix(t, name) {
+			rest := t[len(name):]
+			if rest == "" || rest[0] == ' ' || rest[0] == '\t' || strings.HasPrefix(rest, "//") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func importEdit(path, importPath string) (protocol.TextEdit, bool) {
 	src, ok := fileBuffer[path]
 	if !ok {
@@ -206,7 +223,7 @@ func importEdit(path, importPath string) (protocol.TextEdit, bool) {
 
 	last := -1
 	for i, l := range lines {
-		if strings.HasPrefix(strings.TrimSpace(l), "import ") {
+		if isImportLine(l) {
 			last = i
 		}
 	}
@@ -233,7 +250,7 @@ func importEdit(path, importPath string) (protocol.TextEdit, bool) {
 			if strings.HasPrefix(t, "///") {
 				break
 			}
-			if strings.HasPrefix(t, "//") || t == "" {
+			if strings.HasPrefix(t, "//") || t == "" || isDirectiveLine(t) {
 				first = i + 1
 				continue
 			}

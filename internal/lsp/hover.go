@@ -108,6 +108,16 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 	}
 
 	if expr := exprInProgram(local, line, col); expr != nil {
+		if slice, isSlice := expr.(*ast.SliceExpr); isSlice {
+			if rng, onDots := sliceDotsAt(fileBuffer[path], line, col); onDots {
+				if t, known := info.Types[slice]; known {
+					return markdownHover(renderDoc(analyser.TypeText(t), "A view of part of the value, from the start up to the end, which `..` leaves out and `..=` includes. Nothing is copied."), rng)
+				}
+			}
+		}
+		if noHoverHere(expr) {
+			return nil
+		}
 		if prop, isPropagate := expr.(*ast.PropagateExpr); isPropagate {
 			at, onOperator := propagateOperatorAt(prop, line, col)
 			if !onOperator {
@@ -159,6 +169,47 @@ func hover(uri protocol.DocumentUri, pos protocol.Position) *protocol.Hover {
 		return textualHover(path, line, col, info, program)
 	}
 	return markdownHover(text, rng)
+}
+
+func sliceDotsAt(src []byte, line, col int) (*protocol.Range, bool) {
+	lines := splitLines(src)
+	if line < 1 || line > len(lines) || col < 1 || col > len(lines[line-1]) {
+		return nil, false
+	}
+	text := lines[line-1]
+	at := col - 1
+	if text[at] == '=' && at > 0 && text[at-1] == '.' {
+		at--
+	}
+	if text[at] != '.' {
+		return nil, false
+	}
+	from, to := at, at+1
+	for from > 0 && text[from-1] == '.' {
+		from--
+	}
+	for to < len(text) && text[to] == '.' {
+		to++
+	}
+	if to-from < 2 {
+		return nil, false
+	}
+	if to < len(text) && text[to] == '=' {
+		to++
+	}
+	return positionRange(ast.Position{Line: line, Col: from + 1, EndLine: line, EndCol: to}), true
+}
+
+func noHoverHere(expr ast.Expression) bool {
+	switch e := expr.(type) {
+	case *ast.StringLiteral, *ast.IntLiteral, *ast.FloatLiteral, *ast.CharLiteral:
+		return true
+	case *ast.CallExpr:
+		return !e.Range
+	case *ast.IndexExpr, *ast.SliceExpr:
+		return true
+	}
+	return false
 }
 
 func textualHover(path string, line, col int, info *analyser.Info, program *ast.Program) *protocol.Hover {

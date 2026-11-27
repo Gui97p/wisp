@@ -45,6 +45,8 @@ type Info struct {
 	LayoutValues     map[*ast.CallExpr]int
 	Statics          map[*ast.BlockExpr]ConstValue
 	StaticAsserts    map[*ast.CallExpr]bool
+	FormatSites      []FormatSite
+	FormatLiterals   []ast.Position
 }
 
 type VariantInfo struct {

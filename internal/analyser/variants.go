@@ -184,7 +184,19 @@ func (a *Analyser) selectVariants() {
 	for _, d := range a.program.Declarations {
 		if !drop[d] {
 			kept = append(kept, d)
+			continue
 		}
+		if _, isImport := d.(*ast.ImportDecl); isImport {
+			continue
+		}
+		file := a.declFiles[d]
+		if a.droppedUses == nil {
+			a.droppedUses = map[string]map[string]bool{}
+		}
+		if a.droppedUses[file] == nil {
+			a.droppedUses[file] = map[string]bool{}
+		}
+		ast.Mentions(d, a.droppedUses[file])
 	}
 	a.program.Declarations = kept
 }

@@ -459,7 +459,7 @@ func (p *project) semanticTokens() []semanticToken {
 		Data []int `json:"data"`
 	}
 	json.Unmarshal(raw, &result)
-	kinds := []string{"property", "enumMember", "type", "typeParameter"}
+	kinds := []string{"property", "enumMember", "type", "typeParameter", "function", "method", "number", "keyword", "operator", "formatPlain", "formatBrace", "formatSpec"}
 	var tokens []semanticToken
 	line, col := 0, 0
 	for i := 0; i+4 < len(result.Data); i += 5 {

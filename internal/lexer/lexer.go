@@ -19,6 +19,8 @@ type Lexer struct {
 	comments     []Comment
 	lastTokenEnd int
 
+	marks []Point
+
 	ch byte
 }
 
@@ -270,6 +272,7 @@ func (l *Lexer) NextToken() Token {
 
 	case '"':
 		var str strings.Builder
+		l.marks = l.marks[:0]
 		for {
 			l.advance()
 
@@ -278,15 +281,15 @@ func (l *Lexer) NextToken() Token {
 			}
 
 			if l.ch == '\\' && l.peek() == '"' {
+				l.mark(&str, '"')
 				l.advance()
-				str.WriteByte('"')
 				continue
 			}
 
 			if l.ch == '\\' && l.peek() == '\\' {
-				str.WriteByte('\\')
+				l.mark(&str, '\\')
 				l.advance()
-				str.WriteByte('\\')
+				l.mark(&str, '\\')
 				continue
 			}
 
@@ -294,10 +297,10 @@ func (l *Lexer) NextToken() Token {
 				break
 			}
 
-			str.WriteByte(l.ch)
+			l.mark(&str, l.ch)
 		}
 
-		t = l.token(TOKEN_STRING_LITERAL, str.String())
+		t = l.stringToken(str.String())
 	case '\\':
 		if l.peek() != '\\' {
 			t = l.token(TOKEN_ILLEGAL, "\\")
@@ -306,6 +309,7 @@ func (l *Lexer) NextToken() Token {
 		t = l.lineString()
 	case '`':
 		var str strings.Builder
+		l.marks = l.marks[:0]
 		for {
 			l.advance()
 
@@ -314,13 +318,14 @@ func (l *Lexer) NextToken() Token {
 			}
 
 			if l.ch == '\\' && l.peek() == '`' {
+				l.mark(&str, '`')
 				l.advance()
-				str.WriteByte('`')
 				continue
 			}
 
 			if l.ch == '\\' {
-				str.WriteString("\\\\")
+				l.mark(&str, '\\')
+				l.mark(&str, '\\')
 				continue
 			}
 
@@ -328,10 +333,10 @@ func (l *Lexer) NextToken() Token {
 				break
 			}
 
-			str.WriteByte(l.ch)
+			l.mark(&str, l.ch)
 		}
 
-		t = l.token(TOKEN_STRING_LITERAL, str.String())
+		t = l.stringToken(str.String())
 	case '\'':
 		l.advance()
 
@@ -453,6 +458,7 @@ func (l *Lexer) exponent(b *strings.Builder) bool {
 
 func (l *Lexer) lineString() Token {
 	var str strings.Builder
+	l.marks = l.marks[:0]
 	l.advance()
 	for {
 		for l.peek() != '\n' && l.peek() != EOF {
@@ -460,9 +466,10 @@ func (l *Lexer) lineString() Token {
 			switch l.ch {
 			case '\r':
 			case '\\':
-				str.WriteString("\\\\")
+				l.mark(&str, '\\')
+				l.mark(&str, '\\')
 			default:
-				str.WriteByte(l.ch)
+				l.mark(&str, l.ch)
 			}
 		}
 
@@ -476,9 +483,22 @@ func (l *Lexer) lineString() Token {
 		for l.pos < next+1 {
 			l.advance()
 		}
-		str.WriteByte('\n')
+		l.mark(&str, '\n')
 	}
-	return l.token(TOKEN_STRING_LITERAL, str.String())
+	return l.stringToken(str.String())
+}
+
+func (l *Lexer) mark(str *strings.Builder, b byte) {
+	str.WriteByte(b)
+	l.marks = append(l.marks, Point{Line: l.line, Col: l.column})
+}
+
+func (l *Lexer) stringToken(value string) Token {
+	t := l.token(TOKEN_STRING_LITERAL, value)
+	if len(l.marks) == len(value) && strings.IndexByte(value, '{') >= 0 {
+		t.Map = append([]Point(nil), l.marks...)
+	}
+	return t
 }
 
 func (l *Lexer) token(t TokenType, lit string) Token {

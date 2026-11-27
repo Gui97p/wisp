@@ -10,6 +10,39 @@ import (
 type formatItem struct {
 	expr       ast.Expression
 	positional bool
+	open       ast.Position
+	close      ast.Position
+	spec       ast.Position
+}
+
+type FormatSite struct {
+	Opens  []ast.Position
+	Closes []ast.Position
+	Specs  []ast.Position
+	Exprs  []ast.Expression
+}
+
+func indexAt(text string, line, col int) int {
+	l, c := 1, 0
+	for i := 0; i < len(text); i++ {
+		b := text[i]
+		switch {
+		case b == '\n':
+			l++
+			c = 0
+			continue
+		case b&0xC0 == 0x80:
+			continue
+		case b >= 0xF0:
+			c += 2
+		default:
+			c++
+		}
+		if l == line && c >= col {
+			return i
+		}
+	}
+	return len(text) - 1
 }
 
 func formatParam(fd *ast.FuncDecl) int {
@@ -34,11 +67,13 @@ func (a *Analyser) expandFormat(expr *ast.CallExpr, ft *FuncType) {
 		return
 	}
 
+	a.noteFormatLiteral(literal)
 	rewritten, items, problem := a.scanFormat(literal)
 	if problem != "" {
 		a.errorf(literal, "%s", problem)
 		return
 	}
+	a.noteFormatSite(items)
 	inline := false
 	for _, item := range items {
 		if !item.positional {
@@ -73,6 +108,39 @@ func (a *Analyser) expandFormat(expr *ast.CallExpr, ft *FuncType) {
 	expr.Args = args
 }
 
+func (a *Analyser) noteFormatLiteral(literal *ast.StringLiteral) {
+	at := ast.Position{}
+	at.Line, at.Col = literal.Position()
+	at.EndLine, at.EndCol = literal.EndPosition()
+	if at.Line != 0 {
+		a.info.FormatLiterals = append(a.info.FormatLiterals, at)
+	}
+}
+
+func SplitFormatSpec(inner string) (source, spec string, hasSpec bool) {
+	return splitSpec(inner)
+}
+
+func (a *Analyser) noteFormatSite(items []formatItem) {
+	var site FormatSite
+	for _, item := range items {
+		if item.open.Line != 0 {
+			site.Opens = append(site.Opens, item.open)
+			site.Closes = append(site.Closes, item.close)
+		}
+		if item.spec.Line != 0 {
+			site.Specs = append(site.Specs, item.spec)
+		}
+		if item.expr != nil {
+			site.Exprs = append(site.Exprs, item.expr)
+		}
+	}
+	if len(site.Opens) == 0 && len(site.Exprs) == 0 {
+		return
+	}
+	a.info.FormatSites = append(a.info.FormatSites, site)
+}
+
 func (a *Analyser) scanFormat(literal *ast.StringLiteral) (string, []formatItem, string) {
 	text := literal.Value
 	var out strings.Builder
@@ -81,6 +149,22 @@ func (a *Analyser) scanFormat(literal *ast.StringLiteral) (string, []formatItem,
 	at := ast.Position{}
 	at.Line, at.Col = literal.Position()
 	at.EndLine, at.EndCol = literal.EndPosition()
+
+	mapped := len(literal.Map) == len(text)
+	pointAt := func(index int) ast.Position {
+		if !mapped || index < 0 || index >= len(literal.Map) {
+			return ast.Position{}
+		}
+		p := literal.Map[index]
+		return ast.Position{Line: p.Line, Col: p.Col, EndLine: p.Line, EndCol: p.Col}
+	}
+	span := func(from, to int) ast.Position {
+		start, end := pointAt(from), pointAt(to)
+		if start.Line == 0 || start.Line != end.Line {
+			return ast.Position{}
+		}
+		return ast.Position{Line: start.Line, Col: start.Col, EndLine: end.Line, EndCol: end.Col}
+	}
 
 	for i := 0; i < len(text); {
 		c := text[i]
@@ -99,12 +183,15 @@ func (a *Analyser) scanFormat(literal *ast.StringLiteral) (string, []formatItem,
 			inner := text[i+1 : end]
 			source, spec, hasSpec := splitSpec(inner)
 			placeholder := "{}"
+			item := formatItem{open: pointAt(i), close: pointAt(end)}
 			if hasSpec {
 				placeholder = "{:" + spec + "}"
+				item.spec = span(i+1+len(source), end-1)
 			}
 			if strings.TrimSpace(source) == "" {
 				out.WriteString(text[i : end+1])
-				items = append(items, formatItem{positional: true})
+				item.positional = true
+				items = append(items, item)
 			} else {
 				parsed, problem := parser.ParseExpressionText(source)
 				if problem != "" {
@@ -115,7 +202,19 @@ func (a *Analyser) scanFormat(literal *ast.StringLiteral) (string, []formatItem,
 					return "", nil, message
 				}
 				out.WriteString(placeholder)
-				items = append(items, formatItem{expr: ast.Clone(parsed, ast.CloneOptions{At: &at})})
+				options := ast.CloneOptions{At: &at}
+				if mapped {
+					base := i + 1
+					options = ast.CloneOptions{Remap: func(line, col int) (int, int) {
+						p := pointAt(base + indexAt(source, line, col))
+						if p.Line == 0 {
+							return at.Line, at.Col
+						}
+						return p.Line, p.Col
+					}}
+				}
+				item.expr = ast.Clone(parsed, options)
+				items = append(items, item)
 			}
 			i = end + 1
 		default:
