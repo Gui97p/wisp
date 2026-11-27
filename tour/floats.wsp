@@ -1,16 +1,105 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Floating point numbers.
 //
 // The language has float32 and float64, with `float` as another name for
 // float64 (the way `int` is for int64). A literal with a decimal point or an
 // exponent (`2.5`, `1e3`, `4.5e-7`) is a float, and an integer literal turns
-// into one where a float is expected.
-//
-// `fmt` prints a float with `{}` as the shortest text that reads back as the
-// same number (`2.5`, `0.1`, `100`), and with `{:.2f}` or `{:e}` when you want
-// to choose the digits. printing.wsp has the whole spec.
+// into one where a float is expected. The comment at the end of a line shows
+// the value that line gives.
 
 import "std/fmt";
+
+// ---------------------------------------------------------------------------
+// 1. Literals and arithmetic
+// ---------------------------------------------------------------------------
+//
+// Division keeps the fraction, and the operators work on assignments too.
+
+func arithmetic() {
+	float ratio = 2.5;
+	bool twice = ratio * 2 == 5.0;  // true
+	bool scientific = 25e-1 == ratio;  // true
+	bool between = ratio > 2 && ratio < 3;  // true
+
+	float back = 7.0 / 2.0 * 2.0;  // 7
+	float total = 10.0;
+	total += 2.5;  // 12.5
+	total *= 2.0;  // 25
+	float negated = -ratio;  // -2.5
+}
+
+// ---------------------------------------------------------------------------
+// 2. Floats and integers
+// ---------------------------------------------------------------------------
+//
+// An integer converts to a float and back by naming the type. Going back drops
+// the fraction, toward zero.
+
+func conversions() {
+	int whole = 3;
+	float widened = float(whole);  // 3
+	bool half = widened / 2 == 1.5;  // true
+
+	int cut = int(3.9);  // 3
+	int cutNegative = int(-3.9);  // -3
+}
+
+// ---------------------------------------------------------------------------
+// 3. The two widths
+// ---------------------------------------------------------------------------
+//
+// A float32 widens to float on its own, and float and float64 are the same type
+// for every purpose. Each width prints the shortest text for its own precision:
+// the float32 below is the nearest float32 to 1.1, and it still prints as 1.1.
+
+func widths() {
+	float32 small = 1.5;
+	float64 big = small;
+	float same = big;  // 1.5
+
+	float32 narrow = 1.1;  // 1.1
+}
+
+// ---------------------------------------------------------------------------
+// 4. Not a number, and infinity
+// ---------------------------------------------------------------------------
+//
+// NaN is not equal to anything, itself included, and every ordering comparison
+// with it is false. `!=` is the only one that holds. Dividing by zero does not
+// stop a float program: it gives infinity, or NaN for zero over zero.
+
+func specials() {
+	float zero = 0.0;
+	float nan = zero / zero;  // NaN
+	float infinite = 1.0 / zero;  // inf
+
+	bool equal = nan == nan;  // false
+	bool different = nan != nan;  // true
+	bool less = nan < 1.0;  // false
+	bool greater = nan > 1.0;  // false
+}
+
+// ---------------------------------------------------------------------------
+// 5. How a float prints
+// ---------------------------------------------------------------------------
+//
+// With `{}` a float prints as the shortest text that reads back as the same
+// number. `.N` writes N digits after the point, rounded to nearest on the exact
+// value, `f` is six digits as in C, `e` is scientific, and a leading 0 pads
+// with zeros after the sign. printing.wsp has the whole spec. The comment on
+// these lines is what they print.
+
+func printing() {
+	float pi = 3.141592653589793;
+
+	fmt.println("[{pi:.2f}] [{pi:f}] [{pi:e}] [{pi:.3e}] [{-pi:010.3f}]");  // [3.14] [3.141593] [3.141593e+00] [3.142e+00] [-00003.142]
+	fmt.println("[{1e21}] [{0.00001}] [{0.000001}]");  // [1e+21] [0.00001] [1e-06]
+}
+
+// ---------------------------------------------------------------------------
+// 6. Floats in functions and structs
+// ---------------------------------------------------------------------------
 
 struct Vec {
 	float x;
@@ -29,60 +118,20 @@ func dot(Vec a, Vec b) float {
 	return a.x * b.x + a.y * b.y;
 }
 
-public func demo() {
-	float ratio = 2.5;
-	fmt.println("ratio * 2 == 5.0: {}", ratio * 2 == 5.0);
-	fmt.println("25e-1 == ratio: {}", 25e-1 == ratio);
-	fmt.println("ratio is between 2 and 3: {}", ratio > 2 && ratio < 3);
+func using() {
+	float mean = average(2.0, 5.0);  // 3.5
+	let low, high = bounds(4.5, 1.5);  // 1.5, 4.5
 
-	// Division keeps the fraction, and the operators work on assignments too.
-	// `-ratio` flips the sign.
-	fmt.println("7.0 / 2.0 * 2.0 = {}", 7.0 / 2.0 * 2.0);
-	float total = 10.0;
-	total += 2.5;
-	total *= 2.0;
-	fmt.println("total = {}", total);
-	fmt.println("-ratio = {}", -ratio);
-
-	// An integer converts to a float and back by naming the type. Going back
-	// drops the fraction, toward zero.
-	int whole = 3;
-	float widened = float(whole);
-	fmt.println("float(3) / 2 == 1.5: {}", widened / 2 == 1.5);
-	fmt.println("int(3.9) = {}, int(-3.9) = {}", int(3.9), int(-3.9));
-
-	// float32 widens to float on its own, and float and float64 are the same
-	// type for every purpose.
-	float32 small = 1.5;
-	float64 big = small;
-	float same = big;
-	fmt.println("float32 widens, and float is float64: {}", same == 1.5);
-
-	// Each width prints the shortest text for its own precision. The float32
-	// below is the nearest float32 to 1.1, and it still prints as 1.1.
-	float32 narrow = 1.1;
-	fmt.println("float32 {}, float {}", narrow, 1.1);
-
-	// NaN is not equal to anything, itself included, and every ordering
-	// comparison with it is false. `!=` is the only one that holds.
-	float zero = 0.0;
-	float nan = zero / zero;
-	fmt.println("nan == nan: {}, nan != nan: {}", nan == nan, nan != nan);
-	fmt.println("nan < 1.0: {}, nan > 1.0: {}", nan < 1.0, nan > 1.0);
-	fmt.println("nan prints as {}, and {} divided by zero is {}", nan, 1.0, 1.0 / zero);
-
-	// `.N` writes N digits after the point, rounded to nearest on the exact
-	// value, `f` is six digits as in C, `e` is scientific and a leading 0
-	// pads with zeros after the sign.
-	float pi = 3.141592653589793;
-	fmt.println("[{:.2f}] [{:f}] [{:e}] [{:.3e}] [{:010.3f}]", pi, pi, pi, pi, -pi);
-	fmt.println("[{}] [{}] [{}]", 1e21, 0.00001, 0.000001);
-
-	// Floats go through functions, come back from them, and sit in structs.
-	fmt.println("average(2.0, 5.0) = {}", average(2.0, 5.0));
-	let low, high = bounds(4.5, 1.5);
-	fmt.println("bounds(4.5, 1.5) = ({}, {})", low, high);
 	Vec a = Vec{x: 1.5, y: 2.0};
 	Vec b = Vec{x: 2.0, y: 4.0};
-	fmt.println("dot = {}", dot(a, b));
+	float product = dot(a, b);  // 11
+}
+
+public func demo() {
+	arithmetic();
+	conversions();
+	widths();
+	specials();
+	printing();
+	using();
 }

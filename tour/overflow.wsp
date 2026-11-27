@@ -1,77 +1,128 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Integer overflow: wrapping, saturating and truncating.
 //
-// An integer has a fixed size, and the result of an operation can be too big
-// for it. `+`, `-` and `*` treat that as a bug: in the `debug` and `release`
-// profiles the program stops with the place of the operation, and in `fast`
-// the result simply wraps. When overflow is what you want, say so with the
-// operator that matches:
+// An integer has a fixed size, and the result of an operation can be too big for
+// it. `+`, `-` and `*` treat that as a bug: in the `debug` and `release`
+// profiles the program stops with the place of the operation, and in `fast` the
+// result simply wraps. When overflow is what you want, say so with the operator
+// that matches:
 //
 //     wrap around    +%   -%   *%     hashes, checksums, counters
 //     stop at limit  +|   -|   *|     volume, brightness, clamped counts
 //
-// Both exist with `=` too (`+%=`, `-|=`, ...), and only for integers.
-//
-// A conversion such as `uint8(x)` is for values that fit, and stops the same
-// way when they do not. To cut a value down on purpose use
-// `truncate(type, value)`, which keeps the low bits, and to clamp it use
-// `saturate(type, value)`, which also takes a floating point number.
+// Both exist with `=` too (`+%=`, `-|=`, ...), and only for integers. The
+// comment at the end of a line shows the value that line gives.
 
-import "std/fmt";
 import "std/math";
 
-public func demo() {
-	// Unsigned numbers go from the top back to zero, and the other way around.
+// ---------------------------------------------------------------------------
+// 1. Wrapping around
+// ---------------------------------------------------------------------------
+//
+// Unsigned numbers go from the top back to zero, and the other way around.
+// Signed numbers go from the maximum to the minimum.
+
+func wrapping() {
 	uint8 volume = 250;
-	fmt.println("250 +% 10 = {}", volume +% 10);
+	uint8 wrapped = volume +% 10;  // 4
+
 	uint8 low = 3;
-	fmt.println("3 -% 5 = {}", low -% 5);
+	uint8 below = low -% 5;  // 254
 
-	// Signed numbers go from the maximum to the minimum.
 	int8 top = 127;
-	fmt.println("127 +% 1 = {}", top +% 1);
+	int8 over = top +% 1;  // -128
+}
 
-	// A hash is the usual reason: FNV-1a keeps multiplying and wants the
-	// wrapped result, in the same 32 bits on every run.
+// A hash is the usual reason: FNV-1a keeps multiplying and wants the wrapped
+// result, in the same 32 bits on every run.
+
+func hashing() {
 	uint32 hash = 2166136261;
 	string word = "wisp";
 	for _, c in word {
 		hash ^= c;
 		hash *%= 16777619;
 	}
-	fmt.println("the hash of {} is {}", word, hash);
+	uint32 result = hash;  // 39303838
+}
 
-	// `truncate` keeps the low bits, which is how a byte is taken out of a
-	// bigger number.
+// ---------------------------------------------------------------------------
+// 2. Cutting a number down
+// ---------------------------------------------------------------------------
+//
+// `truncate(type, value)` keeps the low bits, which is how a byte is taken out
+// of a bigger number. A plain conversion such as `uint8(x)` is for values that
+// fit, and stops the program the same way `+` does when they do not.
+
+func truncating() {
 	uint32 color = 0x336699;
-	fmt.println("red {}, green {}, blue {}", truncate(uint8, color >> 16), truncate(uint8, color >> 8), truncate(uint8, color));
-	fmt.println("300 truncated to a byte is {}", truncate(uint8, 300));
+	uint8 red = truncate(uint8, color >> 16);  // 51
+	uint8 green = truncate(uint8, color >> 8);  // 102
+	uint8 blue = truncate(uint8, color);  // 153
 
-	// Saturating stops at the limits instead of coming back around.
+	uint8 cut = truncate(uint8, 300);  // 44
+}
+
+// ---------------------------------------------------------------------------
+// 3. Stopping at the limit
+// ---------------------------------------------------------------------------
+//
+// Saturating stops at the limits instead of coming back around. `saturate` does
+// the same for a conversion, from an integer or a float.
+
+func saturating() {
 	uint8 loud = 250;
-	fmt.println("250 +| 10 = {}, 3 -| 10 = {}", loud +| 10, low -| 10);
+	uint8 capped = loud +| 10;  // 255
+	uint8 quiet = 3;
+	uint8 floor = quiet -| 10;  // 0
+
 	int8 gain = 100;
-	fmt.println("100 *| 3 = {}, 100 *| -3 = {}", gain *| 3, gain *| -3);
+	int8 up = gain *| 3;  // 127
+	int8 down = gain *| -3;  // -128
 
-	// `saturate` does the same for a conversion, from an integer or a float.
 	int wide = 1000;
-	fmt.println("1000 saturated to a byte is {}, to an int8 is {}", saturate(uint8, wide), saturate(int8, wide));
-	float level = -3.7;
-	fmt.println("-3.7 saturated to a byte is {}, to an int8 is {}", saturate(uint8, level), saturate(int8, level));
+	uint8 asByte = saturate(uint8, wide);  // 255
+	int8 asInt8 = saturate(int8, wide);  // 127
 
-	// When going past the limit is something to find out and not to hide, the
-	// `checked` functions of `std/math` give the result, or `null` when it does
-	// not fit. They are optionals, so `??` and `if x |v|` take them from there.
+	float level = -3.7;
+	uint8 levelByte = saturate(uint8, level);  // 0
+	int8 levelInt8 = saturate(int8, level);  // -3
+}
+
+// ---------------------------------------------------------------------------
+// 4. Finding out
+// ---------------------------------------------------------------------------
+//
+// When going past the limit is something to find out and not to hide, the
+// `checked` functions of `std/math` give the result, or `null` when it does not
+// fit. They are optionals, so `??` and `if x |v|` take them from there.
+
+func checking() {
 	?int fits = math.checkedAdd(math.MAX_INT - 1, 1);
 	?int overflows = math.checkedAdd(math.MAX_INT, 1);
-	fmt.println("MAX_INT - 1 + 1 fits: {}, MAX_INT + 1 fits: {}", fits != null, overflows != null);
-	fmt.println("MAX_INT + 1, or -1 when it does not fit: {}", math.checkedAdd(math.MAX_INT, 1) ?? -1);
+	bool fitsFits = fits != null;  // true
+	bool overflowsFits = overflows != null;  // false
+
+	int orMinusOne = math.checkedAdd(math.MAX_INT, 1) ?? -1;  // -1
+
+	int result = 0;
 	if math.checkedMul(1 << 40, 1 << 20) |product| {
-		fmt.println("2^40 * 2^20 = {}", product);
+		result = product;  // 1152921504606846976
 	}
+
+	int unchanged = 0;
 	if math.checkedMul(1 << 40, 1 << 30) |product| {
-		fmt.println("2^40 * 2^30 = {}", product);
+		unchanged = product;
 	} else {
-		fmt.println("2^40 * 2^30 does not fit in an int");
+		unchanged = -1;  // -1
 	}
+}
+
+public func demo() {
+	wrapping();
+	hashing();
+	truncating();
+	saturating();
+	checking();
 }

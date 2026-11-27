@@ -1,28 +1,12 @@
 #standalone
-// Tour - Printing.
+#allow unused_variables, dead_code
+// Tour - Printing: `print`, `println` and the format.
 //
-// `std/fmt` writes text. `print` and `println` write to standard output, and
-// `println` adds the newline. Both take a format string and any number of
-// arguments of any type. Each `{}` in the format takes the next argument, and
-// `{{` and `}}` write a brace.
+// `std/fmt` writes text. `print` writes to standard output, and `println` does
+// the same and adds a newline. Both take a format string, which is ordinary
+// text with places marked by braces, and the values that go in those places.
 //
-// A value can also be written inside the braces, `{total}` or `{a + b}`, and
-// the compiler passes it as an argument. The two kinds mix, and every `{}` takes
-// its argument in the order it appears in the text.
-//
-// After a colon, a spec says how to write the value:
-//
-//     {:[[fill]align][#][0][width][.precision][type]}
-//
-// `{x:08.2f}` is an expression with a spec, and `{:08.2f}` is the next argument
-// with it. `align` is `<`, `^` or `>`, `fill` is the character that pads (a space
-// when left out), `#` adds a prefix such as 0x, a leading `0` pads with zeros,
-// and the type is one of d, x, X, b, o, c, e, E, f, v or p. A number aligns right
-// and text aligns left unless you say otherwise.
-//
-// A mistake in a format never stops the program. The text it could not fill
-// stays as written and `println` goes on, and `fprint` and `fprintln` return what
-// went wrong as a FormatError, which `print` and `println` throw away.
+// On this page the comment at the end of a line shows what the line prints.
 
 import "std/fmt";
 import "std/io";
@@ -44,56 +28,155 @@ enum Color {
 	Blue,
 }
 
-public func demo() {
-	fmt.print("print writes a string, ");
-	fmt.println("println adds a newline");
+// ---------------------------------------------------------------------------
+// 1. Putting values in the text
+// ---------------------------------------------------------------------------
+//
+// Write the value you want inside the braces and it is printed in its place.
+// Anything that is an expression fits: a name, a call, an operation.
+//
+// The values can also come after the string. Each empty `{}` takes the next
+// one of them, and the two ways can be mixed: every `{}` takes its value in
+// the order the braces appear in the text. A brace that is just text is
+// written twice, `{{` and `}}`.
 
-	fmt.println("an int {}, a string {}, a byte {}, a bool {}", 42, "text", 'x', true);
-	fmt.println("a byte is a number, and the c spec writes it as a character: {:c}", 'x');
-	fmt.println("braces: {{ and }}");
+func values() {
+	int total = 6;
+	string name = "wisp";
 
-	// An enum prints its number. Its name() method gives the name.
+	fmt.println("the total is {total}");  // the total is 6
+	fmt.println("{name} has {len(name)} letters");  // wisp has 4 letters
+	fmt.println("twice the total is {total * 2}");  // twice the total is 12
+
+	fmt.println("{} and {}", total, name);  // 6 and wisp
+	fmt.println("a {total} b {} c {name} d {}", 70, 80);  // a 6 b 70 c wisp d 80
+	fmt.println("braces: {{ and }}");  // braces: { and }
+}
+
+// ---------------------------------------------------------------------------
+// 2. What each type prints
+// ---------------------------------------------------------------------------
+//
+// Integers, strings and bools print as you would write them. A `byte` is a
+// number, so it prints as one, and the `c` spec (see below) writes it as a
+// character. An enum prints its number, and its `name()` method gives the name.
+
+func types() {
+	fmt.println("an int {}, a string {}, a byte {}, a bool {}", 42, "text", 'x', true);  // an int 42, a string text, a byte 120, a bool true
+	fmt.println("the same byte as a character: {'x':c}");  // the same byte as a character: x
+
 	Color favorite = .Green;
-	fmt.println("{} is {}", favorite.name(), favorite);
+	fmt.println("{favorite.name()} is {favorite}");  // Green is 1
+}
 
-	// Number types.
-	fmt.println("255 in hex {:x}, upper case {:X}, with a prefix {:#x}", 255, 255, 255);
-	fmt.println("5 in binary {:b}, with a prefix {:#b}; 8 in octal {:#o}", 5, 5, 8);
-	fmt.println("65 as a character: {:c}", 65);
+// ---------------------------------------------------------------------------
+// 3. The spec
+// ---------------------------------------------------------------------------
+//
+// After a colon, a spec says how to write the value:
+//
+//     {value:[[fill]align][#][0][width][.precision][type]}
+//
+// `{x:08.2f}` is an expression with a spec, and `{:08.2f}` is the next value
+// after the string with it. `align` is `<`, `^` or `>`, `fill` is the
+// character that pads (a space when left out), `#` adds a prefix such as 0x, a
+// leading `0` pads with zeros, and `type` is one of `d x X b o c e E f v p`. A
+// number aligns right and text aligns left unless you say otherwise.
 
-	// Width, alignment and fill.
-	fmt.println("[{:6}] [{:<6}] [{:^6}] [{:>6}]", 42, 42, 42, 42);
-	fmt.println("[{:-<6}] [{:*^7}]", 7, "ab");
-	fmt.println("[{:06}] [{:06}] [{:#06x}]", 42, -42, 255);
+func integers() {
+	fmt.println("{255:x} {255:X} {255:#x}");  // ff FF 0xff
+	fmt.println("{5:b} {5:#b} {8:#o}");  // 101 0b101 0o10
+	fmt.println("{65:c}");  // A
+}
+
+func widths() {
+	string name = "wisp";
+
+	fmt.println("[{42:6}] [{42:<6}] [{42:^6}] [{42:>6}]");  // [    42] [42    ] [  42  ] [    42]
+	fmt.println("[{7:-<6}] [{name:*^8}]");  // [7-----] [**wisp**]
+	fmt.println("[{42:06}] [{-42:06}] [{255:#06x}]");  // [000042] [-00042] [0x00ff]
 
 	// For text, the precision cuts.
-	fmt.println("[{:.3}] [{:6.3}]", "abcdef", "abcdef");
+	fmt.println("[{name:.3}] [{name:6.3}]");  // [wis] [wis   ]
+}
 
-	// Floats print with `{}` as the shortest text that reads back as the same
-	// number. For a float the precision is the number of digits after the
-	// point: `f` is fixed notation (six digits unless you say), `e` and `E`
-	// are scientific. See floats.wsp for more.
-	fmt.println("[{}] [{:.2}] [{:f}] [{:.3f}] [{:e}] [{:.2E}]", 0.1, 2.0 / 3.0, 2.5, 2.5, 1234.5, 1234.5);
-	fmt.println("[{:8.2f}] [{:<8.2f}] [{:08.2f}]", 3.14159, 3.14159, -3.14159);
+// ---------------------------------------------------------------------------
+// 4. Floats
+// ---------------------------------------------------------------------------
+//
+// A float prints with `{}` as the shortest text that reads back as the same
+// number. For a float the precision is the number of digits after the point:
+// `f` is fixed notation (six digits unless you say), and `e` and `E` are
+// scientific. floats.wsp has more.
 
-	// `fprint` and `fprintln` write to anything that can be written to.
-	// `&os.stdout` is the terminal, and `&os.stderr` is where errors go.
-	fmt.fprintln(&os.stderr, "this line goes to standard error: {}", 7) ?? return;
+func floats() {
+	float third = 2.0 / 3.0;
 
-	// A `strings.Builder` collects text, and `fmt.format` writes into it, which
-	// is how you get a string out of a format. It returns how many bytes it wrote.
+	fmt.println("[{0.1}] [{third}] [{third:.2}]");  // [0.1] [0.6666666666666666] [0.67]
+	fmt.println("[{2.5:f}] [{2.5:.3f}] [{1234.5:e}] [{1234.5:.2E}]");  // [2.500000] [2.500] [1.234500e+03] [1.23E+03]
+	fmt.println("[{3.14159:8.2f}] [{3.14159:<8.2f}] [{-3.14159:08.2f}]");  // [    3.14] [3.14    ] [-0003.14]
+}
+
+// ---------------------------------------------------------------------------
+// 5. When the format is wrong
+// ---------------------------------------------------------------------------
+//
+// A mistake in a format never stops the program. The text it could not fill
+// stays as written and `println` goes on. `print` and `println` throw the
+// problem away, and `fprint`, `fprintln` and `format` return it as a
+// `FormatError`.
+
+func mistakes() {
+	string name = "wisp";
+	fmt.println("a spec that does not exist: {:z}", name);  // a spec that does not exist: {:z}
+}
+
+// ---------------------------------------------------------------------------
+// 6. Writing somewhere else
+// ---------------------------------------------------------------------------
+//
+// `fprint` and `fprintln` write to anything that can be written to: `&os.stdout`
+// is the terminal and `&os.stderr` is where errors go. A `strings.Builder`
+// collects text, and `fmt.format` writes into it, which is how you get a string
+// out of a format. It returns how many bytes it wrote, and the problem if there
+// was one.
+
+func elsewhere() {
+	fmt.fprintln(&os.stderr, "this line goes to standard error: {1 + 1}") ?? return;
+
 	strings.Builder builder;
 	defer builder.release();
+
 	let size, problem = fmt.format(&builder, "{} + {} = {}", 2, 3, 5);
-	fmt.println("format wrote {} bytes: {}", size, builder.text());
-	fmt.println("a fitting format reports a problem: {}", problem != null);
+	string text = builder.text();  // "2 + 3 = 5"
+	int written = size;  // 9
+	bool failed = problem != null;  // false
 
-	// A bad format is written back as it was and reported, not fatal.
 	let _, wrong = fmt.format(&builder, "{:z}", 1);
-	fmt.println("a spec that does not exist reports a problem: {}", wrong == fmt.FormatError.BadSpec);
+	bool badSpec = wrong == fmt.FormatError.BadSpec;  // true
+}
 
-	// A type with a `display` method, declared with `implements fmt.Display`,
-	// writes itself where `{}` asks for it.
+// ---------------------------------------------------------------------------
+// 7. Types that print themselves
+// ---------------------------------------------------------------------------
+//
+// A type with a `display` method, declared with `implements fmt.Display`,
+// writes itself where `{}` asks for it. `Point` at the top of this page does
+// that, and takes no spec.
+
+func display() {
 	Point point = Point{x: 3, y: 4};
-	fmt.println("the point is {}", point);
+
+	fmt.println("the point is {point}");  // the point is (3, 4)
+}
+
+public func demo() {
+	values();
+	types();
+	integers();
+	widths();
+	floats();
+	mistakes();
+	elsewhere();
+	display();
 }

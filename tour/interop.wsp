@@ -1,55 +1,48 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Native code.
 //
-// `native` embeds code written for one architecture. What is in angle brackets
-// picks it: `native<x64>`, or an expression such as
-// `native<x64 & linux>` (see the platform folder). Inside a file that already
-// has a `#target`, the brackets are redundant and can be left out: a plain
-// `native` there is for whatever that file is for. Blocks for other
-// architectures are skipped, so one function can carry an implementation for
-// each one. A function with no block for the architecture being built just
-// runs its plain code, so a port you did not write does nothing.
+// `native` embeds code written for one architecture. The comment at the end of a
+// line shows the value that line gives. Calling functions written in C is a
+// separate feature, `extern`; see the _c folder.
+
+// ---------------------------------------------------------------------------
+// 1. Choosing the architecture
+// ---------------------------------------------------------------------------
+//
+// What is in angle brackets picks it: `native<x64>`, or an expression such as
+// `native<x64 & linux>` (see the platform folder). Inside a file that already has
+// a `#target`, the brackets are redundant and can be left out: a plain `native`
+// there is for whatever that file is for. Blocks for other architectures are
+// skipped, so one function can carry an implementation for each one. A function
+// with no block for the architecture being built just runs its plain code, so a
+// port you did not write does nothing.
+
+// ---------------------------------------------------------------------------
+// 2. A block inside a function
+// ---------------------------------------------------------------------------
 //
 // A native block is written as instructions, one per line, in Intel order
-// (destination first), each ending in `;`. The compiler parses them and hands
-// the mnemonics to the assembler, so anything the assembler knows works. The
-// operands are registers, numbers, `[base + index*scale + disp]` memory,
-// labels (`again:` is local to its block) and Wisp names. `//` starts a
-// comment.
+// (destination first), each ending in `;`. The compiler parses them and hands the
+// mnemonics to the assembler, so anything the assembler knows works. The operands
+// are registers, numbers, `[base + index*scale + disp]` memory, labels (`again:`
+// is local to its block) and Wisp names. `//` starts a comment.
 //
-// A Wisp name means the value of the variable: `mov rax, x` loads it. A
-// string has the parts `s.ptr` and `s.len`, a struct field is `p.x`, and
-// `&name` is the memory of a variable, which `lea` turns into an address. A
-// variable never goes inside `[ ]`: load it into a register first. A name
-// that is also a register (`rax`, `al`) is the register inside the block.
-// Constants, including those of other modules, are numbers, and a string
-// constant has `.ptr` and `.len` too. Symbols that belong to the assembler,
-// such as the runtime's, are declared with `extern name;`. The name of a Wisp
-// function is its address, for `call`, `jmp` and `lea`; the block is
-// then the one that follows the calling convention (arguments in `rdi`, `rsi`,
-// `rdx`, ..., the result in `rax`), and a `call` counts as changing every
-// register the callee may change.
+// A Wisp name means the value of the variable: `mov rax, x` loads it. A string has
+// the parts `s.ptr` and `s.len`, a struct field is `p.x`, and `&name` is the
+// memory of a variable, which `lea` turns into an address. A variable never goes
+// inside `[ ]`: load it into a register first. A name that is also a register
+// (`rax`, `al`) is the register inside the block. Constants, including those of
+// other modules, are numbers, and a string constant has `.ptr` and `.len` too.
+// Symbols that belong to the assembler, such as the runtime's, are declared with
+// `extern name;`.
 //
-// A block can use any register. The compiler reads which ones it names (and
-// the ones an instruction touches by itself, such as `div`, `rep movsb` and
-// `syscall`), keeps its own locals out of them and saves the ones a caller
-// expects to be preserved. Every variable named in a block is assumed read and
-// written, and stays in memory. Mixing widths, as in `mov eax, x` with a
-// 64-bit `x`, is a warning.
-//
-// A whole function can be native. `native<x64>` takes the place of `func`, the
-// parameters are inputs, the results are named, and the block is the body.
-// There is no ABI to think about: the compiler builds the function around the
-// block, so the results come back as in any other function. When a plain
-// function and a native one share a name and signature, the native one of the
-// architecture being built replaces the plain one; every version has to have
-// the same signature. `inline native<x64>` expands the block at each call.
-// A function with the `#naked` tag has no frame at all: see the tags page.
-//
-// Calling functions written in C is a separate feature, `extern`; see the
-// _c folder.
-
-import "std/fmt";
+// A block can use any register. The compiler reads which ones it names (and the
+// ones an instruction touches by itself, such as `div`, `rep movsb` and
+// `syscall`), keeps its own locals out of them and saves the ones a caller expects
+// to be preserved. Every variable named in a block is assumed read and written,
+// and stays in memory. Mixing widths, as in `mov eax, x` with a 64-bit `x`, is a
+// warning.
 
 public func abs(int x) int {
 	int r;
@@ -63,6 +56,24 @@ public func abs(int x) int {
 	}
 	return r;
 }
+
+func blocks() {
+	int positive = abs(-5);  // 5
+	int unchanged = abs(5);  // 5
+}
+
+// ---------------------------------------------------------------------------
+// 3. A whole native function
+// ---------------------------------------------------------------------------
+//
+// A whole function can be native. `native<x64>` takes the place of `func`, the
+// parameters are inputs, the results are named, and the block is the body. There
+// is no ABI to think about: the compiler builds the function around the block, so
+// the results come back as in any other function. When a plain function and a
+// native one share a name and signature, the native one of the architecture being
+// built replaces the plain one; every version has to have the same signature.
+// `inline native<x64>` expands the block at each call. A function with the
+// `#naked` tag has no frame at all: see the tags page.
 
 native<x64> sum(int a, int b) int total {
 	mov rax, a;
@@ -79,6 +90,20 @@ native<x64> halves(int n) (int low, int high) {
 	mov high, rcx;
 }
 
+func functions() {
+	int total = sum(2, 3);  // 5
+	int low, high = halves(7);  // 3, 4
+}
+
+// ---------------------------------------------------------------------------
+// 4. Calling Wisp from native code
+// ---------------------------------------------------------------------------
+//
+// The name of a Wisp function is its address, for `call`, `jmp` and `lea`; the
+// block is then the one that follows the calling convention (arguments in `rdi`,
+// `rsi`, `rdx`, ..., the result in `rax`), and a `call` counts as changing every
+// register the callee may change.
+
 func twice(int x) int {
 	return x * 2;
 }
@@ -91,10 +116,12 @@ native<x64> quadruple(int n) int r {
 	mov r, rax;
 }
 
+func calling() {
+	int four = quadruple(5);  // 20
+}
+
 public func demo() {
-	fmt.println("abs(-5) = {}, abs(5) = {}", abs(-5), abs(5));
-	fmt.println("sum(2, 3) = {}", sum(2, 3));
-	fmt.println("quadruple(5) = {}", quadruple(5));
-	int low, high = halves(7);
-	fmt.println("halves(7) = {} and {}", low, high);
+	blocks();
+	functions();
+	calling();
 }

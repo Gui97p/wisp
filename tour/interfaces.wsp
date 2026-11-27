@@ -1,51 +1,24 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Interfaces: one contract, many types.
 //
-// An interface lists methods:
-//
-//     interface Shape {
-//       func area() int;
-//       func name() string;
-//     }
+// An interface lists methods, and any type that keeps the contract can be used
+// where the interface is asked for. The comment at the end of a line shows the
+// value that line gives.
+
+// ---------------------------------------------------------------------------
+// 1. A contract and the types that keep it
+// ---------------------------------------------------------------------------
 //
 // A type says it keeps the contract in its own header, with `implements`, and
 // the compiler checks it right there: a missing method, or one with another
-// signature, is an error on that line. The methods stay where methods always
-// are, as `func (*Square s) area()`; nothing is written twice. A type that has
-// the methods but does not say so does not count, so a contract is never kept
-// by accident.
+// signature, is an error on that line. The methods stay where methods always are,
+// as `func (*Square s) area()`; nothing is written twice. A type that has the
+// methods but does not say so does not count, so a contract is never kept by
+// accident.
 //
-// A pointer to such a type is a value of the interface: `Shape s = &square;`.
-// The interface value is two words, the pointer to the object and a table with
-// the object's methods, and `s.area()` finds the method in that table. Nothing
-// is copied into it and nothing is allocated: the object stays where it is, so
-// it has to outlive the interface value, like any pointer. For the same
-// reason a value of an interface is never null; `?Shape` is the one that can
-// be, and it is read like any other optional.
-//
-// A method written for a value (`func (Square s) area()`) works behind an
-// interface too, and gets a copy, as it does in a direct call. A method for a
-// pointer gets the object itself.
-//
-// To see what is behind an interface, switch on its type. Only a pointer to a
-// type can be a case, since that is what the interface holds, and the type has
-// to implement the interface.
-//
-// An interface can also be picked out of a value that was passed as an untyped
-// variadic argument (`...args`), where all that is known is the type of each
-// value. For that the interface is declared `#dynamic`, and the types that
-// implement it have to say so with `implements`: a type that only has the
-// methods is not found. Then `case Shape s` in a switch on types matches the
-// values of those types, and `s` is the interface value, as in `Shape s =
-// &square`. A value of a struct is passed by its address, so what the method
-// sees is the struct itself. An interface that is not `#dynamic` cannot be a
-// case there, and the compiler says so; one that is costs nothing to the types
-// that do not implement it.
-//
-// Interfaces compose with `&`: `interface Solid { Shape & Scalable }` asks for
-// the methods of both, and a type that declares `implements Solid` keeps both.
-
-import "std/fmt";
+// Interfaces compose with `&`: `interface Solid { Shape & Scalable }` asks for the
+// methods of both, and a type that declares `implements Solid` keeps both.
 
 interface Shape {
 	func area() int;
@@ -86,40 +59,112 @@ func (*Disk d) name() string {
 	return "disk";
 }
 
-func describe(Shape s) {
-	fmt.println("{} with area {}", s.name(), s.area());
-}
+// ---------------------------------------------------------------------------
+// 2. Using an interface value
+// ---------------------------------------------------------------------------
+//
+// A pointer to such a type is a value of the interface: `Shape s = &square;`. The
+// interface value is two words, the pointer to the object and a table with the
+// object's methods, and `s.area()` finds the method in that table. Nothing is
+// copied into it and nothing is allocated: the object stays where it is, so it
+// has to outlive the interface value, like any pointer. For the same reason a
+// value of an interface is never null; `?Shape` is the one that can be, and it is
+// read like any other optional.
+//
+// A method written for a value (`func (Square s) area()`) works behind an
+// interface too, and gets a copy, as it does in a direct call. A method for a
+// pointer gets the object itself.
 
 func larger(Shape a, Shape b) Shape {
 	return a if a.area() >= b.area();
 	return b;
 }
 
-func inspect(Shape s) {
-	switch type s {
-		case *Square square => fmt.println("a square of side {}", square.side);
-		case *Disk disk => fmt.println("a disk of radius {}", disk.radius);
-		default => fmt.println("some other shape");
+func values() {
+	Square square = Square{side: 3};
+	Disk disk = Disk{radius: 2};
+
+	Shape a = &square;
+	Shape b = &disk;
+	string aName = a.name();  // "square"
+	int aArea = a.area();  // 9
+	int bArea = b.area();  // 12
+	string biggest = larger(a, b).name();  // "disk"
+
+	Solid solid = &square;
+	solid.scale(2);
+	int scaled = a.area();  // 36
+
+	?Shape spare = null;
+	bool noSpare = spare == null;  // true
+	spare = &disk;
+	string spareName = "";
+	if spare |s| {
+		spareName = s.name();  // "disk"
 	}
 }
 
+// ---------------------------------------------------------------------------
+// 3. Seeing what is behind an interface
+// ---------------------------------------------------------------------------
+//
+// To see what is behind an interface, switch on its type. Only a pointer to a type
+// can be a case, since that is what the interface holds, and the type has to
+// implement the interface.
+
+func inspect(Shape s) int {
+	switch type s {
+		case *Square square => return square.side;
+		case *Disk disk => return disk.radius;
+		default => return -1;
+	}
+}
+
+func inspecting() {
+	Square square = Square{side: 3};
+	Disk disk = Disk{radius: 2};
+	Shape a = &square;
+	Shape b = &disk;
+
+	int side = inspect(a);  // 3
+	int radius = inspect(b);  // 2
+}
+
+// ---------------------------------------------------------------------------
+// 4. An interface that limits a type parameter
+// ---------------------------------------------------------------------------
+//
 // The same interface can limit a type parameter, written before the name:
 // `Shape S`. The two uses differ in what the compiler does. `Shape s` is one
-// compiled function that calls through the table, and it can hold different
-// types in one array or one field. `<Shape S>` is a copy of the function for
-// each type, with the method called directly, and the body can only use what
-// `Shape` promises of `S`. A pointer, and an interface value too, can be the
-// type argument.
+// compiled function that calls through the table, and it can hold different types
+// in one array or one field. `<Shape S>` is a copy of the function for each type,
+// with the method called directly, and the body can only use what `Shape`
+// promises of `S`. A pointer, and an interface value too, can be the type
+// argument.
+
 func areaOf<Shape S>(S shape) int {
 	return shape.area();
 }
 
-// An interface can also name types, joined with `|`, `&` and `!`: a type set.
-// It has no methods, so it cannot be the type of a value; it only limits a
-// type parameter, and inside the body `T` supports what every type of the set
-// does. A type belongs to the set when the type it is made of does, so
-// `Meters`, defined from `int`, is a `Number`. `Comparable` is the one
-// constraint the language ships: the types that `==` works on.
+func limiting() {
+	Square square = Square{side: 3};
+	Shape a = &square;
+
+	int direct = areaOf(&square);  // 9
+	int through = areaOf(a);  // 9
+}
+
+// ---------------------------------------------------------------------------
+// 5. Sets of types
+// ---------------------------------------------------------------------------
+//
+// An interface can also name types, joined with `|`, `&` and `!`: a type set. It
+// has no methods, so it cannot be the type of a value; it only limits a type
+// parameter, and inside the body `T` supports what every type of the set does. A
+// type belongs to the set when the type it is made of does, so `Meters`, defined
+// from `int`, is a `Number`. `Comparable` is the one constraint the language
+// ships: the types that `==` works on.
+
 interface Number { int | int64 | float }
 
 interface Whole { int | int8 | int16 | int32 | int64 }
@@ -140,13 +185,29 @@ func same<Comparable T>(T a, T b) bool {
 	return a == b;
 }
 
-// From another module an interface is written with the module, like every
-// other name (`io.Writer`). To get a shorter name here, declare a local
-// interface that is the remote one: `interface Writer { io.Writer }`.
+func sets() {
+	int twice = double(21);  // 42
+	float half = double(1.5);  // 3
+	int meters = int(double(Meters(4)));  // 8
+	int16 opposite = negate(int16(7));  // -7
+	bool equal = same(3, 3);  // true
+	bool different = same("a", "b");  // false
+}
+
+// ---------------------------------------------------------------------------
+// 6. Finding an interface in untyped arguments
+// ---------------------------------------------------------------------------
 //
-// What interfaces do not do yet: an interface value cannot become another
-// interface, and an `inline` method cannot sit behind one, because it has no
-// address to put in the table.
+// An interface can also be picked out of a value that was passed as an untyped
+// variadic argument (`...args`), where all that is known is the type of each
+// value. For that the interface is declared `#dynamic`, and the types that
+// implement it have to say so with `implements`: a type that only has the methods
+// is not found. Then `case Shape s` in a switch on types matches the values of
+// those types, and `s` is the interface value, as in `Shape s = &square`. A value
+// of a struct is passed by its address, so what the method sees is the struct
+// itself. An interface that is not `#dynamic` cannot be a case there, and the
+// compiler says so; one that is costs nothing to the types that do not implement
+// it.
 
 #dynamic
 interface Describable {
@@ -167,37 +228,29 @@ func summary(...args) int {
 	}
 }
 
-public func demo() {
-	Square square = Square{side: 3};
-	Disk disk = Disk{radius: 2};
-
-	Shape a = &square;
-	Shape b = &disk;
-	describe(a);
-	describe(b);
-	describe(larger(a, b));
-
-	Solid solid = &square;
-	solid.scale(2);
-	fmt.println("after scale, the same square has area {}", a.area());
-
-	inspect(a);
-	inspect(b);
-
-	?Shape spare = null;
-	if spare |s| {
-		describe(s);
-	}
-	spare = &disk;
-	if spare |s| {
-		describe(s);
-	}
-
-	fmt.println("areaOf: {} through the pointer, {} through the interface", areaOf(&square), areaOf(a));
-	fmt.println("double: {} {} {}", double(21), double(1.5), int(double(Meters(4))));
-	fmt.println("negate: {}", negate(int16(7)));
-	fmt.println("same: {} {}", same(3, 3), same("a", "b"));
-
+func dynamic() {
 	Crate crate = Crate{items: 4};
-	fmt.println("summary: {} {} {}", summary(&crate), summary(crate), summary(5));
+	int byPointer = summary(&crate);  // 40
+	int byValue = summary(crate);  // 40
+	int plain = summary(5);  // 5
+}
+
+// ---------------------------------------------------------------------------
+// 7. Names from other modules, and what is left out
+// ---------------------------------------------------------------------------
+//
+// From another module an interface is written with the module, like every other
+// name (`io.Writer`). To get a shorter name here, declare a local interface that
+// is the remote one: `interface Writer { io.Writer }`.
+//
+// What interfaces do not do yet: an interface value cannot become another
+// interface, and an `inline` method cannot sit behind one, because it has no
+// address to put in the table.
+
+public func demo() {
+	values();
+	inspecting();
+	limiting();
+	sets();
+	dynamic();
 }

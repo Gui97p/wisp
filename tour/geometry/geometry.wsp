@@ -18,13 +18,13 @@ public func perimeter(int side) int => scale(side);
 // this file can read it, write it or name it in a literal. Code elsewhere can
 // still hold a struct that was made by a function of this file.
 public struct Rect {
-  public int width;
-  public int height;
-  private int cachedArea;
+	public int width;
+	public int height;
+	private int cachedArea;
 }
 
 public func newRect(int width, height) Rect {
-  return Rect{width: width, height: height, cachedArea: width * height};
+	return Rect{width: width, height: height, cachedArea: width * height};
 }
 
 public func (*Rect r) area() int => r.cachedArea;

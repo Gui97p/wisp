@@ -1,14 +1,52 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Structs and methods.
+//
+// A struct groups values under names. The comment at the end of a line shows
+// the value that line gives.
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. Declaring and using a struct
+// ---------------------------------------------------------------------------
+//
+// A struct literal names its fields. A struct that is not initialised starts with
+// every field zeroed, and a field left out of a literal is zero too. Structs can
+// sit in arrays.
 
 struct Point {
 	int x, y;
 }
 
-// A method puts its receiver before the name. The receiver is a pointer,
-// written with the same `*Type` syntax used everywhere else.
+func literals() {
+	Point p = Point{x: 3, y: 4};
+	let origin = Point{x: 0, y: 0};
+	int originX = origin.x;  // 0
+
+	// Fields can be assigned, including with compound operators.
+	p.x += 5;
+	int moved = p.x;  // 8
+
+	Point blank;
+	int blankX = blank.x;  // 0
+
+	Point partial = Point{y: 9};
+	int partialX = partial.x;  // 0
+	int partialY = partial.y;  // 9
+
+	[2]Point corners;
+	corners[1].x = 7;
+	int first = corners[0].x;  // 0
+	int second = corners[1].x;  // 7
+}
+
+// ---------------------------------------------------------------------------
+// 2. Methods
+// ---------------------------------------------------------------------------
+//
+// A method puts its receiver before the name. The receiver is a pointer, written
+// with the same `*Type` syntax used everywhere else, so the method changes the
+// value itself.
+
 func (*Point p) pos() (int, int) {
 	return p.x, p.y;
 }
@@ -18,33 +56,16 @@ func (*Point p) scale(int factor) {
 	p.y = p.y * factor;
 }
 
-public func demo() {
-	// A struct literal names its fields.
+func methods() {
 	Point p = Point{x: 3, y: 4};
-	let origin = Point{x: 0, y: 0};
+	let px, py = p.pos();  // 3, 4
 
-	let px, py = p.pos();
-	fmt.println("p is at {}, {}", px, py);
-	fmt.println("origin is at {}, {}", origin.x, origin.y);
-
-	// The method changes `p` itself because the receiver is a pointer.
 	p.scale(2);
-	fmt.println("after scale(2), p is at {}, {}", p.x, p.y);
+	int scaledX = p.x;  // 6
+	int scaledY = p.y;  // 8
+}
 
-	// Fields can be assigned, including with compound operators.
-	p.x += 5;
-	fmt.println("after p.x += 5, p.x is {}", p.x);
-
-	// A struct that is not initialised starts with every field zeroed.
-	Point blank;
-	fmt.println("blank is at {}, {}", blank.x, blank.y);
-
-	// A field left out of a literal is zero too.
-	Point partial = Point{y: 9};
-	fmt.println("partial is at {}, {}", partial.x, partial.y);
-
-	// Structs can sit in arrays.
-	[2]Point corners;
-	corners[1].x = 7;
-	fmt.println("corners[0].x = {}, corners[1].x = {}", corners[0].x, corners[1].x);
+public func demo() {
+	literals();
+	methods();
 }

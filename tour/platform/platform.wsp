@@ -1,3 +1,4 @@
+#allow unused_variables, dead_code
 // Tour - Code for one target.
 //
 // A line that starts with `#` is a directive. `#target` goes at the top of a
@@ -20,16 +21,16 @@
 // to be the same kind of declaration, with the same signature and visibility.
 // A name that exists only for other targets gets an error that says so.
 
-import "std/fmt";
-
 func lineEnd() string => "\n";
 
 func<windows> lineEnd() string => "\r\n";
 
 public func describe() string {
-  return name();
+	return name();
 }
 
 public func demo() {
-  fmt.println("this build is for {}, paths are separated with \"{}\", and a line ends with {} byte(s)", name(), separator(), len(lineEnd()));
+	string system = name();  // "Linux" here, "Windows" in a Windows build
+	string slash = separator();  // "/" here, "\\" in a Windows build
+	int ending = len(lineEnd());  // 1 here, 2 in a Windows build
 }

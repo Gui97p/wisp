@@ -1,71 +1,100 @@
 #standalone
-// Tour - Branching: `if` and `switch`.
+#allow unused_variables, dead_code
+// Tour - Branching: `if`, `switch` and blocks.
+//
+// A program takes different paths depending on its values. This page covers
+// the three tools for that: `if`, `switch`, and blocks that give a value.
+// The comment at the end of a line shows the value that line gives.
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. `if`
+// ---------------------------------------------------------------------------
+//
+// The condition needs no parentheses, and the braces are always there.
 
-enum Light {
-	Red,
-	Yellow,
-	Green
+func ifs() {
+	int limit = 12;
+	string kind = "";
+	if limit >= 10 {
+		kind = "at least ten";  // "at least ten"
+	} else {
+		kind = "below ten";
+	}
 }
 
-// A `switch` on an enum has to name every member, or end with a `default`. A
-// member added later makes every switch that forgot it stop compiling, which
-// is how you find the places to update. Writing `default` opts out of that
-// check on purpose.
-func advice(Light light) string {
-	return switch light {
-		case .Red => "stop";
-		case .Yellow, .Green => "go, carefully";
-	};
-}
-
+// ---------------------------------------------------------------------------
+// 2. Guards
+// ---------------------------------------------------------------------------
+//
 // A guard puts the condition after a jump, so a check that leaves the
 // function takes one line: `return`, `break`, `continue` and `yield` accept
 // `if` after them.
+
 func clamp(int n) int {
 	return 0 if n < 0;
 	return 100 if n > 100;
 	return n;
 }
 
-public func demo() {
-	int limit = 12;
+func guards() {
+	int low = clamp(-4);  // 0
+	int middle = clamp(40);  // 40
+	int high = clamp(400);  // 100
+}
 
-	// `if` needs no parentheses around the condition.
-	if limit >= 10 {
-		fmt.println("{} is at least ten", limit);
-	} else {
-		fmt.println("{} is below ten", limit);
-	}
+// ---------------------------------------------------------------------------
+// 3. `switch` as a statement
+// ---------------------------------------------------------------------------
+//
+// A case is `value => statement;`, or a block `value => { ... }` when it takes
+// several statements. There is no fallthrough: only the case that matches runs.
+// A range like `11..=20` includes both ends, and `default` catches the rest.
 
-	// `switch` as a statement. A case is `value => statement;`, or a block
-	// `value => { ... }` when it takes several statements. There is no
-	// fallthrough, and a range like `11..=20` includes both ends.
-	switch limit {
-		case 10 => fmt.println("ten");
+func bucket(int n) int {
+	int result = 0;
+	switch n {
+		case 10 => result = 1;
 		case 11..=20 => {
-			fmt.println("{} is between eleven and twenty", limit);
-			fmt.println("so it is a block of two statements");
+			result = 2;
+			result += 10;
 		}
-		default => fmt.println("something else");
+		default => result = 3;
 	}
+	return result;
+}
 
-	// `switch` as an expression. Cases also use `=>`, and what follows is a value
-	// that ends with `;`, not a statement. `default` is mandatory, because the expression must always produce a
-	// value. It can be written wherever an expression can.
-	let label = switch limit {
+func statements() {
+	int ten = bucket(10);  // 1
+	int teens = bucket(15);  // 12
+	int other = bucket(99);  // 3
+}
+
+// ---------------------------------------------------------------------------
+// 4. `switch` as an expression
+// ---------------------------------------------------------------------------
+//
+// Cases use `=>` again, and what follows is a value that ends with `;`, not a
+// statement. `default` is mandatory here, because the expression has to give a
+// value whatever it is switched on. It can be written wherever an expression
+// can: after `=`, in a `return`, or as an argument.
+
+func label(int n) string {
+	return switch n {
 		case 10 => "ten";
 		default => "other";
 	};
-	fmt.println("the label of {} is {}", limit, label);
+}
 
-	int doubled;
+func expressions() {
+	string a = label(10);  // "ten"
+	string b = label(12);  // "other"
+
+	int limit = 12;
+	int doubled = 0;
 	doubled = switch limit {
 		case 12 => 24;
 		default => 0;
-	};
-	fmt.println("doubled is {}", doubled);
+	};  // 24
 
 	// A case can give several values, which `let a, b = switch ...` receives, or
 	// leave with `return`, `break` or `continue` instead of giving a value.
@@ -73,63 +102,117 @@ public func demo() {
 		case 10 => 0, 10;
 		case 11..=20 => 11, 20;
 		default => return;
-	};
-	fmt.println("the range of {} is {}..{}", limit, low, high);
+	};  // 11, 20
+}
 
-	// A `switch` with no value puts a condition in each case, and the first one
-	// that is true wins. A comma between conditions means "or". It works as a
-	// statement and as an expression, and the expression still needs `default`.
-	switch {
-		case limit < 10 => fmt.println("under ten");
-		case limit < 20, limit == 100 => fmt.println("under twenty, or exactly one hundred");
-		default => fmt.println("twenty or more");
-	}
+// ---------------------------------------------------------------------------
+// 5. `switch` with no value
+// ---------------------------------------------------------------------------
+//
+// Without a value after `switch`, each case holds a condition and the first
+// one that is true wins. A comma between conditions means "or". It works as a
+// statement and as an expression, and the expression still needs `default`.
+
+func conditions() {
+	int limit = 12;
 
 	string size = switch {
 		case limit < 10 => "small";
 		case limit < 100 => "medium";
 		default => "large";
+	};  // "medium"
+
+	string note = switch {
+		case limit < 10 => "under ten";
+		case limit < 20, limit == 100 => "under twenty or exactly one hundred";
+		default => "twenty or more";
+	};  // "under twenty or exactly one hundred"
+}
+
+// ---------------------------------------------------------------------------
+// 6. `switch` on an enum
+// ---------------------------------------------------------------------------
+//
+// A `switch` on an enum has to name every member, or end with a `default`. A
+// member added later makes every switch that forgot it stop compiling, which is
+// how you find the places to update. Writing `default` opts out of that check
+// on purpose.
+
+enum Light {
+	Red,
+	Yellow,
+	Green
+}
+
+func advice(Light light) string {
+	return switch light {
+		case .Red => "stop";
+		case .Yellow, .Green => "go carefully";
 	};
-	fmt.println("{} is {}", limit, size);
+}
 
-	fmt.println("advice: {} / {}", advice(.Red), advice(.Green));
-	fmt.println("clamp: {} {} {}", clamp(-4), clamp(40), clamp(400));
+func enums() {
+	string red = advice(.Red);  // "stop"
+	string green = advice(.Green);  // "go carefully"
+}
 
-	// A block is a statement of its own: it opens a scope, and a `defer` in it
-	// runs when it ends. With a value after `=`, it is an expression: it runs its
-	// statements and gives what `yield` says, so a value that needs a few steps
-	// does not need a helper function.
+// ---------------------------------------------------------------------------
+// 7. Blocks
+// ---------------------------------------------------------------------------
+//
+// A block is a statement of its own: it opens a scope, and a `defer` in it runs
+// when it ends. With a value after `=`, it is an expression: it runs its
+// statements and gives what `yield` says, so a value that needs a few steps
+// does not need a helper function.
+
+func blocks() {
+	int limit = 12;
 	{
-		int limit = 1;
-		fmt.println("inside the block limit is {}", limit);
+		int limit = 1;  // 1 (a new variable, only inside the block)
 	}
 	int rounded = {
 		int step = 5;
 		yield limit / step * step;
-	};
-	fmt.println("{} rounded down to a multiple of five is {}", limit, rounded);
+	};  // 10
+}
 
-	// A label before a block, `:name { ... }`, lets `yield :name;` leave it from
-	// anywhere inside, even from a loop in the middle, and the `defer`s of the
-	// blocks it crosses run on the way out. On a block that gives a value,
-	// `yield :name value;` leaves with that value, the way a plain `yield` does
-	// at the end. A label belongs to a loop or to a block: loops are left with
-	// `break` and `continue`, blocks with `yield`, so the two are never mixed up.
+// A label before a block, `:name { ... }`, lets `yield :name;` leave it from
+// anywhere inside, even from a loop in the middle, and the `defer`s of the
+// blocks it crosses run on the way out. On a block that gives a value,
+// `yield :name value;` leaves with that value, the way a plain `yield` does at
+// the end.
+//
+// A label belongs to a loop or to a block: loops are left with `break` and
+// `continue`, blocks with `yield`, so the two are never mixed up.
+
+func labeledBlocks() {
+	int limit = 12;
+
 	int found = -1;
 	:search{
 		for i in 0..=limit{
 			yield :search if i * i == 49;
-			found = i;
+			found = i;  // 0, 1, 2, 3, 4, 5, 6
 		}
 		found = -2;
 	}
-	fmt.println("the search stopped after {}", found);
+	int stoppedAt = found;  // 6 (it left before 7)
 
 	int first = :pick{
 		for i in 0..=limit{
 			yield :pick i if i * i > 30;
 		}
 		yield -1;
-	};
-	fmt.println("the first square above thirty is the square of {}", first);
+	};  // 6
+}
+
+public func demo() {
+	ifs();
+	guards();
+	statements();
+	expressions();
+	conditions();
+	enums();
+	blocks();
+	labeledBlocks();
 }

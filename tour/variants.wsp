@@ -1,30 +1,25 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Enums with data.
 //
-// An enum member can carry data of its own. The members are the variants of
-// one type, and each variant lists its fields the way a struct does:
-//
-//     enum Shape {
-//       Circle { float radius; },
-//       Rect { float w, h; },
-//       Empty
-//     }
-//
-// A variant with no braces carries nothing. The value holds one variant at a
-// time, in the space of the largest one, so a `Shape` is as big as the
-// biggest variant plus a tag. An enum with no data at all is the plain enum of
-// the types page, numbers and all: numbering is only for those.
-//
-// Make a value like a struct literal, with the variant after the type, or
-// with just a dot where the type is known from the context:
-// `Shape.Circle{radius: 2}`, `.Rect{w: 3, h: 4}`, `Shape.Empty`, `.Empty`.
-// Leaving a field out gives it its zero value, as in a struct.
-//
-// A value of the enum is never compared with another one, because that would
-// have to compare data. Asking which variant it is does work: `shape ==
-// .Circle` ignores the data. To see the data, use a `switch`.
+// An enum member can carry data of its own. The members are the variants of one
+// type, and each variant lists its fields the way a struct does. A variant with
+// no braces carries nothing. The comment at the end of a line shows the value
+// that line gives.
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. Declaring and making variants
+// ---------------------------------------------------------------------------
+//
+// The value holds one variant at a time, in the space of the largest one, so a
+// `Shape` is as big as the biggest variant plus a tag. An enum with no data at
+// all is the plain enum of the types page, numbers and all: numbering is only
+// for those.
+//
+// Make a value like a struct literal, with the variant after the type, or with
+// just a dot where the type is known from the context: `Shape.Circle{radius: 2}`,
+// `.Rect{w: 3, h: 4}`, `Shape.Empty`, `.Empty`. Leaving a field out gives it its
+// zero value, as in a struct.
 
 enum Shape {
 	Circle{float radius;},
@@ -32,13 +27,17 @@ enum Shape {
 	Empty
 }
 
-// Each case names the data of its variant, and inside it the name has the
-// fields of that variant only. The switch has to cover every variant, or end
-// with a `default`, the same rule as for any enum: add a variant later and
-// every switch that forgot it stops compiling.
+// ---------------------------------------------------------------------------
+// 2. Looking at the data
+// ---------------------------------------------------------------------------
 //
-// The name is a copy when the switch is on a value, and a pointer to the data
-// inside when it is on a pointer. The demo below shows both.
+// Each case of a `switch` names the data of its variant, and inside it the name
+// has the fields of that variant only. The switch has to cover every variant, or
+// end with a `default`, the same rule as for any enum: add a variant later and
+// every switch that forgot it stops compiling. A `switch` can also be an
+// expression, one value per case, and with every variant covered it needs no
+// `default`.
+
 func area(Shape shape) float {
 	return switch shape {
 		case .Circle c => 3.14 * c.radius * c.radius;
@@ -48,8 +47,55 @@ func area(Shape shape) float {
 	};
 }
 
-// Methods work as on a struct. A `switch` can also be an expression, one value
-// per case, and with every variant covered it needs no `default`.
+func (Shape shape) label() string {
+	return switch shape {
+		case .Circle => "circle";
+		case .Rect => "rectangle";
+		case .Empty => "nothing";
+	};
+}
+
+func looking() {
+	Shape circle = Shape.Circle{radius: 2};
+	Shape rect = .Rect{w: 3, h: 4};
+	Shape none = .Empty;
+
+	float circleArea = area(circle);  // 12.56
+	float rectArea = area(rect);  // 12
+	float noneArea = area(none);  // 0
+
+	string circleLabel = circle.label();  // "circle"
+	string rectLabel = rect.label();  // "rectangle"
+	string noneLabel = none.label();  // "nothing"
+
+	// `name()` gives the variant's name, as for every enum.
+	string variant = rect.name();  // "Rect"
+}
+
+// ---------------------------------------------------------------------------
+// 3. Asking which variant it is
+// ---------------------------------------------------------------------------
+//
+// A value of the enum is never compared with another one, because that would
+// have to compare data. Asking which variant it is does work: `shape == .Circle`
+// ignores the data. To see the data, use a `switch`.
+
+func asking() {
+	Shape circle = Shape.Circle{radius: 2};
+	Shape rect = .Rect{w: 3, h: 4};
+
+	bool circleIsCircle = circle == .Circle;  // true
+	bool rectIsCircle = rect == .Circle;  // false
+}
+
+// ---------------------------------------------------------------------------
+// 4. Changing the data
+// ---------------------------------------------------------------------------
+//
+// Methods work as on a struct. The name in a case is a copy when the switch is
+// on a value, and a pointer to the data inside when it is on a pointer, so a
+// method with a pointer receiver can change the variant it holds.
+
 func (*Shape shape) grow(float factor) {
 	switch shape {
 		case .Circle c => c.radius *= factor;
@@ -61,35 +107,10 @@ func (*Shape shape) grow(float factor) {
 	}
 }
 
-func (Shape shape) label() string {
-	return switch shape {
-		case .Circle => "circle";
-		case .Rect => "rectangle";
-		case .Empty => "nothing";
-	};
-}
-
-public func demo() {
-	Shape circle = Shape.Circle{radius: 2};
+func changing() {
 	Shape rect = .Rect{w: 3, h: 4};
-	Shape none = .Empty;
-	fmt.println("areas: {} {} {}", area(circle), area(rect), area(none));
-	fmt.println("labels: {} {} {}", circle.label(), rect.label(), none.label());
-
-	// `name()` gives the variant's name, as for every enum.
-	fmt.println("the variant of rect is {}", rect.name());
-
-	// The variant test, and the data changed through a pointer receiver.
-	fmt.println("circle is a circle: {}, rect is a circle: {}", circle == .Circle, rect == .Circle);
 	rect.grow(2);
-	fmt.println("the grown rectangle has area {}", area(rect));
-
-	// A field left out of the literal is zero, and so is a value never written:
-	// the first variant with its data at zero.
-	Shape partial = .Rect{w: 5};
-	Shape first;
-	fmt.println("a rectangle with no height has area {}", area(partial));
-	fmt.println("the zero value is a {}", first.label());
+	float grown = area(rect);  // 48
 
 	// Switching on a value gives the case a copy: this changes nothing.
 	Shape box = .Rect{w: 2, h: 5};
@@ -97,7 +118,7 @@ public func demo() {
 		case .Rect r => r.w = 100;
 		default => {}
 	}
-	fmt.println("after changing a copy the area is still {}", area(box));
+	float copied = area(box);  // 10
 
 	// Switching on a pointer gives the case a pointer to the data inside: this
 	// changes the box itself.
@@ -105,5 +126,27 @@ public func demo() {
 		case .Rect r => r.w = 100;
 		default => {}
 	}
-	fmt.println("after changing through a pointer the area is {}", area(box));
+	float through = area(box);  // 500
+}
+
+// ---------------------------------------------------------------------------
+// 5. Zero values
+// ---------------------------------------------------------------------------
+//
+// A field left out of the literal is zero, and so is a value never written: the
+// first variant with its data at zero.
+
+func zeros() {
+	Shape partial = .Rect{w: 5};
+	float noHeight = area(partial);  // 0
+
+	Shape first;
+	string zeroLabel = first.label();  // "circle"
+}
+
+public func demo() {
+	looking();
+	asking();
+	changing();
+	zeros();
 }

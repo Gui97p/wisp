@@ -1,121 +1,205 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Arrays, slices and strings.
+//
+// An array holds a fixed number of values of one type, a slice is a view of
+// part of one, and a string is a read-only run of bytes. The comment at the end
+// of a line shows the value that line gives.
 
-import "std/fmt";
 import "std/strings";
 
-// The size of an array is a number or a constant expression, so a constant
-// can name it, even one that comes from another module.
+// ---------------------------------------------------------------------------
+// 1. Arrays
+// ---------------------------------------------------------------------------
+//
+// The size of an array is part of its type. It is a number or a constant
+// expression, so a constant can name it, even one that comes from another module.
+// A partial literal fills the rest with zero values, and `len` works on arrays,
+// slices and strings.
+
 const Cells = 3;
 
+func arrays() {
+	[5]int nums = .{124, 512, 1, 5, 2};
+	int count = len(nums);  // 5
+
+	[Cells * 2]int sized;
+	int sizedLength = len(sized);  // 6
+
+	[5]int partial = .{7, 8};
+	int first = partial[0];  // 7
+	int third = partial[2];  // 0
+
+	// Elements can be assigned, incremented and updated in place.
+	nums[0] = 999;
+	nums[1]++;
+	nums[2] += 10;
+	int a = nums[0];  // 999
+	int b = nums[1];  // 513
+	int c = nums[2];  // 11
+}
+
+// ---------------------------------------------------------------------------
+// 2. Slices
+// ---------------------------------------------------------------------------
+//
+// Slicing is `[start..end]`: the end is left out like in a range, and
+// `[start..=end]` puts it in. Both ends are optional: `[..n]`, `[2..]`, `[..]`.
+// A slice is a view: it shares the elements of the array, so writing through it
+// changes the array.
+
+func slices() {
+	[5]int nums = .{999, 513, 11, 5, 2};
+
+	[]int middle = nums[1..3];
+	[]int head = nums[..2];
+	[]int tail = nums[3..];
+	int middleLength = len(middle);  // 2
+	int middleFirst = middle[0];  // 513
+	int headLast = head[1];  // 513
+	int tailFirst = tail[0];  // 5
+
+	middle[0] = 1;
+	int changed = nums[1];  // 1
+}
+
+// An array variable goes where a slice is expected without writing `[..]`. It is
+// the same view of the same elements: `total(nums)` is `total(nums[..])`.
+// Something that has an address converts, and so does an array literal, as a
+// temporary array. `[a..b]` is still how you take a part.
+
 func total([]int values) int {
-	int sum;
+	int sum = 0;
 	for _, v in values {
 		sum += v;
 	}
 	return sum;
 }
 
-public func demo() {
-	// A fixed-size array: the size is part of the type.
-	[5]int nums = .{124, 512, 1, 5, 2};
+func passing() {
+	[5]int nums = .{999, 1, 11, 5, 2};
+	int sum = total(nums);  // 1018
+}
 
-	[Cells * 2]int sized;
-	fmt.println("an array of Cells * 2 has {} elements", len(sized));
+// ---------------------------------------------------------------------------
+// 3. Strings
+// ---------------------------------------------------------------------------
+//
+// Strings slice the same way, and compare in dictionary order.
+//
+// A string is read-only, so it does not go where a `[]byte` is expected on its
+// own. `[]byte(greeting)` asks for its bytes on purpose, as a view of the same
+// memory: nothing is copied, and the bytes are not to be written. A conversion
+// to a slice is always a view like that, and also works from an array or a slice
+// whose elements have the same size and kind: `[]uint32(signed)` sees `int32`
+// values as unsigned ones, `[]Meters(plain)` sees `int` values as the named
+// type, and a write through one is seen through the other.
 
-	// A partial literal fills the rest with zero values.
-	[5]int partial = .{7, 8};
-	fmt.println("a partial literal: {}, {}, {}", partial[0], partial[1], partial[2]);
-
-	// Elements can be assigned, incremented and updated in place.
-	nums[0] = 999;
-	nums[1]++;
-	nums[2] += 10;
-	fmt.println("nums now starts with {}, {}, {}", nums[0], nums[1], nums[2]);
-
-	// `len` works on arrays, slices and strings.
-	fmt.println("len(nums) = {}", len(nums));
-
-	// Slicing is `[start..end]`: the end is left out like in a range, and
-	// `[start..=end]` puts it in. Both ends are optional: `[..n]`, `[2..]`, `[..]`.
-	// A slice is a view: it shares the elements of the array.
-	[]int middle = nums[1..3];
-	[]int head = nums[..2];
-	[]int tail = nums[3..];
-	fmt.println("nums[1..3] has {} elements and starts with {}", len(middle), middle[0]);
-	fmt.println("nums[..2] ends with {}, nums[3..] starts with {}", head[1], tail[0]);
-
-	middle[0] = 1;
-	fmt.println("after middle[0] = 1, nums[1] is {}", nums[1]);
-
-	// An array variable goes where a slice is expected without writing `[..]`.
-	// It is the same view of the same elements: `total(nums)` is
-	// `total(nums[..])`. Something that has an address converts, and so does
-	// an array literal, as a temporary array. `[a..b]` is still how you take a
-	// part.
-	fmt.println("total(nums) = {}", total(nums));
-
-	// Strings slice the same way, and compare in dictionary order.
+func text() {
 	string greeting = "hello world";
-	fmt.println("greeting[:5] = {}, greeting[6:] = {}", greeting[..5], greeting[6..]);
-	fmt.println("len(greeting) = {}", len(greeting));
-	fmt.println("greeting[0] = {}", greeting[0]);
-	fmt.println("\"apple\" < \"apricot\": {}", "apple" < "apricot");
-	fmt.println("\"b\" > \"abc\": {}", "b" > "abc");
+	string head = greeting[..5];  // "hello"
+	string tail = greeting[6..];  // "world"
+	int length = len(greeting);  // 11
+	int firstByte = greeting[0];  // 104
 
-	// A string is read-only, so it does not go where a `[]byte` is expected on
-	// its own. `[]byte(greeting)` asks for its bytes on purpose, as a view of the
-	// same memory: nothing is copied, and the bytes are not to be written. A
-	// conversion to a slice is always a view like that, and also works from an
-	// array or a slice whose elements have the same size and kind: `[]uint32(signed)`
-	// sees `int32` values as unsigned ones, `[]Meters(plain)` sees `int` values as
-	// the named type, and a write through one is seen through the other.
-	fmt.println("the bytes of the greeting: {}, the first is {}", len([]byte(greeting)), []byte(greeting)[0]);
+	bool before = "apple" < "apricot";  // true
+	bool after = "b" > "abc";  // true
 
-	// `in` asks whether a string holds another, or whether a collection holds
-	// an element.
-	fmt.println("\"ell\" in greeting: {}", "ell" in greeting);
-	fmt.println("512 in nums: {}", 512 in nums);
+	int byteCount = len([]byte(greeting));  // 11
+	int viewFirst = []byte(greeting)[0];  // 104
+}
 
-	// `std/strings` has the usual searches and cuts. `indexOf` gives the place of
-	// the first match, or `null`, so a capture or `??` takes it from there.
+// ---------------------------------------------------------------------------
+// 4. Asking whether something is in it
+// ---------------------------------------------------------------------------
+//
+// `in` asks whether a string holds another, or whether a collection holds an
+// element.
+
+func membership() {
+	string greeting = "hello world";
+	[5]int nums = .{999, 1, 11, 5, 2};
+
+	bool hasEll = "ell" in greeting;  // true
+	bool hasBig = 512 in nums;  // false
+	bool hasFive = 5 in nums;  // true
+}
+
+// ---------------------------------------------------------------------------
+// 5. Searching and cutting strings
+// ---------------------------------------------------------------------------
+//
+// `std/strings` has the usual searches and cuts. `indexOf` gives the place of
+// the first match, or `null`, so a capture or `??` takes it from there. `cut`
+// splits at the first separator, and `tokens` walks the pieces, one at a time,
+// skipping the empty ones (`splitter` keeps them).
+
+func searching() {
+	string greeting = "hello world";
+
+	int found = 0;
 	if strings.indexOf(greeting, "wor") |at| {
-		fmt.println("\"wor\" starts at {}", at);
+		found = at;  // 6
 	}
-	fmt.println("\"xyz\" is at {}", strings.indexOf(greeting, "xyz") ?? -1);
+	int missing = strings.indexOf(greeting, "xyz") ?? -1;  // -1
 
-	// `cut` splits at the first separator, and `tokens` walks the pieces, one
-	// at a time, skipping the empty ones (`splitter` keeps them).
+	string before = "";
+	string after = "";
 	if strings.cut("name=wisp", "=") |c| {
-		fmt.println("cut: {} / {}", c.before, c.after);
+		before = c.before;  // "name"
+		after = c.after;  // "wisp"
 	}
+
 	strings.Splitter pieces = strings.tokens("a,,b,c", ",");
-	int tokens;
+	int tokens = 0;
 	loop pieces.next() |piece| {
-		tokens++;
-		fmt.println("piece {}: {}", tokens, piece);
+		tokens++;  // 1, 2, 3
 	}
-	fmt.println("trimmed: [{}]", strings.trimSpace("  padded  "));
 
-	// `.{}` is an empty slice, or an array of zeros. It has no element type of
-	// its own: it takes the one of whatever receives it, a declaration, an
-	// argument, a field or a `return`. It holds no memory, so `free` accepts it.
+	string trimmed = strings.trimSpace("  padded  ");  // "padded"
+}
+
+// ---------------------------------------------------------------------------
+// 6. Empty slices and pointer types
+// ---------------------------------------------------------------------------
+//
+// `.{}` is an empty slice, or an array of zeros. It has no element type of its
+// own: it takes the one of whatever receives it, a declaration, an argument, a
+// field or a `return`. It holds no memory, so `free` accepts it.
+//
+// A type reads from left to right, outermost first: `[3]*int` is an array of
+// three pointers, and `*[3]int` is one pointer to an array of three ints. `[]`
+// and `[N]` stack the same way: `[2][3]int` is two arrays of three.
+
+func types() {
 	[]int nothing = .{};
-	fmt.println("len(nothing) = {}", len(nothing));
+	int nothingLength = len(nothing);  // 0
 
-	// A type reads from left to right, outermost first: `[3]*int` is an array of
-	// three pointers, and `*[3]int` is one pointer to an array of three ints.
-	// `[]` and `[N]` stack the same way: `[2][3]int` is two arrays of three.
 	int first = 1;
 	int second = 2;
 	[2]*int refs = .{&first, &second};
 	refs[0]@ = 10;
+	int changedFirst = first;  // 10
+	int viaPointer = refs[1]@;  // 2
+
 	[2]int pair = .{first, second};
 	*[2]int whole = &pair;
-	fmt.println("first = {}, refs[1]@ = {}, whole@[1] = {}", first, refs[1]@, whole@[1]);
+	int viaWhole = whole@[1];  // 2
+
 	[2][3]int grid;
-	fmt.println("a grid has {} rows of {}", len(grid), len(grid[0]));
+	int rows = len(grid);  // 2
+	int columns = len(grid[0]);  // 3
+}
 
 // Indexing is checked: going outside an array, slice or string stops the
 // program with a panic that names the line.
+
+public func demo() {
+	arrays();
+	slices();
+	passing();
+	text();
+	membership();
+	searching();
+	types();
 }

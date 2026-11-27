@@ -1,29 +1,18 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Inline functions.
 //
 // `inline func` asks for the body to be written at every call, instead of
 // jumping to one shared copy. This is a guarantee, not a hint: the compiler
-// always expands it, so a small helper costs nothing. The arguments are still
-// evaluated once, in order, as in a normal call, and `return` leaves only the
-// inline body, never the function that called it.
-//
-// A parameter marked `const` has to receive a constant at the call, and the
-// body sees that constant itself. That is how an inline function can use a
-// value that must be known at compile time. Because it has no single
-// compiled copy, a function with `const` parameters cannot be used as a value.
-//
-// An inline function can take a variadic, typed (`int ...values`) or untyped
-// (`...args`), and it works as it does in any function: the name is a sequence
-// you can measure, index, loop over and, for an untyped one, pass on with
-// `args...`. The arguments are packed at the call the way a normal call would
-// pack them. That makes an inline function a good thin wrapper, and an error
-// it raises is reported at the line of the call.
-//
-// An inline function that calls itself is expanded once and then called
-// normally. The body is analysed where the function was written, so it may use
-// the private names of its own module, even when it ends up in another module.
+// always expands it, so a small helper costs nothing. The comment at the end of
+// a line shows the value that line gives.
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. What inline means
+// ---------------------------------------------------------------------------
+//
+// The arguments are still evaluated once, in order, as in a normal call, and
+// `return` leaves only the inline body, never the function that called it.
 
 inline func add(int a, int b) int => a + b;
 
@@ -32,10 +21,6 @@ inline func abs(int x) int {
 		return -x;
 	}
 	return x;
-}
-
-inline func scale(const int factor, int x) int {
-	return x * factor;
 }
 
 inline func clamp(int x, int low, int high) int {
@@ -48,6 +33,45 @@ inline func clamp(int x, int low, int high) int {
 	return x;
 }
 
+func basics() {
+	int sum = add(2, 3);  // 5
+	int negative = abs(-7);  // 7
+	int positive = abs(4);  // 4
+
+	int total = 0;
+	for i in 0..=5 {
+		total += clamp(i * 3, 2, 9);  // 2, 5, 11, 20, 29, 38
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 2. Constant parameters
+// ---------------------------------------------------------------------------
+//
+// A parameter marked `const` has to receive a constant at the call, and the body
+// sees that constant itself. That is how an inline function can use a value
+// that must be known at compile time. Because it has no single compiled copy, a
+// function with `const` parameters cannot be used as a value.
+
+inline func scale(const int factor, int x) int {
+	return x * factor;
+}
+
+func constants() {
+	int scaled = scale(10, 4);  // 40
+}
+
+// ---------------------------------------------------------------------------
+// 3. Variadics
+// ---------------------------------------------------------------------------
+//
+// An inline function can take a variadic, typed (`int ...values`) or untyped
+// (`...args`), and it works as it does in any function: the name is a sequence
+// you can measure, index, loop over and, for an untyped one, pass on with
+// `args...`. The arguments are packed at the call the way a normal call would
+// pack them. That makes an inline function a good thin wrapper, and an error it
+// raises is reported at the line of the call.
+
 func countAll(...args) int {
 	return len(args);
 }
@@ -56,16 +80,21 @@ inline func sumWith(int start, ...args) int {
 	return start + countAll(args...) * 10;
 }
 
+func variadics() {
+	int alone = sumWith(1);  // 1
+	int several = sumWith(1, 2, 3);  // 21
+}
+
+// ---------------------------------------------------------------------------
+// 4. Recursion and privacy
+// ---------------------------------------------------------------------------
+//
+// An inline function that calls itself is expanded once and then called
+// normally. The body is analysed where the function was written, so it may use
+// the private names of its own module, even when it ends up in another module.
+
 public func demo() {
-	fmt.println("add(2, 3) = {}", add(2, 3));
-	fmt.println("abs(-7) = {}, abs(4) = {}", abs(-7), abs(4));
-	fmt.println("scale(10, 4) = {}", scale(10, 4));
-
-	int total = 0;
-	for i in 0..=5 {
-		total += clamp(i * 3, 2, 9);
-	}
-	fmt.println("sum of clamp(i * 3, 2, 9) = {}", total);
-
-	fmt.println("sumWith(1) = {}, sumWith(1, 2, 3) = {}", sumWith(1), sumWith(1, 2, 3));
+	basics();
+	constants();
+	variadics();
 }

@@ -1,8 +1,14 @@
 #standalone
-// Tour - Types: aliases, enums, sizes and conversions.
+#allow unused_variables, dead_code
+// Tour - Types: named types, enums, characters, strings and conversions.
+//
+// The sizes of the number types are in basics.wsp. The comment at the end of a
+// line shows the value that line gives.
 
-import "std/fmt";
-
+// ---------------------------------------------------------------------------
+// 1. Named types
+// ---------------------------------------------------------------------------
+//
 // `type` creates a new nominal type. UserID and int are different types, so
 // mixing them needs an explicit conversion. The new type keeps what the type it
 // is made of can do: a `type Meters int` adds, compares and shifts like an int,
@@ -10,18 +16,39 @@ import "std/fmt";
 // and a `type Name string` is indexed too. Two different defined types still do
 // not mix, so `meters + seconds` is an error, and the methods of the original
 // type are not inherited.
+
 type UserID int;
 type Meters int;
-type Row [3]int;
+type Row[3] int;
 
+func named() {
+	// An untyped literal adapts to the named type directly...
+	UserID uid = 42;
+
+	// ...but going back to int needs a conversion: the type name used as a function.
+	int raw = int(uid);  // 42
+
+	Meters walked = 5;
+	walked += 3;
+	int meters = int(walked);  // 8
+	Row marks;
+	marks[1] = int(walked) * 2;  // 16
+	int length = len(marks);  // 3
+}
+
+// ---------------------------------------------------------------------------
+// 2. Enums
+// ---------------------------------------------------------------------------
+//
 // An enum is a nominal type with named members, written Color.Green. Numbering
 // starts at 0 and continues from the last explicit value. Where the enum is
 // known (an assignment, an argument, a return, a comparison, a case) the type
 // name can be left out: `.Green`.
 //
-// Every enum also has a `name()` method that returns the member name of a
-// value, or "?" when it holds none. Writing your own `name` method on the enum
-// replaces it.
+// Every enum also has a `name()` method that returns the member name of a value,
+// or "?" when it holds none. Writing your own `name` method on the enum replaces
+// it.
+
 enum Color {
 	Red,
 	Green,
@@ -30,74 +57,84 @@ enum Color {
 	Beta
 }
 
-public func demo() {
-	// An untyped literal adapts to the alias directly...
-	UserID uid = 42;
-
-	// ...but going back to int needs a conversion: the type name used as a function.
-	int raw = int(uid);
-	fmt.println("the UserID as an int: {}", raw);
-
-	Meters walked = 5;
-	walked += 3;
-	Row marks;
-	marks[1] = int(walked) * 2;
-	fmt.println("walked {} meters, marks {} of {}", int(walked), marks[1], len(marks));
-
+func enums() {
 	Color favorite = .Green;
-	fmt.println("favorite is {}, number {}", favorite.name(), int(favorite));
-	fmt.println("Color.Blue is {}", int(Color.Blue));
-	fmt.println("Color.Alpha is {} and Color.Beta is {}", int(Color.Alpha), int(Color.Beta));
-	fmt.println("favorite == Color.Green: {}", favorite == Color.Green);
+	string name = favorite.name();  // "Green"
+	int number = int(favorite);  // 1
+	int blue = int(Color.Blue);  // 2
+	int alpha = int(Color.Alpha);  // 10
+	int beta = int(Color.Beta);  // 11
+	bool same = favorite == Color.Green;  // true
+}
 
-	// Primitive types: int, uint, int8..int64, uint8..uint64, float, float32,
-	// float64, bool, byte and string. `int` and `uint` are 64 bits wide, and
-	// `float` is another name for float64, the way `int` is for int64. `byte` is
-	// another name for uint8: a string is made of bytes, and so are buffers.
-	// A character literal such as 'w' is a byte.
-	bool ready = true;
-	byte letter = 'w';
-	fmt.println("ready is {} and letter is {:c}", ready, letter);
+// ---------------------------------------------------------------------------
+// 3. Bytes and characters
+// ---------------------------------------------------------------------------
+//
+// `byte` is another name for `uint8`: a string is made of bytes, and so are
+// buffers. A character literal such as 'w' is a byte. It takes the same escapes
+// as a string: \n, \r, \t, \\, \', \", \0 and \xHH for a byte in hexadecimal.
+// `'\0'` is the zero byte that ends a C string.
 
-	// A character literal takes the same escapes as a string: \n, \r, \t, \\, \', \", \0 and
-	// \xHH for a byte in hexadecimal. `'\0'` is the zero byte that ends a C string.
-	fmt.println("'\\0' == '\\x00': {}", '\0' == '\x00');
-	fmt.println("'\\n' is the byte {}", int('\n'));
+func characters() {
+	byte letter = 'w';  // 119
+	bool zero = '\0' == '\x00';  // true
+	int newline = int('\n');  // 10
+}
 
-	// Text between backticks is a raw string: it can span lines, and a
-	// backslash is just a backslash (only \` stands for a backtick).
+// ---------------------------------------------------------------------------
+// 4. Strings that span lines
+// ---------------------------------------------------------------------------
+//
+// Text between backticks is a raw string: it can span lines, and a backslash is
+// just a backslash (only \` stands for a backtick).
+//
+// Lines that start with `\\` make a multi-line string too, one that does not
+// care how the code around it is indented. The text of a line is whatever
+// follows the two backslashes, as it is written (the `;` goes on a line of its
+// own), and the lines are joined with a newline, none after the last.
+
+func strings() {
 	string path = `C:\temp\new
 second line`;
-	fmt.println("{} has {} bytes", path, len(path));
+	int pathBytes = len(path);  // 23
 
-	// Lines that start with `\\` make a multi-line string too, one that does not
-	// care how the code around it is indented. The text of a line is whatever
-	// follows the two backslashes, as it is written (the `;` goes on a line of
-	// its own), and the lines are joined with a newline, none after the last.
 	string usage =
 		\\usage: tour [flags]
-      \\
-      \\  --verbose  say more
+		\\
+		\\  --verbose  say more
 	;
-	fmt.println("{}", usage);
+	int usageBytes = len(usage);  // 42
+}
 
-	// Integers have a width, and `+%` wraps at it (the overflow page has the
-	// other ways to handle going past it).
+// ---------------------------------------------------------------------------
+// 5. Changing the width of an integer
+// ---------------------------------------------------------------------------
+//
+// Integers have a width, and `+%` wraps at it (the overflow page has the other
+// ways to handle going past it). A widening conversion is implicit; any other
+// conversion names the type. `int8(100)` is for a value that fits, and
+// `truncate(int8, 300)` keeps the low bits on purpose.
+
+func widths() {
 	int8 small = 127;
-	small +%= 1;
-	fmt.println("int8 127 + 1 wraps to {}", small);
+	small +%= 1;  // -128
 
 	uint8 top = 255;
-	top +%= 1;
-	fmt.println("uint8 255 + 1 wraps to {}", top);
+	top +%= 1;  // 0
 
-	// A widening conversion is implicit; any other conversion names the type.
 	int8 narrow = 5;
-	int64 wide = narrow;
-	fmt.println("int8 {} widens to int64 {}", narrow, wide);
-	int big = 300;
-	fmt.println("int8(100) fits: {}, and truncate(int8, 300) keeps the low bits: {}", int8(100), truncate(int8, big));
+	int64 wide = narrow;  // 5
 
-	// `sizeof` takes a type or an expression and gives its size in bytes.
-	fmt.println("sizeof int8, int32, int: {}, {}, {}", sizeof(int8), sizeof(int32), sizeof(int));
+	int big = 300;
+	int8 fits = int8(100);  // 100
+	int8 cut = truncate(int8, big);  // 44
+}
+
+public func demo() {
+	named();
+	enums();
+	characters();
+	strings();
+	widths();
 }

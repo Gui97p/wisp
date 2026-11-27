@@ -61,6 +61,10 @@ func (p *printer) depthFor(i int) int {
 		}
 		closers++
 	}
+	return p.depthWith(i, closers)
+}
+
+func (p *printer) depthWith(i, closers int) int {
 	frames := p.stack
 	if closers > len(frames) {
 		closers = len(frames)
@@ -176,6 +180,9 @@ func (p *printer) gap(i int) {
 func (p *printer) commentIndent(i int) int {
 	if i >= len(p.tokens) {
 		return 0
+	}
+	if isCloser(p.tokens[i].kind) {
+		return p.depthWith(i, 0)
 	}
 	return p.depthFor(i)
 }

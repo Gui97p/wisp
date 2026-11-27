@@ -208,7 +208,7 @@ func classify(tokens []token) []role {
 		case k == lexer.TOKEN_HASH:
 			r = roleHash
 		case k == lexer.TOKEN_DOT:
-			if prevEnd(i) {
+			if prevEnd(i) || (i > 0 && roles[i-1] == roleGenericClose) {
 				r = roleMemberDot
 			} else {
 				r = rolePrefixDot
@@ -365,7 +365,7 @@ func genericOpens(tokens []token, open int, closers map[int]bool) bool {
 					return false
 				}
 				switch tokens[j+1].kind {
-				case lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACE, lexer.TOKEN_IDENT, lexer.TOKEN_LBRACKET, lexer.TOKEN_STAR,
+				case lexer.TOKEN_DOT, lexer.TOKEN_LPAREN, lexer.TOKEN_LBRACE, lexer.TOKEN_IDENT, lexer.TOKEN_LBRACKET, lexer.TOKEN_STAR,
 					lexer.TOKEN_QUESTION_MARK, lexer.TOKEN_RPAREN, lexer.TOKEN_COMMA, lexer.TOKEN_GT, lexer.TOKEN_SHIFT_RIGHT,
 					lexer.TOKEN_RBRACKET, lexer.TOKEN_SEMICOLON, lexer.TOKEN_ARROW, lexer.TOKEN_IMPLEMENTS:
 					closers[j] = true

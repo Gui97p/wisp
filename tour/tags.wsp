@@ -1,12 +1,14 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Tags: `#name` and `#name(arguments)` before a declaration.
 //
-// A tag says something about the declaration that follows it, and does not
-// change its syntax. Tags go on their own lines (or on one line) above the
-// declaration, and the compiler knows a short list of them: a name it does not
-// know is an error that lists the ones it does, and so is a tag on a
-// declaration it does not apply to. `#target` is not a tag: it is a directive
-// for the whole file, and stays at the top.
+// A tag says something about the declaration that follows it, and does not change
+// its syntax. Tags go on their own lines (or on one line) above the declaration,
+// and the compiler knows a short list of them: a name it does not know is an error
+// that lists the ones it does, and so is a tag on a declaration it does not apply
+// to. `#target`, `#standalone` and `#allow` are not tags: they are directives for
+// the whole file, and stay at the top. The comment at the end of a line shows the
+// value that line gives.
 //
 //     #naked          a native function with no frame (see the native page)
 //     #packed         a struct with no padding
@@ -15,11 +17,14 @@
 //     #must_use       a function whose result a caller should not throw away
 //     #test           a test that `wisp test` runs
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. `#packed`
+// ---------------------------------------------------------------------------
+//
+// `#packed` puts the fields one after the other, with alignment 1. The layout is
+// the one a file format or a protocol asks for, at the price of fields that are
+// not aligned in memory.
 
-// `#packed` puts the fields one after the other, with alignment 1. The layout
-// is the one a file format or a protocol asks for, at the price of fields that
-// are not aligned in memory.
 #packed
 struct Wire {
 	uint8 kind;
@@ -33,21 +38,45 @@ struct Padded {
 	uint16 flags;
 }
 
-// `#naked` leaves everything to the block: no frame, no copy of the
-// parameters. They arrive in the registers of the calling convention (`rdi`,
-// `rsi`, `rdx`, ... and `xmm0`..), a result is left in `rax` or `xmm0`, and
-// the block ends in `ret` or `jmp`. The results are written as types only,
-// because nothing here is a variable.
+func packing() {
+	int wireSize = sizeof(Wire);  // 11
+	int paddedSize = sizeof(Padded);  // 24
+	int valueAt = offsetof(Wire, value);  // 1
+	int flagsAt = offsetof(Wire, flags);  // 9
+
+	Wire w = Wire{kind: 1, value: 1000, flags: 7};
+	int value = w.value;  // 1000
+}
+
+// ---------------------------------------------------------------------------
+// 2. `#naked`
+// ---------------------------------------------------------------------------
+//
+// `#naked` leaves everything to the block: no frame, no copy of the parameters.
+// They arrive in the registers of the calling convention (`rdi`, `rsi`, `rdx`, ...
+// and `xmm0`..), a result is left in `rax` or `xmm0`, and the block ends in `ret`
+// or `jmp`. The results are written as types only, because nothing here is a
+// variable.
+
 #naked
 native<x64> triple(int x) int {
 	lea rax, [rdi + rdi * 2];
 	ret;
 }
 
+func nakedFunctions() {
+	int tripled = triple(14);  // 42
+}
+
+// ---------------------------------------------------------------------------
+// 3. `#noreturn`
+// ---------------------------------------------------------------------------
+//
 // `#noreturn` promises that the function does not come back, and the compiler
 // checks it: the body cannot `return`, and has to end in `panic`, in another
-// `#noreturn` call, or in a loop with no end. In exchange, the code after a
-// call is unreachable, and a function that ends with one needs no `return`.
+// `#noreturn` call, or in a loop with no end. In exchange, the code after a call
+// is unreachable, and a function that ends with one needs no `return`.
+
 #noreturn
 func fail(string why) {
 	panic(why);
@@ -60,33 +89,55 @@ func positive(int n) int {
 	fail("not a positive number");
 }
 
-// `#deprecated` is for what is going away. A call to `oldTriple` prints a
-// warning with the message, and the program still works.
+func noreturn() {
+	int three = positive(3);  // 3
+}
+
+// ---------------------------------------------------------------------------
+// 4. `#deprecated`
+// ---------------------------------------------------------------------------
+//
+// `#deprecated` is for what is going away. A call to `oldTriple` prints a warning
+// with the message, and the program still works.
+
 #deprecated("use triple")
 public func oldTriple(int x) int {
 	return x * 3;
 }
 
-// `#must_use` is for a function that does nothing but give a result. A call
-// that throws the result away, such as `bigger(1, 2);` alone on a line, gets a
-// warning with the message. The result of such a call is used when it is
-// kept, even in a variable that starts with an underscore, which says that
-// ignoring it is on purpose.
+// ---------------------------------------------------------------------------
+// 5. `#must_use`
+// ---------------------------------------------------------------------------
+//
+// `#must_use` is for a function that does nothing but give a result. A call that
+// throws the result away, such as `bigger(1, 2);` alone on a line, gets a warning
+// with the message. The result of such a call is used when it is kept, even in a
+// variable that starts with an underscore, which says that ignoring it is on
+// purpose.
+
 #must_use("the result is returned, nothing is stored in the arguments")
 func bigger(int a, int b) int {
 	return a > b ? a : b;
 }
 
+func mustUse() {
+	int _ignored = bigger(3, 9);  // 9
+}
+
+// ---------------------------------------------------------------------------
+// 6. `#test`
+// ---------------------------------------------------------------------------
+//
 // `#test` marks a test. It takes no parameters and gives no result, or only an
-// error, so it can use `!` like any function. The name between quotes is what
-// the report shows, and without it the name of the function is used. `wisp
-// test` runs every test of the project, each one in a process of its own: a
-// test passes when it returns, and fails when it returns an error or stops the
-// program, as a panic does. Tests can sit in the file they test, like this
-// one, in a file named name.test.wsp next to it (which sees what is
-// `internal`), or in any other folder of the project. Every other build
-// leaves them out, so this function does not exist in the program that the
-// tour runs.
+// error, so it can use `!` like any function. The name between quotes is what the
+// report shows, and without it the name of the function is used. `wisp test` runs
+// every test of the project, each one in a process of its own: a test passes when
+// it returns, and fails when it returns an error or stops the program, as a panic
+// does. Tests can sit in the file they test, like this one, in a file named
+// name.test.wsp next to it (which sees what is `internal`), or in any other folder
+// of the project. Every other build leaves them out, so this function does not
+// exist in the program that the tour runs.
+
 #test("a Wire holds what it was given")
 func wireRoundTrip() {
 	Wire w = Wire{kind: 2, value: 40, flags: 1};
@@ -96,12 +147,8 @@ func wireRoundTrip() {
 }
 
 public func demo() {
-	fmt.println("Wire is {} bytes and Padded is {}", sizeof(Wire), sizeof(Padded));
-	fmt.println("the value of Wire starts at {} and its flags at {}", offsetof(Wire, value), offsetof(Wire, flags));
-	Wire w = Wire{kind: 1, value: 1000, flags: 7};
-	fmt.println("a Wire still reads back: {} {} {}", w.kind, w.value, w.flags);
-	fmt.println("triple(14) = {}", triple(14));
-	fmt.println("positive(3) = {}", positive(3));
-	int _ignored = bigger(3, 9);
-	fmt.println("bigger(3, 9) = {}", bigger(3, 9));
+	packing();
+	nakedFunctions();
+	noreturn();
+	mustUse();
 }

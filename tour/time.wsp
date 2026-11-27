@@ -1,33 +1,71 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Time.
 //
-// `std/time` has three clocks and one type for lengths of time. `now` is the
-// wall clock, in nanoseconds since 1970, and it can jump when the system clock
-// is changed. `ticks` is a monotonic clock for measuring, where only the
-// difference between two calls means anything.
-//
-// A `Duration` is a number of nanoseconds that knows its units: `Millisecond`,
-// `Second`, `Minute` and `Hour` are constants, and a number multiplies them,
-// so `3 * time.Second` is a duration. Durations add, subtract and compare like
-// the `int` they are, and `{}` writes them in the largest units that fit.
-//
-// A `Stopwatch` measures with the monotonic clock: `stopwatch()` starts it,
-// `elapsed` reads it, and `lap` reads it and starts again.
+// `std/time` has three clocks and one type for lengths of time. `now` is the wall
+// clock, in nanoseconds since 1970, and it can jump when the system clock is
+// changed. `ticks` is a monotonic clock for measuring, where only the difference
+// between two calls means anything. The comment at the end of a line shows the
+// value that line gives.
 
 import "std/fmt";
 import "std/time";
 
-public func demo() {
-	time.Duration timeout = 2 * time.Second + 500 * time.Millisecond;
-	fmt.println("a timeout of {}, which is {} seconds or {} milliseconds", timeout, timeout.seconds(), timeout.milliseconds());
-	fmt.println("{}, {}, {}, {}", 850 * time.Nanosecond, 90 * time.Second, time.Hour + 5 * time.Second, -250 * time.Millisecond);
-	fmt.println("a minute has {} seconds, and 100ms is less than a second: {}", (time.Minute).seconds(), 100 * time.Millisecond < time.Second);
+// ---------------------------------------------------------------------------
+// 1. Durations
+// ---------------------------------------------------------------------------
+//
+// A `Duration` is a number of nanoseconds that knows its units: `Millisecond`,
+// `Second`, `Minute` and `Hour` are constants, and a number multiplies them, so
+// `3 * time.Second` is a duration. Durations add, subtract and compare like the
+// `int` they are, and have methods that give them in a unit.
 
+func durations() {
+	time.Duration timeout = 2 * time.Second + 500 * time.Millisecond;
+	float seconds = timeout.seconds();  // 2.5
+	int milliseconds = timeout.milliseconds();  // 2500
+
+	float inMinute = (time.Minute).seconds();  // 60
+	bool shorter = 100 * time.Millisecond < time.Second;  // true
+}
+
+// ---------------------------------------------------------------------------
+// 2. Printing a duration
+// ---------------------------------------------------------------------------
+//
+// `{}` writes a duration in the largest units that fit. The comment on these lines
+// is what they print.
+
+func printing() {
+	time.Duration timeout = 2 * time.Second + 500 * time.Millisecond;
+
+	fmt.println("{timeout}");  // 2.5s
+	fmt.println("{850 * time.Nanosecond}");  // 850ns
+	fmt.println("{90 * time.Second}");  // 1m30s
+	fmt.println("{time.Hour + 5 * time.Second}");  // 1h0m5s
+	fmt.println("{-250 * time.Millisecond}");  // -250ms
+}
+
+// ---------------------------------------------------------------------------
+// 3. Measuring
+// ---------------------------------------------------------------------------
+//
+// A `Stopwatch` measures with the monotonic clock: `stopwatch()` starts it,
+// `elapsed` reads it, and `lap` reads it and starts again. `sleep` waits for a
+// duration.
+
+func measuring() {
 	time.Stopwatch watch = time.stopwatch();
 	time.sleep(20 * time.Millisecond)!!;
 	time.Duration first = watch.lap();
-	fmt.println("the first lap took at least 20ms: {}", first >= 20 * time.Millisecond);
-	fmt.println("a new lap is shorter than the first one plus a second: {}", watch.elapsed() < first + time.Second);
+	bool slept = first >= 20 * time.Millisecond;  // true
+	bool fresh = watch.elapsed() < first + time.Second;  // true
 
-	fmt.println("the wall clock is past 2020: {}", time.now() > 1_577_836_800 * 1_000_000_000);
+	bool wallClock = time.now() > 1_577_836_800 * 1_000_000_000;  // true
+}
+
+public func demo() {
+	durations();
+	printing();
+	measuring();
 }

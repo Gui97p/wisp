@@ -1,111 +1,151 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Pointers and manual memory.
 //
 // The star is always a prefix of the type: *int, **int, *Point. It is never
 // written after the type, which keeps `Point *p` from being mistaken for a
 // multiplication, and it never dereferences: `p@` reads or writes through a
-// pointer, as the inverse of `&x`. There is no garbage collector: memory you
-// ask for is memory you give back.
+// pointer, as the inverse of `&x`. There is no garbage collector: memory you ask
+// for is memory you give back. The comment at the end of a line shows the value
+// that line gives.
 
-import "std/fmt";
 import "std/mem";
 
 struct Pair {
 	int a, b;
 }
 
-public func demo() ! {
+// ---------------------------------------------------------------------------
+// 1. Taking an address
+// ---------------------------------------------------------------------------
+//
+// Writing through a pointer changes the original, and pointers to structs reach
+// their fields directly. A pointer is never null: one that can be empty is
+// optional, `?*int`, and has to be unwrapped before it is used (see the optionals
+// page).
+
+func addresses() {
 	int x = 1;
 	*int px = &x;
 	**int ppx = &px;
-	fmt.println("px@ = {}, ppx@@ = {}", px@, ppx@@);
+	int once = px@;  // 1
+	int twice = ppx@@;  // 1
 
-	// Writing through a pointer changes the original.
 	px@ = 7;
-	fmt.println("after px@ = 7, x = {}", x);
+	int changed = x;  // 7
 
-	// Pointers to structs reach their fields directly.
 	Pair pair = Pair{a: 1, b: 2};
 	*Pair pp = &pair;
 	pp.a = 10;
-	fmt.println("after pp.a = 10, pair is {}, {}", pair.a, pp.b);
+	int a = pair.a;  // 10
+	int b = pp.b;  // 2
 
-	// A pointer is never null. One that can be empty is optional, `?*int`, and
-	// has to be unwrapped before it is used (see the optionals page).
 	?*int nothing = null;
-	fmt.println("nothing == null: {}", nothing == null);
+	bool isNull = nothing == null;  // true
+}
 
-	// `mem.heap.alloc` asks for a number of bytes and can fail, so it is a
-	// fallible call: the error is errors.Kind.OutOfMemory. `sizeof` takes a type
-	// or an expression. The result is a *void, which converts to any pointer
-	// type.
+// ---------------------------------------------------------------------------
+// 2. Blocks from the heap
+// ---------------------------------------------------------------------------
+//
+// `mem.heap.alloc` asks for a number of bytes and can fail, so it is a fallible
+// call: the error is errors.Kind.OutOfMemory. `sizeof` takes a type or an
+// expression. The result is a *void, which converts to any pointer type.
+//
+// A pointer can be indexed and sliced. A slice of a pointer is a span, so the
+// usual span operations apply. Pointer indexing is not bounds-checked: the size is
+// yours to keep track of.
+//
+// Arithmetic steps in elements, not bytes: `p + 1` is the next int.
+
+func blocks() ! {
 	*int heap = mem.heap.alloc(sizeof(int) * 4)!;
-
-	// A pointer can be indexed and sliced. A slice of a pointer is a span, so
-	// the usual span operations apply. Pointer indexing is not bounds-checked:
-	// the size is yours to keep track of.
 	heap[0] = 10;
 	heap[1] = 20;
 	heap[2] = 30;
 	heap[3] = 40;
-	[]int view = heap[0..4];
-	fmt.println("the slice has {} elements and view[2] = {}", len(view), view[2]);
 
-	// Arithmetic steps in elements, not bytes: p + 1 is the next int.
+	[]int view = heap[0..4];
+	int viewLength = len(view);  // 4
+	int viewThird = view[2];  // 30
+
 	*int second = heap + 1;
-	fmt.println("(heap + 1)@ = {}", second@);
-	fmt.println("second - heap = {}", second - heap);
+	int atSecond = second@;  // 20
+	int distance = second - heap;  // 1
 	second++;
-	fmt.println("after second++, second@ = {}", second@);
-	fmt.println("heap < second: {}", heap < second);
+	int atNext = second@;  // 30
+	bool before = heap < second;  // true
 
 	// `realloc` resizes a block, given the size it has now, and keeps its
 	// contents. If it cannot, the original block is left untouched.
 	heap = mem.heap.realloc(heap, sizeof(int) * 4, sizeof(int) * 8)!;
 	heap[7] = 80;
-	fmt.println("after realloc: {}, {}, {}", heap[0], heap[3], heap[7]);
+	int kept = heap[0];  // 10
+	int keptLast = heap[3];  // 40
+	int added = heap[7];  // 80
 
-	// `free` takes a pointer. A slice or an array is converted to its base
-	// pointer on its own, so `mem.heap.free(s)` works when `s` came from the
-	// heap. A string is only a view, so it is never freed: free the buffer it
-	// came from.
+	// `free` takes a pointer. A slice or an array is converted to its base pointer
+	// on its own, so `mem.heap.free(s)` works when `s` came from the heap. A string
+	// is only a view, so it is never freed: free the buffer it came from.
 	mem.heap.free(heap);
+}
 
-	// Pointers and integers convert explicitly, and so do pointers of
-	// different types. A pointer type that is not a plain name goes in
-	// parentheses, as in `(*int8)(address)`, and it works at any depth:
-	// `(**int)(&p)`. To read through a converted value, dereference it:
-	// `(*int8)(address)@`.
+// ---------------------------------------------------------------------------
+// 3. Converting pointers
+// ---------------------------------------------------------------------------
+//
+// Pointers and integers convert explicitly, and so do pointers of different
+// types. A pointer type that is not a plain name goes in parentheses, as in
+// `(*int8)(address)`, and it works at any depth: `(**int)(&p)`. To read through a
+// converted value, dereference it: `(*int8)(address)@`.
+//
+// Bytes become a string without a copy, and a string gives the address of its
+// bytes. The second one is only safe to hand to C when the string ends in a zero
+// byte, which string literals do and slices of them do not.
+
+func converting() ! {
 	int8 raw = 65;
 	uint64 address = uint64(&raw);
-	fmt.println("the address of raw is not zero: {}", address != 0);
-	fmt.println("reading the address back gives {}", (*int8)(address)@);
+	bool notZero = address != 0;  // true
+	int8 back = (*int8)(address)@;  // 65
 
-	// Bytes become a string without a copy, and a string gives the address of
-	// its bytes. The second one is only safe to hand to C when the string ends
-	// in a zero byte, which string literals do and slices of them do not.
 	*int8 bytes = mem.heap.alloc(3)!;
 	bytes[0] = 104;
 	bytes[1] = 105;
 	bytes[2] = 0;
-	string text = string(bytes[0..2]);
-	fmt.println("string(bytes[0:2]) = {}", text);
+	string text = string(bytes[0..2]);  // "hi"
 
 	*int8 literal = (*int8)("hey");
-	fmt.println("\"hey\" starts with {} and ends with {}", literal[0], literal[3]);
+	int first = literal[0];  // 104
+	int last = literal[3];  // 0
 	mem.heap.free(bytes);
+}
 
-	// An array or a span converts to a pointer to its first element, which is
-	// what a system call or a C function takes, and it does so on its own
-	// wherever a pointer is expected. The pointer is to the element type, or
-	// *void. The pointer of an empty span is still where it starts, and an array
-	// has to be a variable, since a temporary has no address to give.
+// ---------------------------------------------------------------------------
+// 4. Arrays and spans as pointers
+// ---------------------------------------------------------------------------
+//
+// An array or a span converts to a pointer to its first element, which is what a
+// system call or a C function takes, and it does so on its own wherever a pointer
+// is expected. The pointer is to the element type, or *void. The pointer of an
+// empty span is still where it starts, and an array has to be a variable, since a
+// temporary has no address to give.
+
+func spans() {
 	[4]byte letters;
 	*byte start = letters;
 	start@ = 'a';
 	(start + 3)@ = 'd';
-	fmt.println("letters = {}...{}", letters[0], letters[3]);
+	byte first = letters[0];  // 97
+	byte last = letters[3];  // 100
 
 	[]byte middle = letters[1..3];
-	fmt.println("the span starts one element after the array: {}", (*byte)(middle) == start + 1);
+	bool shifted = (*byte)(middle) == start + 1;  // true
+}
+
+public func demo() ! {
+	addresses();
+	blocks()!;
+	converting()!;
+	spans();
 }

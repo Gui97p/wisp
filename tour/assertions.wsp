@@ -1,18 +1,18 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Asserting that a call works.
 //
-// A postfix `!` passes an error up, and only a fallible function can do that.
-// A postfix `!!` says the call cannot fail here: if it does, the program stops
-// with a panic that names the error and where it was raised. It works anywhere,
-// even in a function that cannot fail, and on a call with no value.
+// A postfix `!` passes an error up, and only a fallible function can do that. A
+// postfix `!!` says the call cannot fail here: if it does, the program stops with
+// a panic that names the error and where it was raised. It works anywhere, even
+// in a function that cannot fail, and on a call with no value.
 //
 // Use it where a failure is a bug, in a test or at the top of a program. A
 // library should pass the error up with `!` and let its caller decide.
 //
 // On a failure it prints the error, the enum, the message and where it was
-// raised, and then the place of the `!!`.
-
-import "std/fmt";
+// raised, and then the place of the `!!`. The comment at the end of a line shows
+// the value that line gives when the call works.
 
 enum Fail {
 	Ok,
@@ -33,9 +33,7 @@ func settle(int n) ! {
 }
 
 public func demo() {
-	int a = risky(3)!!;
-	fmt.println("risky(3)!! = {}", a);
-	fmt.println("risky(4)!! + risky(5)!! = {}", risky(4)!! + risky(5)!!);
+	int a = risky(3)!!;  // 6
+	int b = risky(4)!! + risky(5)!!;  // 18
 	settle(1)!!;
-	fmt.println("settle(1)!! passed");
 }

@@ -1,6 +1,12 @@
+#allow unused_variables
 // The entry point of the tour. `wisp run` finds the single `main` in the
 // project on its own, no `entry` setting needed, and runs it on the host
 // x86-64 target.
+//
+// Most pages teach by showing the value of each line in a comment, so running
+// them prints nothing: read them, change a line, and check it with `wisp check`.
+// The pages that are about output (printing, functions, floats, cleanup, time) print for
+// real, and main marks where each one starts.
 //
 // What each page teaches, in the order they run:
 //
@@ -49,6 +55,11 @@
 // project root, so even files in subfolders write them the same way. Two
 // modules may import each other, since every declaration is known before any
 // body is checked.
+//
+// Lines that start with `#` at the top of a file, such as `#standalone`,
+// `#target` and `#allow`, are directives for that file. `#allow` turns off
+// warnings by name, for example `#allow unused_variables, dead_code`, and
+// basics.wsp says what the names are.
 
 import "std/fmt";
 import "anyargs";
@@ -89,113 +100,62 @@ import "variants";
 // `!` marks `main` as fallible: `pointers.demo()!` passes any error up, and if
 // `main` ends in an error the program prints it and exits with its code.
 func main() !int {
-	fmt.println("== basics ==");
 	basics.demo();
 
-	fmt.println("\n== printing ==");
+	fmt.println("== printing ==");
 	printing.demo();
 
-	fmt.println("\n== branching ==");
 	branching.demo();
-
-	fmt.println("\n== loops ==");
 	loops.demo();
 
 	fmt.println("\n== functions ==");
 	functions.demo();
 
-	fmt.println("\n== function values ==");
 	lambdas.demo();
-
-	fmt.println("\n== inline functions ==");
 	inlining.demo();
-
-	fmt.println("\n== variadics ==");
 	variadics.demo();
-
-	fmt.println("\n== any arguments ==");
 	anyargs.demo();
 
 	fmt.println("\n== defer ==");
 	cleanup.demo();
 
-	fmt.println("\n== types ==");
 	types.demo();
-
-	fmt.println("\n== enums with data ==");
 	variants.demo();
-
-	fmt.println("\n== integer overflow ==");
 	overflow.demo();
-
-	fmt.println("\n== compile time ==");
 	compiletime.demo();
 
 	fmt.println("\n== floats ==");
 	floats.demo();
 
-	fmt.println("\n== numbers ==");
 	numbers.demo();
 
 	fmt.println("\n== time ==");
 	time.demo();
 
-	fmt.println("\n== random ==");
 	random.demo();
-
-	fmt.println("\n== structs ==");
 	structs.demo();
-
-	fmt.println("\n== literals ==");
 	literals.demo();
-
-	fmt.println("\n== generics ==");
 	generics.demo();
-
-	fmt.println("\n== interfaces ==");
 	interfaces.demo();
-
-	fmt.println("\n== collections ==");
 	collections.demo();
-
-	fmt.println("\n== errors ==");
 	errors.demo();
-
-	fmt.println("\n== optionals ==");
 	optionals.demo();
-
-	fmt.println("\n== assertions ==");
 	assertions.demo();
-
-	fmt.println("\n== pointers ==");
 	pointers.demo()!;
-
-	fmt.println("\n== allocators ==");
 	memory.demo()!;
-
-	fmt.println("\n== files and paths ==");
 	files.demo()!;
-
-	fmt.println("\n== globals ==");
 	globals.demo();
-	fmt.println("another module reads the public global: {}", globals.total);
-
-	fmt.println("\n== interop ==");
 	interop.demo();
-
-	fmt.println("\n== tags ==");
 	tags.demo();
-
-	fmt.println("\n== target ==");
 	platform.demo();
 
-	fmt.println("\n== modules ==");
-	fmt.println("geo.area(3, 4) = {}", geo.area(3, 4));
-	fmt.println("geo.Sides = {}", geo.Sides);
-	fmt.println("geo.perimeter(5) = {}", geo.perimeter(5));
+	int area = geo.area(3, 4);  // 12
+	int sides = geo.Sides;  // 4
+	int perimeter = geo.perimeter(5);  // 20
 
 	geo.Rect rect = geo.newRect(3, 4);
-	fmt.println("rect is {} by {}, its area is {}", rect.width, rect.height, rect.area());
+	int width = rect.width;  // 3
+	int rectArea = rect.area();  // 12
 
 	return 0;
 }

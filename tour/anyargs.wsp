@@ -1,4 +1,5 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Variadics of any type.
 //
 // `...name` with no type before it takes any number of arguments of any type.
@@ -8,63 +9,70 @@
 // Arguments that cannot be held, such as a struct (pass a pointer), are an
 // error at the call.
 //
-// This is how `fmt.printf` itself is written: its `...args` is read with a
-// `switch type` on each argument.
+// This is how `fmt.format` itself is written: its `...args` is read with a
+// `switch type` on each argument. The comment at the end of a line shows the
+// value that line gives.
+
+// ---------------------------------------------------------------------------
+// 1. Looking at the type of a value
+// ---------------------------------------------------------------------------
 //
 // `switch type args[i] { ... }` dispatches on the type of the value, and each
-// case names it with the type it matched: `case int v:` gives a `v` that is
-// an `int`, `case string s:` an `s` that is a `string`. The name is optional,
-// `case bool:` just tests. A case is exactly the type it names, so `case int`
-// is only `int`, and `case int8`, `case Color` (an enum) or `case Meters` (a
-// type of your own, such as `type Meters int`) are each their own case, in any
-// order. Two groups cover the integers that arrive in any size: `case signed v`
+// case names it with the type it matched: `case int v:` gives a `v` that is an
+// `int`, `case string s:` an `s` that is a `string`. The name is optional,
+// `case bool:` just tests. `default` runs for anything else and has no name.
+//
+// A case is exactly the type it names, so `case int` is only `int`, and
+// `case int8`, `case Color` (an enum) or `case Meters` (a type of your own, such
+// as `type Meters int`) are each their own case, in any order.
+//
+// Two groups cover the integers that arrive in any size: `case signed v`
 // matches every signed integer and `case unsigned v` every unsigned one, and
 // `v` is an `int` or a `uint`. A group is the one thing that depends on order:
 // put a specific case before the group that contains it. `signed` and
 // `unsigned` are not reserved words, a type of your own may use them.
-// `default` runs for anything else and has no name.
-//
-// `rest...` passes a variadic on to another function that takes `...name`.
-
-import "std/fmt";
 
 enum Color {
 	Red,
 	Green,
 }
 
+// A `Color` adds 100, an integer adds itself, a string adds its length and a
+// bool adds 1 or 0. Anything else adds nothing.
 func describe(...args) int {
-	int total;
+	int total = 0;
 	for _, arg in args {
 		switch type arg {
-			case Color => {
-				fmt.println("a Color adds 100");
-				total += 100;
-			}
-			case signed v => {
-				fmt.println("the integer {} adds {}", v, v);
-				total += v;
-			}
-			case string v => {
-				fmt.println("the string \"{}\" adds its length, {}", v, len(v));
-				total += len(v);
-			}
-			case bool v => {
-				fmt.println("the bool {} adds {}", v, v ? 1 : 0);
-				total += v ? 1 : 0;
-			}
+			case Color => total += 100;
+			case signed v => total += v;
+			case string v => total += len(v);
+			case bool v => total += v ? 1 : 0;
 		}
 	}
 	return total;
 }
 
+func dispatching() {
+	int mixed = describe(10, "abc", true);  // 14
+	int color = describe(Color.Green, 1);  // 101
+	int none = describe();  // 0
+}
+
+// ---------------------------------------------------------------------------
+// 2. Passing them on
+// ---------------------------------------------------------------------------
+//
+// `rest...` passes a variadic on to another function that takes `...name`.
+
 func twice(...args) int {
 	return describe(args...) * 2;
 }
 
+func passing() {
+	int doubled = twice(1, "ab");  // 6
+}
+
 public func demo() {
-	fmt.println("describe(10, \"abc\", true) = {}", describe(10, "abc", true));
-	fmt.println("describe(Color.Green, 1) = {}", describe(Color.Green, 1));
-	fmt.println("twice(1, \"ab\") = {}", twice(1, "ab"));
-	fmt.println("describe() = {}", describe());
+	dispatching();
+	passing();
 }

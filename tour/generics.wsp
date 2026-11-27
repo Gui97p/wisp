@@ -1,43 +1,57 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Generics: functions, structs and methods that work for any type.
 //
 // A type parameter goes between `<>` after the name: `func biggest<T>(...)`,
-// `struct List<T>`. Inside, `T` is a type like any other, and the compiler
-// writes a copy of the declaration for every type it is used with: `List<int>`
-// and `List<string>` are two different structs, as if each had been written by
-// hand.
+// `struct List<T>`. Inside, `T` is a type like any other, and the compiler writes
+// a copy of the declaration for every type it is used with: `List<int>` and
+// `List<string>` are two different structs, as if each had been written by hand.
+// The comment at the end of a line shows the value that line gives.
+
+// ---------------------------------------------------------------------------
+// 1. What a type parameter is promised to have
+// ---------------------------------------------------------------------------
 //
 // The body of a generic is checked once, against what its type parameter is
-// promised to have, so an error shows up where the generic is written and not
-// in some use of it. A bare `T` can only be copied, passed on and returned. To
-// add, compare or call something, say so with a constraint written before the
-// name: `Number T` is a `T` that is one of the types of `Number`, and `Writer W`
-// is a `W` that declares `implements Writer` (see the interfaces page).
+// promised to have, so an error shows up where the generic is written and not in
+// some use of it. A bare `T` can only be copied, passed on and returned. To add,
+// compare or call something, say so with a constraint written before the name:
+// `Number T` is a `T` that is one of the types of `Number`, and `Writer W` is a
+// `W` that declares `implements Writer` (see the interfaces page).
 //
 // Calls infer the type from the arguments, and `f<int>(x)` names it when it
 // cannot be inferred. A struct always names its types: `List<int> numbers`.
-//
-// A method of a generic struct lists the type parameters in its receiver:
-// `func (*List<T> l) push(T value)`. The names between `<>` there are new each
-// time, so a method may call its parameter `E` if it likes. A method can also
-// have type parameters of its own, after its name, with constraints like any
-// other: `func (*List<T> l) fold<U>(...)`. They are inferred from the arguments
-// or named at the call: `list.fold<int>(0, add)`.
-//
-// A parameter can also be a value that is known at compile time, written with
-// `const`: `struct Ring<T, const int N>`. It works as a constant in the
-// declaration, it can size an array, and it can be inferred from an array.
-//
-// A generic function can be a value too, as long as every type is named:
-// `let f = biggest<int>`. A `type` and an enum with data take parameters the
-// same way, and a generic type keeps its own identity per argument, also inside
-// an `any`: a `*Maybe<int>` and a `*Maybe<string>` are different cases of a
-// `switch type`.
-
-import "std/fmt";
 
 interface Number { int | int64 | float | float32 | byte }
 interface Ordered { int | int64 | float | string }
+
+func biggest<Ordered T>(T a, T b) T {
+	return a > b ? a : b;
+}
+
+func apply<T, U>(T value, (T) => U f) U {
+	return f(value);
+}
+
+func square(int x) int => x * x;
+
+func functions() {
+	int nine = biggest(3, 9);  // 9
+	float fractional = biggest<float>(1.5, 0.5);  // 1.5
+	int squared = apply(7, square);  // 49
+}
+
+// ---------------------------------------------------------------------------
+// 2. Generic structs and their methods
+// ---------------------------------------------------------------------------
+//
+// A method of a generic struct lists the type parameters in its receiver:
+// `func (*List<T> l) push(T value)`. The names between `<>` there are new each
+// time, so a method may call its parameter `E` if it likes.
+//
+// A method can also have type parameters of its own, after its name, with
+// constraints like any other: `func (*List<T> l) fold<U>(...)`. They are inferred
+// from the arguments or named at the call: `list.fold<int>(0, add)`.
 
 struct List<Number T> {
 	[8]T items;
@@ -65,7 +79,24 @@ func (*List<T> l) fold<U>(U start, (U, T) => U step) U {
 	return acc;
 }
 
-func addLength(int acc, int n) int => acc * 10 + n;
+func addDigit(int acc, int n) int => acc * 10 + n;
+
+func lists() {
+	List<int> numbers;
+	numbers.push(3);
+	numbers.push(4);
+	List<float> weights;
+	weights.push(1.5);
+	weights.push(2.5);
+
+	int numberSum = numbers.sum();  // 7
+	float weightSum = weights.sum();  // 4
+	int digits = numbers.fold(0, addDigit);  // 34
+}
+
+// ---------------------------------------------------------------------------
+// 3. More than one type parameter
+// ---------------------------------------------------------------------------
 
 struct Pair<A, B> {
 	A first;
@@ -76,15 +107,20 @@ func swap<A, B>(Pair<A, B> p) Pair<B, A> {
 	return Pair<B, A>{first: p.second, second: p.first};
 }
 
-func biggest<Ordered T>(T a, T b) T {
-	return a > b ? a : b;
+func pairs() {
+	Pair<int, string> pair = Pair<int, string>{first: 1, second: "one"};
+	Pair<string, int> flipped = swap(pair);
+	string word = flipped.first;  // "one"
+	int number = flipped.second;  // 1
 }
 
-func apply<T, U>(T value, (T) => U f) U {
-	return f(value);
-}
-
-func square(int x) int => x * x;
+// ---------------------------------------------------------------------------
+// 4. Values known at compile time
+// ---------------------------------------------------------------------------
+//
+// A parameter can also be a value that is known at compile time, written with
+// `const`: `struct Ring<T, const int N>`. It works as a constant in the
+// declaration, it can size an array, and it can be inferred from an array.
 
 struct Ring<T, const int N> {
 	[N]T slots;
@@ -100,10 +136,22 @@ func capacity<T, const int N>(Ring<T, N> _ring) int {
 	return N;
 }
 
-// `switch type` on a value that is not an `any` is decided by the compiler:
-// each copy keeps only the case of its own type, and the other cases are not
-// even analysed, so a case may do what only its type can do. `case signed v`
-// and `case unsigned v` stand for every integer of that kind.
+func rings() {
+	Ring<byte, 4> ring;
+	ring.put(1);
+	int slots = capacity(ring);  // 4
+	int bytes = sizeof(ring);  // 16
+}
+
+// ---------------------------------------------------------------------------
+// 5. Choosing by type
+// ---------------------------------------------------------------------------
+//
+// `switch type` on a value that is not an `any` is decided by the compiler: each
+// copy keeps only the case of its own type, and the other cases are not even
+// analysed, so a case may do what only its type can do. `case signed v` and
+// `case unsigned v` stand for every integer of that kind.
+
 func describe<T>(T value) string {
 	switch type value {
 		case string text => return text;
@@ -115,6 +163,7 @@ func describe<T>(T value) string {
 
 // The subject of a `switch type` can be the type parameter itself, and the
 // switch can be an expression: only the case of the chosen type survives.
+
 func bytesOf<T>() int {
 	return switch type T {
 		case byte => 1;
@@ -124,8 +173,33 @@ func bytesOf<T>() int {
 	};
 }
 
-// A `type` gives a name to another type for each argument. As for any `type`,
-// the new type is distinct from the one it is made of.
+func choosing() {
+	string text = describe("text");  // "text"
+	string integer = describe(42);  // "an integer"
+	string flag = describe(true);  // "a bool"
+	string other = describe(1.5);  // "something else"
+
+	int byteSize = bytesOf<byte>();  // 1
+	int intSize = bytesOf<int>();  // 8
+	int stringSize = bytesOf<string>();  // 16
+}
+
+// ---------------------------------------------------------------------------
+// 6. Generic types and generic values
+// ---------------------------------------------------------------------------
+//
+// A `type` gives a name to another type for each argument. As for any `type`, the
+// new type is distinct from the one it is made of.
+//
+// An enum with data takes parameters when its variants use them. The variants
+// are written after the type with its arguments, or with just a dot where the
+// type is known from the context. A generic type keeps its own identity per
+// argument, also inside an `any`: a `*Maybe<int>` and a `*Maybe<string>` are
+// different cases of a `switch type`.
+//
+// A generic function can be a value too, as long as every type is named:
+// `let f = biggest<int>`.
+
 type Step<T>(T) => T;
 
 func twice<T>(T value, Step<T> step) T {
@@ -134,9 +208,6 @@ func twice<T>(T value, Step<T> step) T {
 
 func increment(int x) int => x + 1;
 
-// An enum with data takes parameters when its variants use them. The variants
-// are written after the type with its arguments, or with just a dot where the
-// type is known from the context.
 enum Maybe<T> {
 	Nothing,
 	Just{T value;}
@@ -149,38 +220,24 @@ func (*Maybe<T> m) orElse(T fallback) T {
 	}
 }
 
-public func demo() {
-	List<int> numbers;
-	numbers.push(3);
-	numbers.push(4);
-	List<float> weights;
-	weights.push(1.5);
-	weights.push(2.5);
-	fmt.println("sum of the numbers {}, of the weights {}", numbers.sum(), weights.sum());
-
-	fmt.println("folded: {}", numbers.fold(0, addLength));
-
-	Pair<int, string> pair = Pair<int, string>{first: 1, second: "one"};
-	Pair<string, int> flipped = swap(pair);
-	fmt.println("swapped: {} and {}", flipped.first, flipped.second);
-
-	fmt.println("biggest(3, 9) = {}, biggest<float>(1.5, 0.5) = {}", biggest(3, 9), biggest<float>(1.5, 0.5));
-	fmt.println("apply(7, square) = {}", apply(7, square));
-
-	Ring<byte, 4> ring;
-	ring.put(1);
-	fmt.println("a ring of {} slots, {} bytes in all", capacity(ring), sizeof(ring));
-
-	fmt.println("{}, {}, {}, {}", describe("text"), describe(42), describe(true), describe(1.5));
-
-	fmt.println("sizes: {} {} {}", bytesOf<byte>(), bytesOf<int>(), bytesOf<string>());
-
+func types() {
 	let step = increment;
-	fmt.println("twice(5) = {}", twice(5, step));
-	let pick = biggest<int>;
-	fmt.println("pick(2, 8) = {}", pick(2, 8));
+	int twiceFive = twice(5, step);  // 7
 
-	Maybe<int> found = Maybe < int > .Just{value: 7};
+	let pick = biggest<int>;
+	int picked = pick(2, 8);  // 8
+
+	Maybe<int> found = Maybe<int>.Just{value: 7};
 	Maybe<int> missing = .Nothing;
-	fmt.println("{} and {}", found.orElse(0), missing.orElse(-1));
+	int foundValue = found.orElse(0);  // 7
+	int missingValue = missing.orElse(-1);  // -1
+}
+
+public func demo() {
+	functions();
+	lists();
+	pairs();
+	rings();
+	choosing();
+	types();
 }

@@ -1,33 +1,24 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Function values.
 //
 // A function is a value: it can be stored in a variable, passed to another
-// function, returned, kept in a struct or in an array, and called through
-// that name. The type of a function value lists the parameter types and, after
-// `=>`, the results: `(int, int) => int`. A function with no result writes an
-// empty list: `(int) => ()`.
-//
-// A function literal writes the function where it is used: `(int x) int => x * 3`
-// for a single expression, or a block after the `=>`. A function value is only
-// code. It does not carry variables from the function around it, so a literal
-// can use its own parameters, globals, constants and other functions, but not
-// a local of the function that contains it. When a callback needs some state,
-// pass it as a parameter, the way C passes a `void *`.
-//
-// `type Step (int) => int;` gives a function type a name, which is handy in
-// an array of them: `[2]Step`. The type can also be written in place,
-// as in `[2](int) => int`. A plain function converts to the named type. A
-// function value is never null: one that can be missing is written `?Step`
-// (see the optionals page), and has to be unwrapped before it is called.
+// function, returned, kept in a struct or in an array, and called through that
+// name. The comment at the end of a line shows the value that line gives.
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. The type of a function
+// ---------------------------------------------------------------------------
+//
+// The type of a function value lists the parameter types and, after `=>`, the
+// results: `(int, int) => int`. A function with no result writes an empty
+// list: `(int) => ()`.
+//
+// `type Step (int) => int;` gives a function type a name, which is handy in an
+// array of them: `[2]Step`. The type can also be written in place, as in
+// `[2](int) => int`. A plain function converts to the named type.
 
 type Step(int) => int;
-
-struct Op {
-	string name;
-	(int, int) => int apply;
-}
 
 func inc(int x) int => x + 1;
 func dec(int x) int => x - 1;
@@ -40,21 +31,60 @@ func pick(bool up) (int) => int {
 	return up ? inc : dec;
 }
 
-public func demo() {
-	let triple = (int x) int => x * 3;
-	fmt.println("triple(5) = {}", triple(5));
-
-	fmt.println("twice(inc, 1) = {}", twice(inc, 1));
-	fmt.println("twice with a literal = {}", twice((int x) int => x * 2, 3));
-	fmt.println("pick(true)(10) = {}, pick(false)(10) = {}", pick(true)(10), pick(false)(10));
-
-	Op add = Op{name: "add", apply: (int a, int b) int => a + b};
-	fmt.println("{}(2, 3) = {}", add.name, add.apply(2, 3));
+func named() {
+	int three = twice(inc, 1);  // 3
+	int up = pick(true)(10);  // 11
+	int down = pick(false)(10);  // 9
 
 	[2]Step table = .{inc, dec};
-	fmt.println("table[0](5) = {}, table[1](5) = {}", table[0](5), table[1](5));
+	int first = table[0](5);  // 6
+	int second = table[1](5);  // 4
+}
 
+// ---------------------------------------------------------------------------
+// 2. Function literals
+// ---------------------------------------------------------------------------
+//
+// A function literal writes the function where it is used: `(int x) int => x * 3`
+// for a single expression, or a block after the `=>`.
+//
+// A function value is only code. It does not carry variables from the function
+// around it, so a literal can use its own parameters, globals, constants and
+// other functions, but not a local of the function that contains it. When a
+// callback needs some state, pass it as a parameter, the way C passes a
+// `void *`.
+
+struct Op {
+	string name;
+	(int, int) => int apply;
+}
+
+func literals() {
+	let triple = (int x) int => x * 3;
+	int fifteen = triple(5);  // 15
+	int twelve = twice((int x) int => x * 2, 3);  // 12
+
+	Op add = Op{name: "add", apply: (int a, int b) int => a + b};
+	int five = add.apply(2, 3);  // 5
+}
+
+// ---------------------------------------------------------------------------
+// 3. A function that may be missing
+// ---------------------------------------------------------------------------
+//
+// A function value is never null. One that can be missing is written `?Step`
+// (see the optionals page), and has to be unwrapped before it is called.
+
+func optional() {
 	?Step none = null;
-	?Step some = triple;
-	fmt.println("none is null: {}, some is null: {}", none == null, some == null);
+	?Step some = inc;
+
+	bool noneIsNull = none == null;  // true
+	bool someIsNull = some == null;  // false
+}
+
+public func demo() {
+	named();
+	literals();
+	optional();
 }

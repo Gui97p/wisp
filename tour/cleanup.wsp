@@ -1,17 +1,15 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Defer.
 //
-// `defer` runs a statement when the block it is written in is left, however
-// it is left: reaching the end, `return`, `break`, `continue` or an error
-// passed up with `!`. Deferred statements run in reverse order, the last one
-// written first. `defer!` runs only when the function leaves with an error,
-// which is what a constructor needs: free what it allocated unless it
-// succeeds. `defer! |e| ...` also names the error that is leaving, so the
-// cleanup can report it. A deferred statement can also pass an error up with
-// `!`, in a function that can fail: if the function was succeeding, that error
-// becomes its error, and if it was already failing the first error is kept.
-// The other deferred statements run either way.
+// `defer` runs a statement when the block it is written in is left, however it
+// is left: reaching the end, `return`, `break`, `continue` or an error passed
+// up with `!`. That is how a function cleans up after itself without repeating
+// the cleanup on every way out.
 //
+// The lines under a comment that says `prints:` show what the call above them
+// writes to the screen, in order.
+
 import "std/fmt";
 import "std/os";
 
@@ -20,17 +18,36 @@ enum Fail {
 	Boom,
 }
 
+// ---------------------------------------------------------------------------
+// 1. Deferred statements run in reverse
+// ---------------------------------------------------------------------------
+//
+// The deferred statements run when the block ends, the last one written first.
+
 func order() {
-	defer fmt.println("  deferred first, runs last");
-	defer fmt.println("  deferred second, runs first");
-	fmt.println("  the body runs before both");
+	defer fmt.println("deferred first, runs last");
+	defer fmt.println("deferred second, runs first");
+	fmt.println("the body runs before both");
 }
 
+// ---------------------------------------------------------------------------
+// 2. When the value is decided
+// ---------------------------------------------------------------------------
+//
 // The returned value is computed before the deferred statements run, and a
 // deferred statement sees the variables as they are when the block is left.
+
+func ordering() {
+	order();
+	// prints:
+	//     the body runs before both
+	//     deferred second, runs first
+	//     deferred first, runs last
+}
+
 func early(bool leave) int {
 	int value = 5;
-	defer fmt.println("  early is over, value is {}", value);
+	defer fmt.println("early is over, value is {value}");
 	if leave {
 		defer value = 99;
 		return value;
@@ -38,23 +55,72 @@ func early(bool leave) int {
 	return 6;
 }
 
+func values() {
+	int got = early(true);  // 5
+	// prints:
+	//     early is over, value is 99
+}
+
+// ---------------------------------------------------------------------------
+// 3. Only when something went wrong
+// ---------------------------------------------------------------------------
+//
+// `defer!` runs only when the function leaves with an error, which is what a
+// constructor needs: free what it allocated unless it succeeds. `defer! |e| ...`
+// also names the error that is leaving, so the cleanup can report it.
+
 func build(bool fail) !int {
-	defer! |e| fmt.println("  build failed ({}), cleaning up", e.message);
-	defer fmt.println("  build is over");
+	defer! |e| fmt.println("build failed ({e.message}), cleaning up");
+	defer fmt.println("build is over");
 	if fail {
 		return Error(Fail.Boom);
 	}
 	return 10;
 }
 
+func failing() {
+	let value, _ = build(false);  // 10
+	// prints:
+	//     build is over
+
+	let _, _ = build(true);
+	// prints:
+	//     build is over
+	//     build failed (Fail.Boom), cleaning up
+}
+
+// ---------------------------------------------------------------------------
+// 4. When the whole program ends
+// ---------------------------------------------------------------------------
+//
 // `defer` cleans up when a block is left. To clean up when the whole program
 // ends, `os.atExit` registers a function that runs after `main` returns, when
 // `os.exit` is called, and when a panic ends the program. Hooks run in the
-// opposite order of the registration, up to 32 of them. A crash by a signal, such
-// as a stack overflow, runs none.
+// opposite order of the registration, up to 32 of them. A crash by a signal,
+// such as a stack overflow, runs none.
+
 func goodbye() {
 	fmt.println("the program is over, so the exit hook runs now");
 }
+
+func hooks() {
+	let _ = os.atExit(goodbye);
+	// prints at the end:
+	//     the program is over, so the exit hook runs now
+}
+
+// ---------------------------------------------------------------------------
+// 5. A deferred statement that can fail
+// ---------------------------------------------------------------------------
+//
+// A deferred statement can pass an error up with `!`, in a function that can
+// fail: if the function was succeeding, that error becomes its error, and if it
+// was already failing the first error is kept. The other deferred statements
+// run either way.
+//
+// A deferred statement cannot leave its block: no return and no break out of
+// it. In a function that cannot fail, a failure has to be handled where it
+// happens, for instance with `??`.
 
 struct Resource {
 	bool broken;
@@ -66,33 +132,28 @@ func (*Resource r) close() ! {
 
 func use(*Resource r) ! {
 	defer r.close()!;
-	fmt.println("  using the resource");
+	fmt.println("using the resource");
+}
+
+func closing() {
+	Resource sound = Resource{};
+	Resource broken = Resource{broken: true};
+
+	let soundError = use(&sound);
+	bool soundFailed = soundError != null;  // false
+	// prints:
+	//     using the resource
+
+	let brokenError = use(&broken);
+	bool brokenFailed = brokenError != null;  // true
+	// prints:
+	//     using the resource
 }
 
 public func demo() {
-	let _ = os.atExit(goodbye);
-
-	fmt.println("order():");
-	order();
-
-	fmt.println("early(true):");
-	int got = early(true);
-	fmt.println("  it returned {}", got);
-
-	fmt.println("build(false):");
-	let value, _ = build(false);
-	fmt.println("  it returned {}", value);
-
-	fmt.println("build(true):");
-	let _, _ = build(true);
-
-	Resource sound, broken = Resource{}, Resource{broken: true};
-	let first = use(&sound);
-	fmt.println("use(sound): failed {}", first != null);
-	let second = use(&broken);
-	fmt.println("use(broken): failed {}", second != null);
-
-// A deferred statement cannot leave its block: no return and no break out of
-// it. In a function that cannot fail, a failure has to be handled where it
-// happens, for instance with `??`.
+	ordering();
+	values();
+	failing();
+	hooks();
+	closing();
 }

@@ -1,17 +1,45 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Functions.
+//
+// A function is declared with `func`: its name, its parameters with the type
+// first, and its result after the parameter list. The comment at the end of a
+// line shows the value that line gives.
+//
+// Variadic parameters are in variadics.wsp, and function values are in
+// lambdas.wsp.
 
 import "std/fmt";
 
-// The parameter type comes first. `a, b` share the type written before them.
+// ---------------------------------------------------------------------------
+// 1. Parameters and results
+// ---------------------------------------------------------------------------
+//
+// The type of a parameter comes first, and `a, b` share the type written before
+// them. A function made of a single expression can use `=>` instead of a block.
+
 func add(int a, b) int {
 	return a + b;
 }
 
-// A function made of a single expression can use `=>`.
 func square(int x) int => x * x;
 
-// Multiple return values.
+// A function can be declared after the code that calls it.
+func later() int => 7;
+
+func basics() {
+	int sum = add(2, 3);  // 5
+	int squared = square(7);  // 49
+	int seven = later();  // 7
+}
+
+// ---------------------------------------------------------------------------
+// 2. Several results
+// ---------------------------------------------------------------------------
+//
+// A function can give back more than one value, and the caller names them all
+// with `let`.
+
 func minmax(int a, b) (int, int) {
 	if a < b {
 		return a, b;
@@ -19,12 +47,27 @@ func minmax(int a, b) (int, int) {
 	return b, a;
 }
 
-// `return call();` gives back whatever the call gives, however many values
-// that is: two, one, or none. So a function that returns nothing can end with
-// `return other();` when `other` returns nothing too, and the guard form works:
+func results() {
+	let low, high = minmax(9, 4);  // 4, 9
+}
+
+// ---------------------------------------------------------------------------
+// 3. Returning what another call gives
+// ---------------------------------------------------------------------------
+//
+// `return call();` gives back whatever the call gives, however many values that
+// is: two, one, or none.
+
+func swapped(int a, b) (int, int) {
+	return minmax(b, a);
+}
+
+// So a function that returns nothing can end with `return other();` when
+// `other` returns nothing too, and the guard form works as well:
 // `return log("x") if quiet;`.
+
 func announce(string text) {
-	fmt.println("{}", text);
+	fmt.println("{text}");
 }
 
 func announceTwice(string text) {
@@ -32,24 +75,15 @@ func announceTwice(string text) {
 	return announce(text);
 }
 
-func swapped(int a, b) (int, int) {
-	return minmax(b, a);
+func forwarding() {
+	let first, second = swapped(1, 5);  // 1, 5
+
+	// This line writes `twice` two times.
+	announceTwice("twice");
 }
 
-// A function can be declared after the code that calls it.
-func later() int => 7;
-
 public func demo() {
-	fmt.println("add(2, 3) = {}", add(2, 3));
-	fmt.println("square(7) = {}", square(7));
-
-	let low, high = minmax(9, 4);
-	fmt.println("minmax(9, 4) = {}, {}", low, high);
-	let first, second = swapped(1, 5);
-	fmt.println("swapped(1, 5) = {}, {}", first, second);
-	announceTwice("twice");
-
-	fmt.println("later() = {}", later());
-
-// Variadic parameters are in variadics.wsp, function values in lambdas.wsp.
+	basics();
+	results();
+	forwarding();
 }

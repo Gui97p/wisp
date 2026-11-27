@@ -1,25 +1,28 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Basics: constants, variables and operators.
 //
-// Every file in this tour exports a `demo` function. main.wsp imports them
-// all and calls them in order, so you can run the whole tour with:
+// Welcome to the tour of Wisp. Every page teaches one idea, in the order that
+// main.wsp lists them, and every page can be read without running anything: a
+// comment at the end of a line shows the value that line gives.
 //
-//     wisp run
+//     int total = 2 + 3;   // 5
 //
-// Each demo prints what it computes, so reading the output next to the code
-// is the way through. Printing comes from the standard library:
+// This page prints nothing, because the values are right there in the
+// comments. The variables exist only to show those values, so the second line
+// of this file turns off the warnings about names that nothing uses. It takes
+// the names of the warnings, separated by commas: `unused_variables`,
+// `unused_imports`, `dead_code`, `unreachable_code`, or `warnings` for all.
 //
-//     import "std/fmt";
-//     fmt.println("limit is {}", limit);
+// Printing comes from the standard library: import `std/fmt` and put the values
+// you want inside braces, as in `fmt.println("the total is {total}")`. Any
+// expression fits in the braces, `{total * 2}`, and printing.wsp shows how to
+// choose the width, the digits and the base.
 //
-// `printf` copies its text and puts the next argument where each `{}` is.
-// printing.wsp shows what else it can do.
-//
-// A few functions need no import because the compiler knows them: `emit`
-// writes a string and a newline, `len` measures arrays, slices and strings,
-// `panic` stops the program with a message, and `sizeof` measures a type.
-// Memory comes from the `std/mem` module (see pointers.wsp). Declaring a function with
-// one of these names in your own module shadows the builtin.
+// A few names need no import because the compiler knows them: `emit` writes a
+// string and a newline, `len` measures arrays, slices and strings, `panic`
+// stops the program with a message, and `sizeof` measures a type. Declaring a
+// function with one of these names in your own module hides the builtin.
 //
 // A comment starts with `//` and is for whoever reads the code, as this whole
 // tour is. A comment that starts with `///` is documentation instead: written
@@ -28,91 +31,227 @@
 // `wisp doc` prints. A plain `//` line between the two does not break the
 // link, but a blank line does.
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. Constants
+// ---------------------------------------------------------------------------
+//
+// A constant is declared outside any function with `const`. It is visible to
+// the whole file and can never be assigned again.
 
-// A top-level constant. It is visible to the whole file and can never be
-// assigned again.
 /// The best score there is. Hover over `MaxScore` to read this line.
 const MaxScore = 100;
 
-// Several constants can share one declaration. A visibility or a type written
-// before the braces applies to every member, and a member can use the ones
-// above it.
+// Several constants can share one declaration. A type written before the
+// braces is the type of every member, and a member can use the ones above it.
 const int{
 	MinScore = 0;
-	Range = MaxScore - MinScore;
+	Range = MaxScore - MinScore;  // 100
 }
 
 // Without a type before the braces, each member can carry its own, written
-// first as everywhere else. Members that do not name one are inferred.
+// first as everywhere else. A member that does not name one gets the type of
+// its value.
 const {
-	uint Mask = 0xFF;
+	uint Mask = 0xFF;  // 255
 	float Ratio = 0.5;
-	Label = "score";
+	Label = "score";  // a string
+}
+
+func constants() {
+	// `const` works inside a function too, and the compiler checks the value.
+	const Greeting = "hi";
+}
+
+// ---------------------------------------------------------------------------
+// 2. Variables
+// ---------------------------------------------------------------------------
+//
+// A variable is declared with its type first: `int limit = 10;`. Write `let`
+// instead of the type when you want the compiler to work it out from the value.
+
+func variables() {
+	int limit = 10;  // an int, 10
+	let total = 2 + 3;  // `let` makes this an int too, 5
+	float ratio = 0.25;  // a float, 0.25
+	bool ready = true;  // true
+	string name = "wisp";  // a string, `len(name)` is 4
+
+	// A variable declared without a value starts zeroed: 0, 0.0, false, or an
+	// empty string.
+	int zeroed;  // 0
+
+	// Several variables can be declared together, each with its own value.
+	int first, second = 4, 5;  // first is 4, second is 5
+}
+
+// ---------------------------------------------------------------------------
+// 3. Number types
+// ---------------------------------------------------------------------------
+//
+// Integers come in four sizes, each one signed (`int8`) or unsigned (`uint8`):
+//
+//     type     bytes   smallest               biggest
+//     int8     1       -128                   127
+//     uint8    1       0                      255
+//     int16    2       -32768                 32767
+//     uint16   2       0                      65535
+//     int32    4       -2147483648            2147483647
+//     uint32   4       0                      4294967295
+//     int64    8       -9223372036854775808   9223372036854775807
+//     uint64   8       0                      18446744073709551615
+//
+// `int` and `uint` are the 64-bit ones, so they are what you reach for when
+// the size does not matter. `byte` is another name for `uint8`. The two
+// floating point types are `float32`, with 4 bytes, and `float`, with 8 bytes,
+// which can also be written `float64`.
+//
+// A literal has to fit the type it goes into, so `int8 tooBig = 200;` does not
+// compile. A smaller integer becomes a bigger one by itself, and going the
+// other way takes a conversion, which stops the program if the value does not
+// fit. What happens when an operation goes past the limits is the lesson of
+// overflow.wsp.
+
+func numbers() {
+	int8 lowest = -128;  // -128
+	uint8 highest = 255;  // 255
+	byte letter = 65;  // 65 (a byte is a uint8)
+
+	int8 small = 5;
+	int wide = small;  // 5 (a smaller integer widens by itself)
+	int8 narrow = int8(wide);  // 5 (a bigger one needs the conversion)
+
+	// Integers and floats do not mix without a conversion either.
+	float half = float(7) / 2.0;  // 3.5
+
+	// `sizeof` gives the size of a type in bytes.
+	int int8Size = sizeof(int8);  // 1
+	int int16Size = sizeof(int16);  // 2
+	int int32Size = sizeof(int32);  // 4
+	int int64Size = sizeof(int);  // 8
+	int float32Size = sizeof(float32);  // 4
+	int float64Size = sizeof(float);  // 8
+}
+
+// ---------------------------------------------------------------------------
+// 4. Arithmetic
+// ---------------------------------------------------------------------------
+//
+// `+ - * / %` work on numbers. Dividing two integers gives an integer: the
+// fraction is dropped, and a negative result rounds toward zero, not down.
+// `%` gives what is left over and keeps the sign of the left side, so
+// `(a / b) * b + a % b` is always `a`.
+//
+// Dividing by zero is a compile error when the compiler can see it, and when
+// the divisor is only known at run time the program stops with a panic.
+
+func arithmetic() {
+	int sum = 7 + 3;  // 10
+	int difference = 7 - 3;  // 4
+	int product = 7 * 3;  // 21
+
+	int quotient = 17 / 5;  // 3
+	int negative = -17 / 5;  // -3 (toward zero)
+	int remainder = 17 % 5;  // 2
+	int leftover = -17 % 5;  // -2 (the sign of the left side)
+
+	// With a float on either side the division keeps its fraction.
+	float exact = 17.0 / 5.0;  // 3.4
+}
+
+// ---------------------------------------------------------------------------
+// 5. Changing a variable
+// ---------------------------------------------------------------------------
+//
+// `x += 2` is short for `x = x + 2`, and every arithmetic operator has this
+// form. `x++` and `x--` add and take one.
+
+func assignment() {
+	int level = 10;
+	level += 2;  // 12
+	level *= 2;  // 24
+	level -= 4;  // 20
+	level /= 5;  // 4
+	level %= 3;  // 1
+	level++;  // 2
+	level--;  // 1
+}
+
+// ---------------------------------------------------------------------------
+// 6. Comparing and combining
+// ---------------------------------------------------------------------------
+//
+// A comparison gives a bool. `&&`, `||` and `!` combine bools, and the right
+// side of `&&` and `||` is only worked out when it has to be: in `false && x`
+// the `x` is never looked at.
+
+func logic() {
+	int a = 6;
+	int b = 3;
+
+	bool bigger = a > b;  // true
+	bool same = a == b;  // false
+	bool different = a != b;  // true
+	bool both = a > b && b > 0;  // true
+	bool either = a < b || b == 3;  // true
+	bool opposite = !(a == b);  // true
+}
+
+// ---------------------------------------------------------------------------
+// 7. Bits
+// ---------------------------------------------------------------------------
+//
+// The bitwise operators work on integers, one bit at a time: `&` keeps the
+// bits that are in both, `|` the bits that are in either, `^` the bits that
+// are in only one, `~` flips every bit, and `<<` and `>>` slide the bits left
+// and right. With `a` as 6 (binary 110) and `b` as 3 (binary 011):
+
+func bits() {
+	int a = 6;
+	int b = 3;
+
+	int both = a & b;  // 2 (binary 010)
+	int either = a | b;  // 7 (binary 111)
+	int one = a ^ b;  // 5 (binary 101)
+	int flipped = ~a;  // -7
+	int left = a << 1;  // 12
+	int right = a >> 1;  // 3
+
+	// Numbers can be written in hexadecimal, binary or octal, and an
+	// underscore can separate groups of digits.
+	int hex = 0xFF;  // 255
+	int binary = 0b1010;  // 10
+	int octal = 0o17;  // 15
+	int million = 1_000_000;  // 1000000
+
+	// Every binary bitwise operator has a short form like `+=`. There is no
+	// `~=`, because `~` takes only one value.
+	int flags = 6;
+	flags &= 2;  // 2
+	flags |= 8;  // 10
+	flags ^= 1;  // 11
+	flags <<= 1;  // 22
+	flags >>= 1;  // 11
+}
+
+// ---------------------------------------------------------------------------
+// 8. Choosing a value
+// ---------------------------------------------------------------------------
+//
+// `condition ? this : that` is the value of `this` when the condition is true
+// and of `that` when it is not.
+
+func choosing() {
+	int bigger = 1 > 2 ? 42 : 21;  // 21
+	int smaller = 1 < 2 ? 42 : 21;  // 42
 }
 
 public func demo() {
-	// `let` infers the type from the value; an explicit type works too. The
-	// type always comes first, as in `int limit`.
-	let total = 2 + 3;
-	int limit = 10;
-
-	// Compound assignment and increment.
-	limit += 2;
-	limit *= 2;
-	total++;
-	fmt.println("total = {}", total);
-	fmt.println("limit = {}", limit);
-	fmt.println("MaxScore = {}", MaxScore);
-	fmt.println("Range = {}", Range);
-	fmt.println("{} mask {}, ratio {}", Label, Mask, Ratio);
-
-	// A variable declared without a value starts zeroed.
-	int zeroed;
-	fmt.println("zeroed = {}", zeroed);
-
-	// Several variables can be declared together.
-	int first, second = 4, 5;
-	fmt.println("first + second = {}", first + second);
-
-	// `const` also works inside a function.
-	const Greeting = "hi";
-	fmt.println("Greeting = {}", Greeting);
-
-	// Integer division truncates toward zero, and `%` keeps the sign of the
-	// dividend, so (a / b) * b + a % b is always a. Dividing by zero is not a
-	// compile error when the divisor is only known at run time: it panics.
-	fmt.println("17 / 5 = {}", 17 / 5);
-	fmt.println("-17 / 5 = {}", -17 / 5);
-	fmt.println("17 % 5 = {}", 17 % 5);
-	fmt.println("-17 % 5 = {}", -17 % 5);
-
-	// Bitwise operators: & | ^ ~ << >>. They only work on integers.
-	// `~` is unary (bitwise not), so there is no `~=`.
-	int a = 6;
-	int b = 3;
-	fmt.println("a = {}, b = {}", a, b);
-	fmt.println("a & b = {}", a & b);
-	fmt.println("a | b = {}", a | b);
-	fmt.println("a ^ b = {}", a ^ b);
-	fmt.println("~a = {}", ~a);
-	fmt.println("a << 1 = {}", a << 1);
-	fmt.println("a >> 1 = {}", a >> 1);
-
-	// Every binary bitwise operator has a compound form.
-	int flags = 6;
-	flags &= 2;
-	flags |= 8;
-	flags ^= 1;
-	flags <<= 1;
-	flags >>= 1;
-	fmt.println("flags after &= 2, |= 8, ^= 1, <<= 1, >>= 1: {}", flags);
-
-	// Comparisons give a bool, and `&&`, `||` and `!` combine them. The
-	// right side of `&&` and `||` is only evaluated when it has to be.
-	fmt.println("a > b && !(a == b) = {}", a > b && !(a == b));
-
-	// The ternary operator.
-	int bigger = 1 > 2 ? 42 : 21;
-	fmt.println("1 > 2 ? 42 : 21 = {}", bigger);
+	constants();
+	variables();
+	numbers();
+	arithmetic();
+	assignment();
+	logic();
+	bits();
+	choosing();
 }

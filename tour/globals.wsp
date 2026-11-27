@@ -1,12 +1,13 @@
 #standalone
+#allow unused_variables
 // Tour - Global variables.
 //
 // A declaration outside any function is a global: one variable for the whole
-// program, alive from the start. Its initializer must be a constant
-// expression (literals, constants, enum members, and arrays or structs made
-// of those), so nothing has to run before `main` and the order of
-// declarations does not matter. Without an initializer it starts zeroed.
-import "std/fmt";
+// program, alive from the start. Its initializer must be a constant expression
+// (literals, constants, enum members, and arrays or structs made of those), so
+// nothing has to run before `main` and the order of declarations does not matter.
+// Without an initializer it starts zeroed. The comment at the end of a line shows
+// the value that line gives.
 
 struct Settings {
 	int retries;
@@ -19,13 +20,13 @@ string name = "wisp";
 Settings settings = Settings{retries: 3, verbose: true};
 int untouched;
 
-// `public` makes a global visible to other modules, which can read it and
-// write it.
+// `public` makes a global visible to other modules, which can read it and write
+// it.
 public int total = 100;
 
-// A global that only some targets or profiles have takes a selector, like
-// any other declaration. `let` infers the type from its value, and `var`
-// names the type, so it can start zeroed: `let<debug> level = 3;` and
+// A global that only some targets or profiles have takes a selector, like any
+// other declaration. `let` infers the type from its value, and `var` names the
+// type, so it can start zeroed: `let<debug> level = 3;` and
 // `var<debug> [64]int history;`. A pointer starts as a converted null,
 // `(*Settings)(null)`, or just zeroed with `var`.
 
@@ -34,20 +35,27 @@ func bump() int {
 	return counter;
 }
 
-public func demo() {
-	fmt.println("untouched starts at {}", untouched);
-	fmt.println("bump() = {}", bump());
-	fmt.println("bump() = {}", bump());
+func globals() {
+	int zero = untouched;  // 0
+	int first = bump();  // 1
+	int second = bump();  // 2
 
 	table[1] = counter;
-	settings.retries += 1;
-	name = "other";
-	fmt.println("table[1] = {}, retries = {}, name = {}", table[1], settings.retries, name);
+	int stored = table[1];  // 2
 
-	total = total + 1;
-	fmt.println("the public total is now {}", total);
+	settings.retries += 1;
+	int retries = settings.retries;  // 4
+
+	name = "other";
+	string renamed = name;  // "other"
+
+	total = total + 1;  // 101
+}
 
 // A global that nothing uses gets a warning, unless its name starts with an
-// underscore. That goes for any unused variable or constant. Public
-// globals are never reported, since other modules may use them.
+// underscore. That goes for any unused variable or constant. Public globals are
+// never reported, since other modules may use them.
+
+public func demo() {
+	globals();
 }

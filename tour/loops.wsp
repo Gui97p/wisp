@@ -1,16 +1,202 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Loops: `for` and `loop`.
+//
+// Wisp has two loops. `for` walks a range, a collection, or anything that can
+// hand out its items one by one. `loop` repeats while a condition holds, or
+// until something stops it.
+//
+// As in the other pages, the comment at the end of a line shows the value the
+// variable has after that line runs. Inside a loop the line runs many times,
+// so the comment lists the values in order.
+//
+//     sum += i;   // 1, 3, 6
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. Counting with ranges
+// ---------------------------------------------------------------------------
+//
+// `a..=b` counts from `a` to `b` and includes both ends. `a..b` leaves the end
+// out, so counting the items of something is `0..count`, with no `- 1` to get
+// wrong.
+
+func counting() {
+	int sum = 0;
+	for i in 1..=3 {  // i is 1, 2 and 3
+		sum += i;  // 1, 3, 6
+	}
+
+	int below = 0;
+	for i in 0..4 {  // i is 0, 1, 2 and 3
+		below += i;  // 0, 1, 3, 6
+	}
+
+	// A range with nothing in it runs zero times: when `count` is 0, so is
+	// `0..count`.
+	int count = 0;
+	int none = 0;
+	for _ in 0..count {
+		none++;
+	}
+	int ran = none;  // 0 (the range was empty)
+
+	// Without a variable, `for` followed by a number just repeats.
+	int repeats = 0;
+	for 2 {
+		repeats++;  // 1, 2
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 2. Steps and counting down
+// ---------------------------------------------------------------------------
+//
+// `.step(n)` gives a range a step. A range only counts up by itself, so one
+// that starts above its end is empty. To count down, give a negative step: the
+// sign of the step is the direction.
+
+func stepping() {
+	int stepped = 0;
+	for i in (1..=10).step(4) {  // i is 1, 5 and 9
+		stepped += i;  // 1, 6, 15
+	}
+
+	int countdown = 0;
+	for i in (3..=1).step(-1) {  // i is 3, 2 and 1
+		countdown = countdown * 10 + i;  // 3, 32, 321
+	}
+
+	// It works with `..` too: `(3..0).step(-1)` also visits 3, 2 and 1.
+	int digits = 0;
+	for i in (3..0).step(-1) {
+		digits = digits * 10 + i;  // 3, 32, 321
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 3. `loop`
+// ---------------------------------------------------------------------------
+//
+// `loop` with a condition is a while loop. `loop` with `until` after the body
+// is a do-while: the body runs first, then the condition decides. A bare
+// `loop` runs until something breaks out of it.
+
+func looping() {
+	int left = 3;
+	int passes = 0;
+	loop left != 0 {
+		passes++;  // 1, 2, 3
+		left--;  // 2, 1, 0
+	}
+
+	int tries = 0;
+	loop {
+		tries++;  // 1, 2, 3
+	} until tries == 3;
+
+	// The condition after `until` sees what the body declared, so it can test
+	// a value the body just computed. That only holds when the body has no
+	// `continue`, which could skip the declaration.
+	int guess = 1;
+	loop {
+		int doubled = guess * 2;  // 2, 4, 8, 16, 32, 64, 128
+		guess = doubled;  // 2, 4, 8, 16, 32, 64, 128
+	} until doubled >= 100;
+
+	// `continue` and `break` take a guard like `return` does: `continue if n == 2;`
+	// is the short form of an `if` whose body is just the `continue`.
+	int n = 0;
+	int kept = 0;
+	loop {
+		n++;  // 1, 2, 3, 4, 5
+		continue if n == 2;
+		break if n > 4;
+		kept += n;  // 1, 4, 8
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 4. Leaving an outer loop
+// ---------------------------------------------------------------------------
+//
+// A label starts with `:`, both where it is declared and where it is used.
+// `break :outer` and `continue :outer` target the loop that has that label.
+
+func labels() {
+	int visits = 0;
+	:outer loop {
+		loop {
+			visits++;  // 1
+			break :outer;
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 5. Walking what you have
+// ---------------------------------------------------------------------------
+//
+// `for ... in` walks any collection. With one name you get the element, and
+// with two names you get the index and then the element. A name that is just
+// `_` (or starts with one) says you meant to leave it out; a variable you
+// never use is reported otherwise.
+
+func collections() {
+	[3]int values = .{10, 20, 30};
+
+	int total = 0;
+	for index, v in values {  // index is 0, 1, 2 and v is 10, 20, 30
+		total += v;  // 10, 30, 60
+	}
+
+	int indexes = 0;
+	for i, _ in values {
+		indexes += i;  // 0, 1, 3
+	}
+
+	// An item is a copy, so to change the items in place walk a pointer to the
+	// collection: each item is then a pointer to the element.
+	[3]int scores = .{1, 2, 3};
+	for p in &scores {
+		p@ *= 10;
+	}
+	int first = scores[0];  // 10
+	int second = scores[1];  // 20
+	int third = scores[2];  // 30
+}
+
+// ---------------------------------------------------------------------------
+// 6. Ranges as values
+// ---------------------------------------------------------------------------
+//
+// A range is a value too. It knows how many items it has and what it holds,
+// `step` gives it a step, and it can be walked as many times as you like.
+
+func rangeValues() {
+	Range<int> evens = (0..=10).step(2);
+	int size = evens.count();  // 6
+	bool hasFour = evens.contains(4);  // true
+	bool hasFive = evens.contains(5);  // false
+
+	int sum = 0;
+	for x in evens {
+		sum += x;  // 0, 2, 6, 12, 20, 30
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 7. Your own iterators
+// ---------------------------------------------------------------------------
+//
+// Anything with a `next() ?T` method can be walked by `for`: it gives the items
+// until it answers null. When `next` can fail, `next() !?T`, the `for` takes a
+// `!` after the iterator, `for item in reader! { ... }`, and an error leaves the
+// function like any other `!`. `!!` stops the program instead.
 
 struct Countdown {
 	int left;
 }
 
-// Anything with a `next() ?T` method can be walked by `for`: it gives the
-// items until it answers null. When `next` can fail, `next() !?T`, the `for`
-// takes a `!` after the iterator, `for item in reader! { ... }`, and an error
-// leaves the function like any other `!`. `!!` stops the program instead.
 func (*Countdown c) next() ?int {
 	if c.left == 0 {
 		return null;
@@ -19,143 +205,20 @@ func (*Countdown c) next() ?int {
 	return c.left + 1;
 }
 
-public func demo() {
-	// `a..=b` includes both ends: this visits 1, 2, 3.
-	int sum;
-	for i in 1..=3 {
-		fmt.println("i = {}", i);
-		sum += i;
-	}
-	fmt.println("the sum of 1..=3 is {}", sum);
-
-	// `.step(4)` gives the range a step. This visits 1, 5, 9.
-	int stepped;
-	for i in (1..=10).step(4) {
-		fmt.println("stepping: {}", i);
-		stepped += i;
-	}
-	fmt.println("the sum of (1..=10).step(4) is {}", stepped);
-
-	// A range only counts up, so one that starts above its end is empty. To
-	// count down, give a negative step: this visits 3, 2, 1. The sign of the
-	// step is the direction.
-	int countdown;
-	for i in (3..=1).step(-1) {
-		countdown = countdown * 10 + i;
-	}
-	fmt.println("counting down from 3 to 1 gives {}", countdown);
-
-	// `a..b` leaves the end out, so counting the items of something is
-	// `0..count`, with no `- 1` to get wrong, and it is empty when `count` is 0.
-	// It works with a step and counting down too: `(3..0).step(-1)` visits
-	// 3, 2, 1.
-	int none = 0;
-	int count = 0;
-	for _ in 0..count {
-		none++;
-	}
-	fmt.println("0..count with count = 0 ran {} times", none);
-
-	int below;
-	for i in 0..4 {
-		below += i;
-	}
-	fmt.println("the sum of 0..4 is {}", below);
-
-	// Without a variable, `for` just repeats.
-	int repeats;
-	for 2 {
-		repeats++;
-	}
-	fmt.println("for 2 ran {} times", repeats);
-
-	// `loop <condition>` is a while loop.
-	int left = 3;
-	int passes;
-	loop left != 0 {
-		passes++;
-		left--;
-	}
-	fmt.println("the while loop ran {} times", passes);
-
-	// A `loop` with `until` at the end is a do-while: the body runs first.
-	int tries = 0;
-	loop {
-		tries++;
-	} until tries == 3;
-	fmt.println("the do-while stopped at {}", tries);
-
-	// The condition after `until` sees what the body declared, so it can test a
-	// value the body just computed. That only holds when the body has no
-	// `continue`, which could skip the declaration.
-	int guess = 1;
-	loop {
-		int doubled = guess * 2;
-		guess = doubled;
-	} until doubled >= 100;
-	fmt.println("doubling stopped at {}", guess);
-
-	// A bare `loop` runs until something breaks out of it. `continue` and
-	// `break` take a guard like `return` does: `continue if n == 2;` is the
-	// short form of an `if` whose body is just the `continue`.
-	int n = 0;
-	int kept;
-	loop {
-		n++;
-		continue if n == 2;
-		break if n > 4;
-		kept += n;
-	}
-	fmt.println("skipping 2 and stopping after 4 kept {}", kept);
-
-	// A label starts with `:`, both where it is declared and where it is used:
-	// `break :outer` and `continue :outer` target an outer loop.
-	int visits;
-	:outer loop {
-		loop {
-			visits++;
-			break :outer;
-		}
-	}
-	fmt.println("break outer left both loops after {} visit", visits);
-
-	// `for ... in` walks any collection. With a single name you get the
-	// element; with two names you get the index and then the element. A variable
-	// you never use is reported, and a name that is just `_` (or starts with
-	// one) says you meant to leave it out.
-	[3]int values = .{10, 20, 30};
-	int total;
-	for index, v in values {
-		fmt.println("values[{}] = {}", index, v);
-		total += v;
-	}
-	fmt.println("the elements add up to {}", total);
-
-	int indexes;
-	for i, _ in values {
-		indexes += i;
-	}
-	fmt.println("the indexes add up to {}", indexes);
-
-	// A range is a value too. It knows its size and what it holds, `step` gives
-	// it a step, and it can be walked as many times as you like.
-	Range<int> evens = (0..=10).step(2);
-	fmt.println("{} evens, 4 is one: {}, 5 is one: {}", evens.count(), evens.contains(4), evens.contains(5));
-	for x in evens {
-		fmt.println("even {}", x);
-	}
-
-	// A single name gets the item of an iterator, and two names add a counter.
+func iterators() {
 	Countdown timer = .{left: 3};
-	for i, n in timer {
-		fmt.println("tick {} counts {}", i, n);
+	int ticks = 0;
+	for i, n in timer {  // i counts 0, 1, 2 and n is 3, 2, 1
+		ticks += n;  // 3, 5, 6
 	}
+}
 
-	// An item is a copy, so to change the items in place walk a pointer to the
-	// collection: each item then is a pointer to the element.
-	[3]int scores = .{1, 2, 3};
-	for p in &scores {
-		p@ *= 10;
-	}
-	fmt.println("the scores are now {} {} {}", scores[0], scores[1], scores[2]);
+public func demo() {
+	counting();
+	stepping();
+	looping();
+	labels();
+	collections();
+	rangeValues();
+	iterators();
 }

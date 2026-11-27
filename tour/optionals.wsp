@@ -1,15 +1,17 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Values that may be missing.
 //
-// A pointer, a function value and every other type always have a value: there
-// is no way to hold a `null` by accident. When a value can be missing, the
-// type says so with a `?` in front: `?int`, `?string`, `?*Node`,
-// `?(int) => int`. Such a value is either the value or `null`, and it starts
-// as `null` when you declare it without one.
+// A pointer, a function value and every other type always have a value: there is
+// no way to hold a `null` by accident. When a value can be missing, the type says
+// so with a `?` in front: `?int`, `?string`, `?*Node`, `?(int) => int`. Such a
+// value is either the value or `null`, and it starts as `null` when you declare
+// it without one. The comment at the end of a line shows the value that line
+// gives.
 //
-// A plain value goes into a `?T` without ceremony, and `null` is the only way
-// to say it is absent. Going the other way takes a decision, because the
-// compiler cannot know there is a value: use `??`, `.?` or a capture, below.
+// A plain value goes into a `?T` without ceremony, and `null` is the only way to
+// say it is absent. Going the other way takes a decision, because the compiler
+// cannot know there is a value: use `??`, `.?` or a capture, below.
 //
 // It is the same family as errors, and each kind has its own operators: `!` and
 // `!!` are for a call that can fail, `.?` is for a value that may not exist, and
@@ -18,12 +20,12 @@
 // and leaves a `?T`, and `.?` then takes the value out, so `read(buf)!.?` does
 // both and no parentheses are needed.
 
-import "std/fmt";
-
-struct Node {
-	int value;
-	?*Node next;
-}
+// ---------------------------------------------------------------------------
+// 1. Returning a value that may not exist
+// ---------------------------------------------------------------------------
+//
+// A function that may have no result returns `?T`. `return value` and
+// `return null` both fit.
 
 func half(int n) ?int {
 	if n % 2 != 0 {
@@ -31,6 +33,43 @@ func half(int n) ?int {
 	}
 	return n / 2;
 }
+
+func missing() {
+	?int a = half(10);  // 5
+	?int b = half(7);  // null
+
+	bool aIsNull = a == null;  // false
+	bool bIsNull = b == null;  // true
+	bool aIsFive = a == 5;  // true
+}
+
+// ---------------------------------------------------------------------------
+// 2. A default, or a decision
+// ---------------------------------------------------------------------------
+//
+// `??` gives a default when the value is missing. It also takes a block that ends
+// in `yield`, or leaves the function with `return`, `break` or `continue`, the
+// same handlers as for errors. `?? panic("...")` stops the program with your own
+// message.
+//
+// `.?` says the value cannot be missing here: it gives the value, and stops the
+// program, naming the place, if it is null.
+
+func defaults() {
+	?int a = half(10);
+	?int b = half(7);
+
+	int x = a ?? 0;  // 5
+	int y = b ?? -1;  // -1
+	int sure = a.?;  // 5
+}
+
+// ---------------------------------------------------------------------------
+// 3. Captures
+// ---------------------------------------------------------------------------
+//
+// A capture opens a block only when there is a value, and names it there. The
+// name has the plain type inside, and `else` is for the missing case.
 
 func firstWord(string text) ?string {
 	for i, c in text {
@@ -41,8 +80,36 @@ func firstWord(string text) ?string {
 	return null;
 }
 
+func captures() {
+	string first = "";
+	if firstWord("hello world") |word| {
+		first = word;  // "hello"
+	} else {
+		first = "there is only one word";
+	}
+
+	string second = "";
+	if firstWord("single") |word| {
+		second = word;
+	} else {
+		second = "there is only one word";  // "there is only one word"
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 4. Walking until null
+// ---------------------------------------------------------------------------
+//
+// `loop` takes a capture too: it asks again before every turn and stops at the
+// first null. A list ends where the pointer is null.
+
+struct Node {
+	int value;
+	?*Node next;
+}
+
 func total(?*Node head) int {
-	int sum;
+	int sum = 0;
 	?*Node at = head;
 	loop at |node| {
 		sum += node.value;
@@ -51,54 +118,37 @@ func total(?*Node head) int {
 	return sum;
 }
 
-public func demo() {
-	// A function that may have no result returns `?T`. `return value` and
-	// `return null` both fit.
-	?int a = half(10);
-	?int b = half(7);
-	fmt.println("half(10) = {}, half(7) = {}", a, b);
-	fmt.println("a is null: {}, b is null: {}", a == null, b == null);
-	fmt.println("a is 5: {}", a == 5);
-
-	// `??` gives a default when the value is missing. It also takes a block that
-	// ends in `yield`, or leaves the function with `return`, `break` or
-	// `continue`, the same handlers as for errors. `?? panic("...")` stops the
-	// program with your own message.
-	int x = a ?? 0;
-	int y = b ?? -1;
-	fmt.println("a ?? 0 = {}, b ?? -1 = {}", x, y);
-
-	// `.?` says the value cannot be missing here: it gives the value, and stops
-	// the program, naming the place, if it is null.
-	fmt.println("a.? = {}", a.?);
-
-	// A capture opens a block only when there is a value, and names it there.
-	// `v` has the plain type inside, and `else` is for the missing case.
-	if firstWord("hello world") |word| {
-		fmt.println("the first word is {}", word);
-	} else {
-		fmt.println("there is only one word");
-	}
-	if firstWord("single") |word| {
-		fmt.println("the first word is {}", word);
-	} else {
-		fmt.println("there is only one word");
-	}
-
-	// `loop` takes a capture too: it asks again before every turn and stops at
-	// the first null. A list ends where the pointer is null.
+func lists() {
 	Node last = Node{value: 3};
 	Node middle = Node{value: 2, next: &last};
 	Node first = Node{value: 1, next: &middle};
-	fmt.println("the list adds up to {}", total(&first));
-	fmt.println("an empty list adds up to {}", total(null));
 
-	// Function values follow the same rule: a plain one is always callable, and
-	// a `?` one has to be unwrapped before the call.
+	int whole = total(&first);  // 6
+	int empty = total(null);  // 0
+}
+
+// ---------------------------------------------------------------------------
+// 5. Function values that may be missing
+// ---------------------------------------------------------------------------
+//
+// Function values follow the same rule: a plain one is always callable, and a `?`
+// one has to be unwrapped before the call.
+
+func functions() {
 	?(int) => int step = null;
-	fmt.println("step is null: {}", step == null);
+	bool stepIsNull = step == null;  // true
+
 	?(int) => int doubler = (int n) int => n * 2;
+	int doubled = 0;
 	if doubler |apply| {
-		fmt.println("doubler(21) = {}", apply(21));
+		doubled = apply(21);  // 42
 	}
+}
+
+public func demo() {
+	missing();
+	defaults();
+	captures();
+	lists();
+	functions();
 }

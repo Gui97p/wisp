@@ -1,39 +1,58 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Variadic functions.
 //
-// A variadic parameter is written `type ...name`. Inside the body it is a
-// real span: indexable, iterable and measurable with `len`. Callers pass any
-// number of arguments, including none.
-//
-// A slice goes into a variadic with `...` after it, as in `sum(numbers...)`,
-// as long as its elements are the type the variadic takes. Loose values can
-// come before it, `sum(1, 2, numbers...)`, and a function can pass its own
-// variadic on, `sum(values...)`. An array is spread through a slice of it,
-// `sum(array[..]...)`.
+// A variadic parameter is written `type ...name`. Inside the body it is a real
+// span: indexable, iterable and measurable with `len`. Callers pass any number
+// of arguments, including none. The comment at the end of a line shows the
+// value that line gives.
 //
 // Do not confuse this with a C variadic such as C's printf, which is declared
 // with `extern`.
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. Taking any number of arguments
+// ---------------------------------------------------------------------------
 
 func sum(int ...values) int {
-	int total;
+	int total = 0;
 	for _, v in values {
 		total += v;
 	}
 	return total;
 }
 
+func calling() {
+	int four = sum(1, 2, 3, 4);  // 10
+	int none = sum();  // 0
+}
+
+// ---------------------------------------------------------------------------
+// 2. Passing a slice along
+// ---------------------------------------------------------------------------
+//
+// A slice goes into a variadic with `...` after it, as in `sum(numbers...)`, as
+// long as its elements are the type the variadic takes. Loose values can come
+// before it, `sum(1, 2, numbers...)`, and a function can pass its own variadic
+// on, `sum(values...)`. An array is spread through a slice of it,
+// `sum(array[..]...)`.
+
 func twiceTheSum(int ...values) int {
 	return sum(values...) * 2;
 }
 
-public func demo() {
-	fmt.println("sum(1, 2, 3, 4) = {}", sum(1, 2, 3, 4));
-	fmt.println("sum() = {}", sum());
-
+func spreading() {
 	[]int numbers = .{10, 20, 30};
-	fmt.println("sum(numbers...) = {}", sum(numbers...));
-	fmt.println("sum(1, 2, numbers...) = {}", sum(1, 2, numbers...));
-	fmt.println("twiceTheSum(5, 6) = {}", twiceTheSum(5, 6));
+
+	int all = sum(numbers...);  // 60
+	int more = sum(1, 2, numbers...);  // 63
+	int doubled = twiceTheSum(5, 6);  // 22
+
+	[3]int array = .{4, 5, 6};
+	int fromArray = sum(array[..]...);  // 15
+}
+
+public func demo() {
+	calling();
+	spreading();
 }

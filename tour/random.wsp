@@ -1,44 +1,78 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Random numbers.
 //
 // `std/rand` draws numbers from a pseudo-random generator. The functions of the
-// module, `range`, `real`, `flip`, `fill` and `shuffle`, all use one
-// generator that the module keeps. It seeds itself from the clock the first
-// time, so every run is different, and `rand.seed(n)` starts it from a number
-// you choose, so every run is the same.
-//
-// When a part of the program needs a sequence that nothing else disturbs, make
-// a `Generator` with `rand.generator(seed)`. The same seed gives the same
-// numbers on every run and every system, and it has the same methods.
+// module, `range`, `real`, `flip`, `fill` and `shuffle`, all use one generator
+// that the module keeps. It seeds itself from the clock the first time, so every
+// run is different, and `rand.seed(n)` starts it from a number you choose, so
+// every run is the same. The comment at the end of a line shows the value that
+// line gives with the seed that the page sets.
 //
 // It is made for games, tests and shuffling, and it is not safe for secrets:
 // someone who sees a few of its numbers can work out the rest.
+
+import "std/rand";
+
+// ---------------------------------------------------------------------------
+// 1. Numbers from a range
+// ---------------------------------------------------------------------------
 //
 // `range` takes a range, the same one `for` uses, and gives one of its values:
 // `range(1..=6)` is a die, `range(0..len(items))` is an index, and a step counts
-// too, so `range((0..100).step(10))` is a multiple of ten. A range with no
-// values, such as `5..5`, stops the program. `real` is a float from 0 up to but
-// not including 1, `flip` is a coin, `fill` writes random bytes, and `shuffle`
-// puts a slice in a random order.
+// too, so `range((0..100).step(10))` is a multiple of ten. A range with no values,
+// such as `5..5`, stops the program.
 
-import "std/fmt";
-import "std/rand";
-
-public func demo() {
+func ranges() {
 	rand.seed(2024);
-	fmt.println("three rolls: {}, {}, {}", rand.range(1..=6), rand.range(1..=6), rand.range(1..=6));
-	rand.seed(2024);
-	fmt.println("the same seed rolls {} first again", rand.range(1..=6));
+	int first = rand.range(1..=6);  // 5
+	int second = rand.range(1..=6);  // 4
+	int third = rand.range(1..=6);  // 6
 
-	fmt.println("range(0..100): {}, real: {:.4f}, flip: {}", rand.range(0..100), rand.real(), rand.flip());
+	rand.seed(2024);
+	int again = rand.range(1..=6);  // 5
+
+	int below = rand.range(0..100);  // 93
+	int tens = rand.range((0..100).step(10));  // 10
+	int negative = rand.range(-5..0);  // -4
+}
+
+// ---------------------------------------------------------------------------
+// 2. Other kinds of value
+// ---------------------------------------------------------------------------
+//
+// `real` is a float from 0 up to but not including 1, `flip` is a coin, `fill`
+// writes random bytes, and `shuffle` puts a slice in a random order.
+
+func others() {
+	rand.seed(7);
+	float unit = rand.real();
+	bool inUnit = unit >= 0.0 && unit < 1.0;  // true
+	bool coin = rand.flip();  // false
 
 	[6]int cards = .{1, 2, 3, 4, 5, 6};
 	rand.shuffle(cards[..]);
-	fmt.println("shuffled: {}, {}, {}, {}, {}, {}", cards[0], cards[1], cards[2], cards[3], cards[4], cards[5]);
+}
 
+// ---------------------------------------------------------------------------
+// 3. A sequence of your own
+// ---------------------------------------------------------------------------
+//
+// When a part of the program needs a sequence that nothing else disturbs, make a
+// `Generator` with `rand.generator(seed)`. The same seed gives the same numbers
+// on every run and every system, and it has the same methods.
+
+func generators() {
 	rand.Generator mine = rand.generator(7);
 	rand.Generator twin = rand.generator(7);
-	fmt.println("two generators with one seed agree: {}", mine.range(0..1000) == twin.range(0..1000));
-	fmt.println("steps count: {}, and negative ranges work: {}", rand.range((0..100).step(10)) % 10 == 0, rand.range(-5..0) < 0);
-	mine.shuffle(cards[..]);
+
+	int mineFirst = mine.range(0..1000);
+	int twinFirst = twin.range(0..1000);
+	bool agree = mineFirst == twinFirst;  // true
+}
+
+public func demo() {
+	ranges();
+	others();
+	generators();
 }

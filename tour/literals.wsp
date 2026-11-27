@@ -1,24 +1,22 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Literals: `T{...}`, `.{...}` and `[_]`.
 //
-// A literal builds a value, and a brace always means construction. Brackets
-// stay for types, indexing and slicing, and a block never starts with a dot,
-// so a literal is never mistaken for one.
-//
-// There are two ways to write each literal:
+// A literal builds a value, and a brace always means construction. Brackets stay
+// for types, indexing and slicing, and a block never starts with a dot, so a
+// literal is never mistaken for one. The comment at the end of a line shows the
+// value that line gives.
+
+// ---------------------------------------------------------------------------
+// 1. Two ways to write a literal
+// ---------------------------------------------------------------------------
 //
 //   Point{x: 1, y: 2}     names the type, so it works anywhere
 //   .{x: 1, y: 2}         takes the type from what receives it
 //
 // What receives it is a declaration with a type, an assignment, an argument, a
-// `return`, a field of another literal or an element of an array. Where
-// nothing receives it, as in `let p = .{x: 1}`, the compiler asks you to name
-// the type.
-//
-// An array literal names its type like any other: `[3]int{1, 2, 3}`. The
-// size can be `_` when the values can be counted: `[_]int{1, 2, 3}`.
-
-import "std/fmt";
+// `return`, a field of another literal or an element of an array. Where nothing
+// receives it, as in `let p = .{x: 1}`, the compiler asks you to name the type.
 
 struct Point {
 	int x;
@@ -38,57 +36,108 @@ func middle() Point {
 	return .{x: 5, y: 5};
 }
 
+func structs() {
+	Point a = .{x: 3, y: 4};
+	Point b = Point{x: 6, y: 8};
+	int aNorm = norm(a);  // 25
+	int bNorm = norm(b);  // 100
+
+	// The same goes for an argument and a `return`, and literals nest.
+	int argument = norm(.{x: 1, y: 2});  // 5
+	int result = norm(middle());  // 50
+
+	Segment line = .{from: .{x: 0, y: 0}, to: .{x: 2, y: 3}};
+	int endX = line.to.x;  // 2
+	int endY = line.to.y;  // 3
+}
+
+// ---------------------------------------------------------------------------
+// 2. Empty and partial literals
+// ---------------------------------------------------------------------------
+//
+// An empty literal is the zero value of the type that receives it. A field left
+// out of a struct literal is zero too, when zero makes sense for it. Values are
+// positional for arrays and `name: value` for structs, and fewer values than the
+// array holds leave the rest at zero.
+
+func zeros() {
+	Point origin = .{};
+	int originX = origin.x;  // 0
+
+	[4]int none = .{};
+	int noneLength = len(none);  // 4
+
+	[5]int some = .{7, 8};
+	int first = some[0];  // 7
+	int second = some[1];  // 8
+	int third = some[2];  // 0
+}
+
+// ---------------------------------------------------------------------------
+// 3. Letting the compiler count
+// ---------------------------------------------------------------------------
+//
+// An array literal names its type like any other: `[3]int{1, 2, 3}`. The size
+// can be `_` when the values can be counted: `[_]int{1, 2, 3}`. It works on the
+// literal, on the declaration and on any array value, since all it needs is
+// something to count.
+
+func counting() {
+	let letters = [_]byte{'a', 'b', 'c'};
+	[_]int primes = .{2, 3, 5, 7};
+	[_]int copy = primes;
+
+	int letterCount = len(letters);  // 3
+	int primeCount = len(primes);  // 4
+	int copyCount = len(copy);  // 4
+}
+
+// ---------------------------------------------------------------------------
+// 4. Arrays where a slice is expected
+// ---------------------------------------------------------------------------
+//
+// An array literal goes where a slice is expected, as a temporary array on the
+// stack. It lives as long as the function, like a local array would.
+
 func sum([]int values) int {
-	int total;
+	int total = 0;
 	for _, v in values {
 		total += v;
 	}
 	return total;
 }
 
-public func demo() {
-	Point a = .{x: 3, y: 4};
-	Point b = Point{x: 6, y: 8};
-	fmt.println("norms: {} and {}", norm(a), norm(b));
+func slices() {
+	int total = sum(.{1, 2, 3});  // 6
+}
 
-	// The same goes for an argument and a `return`, and literals nest.
-	fmt.println("an argument: {}, a result: {}", norm(.{x: 1, y: 2}), norm(middle()));
-	Segment line = .{from: .{x: 0, y: 0}, to: .{x: 2, y: 3}};
-	fmt.println("the segment ends at {}, {}", line.to.x, line.to.y);
+// ---------------------------------------------------------------------------
+// 5. Arrays of arrays and of structs
+// ---------------------------------------------------------------------------
+//
+// They name the type once, outside, and `in` takes any array, so a literal that
+// names its type works there too. A literal can also build an optional, a field
+// or a constant.
 
-	// An empty literal is the zero value of the type that receives it. A field
-	// left out of a struct literal is zero too, when zero makes sense for it.
-	Point origin = .{};
-	[4]int zeros = .{};
-	fmt.println("origin is {}, {} and zeros has {} elements", origin.x, origin.y, len(zeros));
-
-	// Values are positional for arrays and `name: value` for structs. Fewer
-	// values than the array holds leave the rest at zero.
-	[5]int some = .{7, 8};
-	fmt.println("some: {}, {}, {}", some[0], some[1], some[2]);
-
-	// `[_]` counts the values. It works on the literal, on the declaration and
-	// on any array value, since all it needs is something to count.
-	let letters = [_]byte{'a', 'b', 'c'};
-	[_]int primes = .{2, 3, 5, 7};
-	[_]int copy = primes;
-	fmt.println("{} letters, {} primes, a copy of {}", len(letters), len(primes), len(copy));
-
-	// An array literal goes where a slice is expected, as a temporary array on
-	// the stack. It lives as long as the function, like a local array would.
-	fmt.println("sum of a literal: {}", sum(.{1, 2, 3}));
-
-	// Arrays of arrays and of structs name the type once, outside.
+func nested() {
 	[2][2]int grid = .{ .{1, 2}, .{3, 4}};
 	[2]Point corners = .{ .{x: 1, y: 1}, .{x: 9, y: 9}};
-	fmt.println("grid[1][0] = {}, corners[1].x = {}", grid[1][0], corners[1].x);
+	int cell = grid[1][0];  // 3
+	int corner = corners[1].x;  // 9
 
-	// `in` takes any array, so a literal that names its type works too.
-	fmt.println("5 in a list: {}", 5 in [_]int{1, 5, 9});
+	bool inList = 5 in [_]int{1, 5, 9};  // true
 
-	// A literal can also build an optional, a field or a constant.
 	?Point maybe = .{x: 1, y: 1};
+	int held = 0;
 	if maybe |p| {
-		fmt.println("an optional holds {}, {}", p.x, p.y);
+		held = p.x;  // 1
 	}
+}
+
+public func demo() {
+	structs();
+	zeros();
+	counting();
+	slices();
+	nested();
 }

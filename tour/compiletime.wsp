@@ -1,32 +1,19 @@
 #standalone
+#allow unused_variables, dead_code
 // Tour - Compile time: sizeof, alignof, offsetof, staticAssert and `static`.
 //
 // Some things are known before the program runs, and the compiler can check
-// them for you. `sizeof(T)`, `alignof(T)` and `offsetof(T, field)` are
-// constants, so they can size an array, feed another constant, or be asserted
-// with `staticAssert(condition, "message")`: when the condition is false the
-// compilation stops with the message. A `staticAssert` can be written at the
-// top of a file, or inside a function.
-//
-// A `static { }` block computes a constant with ordinary code. It is a block
-// that gives a value, and the compiler runs it while it compiles. It sees
-// numbers, booleans, floats, strings, arrays and structs, and its own
-// variables and constants, and it can use `if`, `switch`, `for i in a..b`,
-// `for x in array`, `loop`, labeled breaks, `len`, indexing, string slices and
-// calls to ordinary functions, recursive ones included. It cannot reach a
-// variable of the function around it, a pointer, memory or a type used as a
-// value: the compiler says so where it happens. A loop that never ends is
-// stopped after a few million steps.
-//
-// A constant can hold an array or a struct. It lives in the read-only data of
-// the program, costs nothing at run time, and can be indexed in a `staticAssert`.
-// When a `static` block yields an array, that is a table computed by the
-// compiler, like the CRC-32 table below.
-//
-// A constant that measures a struct can size a field of another struct, in
-// any order, as long as the structs do not need each other's size.
+// them for you. The comment at the end of a line shows the value that line
+// gives.
 
-import "std/fmt";
+// ---------------------------------------------------------------------------
+// 1. Measuring types
+// ---------------------------------------------------------------------------
+//
+// `sizeof(T)`, `alignof(T)` and `offsetof(T, field)` are constants, so they can
+// size an array, feed another constant, or be asserted. A constant that
+// measures a struct can size a field of another struct, in any order, as long as
+// the structs do not need each other's size.
 
 struct Header {
 	uint8 kind;
@@ -42,12 +29,47 @@ struct Wrapper {
 const HEADER_SIZE = sizeof(Header);
 const FLAGS_AT = offsetof(Header, flags);
 
-staticAssert(HEADER_SIZE == 24, "Header is padded to 24 bytes");
-staticAssert(offsetof(Header, kind) == 0, "kind comes first");
-
 struct Frame {
 	[HEADER_SIZE * 2]byte payload;
 }
+
+func measuring() {
+	int size = HEADER_SIZE;  // 24
+	int alignment = alignof(Header);  // 8
+	int lengthAt = offsetof(Header, length);  // 8
+	int flagsAt = FLAGS_AT;  // 16
+	int deepAt = offsetof(Wrapper, inner.flags);  // 24
+	int frameSize = sizeof(Frame);  // 48
+
+	[HEADER_SIZE]byte raw;
+	int rawLength = len(raw);  // 24
+}
+
+// ---------------------------------------------------------------------------
+// 2. Asserting
+// ---------------------------------------------------------------------------
+//
+// `staticAssert(condition, "message")` stops the compilation with the message
+// when the condition is false. It can be written at the top of a file, or
+// inside a function.
+
+staticAssert(HEADER_SIZE == 24, "Header is padded to 24 bytes");
+staticAssert(offsetof(Header, kind) == 0, "kind comes first");
+
+// ---------------------------------------------------------------------------
+// 3. Constants computed by code
+// ---------------------------------------------------------------------------
+//
+// A `static { }` block computes a constant with ordinary code. It is a block
+// that gives a value, and the compiler runs it while it compiles. It sees
+// numbers, booleans, floats, strings, arrays and structs, and its own variables
+// and constants, and it can use `if`, `switch`, `for i in a..b`, `for x in
+// array`, `loop`, labeled breaks, `len`, indexing, string slices and calls to
+// ordinary functions, recursive ones included.
+//
+// It cannot reach a variable of the function around it, a pointer, memory or a
+// type used as a value: the compiler says so where it happens. A loop that never
+// ends is stopped after a few million steps.
 
 inline func triangle(int n) int {
 	int total = 0;
@@ -67,9 +89,6 @@ const FIRST_BIG_SQUARE = static {
 	yield n;
 };
 
-const [3]int PRIMES = .{2, 3, 5};
-const Header DEFAULT = Header{kind: 1, length: 8, flags: 0};
-
 func fib(int n) int {
 	if n < 2 {
 		return n;
@@ -78,6 +97,59 @@ func fib(int n) int {
 }
 
 const FIB_20 = static { yield fib(20); };
+
+func computing() {
+	int triangle10 = TRIANGLE_10;  // 55
+	int bigSquare = FIRST_BIG_SQUARE;  // 23
+	int fib20 = FIB_20;  // 6765
+
+	// A static block can also sit in the middle of a function. Here it looks for
+	// a factor of 91.
+	int factor = static {
+		int found = 0;
+		:search for i in 2..=50 {
+			for j in 2..=50 {
+				if i * j == 91 {
+					found = i;
+					break :search;
+				}
+			}
+		}
+		yield found;
+	};  // 7
+}
+
+// ---------------------------------------------------------------------------
+// 4. Constants that hold arrays and structs
+// ---------------------------------------------------------------------------
+//
+// A constant can hold an array or a struct. It lives in the read-only data of
+// the program, costs nothing at run time, and can be indexed in a
+// `staticAssert`.
+
+const [3]int PRIMES = .{2, 3, 5};
+const Header DEFAULT = Header{kind: 1, length: 8, flags: 0};
+
+const KIND_NAME = static {
+	yield switch DEFAULT.kind {
+		case 0 => "none";
+		case 1 => "data";
+		default => "other";
+	};
+};
+
+func holding() {
+	int primeCount = len(PRIMES);  // 3
+	int defaultLength = DEFAULT.length;  // 8
+	string kind = KIND_NAME;  // "data"
+}
+
+// ---------------------------------------------------------------------------
+// 5. Tables made by the compiler
+// ---------------------------------------------------------------------------
+//
+// When a `static` block yields an array, that is a table computed by the
+// compiler, like the CRC-32 table below. The program only reads it.
 
 const [256]uint32 CRC = static {
 	[256]uint32 table;
@@ -105,43 +177,13 @@ func crc(string text) uint32 {
 	return c ^ 0xFFFFFFFF;
 }
 
-const KIND_NAME = static {
-	yield switch DEFAULT.kind {
-		case 0 => "none";
-		case 1 => "data";
-		default => "other";
-	};
-};
+func tables() {
+	uint32 check = crc("123456789");  // 3421780262
+}
 
 public func demo() {
-	fmt.println("Header: size {}, alignment {}", HEADER_SIZE, alignof(Header));
-	fmt.println("length is at {}, flags at {}", offsetof(Header, length), FLAGS_AT);
-	fmt.println("a path works too: {}", offsetof(Wrapper, inner.flags));
-	fmt.println("a Frame has {} bytes", sizeof(Frame));
-
-	[HEADER_SIZE]byte raw;
-	fmt.println("an array sized by sizeof has {} bytes", len(raw));
-
-	fmt.println("1 + 2 + ... + 10 = {}", TRIANGLE_10);
-	fmt.println("the first n with n * n >= 500 is {}", FIRST_BIG_SQUARE);
-
-	// A static block can also sit in the middle of a function. Here it looks
-	// for a factor of 91.
-	int factor = static {
-		int found = 0;
-		:search for i in 2..=50 {
-			for j in 2..=50 {
-				if i * j == 91 {
-					found = i;
-					break :search;
-				}
-			}
-		}
-		yield found;
-	};
-	fmt.println("a factor of 91: {}", factor);
-
-	fmt.println("constants: {} primes, {} bytes by default, fib(20) = {}", len(PRIMES), DEFAULT.length, FIB_20);
-	fmt.println("a default Header is {}", KIND_NAME);
-	fmt.println("crc(\"123456789\") = {:x}", crc("123456789"));
+	measuring();
+	computing();
+	holding();
+	tables();
 }
