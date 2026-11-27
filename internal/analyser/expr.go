@@ -909,6 +909,7 @@ func (a *Analyser) viewAsBase(expr ast.Expression, t Type) Type {
 
 func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 	arrType := a.viewAsBase(expr.Array, a.checkExpr(expr.Array))
+	a.lowerFromEnd(expr.Array, arrType, &expr.Index)
 	idxType := a.checkExpr(expr.Index)
 
 	if _, ok := arrType.(InvalidType); ok {
@@ -953,6 +954,8 @@ func (a *Analyser) checkIndexExpr(expr *ast.IndexExpr) Type {
 func (a *Analyser) checkSliceExpr(expr *ast.SliceExpr) Type {
 	original := a.checkExpr(expr.Array)
 	arrType := a.viewAsBase(expr.Array, original)
+	a.lowerFromEnd(expr.Array, arrType, &expr.Start)
+	a.lowerFromEnd(expr.Array, arrType, &expr.End)
 	if expr.Start != nil {
 		a.requireNumeric(expr.Start, a.checkExpr(expr.Start), "slice start")
 	}

@@ -63,6 +63,31 @@ func slices() {
 	int changed = nums[1];  // 1
 }
 
+// `^n` counts from the end: it means `len - n`, so `[..^1]` leaves the last
+// element out and `[^2..]` is the last two. It works as an index too, and as a
+// slice bound of a string, an array or a slice. `^0` is the length itself, and
+// `[..=^1]` puts the last element in. A count that turns out to be too big is an
+// out of range error like any other, never a silent wrap around.
+// What comes before the `[` is read twice, so it cannot hold a call, and a
+// pointer has no length to count from.
+
+func fromEnd() {
+	[5]int nums = .{999, 513, 11, 5, 2};
+	[]int view = nums[..];
+	int last = view[^1];  // 2
+	int second = nums[^2];  // 5
+	int skip = len(view[..^1]);  // 4
+	int tailLength = len(view[^3..]);  // 3
+	int through = len(view[..=^1]);  // 5
+
+	view[^1] = 7;
+	int written = nums[4];  // 7
+
+	string file = "notes.txt";
+	string name = file[..^4];  // "notes"
+	string ext = file[^3..];  // "txt"
+}
+
 // An array variable goes where a slice is expected without writing `[..]`. It is
 // the same view of the same elements: `total(nums)` is `total(nums[..])`.
 // Something that has an address converts, and so does an array literal, as a

@@ -280,6 +280,8 @@ func classify(tokens []token) []role {
 			} else {
 				r = roleUnary
 			}
+		case k == lexer.TOKEN_XOR && !prevEnd(i):
+			r = roleUnary
 		case isBinaryOperator(k):
 			r = roleBinary
 		}

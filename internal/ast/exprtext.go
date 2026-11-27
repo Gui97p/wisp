@@ -14,6 +14,8 @@ func ExprText(e Expression) string {
 		return ExprText(v.Left) + " " + v.Operator + " " + ExprText(v.Right)
 	case *UnaryExpr:
 		return v.Operator + ExprText(v.Value)
+	case *FromEndExpr:
+		return "^" + ExprText(v.Value)
 	}
 	return "..."
 }

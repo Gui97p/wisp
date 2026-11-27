@@ -496,9 +496,25 @@ func isRangeToken(t lexer.TokenType) bool {
 func (p *Parser) parseSliceBound() ast.Expression {
 	prev := p.allowStructLiteral
 	p.allowStructLiteral = true
-	bound := p.parseExpressionPratt(RANGE)
-	p.allowStructLiteral = prev
-	return bound
+	defer func() { p.allowStructLiteral = prev }()
+	if p.current.Type == lexer.TOKEN_XOR {
+		return p.parseFromEnd()
+	}
+	return p.parseExpressionPratt(RANGE)
+}
+
+func (p *Parser) parseFromEnd() ast.Expression {
+	line, col := p.current.Line, p.current.Column
+	p.advance()
+	value := p.parseExpressionPratt(PREFIX)
+	if value == nil {
+		return nil
+	}
+	node := &ast.FromEndExpr{Value: value}
+	node.SetPos(line, col)
+	endLine, endCol := value.EndPosition()
+	node.SetEndPos(endLine, endCol)
+	return node
 }
 
 func (p *Parser) parseIndexSliceExpression(array ast.Expression) ast.Expression {
@@ -541,6 +557,10 @@ func (p *Parser) parseIndexSliceExpression(array ast.Expression) ast.Expression 
 }
 
 func (p *Parser) afterLast(end ast.Expression) ast.Expression {
+	if fromEnd, ok := end.(*ast.FromEndExpr); ok {
+		fromEnd.Value = p.beforeLast(fromEnd.Value)
+		return fromEnd
+	}
 	if value, ok := literalInt(end); ok {
 		return p.numberAt(value+1, end)
 	}
@@ -550,6 +570,18 @@ func (p *Parser) afterLast(end ast.Expression) ast.Expression {
 	next.SetPos(line, col)
 	next.SetEndPos(endLine, endCol)
 	return next
+}
+
+func (p *Parser) beforeLast(count ast.Expression) ast.Expression {
+	if value, ok := literalInt(count); ok && value >= 1 {
+		return p.numberAt(value-1, count)
+	}
+	prior := &ast.BinaryExpr{Left: count, Operator: "-", Right: p.numberAt(1, count), Synthetic: true}
+	line, col := count.Position()
+	endLine, endCol := count.EndPosition()
+	prior.SetPos(line, col)
+	prior.SetEndPos(endLine, endCol)
+	return prior
 }
 
 func (p *Parser) parseArrayLiteral() ast.Expression {

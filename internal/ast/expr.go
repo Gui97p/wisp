@@ -86,6 +86,24 @@ func (d *DerefExpr) Tree(indent string) string {
 	return sb.String()
 }
 
+type FromEndExpr struct {
+	Value Expression
+
+	NodePos
+}
+
+func (*FromEndExpr) expr() {}
+func (f *FromEndExpr) Tree(indent string) string {
+	var sb strings.Builder
+
+	fmt.Fprintf(&sb, "%sFromEndExpr\n", indent)
+	if f.Value != nil {
+		sb.WriteString(f.Value.Tree(indent + "└─ "))
+	}
+
+	return sb.String()
+}
+
 type TypeLabel struct {
 	Type TypeRef
 
