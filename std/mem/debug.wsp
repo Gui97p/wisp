@@ -65,18 +65,14 @@ func fail(*Header h, string what) {
 func verifyCanary(*Header h) {
 	*uint8 p = (*uint8)(dataOf(h));
 	for i in 0..CANARY {
-		if p[h.size + i] != 0xFD {
-			fail(h, "buffer overflow: a block was written past its end");
-		}
+		if p[h.size + i] != 0xFD => fail(h, "buffer overflow: a block was written past its end");
 	}
 }
 
 func verifyPoison(*Header h) {
 	*uint8 p = (*uint8)(dataOf(h));
 	for i in 0..h.size {
-		if p[i] != 0xDD {
-			fail(h, "use after free: a freed block was written to");
-		}
+		if p[i] != 0xDD => fail(h, "use after free: a freed block was written to");
 	}
 }
 
@@ -107,9 +103,7 @@ func (*Debug d) insert(uint key) {
 	loop d.table[i] > TOMB {
 		i = (i + 1) & mask;
 	}
-	if d.table[i] == TOMB {
-		d.tombs--;
-	}
+	if d.table[i] == TOMB => d.tombs--;
 	d.table[i] = key;
 	d.entries++;
 }
@@ -125,19 +119,13 @@ func (*Debug d) rebuild() ! {
 	d.entries = 0;
 	d.tombs = 0;
 	for key in old {
-		if key > TOMB {
-			d.insert(key);
-		}
+		if key > TOMB => d.insert(key);
 	}
-	if len(old) > 0 {
-		release(old);
-	}
+	if len(old) > 0 => release(old);
 }
 
 func (*Debug d) track(*Header h) ! {
-	if (d.entries + d.tombs + 1) * 2 > len(d.table) {
-		d.rebuild()!;
-	}
+	if (d.entries + d.tombs + 1) * 2 > len(d.table) => d.rebuild()!;
 	d.insert(uint(h));
 }
 
@@ -152,17 +140,13 @@ func (*Debug d) reject(*void p, string ifFreed, string ifInside, string ifForeig
 	uint at = uint(p) - HEAD;
 	for i in 0..d.ringCount {
 		*Header dead = d.ring[(d.ringStart + i) % len(d.ring)]?;
-		if uint(dead) == at {
-			fail(dead, ifFreed);
-		}
+		if uint(dead) == at => fail(dead, ifFreed);
 	}
 	?*Header c = d.head;
 	loop c |h| {
 		c = h.next;
 		uint start = uint(dataOf(h));
-		if uint(p) > start && uint(p) < start + uint(h.size) {
-			fail(h, ifInside);
-		}
+		if uint(p) > start && uint(p) < start + uint(h.size) => fail(h, ifInside);
 	}
 	panic(ifForeign);
 }
@@ -171,9 +155,7 @@ func (*Debug d) obtain(int n, bool zero) !*void {
 	errors.ensure(n >= 0 && n <= MAX_BLOCK, errors.Kind.OutOfMemory)!;
 	int total = HEAD + n + CANARY;
 	*void raw = d.source().allocDirty(total)!;
-	if zero {
-		fill(raw, 0, total);
-	}
+	if zero => fill(raw, 0, total);
 	*Header h = (*Header)(raw);
 	h.size = n;
 	h.site = site();
@@ -188,9 +170,7 @@ func (*Debug d) obtain(int n, bool zero) !*void {
 		first.prev = h;
 	}
 	d.head = h;
-	if !zero {
-		fill(dataOf(h), 0xCD, n);
-	}
+	if !zero => fill(dataOf(h), 0xCD, n);
 	fill(dataOf(h) + n, 0xFD, CANARY);
 	d.liveBlocks++;
 	return dataOf(h);
@@ -241,9 +221,7 @@ public func (*Debug d) free(?*void p) {
 	h.freed = site();
 	fill(dataOf(h), 0xDD, h.size);
 	d.liveBlocks--;
-	if d.ringCount == len(d.ring) {
-		d.evict();
-	}
+	if d.ringCount == len(d.ring) => d.evict();
 	d.ring[(d.ringStart + d.ringCount) % len(d.ring)] = h;
 	d.ringCount++;
 }
@@ -258,9 +236,7 @@ public func (*Debug d) realloc(?*void p, int old, int n) !*void {
 		d.reject(block, "realloc of a freed block", "realloc of a pointer into the middle of a block: use the pointer the allocator gave", "realloc of a pointer that is not a block of this allocator: a stack or global address, or a block of another allocator");
 	}
 	*Header h = headerOf(block);
-	if h.size != old {
-		fail(h, "realloc with a size that is not the size of the block");
-	}
+	if h.size != old => fail(h, "realloc with a size that is not the size of the block");
 	if n == old => return block;
 	*void next = d.obtain(n, true)!;
 	copy(next, block, if old < n => old : n);
@@ -342,8 +318,6 @@ public func (*Debug d) report() int {
 		io.writeString(&os.stderr, sites[k])!!;
 		k++;
 	}
-	if others > 0 {
-		fmt.fprintln(&os.stderr, "leak: {others} more blocks from other places")!!;
-	}
+	if others > 0 => fmt.fprintln(&os.stderr, "leak: {others} more blocks from other places")!!;
 	return d.liveBlocks;
 }

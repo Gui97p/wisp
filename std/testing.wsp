@@ -141,9 +141,7 @@ public func finish() ! {
 
 	tracker.check();
 	int leaked = tracker.blocks();
-	if leaked > 0 {
-		tracker.report();
-	}
+	if leaked > 0 => tracker.report();
 	tracker.release();
 	store.release();
 	if leaked == 0 => return;

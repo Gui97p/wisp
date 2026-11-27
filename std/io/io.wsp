@@ -62,9 +62,7 @@ public func readAll<mem.Allocator A, Reader R>(A a, R r) ![]byte {
 	[]byte buf = mem.makeDirty<byte>(a, 256)!;
 	int total;
 	loop {
-		if total == len(buf) {
-			buf = mem.resize(a, buf, len(buf) * 2)!;
-		}
+		if total == len(buf) => buf = mem.resize(a, buf, len(buf) * 2)!;
 
 		total += r.read(buf[total..])! ?? break;
 	}

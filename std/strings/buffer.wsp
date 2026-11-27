@@ -72,13 +72,9 @@ public func replace(mem.Allocator a, string s, old, new, int n) !string {
 	int found;
 	if old != "" && n != 0 {
 		found = count(s, old);
-		if n > 0 && found > n {
-			found = n;
-		}
+		if n > 0 && found > n => found = n;
 	}
-	if found == 0 {
-		return string(clone(a, s)!);
-	}
+	if found == 0 => return string(clone(a, s)!);
 
 	int size = len(s) + found * (len(new) - len(old));
 	if size == 0 => return "";

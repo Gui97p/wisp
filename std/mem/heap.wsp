@@ -43,9 +43,7 @@ inline func classOf(int total) int {
 }
 
 func allocate(int n, bool zero) ?*void {
-	if n < 0 || n > MAX_ALLOC {
-		return null;
-	}
+	if n < 0 || n > MAX_ALLOC => return null;
 
 	int total = n + HEAD_SIZE;
 	if total <= LOW_LIMIT {
@@ -53,9 +51,7 @@ func allocate(int n, bool zero) ?*void {
 		int size = MIN_BLOCK << class;
 		if classes[class] |p| {
 			classes[class] = ((*?*void)(p))@;
-			if zero {
-				fill(p, 0, size - HEAD_SIZE);
-			}
+			if zero => fill(p, 0, size - HEAD_SIZE);
 			setState(p, LIVE);
 			return p;
 		}

@@ -19,9 +19,7 @@ public func createDir(string path) ! {
 		if e != errors.Kind.NotFound => return e;
 		createDir(paths.dir(path))!;
 		int r = sys.mkdir(path);
-		if r < 0 {
-			return if isDir(path) => null : errorIO(sys.errno(r));
-		}
+		if r < 0 => return if isDir(path) => null : errorIO(sys.errno(r));
 		return;
 	};
 

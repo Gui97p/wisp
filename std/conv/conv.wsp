@@ -113,9 +113,7 @@ public inline func itoa(mem.Allocator a, int n) !string => formatInt(a, n, 10, f
 public inline func utoa(mem.Allocator a, uint n) !string => formatUint(a, n, 10, false)!;
 
 func digitValue(byte c) ?int {
-	if c >= '0' && c <= '9' {
-		return c - '0';
-	}
+	if c >= '0' && c <= '9' => return c - '0';
 
 	if c >= 'a' && c <= 'z' => return c - 'a' + 10;
 
@@ -158,9 +156,7 @@ public func parseInt(string s, int base) !int {
 
 	bool neg = s[0] == '-';
 
-	if neg || s[0] == '+' {
-		s = s[1..];
-	}
+	if neg || s[0] == '+' => s = s[1..];
 
 	uint mag = parseUint(s, base)!;
 

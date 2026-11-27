@@ -74,9 +74,7 @@ public func (*Fixed f) realloc(?*void p, int old, int n) !*void {
 	bool aligned = int(block) % alignOf(n) == 0;
 	if aligned && int(block) + was == base + f.bUsed && f.bUsed - was + want <= len(f.buffer) {
 		f.bUsed = f.bUsed - was + want;
-		if n > old {
-			fill((*byte)(block) + old, 0, n - old);
-		}
+		if n > old => fill((*byte)(block) + old, 0, n - old);
 		return block;
 	}
 	*void next = f.alloc(n)!;

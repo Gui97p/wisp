@@ -41,19 +41,13 @@ public func log(float x) float {
 	int k = 0;
 
 	if hx < 0x00100000 || hx >= 0x80000000 {
-		if ((hx & 0x7fffffff) | lx) == 0 {
-			return inf(-1);
-		}
-		if hx >= 0x80000000 {
-			return nan();
-		}
+		if ((hx & 0x7fffffff) | lx) == 0 => return inf(-1);
+		if hx >= 0x80000000 => return nan();
 		k -= 54;
 		x *= log_two54;
 		hx = highWord(x);
 	}
-	if hx >= 0x7ff00000 {
-		return x + x;
-	}
+	if hx >= 0x7ff00000 => return x + x;
 
 	k += int(hx >> 20) - 1023;
 	hx = hx & 0x000fffff;
@@ -65,15 +59,11 @@ public func log(float x) float {
 
 	if (0x000fffff & (2 + hx)) < 3 {
 		if f == log_zero {
-			if k == 0 {
-				return log_zero;
-			}
+			if k == 0 => return log_zero;
 			return dk * log_ln2_hi + dk * log_ln2_lo;
 		}
 		float r = f * f * (0.5 - 0.33333333333333333 * f);
-		if k == 0 {
-			return f - r;
-		}
+		if k == 0 => return f - r;
 		return dk * log_ln2_hi - ((r - dk * log_ln2_lo) - f);
 	}
 
@@ -88,14 +78,10 @@ public func log(float x) float {
 	float r = t2 + t1;
 	if bits > 0 {
 		float hfsq = 0.5 * f * f;
-		if k == 0 {
-			return f - (hfsq - s * (hfsq + r));
-		}
+		if k == 0 => return f - (hfsq - s * (hfsq + r));
 		return dk * log_ln2_hi - ((hfsq - (s * (hfsq + r) + dk * log_ln2_lo)) - f);
 	}
-	if k == 0 {
-		return f - s * (f - r);
-	}
+	if k == 0 => return f - s * (f - r);
 	return dk * log_ln2_hi - ((s * (f - r) - dk * log_ln2_lo) - f);
 }
 
@@ -112,15 +98,11 @@ public func log1p(float x) float {
 
 	if hx < 0x3FDA827A {
 		if ax >= 0x3ff00000 {
-			if x == -1.0 {
-				return inf(-1);
-			}
+			if x == -1.0 => return inf(-1);
 			return nan();
 		}
 		if ax < 0x3e200000 {
-			if log_two54 + x > log_zero && ax < 0x3c900000 {
-				return x;
-			}
+			if log_two54 + x > log_zero && ax < 0x3c900000 => return x;
 			return x - x * x * 0.5;
 		}
 		if hx > 0 || hx <= -1076707645 {
@@ -129,9 +111,7 @@ public func log1p(float x) float {
 			hu = 1;
 		}
 	}
-	if hx >= 0x7ff00000 {
-		return x + x;
-	}
+	if hx >= 0x7ff00000 => return x + x;
 
 	if k != 0 {
 		float u;
@@ -166,25 +146,19 @@ public func log1p(float x) float {
 	float hfsq = 0.5 * f * f;
 	if hu == 0 {
 		if f == log_zero {
-			if k == 0 {
-				return log_zero;
-			}
+			if k == 0 => return log_zero;
 			c += dk * log_ln2_lo;
 			return dk * log_ln2_hi + c;
 		}
 		float r = hfsq * (1.0 - 0.66666666666666666 * f);
-		if k == 0 {
-			return f - r;
-		}
+		if k == 0 => return f - r;
 		return dk * log_ln2_hi - ((r - (dk * log_ln2_lo + c)) - f);
 	}
 
 	float s = f / (2.0 + f);
 	float z = s * s;
 	float r = z * (Lp1 + z * (Lp2 + z * (Lp3 + z * (Lp4 + z * (Lp5 + z * (Lp6 + z * Lp7))))));
-	if k == 0 {
-		return f - (hfsq - s * (hfsq + r));
-	}
+	if k == 0 => return f - (hfsq - s * (hfsq + r));
 	return dk * log_ln2_hi - ((hfsq - (s * (hfsq + r) + (dk * log_ln2_lo + c))) - f);
 }
 
@@ -196,25 +170,17 @@ public func log10(float x) float {
 	int k = 0;
 
 	if hx < 0x00100000 || hx >= 0x80000000 {
-		if ((hx & 0x7fffffff) | lx) == 0 {
-			return inf(-1);
-		}
-		if hx >= 0x80000000 {
-			return nan();
-		}
+		if ((hx & 0x7fffffff) | lx) == 0 => return inf(-1);
+		if hx >= 0x80000000 => return nan();
 		k -= 54;
 		x *= log_two54;
 		hx = highWord(x);
 	}
-	if hx >= 0x7ff00000 {
-		return x + x;
-	}
+	if hx >= 0x7ff00000 => return x + x;
 
 	k += int(hx >> 20) - 1023;
 	int i = 0;
-	if k < 0 {
-		i = 1;
-	}
+	if k < 0 => i = 1;
 	hx = (hx & 0x000fffff) | uint((0x3ff - i) << 20);
 	float y = float(k + i);
 	x = setHighWord(x, hx);
@@ -225,15 +191,9 @@ public func log10(float x) float {
 /// Returns the base 2 logarithm of `x`. It is -infinity for 0, NaN for negative
 /// `x` and for NaN, and +infinity for +infinity.
 public func log2(float x) float {
-	if isNaN(x) || x < 0.0 {
-		return nan();
-	}
-	if x == 0.0 {
-		return inf(-1);
-	}
-	if isInf(x, 1) {
-		return x;
-	}
+	if isNaN(x) || x < 0.0 => return nan();
+	if x == 0.0 => return inf(-1);
+	if isInf(x, 1) => return x;
 	let f, e = frexp(x);
 	if f < 0.7071067811865476 {
 		f *= 2.0;

@@ -33,9 +33,7 @@ public func join(mem.Allocator a, string ...parts) !string {
 		}
 		let elems = elementsAfterVolume(rest);
 		loop elems.next() |n| {
-			if firstPassed {
-				total += strings.copy(buf[total..], sep);
-			}
+			if firstPassed => total += strings.copy(buf[total..], sep);
 			total += strings.copy(buf[total..], n);
 			firstPassed = true;
 		}
@@ -57,9 +55,7 @@ public func clean(mem.Allocator a, string p) !string {
 	int v = volumeLen(p);
 	total += strings.copy(buf, p[..v]);
 	bool rooted = v < len(p) && isSep(p[v]);
-	if rooted {
-		total += strings.copy(buf[total..], sep);
-	}
+	if rooted => total += strings.copy(buf[total..], sep);
 	int rootLen = total;
 
 	let elems = elementsAfterVolume(p[v..]);
@@ -78,9 +74,7 @@ public func clean(mem.Allocator a, string p) !string {
 			_ => depth++;
 		}
 
-		if total > rootLen {
-			total += strings.copy(buf[total..], sep);
-		}
+		if total > rootLen => total += strings.copy(buf[total..], sep);
 		total += strings.copy(buf[total..], n);
 	}
 

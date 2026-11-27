@@ -4,13 +4,9 @@ import "std/math";
 /// there is none. An empty `sub` is found at index 0.
 #must_use
 public func indexOf(string s, sub) ?int {
-	if sub == "" {
-		return 0;
-	}
+	if sub == "" => return 0;
 
-	if len(sub) > len(s) {
-		return null;
-	}
+	if len(sub) > len(s) => return null;
 
 	int subLen = len(sub);
 	int limit = len(s) - subLen;
@@ -28,18 +24,14 @@ public func indexOf(string s, sub) ?int {
 public func lastIndexOf(string s, sub) ?int {
 	if sub == "" => return len(s);
 
-	if len(sub) > len(s) {
-		return null;
-	}
+	if len(sub) > len(s) => return null;
 
 	int subLen = len(sub);
 	int limit = len(s) - subLen;
 
 	?int last = null;
 	for i in 0..=limit {
-		if s[i..i + len(sub)] == sub {
-			last = i;
-		}
+		if s[i..i + len(sub)] == sub => last = i;
 	}
 
 	return last;
@@ -60,9 +52,7 @@ public func indexOfByte(string s, byte c) ?int {
 public func lastIndexOfByte(string s, byte c) ?int {
 	?int last = null;
 	for i, ch in s {
-		if c == ch {
-			last = i;
-		}
+		if c == ch => last = i;
 	}
 	return last;
 }

@@ -27,12 +27,8 @@ public func cbrt(float x) float {
 	uint sign = uhx & 0x80000000;
 	uint hx = uhx ^ sign;
 
-	if hx >= 0x7ff00000 {
-		return x + x;
-	}
-	if (hx | lowWord(x)) == 0 {
-		return x;
-	}
+	if hx >= 0x7ff00000 => return x + x;
+	if (hx | lowWord(x)) == 0 => return x;
 	x = setHighWord(x, hx);
 
 	float t;
@@ -74,20 +70,14 @@ public func hypot(float x, float y) float {
 	}
 	a = setHighWord(a, uint(ha));
 	b = setHighWord(b, uint(hb));
-	if (ha - hb) > 0x3c00000 {
-		return a + b;
-	}
+	if (ha - hb) > 0x3c00000 => return a + b;
 
 	int k = 0;
 	if ha > 0x5f300000 {
 		if ha >= 0x7ff00000 {
 			float w = a + b;
-			if ((uint(ha) & 0xfffff) | lowWord(a)) == 0 {
-				w = a;
-			}
-			if ((uint(hb) ^ 0x7ff00000) | lowWord(b)) == 0 {
-				w = b;
-			}
+			if ((uint(ha) & 0xfffff) | lowWord(a)) == 0 => w = a;
+			if ((uint(hb) ^ 0x7ff00000) | lowWord(b)) == 0 => w = b;
 			return w;
 		}
 		ha -= 0x25800000;
@@ -98,9 +88,7 @@ public func hypot(float x, float y) float {
 	}
 	if hb < 0x20b00000 {
 		if hb <= 0x000fffff {
-			if (uint(hb) | lowWord(b)) == 0 {
-				return a;
-			}
+			if (uint(hb) | lowWord(b)) == 0 => return a;
 			float t1 = fromWords(0x7fd00000, 0);
 			b *= t1;
 			a *= t1;
@@ -129,8 +117,6 @@ public func hypot(float x, float y) float {
 		float t2 = a - t1;
 		w = fsqrt(t1 * y1 - (w * (-w) - (t1 * y2 + t2 * b)));
 	}
-	if k != 0 {
-		return addExponent(1.0, k) * w;
-	}
+	if k != 0 => return addExponent(1.0, k) * w;
 	return w;
 }

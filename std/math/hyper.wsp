@@ -24,29 +24,19 @@ public func sinh(float x) float {
 	uint ujx = highWord(x);
 	int jx = signed32(ujx);
 	int ix = int(ujx & 0x7fffffff);
-	if ix >= 0x7ff00000 {
-		return x + x;
-	}
+	if ix >= 0x7ff00000 => return x + x;
 
 	float h = 0.5;
-	if jx < 0 {
-		h = -h;
-	}
+	if jx < 0 => h = -h;
 	if ix < 0x40360000 {
 		if ix < 0x3e300000 {
-			if shuge + x > hyper_one {
-				return x;
-			}
+			if shuge + x > hyper_one => return x;
 		}
 		float t = expm1(fabs(x));
-		if ix < 0x3ff00000 {
-			return h * (2.0 * t - t * t / (t + hyper_one));
-		}
+		if ix < 0x3ff00000 => return h * (2.0 * t - t * t / (t + hyper_one));
 		return h * (t + t / (t + hyper_one));
 	}
-	if ix < 0x40862E42 {
-		return h * exp(fabs(x));
-	}
+	if ix < 0x40862E42 => return h * exp(fabs(x));
 
 	uint lx = lowWord(x);
 	if ix < 0x408633CE || (ix == 0x408633ce && lx <= 0x8fb9f87d) {
@@ -61,25 +51,19 @@ public func sinh(float x) float {
 /// +infinity for large magnitudes, and NaN returns NaN.
 public func cosh(float x) float {
 	int ix = int(highWord(x) & 0x7fffffff);
-	if ix >= 0x7ff00000 {
-		return x * x;
-	}
+	if ix >= 0x7ff00000 => return x * x;
 
 	if ix < 0x3fd62e43 {
 		float t = expm1(fabs(x));
 		float w = hyper_one + t;
-		if ix < 0x3c800000 {
-			return w;
-		}
+		if ix < 0x3c800000 => return w;
 		return hyper_one + (t * t) / (w + w);
 	}
 	if ix < 0x40360000 {
 		float t = exp(fabs(x));
 		return hyper_half * t + hyper_half / t;
 	}
-	if ix < 0x40862E42 {
-		return hyper_half * exp(fabs(x));
-	}
+	if ix < 0x40862E42 => return hyper_half * exp(fabs(x));
 
 	uint lx = lowWord(x);
 	if ix < 0x408633CE || (ix == 0x408633ce && lx <= 0x8fb9f87d) {
@@ -98,17 +82,13 @@ public func tanh(float x) float {
 	int ix = int(ujx & 0x7fffffff);
 
 	if ix >= 0x7ff00000 {
-		if jx >= 0 {
-			return hyper_one / x + hyper_one;
-		}
+		if jx >= 0 => return hyper_one / x + hyper_one;
 		return hyper_one / x - hyper_one;
 	}
 
 	float z;
 	if ix < 0x40360000 {
-		if ix < 0x3c800000 {
-			return x * (hyper_one + x);
-		}
+		if ix < 0x3c800000 => return x * (hyper_one + x);
 		if ix >= 0x3ff00000 {
 			float t = expm1(hyper_two * fabs(x));
 			z = hyper_one - hyper_two / (t + hyper_two);
@@ -119,8 +99,6 @@ public func tanh(float x) float {
 	} else {
 		z = hyper_one - hyper_tiny;
 	}
-	if jx >= 0 {
-		return z;
-	}
+	if jx >= 0 => return z;
 	return -z;
 }

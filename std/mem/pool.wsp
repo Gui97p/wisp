@@ -48,9 +48,7 @@ func (*Pool p) grow() ! {
 /// Fails with the error of the parent when it needs memory and cannot get it.
 public func (*Pool p) allocDirty(int n) !*void {
 	errors.ensure(p.size > 0 && n >= 0 && n <= p.size, errors.Kind.Invalid)!;
-	if p.spare == null {
-		p.grow()!;
-	}
+	if p.spare == null => p.grow()!;
 	*void block = p.spare?;
 	p.spare = ((*?*void)(block))@;
 	p.liveBlocks++;
@@ -81,9 +79,7 @@ public func (*Pool p) realloc(?*void b, int old, int n) !*void {
 	errors.ensure(old >= 0 && n >= 0, errors.Kind.Invalid)!;
 	*void block = b ?? return p.alloc(n)!;
 	errors.ensure(n <= p.size, errors.Kind.Invalid)!;
-	if n > old {
-		fill((*byte)(block) + old, 0, n - old);
-	}
+	if n > old => fill((*byte)(block) + old, 0, n - old);
 	return block;
 }
 

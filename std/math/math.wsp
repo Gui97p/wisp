@@ -66,9 +66,7 @@ public func min(int ...args) int {
 	int m = args[0];
 
 	for _, n in args[1..] {
-		if n < m {
-			m = n;
-		}
+		if n < m => m = n;
 	}
 
 	return m;
@@ -80,9 +78,7 @@ public func max(int ...args) int {
 	int m = args[0];
 
 	for _, n in args[1..] {
-		if n > m {
-			m = n;
-		}
+		if n > m => m = n;
 	}
 
 	return m;
@@ -134,13 +130,9 @@ public func pow(int base, uint exp) ?int {
 
 	int r = 1;
 	loop exp > 0 {
-		if (exp & 1) == 1 {
-			r = checkedMul(r, base) ?? return null;
-		}
+		if (exp & 1) == 1 => r = checkedMul(r, base) ?? return null;
 		exp >>= 1;
-		if exp > 0 {
-			base = checkedMul(base, base) ?? return null;
-		}
+		if exp > 0 => base = checkedMul(base, base) ?? return null;
 	}
 
 	return r;

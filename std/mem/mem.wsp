@@ -39,9 +39,7 @@ func (*Raw) allocDirty(int n) !*void {
 func (*Raw r) realloc(?*void p, int old, int n) !*void {
 	*void block = p ?? return r.alloc(n)!;
 	*void grown = realloc(block, n) ?? return Error(errors.Kind.OutOfMemory);
-	if n > old {
-		fill((*byte)(grown) + old, 0, n - old);
-	}
+	if n > old => fill((*byte)(grown) + old, 0, n - old);
 	return grown;
 }
 

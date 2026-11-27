@@ -43,31 +43,23 @@ const {
 func kernelSin(float x, float y, int iy) float {
 	int ix = int(highWord(x) & 0x7fffffff);
 	if ix < 0x3e400000 {
-		if int(x) == 0 {
-			return x;
-		}
+		if int(x) == 0 => return x;
 	}
 	float z = x * x;
 	float v = z * x;
 	float r = S2 + z * (S3 + z * (S4 + z * (S5 + z * S6)));
-	if iy == 0 {
-		return x + v * (S1 + z * r);
-	}
+	if iy == 0 => return x + v * (S1 + z * r);
 	return x - ((z * (trig_half * y - v * r) - y) - v * S1);
 }
 
 func kernelCos(float x, float y) float {
 	int ix = int(highWord(x) & 0x7fffffff);
 	if ix < 0x3e400000 {
-		if int(x) == 0 {
-			return trig_one;
-		}
+		if int(x) == 0 => return trig_one;
 	}
 	float z = x * x;
 	float r = z * (C1 + z * (C2 + z * (C3 + z * (C4 + z * (C5 + z * C6)))));
-	if ix < 0x3FD33333 {
-		return trig_one - (0.5 * z - (z * r - x * y));
-	}
+	if ix < 0x3FD33333 => return trig_one - (0.5 * z - (z * r - x * y));
 	float qx;
 	if ix > 0x3fe90000 {
 		qx = 0.28125;
@@ -85,12 +77,8 @@ func kernelTan(float x, float y, int iy) float {
 	int ix = hx & 0x7fffffff;
 	if ix < 0x3e300000 {
 		if int(x) == 0 {
-			if (uint(ix) | lowWord(x) | uint(iy + 1)) == 0 {
-				return trig_one / fabs(x);
-			}
-			if iy == 1 {
-				return x;
-			}
+			if (uint(ix) | lowWord(x) | uint(iy + 1)) == 0 => return trig_one / fabs(x);
+			if iy == 1 => return x;
 			float w = x + y;
 			float z = setLowWord(w, 0);
 			float v = y - (z - x);
@@ -121,14 +109,10 @@ func kernelTan(float x, float y, int iy) float {
 	if ix >= 0x3FE59428 {
 		v = float(iy);
 		float sign = 1.0;
-		if hx < 0 {
-			sign = -1.0;
-		}
+		if hx < 0 => sign = -1.0;
 		return sign * (v - 2.0 * (x - (w * w / (w + v) - r)));
 	}
-	if iy == 1 {
-		return w;
-	}
+	if iy == 1 => return w;
 	z = setLowWord(w, 0);
 	v = r - (z - x);
 	float a = -1.0 / w;
@@ -141,48 +125,28 @@ func kernelTan(float x, float y, int iy) float {
 /// and the sign of zero is kept.
 public func sin(float x) float {
 	int ix = int(highWord(x) & 0x7fffffff);
-	if ix <= 0x3fe921fb {
-		return kernelSin(x, 0.0, 0);
-	}
-	if ix >= 0x7ff00000 {
-		return x - x;
-	}
+	if ix <= 0x3fe921fb => return kernelSin(x, 0.0, 0);
+	if ix >= 0x7ff00000 => return x - x;
 	[2]float y;
 	int n = remPio2(x, y[..]);
 	int quadrant = n & 3;
-	if quadrant == 0 {
-		return kernelSin(y[0], y[1], 1);
-	}
-	if quadrant == 1 {
-		return kernelCos(y[0], y[1]);
-	}
-	if quadrant == 2 {
-		return -kernelSin(y[0], y[1], 1);
-	}
+	if quadrant == 0 => return kernelSin(y[0], y[1], 1);
+	if quadrant == 1 => return kernelCos(y[0], y[1]);
+	if quadrant == 2 => return -kernelSin(y[0], y[1], 1);
 	return -kernelCos(y[0], y[1]);
 }
 
 /// Returns the cosine of `x`, given in radians. It is NaN for infinities and NaN.
 public func cos(float x) float {
 	int ix = int(highWord(x) & 0x7fffffff);
-	if ix <= 0x3fe921fb {
-		return kernelCos(x, 0.0);
-	}
-	if ix >= 0x7ff00000 {
-		return x - x;
-	}
+	if ix <= 0x3fe921fb => return kernelCos(x, 0.0);
+	if ix >= 0x7ff00000 => return x - x;
 	[2]float y;
 	int n = remPio2(x, y[..]);
 	int quadrant = n & 3;
-	if quadrant == 0 {
-		return kernelCos(y[0], y[1]);
-	}
-	if quadrant == 1 {
-		return -kernelSin(y[0], y[1], 1);
-	}
-	if quadrant == 2 {
-		return -kernelCos(y[0], y[1]);
-	}
+	if quadrant == 0 => return kernelCos(y[0], y[1]);
+	if quadrant == 1 => return -kernelSin(y[0], y[1], 1);
+	if quadrant == 2 => return -kernelCos(y[0], y[1]);
 	return kernelSin(y[0], y[1], 1);
 }
 
@@ -191,12 +155,8 @@ public func cos(float x) float {
 /// large rather than infinite, because pi/2 is not exactly representable.
 public func tan(float x) float {
 	int ix = int(highWord(x) & 0x7fffffff);
-	if ix <= 0x3fe921fb {
-		return kernelTan(x, 0.0, 1);
-	}
-	if ix >= 0x7ff00000 {
-		return x - x;
-	}
+	if ix <= 0x3fe921fb => return kernelTan(x, 0.0, 1);
+	if ix >= 0x7ff00000 => return x - x;
 	[2]float y;
 	int n = remPio2(x, y[..]);
 	return kernelTan(y[0], y[1], 1 - ((n & 1) << 1));

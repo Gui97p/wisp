@@ -65,9 +65,7 @@ func (*Sink w) writePiece(Piece p, Spec s, bool numeric) ! {
 		w.fill('0', pad)!;
 		w.text(p.body)!;
 	} else {
-		if s.align == .Default {
-			s.align = if numeric => Align.Right : Align.Left;
-		}
+		if s.align == .Default => s.align = if numeric => Align.Right : Align.Left;
 		match s.align {
 			.Left => {
 				w.text(p.sign)!;
@@ -132,9 +130,7 @@ func (*Sink w) putFloat(float x, Spec s, bool single) !bool {
 	validate(s, Value.Float) ?? return false;
 	Piece piece = w.renderFloat(x, s, single)!;
 	Spec copy = s;
-	if !math.isFinite(x) {
-		copy.zero = false;
-	}
+	if !math.isFinite(x) => copy.zero = false;
 	w.writePiece(piece, copy, true)!;
 	return true;
 }
@@ -208,9 +204,7 @@ public func format(io.Writer out, string pattern, ...args) !int {
 
 		if c.peek() == '}' {
 			w.char('}')!;
-			if problem == null {
-				problem = Error(FormatError.Unmatched);
-			}
+			if problem == null => problem = Error(FormatError.Unmatched);
 			c.advance();
 			continue;
 		}
@@ -221,9 +215,7 @@ public func format(io.Writer out, string pattern, ...args) !int {
 
 		if !c.advanceUntil('}') {
 			w.text(c.since(open))!;
-			if problem == null {
-				problem = Error(FormatError.Unmatched);
-			}
+			if problem == null => problem = Error(FormatError.Unmatched);
 			break;
 		}
 
@@ -234,9 +226,7 @@ public func format(io.Writer out, string pattern, ...args) !int {
 		Spec s = parse(text) ?? {
 			w.text(all)!;
 			argIndex++;
-			if problem == null {
-				problem = Error(FormatError.BadSpec);
-			}
+			if problem == null => problem = Error(FormatError.BadSpec);
 			continue;
 		};
 
@@ -263,15 +253,11 @@ public func format(io.Writer out, string pattern, ...args) !int {
 		argIndex++;
 		if !ok {
 			w.text(all)!;
-			if problem == null {
-				problem = bad;
-			}
+			if problem == null => problem = bad;
 		}
 	}
 
-	if argIndex < len(args) && problem == null {
-		problem = Error(FormatError.ExtraArgument);
-	}
+	if argIndex < len(args) && problem == null => problem = Error(FormatError.ExtraArgument);
 
 	if problem != null => return problem;
 

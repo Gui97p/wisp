@@ -63,12 +63,8 @@ func parse(string braces) !Spec {
 		c.advance();
 	}
 
-	if c.advanceIf('#') {
-		spec.alt = true;
-	}
-	if c.advanceIf('0') {
-		spec.zero = true;
-	}
+	if c.advanceIf('#') => spec.alt = true;
+	if c.advanceIf('0') => spec.zero = true;
 
 	if c.number() |width| {
 		if !width.fits => return Error(SpecError.BadNumber);
@@ -104,14 +100,10 @@ func validate(Spec s, Value v) ! {
 			}
 		}
 		.Bool => {
-			if s.kind != 0 || s.zero || s.alt || s.precision >= 0 {
-				return Error(SpecError.NotForType);
-			}
+			if s.kind != 0 || s.zero || s.alt || s.precision >= 0 => return Error(SpecError.NotForType);
 		}
 		.String => {
-			if s.kind != 0 || s.zero || s.alt {
-				return Error(SpecError.NotForType);
-			}
+			if s.kind != 0 || s.zero || s.alt => return Error(SpecError.NotForType);
 		}
 		.Pointer => {
 			if (s.kind != 0 && s.kind != 'p') || s.alt || s.precision >= 0 {

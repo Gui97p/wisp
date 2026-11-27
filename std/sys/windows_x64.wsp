@@ -196,9 +196,7 @@ internal func towide(string s, *uint16 dst) int {
 
 	int room = WIDE_MAX - 16;
 	int m = int(GetFullPathNameW(dst, uint32(room), wideScratch(), null));
-	if m == 0 || m < LONG_PATH {
-		return n;
-	}
+	if m == 0 || m < LONG_PATH => return n;
 	if m >= room => return -ENAMETOOLONG;
 
 	int total;
@@ -261,12 +259,8 @@ internal func readConsole(*byte buf, int n) int {
 
 	loop {
 		int want = n / 3;
-		if want < 1 {
-			want = 1;
-		}
-		if want > READ_UNITS {
-			want = READ_UNITS;
-		}
+		if want < 1 => want = 1;
+		if want > READ_UNITS => want = READ_UNITS;
 		int off;
 		if inHigh != 0 {
 			wideScratch()[0] = uint16(inHigh);
@@ -382,9 +376,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 	loop j >= i && n - j <= 3 && (buf[j] & 0xC0) == 0x80 {
 		j--;
 	}
-	if j >= i && buf[j] >= 0xC0 && n - j < sequenceLength(buf[j]) {
-		tail = j;
-	}
+	if j >= i && buf[j] >= 0xC0 && n - j < sequenceLength(buf[j]) => tail = j;
 
 	int pos = i;
 	loop pos < tail {
@@ -394,9 +386,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 			loop end > pos && (buf[end] & 0xC0) == 0x80 {
 				end--;
 			}
-			if end == pos {
-				end = pos + 16384;
-			}
+			if end == pos => end = pos + 16384;
 		}
 		int r = emitWide(fd, buf + pos, end - pos);
 		if r < 0 => return r;
@@ -414,9 +404,7 @@ internal func writeConsole(int fd, *byte buf, int n) int {
 }
 
 internal func write(int fd, *byte buf, int n) int {
-	if (fd == 1 || fd == 2) && isConsole(fd) {
-		return writeConsole(fd, buf, n);
-	}
+	if (fd == 1 || fd == 2) && isConsole(fd) => return writeConsole(fd, buf, n);
 	uint32 done;
 	if WriteFile(handleOf(fd), buf, uint32(n), &done, null) == 0 => return handleError();
 	return int(done);
@@ -428,15 +416,9 @@ internal func open(string path, int flags) int {
 
 	int mode = flags & 3;
 	int access = 0;
-	if mode == O_RDONLY || mode == O_RDWR {
-		access |= GENERIC_READ;
-	}
-	if mode == O_WRONLY || mode == O_RDWR {
-		access |= GENERIC_WRITE;
-	}
-	if (flags & O_APPEND) != 0 && mode != O_RDONLY {
-		access = (access & ~GENERIC_WRITE) | FILE_APPEND_DATA;
-	}
+	if mode == O_RDONLY || mode == O_RDWR => access |= GENERIC_READ;
+	if mode == O_WRONLY || mode == O_RDWR => access |= GENERIC_WRITE;
+	if (flags & O_APPEND) != 0 && mode != O_RDONLY => access = (access & ~GENERIC_WRITE) | FILE_APPEND_DATA;
 
 	bool create = (flags & O_CREAT) != 0;
 	bool truncate = (flags & O_TRUNC) != 0;

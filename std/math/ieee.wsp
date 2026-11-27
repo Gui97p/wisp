@@ -54,40 +54,28 @@ public native<x64> fsqrt(float x) float r {
 /// Returns the smaller of `x` and `y`. It is NaN when either is NaN, and -0 is
 /// treated as smaller than +0.
 public func fmin(float x, y) float {
-	if (isNaN(x) || isNaN(y)) {
-		return nan();
-	}
+	if (isNaN(x) || isNaN(y)) => return nan();
 
 	if (x == 0.0 && y == 0.0) {
-		if (signbit(x) || signbit(y)) {
-			return -0.0;
-		}
+		if (signbit(x) || signbit(y)) => return -0.0;
 		return 0.0;
 	}
 
-	if (x < y) {
-		return x;
-	}
+	if (x < y) => return x;
 	return y;
 }
 
 /// Returns the larger of `x` and `y`. It is NaN when either is NaN, and +0 is
 /// treated as larger than -0.
 public func fmax(float x, y) float {
-	if (isNaN(x) || isNaN(y)) {
-		return nan();
-	}
+	if (isNaN(x) || isNaN(y)) => return nan();
 
 	if (x == 0.0 && y == 0.0) {
-		if (!signbit(x) || !signbit(y)) {
-			return 0.0;
-		}
+		if (!signbit(x) || !signbit(y)) => return 0.0;
 		return -0.0;
 	}
 
-	if (x > y) {
-		return x;
-	}
+	if (x > y) => return x;
 	return y;
 }
 
@@ -96,9 +84,7 @@ public func fmax(float x, y) float {
 /// tie rule.
 public func round(float x) float {
 	float r = trunc(x);
-	if fabs(x - r) >= .5 {
-		r += copysign(1, x);
-	}
+	if fabs(x - r) >= .5 => r += copysign(1, x);
 	return r;
 }
 /// Returns `x` rounded to the nearest whole number, with halves rounded to the even
@@ -129,16 +115,10 @@ public inline func isNaN(float x) bool {
 public func isInf(float x, int sign) bool {
 	uint high, low = words(x);
 
-	if ((high & 0x7FFFFFFF) != FLOAT64_EXP_MASK || low != 0) {
-		return false;
-	}
+	if ((high & 0x7FFFFFFF) != FLOAT64_EXP_MASK || low != 0) => return false;
 
-	if (sign > 0) {
-		return (high & FLOAT64_SIGN_MASK) == 0;
-	}
-	if (sign < 0) {
-		return (high & FLOAT64_SIGN_MASK) != 0;
-	}
+	if (sign > 0) => return (high & FLOAT64_SIGN_MASK) == 0;
+	if (sign < 0) => return (high & FLOAT64_SIGN_MASK) != 0;
 	return true;
 }
 
@@ -161,9 +141,7 @@ public inline func isInteger(float x) bool => isFinite(x) && x == trunc(x);
 /// Returns -infinity when `sign` is negative and +infinity otherwise.
 public func inf(int sign) float {
 	uint high = FLOAT64_EXP_MASK;
-	if (sign < 0) {
-		high |= FLOAT64_SIGN_MASK;
-	}
+	if (sign < 0) => high |= FLOAT64_SIGN_MASK;
 	return fromWords(high, 0);
 }
 
@@ -194,9 +172,7 @@ public func modf(float x) (float, float) {
 	float integer = trunc(x);
 	float fraction = x - integer;
 
-	if (fraction == 0.0) {
-		fraction = copysign(0.0, x);
-	}
+	if (fraction == 0.0) => fraction = copysign(0.0, x);
 
 	return integer, fraction;
 }
@@ -216,25 +192,17 @@ public func ldexp(float x, int n) float {
 	int k = int((hx & 0x7ff00000) >> 20);
 
 	if k == 0 {
-		if (lx | (hx & 0x7fffffff)) == 0 {
-			return x;
-		}
+		if (lx | (hx & 0x7fffffff)) == 0 => return x;
 		x *= ieee_two54;
 		hx, lx = words(x);
 		k = int((hx & 0x7ff00000) >> 20) - 54;
-		if n < -50000 {
-			return ieee_tiny * x;
-		}
+		if n < -50000 => return ieee_tiny * x;
 	}
 
-	if k == 0x7ff {
-		return x + x;
-	}
+	if k == 0x7ff => return x + x;
 
 	k = k + n;
-	if k > 0x7fe {
-		return ieee_huge * copysign(ieee_huge, x);
-	}
+	if k > 0x7fe => return ieee_huge * copysign(ieee_huge, x);
 
 	if k > 0 {
 		hx = (hx & 0x800fffff) | (uint(k) << 20);
@@ -242,9 +210,7 @@ public func ldexp(float x, int n) float {
 	}
 
 	if k <= -54 {
-		if n > 50000 {
-			return ieee_huge * copysign(ieee_huge, x);
-		}
+		if n > 50000 => return ieee_huge * copysign(ieee_huge, x);
 		return ieee_tiny * copysign(ieee_tiny, x);
 	}
 
@@ -261,9 +227,7 @@ public func frexp(float x) (float, int) {
 	int ix = int(hx & 0x7fffffff);
 	int e;
 
-	if ix >= 0x7ff00000 || (ix | int(lx)) == 0 {
-		return x, e;
-	}
+	if ix >= 0x7ff00000 || (ix | int(lx)) == 0 => return x, e;
 
 	if ix < 0x00100000 {
 		x *= ieee_two54;
@@ -287,13 +251,9 @@ public func decompose(float x) (uint, int) {
 	int biased = int((hx >> 20) & 0x7ff);
 	uint fraction = ((hx & 0xfffff) << 32) | lx;
 
-	if biased == 0x7ff {
-		return fraction, 0;
-	}
+	if biased == 0x7ff => return fraction, 0;
 	if biased == 0 {
-		if fraction == 0 {
-			return 0, 0;
-		}
+		if fraction == 0 => return 0, 0;
 		return fraction, -1074;
 	}
 	return fraction | (1 << 52), biased - 1075;
@@ -320,9 +280,7 @@ inline func setLowWord(float x, uint l) float {
 }
 
 inline func signed32(uint w) int {
-	if w >= 0x80000000 {
-		return int(w) - 0x100000000;
-	}
+	if w >= 0x80000000 => return int(w) - 0x100000000;
 	return int(w);
 }
 
@@ -332,9 +290,7 @@ inline func addExponent(float x, int k) float {
 }
 
 func exponentOf(uint h, l) int {
-	if h >= 0x00100000 {
-		return int(h >> 20) - 1023;
-	}
+	if h >= 0x00100000 => return int(h >> 20) - 1023;
 
 	int e;
 	uint i;
@@ -363,17 +319,11 @@ public func fmod(float x, y) float {
 	hx = hx ^ sx;
 	hy = hy & 0x7fffffff;
 
-	if y == 0.0 || !isFinite(x) || isNaN(y) {
-		return nan();
-	}
+	if y == 0.0 || !isFinite(x) || isNaN(y) => return nan();
 
 	if hx <= hy {
-		if hx < hy || lx < ly {
-			return x;
-		}
-		if lx == ly {
-			return copysign(0.0, x);
-		}
+		if hx < hy || lx < ly => return x;
+		if lx == ly => return copysign(0.0, x);
 	}
 
 	int ix = exponentOf(hx, lx);
@@ -410,16 +360,12 @@ public func fmod(float x, y) float {
 		n -= 1;
 		int hz = int(hx) - int(hy);
 		uint lz = (lx -% ly) & 0xffffffff;
-		if lx < ly {
-			hz -= 1;
-		}
+		if lx < ly => hz -= 1;
 		if hz < 0 {
 			hx = hx + hx + (lx >> 31);
 			lx = (lx + lx) & 0xffffffff;
 		} else {
-			if (uint(hz) | lz) == 0 {
-				return copysign(0.0, x);
-			}
+			if (uint(hz) | lz) == 0 => return copysign(0.0, x);
 			hx = uint(hz) + uint(hz) + (lz >> 31);
 			lx = (lz + lz) & 0xffffffff;
 		}
@@ -427,17 +373,13 @@ public func fmod(float x, y) float {
 
 	int hz = int(hx) - int(hy);
 	uint lz = (lx -% ly) & 0xffffffff;
-	if lx < ly {
-		hz -= 1;
-	}
+	if lx < ly => hz -= 1;
 	if hz >= 0 {
 		hx = uint(hz);
 		lx = lz;
 	}
 
-	if (hx | lx) == 0 {
-		return copysign(0.0, x);
-	}
+	if (hx | lx) == 0 => return copysign(0.0, x);
 	loop hx < 0x00100000 {
 		hx = hx + hx + (lx >> 31);
 		lx = (lx + lx) & 0xffffffff;

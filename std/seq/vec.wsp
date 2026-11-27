@@ -31,9 +31,7 @@ public func (*Vec<T> l) reserve(int n) ! {
 	if needed <= l.cap => return;
 
 	int cap = l.cap;
-	if cap < 8 {
-		cap = 8;
-	}
+	if cap < 8 => cap = 8;
 	loop cap < needed {
 		cap *= 2;
 	}
@@ -60,16 +58,12 @@ public func (*Vec<T> l) extend([]T more) ! {
 	if l.cap > 0 {
 		*T base = (*T)(l.items);
 		*T start = (*T)(more);
-		if start >= base && start < base + l.cap {
-			index = start - base;
-		}
+		if start >= base && start < base + l.cap => index = start - base;
 	}
 
 	l.reserve(n)!;
 	*T source = (*T)(more);
-	if index >= 0 {
-		source = (*T)(l.items) + index;
-	}
+	if index >= 0 => source = (*T)(l.items) + index;
 	int at = len(l.items);
 	l.setLen(at + n);
 	mem.move(&l.items[at], source, n * int(sizeof(T)));
@@ -83,9 +77,7 @@ public func (*Vec<T> l) insert(int i, T v) ! {
 
 	l.reserve(1)!;
 	l.setLen(count + 1);
-	if i < count {
-		mem.move(&l.items[i + 1], &l.items[i], (count - i) * int(sizeof(T)));
-	}
+	if i < count => mem.move(&l.items[i + 1], &l.items[i], (count - i) * int(sizeof(T)));
 	l.items[i] = v;
 }
 
@@ -106,9 +98,7 @@ public func (*Vec<T> l) remove(int i) ?T {
 	if i < 0 || i >= count => return null;
 
 	T v = l.items[i];
-	if i < count - 1 {
-		mem.move(&l.items[i], &l.items[i + 1], (count - i - 1) * int(sizeof(T)));
-	}
+	if i < count - 1 => mem.move(&l.items[i], &l.items[i + 1], (count - i - 1) * int(sizeof(T)));
 	l.setLen(count - 1);
 	return v;
 }

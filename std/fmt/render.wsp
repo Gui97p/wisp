@@ -90,9 +90,7 @@ inline func renderBool(bool b) Piece => Piece { body:if b => "true" : "false" };
 
 func renderString(string t, Spec s) Piece {
 	Piece piece = Piece{body: t};
-	if s.precision >= 0 && s.precision < len(t) {
-		piece.body = t[..s.precision];
-	}
+	if s.precision >= 0 && s.precision < len(t) => piece.body = t[..s.precision];
 	return piece;
 }
 

@@ -40,9 +40,7 @@ inline func rotate(uint x, int k) uint => (x << k) | (x >> (64 - k));
 
 /// Returns the next 64 random bits. Every method below is made from this one.
 public func (*Generator r) next() uint {
-	if !r.ready {
-		r.seed(uint(time.now()) ^ (uint(time.ticks()) *% 0x9E3779B97F4A7C15) ^ uint(r));
-	}
+	if !r.ready => r.seed(uint(time.now()) ^ (uint(time.ticks()) *% 0x9E3779B97F4A7C15) ^ uint(r));
 	uint result = rotate(r.state[1] *% 5, 7) *% 9;
 	uint t = r.state[1] << 17;
 	r.state[2] = r.state[2] ^ r.state[0];
@@ -69,9 +67,7 @@ func (*Generator r) below(int n) int {
 /// values, as `5..5` or `9..2`, and when it has more than 2^63 - 1 of them.
 public func (*Generator r) range(Range<int> values) int {
 	int n = values.count();
-	if n <= 0 {
-		panic("rand.range: the range has no values");
-	}
+	if n <= 0 => panic("rand.range: the range has no values");
 	return values.at(r.below(n));
 }
 

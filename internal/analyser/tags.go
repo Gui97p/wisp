@@ -64,12 +64,12 @@ var Tags = []TagSpec{
 	},
 	{
 		Name: "format", Usage: "#format",
-		Doc:     "A function that takes a format string and the values to write in it: its last parameters are `string format, ...args`. A call whose format is a string literal may write expressions in it, `{sum}`, `{items[i]:X}`, `{a + b:>8}`: the compiler takes each one out of the text, leaves `{}` or `{:spec}` in its place and passes the expression as the next argument. `{}` and `{:spec}` still take the arguments written after the string, in order, and `{{` and `}}` write a brace. A ternary works too, `{ok ? 1 : 2}`, and a `:` after it starts the spec: `{ok ? 1 : 2:>4}`.",
+		Doc:     "A function that takes a format string and the values to write in it: its last parameters are `string format, ...args`. A call whose format is a string literal may write expressions in it, `{sum}`, `{items[i]:X}`, `{a + b:>8}`: the compiler takes each one out of the text, leaves `{}` or `{:spec}` in its place and passes the expression as the next argument. `{}` and `{:spec}` still take the arguments written after the string, in order, and `{{` and `}}` write a brace. An if that gives a value works too, `{if ok => 1 : 2}`, and a second `:` after it starts the spec: `{if ok => 1 : 2:>4}`.",
 		Targets: []string{"function", "method"},
 	},
 	{
 		Name: "dynamic", Usage: "#dynamic",
-		Doc:     "An interface whose values can be told apart at run time. A value that is passed as an untyped variadic argument (`...args`) and whose type declares `implements` this interface can be picked out with `case Interface v` in a switch on types, and `v` is then the interface value. The interface has to be declared with #dynamic for that: without it a `case` cannot name it. It takes nothing for the types that do not implement it, and cannot be generic.",
+		Doc:     "An interface whose values can be told apart at run time. A value that is passed as an untyped variadic argument (`...args`) and whose type declares `implements` this interface can be picked out with `Interface v =>` in a `match type`, and `v` is then the interface value. The interface has to be declared with #dynamic for that: without it an arm cannot name it. It takes nothing for the types that do not implement it, and cannot be generic.",
 		Targets: []string{"interface"},
 	},
 	{

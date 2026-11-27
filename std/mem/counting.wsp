@@ -61,9 +61,7 @@ public func (*Counting c) realloc(?*void p, int _old, int n) !*void {
 	*void grown = c.source().realloc(raw, was + counting_HEADER, n + counting_HEADER)!;
 	(*int)(grown)@ = n;
 	c.liveBytes += n - was;
-	if n > was {
-		c.totalBytes += n - was;
-	}
+	if n > was => c.totalBytes += n - was;
 	c.peakBytes = math.max(c.peakBytes, c.liveBytes);
 	return (*byte)(grown) + counting_HEADER;
 }

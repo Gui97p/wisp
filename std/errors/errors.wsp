@@ -13,9 +13,7 @@ public inline func ensureMessage(bool condition, const Kind k, const string mess
 /// Panics with `message` if `condition` is false. In a build that is not
 /// `debug` the call does nothing and `condition` is not evaluated.
 public inline func assert(bool condition, const string message) {
-	if !condition {
-		panic(message);
-	}
+	if !condition => panic(message);
 }
 public inline func<!debug> assert(bool _condition, const string _message) {}
 

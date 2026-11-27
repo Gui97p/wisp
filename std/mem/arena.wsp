@@ -156,9 +156,7 @@ public func (*Arena a) realloc(?*void p, int old, int n) !*void {
 	if a.head |head| {
 		if (*byte)(block) + was == head.data() + head.used && head.used - was + want <= head.size {
 			head.used = head.used - was + want;
-			if n > old {
-				fill((*byte)(block) + old, 0, n - old);
-			}
+			if n > old => fill((*byte)(block) + old, 0, n - old);
 			return block;
 		}
 	}

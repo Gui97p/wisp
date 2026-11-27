@@ -69,9 +69,7 @@ public func (Duration d) display(io.Writer w) ! {
 		return;
 	}
 	uint mag = if n < 0 => uint(-(n + 1)) + 1 : uint(n);
-	if n < 0 {
-		io.writeByte(w, '-')!;
-	}
+	if n < 0 => io.writeByte(w, '-')!;
 
 	if mag < 1_000 {
 		fraction(w, mag, 1, 1)!;

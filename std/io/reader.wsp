@@ -53,9 +53,7 @@ public func (*BufReader r) read([]byte out) !?int {
 
 /// Reads one byte, or returns null at the end of the stream.
 public func (*BufReader r) readByte() !?byte {
-	if r.start == r.end {
-		r.fill()! ?? return null;
-	}
+	if r.start == r.end => r.fill()! ?? return null;
 	defer r.start++;
 	return r.buf[r.start];
 }
@@ -71,9 +69,7 @@ public func (*BufReader r) readLine() !?string {
 		int from = r.start + scanned;
 		if slices.indexOf(r.buf[from..r.end], '\n') |i| {
 			[]byte line = r.buf[r.start..from + i];
-			if len(line) > 0 && line[len(line) - 1] == '\r' {
-				line = line[..len(line) - 1];
-			}
+			if len(line) > 0 && line[len(line) - 1] == '\r' => line = line[..len(line) - 1];
 			defer r.start = from + i + 1;
 			return string(line);
 		}

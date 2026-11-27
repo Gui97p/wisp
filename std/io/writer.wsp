@@ -21,9 +21,7 @@ public func bufWriter(mem.Allocator a, Writer out, int size) !BufWriter => .{out
 /// length of `data`, or fails with the error of the destination.
 public func (*BufWriter w) write([]byte data) !int {
 	int need = len(data) + w.count;
-	if need > len(w.buf) {
-		w.flush()!;
-	}
+	if need > len(w.buf) => w.flush()!;
 
 	if len(data) >= len(w.buf) {
 		w.out.write(data)!;

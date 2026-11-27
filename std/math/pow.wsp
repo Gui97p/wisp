@@ -57,13 +57,9 @@ public func fpow(float x, float y) float {
 	int ix = int(uhx & 0x7fffffff);
 	int iy = int(uhy & 0x7fffffff);
 
-	if (uint(iy) | ly) == 0 {
-		return pow_one;
-	}
+	if (uint(iy) | ly) == 0 => return pow_one;
 
-	if hx == 0x3ff00000 && lx == 0 {
-		return pow_one;
-	}
+	if hx == 0x3ff00000 && lx == 0 => return pow_one;
 
 	if ix > 0x7ff00000 || (ix == 0x7ff00000 && lx != 0) || iy > 0x7ff00000 || (iy == 0x7ff00000 && ly != 0) {
 		return x + y;
@@ -77,47 +73,31 @@ public func fpow(float x, float y) float {
 			int e = (iy >> 20) - 0x3ff;
 			if e > 20 {
 				uint shifted = ly >> (52 - e);
-				if ((shifted << (52 - e)) & 0xffffffff) == ly {
-					yisint = 2 - int(shifted & 1);
-				}
+				if ((shifted << (52 - e)) & 0xffffffff) == ly => yisint = 2 - int(shifted & 1);
 			} else if ly == 0 {
 				int shifted = iy >> (20 - e);
-				if (shifted << (20 - e)) == iy {
-					yisint = 2 - (shifted & 1);
-				}
+				if (shifted << (20 - e)) == iy => yisint = 2 - (shifted & 1);
 			}
 		}
 	}
 
 	if ly == 0 {
 		if iy == 0x7ff00000 {
-			if ix == 0x3ff00000 && lx == 0 {
-				return pow_one;
-			}
+			if ix == 0x3ff00000 && lx == 0 => return pow_one;
 			if ix >= 0x3ff00000 {
-				if hy >= 0 {
-					return y;
-				}
+				if hy >= 0 => return y;
 				return pow_zero;
 			}
-			if hy < 0 {
-				return -y;
-			}
+			if hy < 0 => return -y;
 			return pow_zero;
 		}
 		if iy == 0x3ff00000 {
-			if hy < 0 {
-				return pow_one / x;
-			}
+			if hy < 0 => return pow_one / x;
 			return x;
 		}
-		if hy == 0x40000000 {
-			return x * x;
-		}
+		if hy == 0x40000000 => return x * x;
 		if hy == 0x3fe00000 {
-			if hx >= 0 {
-				return fsqrt(x);
-			}
+			if hx >= 0 => return fsqrt(x);
 		}
 	}
 
@@ -125,9 +105,7 @@ public func fpow(float x, float y) float {
 	if lx == 0 {
 		if ix == 0x7ff00000 || ix == 0 || ix == 0x3ff00000 {
 			float z = ax;
-			if hy < 0 {
-				z = pow_one / z;
-			}
+			if hy < 0 => z = pow_one / z;
 			if hx < 0 {
 				if ix == 0x3ff00000 && yisint == 0 {
 					z = nan();
@@ -140,42 +118,30 @@ public func fpow(float x, float y) float {
 	}
 
 	int n = (hx >> 31) + 1;
-	if (n | yisint) == 0 {
-		return nan();
-	}
+	if (n | yisint) == 0 => return nan();
 
 	float s = pow_one;
-	if n == 0 && yisint == 1 {
-		s = -pow_one;
-	}
+	if n == 0 && yisint == 1 => s = -pow_one;
 
 	float t1;
 	float t2;
 	if iy > 0x41e00000 {
 		if iy > 0x43f00000 {
 			if ix <= 0x3fefffff {
-				if hy < 0 {
-					return pow_huge * pow_huge;
-				}
+				if hy < 0 => return pow_huge * pow_huge;
 				return pow_tiny * pow_tiny;
 			}
 			if ix >= 0x3ff00000 {
-				if hy > 0 {
-					return pow_huge * pow_huge;
-				}
+				if hy > 0 => return pow_huge * pow_huge;
 				return pow_tiny * pow_tiny;
 			}
 		}
 		if ix < 0x3fefffff {
-			if hy < 0 {
-				return s * pow_huge * pow_huge;
-			}
+			if hy < 0 => return s * pow_huge * pow_huge;
 			return s * pow_tiny * pow_tiny;
 		}
 		if ix > 0x3ff00000 {
-			if hy > 0 {
-				return s * pow_huge * pow_huge;
-			}
+			if hy > 0 => return s * pow_huge * pow_huge;
 			return s * pow_tiny * pow_tiny;
 		}
 		float t = ax - pow_one;
@@ -237,19 +203,11 @@ public func fpow(float x, float y) float {
 	int j = signed32(highWord(z));
 	int i = int(lowWord(z));
 	if j >= 0x40900000 {
-		if j != 0x40900000 || i != 0 {
-			return s * pow_huge * pow_huge;
-		}
-		if p_l + ovt > z - p_h {
-			return s * pow_huge * pow_huge;
-		}
+		if j != 0x40900000 || i != 0 => return s * pow_huge * pow_huge;
+		if p_l + ovt > z - p_h => return s * pow_huge * pow_huge;
 	} else if (j & 0x7fffffff) >= 0x4090cc00 {
-		if j != -1064252416 || i != 0 {
-			return s * pow_tiny * pow_tiny;
-		}
-		if p_l <= z - p_h {
-			return s * pow_tiny * pow_tiny;
-		}
+		if j != -1064252416 || i != 0 => return s * pow_tiny * pow_tiny;
+		if p_l <= z - p_h => return s * pow_tiny * pow_tiny;
 	}
 
 	i = j & 0x7fffffff;
@@ -259,14 +217,10 @@ public func fpow(float x, float y) float {
 		n = j + (0x00100000 >> (k + 1));
 		k = ((n & 0x7fffffff) >> 20) - 0x3ff;
 		int high = n & ~(0x000fffff >> k);
-		if high < 0 {
-			high += 0x100000000;
-		}
+		if high < 0 => high += 0x100000000;
 		float t = fromWords(uint(high), 0);
 		n = ((n & 0x000fffff) | 0x00100000) >> (20 - k);
-		if j < 0 {
-			n = -n;
-		}
+		if j < 0 => n = -n;
 		p_h -= t;
 	}
 	float t = setLowWord(p_l + p_h, 0);

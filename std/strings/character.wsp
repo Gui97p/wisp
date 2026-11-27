@@ -44,9 +44,7 @@ public func digitValue(byte c, int base) ?int {
 		return null;
 	}
 
-	if c in 'a'..='z' {
-		c -= 32;
-	}
+	if c in 'a'..='z' => c -= 32;
 
 	if c in 'A'..='Z' {
 		int v = c - 'A' + 10;

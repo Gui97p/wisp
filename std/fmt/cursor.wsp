@@ -4,9 +4,7 @@ struct Cursor {
 }
 
 inline func (*Cursor c) peekAt(int k) byte {
-	if c.pos + k >= len(c.text) || k < 0 {
-		return '\0';
-	}
+	if c.pos + k >= len(c.text) || k < 0 => return '\0';
 	return c.text[c.pos + k];
 }
 

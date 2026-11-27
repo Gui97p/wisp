@@ -20,9 +20,7 @@ func<debug> callerSite(*void f) string {
 	loop true {
 		string s = siteOf(at);
 		if len(s) <= 0 => return first;
-		if len(s) < 4 || s[..4] != "std/" {
-			return s;
-		}
+		if len(s) < 4 || s[..4] != "std/" => return s;
 		at = parent(at);
 	}
 	return first;

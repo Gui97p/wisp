@@ -85,9 +85,7 @@ func (*Decimal dec) shiftRight() {
 
 	dec.n = write;
 
-	if carry != 0 {
-		dec.load(5);
-	}
+	if carry != 0 => dec.load(5);
 
 	if dec.d[0] == 0 && dec.n > 1 {
 		for i in 1..dec.n {
@@ -112,9 +110,7 @@ func (*Decimal dec) assign(uint m, int e) {
 }
 
 func (*Decimal dec) shouldRoundUp(int nd) bool {
-	if nd < 0 || nd >= dec.n {
-		return false;
-	}
+	if nd < 0 || nd >= dec.n => return false;
 
 	uint d = dec.d[nd];
 	if d == 5 && nd + 1 == dec.n => return if nd == 0 => false : dec.d[nd - 1] % 2 == 1;
@@ -144,9 +140,7 @@ func (*Decimal dec) roundUp(int nd) {
 }
 
 func (*Decimal dec) round(int nd) {
-	if nd < 0 || nd >= dec.n {
-		return;
-	}
+	if nd < 0 || nd >= dec.n => return;
 
 	if dec.shouldRoundUp(nd) {
 		dec.roundUp(nd);
@@ -196,9 +190,7 @@ func (*Decimal dec) shortest(uint mant, int exp, uint hidden, int minExp) {
 	dec.assign(mant, exp);
 
 	uint m = 1;
-	if mant == hidden && exp > minExp {
-		m = 2;
-	}
+	if mant == hidden && exp > minExp => m = 2;
 
 	Decimal upper, lower;
 	upper.assign(m * 2 * mant + m, exp - int(m));
@@ -263,9 +255,7 @@ const DIGIT_LIMIT = 1000;
 func (*Decimal dec) limit() {
 	if dec.n > DIGIT_LIMIT {
 		dec.n = DIGIT_LIMIT;
-		if dec.d[DIGIT_LIMIT - 1] == 0 {
-			dec.d[DIGIT_LIMIT - 1] = 1;
-		}
+		if dec.d[DIGIT_LIMIT - 1] == 0 => dec.d[DIGIT_LIMIT - 1] = 1;
 	}
 }
 
@@ -285,13 +275,9 @@ func (*Decimal dec) rounded() uint {
 	uint n = 0;
 	for i in 0..dec.dp {
 		n *= 10;
-		if i < dec.n {
-			n += dec.d[i];
-		}
+		if i < dec.n => n += dec.d[i];
 	}
-	if dec.dp >= 0 && dec.shouldRoundUp(dec.dp) {
-		n++;
-	}
+	if dec.dp >= 0 && dec.shouldRoundUp(dec.dp) => n++;
 	return n;
 }
 
@@ -328,9 +314,7 @@ func (*Decimal dec) toFloat(int mantBits, expBits, bias) !float {
 		exp++;
 		errors.ensure(exp - bias < top, errors.Kind.Overflow)!;
 	}
-	if (mant & uint(1 << mantBits)) == 0 {
-		exp = bias;
-	}
+	if (mant & uint(1 << mantBits)) == 0 => exp = bias;
 	int biased = exp - bias;
 	return math.ldexp(float(mant), (if biased == 0 => 1 : biased) + bias - mantBits);
 }

@@ -109,9 +109,7 @@ func commit(Error base, int n) Error {
 
 func put([]byte out, int at, string text) int {
 	int n = len(text);
-	if at + n > len(out) {
-		n = len(out) - at;
-	}
+	if at + n > len(out) => n = len(out) - at;
 	for i in 0..n {
 		out[at + i] = text[i];
 	}
@@ -119,9 +117,7 @@ func put([]byte out, int at, string text) int {
 }
 
 func shown(*Record from, string message) string {
-	if len(from.block) == 0 || (*void)(from) == (*void)(&records[cursor]) {
-		return from.block;
-	}
+	if len(from.block) == 0 || (*void)(from) == (*void)(&records[cursor]) => return from.block;
 	int start = 0;
 	for i in 0..len(from.block) {
 		if from.block[i] == '\n' {

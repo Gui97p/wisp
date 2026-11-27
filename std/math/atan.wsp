@@ -47,20 +47,14 @@ public func atan(float x) float {
 	int id;
 
 	if ix >= 0x44100000 {
-		if ix > 0x7ff00000 || (ix == 0x7ff00000 && lowWord(x) != 0) {
-			return x + x;
-		}
-		if hx > 0 {
-			return atanhi[3] + atanlo[3];
-		}
+		if ix > 0x7ff00000 || (ix == 0x7ff00000 && lowWord(x) != 0) => return x + x;
+		if hx > 0 => return atanhi[3] + atanlo[3];
 		return -atanhi[3] - atanlo[3];
 	}
 
 	if ix < 0x3fdc0000 {
 		if ix < 0x3e200000 {
-			if atan_huge + x > atan_one {
-				return x;
-			}
+			if atan_huge + x > atan_one => return x;
 		}
 		id = -1;
 	} else {
@@ -88,13 +82,9 @@ public func atan(float x) float {
 	float w = z * z;
 	float s1 = z * (aT[0] + w * (aT[2] + w * (aT[4] + w * (aT[6] + w * (aT[8] + w * aT[10])))));
 	float s2 = w * (aT[1] + w * (aT[3] + w * (aT[5] + w * (aT[7] + w * aT[9]))));
-	if id < 0 {
-		return x - x * (s1 + s2);
-	}
+	if id < 0 => return x - x * (s1 + s2);
 	z = atanhi[id] - ((x * (s1 + s2) - atanlo[id]) - x);
-	if hx < 0 {
-		return -z;
-	}
+	if hx < 0 => return -z;
 	return z;
 }
 
@@ -112,65 +102,37 @@ public func atan2(float y, float x) float {
 	int iy = int(uhy & 0x7fffffff);
 	uint ly = lowWord(y);
 
-	if isNaN(x) || isNaN(y) {
-		return x + y;
-	}
-	if hx == 0x3ff00000 && lx == 0 {
-		return atan(y);
-	}
+	if isNaN(x) || isNaN(y) => return x + y;
+	if hx == 0x3ff00000 && lx == 0 => return atan(y);
 
 	int m = 0;
-	if hy < 0 {
-		m = 1;
-	}
-	if hx < 0 {
-		m = m | 2;
-	}
+	if hy < 0 => m = 1;
+	if hx < 0 => m = m | 2;
 
 	if (uint(iy) | ly) == 0 {
-		if m == 0 || m == 1 {
-			return y;
-		}
-		if m == 2 {
-			return pi + atan_tiny;
-		}
+		if m == 0 || m == 1 => return y;
+		if m == 2 => return pi + atan_tiny;
 		return -pi - atan_tiny;
 	}
 	if (uint(ix) | lx) == 0 {
-		if hy < 0 {
-			return -pi_o_2 - atan_tiny;
-		}
+		if hy < 0 => return -pi_o_2 - atan_tiny;
 		return pi_o_2 + atan_tiny;
 	}
 
 	if ix == 0x7ff00000 {
 		if iy == 0x7ff00000 {
-			if m == 0 {
-				return pi_o_4 + atan_tiny;
-			}
-			if m == 1 {
-				return -pi_o_4 - atan_tiny;
-			}
-			if m == 2 {
-				return 3.0 * pi_o_4 + atan_tiny;
-			}
+			if m == 0 => return pi_o_4 + atan_tiny;
+			if m == 1 => return -pi_o_4 - atan_tiny;
+			if m == 2 => return 3.0 * pi_o_4 + atan_tiny;
 			return -3.0 * pi_o_4 - atan_tiny;
 		}
-		if m == 0 {
-			return atan_zero;
-		}
-		if m == 1 {
-			return -atan_zero;
-		}
-		if m == 2 {
-			return pi + atan_tiny;
-		}
+		if m == 0 => return atan_zero;
+		if m == 1 => return -atan_zero;
+		if m == 2 => return pi + atan_tiny;
 		return -pi - atan_tiny;
 	}
 	if iy == 0x7ff00000 {
-		if hy < 0 {
-			return -pi_o_2 - atan_tiny;
-		}
+		if hy < 0 => return -pi_o_2 - atan_tiny;
 		return pi_o_2 + atan_tiny;
 	}
 
@@ -184,15 +146,9 @@ public func atan2(float y, float x) float {
 		z = atan(fabs(y / x));
 	}
 
-	if m == 0 {
-		return z;
-	}
-	if m == 1 {
-		return -z;
-	}
-	if m == 2 {
-		return pi - (z - pi_lo);
-	}
+	if m == 0 => return z;
+	if m == 1 => return -z;
+	if m == 2 => return pi - (z - pi_lo);
 	return (z - pi_lo) - pi;
 }
 
@@ -204,16 +160,12 @@ public func asin(float x) float {
 	int ix = int(uhx & 0x7fffffff);
 
 	if ix >= 0x3ff00000 {
-		if ix == 0x3ff00000 && lowWord(x) == 0 {
-			return x * pio2_hi + x * pio2_lo;
-		}
+		if ix == 0x3ff00000 && lowWord(x) == 0 => return x * pio2_hi + x * pio2_lo;
 		return nan();
 	}
 	if ix < 0x3fe00000 {
 		if ix < 0x3e400000 {
-			if atan_huge + x > atan_one {
-				return x;
-			}
+			if atan_huge + x > atan_one => return x;
 		}
 		float t = x * x;
 		float p = t * (pS0 + t * (pS1 + t * (pS2 + t * (pS3 + t * (pS4 + t * pS5)))));
@@ -238,9 +190,7 @@ public func asin(float x) float {
 		q = pio4_hi - 2.0 * w;
 		t = pio4_hi - (p - q);
 	}
-	if hx > 0 {
-		return t;
-	}
+	if hx > 0 => return t;
 	return -t;
 }
 
@@ -253,17 +203,13 @@ public func acos(float x) float {
 
 	if ix >= 0x3ff00000 {
 		if ix == 0x3ff00000 && lowWord(x) == 0 {
-			if hx > 0 {
-				return 0.0;
-			}
+			if hx > 0 => return 0.0;
 			return pi + 2.0 * pio2_lo;
 		}
 		return nan();
 	}
 	if ix < 0x3fe00000 {
-		if ix <= 0x3c600000 {
-			return pio2_hi + pio2_lo;
-		}
+		if ix <= 0x3c600000 => return pio2_hi + pio2_lo;
 		float z = x * x;
 		float p = z * (pS0 + z * (pS1 + z * (pS2 + z * (pS3 + z * (pS4 + z * pS5)))));
 		float q = atan_one + z * (qS1 + z * (qS2 + z * (qS3 + z * qS4)));
